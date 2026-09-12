@@ -9,6 +9,12 @@ x-api-environment: &api-environment
   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
   MINIO_BUCKET: ${MINIO_BUCKET:-didban-uploads}
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-didban-local}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-change-me-minio-password}
+  UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
+  CLAMD_HOST: ${CLAMD_HOST:-clamav}
+  CLAMD_PORT: ${CLAMD_PORT:-3310}
+  CLAMD_TIMEOUT_SECONDS: ${CLAMD_TIMEOUT_SECONDS:-90}
   SENTRY_DSN: ${SENTRY_DSN:-}
   JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deploy}
   ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-15}
@@ -86,6 +92,21 @@ services:
         mc mb --ignore-existing "local/$${MINIO_BUCKET}" &&
         mc anonymous set none "local/$${MINIO_BUCKET}"
 
+  clamav:
+    image: clamav/clamav-debian:1.5.4
+    environment:
+      CLAMD_CONF_StreamMaxLength: 55M
+      FRESHCLAM_CONF_DatabaseMirror: ${CLAMAV_DATABASE_MIRROR:-database.clamav.net}
+    volumes:
+      - clamav-data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'zPING\\0' | nc -w 2 127.0.0.1 3310 | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 30
+    restart: unless-stopped
+
   migrate:
     build:
       context: .
@@ -132,6 +153,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
@@ -156,3 +179,4 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
+  clamav-data:

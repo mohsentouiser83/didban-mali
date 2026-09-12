@@ -8,6 +8,7 @@ from app.api.routes.health import router as health_router
 from app.companies.routes import router as companies_router
 from app.core.config import settings
 from app.identity.routes import router as identity_router
+from app.imports.routes import router as imports_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -19,11 +20,12 @@ app.add_middleware(
     allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "X-CSRF-Token", "X-Request-ID"],
+    allow_headers=["Content-Type", "Idempotency-Key", "X-CSRF-Token", "X-Request-ID"],
 )
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(identity_router, prefix=settings.api_prefix)
 app.include_router(companies_router, prefix=settings.api_prefix)
+app.include_router(imports_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/2"
     minio_endpoint: str = "http://localhost:9000"
     minio_bucket: str = "didban-uploads"
+    minio_access_key: str = "didban-local"
+    minio_secret_key: str = "change-me-minio-password"
+    upload_max_bytes: int = 52_428_800
+    clamd_host: str = "localhost"
+    clamd_port: int = 3310
+    clamd_timeout_seconds: int = 90
     sentry_dsn: str | None = Field(default=None)
     jwt_secret: str = "local-development-secret-change-before-deploy"
     access_token_minutes: int = 15

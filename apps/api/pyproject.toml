@@ -61,5 +61,5 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["celery", "celery.*"]
+module = ["boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*"]
 ignore_missing_imports = true

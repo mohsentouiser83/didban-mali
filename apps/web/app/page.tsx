@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
@@ -17,6 +17,22 @@ type Company = {
   created_at: string;
 };
 type Member = { user_id: string; email: string; full_name: string; role: Role };
+type ImportStatus = "uploaded" | "inspecting" | "awaiting_mapping" | "validating" | "queued" | "processing" | "completed" | "completed_limited" | "failed" | "cancelled";
+type ImportBatch = {
+  id: string;
+  source_kind: "accounting" | "bank" | "sales";
+  source_label: string;
+  status: ImportStatus;
+  stage: string;
+  progress: number;
+  original_name: string;
+  size_bytes: number;
+  sha256: string;
+  scan_status: "pending" | "clean" | "infected" | "failed";
+  duplicate_detected: boolean;
+  failure_message: string | null;
+  created_at: string;
+};
 
 const roleLabels: Record<Role, string> = {
   owner: "مالک",
@@ -29,7 +45,7 @@ function Mark() {
   return <span className="mark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-function Icon({ name }: { name: "home" | "company" | "shield" | "exit" | "plus" | "users" }) {
+function Icon({ name }: { name: "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" }) {
   const paths = {
     home: <><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></>,
     company: <><path d="M4 21V5h10v16M14 9h6v12M8 9h2M8 13h2M8 17h2M17 13h1M17 17h1"/></>,
@@ -37,6 +53,9 @@ function Icon({ name }: { name: "home" | "company" | "shield" | "exit" | "plus" 
     exit: <><path d="M10 17l5-5-5-5M15 12H3M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></>,
     plus: <path d="M12 5v14M5 12h14"/>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    upload: <><path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v7h14v-7"/></>,
+    file: <><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 13h6M9 17h6"/></>,
+    download: <><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></>,
   };
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -48,11 +67,12 @@ function csrfFromCookie() {
 
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = options.method?.toUpperCase() ?? "GET";
+  const hasFormData = options.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(!hasFormData ? { "Content-Type": "application/json" } : {}),
       ...(method !== "GET" && method !== "HEAD" ? { "X-CSRF-Token": csrfFromCookie() } : {}),
       ...options.headers,
     },
@@ -196,6 +216,141 @@ function MembersPanel({ company, currentUserId }: { company: Company; currentUse
   </section>;
 }
 
+const importStatusLabels: Record<ImportStatus, string> = {
+  uploaded: "دریافت شد",
+  inspecting: "در حال بررسی امنیتی",
+  awaiting_mapping: "آمادهٔ تطبیق ستون‌ها",
+  validating: "در حال اعتبارسنجی",
+  queued: "در صف پردازش",
+  processing: "در حال پردازش",
+  completed: "تکمیل‌شده",
+  completed_limited: "تکمیل محدود",
+  failed: "رد شده",
+  cancelled: "لغوشده",
+};
+
+function formatBytes(bytes: number) {
+  const megabytes = bytes / (1024 * 1024);
+  return `${new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(megabytes)} مگابایت`;
+}
+
+function ImportsPanel({ company }: { company: Company }) {
+  const [items, setItems] = useState<ImportBatch[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const canUpload = company.role !== "viewer";
+
+  const load = useCallback(async () => {
+    try {
+      setItems(await api<ImportBatch[]>(`/companies/${company.id}/imports`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "فهرست فایل‌ها دریافت نشد.");
+    }
+  }, [company.id]);
+
+  useEffect(() => {
+    let ignore = false;
+    void api<ImportBatch[]>(`/companies/${company.id}/imports`)
+      .then((results) => { if (!ignore) setItems(results); })
+      .catch((caught: Error) => { if (!ignore) setError(caught.message); });
+    const timer = window.setInterval(() => void load(), 4000);
+    return () => { ignore = true; window.clearInterval(timer); };
+  }, [company.id, load]);
+
+  function acceptFile(file: File | undefined) {
+    setError("");
+    setNotice("");
+    if (!file) return;
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!extension || !["csv", "xlsx"].includes(extension)) {
+      setSelectedFile(null);
+      setError("فقط فایل‌های CSV و XLSX پذیرفته می‌شوند.");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setSelectedFile(null);
+      setError("حجم فایل نباید بیشتر از ۵۰ مگابایت باشد.");
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  function drop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragging(false);
+    acceptFile(event.dataTransfer.files[0]);
+  }
+
+  async function upload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedFile) {
+      setError("ابتدا یک فایل انتخاب کنید.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    form.set("file", selectedFile);
+    try {
+      const created = await api<ImportBatch>(`/companies/${company.id}/imports/uploads`, {
+        method: "POST",
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+        body: form,
+      });
+      setItems((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      setSelectedFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      setNotice("فایل با موفقیت دریافت شد و بررسی امنیتی آن آغاز شده است.");
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "بارگذاری فایل انجام نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <section className="imports-card" id="imports" aria-labelledby="imports-title">
+    <div className="card-heading imports-heading">
+      <div><span className="overline">ورودی امن داده</span><h3 id="imports-title">فایل‌های مالی</h3><p>فایل پس از بررسی نوع، ساختار و بدافزار وارد فضای امن شرکت می‌شود.</p></div>
+      <span className="secure-badge"><Icon name="shield" />قرنطینه و اسکن فعال</span>
+    </div>
+    {canUpload ? <form className="upload-form" onSubmit={upload}>
+      <div
+        className={`dropzone${dragging ? " dragging" : ""}${selectedFile ? " has-file" : ""}`}
+        onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
+        onDragOver={(event) => event.preventDefault()}
+        onDragLeave={() => setDragging(false)}
+        onDrop={drop}
+      >
+        <input ref={inputRef} className="sr-only" id="financial-file" name="file-picker" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => acceptFile(event.target.files?.[0])} />
+        <span className="upload-icon"><Icon name={selectedFile ? "file" : "upload"} /></span>
+        {selectedFile ? <><strong>{selectedFile.name}</strong><small>{formatBytes(selectedFile.size)}</small></> : <><strong>فایل را اینجا رها کنید</strong><small>CSV یا XLSX، حداکثر ۵۰ مگابایت</small></>}
+        <button type="button" className="secondary-button" onClick={() => inputRef.current?.click()}>{selectedFile ? "تغییر فایل" : "انتخاب فایل"}</button>
+      </div>
+      <div className="upload-fields">
+        <label>نوع منبع<select name="source_kind" defaultValue="accounting"><option value="accounting">نرم‌افزار حسابداری</option><option value="bank">گردش حساب بانکی</option><option value="sales">فروش و درآمد</option></select></label>
+        <label>عنوان منبع<input name="source_label" required minLength={2} maxLength={160} defaultValue="ورودی مالی" placeholder="مثلاً دفتر کل شهریور" /></label>
+        <button className="primary-button" disabled={busy}><Icon name="upload" />{busy ? "در حال دریافت…" : "بارگذاری امن"}</button>
+      </div>
+    </form> : <div className="viewer-note"><Icon name="shield" /><span><strong>دسترسی مشاهده‌گر</strong>برای بارگذاری فایل، نقش مدیر مالی یا مشاور لازم است.</span></div>}
+    <div className="upload-messages" aria-live="polite">{error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-success">{notice}</p>}</div>
+    <div className="imports-list" aria-label="فایل‌های اخیر">
+      <div className="list-title"><strong>فایل‌های اخیر</strong><span>{new Intl.NumberFormat("fa-IR").format(items.length)} مورد</span></div>
+      {!items.length ? <div className="imports-empty"><Icon name="file" /><p>هنوز فایلی برای این شرکت بارگذاری نشده است.</p></div> : items.map((item) => <article className="import-row" key={item.id}>
+        <span className={`file-state state-${item.scan_status}`}><Icon name="file" /></span>
+        <div className="file-info"><strong>{item.original_name}</strong><small>{item.source_label} · {formatBytes(item.size_bytes)} · {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.created_at))}</small>{item.duplicate_detected && <span className="duplicate-note">نسخه‌ای با محتوای یکسان قبلاً ثبت شده است.</span>}{item.failure_message && <span className="failure-note">{item.failure_message}</span>}</div>
+        <div className="file-progress"><span className={`status status-${item.status}`}>{importStatusLabels[item.status]}</span>{["uploaded", "inspecting"].includes(item.status) && <span className="progress-track"><i style={{ width: `${item.progress}%` }} /></span>}</div>
+        {item.scan_status === "clean" ? <a className="download-button" href={`${API_URL}/companies/${company.id}/imports/${item.id}/download`}><Icon name="download" /><span className="sr-only">دریافت {item.original_name}</span></a> : <span className="download-placeholder" aria-hidden="true" />}
+      </article>)}
+    </div>
+  </section>;
+}
+
 function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeId, setActiveId] = useState("");
@@ -214,9 +369,9 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
       <a className="brand" href="#"><Mark /><span>دیدبان مالی</span></a>
       <nav aria-label="منوی اصلی">
         <a className="nav-item active" href="#overview"><Icon name="home" /><span>نمای کلی</span></a>
+        <a className="nav-item" href="#imports"><Icon name="upload" /><span>ورود داده</span></a>
         <a className="nav-item" href="#company"><Icon name="company" /><span>شرکت و دسترسی‌ها</span></a>
         <span className="nav-label">ماژول‌های بعدی</span>
-        <span className="nav-item disabled"><span className="nav-dot"/>ورود داده</span>
         <span className="nav-item disabled"><span className="nav-dot"/>کنترل کیفیت</span>
         <span className="nav-item disabled"><span className="nav-dot"/>تحلیل و گزارش</span>
       </nav>
@@ -230,13 +385,14 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
       <div className="content" id="overview">
         {error && <p className="form-error global" role="alert">{error}</p>}
         {loading ? <div className="empty-state"><span className="loading-ring"/><h2>در حال آماده‌سازی فضای کاری…</h2></div> : !active ? <section className="empty-state"><span className="empty-icon"><Icon name="company" /></span><span className="overline">اولین گام عملیاتی</span><h2>اولین شرکت را تعریف کنید</h2><p>تمام داده‌ها، اعضا و گزارش‌ها زیر همین مرز امنیتی نگهداری می‌شوند.</p><CreateCompany onCreated={addCompany} /></section> : <>
-          <section className="welcome-strip"><div><span className="status-dot"/>فاز ۲ فعال است</div><p>هویت، نقش‌ها و جداسازی دادهٔ شرکت‌ها آمادهٔ استفاده است.</p></section>
+          <section className="welcome-strip"><div><span className="status-dot"/>فاز ۳ فعال است</div><p>دریافت امن فایل، قرنطینه، بررسی بدافزار و دانلود مجاز آماده است.</p></section>
           <div className="summary-grid">
             <article><span className="summary-icon"><Icon name="company" /></span><div><small>شرکت فعال</small><strong>{active.legal_name}</strong><p>{active.national_id ? `شناسه ملی ${active.national_id}` : "شناسه ملی ثبت نشده"}</p></div></article>
             <article><span className="summary-icon"><Icon name="shield" /></span><div><small>سطح دسترسی شما</small><strong>{roleLabels[active.role]}</strong><p>کنترل‌شده در API و پایگاه‌داده</p></div></article>
             <article><span className="summary-icon"><Icon name="users" /></span><div><small>وضعیت امنیتی</small><strong>جداسازی فعال</strong><p>نشست چرخشی و محافظت CSRF</p></div></article>
           </div>
           {showCreate && <section className="inline-create"><div className="card-heading"><div><span className="overline">شرکت تازه</span><h3>افزودن شرکت</h3></div><button className="text-button" onClick={() => setShowCreate(false)}>بستن</button></div><CreateCompany onCreated={addCompany} compact /></section>}
+          <ImportsPanel company={active} />
           <div className="detail-grid" id="company"><section className="company-card"><div className="card-heading"><div><span className="overline">مشخصات پایه</span><h3>پروفایل شرکت</h3></div><span className="role role-owner">{active.currency}</span></div><dl><div><dt>نام حقوقی</dt><dd>{active.legal_name}</dd></div><div><dt>شناسه ملی</dt><dd dir="ltr">{active.national_id ?? "—"}</dd></div><div><dt>شروع سال مالی</dt><dd>ماه {new Intl.NumberFormat("fa-IR").format(active.fiscal_year_start_month)}</dd></div><div><dt>منطقه زمانی</dt><dd dir="ltr">{active.timezone}</dd></div></dl></section><MembersPanel company={active} currentUserId={user.id} /></div>
         </>}
       </div>
