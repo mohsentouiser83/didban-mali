@@ -10,13 +10,24 @@ class Settings(BaseSettings):
     app_name: str = "دیدبان مالی"
     app_env: str = "development"
     api_prefix: str = "/api/v1"
-    database_url: str = "postgresql+asyncpg://didban:change-me@localhost:5432/didban_mali"
+    database_url: str = (
+        "postgresql+asyncpg://didban_app:change-me-app-password@localhost:55432/didban_mali"
+    )
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
     minio_endpoint: str = "http://localhost:9000"
     minio_bucket: str = "didban-uploads"
     sentry_dsn: str | None = Field(default=None)
+    jwt_secret: str = "local-development-secret-change-before-deploy"
+    access_token_minutes: int = 15
+    refresh_token_days: int = 7
+    cookie_secure: bool = False
+    cors_origins: str = "http://localhost:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

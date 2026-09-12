@@ -1,4 +1,4 @@
-.PHONY: install test lint typecheck build compose-check up down migrate
+.PHONY: install test test-isolation lint typecheck build compose-check up down migrate
 
 install:
 	npm install
@@ -7,6 +7,9 @@ install:
 test:
 	npm run test:web
 	.venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests
+
+test-isolation:
+	RUN_INTEGRATION_TESTS=1 .venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests/test_tenant_isolation.py
 
 lint:
 	npm run lint:web

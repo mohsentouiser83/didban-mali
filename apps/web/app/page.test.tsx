@@ -1,14 +1,18 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
 
 describe("Home", () => {
-  it("announces the current infrastructure phase in Persian", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: vi.fn() }));
+  });
+
+  it("shows the Persian authentication entry point", async () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { name: /از داده مالی خام/ })).toBeInTheDocument();
-    expect(screen.getByText("فاز ۱ · زیرساخت")).toBeInTheDocument();
-    expect(screen.getAllByText("آماده")).toHaveLength(4);
+    expect(await screen.findByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ورود به دیدبان" })).toBeInTheDocument();
+    expect(screen.getByText("اطلاعات نشست در کوکی امن نگهداری می‌شود.")).toBeInTheDocument();
   });
 });

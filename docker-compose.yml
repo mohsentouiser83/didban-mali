@@ -1,16 +1,35 @@
 name: didban-mali
 
+x-api-environment: &api-environment
+  APP_ENV: ${APP_ENV:-development}
+  APP_NAME: ${APP_NAME:-دیدبان مالی}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://didban_app:change-me-app-password@postgres:5432/didban_mali}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+  MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+  MINIO_BUCKET: ${MINIO_BUCKET:-didban-uploads}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deploy}
+  ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-15}
+  REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-7}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+
 services:
   postgres:
     image: postgres:18.3-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-didban_mali}
-      POSTGRES_USER: ${POSTGRES_USER:-didban}
+      POSTGRES_USER: ${POSTGRES_USER:-didban_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-real-environments}
+      APP_DB_USER: ${APP_DB_USER:-didban_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-change-me-app-password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
+      - ./infra/docker/postgres-init.sh:/docker-entrypoint-initdb.d/010-app-role.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -72,16 +91,9 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     command: ["alembic", "upgrade", "head"]
-    environment: &api-environment
-      APP_ENV: ${APP_ENV:-development}
-      APP_NAME: ${APP_NAME:-دیدبان مالی}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://didban:change-me-in-real-environments@postgres:5432/didban_mali}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
-      MINIO_BUCKET: ${MINIO_BUCKET:-didban-uploads}
-      SENTRY_DSN: ${SENTRY_DSN:-}
+    environment:
+      <<: *api-environment
+      DATABASE_URL: ${DATABASE_ADMIN_URL:-postgresql+asyncpg://didban_admin:change-me-in-real-environments@postgres:5432/didban_mali}
     depends_on:
       postgres:
         condition: service_healthy
