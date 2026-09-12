@@ -1,0 +1,6 @@
+{
+  "name": "@didban/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "تنظیمات مشترک monorepo"
+}
