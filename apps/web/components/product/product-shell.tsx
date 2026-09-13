@@ -17,6 +17,7 @@ const pageMeta = [
   { match: "/reconciliation", title: "تطبیق حساب‌ها", breadcrumb: "فضای کاری / بانک و حسابداری" },
   { match: "/findings", title: "یافته‌ها", breadcrumb: "فضای کاری / اولویت و شواهد" },
   { match: "/reports", title: "گزارش‌های مالی", breadcrumb: "فضای کاری / اسناد مدیریتی" },
+  { match: "/assistant", title: "دستیار کنترل‌شده", breadcrumb: "فضای کاری / هوشمندی و حاکمیت" },
   { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
   { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
 ];
@@ -35,6 +36,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: "reconcile" },
     { href: `${base}/findings`, label: "یافته‌ها و بررسی", icon: "findings" },
     { href: `${base}/reports`, label: "گزارش‌ها", icon: "file" },
+    { href: `${base}/assistant`, label: "دستیار کنترل‌شده", icon: "shield" },
     { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: "company" },
     { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: "users" },
   ];
@@ -49,7 +51,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       <Link className="brand" href={`${base}/overview`}><Mark /><span>دیدبان مالی</span></Link>
       <nav aria-label="منوی اصلی">
         {links.map((link) => { const active = pathname === link.href || (["/imports", "/findings"].some((suffix) => link.href.endsWith(suffix)) && pathname.startsWith(`${link.href}/`)); return <Link key={link.href} className={`nav-item${active ? " active" : ""}`} href={link.href} aria-current={active ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>; })}
-        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>توضیح هوشمند کنترل‌شده</span>
+        <span className="nav-label">مرحله بعد</span><span className="nav-item disabled"><span className="nav-dot"/>پذیرش نهایی و آمادگی دمو</span>
       </nav>
       <div className="user-box"><span className="avatar">{user.full_name.slice(0, 1)}</span><div><strong>{user.full_name}</strong><small dir="ltr">{user.email}</small></div><button onClick={() => void logout()} title="خروج"><Icon name="exit" /><span className="sr-only">خروج</span></button></div>
     </aside>

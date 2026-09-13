@@ -7,6 +7,7 @@ import { api, API_URL } from "@/lib/product-api";
 import type { Company, EvidenceItem, EvidenceItemsResponse, Finding, Member, PriorityBand, ReviewTimelineItem, ReviewTimelineResponse } from "@/lib/product-types";
 
 import { Icon } from "./icons";
+import { AiFindingExplanationPanel } from "./ai-finding-explanation";
 import { FindingReviewPanel } from "./finding-review-panel";
 
 const bandLabels: Record<PriorityBand, string> = { critical: "بحرانی", high: "بالا", medium: "متوسط", low: "پایین" };
@@ -137,6 +138,8 @@ export function FindingCaseWorkspace({ company, currentUserId, findingId }: { co
     </section>
 
     <section className="case-integrity" aria-label="وضعیت قابلیت حسابرسی"><div><span className={evidenceComplete ? "ready" : "limited"}><Icon name={evidenceComplete ? "check" : "alert"} /></span><p><strong>{evidenceComplete ? "زنجیره شواهد کامل است" : "زنجیره شواهد محدود است"}</strong><small>قاعده، محاسبه و منبع بررسی شدند</small></p></div><div><Icon name="shield" /><p><strong>خروجی تغییرناپذیر</strong><small>نسخه‌های قواعد و مدل اولویت ثبت شده‌اند</small></p></div><div><Icon name="calendar" /><p><strong>{faDate(finding.period_start)} تا {faDate(finding.period_end)}</strong><small>دوره مورد بررسی</small></p></div></section>
+
+    <AiFindingExplanationPanel company={company} findingId={finding.id} />
 
     <FindingReviewPanel company={company} currentUserId={currentUserId} findingId={finding.id} currentStatus={finding.workflow_status} items={reviewItems} members={members} nextCursor={reviewCursor} onChanged={reloadReview} onLoadMore={loadMoreReviews} />
 

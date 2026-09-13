@@ -7,6 +7,7 @@ import { api } from "@/lib/product-api";
 import type { AnalysisRun, Company, MatchStatus, ReconciliationMatch, ReconciliationMatchesResponse, ReconciliationRun } from "@/lib/product-types";
 
 import { Icon } from "./icons";
+import { AiSemanticRanking } from "./ai-semantic-ranking";
 
 type MatchFilter = "all" | "matched" | "review" | "mismatch" | "duplicate" | "unresolved";
 
@@ -148,6 +149,7 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
 
     {run && !isRunning && (run.status === "completed" || run.status === "completed_limited") ? <>
       <ReconciliationSummary run={run} />
+      <AiSemanticRanking company={company} runId={run.id} candidates={matches.filter((item) => item.status === "potential_match")} />
       <section className="matches-panel" aria-labelledby="matches-title"><div className="matches-heading"><div><h3 id="matches-title">نتایج تطبیق</h3><p>هر نتیجه به ردیف بانکی و سند حسابداری منبع متصل است.</p></div><span>تکمیل: {faDateTime(run.completed_at)}</span></div><div className="match-filters" role="tablist" aria-label="فیلتر نتایج">{filters.map((item) => { const count = item.statuses ? matches.filter((match) => item.statuses?.includes(match.status)).length : matches.length; return <button key={item.id} role="tab" aria-selected={filter === item.id} onClick={() => setFilter(item.id)}>{item.label}<span>{new Intl.NumberFormat("fa-IR").format(count)}</span></button>; })}</div>{visibleMatches.length ? <div className="match-list">{visibleMatches.map((match) => <MatchRow key={match.id} match={match} open={expanded.has(match.id)} onToggle={() => toggleEvidence(match.id)} />)}</div> : <div className="matches-empty"><Icon name="check" /><div><strong>{matches.length ? "موردی در این فیلتر نیست" : "موردی برای مقایسه پیدا نشد"}</strong><p>{matches.length ? "فیلتر دیگری را انتخاب کنید." : "در این snapshot تراکنش بانکی یا آرتیکل دارایی قابل تطبیق وجود ندارد؛ پوشش ورودی‌ها را بررسی کنید."}</p></div>{!matches.length ? <Link className="secondary-button" href={`/companies/${company.id}/imports`}>بررسی ورودی‌ها</Link> : null}</div>}{nextCursor ? <button className="load-more" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? "در حال دریافت…" : "نمایش نتایج بیشتر"}</button> : null}</section>
       <section className="reconciliation-manifest"><Icon name="shield" /><div><strong>نتایج این اجرا تغییرناپذیرند</strong><p>تنظیمات {run.config_version} روی snapshot انتخاب‌شده اجرا شده است؛ تصمیم انسانی در فاز یافته‌ها ثبت می‌شود.</p></div><code dir="ltr">{shortId(run.id)}</code></section>
     </> : null}

@@ -143,6 +143,14 @@ export type ReportFinding = { id: string; finding_code: FindingCode; title_fa: s
 export type ReportPayload = { schema_version: "report-snapshot-v1"; generated_at: string; title_fa: string; company: { id: string; legal_name: string; currency: string }; analysis: { id: string; period_start: string; period_end: string; status: AnalysisStatus; rule_set_version: string; completed_at: string | null }; overall_status: DashboardResponse["health"]; financial_overview: DashboardMetric[]; top_findings: DashboardFinding[]; main_drivers: DashboardDriver[]; data_coverage: DashboardResponse["coverage"]; advisor_note: ReportAdvisorNote | null; advisor_notes: ReportAdvisorNote[]; review_status: DashboardResponse["finding_summary"]; all_findings: ReportFinding[] };
 export type ReportSnapshot = { id: string; company_id: string; analysis_run_id: string; period_start: string; period_end: string; title_fa: string; advisor_note: string | null; payload: ReportPayload; status: ReportStatus; progress: number; stage: string; download_ready: boolean; pdf_sha256: string | null; pdf_size_bytes: number | null; created_by: string; started_at: string | null; completed_at: string | null; failure_code: string | null; failure_message: string | null; created_at: string };
 
+export type AiPurpose = "finding_explanation" | "semantic_matching";
+export type AiInvocationStatus = "disabled" | "succeeded" | "failed" | "invalid_output";
+export type AiSettings = { enabled: boolean; explanations_enabled: boolean; semantic_matching_enabled: boolean; global_enabled: boolean; provider_configured: boolean; data_region_configured: boolean; explanations_effective: boolean; semantic_matching_effective: boolean; revision_id: string | null; updated_at: string | null };
+export type AiFindingExplanation = { summary_fa: string; why_it_matters_fa: string; caveats_fa: string[]; referenced_evidence_ids: string[]; referenced_numbers: string[]; requires_human_review: true };
+export type AiRankedCandidate = { candidate_id: string; confidence: string; reason_fa: string; referenced_numbers: string[] };
+export type AiSemanticMatching = { ranked_candidates: AiRankedCandidate[]; requires_human_review: true };
+export type AiInvocation = { id: string; company_id: string; purpose: AiPurpose; status: AiInvocationStatus; source_finding_id: string | null; source_reconciliation_run_id: string | null; provider: string; model: string; prompt_version: string; output: AiFindingExplanation | AiSemanticMatching | null; latency_ms: number; failure_code: string | null; failure_message: string | null; requires_human_review: true; created_at: string; completed_at: string };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",

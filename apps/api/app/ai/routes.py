@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from uuid6 import uuid7
@@ -302,6 +302,34 @@ async def _persist_invocation(
     return invocation_response(item)
 
 
+@router.get("/invocations", response_model=list[AiInvocationResponse])
+async def list_ai_invocations(
+    company_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    purpose: AiPurpose | None = None,
+    source_finding_id: UUID | None = None,
+    source_reconciliation_run_id: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+) -> list[AiInvocationResponse]:
+    del access
+    query = select(AiInvocation).where(AiInvocation.company_id == company_id)
+    if purpose is not None:
+        query = query.where(AiInvocation.purpose == purpose)
+    if source_finding_id is not None:
+        query = query.where(AiInvocation.source_finding_id == source_finding_id)
+    if source_reconciliation_run_id is not None:
+        query = query.where(
+            AiInvocation.source_reconciliation_run_id == source_reconciliation_run_id
+        )
+    items = list(
+        await session.scalars(
+            query.order_by(AiInvocation.created_at.desc(), AiInvocation.id.desc()).limit(limit)
+        )
+    )
+    return [invocation_response(item) for item in items]
+
+
 @router.get("/invocations/{invocation_id}", response_model=AiInvocationResponse)
 async def get_ai_invocation(
     company_id: UUID,
@@ -317,22 +345,4 @@ async def get_ai_invocation(
     )
     if item is None:
         raise HTTPException(status_code=404, detail="درخواست هوشمند پیدا نشد.")
-    return invocation_response(item)
-
-
-@router.get("/invocations/{invocation_id}", response_model=AiInvocationResponse)
-async def get_invocation(
-    company_id: UUID,
-    invocation_id: UUID,
-    session: DbSession,
-    access: CurrentCompanyAccess,
-) -> AiInvocationResponse:
-    del access
-    item = await session.scalar(
-        select(AiInvocation).where(
-            AiInvocation.id == invocation_id, AiInvocation.company_id == company_id
-        )
-    )
-    if item is None:
-        raise HTTPException(status_code=404, detail="اجرای هوشمند پیدا نشد.")
     return invocation_response(item)

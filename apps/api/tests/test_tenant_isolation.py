@@ -717,6 +717,12 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     )
     assert repeated_ai_explanation.status_code == 201
     assert repeated_ai_explanation.json()["id"] == ai_invocation_id
+    ai_invocations = owner.get(
+        f"/companies/{company['id']}/ai/invocations",
+        params={"source_finding_id": finding_id},
+    )
+    assert ai_invocations.status_code == 200, ai_invocations.text
+    assert [item["id"] for item in ai_invocations.json()] == [ai_invocation_id]
     invalid_semantic_candidate = reviewer.post(
         f"/companies/{company['id']}/ai/reconciliation-runs/"
         f"{reconciliation_id}/semantic-candidates",
@@ -728,6 +734,7 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     )
     assert invalid_semantic_candidate.status_code == 409
     assert outsider.get(f"/companies/{company['id']}/ai/settings").status_code == 404
+    assert outsider.get(f"/companies/{company['id']}/ai/invocations").status_code == 404
     assert (
         outsider.get(f"/companies/{company['id']}/ai/invocations/{ai_invocation_id}").status_code
         == 404
