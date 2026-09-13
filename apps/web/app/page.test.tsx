@@ -3,18 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
 
+const replace = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, refresh: vi.fn() }),
+}));
+
 describe("Home", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: vi.fn() }));
   });
 
-  it("shows the Persian authentication entry point", async () => {
-    const { container } = render(<Home />);
-
-    expect(await screen.findByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
-    expect(container.querySelector("main.ds-root.auth-shell")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "فعال‌کردن تم تاریک" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ورود به دیدبان" })).toBeInTheDocument();
-    expect(screen.getByText("اطلاعات نشست در کوکی امن نگهداری می‌شود.")).toBeInTheDocument();
+  it("routes a visitor without a session to the login page", async () => {
+    render(<Home />);
+    expect(screen.getByText("دیدبان مالی")).toBeInTheDocument();
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
   });
 });

@@ -1,0 +1,51 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+
+import { ThemeToggle } from "@/components/design-system/theme-toggle";
+import { api } from "@/lib/product-api";
+
+import { Icon, Mark, type ProductIconName } from "./icons";
+import { useWorkspace } from "./workspace-provider";
+
+const pageMeta = [
+  { match: "/overview", title: "نمای کلی", breadcrumb: "فضای کاری / نمای کلی" },
+  { match: "/imports", title: "ورود داده‌های مالی", breadcrumb: "فضای کاری / ورود داده" },
+  { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
+  { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
+];
+
+export function ProductShell({ children }: { children: React.ReactNode }) {
+  const { user, companies, company } = useWorkspace();
+  const pathname = usePathname();
+  const router = useRouter();
+  const base = `/companies/${company.id}`;
+  const meta = pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
+  const links: { href: string; label: string; icon: ProductIconName }[] = [
+    { href: `${base}/overview`, label: "نمای کلی", icon: "home" },
+    { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
+    { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: "company" },
+    { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: "users" },
+  ];
+  async function logout() { try { await api("/auth/logout", { method: "POST" }); } finally { router.replace("/login"); router.refresh(); } }
+  function switchCompany(companyId: string) {
+    const suffix = pathname.slice(base.length) || "/overview";
+    router.push(`/companies/${companyId}${suffix}`);
+  }
+
+  return <main className="ds-root app-shell">
+    <aside className="sidebar">
+      <Link className="brand" href={`${base}/overview`}><Mark /><span>دیدبان مالی</span></Link>
+      <nav aria-label="منوی اصلی">
+        {links.map((link) => <Link key={link.href} className={`nav-item${pathname === link.href ? " active" : ""}`} href={link.href} aria-current={pathname === link.href ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>)}
+        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>کنترل کیفیت</span><span className="nav-item disabled"><span className="nav-dot"/>تحلیل و گزارش</span>
+      </nav>
+      <div className="user-box"><span className="avatar">{user.full_name.slice(0, 1)}</span><div><strong>{user.full_name}</strong><small dir="ltr">{user.email}</small></div><button onClick={() => void logout()} title="خروج"><Icon name="exit" /><span className="sr-only">خروج</span></button></div>
+    </aside>
+    <section className="workspace">
+      <header className="topbar"><div><span className="breadcrumb">{meta.breadcrumb}</span><h1>{meta.title}</h1></div><div className="topbar-actions"><ThemeToggle /><div className="company-switcher"><label htmlFor="company-select">شرکت فعال</label><select id="company-select" value={company.id} onChange={(event) => switchCompany(event.target.value)}>{companies.map((item) => <option key={item.id} value={item.id}>{item.legal_name}</option>)}</select><Link className="icon-button" href="/companies/new" title="شرکت جدید"><Icon name="plus" /><span className="sr-only">شرکت جدید</span></Link></div></div></header>
+      <div className="content page-stack">{children}</div>
+    </section>
+  </main>;
+}

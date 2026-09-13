@@ -203,7 +203,41 @@
   background: var(--ds-card-solid);
 }
 .ds-root .icon-button:hover { color: var(--ds-primary); background: var(--ds-muted); }
-.ds-root .content { width: min(1320px, 100%); padding: 28px clamp(20px, 3vw, 44px) 64px; }
+.ds-root .content { width: min(1320px, 100%); padding: var(--ds-p-space-8) clamp(var(--ds-p-space-5), 3vw, var(--ds-p-space-12)) 64px; }
+.ds-root .page-stack { display: grid; gap: var(--ds-space-section); }
+.ds-root .page-stack > .imports-card { margin-top: 0; }
+.ds-root .page-intro {
+  display: flex;
+  gap: var(--ds-p-space-6);
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: var(--ds-p-space-6) 0 var(--ds-p-space-2);
+}
+.ds-root .page-intro h2,
+.ds-root .new-company-card h1 { margin: var(--ds-p-space-2) 0; color: var(--ds-foreground); font-size: clamp(1.75rem, 3vw, 2.5rem); letter-spacing: -0.03em; }
+.ds-root .page-intro p,
+.ds-root .new-company-card > p { max-width: 62ch; margin: 0; color: var(--ds-foreground-soft); font-size: var(--ds-font-body); line-height: 1.9; }
+.ds-root .intro-action { flex: 0 0 auto; color: var(--ds-primary-foreground); text-decoration: none; }
+.ds-root .next-actions { display: grid; gap: var(--ds-p-space-5); padding-block: var(--ds-p-space-2); }
+.ds-root .next-actions h3 { margin: var(--ds-p-space-2) 0 0; color: var(--ds-foreground); font-size: var(--ds-font-title); }
+.ds-root .action-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--ds-border); border-radius: var(--ds-radius-card); background: var(--ds-card-solid); }
+.ds-root .action-links a { display: flex; gap: var(--ds-p-space-4); align-items: center; min-height: 92px; padding: var(--ds-p-space-5); color: var(--ds-foreground); text-decoration: none; transition: background-color var(--ds-p-duration-fast); }
+.ds-root .action-links a + a { border-inline-start: 1px solid var(--ds-border); }
+.ds-root .action-links a:hover { background: var(--ds-muted); }
+.ds-root .action-links a > .icon { color: var(--ds-accent); }
+.ds-root .action-links span { display: grid; gap: var(--ds-p-space-1); }
+.ds-root .action-links small { color: var(--ds-foreground-faint); }
+.ds-root .company-profile-page { width: min(760px, 100%); }
+.ds-root .company-profile-page .card-heading p { margin: var(--ds-p-space-2) 0 0; color: var(--ds-foreground-soft); font-size: var(--ds-font-caption); }
+.ds-root .profile-footer { display: flex; justify-content: flex-end; margin-top: var(--ds-p-space-5); padding-top: var(--ds-p-space-5); border-top: 1px solid var(--ds-border); }
+.ds-root .profile-footer a { text-decoration: none; }
+
+.ds-root.new-company-shell { min-height: 100vh; padding: var(--ds-p-space-6) clamp(var(--ds-p-space-5), 5vw, var(--ds-p-space-12)); background: var(--ds-background); }
+.ds-root.new-company-shell > header { display: flex; align-items: center; justify-content: space-between; }
+.ds-root .new-company-card { width: min(840px, 100%); margin: clamp(48px, 9vh, 96px) auto 0; padding: var(--ds-p-space-8); border: 1px solid var(--ds-border); border-radius: var(--ds-radius-card); background: var(--ds-card-solid); }
+.ds-root .new-company-card .empty-icon { margin-bottom: var(--ds-p-space-5); }
+.ds-root .new-company-card .company-form { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: var(--ds-space-section); }
+.ds-root .new-company-card .primary-button { grid-column: 1 / -1; }
 .ds-root .welcome-strip {
   margin-bottom: 18px;
   padding: 14px 18px;
@@ -320,4 +354,9 @@
   .ds-root .members-card,
   .ds-root .inline-create,
   .ds-root .imports-card { padding: 18px; }
+  .ds-root .page-intro { align-items: stretch; flex-direction: column; }
+  .ds-root .action-links { grid-template-columns: 1fr; }
+  .ds-root .action-links a + a { border-inline-start: 0; border-top: 1px solid var(--ds-border); }
+  .ds-root .new-company-card { padding: var(--ds-p-space-5); }
+  .ds-root .new-company-card .company-form { grid-template-columns: 1fr; }
 }
