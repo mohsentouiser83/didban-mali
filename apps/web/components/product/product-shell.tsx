@@ -12,6 +12,7 @@ import { useWorkspace } from "./workspace-provider";
 const pageMeta = [
   { match: "/overview", title: "نمای کلی", breadcrumb: "فضای کاری / نمای کلی" },
   { match: "/imports", title: "ورود داده‌های مالی", breadcrumb: "فضای کاری / ورود داده" },
+  { match: "/financial-model", title: "مدل مالی", breadcrumb: "فضای کاری / نرمال‌سازی و طبقه‌بندی" },
   { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
   { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
 ];
@@ -25,6 +26,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const links: { href: string; label: string; icon: ProductIconName }[] = [
     { href: `${base}/overview`, label: "نمای کلی", icon: "home" },
     { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
+    { href: `${base}/financial-model`, label: "مدل مالی", icon: "layers" },
     { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: "company" },
     { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: "users" },
   ];

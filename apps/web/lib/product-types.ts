@@ -48,6 +48,10 @@ export type ImportIssue = PreviewIssue & { id: string };
 export type IssuesPage = { items: ImportIssue[]; total: number; limit: number; offset: number };
 export type ValidationResponse = { batch: ImportBatch; issue_counts: Record<string, number>; coverage: Record<string, unknown> };
 
+export type AccountClass = "asset" | "liability" | "equity" | "revenue" | "expense" | "other";
+export type FinancialAccount = { id: string; source_code: string; name: string; normalized_name: string; current_class: AccountClass | null; created_at: string };
+export type AccountClassification = { id: string; account_id: string; account_class: AccountClass; effective_from: string; rule_version: string; confirmed_by: string; confirmed_at: string };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",

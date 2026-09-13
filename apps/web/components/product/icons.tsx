@@ -2,7 +2,7 @@ export function Mark() {
   return <span className="mark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table";
+export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table" | "layers";
 
 export function Icon({ name }: { name: ProductIconName }) {
   const paths = {
@@ -19,6 +19,7 @@ export function Icon({ name }: { name: ProductIconName }) {
     check: <><path d="m5 12 4 4L19 6"/></>,
     alert: <><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></>,
     table: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></>,
+    layers: <><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></>,
   };
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{paths[name]}</svg>;
 }
