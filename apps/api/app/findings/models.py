@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
@@ -180,6 +181,15 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "priority_band",
             "priority_score",
             "id",
+        ),
+        Index(
+            "ix_findings_dashboard_priority",
+            "company_id",
+            "analysis_run_id",
+            "priority_band",
+            "priority_score",
+            "id",
+            postgresql_where=text("workflow_status IN ('NEEDS_REVIEW', 'CONFIRMED', 'FOLLOW_UP')"),
         ),
         Index("ix_findings_generation_run", "generation_run_id"),
         Index("ix_findings_reconciliation_match", "reconciliation_match_id"),

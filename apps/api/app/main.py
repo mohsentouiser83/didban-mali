@@ -8,6 +8,7 @@ from app.analysis.routes import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.companies.routes import router as companies_router
 from app.core.config import settings
+from app.dashboard.routes import router as dashboard_router
 from app.financial.routes import router as financial_router
 from app.findings.routes import router as findings_router
 from app.identity.routes import router as identity_router
@@ -34,6 +35,7 @@ app.include_router(financial_router, prefix=settings.api_prefix)
 app.include_router(analysis_router, prefix=settings.api_prefix)
 app.include_router(reconciliation_router, prefix=settings.api_prefix)
 app.include_router(findings_router, prefix=settings.api_prefix)
+app.include_router(dashboard_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

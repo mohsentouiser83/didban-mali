@@ -600,6 +600,41 @@ def test_secure_upload_scan_and_authorized_download() -> None:
         len(owner.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").json()["items"])
         == 3
     )
+    dashboard_response = owner.get(
+        f"/companies/{company['id']}/dashboard",
+        params={"analysis_run_id": reconciliation_analysis_id},
+    )
+    assert dashboard_response.status_code == 200, dashboard_response.text
+    dashboard = dashboard_response.json()
+    assert dashboard["snapshot"]["analysis_run_id"] == reconciliation_analysis_id
+    assert dashboard["snapshot"]["comparison_analysis_run_id"] is None
+    assert dashboard["health"]["overall_state"] == "attention"
+    assert dashboard["health"]["financial_state"] == "attention"
+    assert dashboard["health"]["data_quality"] == "limited"
+    assert dashboard["health"]["highest_open_priority"] == "high"
+    metrics_by_code = {item["metric_code"]: item for item in dashboard["metrics"]}
+    assert metrics_by_code["revenue_irr"]["value"] == "2500000"
+    assert metrics_by_code["net_cash_movement_irr"]["value"] == "1500001"
+    assert metrics_by_code["payables_irr"]["available"] is False
+    assert "تفکیک" in metrics_by_code["payables_irr"]["unavailable_reason_fa"]
+    assert dashboard["finding_summary"]["total"] == 1
+    assert dashboard["finding_summary"]["by_priority"] == {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+    }
+    assert len(dashboard["top_findings"]) == 1
+    assert dashboard["top_findings"][0]["id"] == finding_id
+    assert dashboard["main_drivers"] == []
+    assert dashboard["coverage"]["overall_score"] == 50
+    assert dashboard["coverage"]["finding_generation_status"] == "completed_limited"
+    period_dashboard = owner.get(
+        f"/companies/{company['id']}/dashboard", params={"period": "2026-09"}
+    )
+    assert period_dashboard.status_code == 200, period_dashboard.text
+    assert period_dashboard.json()["snapshot"]["analysis_run_id"] == reconciliation_analysis_id
+    assert outsider.get(f"/companies/{company['id']}/dashboard").status_code == 404
     assert outsider.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 404
     assert (
         outsider.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").status_code
