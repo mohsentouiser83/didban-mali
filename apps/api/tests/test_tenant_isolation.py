@@ -583,6 +583,13 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert repeated_finding_run.json()["id"] == finding_run_id
     finding_run = wait_for_findings(owner, company["id"], finding_run_id)
     assert finding_run["status"] == "completed_limited", finding_run
+    listed_finding_runs = owner.get(
+        f"/companies/{company['id']}/finding-runs",
+        params={"analysis_run_id": reconciliation_analysis_id, "limit": 1},
+    )
+    assert listed_finding_runs.status_code == 200, listed_finding_runs.text
+    assert listed_finding_runs.json()[0]["id"] == finding_run_id
+    assert outsider.get(f"/companies/{company['id']}/finding-runs").status_code == 404
     assert finding_run["counts"] == {
         "total": 1,
         "by_code": {"potential_missing_transaction": 1},

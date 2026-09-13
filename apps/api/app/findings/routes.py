@@ -232,6 +232,30 @@ async def create_finding_generation_run(
     return _run_response(run)
 
 
+@router.get("/finding-runs", response_model=list[FindingGenerationRunResponse])
+async def list_finding_generation_runs(
+    company_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    analysis_run_id: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list[FindingGenerationRunResponse]:
+    del access
+    statement = select(FindingGenerationRun).where(
+        FindingGenerationRun.company_id == company_id
+    )
+    if analysis_run_id is not None:
+        statement = statement.where(FindingGenerationRun.analysis_run_id == analysis_run_id)
+    runs = list(
+        await session.scalars(
+            statement.order_by(
+                FindingGenerationRun.created_at.desc(), FindingGenerationRun.id.desc()
+            ).limit(limit)
+        )
+    )
+    return [_run_response(run) for run in runs]
+
+
 @router.get("/finding-runs/{run_id}", response_model=FindingGenerationRunResponse)
 async def get_finding_generation_run(
     company_id: UUID,

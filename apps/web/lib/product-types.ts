@@ -100,6 +100,21 @@ export type ReconciliationEvidenceSide = { transaction_id?: string; journal_entr
 export type ReconciliationMatch = { id: string; bank_transaction_id: string | null; journal_entry_id: string | null; match_level: MatchLevel; status: MatchStatus; score: string; amount_difference_irr: string | null; date_difference_days: number | null; features: { amount_equal?: boolean; amount_difference_irr?: string; calendar_days?: number; business_days?: number; reference_equal?: boolean; description_similarity?: string; strong_identifier_equal?: boolean }; evidence: { bank?: ReconciliationEvidenceSide; accounting?: ReconciliationEvidenceSide; bank_transaction_id?: string; journal_entry_id?: string; source_row_id?: string; calculation?: string }; rule_code: string; created_at: string };
 export type ReconciliationMatchesResponse = { items: ReconciliationMatch[]; next_cursor: string | null };
 
+export type FindingRunStatus = "queued" | "processing" | "completed" | "completed_limited" | "failed";
+export type FindingCode = "potential_missing_transaction" | "duplicate_transaction" | "amount_mismatch" | "date_mismatch" | "revenue_drop" | "profit_drop" | "expense_increase" | "receivables_increase";
+export type FindingKind = "risk" | "anomaly" | "discrepancy" | "insight";
+export type FindingCategory = "reconciliation" | "financial_analysis";
+export type AssertionStatus = "deterministic" | "hypothesis";
+export type PriorityBand = "critical" | "high" | "medium" | "low";
+export type FindingWorkflowStatus = "needs_review" | "confirmed" | "dismissed" | "follow_up" | "resolved";
+export type EvidenceType = "source_record" | "comparison" | "calculation" | "rule" | "coverage";
+export type PriorityFactor = { score?: string; weight?: string; weighted_score?: string; reasons_fa?: string[] };
+export type FindingGenerationRun = { id: string; company_id: string; analysis_run_id: string; reconciliation_run_id: string | null; status: FindingRunStatus; config_version: string; config: Record<string, unknown>; coverage: { reconciliation_findings?: { available?: boolean; reason?: string | null }; financial_trends?: { available?: boolean; comparison_analysis_run_id?: string | null; reason?: string | null } }; counts: { total?: number; by_code?: Partial<Record<FindingCode, number>>; catalog_size?: number; evidence_items?: number }; created_by: string; started_at: string | null; completed_at: string | null; failure_code: string | null; failure_message: string | null; created_at: string; updated_at: string };
+export type Finding = { id: string; analysis_run_id: string; generation_run_id: string; reconciliation_match_id: string | null; finding_code: FindingCode; kind: FindingKind; category: FindingCategory; title_fa: string; summary_fa: string; assertion_status: AssertionStatus; severity: "high" | "medium" | "low"; priority_band: PriorityBand; priority_score: string; priority_explanation: { formula?: string; factors?: Partial<Record<"impact" | "materiality" | "confidence" | "urgency", PriorityFactor>>; score?: string; band?: PriorityBand; revenue_ratio?: string | null; critical_capped_for_low_confidence?: boolean; summary_fa?: string; uncertainty_fa?: string }; priority_model_version: string; priority_config: Record<string, unknown>; confidence_score: string; confidence_basis: Record<string, unknown>; affected_amount_irr: string | null; affected_ratio: string | null; period_start: string; period_end: string; reason_code: string; reason_parameters: Record<string, unknown>; calculation: Record<string, unknown>; rule_version: string; workflow_status: FindingWorkflowStatus; created_at: string; updated_at: string };
+export type FindingsResponse = { items: Finding[]; next_cursor: string | null };
+export type EvidenceItem = { id: string; ordinal: number; evidence_type: EvidenceType; claim_code: string; source_entity_type: string | null; source_entity_id: string | null; source_row_id: string | null; source_file_id: string | null; field_snapshot: Record<string, unknown>; calculation: Record<string, unknown>; rule_code: string | null; rule_version: string; created_at: string };
+export type EvidenceItemsResponse = { items: EvidenceItem[] };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",

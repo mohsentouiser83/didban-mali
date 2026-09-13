@@ -17,6 +17,7 @@ def test_openapi_exposes_health_route() -> None:
     assert "/api/v1/health/live" in response.json()["paths"]
     assert "/api/v1/companies/{company_id}/analysis-runs" in response.json()["paths"]
     assert "/api/v1/companies/{company_id}/reconciliation-runs" in response.json()["paths"]
+    assert "/api/v1/companies/{company_id}/finding-runs" in response.json()["paths"]
 
 
 def test_cors_preflight_allows_mapping_put_requests() -> None:

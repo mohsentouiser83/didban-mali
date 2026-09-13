@@ -15,6 +15,7 @@ const pageMeta = [
   { match: "/financial-model", title: "مدل مالی", breadcrumb: "فضای کاری / نرمال‌سازی و طبقه‌بندی" },
   { match: "/analysis", title: "تحلیل مالی", breadcrumb: "فضای کاری / محاسبات دوره‌ای" },
   { match: "/reconciliation", title: "تطبیق حساب‌ها", breadcrumb: "فضای کاری / بانک و حسابداری" },
+  { match: "/findings", title: "یافته‌ها", breadcrumb: "فضای کاری / اولویت و شواهد" },
   { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
   { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
 ];
@@ -31,6 +32,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     { href: `${base}/financial-model`, label: "مدل مالی", icon: "layers" },
     { href: `${base}/analysis`, label: "تحلیل مالی", icon: "chart" },
     { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: "reconcile" },
+    { href: `${base}/findings`, label: "یافته‌ها", icon: "findings" },
     { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: "company" },
     { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: "users" },
   ];
@@ -45,7 +47,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       <Link className="brand" href={`${base}/overview`}><Mark /><span>دیدبان مالی</span></Link>
       <nav aria-label="منوی اصلی">
         {links.map((link) => { const active = pathname === link.href || (link.href.endsWith("/imports") && pathname.startsWith(`${link.href}/`)); return <Link key={link.href} className={`nav-item${active ? " active" : ""}`} href={link.href} aria-current={active ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>; })}
-        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>یافته‌ها و کنترل</span><span className="nav-item disabled"><span className="nav-dot"/>گزارش مدیریتی</span>
+        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>گردش کار بررسی</span><span className="nav-item disabled"><span className="nav-dot"/>گزارش مدیریتی</span>
       </nav>
       <div className="user-box"><span className="avatar">{user.full_name.slice(0, 1)}</span><div><strong>{user.full_name}</strong><small dir="ltr">{user.email}</small></div><button onClick={() => void logout()} title="خروج"><Icon name="exit" /><span className="sr-only">خروج</span></button></div>
     </aside>
