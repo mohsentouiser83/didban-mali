@@ -1,5 +1,10 @@
 "use client";
 
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/product-api";
@@ -32,8 +37,8 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
 
   return <section className="members-card" aria-labelledby="members-title">
     <div className="card-heading"><div><span className="overline">کنترل دسترسی</span><h3 id="members-title">اعضای شرکت</h3></div><span className="count-pill">{new Intl.NumberFormat("fa-IR").format(members.length)} نفر</span></div>
-    {company.role === "owner" && <form className="member-form" onSubmit={add}><label><span className="sr-only">ایمیل عضو جدید</span><input name="email" type="email" dir="ltr" required placeholder="ایمیل عضو جدید" /></label><label><span className="sr-only">نقش عضو جدید</span><select name="role" defaultValue="viewer"><option value="finance_manager">مدیر مالی</option><option value="advisor">مشاور</option><option value="viewer">مشاهده‌گر</option></select></label><button className="secondary-button"><Icon name="plus" />افزودن</button></form>}
+    {company.role === "owner" && <form className="member-form" onSubmit={add}><label><span className="sr-only">ایمیل عضو جدید</span><Input name="email" type="email" dir="ltr" required placeholder="ایمیل عضو جدید" /></label><label><span className="sr-only">نقش عضو جدید</span><NativeSelect name="role" defaultValue="viewer"><NativeSelectOption value="finance_manager">مدیر مالی</NativeSelectOption><NativeSelectOption value="advisor">مشاور</NativeSelectOption><NativeSelectOption value="viewer">مشاهده‌گر</NativeSelectOption></NativeSelect></label><Button className="secondary-button"><Icon name="plus" />افزودن</Button></form>}
     {error && <p className="form-error" role="alert">{error}</p>}
-    <div className="member-list">{members.map((member) => <div className="member-row" key={member.user_id}><span className="avatar">{member.full_name.slice(0, 1)}</span><div><strong>{member.full_name}</strong><small dir="ltr">{member.email}</small></div>{company.role === "owner" ? <div className="member-actions"><label><span className="sr-only">نقش {member.full_name}</span><select className="role-select" value={member.role} onChange={(event) => void updateRole(member, event.target.value as Role)}><option value="owner">مالک</option><option value="finance_manager">مدیر مالی</option><option value="advisor">مشاور</option><option value="viewer">مشاهده‌گر</option></select></label>{member.user_id !== currentUserId && <button className="remove-button" onClick={() => void remove(member)}>حذف</button>}</div> : <span className={`role role-${member.role}`}>{roleLabels[member.role]}</span>}</div>)}</div>
+    <div className="member-list">{members.map((member) => <div className="member-row" key={member.user_id}><span className="avatar">{member.full_name.slice(0, 1)}</span><div><strong>{member.full_name}</strong><small dir="ltr">{member.email}</small></div>{company.role === "owner" ? <div className="member-actions"><label><span className="sr-only">نقش {member.full_name}</span><NativeSelect className="role-select" value={member.role} onChange={(event) => void updateRole(member, event.target.value as Role)}><NativeSelectOption value="owner">مالک</NativeSelectOption><NativeSelectOption value="finance_manager">مدیر مالی</NativeSelectOption><NativeSelectOption value="advisor">مشاور</NativeSelectOption><NativeSelectOption value="viewer">مشاهده‌گر</NativeSelectOption></NativeSelect></label>{member.user_id !== currentUserId && <Button className="remove-button" onClick={() => void remove(member)}>حذف</Button>}</div> : <span className={`role role-${member.role}`}>{roleLabels[member.role]}</span>}</div>)}</div>
   </section>;
 }

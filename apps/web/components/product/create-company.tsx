@@ -1,5 +1,10 @@
 "use client";
 
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -24,10 +29,10 @@ export function CreateCompany({ onCreated, compact = false }: { onCreated?: (com
     finally { setBusy(false); }
   }
   return <form className={compact ? "company-form compact" : "company-form"} onSubmit={submit}>
-    <label>نام حقوقی شرکت<input name="legal_name" required minLength={2} placeholder="مثلاً راهکار تجارت آریا" /></label>
-    <label>شناسه ملی <span>(اختیاری)</span><input name="national_id" inputMode="numeric" dir="ltr" minLength={8} placeholder="۱۴۰۰۱۲۳۴۵۶۷" /></label>
-    <label>ماه شروع سال مالی<select name="fiscal_year_start_month" defaultValue="1">{Array.from({ length: 12 }, (_, index) => <option value={index + 1} key={index + 1}>ماه {new Intl.NumberFormat("fa-IR").format(index + 1)}</option>)}</select></label>
+    <label>نام حقوقی شرکت<Input name="legal_name" required minLength={2} placeholder="مثلاً راهکار تجارت آریا" /></label>
+    <label>شناسه ملی <span>(اختیاری)</span><Input name="national_id" inputMode="numeric" dir="ltr" minLength={8} placeholder="۱۴۰۰۱۲۳۴۵۶۷" /></label>
+    <label>ماه شروع سال مالی<NativeSelect name="fiscal_year_start_month" defaultValue="1">{Array.from({ length: 12 }, (_, index) => <NativeSelectOption value={index + 1} key={index + 1}>ماه {new Intl.NumberFormat("fa-IR").format(index + 1)}</NativeSelectOption>)}</NativeSelect></label>
     {error && <p className="form-error" role="alert">{error}</p>}
-    <button className="primary-button" disabled={busy}><Icon name="plus" />{busy ? "در حال ساخت…" : "ایجاد شرکت"}</button>
+    <Button className="primary-button" disabled={busy}><Icon name="plus" />{busy ? "در حال ساخت…" : "ایجاد شرکت"}</Button>
   </form>;
 }

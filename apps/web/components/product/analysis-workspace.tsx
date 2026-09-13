@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -143,10 +146,10 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
     <section className="period-panel" aria-labelledby="period-title">
       <div className="period-heading"><span><Icon name="calendar" /></span><div><h3 id="period-title">دورهٔ محاسبه</h3><p>تاریخ‌ها میلادی ثبت می‌شوند؛ نمایش نتایج با تقویم فارسی است.</p></div></div>
       <form onSubmit={(event) => void startAnalysis(event)}>
-        <label>از تاریخ<input type="date" dir="ltr" value={periodStart} onChange={(event) => updateStart(event.target.value)} required /></label>
+        <label>از تاریخ<Input type="date" dir="ltr" value={periodStart} onChange={(event) => updateStart(event.target.value)} required /></label>
         <span className="period-separator" aria-hidden="true" />
-        <label>تا تاریخ<input type="date" dir="ltr" value={periodEnd} onChange={(event) => updateEnd(event.target.value)} required /></label>
-        <button className="primary-button" disabled={!canRun || submitting || isRunning}>{isRunning ? <><span className="button-spinner" />در حال محاسبه…</> : <><Icon name="activity" />اجرای تحلیل</>}</button>
+        <label>تا تاریخ<Input type="date" dir="ltr" value={periodEnd} onChange={(event) => updateEnd(event.target.value)} required /></label>
+        <Button className="primary-button" disabled={!canRun || submitting || isRunning}>{isRunning ? <><span className="button-spinner" />در حال محاسبه…</> : <><Icon name="activity" />اجرای تحلیل</>}</Button>
       </form>
       {!canRun ? <div className="analysis-advisory"><Icon name="shield" /><p><strong>دسترسی مشاهده‌گر</strong>می‌توانید نتایج موجود را ببینید؛ اجرای دوره جدید به نقش مدیر مالی یا مشاور نیاز دارد.</p></div> : unclassifiedCount ? <div className="analysis-advisory warning"><Icon name="alert" /><p><strong>نتیجه با پوشش محدود تولید می‌شود</strong>{new Intl.NumberFormat("fa-IR").format(unclassifiedCount)} حساب هنوز طبقه‌بندی نشده است. <Link href={`/companies/${company.id}/financial-model`}>تکمیل مدل مالی</Link></p></div> : null}
     </section>

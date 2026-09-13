@@ -1,11 +1,11 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes } from "react";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "ds-focus inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--ds-button-radius)] px-4 text-sm font-bold transition-[color,background-color,border-color,box-shadow,transform] duration-200 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4",
+  "ds-focus inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--ds-button-radius)] px-4 text-sm font-bold transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:pointer-events-none [&_svg]:size-4",
   {
     variants: {
       variant: {
@@ -17,7 +17,7 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-11",
-        sm: "h-9 min-h-9 px-3 text-xs",
+        sm: "h-10 min-h-10 px-3 text-sm",
         lg: "h-12 px-6 text-base",
         icon: "size-11 p-0",
       },
@@ -29,9 +29,12 @@ const buttonVariants = cva(
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants> & { asChild?: boolean };
 
-function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
-  const Comp = asChild ? Slot : "button";
-  return <Comp className={cn(buttonVariants({ variant, size }), className)} {...props} />;
-}
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return <Comp ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+  },
+);
+Button.displayName = "Button";
 
-export { Button, buttonVariants };
+export { Button, buttonVariants, type ButtonProps };

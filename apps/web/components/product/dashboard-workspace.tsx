@@ -1,5 +1,7 @@
 "use client";
 
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -100,7 +102,7 @@ export function DashboardWorkspace({ company }: { company: Company }) {
   return <div className={`dashboard-workspace${switching ? " is-switching" : ""}`}>
     <section className="dashboard-intro">
       <div><span className="model-kicker"><Icon name="home" />مرکز تصمیم مالی</span><h2>وضعیت مالی قابل اتکا، با محدودیت‌های روشن</h2><p>عددها، یافته‌های مهم و کیفیت داده در یک snapshot ثابت کنار هم دیده می‌شوند؛ بدون پنهان‌کردن نقاط کور.</p></div>
-      <label className="dashboard-period"><span>دوره گزارش</span><select value={analysisId} onChange={(event) => void changeSnapshot(event.target.value)} disabled={switching}>{analyses.map((item) => <option key={item.id} value={item.id}>{faDate(item.period_start)} تا {faDate(item.period_end)}</option>)}</select><small>آخرین تکمیل: {faDateTime(snapshot.completed_at)}</small></label>
+      <label className="dashboard-period"><span>دوره گزارش</span><NativeSelect value={analysisId} onChange={(event) => void changeSnapshot(event.target.value)} disabled={switching}>{analyses.map((item) => <NativeSelectOption key={item.id} value={item.id}>{faDate(item.period_start)} تا {faDate(item.period_end)}</NativeSelectOption>)}</NativeSelect><small>آخرین تکمیل: {faDateTime(snapshot.completed_at)}</small></label>
     </section>
 
     {error ? <p className="form-error global" role="alert">{error}</p> : null}

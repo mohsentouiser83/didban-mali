@@ -11,7 +11,7 @@ const SelectValue = SelectPrimitive.Value;
 const SelectGroup = SelectPrimitive.Group;
 
 function SelectTrigger({ className, children, ...props }: ComponentProps<typeof SelectPrimitive.Trigger>) {
-  return <SelectPrimitive.Trigger className={cn("ds-focus flex h-11 min-w-40 items-center justify-between gap-3 rounded-[var(--ds-radius-control)] border border-[var(--ds-input-border)] bg-[var(--ds-input-bg)] px-3 text-sm text-[var(--ds-foreground)]", className)} {...props}>{children}<SelectPrimitive.Icon><ChevronDown className="size-4 text-[var(--ds-foreground-soft)]" /></SelectPrimitive.Icon></SelectPrimitive.Trigger>;
+  return <SelectPrimitive.Trigger className={cn("group ds-focus flex h-11 min-w-40 items-center justify-between gap-3 rounded-[var(--ds-radius-control)] border border-[var(--ds-input-border)] bg-[var(--ds-input-bg)] px-3 text-base text-[var(--ds-foreground)] transition-[border-color,box-shadow] duration-200 hover:border-[var(--ds-primary)]", className)} {...props}>{children}<SelectPrimitive.Icon><ChevronDown className="size-4 text-[var(--ds-foreground-soft)] transition-transform duration-200 group-data-[state=open]:rotate-180" /></SelectPrimitive.Icon></SelectPrimitive.Trigger>;
 }
 
 function SelectContent({ className, children, position = "popper", ...props }: ComponentProps<typeof SelectPrimitive.Content>) {

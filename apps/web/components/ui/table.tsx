@@ -15,7 +15,7 @@ function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) 
   return <tr className={cn("border-b border-[var(--ds-border)] transition-colors hover:bg-[var(--ds-table-hover)]", className)} {...props} />;
 }
 function TableHead({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn("h-11 px-4 text-start text-[11px] font-bold whitespace-nowrap", className)} {...props} />;
+  return <th className={cn("h-11 px-4 text-start text-sm font-bold whitespace-nowrap", className)} {...props} />;
 }
 function TableCell({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
   return <td className={cn("h-12 px-4 text-start whitespace-nowrap", className)} {...props} />;

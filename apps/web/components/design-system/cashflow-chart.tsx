@@ -23,9 +23,9 @@ export function CashflowChart() {
             <linearGradient id="outflowGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--ds-accent)" stopOpacity={0.25} /><stop offset="100%" stopColor="var(--ds-accent)" stopOpacity={0.01} /></linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="var(--ds-grid)" strokeDasharray="4 4" />
-          <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-foreground-faint)", fontSize: 10 }} />
-          <YAxis tickFormatter={toPersian} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-foreground-faint)", fontSize: 10 }} />
-          <Tooltip cursor={{ stroke: "var(--ds-border-strong)" }} contentStyle={{ direction: "rtl", borderRadius: 12, border: "1px solid var(--ds-border)", background: "var(--ds-card-solid)", color: "var(--ds-foreground)", fontSize: 12 }} formatter={(value) => [`${toPersian(Number(value))} میلیارد ریال`]} />
+          <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-foreground-soft)", fontSize: 12 }} />
+          <YAxis tickFormatter={toPersian} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-foreground-soft)", fontSize: 12 }} />
+          <Tooltip cursor={{ stroke: "var(--ds-border-strong)" }} contentStyle={{ direction: "rtl", borderRadius: 12, border: "1px solid var(--ds-border)", background: "var(--ds-card-solid)", color: "var(--ds-foreground)", fontSize: 14 }} formatter={(value) => [`${toPersian(Number(value))} میلیارد ریال`]} />
           <Area isAnimationActive={false} type="monotone" dataKey="inflow" name="ورودی" stroke="var(--ds-primary)" strokeWidth={2.5} fill="url(#inflowGradient)" />
           <Area isAnimationActive={false} type="monotone" dataKey="outflow" name="خروجی" stroke="var(--ds-accent)" strokeWidth={2} fill="url(#outflowGradient)" />
         </AreaChart>

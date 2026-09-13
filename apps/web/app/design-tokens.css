@@ -6,6 +6,7 @@
   --ds-p-navy-800: oklch(0.24 0.04 255);
   --ds-p-slate-700: oklch(0.38 0.028 255);
   --ds-p-slate-600: oklch(0.47 0.025 255);
+  --ds-p-slate-550: oklch(0.515 0.024 255);
   --ds-p-slate-500: oklch(0.56 0.022 255);
   --ds-p-slate-400: oklch(0.67 0.018 255);
   --ds-p-slate-300: oklch(0.79 0.014 255);
@@ -19,6 +20,7 @@
   --ds-p-cyan-400: oklch(0.78 0.145 196);
   --ds-p-cyan-500: oklch(0.7 0.14 198);
   --ds-p-cyan-600: oklch(0.61 0.125 201);
+  --ds-p-cyan-700: oklch(0.52 0.112 203);
   --ds-p-violet-400: oklch(0.68 0.19 292);
   --ds-p-violet-500: oklch(0.59 0.23 292);
   --ds-p-violet-600: oklch(0.51 0.22 292);
@@ -44,6 +46,8 @@
   --ds-p-duration-fast: 140ms;
   --ds-p-duration-normal: 220ms;
   --ds-p-duration-slow: 420ms;
+  --ds-ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ds-ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ds-root {
@@ -52,27 +56,38 @@
   --ds-background-raised: var(--ds-p-white);
   --ds-foreground: var(--ds-p-navy-950);
   --ds-foreground-soft: var(--ds-p-slate-600);
-  --ds-foreground-faint: var(--ds-p-slate-500);
+  --ds-foreground-faint: var(--ds-p-slate-550);
   --ds-card: color-mix(in oklch, var(--ds-p-white) 92%, transparent);
   --ds-card-solid: var(--ds-p-white);
   --ds-border: color-mix(in oklch, var(--ds-p-slate-300) 72%, transparent);
   --ds-border-strong: var(--ds-p-slate-300);
   --ds-muted: var(--ds-p-slate-100);
   --ds-muted-hover: var(--ds-p-slate-200);
-  --ds-primary: var(--ds-p-cyan-600);
-  --ds-primary-hover: color-mix(in oklch, var(--ds-p-cyan-600) 86%, var(--ds-p-navy-950));
+  --ds-primary: var(--ds-p-cyan-700);
+  --ds-primary-hover: color-mix(
+    in oklch,
+    var(--ds-p-cyan-700) 86%,
+    var(--ds-p-navy-950)
+  );
   --ds-primary-foreground: var(--ds-p-white);
-  --ds-accent: var(--ds-p-violet-500);
-  --ds-accent-soft: color-mix(in oklch, var(--ds-p-violet-500) 12%, transparent);
+  --ds-accent: var(--ds-p-violet-600);
+  --ds-accent-soft: color-mix(
+    in oklch,
+    var(--ds-p-violet-600) 12%,
+    transparent
+  );
   --ds-success: var(--ds-p-green-500);
   --ds-warning: var(--ds-p-amber-500);
   --ds-danger: var(--ds-p-red-500);
   --ds-focus: var(--ds-p-violet-500);
   --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
   --ds-selection: color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
-  --ds-shadow-sm: 0 1px 2px color-mix(in oklch, var(--ds-p-navy-950) 7%, transparent);
-  --ds-shadow-md: 0 14px 38px color-mix(in oklch, var(--ds-p-navy-950) 9%, transparent);
-  --ds-shadow-glow: 0 0 44px color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
+  --ds-shadow-sm: 0 1px 2px
+    color-mix(in oklch, var(--ds-p-navy-950) 7%, transparent);
+  --ds-shadow-md: 0 14px 38px
+    color-mix(in oklch, var(--ds-p-navy-950) 9%, transparent);
+  --ds-shadow-glow: 0 0 44px
+    color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
 
   /* Semantic: spacing and type */
   --ds-space-control: var(--ds-p-space-3);
@@ -80,10 +95,13 @@
   --ds-space-section: var(--ds-p-space-8);
   --ds-radius-control: var(--ds-p-radius-sm);
   --ds-radius-card: var(--ds-p-radius-lg);
-  --ds-font-display: 1.875rem;
+  --ds-font-display: 2rem;
+  --ds-font-heading: 1.5rem;
   --ds-font-title: 1.25rem;
-  --ds-font-body: 0.875rem;
-  --ds-font-caption: 0.75rem;
+  --ds-font-subtitle: 1.125rem;
+  --ds-font-body: 1rem;
+  --ds-font-caption: 0.875rem;
+  --ds-font-meta: 0.8125rem;
 
   /* Component */
   --ds-button-bg: var(--ds-primary);
@@ -112,25 +130,34 @@
   --ds-card: color-mix(in oklch, var(--ds-p-navy-900) 82%, transparent);
   --ds-card-solid: var(--ds-p-navy-900);
   --ds-border: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
-  --ds-border-strong: color-mix(in oklch, var(--ds-p-slate-400) 34%, transparent);
+  --ds-border-strong: color-mix(
+    in oklch,
+    var(--ds-p-slate-400) 34%,
+    transparent
+  );
   --ds-muted: color-mix(in oklch, var(--ds-p-navy-800) 86%, transparent);
   --ds-muted-hover: color-mix(in oklch, var(--ds-p-slate-700) 55%, transparent);
   --ds-primary: var(--ds-p-cyan-400);
   --ds-primary-hover: var(--ds-p-cyan-300);
   --ds-primary-foreground: var(--ds-p-navy-950);
   --ds-accent: var(--ds-p-violet-400);
-  --ds-accent-soft: color-mix(in oklch, var(--ds-p-violet-400) 15%, transparent);
+  --ds-accent-soft: color-mix(
+    in oklch,
+    var(--ds-p-violet-400) 15%,
+    transparent
+  );
   --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 12%, transparent);
   --ds-selection: color-mix(in oklch, var(--ds-p-cyan-400) 18%, transparent);
   --ds-shadow-sm: 0 1px 2px color-mix(in oklch, black 28%, transparent);
   --ds-shadow-md: 0 18px 48px color-mix(in oklch, black 34%, transparent);
-  --ds-shadow-glow: 0 0 48px color-mix(in oklch, var(--ds-p-cyan-400) 16%, transparent);
+  --ds-shadow-glow: 0 0 48px
+    color-mix(in oklch, var(--ds-p-cyan-400) 16%, transparent);
   --ds-sidebar: color-mix(in oklch, var(--ds-p-navy-900) 78%, transparent);
 }
 
 @media (min-width: 768px) {
   .ds-root {
-    --ds-font-display: 2.375rem;
+    --ds-font-display: 2.5rem;
     --ds-space-section: var(--ds-p-space-10);
   }
 }

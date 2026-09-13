@@ -9,10 +9,10 @@ function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("flex flex-col gap-1.5 p-5 md:p-6", className)} {...props} />;
 }
 function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-base font-extrabold md:text-lg", className)} {...props} />;
+  return <h3 className={cn("text-lg font-extrabold text-balance md:text-xl", className)} {...props} />;
 }
 function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs leading-6 text-[var(--ds-foreground-soft)]", className)} {...props} />;
+  return <p className={cn("text-sm leading-7 text-[var(--ds-foreground-soft)] text-pretty", className)} {...props} />;
 }
 function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("px-5 pb-5 md:px-6 md:pb-6", className)} {...props} />;
