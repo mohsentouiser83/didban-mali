@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     minio_access_key: str = "didban-local"
     minio_secret_key: str = "change-me-minio-password"
     upload_max_bytes: int = 52_428_800
+    import_preview_rows: int = 20
+    import_max_rows: int = 250_000
     clamd_host: str = "localhost"
     clamd_port: int = 3310
     clamd_timeout_seconds: int = 90

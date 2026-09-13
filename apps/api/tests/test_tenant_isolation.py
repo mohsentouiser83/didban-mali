@@ -126,10 +126,13 @@ def test_tenants_are_isolated_and_roles_are_enforced() -> None:
 
 @pytest.mark.integration
 def test_secure_upload_scan_and_authorized_download() -> None:
-    owner, _, _ = register("بارگذاری")
+    owner, owner_user, _ = register("بارگذاری")
     outsider, outsider_user, _ = register("خارج")
     company = create_company(owner, "شرکت بارگذاری امن")
-    clean_content = "شماره سند,شرح,مبلغ\n۱,فروش,۲۵۰۰۰۰\n".encode()
+    clean_content = (
+        "شماره سند,تاریخ سند,کد حساب,نام حساب,شرح,بدهکار,بستانکار\n"
+        '۱,۱۴۰۵/۰۶/۲۱,۱۱۰۱,بانک,فروش,۰,"۲۵۰,۰۰۰"\n'
+    ).encode()
 
     idempotency_key = f"upload-{time.time_ns()}"
     uploaded = upload_csv(
@@ -157,6 +160,83 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert downloaded.status_code == 200, downloaded.text
     assert downloaded.content == clean_content
 
+    preview = owner.get(f"/companies/{company['id']}/imports/{batch_id}/preview")
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["rows"][0]["raw"]["تاریخ سند"] == "۱۴۰۵/۰۶/۲۱"
+    suggested_fields = {item["target_field"] for item in preview.json()["suggestions"]}
+    assert {"entry_date", "account_code", "credit"} <= suggested_fields
+
+    mapping_payload = {
+        "header_row": 1,
+        "mapping": {
+            "entry_id": "شماره سند",
+            "entry_date": "تاریخ سند",
+            "account_code": "کد حساب",
+            "account_name": "نام حساب",
+            "description": "شرح",
+            "debit": "بدهکار",
+            "credit": "بستانکار",
+        },
+        "transforms": {
+            "entry_id": ["trim", "normalize_digits"],
+            "entry_date": ["trim", "normalize_digits", "parse_date"],
+            "account_code": ["trim", "normalize_digits"],
+            "account_name": ["trim"],
+            "description": ["trim"],
+            "debit": ["normalize_digits", "strip_thousands", "toman_to_rial"],
+            "credit": ["normalize_digits", "strip_thousands", "toman_to_rial"],
+        },
+        "currency_unit": "toman",
+        "calendar": "jalali",
+        "profile_name": "دفتر استاندارد فارسی",
+    }
+    mutation_headers = {
+        "X-CSRF-Token": owner.cookies["didban_csrf"],
+        "Idempotency-Key": f"mapping-{time.time_ns()}",
+    }
+    confirmed = owner.put(
+        f"/companies/{company['id']}/imports/{batch_id}/mapping",
+        headers=mutation_headers,
+        json=mapping_payload,
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["currency_unit"] == "toman"
+    assert confirmed.json()["calendar"] == "jalali"
+
+    mapped_preview = owner.get(f"/companies/{company['id']}/imports/{batch_id}/preview")
+    assert mapped_preview.status_code == 200, mapped_preview.text
+    transformed = mapped_preview.json()["rows"][0]["transformed"]
+    assert transformed["entry_date"] == "2026-09-12"
+    assert transformed["credit"] == "2500000"
+
+    validation_headers = {
+        "X-CSRF-Token": owner.cookies["didban_csrf"],
+        "Idempotency-Key": f"validate-{time.time_ns()}",
+    }
+    validated = owner.post(
+        f"/companies/{company['id']}/imports/{batch_id}/validate",
+        headers=validation_headers,
+    )
+    assert validated.status_code == 200, validated.text
+    assert validated.json()["batch"]["stage"] == "validation_ready"
+    assert validated.json()["batch"]["accepted_count"] == 1
+    assert validated.json()["coverage"]["overall"] == 100
+
+    issues = owner.get(f"/companies/{company['id']}/imports/{batch_id}/issues")
+    assert issues.status_code == 200, issues.text
+    assert issues.json()["total"] == 0
+
+    committed = owner.post(
+        f"/companies/{company['id']}/imports/{batch_id}/commit",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"commit-{time.time_ns()}",
+        },
+    )
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["status"] == "queued"
+    assert committed.json()["stage"] == "ready_for_normalization"
+
     eicar = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
     infected = upload_csv(owner, company["id"], "نمونه-آلوده.csv", eicar)
     assert infected.status_code == 202, infected.text
@@ -176,6 +256,20 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM import_batches WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM source_rows WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE source_rows SET raw_hash = repeat('0', 64) WHERE company_id = %s",
+                    (company["id"],),
+                )
+            connection.rollback()
 
     owner.close()
     outsider.close()

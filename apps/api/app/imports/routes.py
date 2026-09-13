@@ -1,10 +1,11 @@
 import logging
+from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, Request, UploadFile, status
-from sqlalchemy import select
+from fastapi import APIRouter, File, Form, Header, HTTPException, Query, Request, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
@@ -14,15 +15,48 @@ from app.audit.service import record_audit_event
 from app.companies.models import CompanyAccess, CompanyRole
 from app.core.config import settings
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
+from app.imports.mapping import (
+    ALTERNATIVE_REQUIRED_FIELDS,
+    REQUIRED_FIELDS,
+    ParsedTable,
+    RowIssue,
+    TableParseError,
+    column_fingerprint,
+    coverage_for,
+    download_to_seekable,
+    parse_table,
+    raw_row_hash,
+    suggest_mapping,
+    transform_and_validate_row,
+    validate_mapping_fields,
+    validate_transforms,
+)
 from app.imports.models import (
     DataSource,
     FileScanStatus,
     ImportBatch,
     ImportStatus,
+    IssueSeverity,
+    MappingProfile,
+    MappingVersion,
     SourceFile,
     SourceKind,
+    SourceRow,
+    ValidationIssue,
 )
-from app.imports.schemas import ImportBatchResponse, UploadPolicyResponse
+from app.imports.schemas import (
+    ImportBatchResponse,
+    ImportPreviewResponse,
+    IssuesPage,
+    MappingRequest,
+    MappingResponse,
+    MappingSuggestion,
+    PreviewIssue,
+    PreviewRow,
+    UploadPolicyResponse,
+    ValidationIssueResponse,
+    ValidationResponse,
+)
 from app.imports.storage import get_storage, iter_object
 from app.imports.tasks import inspect_upload
 from app.imports.validation import receive_and_validate
@@ -67,6 +101,12 @@ def _response(
         failure_code=batch.failure_code,
         failure_message=batch.failure_message,
         retryable=batch.retryable,
+        sheet_name=batch.sheet_name,
+        header_row=batch.header_row,
+        row_count=batch.row_count,
+        accepted_count=batch.accepted_count,
+        rejected_count=batch.rejected_count,
+        coverage=batch.coverage_json,
         created_at=batch.created_at,
     )
 
@@ -75,19 +115,76 @@ async def _batch_row(
     session: DbSession,
     company_id: UUID,
     batch_id: UUID,
+    *,
+    for_update: bool = False,
 ) -> tuple[ImportBatch, SourceFile, DataSource] | None:
-    row = (
-        await session.execute(
-            select(ImportBatch, SourceFile, DataSource)
-            .join(SourceFile, SourceFile.id == ImportBatch.file_id)
-            .join(DataSource, DataSource.id == ImportBatch.source_id)
-            .where(ImportBatch.id == batch_id, ImportBatch.company_id == company_id)
-        )
-    ).one_or_none()
+    statement = (
+        select(ImportBatch, SourceFile, DataSource)
+        .join(SourceFile, SourceFile.id == ImportBatch.file_id)
+        .join(DataSource, DataSource.id == ImportBatch.source_id)
+        .where(ImportBatch.id == batch_id, ImportBatch.company_id == company_id)
+    )
+    if for_update:
+        statement = statement.with_for_update(of=ImportBatch)
+    row = (await session.execute(statement)).one_or_none()
     if row is None:
         return None
     batch, source_file, source = row
     return batch, source_file, source
+
+
+def _mapping_response(version: MappingVersion) -> MappingResponse:
+    metadata = version.mapping_json
+    return MappingResponse(
+        id=version.id,
+        import_batch_id=version.import_batch_id,
+        version=version.version,
+        mapping=metadata["fields"],
+        transforms=version.transforms_json,
+        currency_unit=metadata["currency_unit"],
+        calendar=metadata["calendar"],
+        sheet_name=metadata["sheet_name"],
+        header_row=metadata["header_row"],
+        column_fingerprint=metadata["column_fingerprint"],
+        confirmed_at=version.confirmed_at,
+    )
+
+
+def _load_table(
+    object_key: str,
+    extension: str,
+    sheet_name: str | None,
+    header_row: int,
+    limit: int | None,
+) -> ParsedTable:
+    body = get_storage().open(object_key)
+    stream = download_to_seekable(body)
+    try:
+        return parse_table(
+            stream,
+            extension,
+            sheet_name=sheet_name,
+            header_row=header_row,
+            limit=limit,
+        )
+    finally:
+        stream.close()
+
+
+def _require_clean(source_file: SourceFile) -> None:
+    if source_file.scan_status != FileScanStatus.CLEAN:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="فقط فایل تأییدشده در بررسی امنیتی قابل پردازش است.",
+        )
+
+
+def _require_upload_role(access: CompanyAccess) -> None:
+    if access.role not in UPLOAD_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="اجازه تغییر واردسازی برای این شرکت را ندارید.",
+        )
 
 
 @router.get("/policy", response_model=UploadPolicyResponse)
@@ -276,6 +373,512 @@ async def get_import(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
     return _response(*row)
+
+
+@router.get("/{batch_id}/preview", response_model=ImportPreviewResponse)
+async def preview_import(
+    company_id: UUID,
+    batch_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+    sheet_name: Annotated[str | None, Query(max_length=160)] = None,
+    header_row: Annotated[int, Query(ge=1, le=100)] = 1,
+) -> ImportPreviewResponse:
+    await _access(session, company_id, current_user.id)
+    row = await _batch_row(session, company_id, batch_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    batch, source_file, source = row
+    _require_clean(source_file)
+    version = await session.scalar(
+        select(MappingVersion).where(
+            MappingVersion.company_id == company_id,
+            MappingVersion.import_batch_id == batch_id,
+        )
+    )
+    if version is not None:
+        metadata = version.mapping_json
+        sheet_name = metadata["sheet_name"]
+        header_row = metadata["header_row"]
+    try:
+        parsed = await run_in_threadpool(
+            _load_table,
+            source_file.object_key,
+            source_file.extension,
+            sheet_name,
+            header_row,
+            settings.import_preview_rows,
+        )
+    except TableParseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+
+    fingerprint = column_fingerprint(parsed.columns)
+    profile_id = await session.scalar(
+        select(MappingProfile.id)
+        .where(
+            MappingProfile.company_id == company_id,
+            MappingProfile.source_kind == source.kind,
+            MappingProfile.column_fingerprint == fingerprint,
+        )
+        .order_by(MappingProfile.created_at.desc())
+        .limit(1)
+    )
+    preview_rows: list[PreviewRow] = []
+    mapping_response = _mapping_response(version) if version is not None else None
+    for row_number, raw in parsed.rows:
+        transformed = None
+        issues: list[RowIssue] = []
+        if version is not None:
+            metadata = version.mapping_json
+            transformed, issues = transform_and_validate_row(
+                source_kind=source.kind,
+                row_number=row_number,
+                raw=raw,
+                mapping=metadata["fields"],
+                transforms=version.transforms_json,
+                currency_unit=metadata["currency_unit"],
+                calendar=metadata["calendar"],
+            )
+        preview_rows.append(
+            PreviewRow(
+                row_number=row_number,
+                raw=raw,
+                transformed=transformed,
+                issues=[PreviewIssue(**issue.__dict__) for issue in issues],
+            )
+        )
+    return ImportPreviewResponse(
+        sheets=parsed.sheets,
+        selected_sheet=parsed.selected_sheet,
+        header_row=header_row,
+        columns=parsed.columns,
+        column_fingerprint=fingerprint,
+        rows=preview_rows,
+        suggestions=[
+            MappingSuggestion.model_validate(suggestion)
+            for suggestion in suggest_mapping(parsed.columns, source.kind)
+        ],
+        required_fields=list(REQUIRED_FIELDS[source.kind]),
+        alternative_required_fields=[
+            list(group) for group in ALTERNATIVE_REQUIRED_FIELDS[source.kind]
+        ],
+        mapping=mapping_response,
+        matching_profile_id=profile_id,
+    )
+
+
+@router.put("/{batch_id}/mapping", response_model=MappingResponse)
+async def confirm_mapping(
+    company_id: UUID,
+    batch_id: UUID,
+    payload: MappingRequest,
+    request: Request,
+    session: DbSession,
+    current_user: CurrentUser,
+    _csrf: CsrfProtected,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> MappingResponse:
+    del idempotency_key
+    access = await _access(session, company_id, current_user.id)
+    _require_upload_role(access)
+    row = await _batch_row(session, company_id, batch_id, for_update=True)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    batch, source_file, source = row
+    _require_clean(source_file)
+    existing = await session.scalar(
+        select(MappingVersion).where(MappingVersion.import_batch_id == batch_id)
+    )
+    if existing is not None:
+        return _mapping_response(existing)
+    if batch.status != ImportStatus.AWAITING_MAPPING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="این واردسازی در وضعیت مناسب برای ثبت نگاشت نیست.",
+        )
+    try:
+        parsed = await run_in_threadpool(
+            _load_table,
+            source_file.object_key,
+            source_file.extension,
+            payload.sheet_name,
+            payload.header_row,
+            1,
+        )
+    except TableParseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    errors = validate_mapping_fields(source.kind, payload.mapping, parsed.columns)
+    errors.extend(validate_transforms(payload.mapping, payload.transforms, payload.currency_unit))
+    if errors:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=errors)
+
+    fingerprint = column_fingerprint(parsed.columns)
+    metadata = {
+        "fields": payload.mapping,
+        "currency_unit": payload.currency_unit,
+        "calendar": payload.calendar,
+        "sheet_name": parsed.selected_sheet,
+        "header_row": payload.header_row,
+        "column_fingerprint": fingerprint,
+    }
+    profile: MappingProfile | None = None
+    if payload.profile_name is not None:
+        profile = await session.scalar(
+            select(MappingProfile).where(
+                MappingProfile.company_id == company_id,
+                MappingProfile.source_kind == source.kind,
+                MappingProfile.column_fingerprint == fingerprint,
+                MappingProfile.name == payload.profile_name,
+            )
+        )
+        if profile is None:
+            profile = MappingProfile(
+                id=uuid7(),
+                company_id=company_id,
+                source_kind=source.kind,
+                name=payload.profile_name,
+                column_fingerprint=fingerprint,
+                mapping_json=metadata,
+                transforms_json=payload.transforms,
+                created_by=current_user.id,
+            )
+            session.add(profile)
+            await session.flush()
+    version = MappingVersion(
+        id=uuid7(),
+        company_id=company_id,
+        profile_id=profile.id if profile else None,
+        import_batch_id=batch_id,
+        version=1,
+        mapping_json=metadata,
+        transforms_json=payload.transforms,
+        confirmed_by=current_user.id,
+        confirmed_at=datetime.now(UTC),
+    )
+    session.add(version)
+    batch.sheet_name = parsed.selected_sheet
+    batch.header_row = payload.header_row
+    batch.stage = "mapping_confirmed"
+    record_audit_event(
+        session,
+        action="import.mapping_confirmed",
+        entity_type="import_batch",
+        actor_id=current_user.id,
+        entity_id=batch.id,
+        company_id=company_id,
+        request_id=request.headers.get("X-Request-ID"),
+        metadata={"mapping_version": 1, "column_fingerprint": fingerprint},
+    )
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        existing = await session.scalar(
+            select(MappingVersion).where(MappingVersion.import_batch_id == batch_id)
+        )
+        if existing is not None:
+            return _mapping_response(existing)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="نگاشت قبلاً ثبت شده است."
+        ) from exc
+    return _mapping_response(version)
+
+
+async def _validation_response(
+    session: DbSession,
+    batch: ImportBatch,
+    source_file: SourceFile,
+    source: DataSource,
+) -> ValidationResponse:
+    count_rows = (
+        await session.execute(
+            select(ValidationIssue.severity, func.count(ValidationIssue.id))
+            .where(ValidationIssue.import_batch_id == batch.id)
+            .group_by(ValidationIssue.severity)
+        )
+    ).all()
+    counts: dict[IssueSeverity, int] = {severity: count for severity, count in count_rows}
+    return ValidationResponse(
+        batch=_response(batch, source_file, source),
+        issue_counts={severity.value: count for severity, count in counts.items()},
+        coverage=batch.coverage_json,
+    )
+
+
+@router.post("/{batch_id}/validate", response_model=ValidationResponse)
+async def validate_import(
+    company_id: UUID,
+    batch_id: UUID,
+    request: Request,
+    session: DbSession,
+    current_user: CurrentUser,
+    _csrf: CsrfProtected,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> ValidationResponse:
+    del idempotency_key
+    access = await _access(session, company_id, current_user.id)
+    _require_upload_role(access)
+    row = await _batch_row(session, company_id, batch_id, for_update=True)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    batch, source_file, source = row
+    _require_clean(source_file)
+    if batch.stage in {"validation_ready", "ready_for_normalization"}:
+        return await _validation_response(session, batch, source_file, source)
+    if await session.scalar(
+        select(func.count(SourceRow.id)).where(SourceRow.import_batch_id == batch_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="اعتبارسنجی قبلاً ثبت شده است."
+        )
+    version = await session.scalar(
+        select(MappingVersion).where(MappingVersion.import_batch_id == batch_id)
+    )
+    if version is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="پیش از اعتبارسنجی باید نگاشت ستون‌ها تأیید شود.",
+        )
+    metadata = version.mapping_json
+    try:
+        parsed = await run_in_threadpool(
+            _load_table,
+            source_file.object_key,
+            source_file.extension,
+            metadata["sheet_name"],
+            metadata["header_row"],
+            settings.import_max_rows + 1,
+        )
+    except TableParseError as exc:
+        issue = ValidationIssue(
+            id=uuid7(),
+            company_id=company_id,
+            import_batch_id=batch_id,
+            severity=IssueSeverity.BLOCKING,
+            code="FILE_PARSE_ERROR",
+            message=str(exc),
+            remedy="ساختار فایل و ردیف عنوان را اصلاح کنید.",
+        )
+        session.add(issue)
+        batch.status = ImportStatus.FAILED
+        batch.stage = "validation_failed"
+        batch.failure_code = "FILE_PARSE_ERROR"
+        batch.failure_message = str(exc)
+        record_audit_event(
+            session,
+            action="import.validation_failed",
+            entity_type="import_batch",
+            actor_id=current_user.id,
+            entity_id=batch.id,
+            company_id=company_id,
+            request_id=request.headers.get("X-Request-ID"),
+            metadata={"failure_code": "FILE_PARSE_ERROR"},
+        )
+        await session.commit()
+        return await _validation_response(session, batch, source_file, source)
+    if len(parsed.rows) > settings.import_max_rows:
+        session.add(
+            ValidationIssue(
+                id=uuid7(),
+                company_id=company_id,
+                import_batch_id=batch_id,
+                severity=IssueSeverity.BLOCKING,
+                code="ROW_LIMIT_EXCEEDED",
+                message="تعداد ردیف‌های فایل از سقف مجاز بیشتر است.",
+                remedy="فایل را به چند بخش کوچک‌تر تقسیم کنید.",
+            )
+        )
+        batch.status = ImportStatus.FAILED
+        batch.stage = "validation_failed"
+        batch.failure_code = "ROW_LIMIT_EXCEEDED"
+        batch.failure_message = "تعداد ردیف‌های فایل از سقف مجاز بیشتر است."
+        record_audit_event(
+            session,
+            action="import.validation_failed",
+            entity_type="import_batch",
+            actor_id=current_user.id,
+            entity_id=batch.id,
+            company_id=company_id,
+            request_id=request.headers.get("X-Request-ID"),
+            metadata={"failure_code": "ROW_LIMIT_EXCEEDED"},
+        )
+        await session.commit()
+        return await _validation_response(session, batch, source_file, source)
+
+    batch.status = ImportStatus.VALIDATING
+    batch.stage = "full_validation"
+    source_rows: list[SourceRow] = []
+    pending_issues: list[tuple[UUID, RowIssue]] = []
+    accepted = 0
+    for row_number, raw in parsed.rows:
+        source_row = SourceRow(
+            id=uuid7(),
+            company_id=company_id,
+            import_batch_id=batch_id,
+            sheet=parsed.selected_sheet,
+            row_number=row_number,
+            raw_json=raw,
+            raw_hash=raw_row_hash(raw),
+        )
+        source_rows.append(source_row)
+        _, row_issues = transform_and_validate_row(
+            source_kind=source.kind,
+            row_number=row_number,
+            raw=raw,
+            mapping=metadata["fields"],
+            transforms=version.transforms_json,
+            currency_unit=metadata["currency_unit"],
+            calendar=metadata["calendar"],
+        )
+        if not any(
+            issue.severity in {IssueSeverity.ERROR, IssueSeverity.BLOCKING} for issue in row_issues
+        ):
+            accepted += 1
+        pending_issues.extend((source_row.id, issue) for issue in row_issues)
+    session.add_all(source_rows)
+    await session.flush()
+    session.add_all(
+        [
+            ValidationIssue(
+                id=uuid7(),
+                company_id=company_id,
+                import_batch_id=batch_id,
+                source_row_id=source_row_id,
+                field=issue.field,
+                severity=issue.severity,
+                code=issue.code,
+                message=issue.message,
+                raw_value=issue.raw_value,
+                remedy=issue.remedy,
+            )
+            for source_row_id, issue in pending_issues
+        ]
+    )
+    batch.row_count = len(source_rows)
+    batch.accepted_count = accepted
+    batch.rejected_count = len(source_rows) - accepted
+    batch.coverage_json = coverage_for(
+        source.kind, row_count=len(source_rows), accepted_count=accepted, mapping=metadata["fields"]
+    )
+    if not source_rows or not accepted:
+        batch.status = ImportStatus.FAILED
+        batch.stage = "validation_failed"
+        batch.failure_code = "NO_VALID_ROWS"
+        batch.failure_message = "هیچ ردیف معتبر برای ادامه پردازش وجود ندارد."
+    else:
+        batch.status = ImportStatus.AWAITING_MAPPING
+        batch.stage = "validation_ready"
+    record_audit_event(
+        session,
+        action="import.validation_completed",
+        entity_type="import_batch",
+        actor_id=current_user.id,
+        entity_id=batch.id,
+        company_id=company_id,
+        request_id=request.headers.get("X-Request-ID"),
+        metadata={"rows": len(source_rows), "accepted": accepted},
+    )
+    await session.commit()
+    return await _validation_response(session, batch, source_file, source)
+
+
+@router.post("/{batch_id}/commit", response_model=ImportBatchResponse)
+async def commit_import(
+    company_id: UUID,
+    batch_id: UUID,
+    request: Request,
+    session: DbSession,
+    current_user: CurrentUser,
+    _csrf: CsrfProtected,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+) -> ImportBatchResponse:
+    del idempotency_key
+    access = await _access(session, company_id, current_user.id)
+    _require_upload_role(access)
+    row = await _batch_row(session, company_id, batch_id, for_update=True)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    batch, source_file, source = row
+    if batch.stage == "ready_for_normalization" and batch.status == ImportStatus.QUEUED:
+        return _response(batch, source_file, source)
+    if batch.stage != "validation_ready" or batch.accepted_count < 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="اعتبارسنجی موفق پیش از ثبت نهایی الزامی است.",
+        )
+    blocking = await session.scalar(
+        select(func.count(ValidationIssue.id)).where(
+            ValidationIssue.import_batch_id == batch_id,
+            ValidationIssue.severity == IssueSeverity.BLOCKING,
+        )
+    )
+    if blocking:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="خطای مسدودکننده وجود دارد."
+        )
+    batch.status = ImportStatus.QUEUED
+    batch.stage = "ready_for_normalization"
+    record_audit_event(
+        session,
+        action="import.commit_requested",
+        entity_type="import_batch",
+        actor_id=current_user.id,
+        entity_id=batch.id,
+        company_id=company_id,
+        request_id=request.headers.get("X-Request-ID"),
+        metadata={"accepted_rows": batch.accepted_count},
+    )
+    await session.commit()
+    return _response(batch, source_file, source)
+
+
+@router.get("/{batch_id}/issues", response_model=IssuesPage)
+async def list_import_issues(
+    company_id: UUID,
+    batch_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> IssuesPage:
+    await _access(session, company_id, current_user.id)
+    if await _batch_row(session, company_id, batch_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    total = await session.scalar(
+        select(func.count(ValidationIssue.id)).where(ValidationIssue.import_batch_id == batch_id)
+    )
+    rows = (
+        await session.execute(
+            select(ValidationIssue, SourceRow.row_number)
+            .outerjoin(SourceRow, SourceRow.id == ValidationIssue.source_row_id)
+            .where(ValidationIssue.import_batch_id == batch_id)
+            .order_by(ValidationIssue.severity, SourceRow.row_number, ValidationIssue.code)
+            .offset(offset)
+            .limit(limit)
+        )
+    ).all()
+    return IssuesPage(
+        items=[
+            ValidationIssueResponse(
+                id=issue.id,
+                row_number=row_number,
+                field=issue.field,
+                severity=issue.severity,
+                code=issue.code,
+                message=issue.message,
+                raw_value=issue.raw_value,
+                remedy=issue.remedy,
+            )
+            for issue, row_number in rows
+        ],
+        total=total or 0,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{batch_id}/download")
