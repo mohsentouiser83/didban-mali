@@ -7,6 +7,7 @@ from fastapi import APIRouter, Cookie, HTTPException, Request, Response, status
 from sqlalchemy import select, update
 
 from app.audit.service import record_audit_event
+from app.core.config import settings
 from app.core.tenant import set_request_user
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
 from app.identity.models import AuthSession, Membership, User, Workspace, WorkspaceRole
@@ -78,7 +79,12 @@ async def register(
 async def login(
     payload: LoginRequest, response: Response, request: Request, session: DbSession
 ) -> AuthResponse:
-    email = normalize_email(str(payload.email))
+    identifier = normalize_email(str(payload.email))
+    email = (
+        "admin@didban.ir"
+        if settings.app_env == "development" and identifier == "admin"
+        else identifier
+    )
     user = await session.scalar(select(User).where(User.email == email, User.is_active.is_(True)))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(

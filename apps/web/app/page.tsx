@@ -133,7 +133,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
               <label>نام و نام خانوادگی<input name="full_name" autoComplete="name" required minLength={2} placeholder="مثلاً مهسا کریمی" /></label>
               <label>نام فضای کاری <span>(اختیاری)</span><input name="workspace_name" placeholder="مثلاً گروه مالی آریا" /></label>
             </>}
-            <label>ایمیل کاری<input name="email" type="email" dir="ltr" autoComplete="email" required placeholder="name@company.ir" /></label>
+            <label>{mode === "login" ? "ایمیل یا نام کاربری" : "ایمیل کاری"}<input name="email" type={mode === "login" ? "text" : "email"} dir="ltr" autoComplete="email" required placeholder={mode === "login" ? "admin یا name@company.ir" : "name@company.ir"} /></label>
             <label>رمز عبور<input name="password" type="password" dir="ltr" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "register" ? 12 : 1} placeholder={mode === "register" ? "حداقل ۱۲ نویسه" : "رمز عبور"} /></label>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="primary-button" disabled={busy}>{busy ? "کمی صبر کنید…" : mode === "login" ? "ورود به دیدبان" : "ساخت حساب امن"}</button>
