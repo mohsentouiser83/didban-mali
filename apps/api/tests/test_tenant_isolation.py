@@ -55,6 +55,9 @@ def upload_csv(
     name: str,
     content: bytes,
     idempotency_key: str | None = None,
+    *,
+    source_kind: str = "accounting",
+    source_label: str = "دفتر آزمایشی",
 ) -> httpx.Response:
     return client.post(
         f"/companies/{company_id}/imports/uploads",
@@ -62,7 +65,7 @@ def upload_csv(
             "X-CSRF-Token": client.cookies["didban_csrf"],
             "Idempotency-Key": idempotency_key or f"upload-{time.time_ns()}",
         },
-        data={"source_kind": "accounting", "source_label": "دفتر آزمایشی"},
+        data={"source_kind": source_kind, "source_label": source_label},
         files={"file": (name, content, "text/csv")},
         timeout=60,
     )
@@ -102,6 +105,18 @@ def wait_for_analysis(client: httpx.Client, company_id: str, run_id: str) -> dic
             return run
         time.sleep(0.25)
     pytest.fail("Financial calculation did not complete within 60 seconds")
+
+
+def wait_for_reconciliation(client: httpx.Client, company_id: str, run_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        response = client.get(f"/companies/{company_id}/reconciliation-runs/{run_id}")
+        assert response.status_code == 200, response.text
+        run = response.json()
+        if run["status"] in {"completed", "completed_limited", "failed"}:
+            return run
+        time.sleep(0.25)
+    pytest.fail("Reconciliation did not complete within 60 seconds")
 
 
 @pytest.mark.integration
@@ -359,6 +374,136 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert metric_items["revenue_irr"]["calculation"]["unit"] == "IRR"
     assert outsider.get(f"/companies/{company['id']}/analysis-runs/{run_id}").status_code == 404
 
+    bank_content = (
+        "تاریخ تراکنش,شرح,مبلغ,شناسه تراکنش\n۱۴۰۵/۰۶/۲۱,فروش شهریور,۲۵۰۰۰۰۰,TX-1405-001\n"
+    ).encode()
+    bank_upload = upload_csv(
+        owner,
+        company["id"],
+        "گردش بانک.csv",
+        bank_content,
+        source_kind="bank",
+        source_label="بانک آزمایشی",
+    )
+    assert bank_upload.status_code == 202, bank_upload.text
+    bank_batch_id = bank_upload.json()["id"]
+    assert wait_for_scan(owner, company["id"], bank_batch_id)["status"] == "awaiting_mapping"
+    bank_mapping = owner.put(
+        f"/companies/{company['id']}/imports/{bank_batch_id}/mapping",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"bank-mapping-{time.time_ns()}",
+        },
+        json={
+            "header_row": 1,
+            "mapping": {
+                "booking_date": "تاریخ تراکنش",
+                "description": "شرح",
+                "amount_signed": "مبلغ",
+                "transaction_id": "شناسه تراکنش",
+            },
+            "transforms": {
+                "booking_date": ["trim", "normalize_digits", "parse_date"],
+                "description": ["trim"],
+                "amount_signed": ["normalize_digits", "strip_thousands"],
+                "transaction_id": ["trim", "normalize_digits"],
+            },
+            "currency_unit": "rial",
+            "calendar": "jalali",
+            "profile_name": "گردش استاندارد بانک",
+        },
+    )
+    assert bank_mapping.status_code == 200, bank_mapping.text
+    bank_validation = owner.post(
+        f"/companies/{company['id']}/imports/{bank_batch_id}/validate",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"bank-validation-{time.time_ns()}",
+        },
+    )
+    assert bank_validation.status_code == 200, bank_validation.text
+    assert bank_validation.json()["batch"]["accepted_count"] == 1
+    bank_commit = owner.post(
+        f"/companies/{company['id']}/imports/{bank_batch_id}/commit",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"bank-commit-{time.time_ns()}",
+        },
+    )
+    assert bank_commit.status_code == 200, bank_commit.text
+    assert wait_for_normalization(owner, company["id"], bank_batch_id)["status"] == "completed"
+
+    reconciliation_analysis = owner.post(
+        f"/companies/{company['id']}/analysis-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"analysis-with-bank-{time.time_ns()}",
+        },
+        json=analysis_payload,
+    )
+    assert reconciliation_analysis.status_code == 202, reconciliation_analysis.text
+    reconciliation_analysis_id = reconciliation_analysis.json()["id"]
+    analysis_with_bank = wait_for_analysis(owner, company["id"], reconciliation_analysis_id)
+    assert analysis_with_bank["coverage"]["bank_cash_flow"]["available"] is True
+    assert set(analysis_with_bank["input_manifest"]["import_batch_ids"]) == {
+        batch_id,
+        bank_batch_id,
+    }
+
+    reconciliation_key = f"reconciliation-{time.time_ns()}"
+    reconciliation = owner.post(
+        f"/companies/{company['id']}/analysis-runs/"
+        f"{reconciliation_analysis_id}/reconciliation-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": reconciliation_key,
+        },
+        json={},
+    )
+    assert reconciliation.status_code == 202, reconciliation.text
+    reconciliation_id = reconciliation.json()["id"]
+    repeated_reconciliation = owner.post(
+        f"/companies/{company['id']}/analysis-runs/"
+        f"{reconciliation_analysis_id}/reconciliation-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": reconciliation_key,
+        },
+        json={},
+    )
+    assert repeated_reconciliation.status_code == 202, repeated_reconciliation.text
+    assert repeated_reconciliation.json()["id"] == reconciliation_id
+    reconciled = wait_for_reconciliation(owner, company["id"], reconciliation_id)
+    assert reconciled["status"] == "completed", reconciled
+    assert reconciled["counts"] == {
+        "bank_transactions": 1,
+        "accounting_entries": 1,
+        "auto_matched": 1,
+        "potential_matches": 0,
+        "amount_mismatches": 0,
+        "date_mismatches": 0,
+        "duplicates": 0,
+        "unresolved": 0,
+    }
+    matches = owner.get(
+        f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}/matches"
+    )
+    assert matches.status_code == 200, matches.text
+    assert len(matches.json()["items"]) == 1
+    exact_match = matches.json()["items"][0]
+    assert exact_match["status"] == "auto_matched"
+    assert exact_match["match_level"] == "exact"
+    assert exact_match["score"] == "100.00"
+    assert exact_match["rule_code"] == "EXACT_AMOUNT_DATE_IDENTITY"
+    assert exact_match["evidence"]["bank"]["source_row_id"]
+    assert exact_match["evidence"]["accounting"]["source_row_id"]
+    assert (
+        outsider.get(
+            f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}"
+        ).status_code
+        == 404
+    )
+
     repeated_commit = owner.post(
         f"/companies/{company['id']}/imports/{batch_id}/commit",
         headers={
@@ -394,6 +539,11 @@ def test_secure_upload_scan_and_authorized_download() -> None:
             assert cursor.fetchall() == []
             cursor.execute(
                 "SELECT id::text FROM analysis_runs WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM reconciliation_runs WHERE company_id = %s",
+                (company["id"],),
             )
             assert cursor.fetchall() == []
 
@@ -435,6 +585,16 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE metric_observations SET value_irr = 1 WHERE analysis_run_id = %s",
                     (run_id,),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE reconciliation_matches SET score = 1 WHERE run_id = %s",
+                    (reconciliation_id,),
                 )
             connection.rollback()
 

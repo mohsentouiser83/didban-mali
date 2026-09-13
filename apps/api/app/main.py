@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.financial.routes import router as financial_router
 from app.identity.routes import router as identity_router
 from app.imports.routes import router as imports_router
+from app.reconciliation.routes import router as reconciliation_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -30,6 +31,7 @@ app.include_router(companies_router, prefix=settings.api_prefix)
 app.include_router(imports_router, prefix=settings.api_prefix)
 app.include_router(financial_router, prefix=settings.api_prefix)
 app.include_router(analysis_router, prefix=settings.api_prefix)
+app.include_router(reconciliation_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

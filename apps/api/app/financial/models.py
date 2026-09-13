@@ -190,6 +190,7 @@ class BankTransaction(UUIDPrimaryKeyMixin, Base):
             ["source_rows.id", "source_rows.company_id"],
             ondelete="RESTRICT",
         ),
+        UniqueConstraint("id", "company_id", name="uq_bank_transaction_company"),
         UniqueConstraint("source_row_id", name="uq_bank_transaction_source_row"),
         Index("ix_bank_transactions_company_date", "company_id", "booking_date"),
         Index("ix_bank_transactions_bank_account", "bank_account_id"),
