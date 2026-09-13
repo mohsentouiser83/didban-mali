@@ -14,6 +14,7 @@ from app.findings.routes import router as findings_router
 from app.identity.routes import router as identity_router
 from app.imports.routes import router as imports_router
 from app.reconciliation.routes import router as reconciliation_router
+from app.reports.routes import router as reports_router
 from app.reviews.routes import router as reviews_router
 
 app = FastAPI(
@@ -38,6 +39,7 @@ app.include_router(reconciliation_router, prefix=settings.api_prefix)
 app.include_router(findings_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 app.include_router(reviews_router, prefix=settings.api_prefix)
+app.include_router(reports_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

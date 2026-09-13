@@ -131,6 +131,18 @@ def wait_for_findings(client: httpx.Client, company_id: str, run_id: str) -> dic
     pytest.fail("Finding generation did not complete within 60 seconds")
 
 
+def wait_for_report(client: httpx.Client, company_id: str, report_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        response = client.get(f"/companies/{company_id}/reports/{report_id}")
+        assert response.status_code == 200, response.text
+        report = response.json()
+        if report["status"] in {"completed", "failed"}:
+            return report
+        time.sleep(0.25)
+    pytest.fail("Report generation did not complete within 60 seconds")
+
+
 @pytest.mark.integration
 def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     owner_a, user_a, _ = register("الف")
@@ -162,6 +174,15 @@ def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     assert forbidden_update.status_code == 403
     forbidden_upload = upload_csv(viewer, company_a["id"], "محدود.csv", b"id,amount\n1,10")
     assert forbidden_upload.status_code == 403
+    forbidden_report = viewer.post(
+        f"/companies/{company_a['id']}/reports",
+        headers={
+            "X-CSRF-Token": viewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"viewer-report-{time.time_ns()}",
+        },
+        json={},
+    )
+    assert forbidden_report.status_code == 403
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -736,6 +757,51 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert reviewed_dashboard["top_findings"] == []
     assert reviewed_dashboard["health"]["overall_state"] == "limited_visibility"
     assert reviewed_dashboard["finding_summary"]["by_workflow"]["resolved"] == 1
+    report_key = f"report-{time.time_ns()}"
+    report_payload = {
+        "analysis_run_id": reconciliation_analysis_id,
+        "title_fa": "گزارش بررسی مالی شهریور",
+        "advisor_note": "بررسی مغایرت بانکی تکمیل و نتیجه در ضمیمه ثبت شد.",
+    }
+    requested_report = reviewer.post(
+        f"/companies/{company['id']}/reports",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": report_key,
+        },
+        json=report_payload,
+    )
+    assert requested_report.status_code == 202, requested_report.text
+    report_id = requested_report.json()["id"]
+    repeated_report = reviewer.post(
+        f"/companies/{company['id']}/reports",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": report_key,
+        },
+        json=report_payload,
+    )
+    assert repeated_report.status_code == 202, repeated_report.text
+    assert repeated_report.json()["id"] == report_id
+    completed_report = wait_for_report(owner, company["id"], report_id)
+    assert completed_report["status"] == "completed", completed_report
+    assert completed_report["download_ready"] is True
+    assert completed_report["progress"] == 100
+    assert completed_report["payload"]["schema_version"] == "report-snapshot-v1"
+    assert completed_report["payload"]["financial_overview"][0]["value"] == "2500000"
+    assert completed_report["payload"]["top_findings"] == []
+    assert len(completed_report["payload"]["all_findings"]) == 1
+    assert completed_report["payload"]["all_findings"][0]["workflow_status"] == "resolved"
+    report_download = owner.get(f"/companies/{company['id']}/reports/{report_id}/download")
+    assert report_download.status_code == 200, report_download.text
+    assert report_download.headers["content-type"] == "application/pdf"
+    assert report_download.headers["x-content-sha256"] == completed_report["pdf_sha256"]
+    assert report_download.content.startswith(b"%PDF-1.7")
+    assert len(report_download.content) == completed_report["pdf_size_bytes"]
+    assert outsider.get(f"/companies/{company['id']}/reports/{report_id}").status_code == 404
+    assert (
+        outsider.get(f"/companies/{company['id']}/reports/{report_id}/download").status_code == 404
+    )
     assert outsider.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 404
     assert (
         outsider.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").status_code
@@ -807,6 +873,10 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM finding_notes WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM report_snapshots WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -834,6 +904,27 @@ def test_secure_upload_scan_and_authorized_download() -> None:
             ]
             assert all(
                 "note" not in event[1] and "body" not in event[1] for event in review_audit_events
+            )
+            cursor.execute(
+                """
+                SELECT action, metadata_json
+                FROM audit_events
+                WHERE company_id = %s
+                  AND entity_id = %s
+                  AND action IN ('report.requested', 'report.generated', 'report.downloaded')
+                ORDER BY occurred_at, id
+                """,
+                (company["id"], report_id),
+            )
+            report_audit_events = cursor.fetchall()
+            assert [event[0] for event in report_audit_events] == [
+                "report.requested",
+                "report.generated",
+                "report.downloaded",
+            ]
+            assert all(
+                "payload" not in event[1] and "advisor_note" not in event[1]
+                for event in report_audit_events
             )
             cursor.execute(
                 """
@@ -920,6 +1011,26 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE findings SET title_fa = 'تغییر' WHERE id = %s", (finding_id,)
                 )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", reviewer_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE report_snapshots SET payload_json = '{}' WHERE id = %s",
+                    (report_id,),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", reviewer_user["id"]))
+            cursor.execute(
+                "UPDATE report_snapshots SET object_key = 'reports/changed.pdf' WHERE id = %s",
+                (report_id,),
+            )
+            assert cursor.rowcount == 0
             connection.rollback()
 
     owner.close()

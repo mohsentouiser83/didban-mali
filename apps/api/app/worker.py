@@ -12,6 +12,7 @@ celery_app = Celery(
         "app.analysis.tasks",
         "app.reconciliation.tasks",
         "app.findings.tasks",
+        "app.reports.tasks",
     ],
 )
 celery_app.conf.update(
