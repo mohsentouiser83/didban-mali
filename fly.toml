@@ -13,6 +13,7 @@ primary_region = 'fra'
   APP_ENV = 'production'
   CELERY_TASK_ALWAYS_EAGER = 'true'
   COOKIE_SECURE = 'true'
+  CORS_ORIGINS = 'https://didban-mali-web.vercel.app'
 
 [processes]
   api = 'uvicorn app.main:app --host 0.0.0.0 --port 8000'
