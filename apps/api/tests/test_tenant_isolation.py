@@ -119,6 +119,18 @@ def wait_for_reconciliation(client: httpx.Client, company_id: str, run_id: str) 
     pytest.fail("Reconciliation did not complete within 60 seconds")
 
 
+def wait_for_findings(client: httpx.Client, company_id: str, run_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        response = client.get(f"/companies/{company_id}/finding-runs/{run_id}")
+        assert response.status_code == 200, response.text
+        run = response.json()
+        if run["status"] in {"completed", "completed_limited", "failed"}:
+            return run
+        time.sleep(0.25)
+    pytest.fail("Finding generation did not complete within 60 seconds")
+
+
 @pytest.mark.integration
 def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     owner_a, user_a, _ = register("الف")
@@ -375,7 +387,9 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert outsider.get(f"/companies/{company['id']}/analysis-runs/{run_id}").status_code == 404
 
     bank_content = (
-        "تاریخ تراکنش,شرح,مبلغ,شناسه تراکنش\n۱۴۰۵/۰۶/۲۱,فروش شهریور,۲۵۰۰۰۰۰,TX-1405-001\n"
+        "تاریخ تراکنش,شرح,مبلغ,شناسه تراکنش\n"
+        "۱۴۰۵/۰۶/۲۱,فروش شهریور,۲۵۰۰۰۰۰,TX-1405-001\n"
+        "۱۴۰۵/۰۶/۲۲,کارمزد ناشناخته,-۹۹۹۹۹۹,TX-1405-002\n"
     ).encode()
     bank_upload = upload_csv(
         owner,
@@ -422,7 +436,7 @@ def test_secure_upload_scan_and_authorized_download() -> None:
         },
     )
     assert bank_validation.status_code == 200, bank_validation.text
-    assert bank_validation.json()["batch"]["accepted_count"] == 1
+    assert bank_validation.json()["batch"]["accepted_count"] == 2
     bank_commit = owner.post(
         f"/companies/{company['id']}/imports/{bank_batch_id}/commit",
         headers={
@@ -476,17 +490,18 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     reconciled = wait_for_reconciliation(owner, company["id"], reconciliation_id)
     assert reconciled["status"] == "completed", reconciled
     assert reconciled["counts"] == {
-        "bank_transactions": 1,
+        "bank_transactions": 2,
         "accounting_entries": 1,
         "auto_matched": 1,
         "potential_matches": 0,
         "amount_mismatches": 0,
         "date_mismatches": 0,
         "duplicates": 0,
-        "unresolved": 0,
+        "unresolved": 1,
     }
     matches = owner.get(
-        f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}/matches"
+        f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}/matches",
+        params={"match_status": "auto_matched"},
     )
     assert matches.status_code == 200, matches.text
     assert len(matches.json()["items"]) == 1
@@ -497,6 +512,58 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert exact_match["rule_code"] == "EXACT_AMOUNT_DATE_IDENTITY"
     assert exact_match["evidence"]["bank"]["source_row_id"]
     assert exact_match["evidence"]["accounting"]["source_row_id"]
+
+    finding_key = f"findings-{time.time_ns()}"
+    finding_request = {
+        "reconciliation_run_id": reconciliation_id,
+        "config_version": "finding-rules-v1",
+        "trend_ratio": "0.10",
+        "minimum_amount_irr": "1000000",
+    }
+    finding_run_response = owner.post(
+        f"/companies/{company['id']}/analysis-runs/{reconciliation_analysis_id}/finding-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": finding_key,
+        },
+        json=finding_request,
+    )
+    assert finding_run_response.status_code == 202, finding_run_response.text
+    finding_run_id = finding_run_response.json()["id"]
+    repeated_finding_run = owner.post(
+        f"/companies/{company['id']}/analysis-runs/{reconciliation_analysis_id}/finding-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": finding_key,
+        },
+        json=finding_request,
+    )
+    assert repeated_finding_run.status_code == 202, repeated_finding_run.text
+    assert repeated_finding_run.json()["id"] == finding_run_id
+    finding_run = wait_for_findings(owner, company["id"], finding_run_id)
+    assert finding_run["status"] == "completed_limited", finding_run
+    assert finding_run["counts"] == {
+        "total": 1,
+        "by_code": {"potential_missing_transaction": 1},
+        "catalog_size": 8,
+    }
+    assert finding_run["coverage"]["reconciliation_findings"]["available"] is True
+    assert finding_run["coverage"]["financial_trends"]["available"] is False
+    finding_list = owner.get(
+        f"/companies/{company['id']}/findings",
+        params={"generation_run_id": finding_run_id},
+    )
+    assert finding_list.status_code == 200, finding_list.text
+    assert len(finding_list.json()["items"]) == 1
+    generated_finding = finding_list.json()["items"][0]
+    assert generated_finding["finding_code"] == "potential_missing_transaction"
+    assert generated_finding["assertion_status"] == "hypothesis"
+    assert generated_finding["workflow_status"] == "needs_review"
+    assert generated_finding["reconciliation_match_id"]
+    assert "احتمالاً" in generated_finding["title_fa"]
+    finding_id = generated_finding["id"]
+    assert owner.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 200
+    assert outsider.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 404
     assert (
         outsider.get(
             f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}"
@@ -545,6 +612,8 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM reconciliation_runs WHERE company_id = %s",
                 (company["id"],),
             )
+            assert cursor.fetchall() == []
+            cursor.execute("SELECT id::text FROM findings WHERE company_id = %s", (company["id"],))
             assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
@@ -595,6 +664,15 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE reconciliation_matches SET score = 1 WHERE run_id = %s",
                     (reconciliation_id,),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE findings SET title_fa = 'تغییر' WHERE id = %s", (finding_id,)
                 )
             connection.rollback()
 

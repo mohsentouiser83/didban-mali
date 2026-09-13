@@ -123,6 +123,7 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
             "rule_code",
             name="uq_reconciliation_candidate",
         ),
+        UniqueConstraint("id", "company_id", name="uq_reconciliation_match_company"),
         Index("ix_reconciliation_matches_run_status", "run_id", "status"),
         Index("ix_reconciliation_matches_bank", "bank_transaction_id"),
         Index("ix_reconciliation_matches_journal", "journal_entry_id"),

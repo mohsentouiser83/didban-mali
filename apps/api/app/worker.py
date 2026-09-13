@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.financial.tasks",
         "app.analysis.tasks",
         "app.reconciliation.tasks",
+        "app.findings.tasks",
     ],
 )
 celery_app.conf.update(

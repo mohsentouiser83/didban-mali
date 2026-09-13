@@ -10,6 +10,7 @@ from app.companies import models as company_models  # noqa: F401
 from app.core.config import settings
 from app.core.database import Base
 from app.financial import models as financial_models  # noqa: F401
+from app.findings import models as finding_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401
 from app.reconciliation import models as reconciliation_models  # noqa: F401
