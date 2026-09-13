@@ -1,0 +1,24 @@
+{
+  "schema_version": "mvp-acceptance-v1",
+  "scope": "full-stack",
+  "phase": 14,
+  "scenario_version": "demo-1405-v1",
+  "status": "passed",
+  "criteria": [
+    {"id": 1, "status": "passed", "evidence": "API integration: company RBAC and PostgreSQL RLS isolation"},
+    {"id": 2, "status": "passed", "evidence": "UI/API flow contains completed accounting, bank and sales sources with mapping and lineage"},
+    {"id": 3, "status": "passed", "evidence": "blocking failures and completed_limited coverage remain distinct"},
+    {"id": 4, "status": "passed", "evidence": "calendar and IRR currency are explicit in mapping and company contracts"},
+    {"id": 5, "status": "passed", "evidence": "golden seed metrics match independent expected values"},
+    {"id": 6, "status": "passed", "evidence": "exactly eight approved finding codes with at least two golden samples"},
+    {"id": 7, "status": "passed", "evidence": "exact, fuzzy and AI statuses are distinct and AI never auto-confirms"},
+    {"id": 8, "status": "passed", "evidence": "finding case UI and API trace evidence to source row and file"},
+    {"id": 9, "status": "passed", "evidence": "versioned priority score, factors and configuration are visible"},
+    {"id": 10, "status": "passed", "evidence": "review decisions and notes preserve actor, timestamp and audit event"},
+    {"id": 11, "status": "passed", "evidence": "dashboard exposes state, priority, full findings path and limited coverage"},
+    {"id": 12, "status": "passed", "evidence": "Persian PDF is generated from an immutable structured snapshot"},
+    {"id": 13, "status": "passed", "evidence": "reconciliation reruns and finding fingerprints are deterministic"},
+    {"id": 14, "status": "passed", "evidence": "Playwright gate covers nine routes, theme persistence, mobile layout and zero critical browser errors"},
+    {"id": 15, "status": "passed", "evidence": "tenant leakage, secure upload, immutable audit and log redaction tests"}
+  ]
+}

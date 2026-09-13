@@ -3,6 +3,7 @@
   "scope": "backend-only",
   "phase": 14,
   "scenario_version": "demo-1405-v1",
+  "superseded_by": "mvp-acceptance-v1.json",
   "criteria": [
     {"id": 1, "status": "passed", "evidence": "integration: auth, company RBAC and PostgreSQL RLS"},
     {"id": 2, "status": "passed", "evidence": "accounting, three bank seeds, sales seed, parsing and lineage integration"},
