@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
     cookie_secure: bool = False
     cors_origins: str = "http://localhost:3000"
+    ai_enabled: bool = False
+    ai_provider: str = "disabled"
+    ai_model: str = "unconfigured"
+    ai_data_region: str | None = None
+    ai_request_timeout_seconds: int = 15
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.ai.routes import router as ai_router
 from app.analysis.routes import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.companies.routes import router as companies_router
@@ -40,6 +41,7 @@ app.include_router(findings_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 app.include_router(reviews_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
+app.include_router(ai_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

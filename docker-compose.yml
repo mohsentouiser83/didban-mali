@@ -23,6 +23,11 @@ x-api-environment: &api-environment
   REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-7}
   COOKIE_SECURE: ${COOKIE_SECURE:-false}
   CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  AI_ENABLED: ${AI_ENABLED:-false}
+  AI_PROVIDER: ${AI_PROVIDER:-disabled}
+  AI_MODEL: ${AI_MODEL:-unconfigured}
+  AI_DATA_REGION: ${AI_DATA_REGION:-}
+  AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-15}
 
 services:
   postgres:

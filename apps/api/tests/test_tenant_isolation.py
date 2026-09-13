@@ -614,6 +614,91 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert evidence[2]["source_file_id"]
     assert evidence[2]["field_snapshot"]["raw"]
     assert evidence[2]["field_snapshot"]["source_file"]["original_name"] == "گردش بانک.csv"
+    default_ai_settings = owner.get(f"/companies/{company['id']}/ai/settings")
+    assert default_ai_settings.status_code == 200, default_ai_settings.text
+    assert default_ai_settings.json()["enabled"] is False
+    assert default_ai_settings.json()["global_enabled"] is False
+    forbidden_ai_settings = reviewer.put(
+        f"/companies/{company['id']}/ai/settings",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"reviewer-ai-settings-{time.time_ns()}",
+        },
+        json={
+            "enabled": True,
+            "explanations_enabled": True,
+            "semantic_matching_enabled": True,
+        },
+    )
+    assert forbidden_ai_settings.status_code == 403
+    ai_settings_key = f"ai-settings-{time.time_ns()}"
+    enabled_company_ai = owner.put(
+        f"/companies/{company['id']}/ai/settings",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": ai_settings_key,
+        },
+        json={
+            "enabled": True,
+            "explanations_enabled": True,
+            "semantic_matching_enabled": True,
+        },
+    )
+    assert enabled_company_ai.status_code == 200, enabled_company_ai.text
+    assert enabled_company_ai.json()["enabled"] is True
+    assert enabled_company_ai.json()["explanations_effective"] is False
+    repeated_ai_settings = owner.put(
+        f"/companies/{company['id']}/ai/settings",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": ai_settings_key,
+        },
+        json={
+            "enabled": True,
+            "explanations_enabled": True,
+            "semantic_matching_enabled": True,
+        },
+    )
+    assert repeated_ai_settings.status_code == 200
+    assert repeated_ai_settings.json()["revision_id"] == enabled_company_ai.json()["revision_id"]
+    ai_explanation_key = f"ai-explanation-{time.time_ns()}"
+    ai_explanation = reviewer.post(
+        f"/companies/{company['id']}/ai/findings/{finding_id}/explanations",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": ai_explanation_key,
+        },
+    )
+    assert ai_explanation.status_code == 201, ai_explanation.text
+    assert ai_explanation.json()["status"] == "disabled"
+    assert ai_explanation.json()["failure_code"] == "AI_GLOBAL_DISABLED"
+    assert ai_explanation.json()["output"] is None
+    assert ai_explanation.json()["requires_human_review"] is True
+    ai_invocation_id = ai_explanation.json()["id"]
+    repeated_ai_explanation = reviewer.post(
+        f"/companies/{company['id']}/ai/findings/{finding_id}/explanations",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": ai_explanation_key,
+        },
+    )
+    assert repeated_ai_explanation.status_code == 201
+    assert repeated_ai_explanation.json()["id"] == ai_invocation_id
+    invalid_semantic_candidate = reviewer.post(
+        f"/companies/{company['id']}/ai/reconciliation-runs/"
+        f"{reconciliation_id}/semantic-candidates",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"ai-semantic-{time.time_ns()}",
+        },
+        json={"candidate_ids": [generated_finding["reconciliation_match_id"]]},
+    )
+    assert invalid_semantic_candidate.status_code == 409
+    assert outsider.get(f"/companies/{company['id']}/ai/settings").status_code == 404
+    assert (
+        outsider.get(f"/companies/{company['id']}/ai/invocations/{ai_invocation_id}").status_code
+        == 404
+    )
     completed_repeat = owner.post(
         f"/companies/{company['id']}/analysis-runs/{reconciliation_analysis_id}/finding-runs",
         headers={
@@ -877,6 +962,15 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM report_snapshots WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM ai_company_setting_revisions WHERE company_id = %s",
+                (company["id"],),
+            )
+            assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM ai_invocations WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -1020,6 +1114,16 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE report_snapshots SET payload_json = '{}' WHERE id = %s",
                     (report_id,),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", reviewer_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE ai_invocations SET output_json = '{}' WHERE id = %s",
+                    (ai_invocation_id,),
                 )
             connection.rollback()
 
