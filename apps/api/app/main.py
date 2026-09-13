@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.analysis.routes import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.companies.routes import router as companies_router
 from app.core.config import settings
@@ -28,6 +29,7 @@ app.include_router(identity_router, prefix=settings.api_prefix)
 app.include_router(companies_router, prefix=settings.api_prefix)
 app.include_router(imports_router, prefix=settings.api_prefix)
 app.include_router(financial_router, prefix=settings.api_prefix)
+app.include_router(analysis_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")

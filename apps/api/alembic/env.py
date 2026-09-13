@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from app.analysis import models as analysis_models  # noqa: F401
 from app.audit import models as audit_models  # noqa: F401
 from app.companies import models as company_models  # noqa: F401
 from app.core.config import settings

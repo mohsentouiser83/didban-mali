@@ -92,6 +92,18 @@ def wait_for_normalization(client: httpx.Client, company_id: str, batch_id: str)
     pytest.fail("Canonical normalization did not complete within 60 seconds")
 
 
+def wait_for_analysis(client: httpx.Client, company_id: str, run_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        response = client.get(f"/companies/{company_id}/analysis-runs/{run_id}")
+        assert response.status_code == 200, response.text
+        run = response.json()
+        if run["status"] in {"completed", "completed_limited", "failed"}:
+            return run
+        time.sleep(0.25)
+    pytest.fail("Financial calculation did not complete within 60 seconds")
+
+
 @pytest.mark.integration
 def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     owner_a, user_a, _ = register("الف")
@@ -287,6 +299,66 @@ def test_secure_upload_scan_and_authorized_download() -> None:
         assert classified.status_code == 200, classified.text
     assert owner.get(f"/companies/{company['id']}/accounts/unclassified").json() == []
 
+    analysis_key = f"analysis-{time.time_ns()}"
+    analysis_payload = {
+        "period_start": "2026-09-01",
+        "period_end": "2026-09-30",
+        "rule_set_version": "financial-metrics-v1",
+    }
+    analysis = owner.post(
+        f"/companies/{company['id']}/analysis-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": analysis_key,
+        },
+        json=analysis_payload,
+    )
+    assert analysis.status_code == 202, analysis.text
+    run_id = analysis.json()["id"]
+    repeated_analysis = owner.post(
+        f"/companies/{company['id']}/analysis-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": analysis_key,
+        },
+        json=analysis_payload,
+    )
+    assert repeated_analysis.status_code == 202, repeated_analysis.text
+    assert repeated_analysis.json()["id"] == run_id
+
+    completed_analysis = wait_for_analysis(owner, company["id"], run_id)
+    assert completed_analysis["status"] == "completed_limited", completed_analysis
+    assert completed_analysis["rule_set_version"] == "financial-metrics-v1"
+    assert completed_analysis["input_manifest"]["import_batch_ids"] == [batch_id]
+    assert completed_analysis["coverage"]["accounting"] == {
+        "available": True,
+        "score": 100,
+        "total_lines": 2,
+        "classified_lines": 2,
+        "unclassified_lines": 0,
+        "reasons": [],
+    }
+    assert completed_analysis["coverage"]["bank_cash_flow"]["available"] is False
+    assert completed_analysis["coverage"]["sales"]["available"] is False
+
+    metric_response = owner.get(
+        f"/companies/{company['id']}/metrics", params={"analysis_run_id": run_id}
+    )
+    assert metric_response.status_code == 200, metric_response.text
+    metric_items = {item["metric_code"]: item for item in metric_response.json()["metrics"]}
+    assert {code: item["value_irr"] for code, item in metric_items.items()} == {
+        "expenses_irr": "0",
+        "net_profit_irr": "2500000",
+        "revenue_irr": "2500000",
+        "total_assets_irr": "2500000",
+        "total_equity_irr": "0",
+        "total_liabilities_irr": "0",
+        "net_margin_ratio": None,
+    }
+    assert metric_items["net_margin_ratio"]["value_ratio"] == "1.000000"
+    assert metric_items["revenue_irr"]["calculation"]["unit"] == "IRR"
+    assert outsider.get(f"/companies/{company['id']}/analysis-runs/{run_id}").status_code == 404
+
     repeated_commit = owner.post(
         f"/companies/{company['id']}/imports/{batch_id}/commit",
         headers={
@@ -320,6 +392,10 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM source_rows WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM analysis_runs WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -349,6 +425,16 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE source_rows SET raw_hash = repeat('0', 64) WHERE company_id = %s",
                     (company["id"],),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE metric_observations SET value_irr = 1 WHERE analysis_run_id = %s",
+                    (run_id,),
                 )
             connection.rollback()
 
