@@ -1,6 +1,18 @@
 from celery import Celery
+from celery.signals import after_setup_logger, after_setup_task_logger
 
 from app.core.config import settings
+from app.core.logging import install_log_redaction, install_logger_redaction
+
+install_log_redaction()
+
+
+@after_setup_logger.connect  # type: ignore[untyped-decorator]
+@after_setup_task_logger.connect  # type: ignore[untyped-decorator]
+def configure_worker_log_redaction(logger: object, **_: object) -> None:
+    if hasattr(logger, "handlers"):
+        install_logger_redaction(logger)  # type: ignore[arg-type]
+
 
 celery_app = Celery(
     "didban_mali",

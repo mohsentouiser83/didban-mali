@@ -1,4 +1,4 @@
-.PHONY: install test test-integration test-isolation lint typecheck build compose-check up down migrate
+.PHONY: install test test-integration test-isolation test-acceptance seed-demo verify-backend lint typecheck build compose-check up down migrate
 
 install:
 	npm install
@@ -12,6 +12,20 @@ test-integration:
 	RUN_INTEGRATION_TESTS=1 .venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests/test_tenant_isolation.py
 
 test-isolation: test-integration
+
+test-acceptance:
+	.venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests/test_demo_acceptance.py
+
+seed-demo:
+	.venv/bin/python -m app.demo.generate --output demo-data
+
+verify-backend:
+	.venv/bin/ruff check --config apps/api/pyproject.toml apps/api
+	.venv/bin/mypy --config-file apps/api/pyproject.toml apps/api/app
+	.venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests
+	RUN_INTEGRATION_TESTS=1 .venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests/test_tenant_isolation.py
+	docker compose config --quiet
+	docker compose run --rm migrate alembic check
 
 lint:
 	npm run lint:web

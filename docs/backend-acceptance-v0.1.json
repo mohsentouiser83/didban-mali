@@ -1,0 +1,23 @@
+{
+  "schema_version": "backend-acceptance-v1",
+  "scope": "backend-only",
+  "phase": 14,
+  "scenario_version": "demo-1405-v1",
+  "criteria": [
+    {"id": 1, "status": "passed", "evidence": "integration: auth, company RBAC and PostgreSQL RLS"},
+    {"id": 2, "status": "passed", "evidence": "accounting, three bank seeds, sales seed, parsing and lineage integration"},
+    {"id": 3, "status": "passed", "evidence": "invalid seed variants and reasoned coverage"},
+    {"id": 4, "status": "passed", "evidence": "explicit calendar and currency mapping"},
+    {"id": 5, "status": "passed", "evidence": "golden ledger metrics equal independent expected values"},
+    {"id": 6, "status": "passed", "evidence": "all and only eight approved finding codes, minimum two samples each"},
+    {"id": 7, "status": "passed", "evidence": "exact, fuzzy and AI statuses remain distinct; no AI auto-confirm"},
+    {"id": 8, "status": "passed", "evidence": "finding evidence reaches source row and source file"},
+    {"id": 9, "status": "passed", "evidence": "versioned priority breakdown integration"},
+    {"id": 10, "status": "passed", "evidence": "review decisions, notes, actor, time and audit integration"},
+    {"id": 11, "status": "passed_backend", "evidence": "dashboard contract, priority visibility and limited states; visual UI deferred"},
+    {"id": 12, "status": "passed", "evidence": "immutable structured report snapshot and verified Persian PDF"},
+    {"id": 13, "status": "passed", "evidence": "deterministic reconciliation and finding fingerprints"},
+    {"id": 14, "status": "deferred_frontend", "evidence": "Playwright requires the intentionally deferred phases 4-14 UI"},
+    {"id": 15, "status": "passed", "evidence": "tenant leakage, secure upload, immutable audit and log redaction tests"}
+  ]
+}

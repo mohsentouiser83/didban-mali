@@ -9,6 +9,7 @@ from app.analysis.routes import router as analysis_router
 from app.api.routes.health import router as health_router
 from app.companies.routes import router as companies_router
 from app.core.config import settings
+from app.core.logging import install_log_redaction
 from app.dashboard.routes import router as dashboard_router
 from app.financial.routes import router as financial_router
 from app.findings.routes import router as findings_router
@@ -17,6 +18,8 @@ from app.imports.routes import router as imports_router
 from app.reconciliation.routes import router as reconciliation_router
 from app.reports.routes import router as reports_router
 from app.reviews.routes import router as reviews_router
+
+install_log_redaction()
 
 app = FastAPI(
     title=settings.app_name,
