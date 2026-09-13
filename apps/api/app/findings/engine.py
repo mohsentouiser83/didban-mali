@@ -30,6 +30,7 @@ class ReconciliationSignal:
     amount_difference_irr: Decimal | None
     date_difference_days: int | None
     rule_code: str
+    reference_amount_irr: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,15 @@ def reconciliation_findings(
             FindingCode.POTENTIAL_MISSING_TRANSACTION,
             FindingCode.DUPLICATE_TRANSACTION,
         }
-        amount = abs(signal.amount_difference_irr) if signal.amount_difference_irr else None
+        amount = (
+            abs(signal.amount_difference_irr)
+            if signal.amount_difference_irr
+            else (
+                abs(signal.reference_amount_irr)
+                if signal.reference_amount_irr is not None
+                else None
+            )
+        )
         source_key = str(signal.bank_transaction_id or signal.journal_entry_id or signal.id)
         candidates.append(
             FindingCandidate(

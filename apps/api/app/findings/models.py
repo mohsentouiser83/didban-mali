@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
@@ -57,6 +58,21 @@ class FindingSeverity(enum.StrEnum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+
+
+class PriorityBand(enum.StrEnum):
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class EvidenceType(enum.StrEnum):
+    SOURCE_RECORD = "source_record"
+    COMPARISON = "comparison"
+    CALCULATION = "calculation"
+    RULE = "rule"
+    COVERAGE = "coverage"
 
 
 class FindingWorkflowStatus(enum.StrEnum):
@@ -144,7 +160,12 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "confidence_score >= 0 AND confidence_score <= 100",
             name="ck_finding_confidence_range",
         ),
+        CheckConstraint(
+            "priority_score >= 0 AND priority_score <= 100",
+            name="ck_finding_priority_range",
+        ),
         UniqueConstraint("analysis_run_id", "fingerprint", name="uq_finding_run_fingerprint"),
+        UniqueConstraint("id", "company_id", name="uq_finding_company"),
         Index(
             "ix_findings_company_period",
             "company_id",
@@ -153,6 +174,13 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("ix_findings_company_code", "company_id", "finding_code"),
         Index("ix_findings_company_workflow", "company_id", "workflow_status"),
+        Index(
+            "ix_findings_company_priority",
+            "company_id",
+            "priority_band",
+            "priority_score",
+            "id",
+        ),
         Index("ix_findings_generation_run", "generation_run_id"),
         Index("ix_findings_reconciliation_match", "reconciliation_match_id"),
     )
@@ -181,6 +209,13 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     severity: Mapped[FindingSeverity] = mapped_column(
         Enum(FindingSeverity, name="finding_severity", native_enum=False), nullable=False
     )
+    priority_band: Mapped[PriorityBand] = mapped_column(
+        Enum(PriorityBand, name="priority_band", native_enum=False), nullable=False
+    )
+    priority_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    priority_explanation_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    priority_model_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    priority_config_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     confidence_score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     confidence_basis_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     affected_amount_irr: Mapped[Decimal | None] = mapped_column(Numeric(20, 0))
@@ -195,3 +230,49 @@ class Finding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Enum(FindingWorkflowStatus, name="finding_workflow_status", native_enum=False),
         nullable=False,
     )
+
+
+class EvidenceItem(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "evidence_items"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["finding_id", "company_id"],
+            ["findings.id", "findings.company_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["source_row_id", "company_id"],
+            ["source_rows.id", "source_rows.company_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["source_file_id", "company_id"],
+            ["source_files.id", "source_files.company_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("ordinal > 0", name="ck_evidence_item_ordinal_positive"),
+        UniqueConstraint("finding_id", "ordinal", name="uq_evidence_finding_ordinal"),
+        Index("ix_evidence_items_company_type", "company_id", "evidence_type"),
+        Index("ix_evidence_items_finding", "finding_id"),
+        Index("ix_evidence_items_source_row", "source_row_id"),
+        Index("ix_evidence_items_source_file", "source_file_id"),
+    )
+
+    company_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    finding_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    evidence_type: Mapped[EvidenceType] = mapped_column(
+        Enum(EvidenceType, name="evidence_type", native_enum=False), nullable=False
+    )
+    claim_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_entity_type: Mapped[str | None] = mapped_column(String(80))
+    source_entity_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    source_row_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    source_file_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    field_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    calculation_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    rule_code: Mapped[str | None] = mapped_column(String(100))
+    rule_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

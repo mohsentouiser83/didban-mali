@@ -79,6 +79,7 @@ class DataSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 class SourceFile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "source_files"
     __table_args__ = (
+        UniqueConstraint("id", "company_id", name="uq_source_file_company"),
         Index("ix_source_files_company_created", "company_id", "created_at"),
         Index("ix_source_files_company_sha256", "company_id", "sha256"),
         Index("ix_source_files_uploaded_by", "uploaded_by"),

@@ -12,14 +12,18 @@ from app.audit.service import record_audit_event
 from app.companies.dependencies import CurrentCompanyAccess
 from app.companies.models import CompanyRole
 from app.findings.models import (
+    EvidenceItem,
     Finding,
     FindingCategory,
     FindingCode,
     FindingGenerationRun,
     FindingRunStatus,
     FindingWorkflowStatus,
+    PriorityBand,
 )
 from app.findings.schemas import (
+    EvidenceItemResponse,
+    EvidenceItemsResponse,
     FindingGenerationRequest,
     FindingGenerationRunResponse,
     FindingResponse,
@@ -72,6 +76,11 @@ def _finding_response(item: Finding) -> FindingResponse:
         summary_fa=item.summary_fa,
         assertion_status=item.assertion_status,
         severity=item.severity,
+        priority_band=item.priority_band,
+        priority_score=item.priority_score,
+        priority_explanation=item.priority_explanation_json,
+        priority_model_version=item.priority_model_version,
+        priority_config=item.priority_config_json,
         confidence_score=item.confidence_score,
         confidence_basis=item.confidence_basis_json,
         affected_amount_irr=item.affected_amount_irr,
@@ -146,6 +155,19 @@ async def create_finding_generation_run(
     config = {
         "trend_ratio": str(payload.trend_ratio),
         "minimum_amount_irr": str(payload.minimum_amount_irr),
+        "priority": {
+            "model_version": payload.priority.model_version,
+            "impact_weight": str(payload.priority.impact_weight),
+            "materiality_weight": str(payload.priority.materiality_weight),
+            "confidence_weight": str(payload.priority.confidence_weight),
+            "urgency_weight": str(payload.priority.urgency_weight),
+            "critical_threshold": str(payload.priority.critical_threshold),
+            "high_threshold": str(payload.priority.high_threshold),
+            "medium_threshold": str(payload.priority.medium_threshold),
+            "materiality_amount_irr": str(payload.priority.materiality_amount_irr),
+            "revenue_ratio_full_score": str(payload.priority.revenue_ratio_full_score),
+            "critical_minimum_confidence": str(payload.priority.critical_minimum_confidence),
+        },
     }
     existing = await session.scalar(
         select(FindingGenerationRun).where(
@@ -239,6 +261,7 @@ async def list_findings(
     finding_code: FindingCode | None = None,
     category: FindingCategory | None = None,
     workflow_status: FindingWorkflowStatus | None = None,
+    priority_band: PriorityBand | None = None,
     cursor: UUID | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> FindingsResponse:
@@ -254,6 +277,8 @@ async def list_findings(
         statement = statement.where(Finding.category == category)
     if workflow_status is not None:
         statement = statement.where(Finding.workflow_status == workflow_status)
+    if priority_band is not None:
+        statement = statement.where(Finding.priority_band == priority_band)
     if cursor is not None:
         statement = statement.where(Finding.id > cursor)
     rows = list(await session.scalars(statement.order_by(Finding.id).limit(limit + 1)))
@@ -277,3 +302,48 @@ async def get_finding(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="یافته پیدا نشد.")
     return _finding_response(item)
+
+
+@router.get(
+    "/findings/{finding_id}/evidence",
+    response_model=EvidenceItemsResponse,
+)
+async def get_finding_evidence(
+    company_id: UUID,
+    finding_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+) -> EvidenceItemsResponse:
+    del access
+    finding = await session.scalar(
+        select(Finding.id).where(Finding.id == finding_id, Finding.company_id == company_id)
+    )
+    if finding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="یافته پیدا نشد.")
+    rows = list(
+        await session.scalars(
+            select(EvidenceItem)
+            .where(EvidenceItem.finding_id == finding_id, EvidenceItem.company_id == company_id)
+            .order_by(EvidenceItem.ordinal, EvidenceItem.id)
+        )
+    )
+    return EvidenceItemsResponse(
+        items=[
+            EvidenceItemResponse(
+                id=item.id,
+                ordinal=item.ordinal,
+                evidence_type=item.evidence_type,
+                claim_code=item.claim_code,
+                source_entity_type=item.source_entity_type,
+                source_entity_id=item.source_entity_id,
+                source_row_id=item.source_row_id,
+                source_file_id=item.source_file_id,
+                field_snapshot=item.field_snapshot_json,
+                calculation=item.calculation_json,
+                rule_code=item.rule_code,
+                rule_version=item.rule_version,
+                created_at=item.created_at,
+            )
+            for item in rows
+        ]
+    )

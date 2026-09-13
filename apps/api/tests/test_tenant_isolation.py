@@ -546,6 +546,7 @@ def test_secure_upload_scan_and_authorized_download() -> None:
         "total": 1,
         "by_code": {"potential_missing_transaction": 1},
         "catalog_size": 8,
+        "evidence_items": 3,
     }
     assert finding_run["coverage"]["reconciliation_findings"]["available"] is True
     assert finding_run["coverage"]["financial_trends"]["available"] is False
@@ -559,11 +560,51 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert generated_finding["finding_code"] == "potential_missing_transaction"
     assert generated_finding["assertion_status"] == "hypothesis"
     assert generated_finding["workflow_status"] == "needs_review"
+    assert generated_finding["priority_band"] == "high"
+    assert generated_finding["priority_score"] == "70.50"
+    assert set(generated_finding["priority_explanation"]["factors"]) == {
+        "impact",
+        "materiality",
+        "confidence",
+        "urgency",
+    }
+    assert generated_finding["priority_model_version"].startswith("priority-v1:")
+    assert generated_finding["priority_config"]["weights"]["impact"] == "0.40"
     assert generated_finding["reconciliation_match_id"]
     assert "احتمالاً" in generated_finding["title_fa"]
     finding_id = generated_finding["id"]
     assert owner.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 200
+    evidence_response = owner.get(f"/companies/{company['id']}/findings/{finding_id}/evidence")
+    assert evidence_response.status_code == 200, evidence_response.text
+    evidence = evidence_response.json()["items"]
+    assert [item["evidence_type"] for item in evidence] == [
+        "rule",
+        "calculation",
+        "source_record",
+    ]
+    assert evidence[2]["source_row_id"]
+    assert evidence[2]["source_file_id"]
+    assert evidence[2]["field_snapshot"]["raw"]
+    assert evidence[2]["field_snapshot"]["source_file"]["original_name"] == "گردش بانک.csv"
+    completed_repeat = owner.post(
+        f"/companies/{company['id']}/analysis-runs/{reconciliation_analysis_id}/finding-runs",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": finding_key,
+        },
+        json=finding_request,
+    )
+    assert completed_repeat.status_code == 202, completed_repeat.text
+    assert completed_repeat.json()["id"] == finding_run_id
+    assert (
+        len(owner.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").json()["items"])
+        == 3
+    )
     assert outsider.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 404
+    assert (
+        outsider.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").status_code
+        == 404
+    )
     assert (
         outsider.get(
             f"/companies/{company['id']}/reconciliation-runs/{reconciliation_id}"
@@ -615,6 +656,10 @@ def test_secure_upload_scan_and_authorized_download() -> None:
             assert cursor.fetchall() == []
             cursor.execute("SELECT id::text FROM findings WHERE company_id = %s", (company["id"],))
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM evidence_items WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
@@ -644,6 +689,16 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE source_rows SET raw_hash = repeat('0', 64) WHERE company_id = %s",
                     (company["id"],),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE evidence_items SET claim_code = 'CHANGED' WHERE finding_id = %s",
+                    (finding_id,),
                 )
             connection.rollback()
 
