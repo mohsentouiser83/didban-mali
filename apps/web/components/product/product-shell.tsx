@@ -10,7 +10,7 @@ import { Icon, Mark, type ProductIconName } from "./icons";
 import { useWorkspace } from "./workspace-provider";
 
 const pageMeta = [
-  { match: "/overview", title: "نمای کلی", breadcrumb: "فضای کاری / نمای کلی" },
+  { match: "/overview", title: "داشبورد مالی", breadcrumb: "فضای کاری / وضعیت مالی" },
   { match: "/imports", title: "ورود داده‌های مالی", breadcrumb: "فضای کاری / ورود داده" },
   { match: "/financial-model", title: "مدل مالی", breadcrumb: "فضای کاری / نرمال‌سازی و طبقه‌بندی" },
   { match: "/analysis", title: "تحلیل مالی", breadcrumb: "فضای کاری / محاسبات دوره‌ای" },
@@ -27,7 +27,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const base = `/companies/${company.id}`;
   const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pathname.includes("/findings/") ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / اولویت و شواهد" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
   const links: { href: string; label: string; icon: ProductIconName }[] = [
-    { href: `${base}/overview`, label: "نمای کلی", icon: "home" },
+    { href: `${base}/overview`, label: "داشبورد", icon: "home" },
     { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
     { href: `${base}/financial-model`, label: "مدل مالی", icon: "layers" },
     { href: `${base}/analysis`, label: "تحلیل مالی", icon: "chart" },

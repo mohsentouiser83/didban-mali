@@ -115,6 +115,22 @@ export type FindingsResponse = { items: Finding[]; next_cursor: string | null };
 export type EvidenceItem = { id: string; ordinal: number; evidence_type: EvidenceType; claim_code: string; source_entity_type: string | null; source_entity_id: string | null; source_row_id: string | null; source_file_id: string | null; field_snapshot: Record<string, unknown>; calculation: Record<string, unknown>; rule_code: string | null; rule_version: string; created_at: string };
 export type EvidenceItemsResponse = { items: EvidenceItem[] };
 
+export type DashboardOverallState = "critical_attention" | "attention" | "monitor" | "stable" | "limited_visibility" | "analysis_incomplete";
+export type DashboardTrend = "up" | "down" | "flat" | "unavailable";
+export type DashboardMetric = { metric_code: string; label_fa: string; available: boolean; unit: "IRR" | "ratio"; value: string | null; previous_value: string | null; change_value: string | null; change_ratio: string | null; trend: DashboardTrend; calculation: Record<string, unknown>; unavailable_reason_fa: string | null };
+export type DashboardFinding = { id: string; finding_code: FindingCode; title_fa: string; summary_fa: string; priority_band: PriorityBand; priority_score: string; priority_reasons: Finding["priority_explanation"]; confidence_score: string; affected_amount_irr: string | null; affected_ratio: string | null; workflow_status: FindingWorkflowStatus };
+export type DashboardDriver = { finding_id: string; finding_code: FindingCode; title_fa: string; direction: string | null; affected_amount_irr: string | null; affected_ratio: string | null; priority_band: PriorityBand; priority_score: string };
+export type DashboardCoverageSection = { available?: boolean; score?: number; reasons?: string[]; [key: string]: unknown };
+export type DashboardResponse = {
+  snapshot: { analysis_run_id: string; period_start: string; period_end: string; analysis_status: "completed" | "completed_limited"; rule_set_version: string; completed_at: string; comparison_analysis_run_id: string | null };
+  health: { overall_state: DashboardOverallState; financial_state: "critical_attention" | "attention" | "monitor" | "stable"; data_quality: "complete" | "limited"; highest_open_priority: PriorityBand | null; summary_fa: string; reasons_fa: string[] };
+  metrics: DashboardMetric[];
+  top_findings: DashboardFinding[];
+  finding_summary: { total: number; by_priority: Record<PriorityBand, number>; by_workflow: Record<FindingWorkflowStatus, number>; top_limit: number; all_findings_path: string };
+  main_drivers: DashboardDriver[];
+  coverage: { overall_score: number; scoring_method: "simple_average_of_section_scores_v1"; sections: Record<string, DashboardCoverageSection>; limitations_fa: string[]; finding_generation_status: string | null; finding_generation_coverage: Record<string, unknown> };
+};
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",
