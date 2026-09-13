@@ -115,6 +115,12 @@ export type FindingsResponse = { items: Finding[]; next_cursor: string | null };
 export type EvidenceItem = { id: string; ordinal: number; evidence_type: EvidenceType; claim_code: string; source_entity_type: string | null; source_entity_id: string | null; source_row_id: string | null; source_file_id: string | null; field_snapshot: Record<string, unknown>; calculation: Record<string, unknown>; rule_code: string | null; rule_version: string; created_at: string };
 export type EvidenceItemsResponse = { items: EvidenceItem[] };
 
+export type ReviewDecisionType = "confirmed" | "dismissed" | "follow_up" | "resolved";
+export type ReviewDecisionResponse = { id: string; finding_id: string; decision: ReviewDecisionType; previous_status: FindingWorkflowStatus; resulting_status: FindingWorkflowStatus; note: string | null; actor_id: string; created_at: string };
+export type FindingNoteResponse = { id: string; finding_id: string; body: string; actor_id: string; supersedes_id: string | null; created_at: string };
+export type ReviewTimelineItem = { kind: "decision" | "note"; id: string; actor_id: string; created_at: string; decision: ReviewDecisionType | null; previous_status: FindingWorkflowStatus | null; resulting_status: FindingWorkflowStatus | null; note: string | null; body: string | null; supersedes_id: string | null };
+export type ReviewTimelineResponse = { finding_id: string; current_status: FindingWorkflowStatus; items: ReviewTimelineItem[]; next_cursor: string | null };
+
 export type DashboardOverallState = "critical_attention" | "attention" | "monitor" | "stable" | "limited_visibility" | "analysis_incomplete";
 export type DashboardTrend = "up" | "down" | "flat" | "unavailable";
 export type DashboardMetric = { metric_code: string; label_fa: string; available: boolean; unit: "IRR" | "ratio"; value: string | null; previous_value: string | null; change_value: string | null; change_ratio: string | null; trend: DashboardTrend; calculation: Record<string, unknown>; unavailable_reason_fa: string | null };

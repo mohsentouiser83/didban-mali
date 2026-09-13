@@ -6,7 +6,7 @@ import { FindingCaseWorkspace } from "@/components/product/finding-case-workspac
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function FindingDetailPage() {
-  const { company } = useWorkspace();
+  const { company, user } = useWorkspace();
   const { findingId } = useParams<{ findingId: string }>();
-  return <FindingCaseWorkspace company={company} findingId={findingId} />;
+  return <FindingCaseWorkspace company={company} currentUserId={user.id} findingId={findingId} />;
 }

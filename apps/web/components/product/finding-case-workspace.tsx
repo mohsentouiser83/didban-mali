@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api, API_URL } from "@/lib/product-api";
-import type { Company, EvidenceItem, EvidenceItemsResponse, Finding, PriorityBand } from "@/lib/product-types";
+import type { Company, EvidenceItem, EvidenceItemsResponse, Finding, Member, PriorityBand, ReviewTimelineItem, ReviewTimelineResponse } from "@/lib/product-types";
 
 import { Icon } from "./icons";
+import { FindingReviewPanel } from "./finding-review-panel";
 
 const bandLabels: Record<PriorityBand, string> = { critical: "بحرانی", high: "بالا", medium: "متوسط", low: "پایین" };
 const assertionLabels: Record<Finding["assertion_status"], string> = { hypothesis: "فرضیه نیازمند بررسی", deterministic: "نتیجه قطعی قاعده‌ای" };
@@ -67,9 +68,12 @@ function displayValue(value: unknown) {
 
 function shortId(value: string) { return `${value.slice(0, 8)}…${value.slice(-4)}`; }
 
-export function FindingCaseWorkspace({ company, findingId }: { company: Company; findingId: string }) {
+export function FindingCaseWorkspace({ company, currentUserId, findingId }: { company: Company; currentUserId: string; findingId: string }) {
   const [finding, setFinding] = useState<Finding | null>(null);
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
+  const [reviewItems, setReviewItems] = useState<ReviewTimelineItem[]>([]);
+  const [reviewCursor, setReviewCursor] = useState<string | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -78,11 +82,13 @@ export function FindingCaseWorkspace({ company, findingId }: { company: Company;
     async function load() {
       setLoading(true); setError("");
       try {
-        const [findingResult, evidenceResult] = await Promise.all([
+        const [findingResult, evidenceResult, reviewsResult, membersResult] = await Promise.all([
           api<Finding>(`/companies/${company.id}/findings/${findingId}`),
           api<EvidenceItemsResponse>(`/companies/${company.id}/findings/${findingId}/evidence`),
+          api<ReviewTimelineResponse>(`/companies/${company.id}/findings/${findingId}/reviews?limit=50`),
+          api<Member[]>(`/companies/${company.id}/members`),
         ]);
-        if (!ignore) { setFinding(findingResult); setEvidence(evidenceResult.items); }
+        if (!ignore) { setFinding(findingResult); setEvidence(evidenceResult.items); setReviewItems(reviewsResult.items); setReviewCursor(reviewsResult.next_cursor); setMembers(membersResult); }
       } catch (caught) {
         if (!ignore) setError(caught instanceof Error ? caught.message : "پرونده یافته دریافت نشد.");
       } finally { if (!ignore) setLoading(false); }
@@ -90,6 +96,20 @@ export function FindingCaseWorkspace({ company, findingId }: { company: Company;
     void load();
     return () => { ignore = true; };
   }, [company.id, findingId]);
+
+  const reloadReview = useCallback(async () => {
+    const [findingResult, reviewsResult] = await Promise.all([
+      api<Finding>(`/companies/${company.id}/findings/${findingId}`),
+      api<ReviewTimelineResponse>(`/companies/${company.id}/findings/${findingId}/reviews?limit=50`),
+    ]);
+    setFinding(findingResult); setReviewItems(reviewsResult.items); setReviewCursor(reviewsResult.next_cursor);
+  }, [company.id, findingId]);
+
+  const loadMoreReviews = useCallback(async () => {
+    if (!reviewCursor) return;
+    const result = await api<ReviewTimelineResponse>(`/companies/${company.id}/findings/${findingId}/reviews?limit=50&cursor=${reviewCursor}`);
+    setReviewItems((current) => [...current, ...result.items]); setReviewCursor(result.next_cursor);
+  }, [company.id, findingId, reviewCursor]);
 
   const evidenceKinds = useMemo(() => new Set(evidence.map((item) => item.evidence_type)), [evidence]);
 
@@ -117,6 +137,8 @@ export function FindingCaseWorkspace({ company, findingId }: { company: Company;
     </section>
 
     <section className="case-integrity" aria-label="وضعیت قابلیت حسابرسی"><div><span className={evidenceComplete ? "ready" : "limited"}><Icon name={evidenceComplete ? "check" : "alert"} /></span><p><strong>{evidenceComplete ? "زنجیره شواهد کامل است" : "زنجیره شواهد محدود است"}</strong><small>قاعده، محاسبه و منبع بررسی شدند</small></p></div><div><Icon name="shield" /><p><strong>خروجی تغییرناپذیر</strong><small>نسخه‌های قواعد و مدل اولویت ثبت شده‌اند</small></p></div><div><Icon name="calendar" /><p><strong>{faDate(finding.period_start)} تا {faDate(finding.period_end)}</strong><small>دوره مورد بررسی</small></p></div></section>
+
+    <FindingReviewPanel company={company} currentUserId={currentUserId} findingId={finding.id} currentStatus={finding.workflow_status} items={reviewItems} members={members} nextCursor={reviewCursor} onChanged={reloadReview} onLoadMore={loadMoreReviews} />
 
     <div className="finding-case-layout">
       <main className="case-main">

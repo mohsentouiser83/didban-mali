@@ -25,14 +25,14 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const base = `/companies/${company.id}`;
-  const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pathname.includes("/findings/") ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / اولویت و شواهد" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
+  const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pathname.includes("/findings/") ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / بررسی مشاور و شواهد" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
   const links: { href: string; label: string; icon: ProductIconName }[] = [
     { href: `${base}/overview`, label: "داشبورد", icon: "home" },
     { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
     { href: `${base}/financial-model`, label: "مدل مالی", icon: "layers" },
     { href: `${base}/analysis`, label: "تحلیل مالی", icon: "chart" },
     { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: "reconcile" },
-    { href: `${base}/findings`, label: "یافته‌ها", icon: "findings" },
+    { href: `${base}/findings`, label: "یافته‌ها و بررسی", icon: "findings" },
     { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: "company" },
     { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: "users" },
   ];
@@ -46,8 +46,8 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     <aside className="sidebar">
       <Link className="brand" href={`${base}/overview`}><Mark /><span>دیدبان مالی</span></Link>
       <nav aria-label="منوی اصلی">
-        {links.map((link) => { const active = pathname === link.href || (link.href.endsWith("/imports") && pathname.startsWith(`${link.href}/`)); return <Link key={link.href} className={`nav-item${active ? " active" : ""}`} href={link.href} aria-current={active ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>; })}
-        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>گردش کار بررسی</span><span className="nav-item disabled"><span className="nav-dot"/>گزارش مدیریتی</span>
+        {links.map((link) => { const active = pathname === link.href || (["/imports", "/findings"].some((suffix) => link.href.endsWith(suffix)) && pathname.startsWith(`${link.href}/`)); return <Link key={link.href} className={`nav-item${active ? " active" : ""}`} href={link.href} aria-current={active ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>; })}
+        <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>گزارش مدیریتی</span>
       </nav>
       <div className="user-box"><span className="avatar">{user.full_name.slice(0, 1)}</span><div><strong>{user.full_name}</strong><small dir="ltr">{user.email}</small></div><button onClick={() => void logout()} title="خروج"><Icon name="exit" /><span className="sr-only">خروج</span></button></div>
     </aside>
