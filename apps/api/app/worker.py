@@ -6,7 +6,7 @@ celery_app = Celery(
     "didban_mali",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=["app.imports.tasks"],
+    include=["app.imports.tasks", "app.financial.tasks"],
 )
 celery_app.conf.update(
     task_serializer="json",

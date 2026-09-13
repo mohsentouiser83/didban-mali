@@ -59,6 +59,7 @@ class IssueSeverity(enum.StrEnum):
 class DataSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "data_sources"
     __table_args__ = (
+        UniqueConstraint("id", "company_id", name="uq_data_source_company"),
         Index("ix_data_sources_company_kind", "company_id", "kind"),
         Index("ix_data_sources_created_by", "created_by"),
     )

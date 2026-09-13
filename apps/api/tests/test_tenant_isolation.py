@@ -80,6 +80,18 @@ def wait_for_scan(client: httpx.Client, company_id: str, batch_id: str) -> dict[
     pytest.fail("Malware scan did not complete within 120 seconds")
 
 
+def wait_for_normalization(client: httpx.Client, company_id: str, batch_id: str) -> dict[str, Any]:
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        response = client.get(f"/companies/{company_id}/imports/{batch_id}")
+        assert response.status_code == 200, response.text
+        batch = response.json()
+        if batch["status"] in {"completed", "completed_limited", "failed"}:
+            return batch
+        time.sleep(0.25)
+    pytest.fail("Canonical normalization did not complete within 60 seconds")
+
+
 @pytest.mark.integration
 def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     owner_a, user_a, _ = register("الف")
@@ -131,7 +143,8 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     company = create_company(owner, "شرکت بارگذاری امن")
     clean_content = (
         "شماره سند,تاریخ سند,کد حساب,نام حساب,شرح,بدهکار,بستانکار\n"
-        '۱,۱۴۰۵/۰۶/۲۱,۱۱۰۱,بانک,فروش,۰,"۲۵۰,۰۰۰"\n'
+        '۱,۱۴۰۵/۰۶/۲۱,۴۱۰۱,فروش,فروش شهریور,۰,"۲۵۰,۰۰۰"\n'
+        '۱,۱۴۰۵/۰۶/۲۱,۱۱۰۱,بانک,وصول فروش,"۲۵۰,۰۰۰",۰\n'
     ).encode()
 
     idempotency_key = f"upload-{time.time_ns()}"
@@ -219,7 +232,7 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     )
     assert validated.status_code == 200, validated.text
     assert validated.json()["batch"]["stage"] == "validation_ready"
-    assert validated.json()["batch"]["accepted_count"] == 1
+    assert validated.json()["batch"]["accepted_count"] == 2
     assert validated.json()["coverage"]["overall"] == 100
 
     issues = owner.get(f"/companies/{company['id']}/imports/{batch_id}/issues")
@@ -236,6 +249,53 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert committed.status_code == 200, committed.text
     assert committed.json()["status"] == "queued"
     assert committed.json()["stage"] == "ready_for_normalization"
+
+    normalized_batch = wait_for_normalization(owner, company["id"], batch_id)
+    assert normalized_batch["status"] == "completed_limited", normalized_batch
+    assert normalized_batch["stage"] == "normalized"
+    assert normalized_batch["coverage"]["canonical_model"] == {
+        "available": True,
+        "score": 100,
+        "expected_rows": 2,
+        "normalized_rows": 2,
+        "lineage_complete": True,
+    }
+    assert normalized_batch["coverage"]["profit_analysis"]["available"] is False
+    assert normalized_batch["coverage"]["journal_balance"] == {
+        "available": True,
+        "score": 100,
+        "reasons": [],
+    }
+
+    unclassified = owner.get(f"/companies/{company['id']}/accounts/unclassified")
+    assert unclassified.status_code == 200, unclassified.text
+    assert {account["source_code"] for account in unclassified.json()} == {"1101", "4101"}
+    classes = {"1101": "asset", "4101": "revenue"}
+    for account in unclassified.json():
+        classified = owner.put(
+            f"/companies/{company['id']}/accounts/{account['id']}/classification",
+            headers={
+                "X-CSRF-Token": owner.cookies["didban_csrf"],
+                "Idempotency-Key": f"classification-{time.time_ns()}",
+            },
+            json={
+                "account_class": classes[account["source_code"]],
+                "effective_from": "2026-03-21",
+                "rule_version": "human-v1",
+            },
+        )
+        assert classified.status_code == 200, classified.text
+    assert owner.get(f"/companies/{company['id']}/accounts/unclassified").json() == []
+
+    repeated_commit = owner.post(
+        f"/companies/{company['id']}/imports/{batch_id}/commit",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"commit-retry-{time.time_ns()}",
+        },
+    )
+    assert repeated_commit.status_code == 200, repeated_commit.text
+    assert repeated_commit.json()["status"] == "completed_limited"
 
     eicar = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
     infected = upload_csv(owner, company["id"], "نمونه-آلوده.csv", eicar)
@@ -260,6 +320,27 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM source_rows WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            cursor.execute(
+                """
+                SELECT sr.raw_json->>'تاریخ سند', je.entry_date::text,
+                       jl.credit_irr::text, a.source_code, je.description_normalized
+                FROM journal_lines jl
+                JOIN source_rows sr ON sr.id = jl.source_row_id
+                JOIN journal_entries je ON je.id = jl.entry_id
+                JOIN accounts a ON a.id = jl.account_id
+                WHERE sr.import_batch_id = %s
+                ORDER BY a.source_code
+                """,
+                (batch_id,),
+            )
+            assert cursor.fetchall() == [
+                ("۱۴۰۵/۰۶/۲۱", "2026-09-12", "0", "1101", "فروش شهریور"),
+                ("۱۴۰۵/۰۶/۲۱", "2026-09-12", "2500000", "4101", "فروش شهریور"),
+            ]
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:

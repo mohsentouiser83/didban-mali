@@ -14,6 +14,7 @@ from uuid6 import uuid7
 from app.audit.service import record_audit_event
 from app.companies.models import CompanyAccess, CompanyRole
 from app.core.config import settings
+from app.financial.tasks import normalize_import_task
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
 from app.imports.mapping import (
     ALTERNATIVE_REQUIRED_FIELDS,
@@ -803,9 +804,21 @@ async def commit_import(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
     batch, source_file, source = row
+    if batch.stage == "normalized" and batch.status in {
+        ImportStatus.COMPLETED,
+        ImportStatus.COMPLETED_LIMITED,
+    }:
+        return _response(batch, source_file, source)
     if batch.stage == "ready_for_normalization" and batch.status == ImportStatus.QUEUED:
         return _response(batch, source_file, source)
-    if batch.stage != "validation_ready" or batch.accepted_count < 1:
+    retryable_normalization = (
+        batch.status == ImportStatus.FAILED
+        and batch.retryable
+        and batch.failure_code in {"NORMALIZATION_FAILED", "NORMALIZATION_QUEUE_UNAVAILABLE"}
+    )
+    if not retryable_normalization and (
+        batch.stage != "validation_ready" or batch.accepted_count < 1
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="اعتبارسنجی موفق پیش از ثبت نهایی الزامی است.",
@@ -822,6 +835,9 @@ async def commit_import(
         )
     batch.status = ImportStatus.QUEUED
     batch.stage = "ready_for_normalization"
+    batch.failure_code = None
+    batch.failure_message = None
+    batch.retryable = False
     record_audit_event(
         session,
         action="import.commit_requested",
@@ -833,6 +849,16 @@ async def commit_import(
         metadata={"accepted_rows": batch.accepted_count},
     )
     await session.commit()
+    try:
+        normalize_import_task.delay(str(batch.id), str(company_id), str(current_user.id))
+    except Exception:
+        logger.exception("Canonical normalization could not be queued")
+        batch.status = ImportStatus.FAILED
+        batch.stage = "normalization_queue_unavailable"
+        batch.failure_code = "NORMALIZATION_QUEUE_UNAVAILABLE"
+        batch.failure_message = "صف نرمال‌سازی در دسترس نبود."
+        batch.retryable = True
+        await session.commit()
     return _response(batch, source_file, source)
 
 

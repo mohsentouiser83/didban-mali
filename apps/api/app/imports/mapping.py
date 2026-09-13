@@ -34,6 +34,12 @@ FIELD_LABELS = {
     "withdrawal_amount": "برداشت",
     "transaction_id": "شناسه تراکنش",
     "reference": "مرجع",
+    "value_date": "تاریخ مؤثر",
+    "running_balance": "مانده جاری",
+    "counterparty_name": "طرف حساب",
+    "iban": "شماره شبا",
+    "line_id": "شماره ردیف سند",
+    "invoice_ref": "مرجع فاکتور",
     "invoice_no": "شماره فاکتور",
     "issue_date": "تاریخ فاکتور",
     "customer_name": "نام مشتری",
@@ -41,6 +47,9 @@ FIELD_LABELS = {
     "due_date": "تاریخ سررسید",
     "tax_amount": "مالیات",
     "paid_amount": "مبلغ وصول‌شده",
+    "payment_date": "تاریخ پرداخت",
+    "customer_national_id": "شناسه ملی مشتری",
+    "status": "وضعیت",
 }
 
 ALIASES: dict[str, tuple[str, ...]] = {
@@ -57,6 +66,12 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "withdrawal_amount": ("برداشت", "بدهکار", "برداشتی", "withdrawal", "debit amount"),
     "transaction_id": ("شناسه تراکنش", "شماره پیگیری", "transaction id", "tracking id"),
     "reference": ("مرجع", "شماره مرجع", "reference", "ref"),
+    "value_date": ("تاریخ موثر", "تاریخ ارزش", "value date"),
+    "running_balance": ("مانده", "مانده جاری", "running balance", "balance"),
+    "counterparty_name": ("طرف حساب", "نام طرف حساب", "counterparty", "party name"),
+    "iban": ("شبا", "شماره شبا", "iban"),
+    "line_id": ("شماره ردیف", "ردیف سند", "line id"),
+    "invoice_ref": ("مرجع فاکتور", "شماره فاکتور", "invoice ref"),
     "invoice_no": ("شماره فاکتور", "فاکتور", "invoice no", "invoice number"),
     "issue_date": ("تاریخ فاکتور", "تاریخ صدور", "issue date", "invoice date", "date"),
     "customer_name": ("نام مشتری", "مشتری", "طرف حساب", "customer", "customer name"),
@@ -64,6 +79,9 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "due_date": ("تاریخ سررسید", "سررسید", "due date"),
     "tax_amount": ("مالیات", "مالیات ارزش افزوده", "tax", "vat"),
     "paid_amount": ("مبلغ وصول شده", "پرداخت شده", "paid amount", "paid"),
+    "payment_date": ("تاریخ پرداخت", "payment date"),
+    "customer_national_id": ("شناسه ملی مشتری", "کد ملی مشتری", "national id"),
+    "status": ("وضعیت", "status"),
 }
 
 REQUIRED_FIELDS: dict[SourceKind, tuple[str, ...]] = {
@@ -94,6 +112,10 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "description",
         "debit",
         "credit",
+        "line_id",
+        "reference",
+        "counterparty_name",
+        "invoice_ref",
     ),
     SourceKind.BANK: (
         "booking_date",
@@ -103,6 +125,10 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "withdrawal_amount",
         "transaction_id",
         "reference",
+        "value_date",
+        "running_balance",
+        "counterparty_name",
+        "iban",
     ),
     SourceKind.SALES: (
         "invoice_no",
@@ -112,11 +138,21 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "due_date",
         "tax_amount",
         "paid_amount",
+        "payment_date",
+        "customer_national_id",
+        "status",
         "description",
     ),
 }
 
-DATE_FIELDS = {"entry_date", "booking_date", "issue_date", "due_date"}
+DATE_FIELDS = {
+    "entry_date",
+    "booking_date",
+    "value_date",
+    "issue_date",
+    "due_date",
+    "payment_date",
+}
 MONEY_FIELDS = {
     "debit",
     "credit",
@@ -126,6 +162,7 @@ MONEY_FIELDS = {
     "gross_amount",
     "tax_amount",
     "paid_amount",
+    "running_balance",
 }
 
 
