@@ -383,6 +383,12 @@ def test_secure_upload_scan_and_authorized_download() -> None:
 
     completed_analysis = wait_for_analysis(owner, company["id"], run_id)
     assert completed_analysis["status"] == "completed_limited", completed_analysis
+    listed_analyses = owner.get(
+        f"/companies/{company['id']}/analysis-runs", params={"limit": 1}
+    )
+    assert listed_analyses.status_code == 200, listed_analyses.text
+    assert listed_analyses.json()[0]["id"] == run_id
+    assert outsider.get(f"/companies/{company['id']}/analysis-runs").status_code == 404
     assert completed_analysis["rule_set_version"] == "financial-metrics-v1"
     assert completed_analysis["input_manifest"]["import_batch_ids"] == [batch_id]
     assert completed_analysis["coverage"]["accounting"] == {
@@ -517,6 +523,13 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert repeated_reconciliation.json()["id"] == reconciliation_id
     reconciled = wait_for_reconciliation(owner, company["id"], reconciliation_id)
     assert reconciled["status"] == "completed", reconciled
+    listed_reconciliations = owner.get(
+        f"/companies/{company['id']}/reconciliation-runs",
+        params={"analysis_run_id": reconciliation_analysis_id, "limit": 1},
+    )
+    assert listed_reconciliations.status_code == 200, listed_reconciliations.text
+    assert listed_reconciliations.json()[0]["id"] == reconciliation_id
+    assert outsider.get(f"/companies/{company['id']}/reconciliation-runs").status_code == 404
     assert reconciled["counts"] == {
         "bank_transactions": 2,
         "accounting_entries": 1,

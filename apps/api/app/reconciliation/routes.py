@@ -171,6 +171,27 @@ async def create_reconciliation_run(
     return _run_response(run)
 
 
+@router.get("/reconciliation-runs", response_model=list[ReconciliationRunResponse])
+async def list_reconciliation_runs(
+    company_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    analysis_run_id: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list[ReconciliationRunResponse]:
+    del access
+    statement = select(ReconciliationRun).where(ReconciliationRun.company_id == company_id)
+    if analysis_run_id is not None:
+        statement = statement.where(ReconciliationRun.analysis_run_id == analysis_run_id)
+    runs = list(
+        await session.scalars(
+            statement.order_by(ReconciliationRun.created_at.desc(), ReconciliationRun.id.desc())
+            .limit(limit)
+        )
+    )
+    return [_run_response(run) for run in runs]
+
+
 @router.get("/reconciliation-runs/{run_id}", response_model=ReconciliationRunResponse)
 async def get_reconciliation_run(
     company_id: UUID,

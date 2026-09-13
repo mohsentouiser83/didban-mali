@@ -81,13 +81,14 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
       try {
         const accounts = await api<FinancialAccount[]>(`/companies/${company.id}/accounts/unclassified`);
         if (!ignore) setUnclassifiedCount(accounts.length);
+        const recentRuns = await api<AnalysisRun[]>(`/companies/${company.id}/analysis-runs?limit=20`);
         const savedId = window.localStorage.getItem(`didban:last-analysis:${company.id}`);
-        if (savedId) {
-          const savedRun = await api<AnalysisRun>(`/companies/${company.id}/analysis-runs/${savedId}`);
+        const savedRun = recentRuns.find((item) => item.id === savedId) ?? recentRuns.find((item) => item.status === "completed" || item.status === "completed_limited");
+        if (savedRun) {
           if (ignore) return;
           setRun(savedRun); setPeriodStart(savedRun.period_start); setPeriodEnd(savedRun.period_end);
+          window.localStorage.setItem(`didban:last-analysis:${company.id}`, savedRun.id);
           if (savedRun.status === "completed" || savedRun.status === "completed_limited") await loadMetrics(savedRun);
-          return;
         }
       } catch (caught) {
         if (!ignore) setError(caught instanceof Error ? caught.message : "اطلاعات تحلیل دریافت نشد.");

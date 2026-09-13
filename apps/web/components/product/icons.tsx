@@ -2,7 +2,7 @@ export function Mark() {
   return <span className="mark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table" | "layers" | "chart" | "calendar" | "activity";
+export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table" | "layers" | "chart" | "calendar" | "activity" | "reconcile" | "bank" | "tune" | "chevron";
 
 export function Icon({ name }: { name: ProductIconName }) {
   const paths = {
@@ -23,6 +23,10 @@ export function Icon({ name }: { name: ProductIconName }) {
     chart: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><path d="m4 7 6-4 6 7 5-4"/></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></>,
     activity: <><path d="M3 12h4l2-7 4 14 2-7h6"/></>,
+    reconcile: <><path d="M7 7h11l-3-3M17 17H6l3 3"/><path d="m18 7-3 3M6 17l3-3"/></>,
+    bank: <><path d="m3 9 9-5 9 5M5 10v7M9 10v7M15 10v7M19 10v7M3 20h18"/></>,
+    tune: <><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></>,
+    chevron: <path d="m9 18 6-6-6-6"/>,
   };
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{paths[name]}</svg>;
 }

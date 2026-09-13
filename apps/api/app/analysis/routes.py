@@ -148,6 +148,25 @@ async def create_analysis_run(
     return _run_response(run)
 
 
+@router.get("/analysis-runs", response_model=list[AnalysisRunResponse])
+async def list_analysis_runs(
+    company_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+) -> list[AnalysisRunResponse]:
+    del access
+    runs = list(
+        await session.scalars(
+            select(AnalysisRun)
+            .where(AnalysisRun.company_id == company_id)
+            .order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
+            .limit(limit)
+        )
+    )
+    return [_run_response(run) for run in runs]
+
+
 @router.get("/analysis-runs/{run_id}", response_model=AnalysisRunResponse)
 async def get_analysis_run(
     company_id: UUID,

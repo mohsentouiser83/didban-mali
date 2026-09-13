@@ -76,6 +76,30 @@ export type AnalysisRun = {
 export type MetricObservation = { analysis_run_id: string; metric_code: MetricCode; period_start: string; period_end: string; value_irr: string | null; value_ratio: string | null; calculation: { formula?: string; line_count?: number; record_count?: number; unit?: string }; calculated_at: string };
 export type MetricsResponse = { analysis_run: AnalysisRun; metrics: MetricObservation[] };
 
+export type ReconciliationStatus = "queued" | "processing" | "completed" | "completed_limited" | "failed";
+export type MatchLevel = "duplicate" | "exact" | "rule" | "fuzzy" | "mismatch" | "unresolved";
+export type MatchStatus = "auto_matched" | "potential_match" | "amount_mismatch" | "date_mismatch" | "duplicate_high" | "duplicate_possible" | "unresolved";
+export type ReconciliationCounts = { bank_transactions?: number; accounting_entries?: number; auto_matched?: number; potential_matches?: number; amount_mismatches?: number; date_mismatches?: number; duplicates?: number; unresolved?: number };
+export type ReconciliationRun = {
+  id: string;
+  company_id: string;
+  analysis_run_id: string;
+  status: ReconciliationStatus;
+  config_version: string;
+  config: { rule_business_days?: number; review_calendar_days?: number; fuzzy_threshold?: string; ambiguity_margin?: string };
+  counts: ReconciliationCounts;
+  created_by: string;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type ReconciliationEvidenceSide = { transaction_id?: string; journal_entry_id?: string; journal_line_id?: string; source_row_id?: string; date?: string; amount_irr?: string; reference?: string | null; invoice_ref?: string | null; description?: string };
+export type ReconciliationMatch = { id: string; bank_transaction_id: string | null; journal_entry_id: string | null; match_level: MatchLevel; status: MatchStatus; score: string; amount_difference_irr: string | null; date_difference_days: number | null; features: { amount_equal?: boolean; amount_difference_irr?: string; calendar_days?: number; business_days?: number; reference_equal?: boolean; description_similarity?: string; strong_identifier_equal?: boolean }; evidence: { bank?: ReconciliationEvidenceSide; accounting?: ReconciliationEvidenceSide; bank_transaction_id?: string; journal_entry_id?: string; source_row_id?: string; calculation?: string }; rule_code: string; created_at: string };
+export type ReconciliationMatchesResponse = { items: ReconciliationMatch[]; next_cursor: string | null };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",
