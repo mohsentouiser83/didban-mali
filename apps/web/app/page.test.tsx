@@ -9,9 +9,11 @@ describe("Home", () => {
   });
 
   it("shows the Persian authentication entry point", async () => {
-    render(<Home />);
+    const { container } = render(<Home />);
 
     expect(await screen.findByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
+    expect(container.querySelector("main.ds-root.auth-shell")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "فعال‌کردن تم تاریک" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ورود به دیدبان" })).toBeInTheDocument();
     expect(screen.getByText("اطلاعات نشست در کوکی امن نگهداری می‌شود.")).toBeInTheDocument();
   });

@@ -2,6 +2,8 @@
 
 import { DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { ThemeToggle } from "@/components/design-system/theme-toggle";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 type User = { id: string; email: string; full_name: string };
@@ -105,7 +107,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
   }
 
   return (
-    <main className="auth-shell">
+    <main className="ds-root auth-shell">
       <section className="auth-story" aria-labelledby="welcome-title">
         <a className="brand brand-light" href="#"><Mark /><span>دیدبان مالی</span></a>
         <div>
@@ -117,6 +119,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
       </section>
 
       <section className="auth-panel">
+        <div className="auth-theme"><ThemeToggle /></div>
         <div className="auth-card">
           <div className="mobile-brand"><Mark />دیدبان مالی</div>
           <div className="tabs" role="tablist" aria-label="نوع ورود">
@@ -364,7 +367,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
   }, []);
   function addCompany(company: Company) { setCompanies((items) => [company, ...items]); setActiveId(company.id); setShowCreate(false); }
 
-  return <main className="app-shell">
+  return <main className="ds-root app-shell">
     <aside className="sidebar">
       <a className="brand" href="#"><Mark /><span>دیدبان مالی</span></a>
       <nav aria-label="منوی اصلی">
@@ -380,7 +383,7 @@ function Dashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
     <section className="workspace">
       <header className="topbar">
         <div><span className="breadcrumb">فضای کاری / نمای کلی</span><h1>سلام، {user.full_name.split(" ")[0]}</h1></div>
-        <div className="company-switcher"><label htmlFor="company-select">شرکت فعال</label><select id="company-select" value={active?.id ?? ""} onChange={(e) => setActiveId(e.target.value)} disabled={!companies.length}>{companies.length ? companies.map((company) => <option key={company.id} value={company.id}>{company.legal_name}</option>) : <option>هنوز شرکتی ندارید</option>}</select><button className="icon-button" onClick={() => setShowCreate((value) => !value)} title="شرکت جدید"><Icon name="plus" /></button></div>
+        <div className="topbar-actions"><ThemeToggle /><div className="company-switcher"><label htmlFor="company-select">شرکت فعال</label><select id="company-select" value={active?.id ?? ""} onChange={(e) => setActiveId(e.target.value)} disabled={!companies.length}>{companies.length ? companies.map((company) => <option key={company.id} value={company.id}>{company.legal_name}</option>) : <option>هنوز شرکتی ندارید</option>}</select><button className="icon-button" onClick={() => setShowCreate((value) => !value)} title="شرکت جدید"><Icon name="plus" /></button></div></div>
       </header>
       <div className="content" id="overview">
         {error && <p className="form-error global" role="alert">{error}</p>}
@@ -417,6 +420,6 @@ export default function Home() {
       .finally(() => setChecking(false));
   }, []);
   async function logout() { try { await api("/auth/logout", { method: "POST" }); } finally { setUser(null); } }
-  if (checking) return <main className="splash"><Mark /><strong>دیدبان مالی</strong><span className="loading-ring" /></main>;
+  if (checking) return <main className="ds-root splash"><Mark /><strong>دیدبان مالی</strong><span className="loading-ring" /></main>;
   return user ? <Dashboard user={user} onLogout={logout} /> : <AuthScreen onAuthenticated={setUser} />;
 }
