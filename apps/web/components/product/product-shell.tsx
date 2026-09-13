@@ -21,7 +21,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const base = `/companies/${company.id}`;
-  const meta = pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
+  const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
   const links: { href: string; label: string; icon: ProductIconName }[] = [
     { href: `${base}/overview`, label: "نمای کلی", icon: "home" },
     { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
@@ -38,7 +38,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     <aside className="sidebar">
       <Link className="brand" href={`${base}/overview`}><Mark /><span>دیدبان مالی</span></Link>
       <nav aria-label="منوی اصلی">
-        {links.map((link) => <Link key={link.href} className={`nav-item${pathname === link.href ? " active" : ""}`} href={link.href} aria-current={pathname === link.href ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>)}
+        {links.map((link) => { const active = pathname === link.href || (link.href.endsWith("/imports") && pathname.startsWith(`${link.href}/`)); return <Link key={link.href} className={`nav-item${active ? " active" : ""}`} href={link.href} aria-current={active ? "page" : undefined}><Icon name={link.icon} /><span>{link.label}</span></Link>; })}
         <span className="nav-label">ماژول‌های بعدی</span><span className="nav-item disabled"><span className="nav-dot"/>کنترل کیفیت</span><span className="nav-item disabled"><span className="nav-dot"/>تحلیل و گزارش</span>
       </nav>
       <div className="user-box"><span className="avatar">{user.full_name.slice(0, 1)}</span><div><strong>{user.full_name}</strong><small dir="ltr">{user.email}</small></div><button onClick={() => void logout()} title="خروج"><Icon name="exit" /><span className="sr-only">خروج</span></button></div>

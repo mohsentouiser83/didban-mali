@@ -15,3 +15,17 @@ def test_openapi_exposes_health_route() -> None:
 
     assert response.status_code == 200
     assert "/api/v1/health/live" in response.json()["paths"]
+
+
+def test_cors_preflight_allows_mapping_put_requests() -> None:
+    response = TestClient(app).options(
+        "/api/v1/companies/00000000-0000-0000-0000-000000000000/imports/00000000-0000-0000-0000-000000000000/mapping",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "Content-Type, Idempotency-Key, X-CSRF-Token",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "PUT" in response.headers["access-control-allow-methods"]

@@ -2,7 +2,7 @@ export function Mark() {
   return <span className="mark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download";
+export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table";
 
 export function Icon({ name }: { name: ProductIconName }) {
   const paths = {
@@ -15,6 +15,10 @@ export function Icon({ name }: { name: ProductIconName }) {
     upload: <><path d="M12 16V3M7 8l5-5 5 5"/><path d="M5 13v7h14v-7"/></>,
     file: <><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 13h6M9 17h6"/></>,
     download: <><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></>,
+    arrow: <><path d="m15 18-6-6 6-6"/></>,
+    check: <><path d="m5 12 4 4L19 6"/></>,
+    alert: <><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></>,
+    table: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></>,
   };
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{paths[name]}</svg>;
 }

@@ -238,6 +238,106 @@
 .ds-root .new-company-card .empty-icon { margin-bottom: var(--ds-p-space-5); }
 .ds-root .new-company-card .company-form { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: var(--ds-space-section); }
 .ds-root .new-company-card .primary-button { grid-column: 1 / -1; }
+
+/* Mapping and validation workspace */
+.ds-root .mapping-workspace { display: grid; gap: var(--ds-space-section); }
+.ds-root .mapping-loading { display: flex; flex-direction: column; gap: var(--ds-p-space-4); align-items: center; justify-content: center; min-height: 55vh; color: var(--ds-foreground-soft); text-align: center; }
+.ds-root .mapping-loading > .icon { width: 36px; height: 36px; color: var(--ds-danger); }
+.ds-root .mapping-loading h2,
+.ds-root .mapping-loading p { margin: 0; }
+.ds-root .mapping-file-header { display: flex; gap: var(--ds-p-space-5); align-items: flex-end; justify-content: space-between; }
+.ds-root .back-link { display: inline-flex; gap: var(--ds-p-space-1); align-items: center; margin-bottom: var(--ds-p-space-4); color: var(--ds-foreground-soft); font-size: var(--ds-font-caption); text-decoration: none; }
+.ds-root .back-link:hover { color: var(--ds-primary); }
+.ds-root .back-link .icon { width: 16px; }
+.ds-root .file-title { display: flex; gap: var(--ds-p-space-3); align-items: center; }
+.ds-root .file-title h2 { max-width: 34ch; margin: 0; overflow: hidden; color: var(--ds-foreground); font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
+.ds-root .file-title p { margin: var(--ds-p-space-1) 0 0; color: var(--ds-foreground-faint); font-size: var(--ds-font-caption); }
+.ds-root .workflow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 0; overflow: hidden; border-block: 1px solid var(--ds-border); list-style: none; }
+.ds-root .workflow-steps li { display: flex; gap: var(--ds-p-space-3); align-items: center; min-height: 82px; padding: var(--ds-p-space-4); color: var(--ds-foreground-faint); }
+.ds-root .workflow-steps li + li { border-inline-start: 1px solid var(--ds-border); }
+.ds-root .workflow-steps li > span { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border: 1px solid var(--ds-border-strong); border-radius: 50%; font-size: 11px; font-weight: 800; }
+.ds-root .workflow-steps li.current { color: var(--ds-foreground); background: var(--ds-muted); }
+.ds-root .workflow-steps li.current > span { color: var(--ds-primary-foreground); border-color: var(--ds-primary); background: var(--ds-primary); }
+.ds-root .workflow-steps li.done > span { color: var(--ds-success); border-color: color-mix(in oklch, var(--ds-success) 40%, var(--ds-border)); background: color-mix(in oklch, var(--ds-success) 10%, transparent); }
+.ds-root .workflow-steps .icon { width: 16px; }
+.ds-root .workflow-steps strong,
+.ds-root .workflow-steps small { display: block; }
+.ds-root .workflow-steps strong { color: inherit; font-size: 12px; }
+.ds-root .workflow-steps small { margin-top: var(--ds-p-space-1); font-size: 9px; }
+.ds-root .mapping-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.7fr); gap: var(--ds-p-space-5); align-items: start; }
+.ds-root .mapping-panel,
+.ds-root .mapping-settings,
+.ds-root .data-preview,
+.ds-root .validation-panel { border: 1px solid var(--ds-border); border-radius: var(--ds-radius-card); background: var(--ds-card-solid); }
+.ds-root .mapping-panel,
+.ds-root .data-preview,
+.ds-root .validation-panel { overflow: hidden; }
+.ds-root .mapping-section-heading { display: flex; gap: var(--ds-p-space-4); align-items: flex-start; justify-content: space-between; padding: var(--ds-p-space-5) var(--ds-p-space-6); border-bottom: 1px solid var(--ds-border); }
+.ds-root .mapping-section-heading h3,
+.ds-root .mapping-settings h3,
+.ds-root .validation-summary h3 { margin: 0; color: var(--ds-foreground); font-size: var(--ds-font-title); }
+.ds-root .mapping-section-heading p,
+.ds-root .mapping-settings p,
+.ds-root .validation-summary p { margin: var(--ds-p-space-2) 0 0; color: var(--ds-foreground-soft); font-size: var(--ds-font-caption); line-height: 1.7; }
+.ds-root .mapping-section-heading > span { flex: 0 0 auto; padding: 6px 9px; border-radius: var(--ds-p-radius-full); color: var(--ds-foreground-soft); background: var(--ds-muted); font-size: 10px; font-weight: 800; }
+.ds-root .mapping-rows { padding: 0 var(--ds-p-space-6); }
+.ds-root .mapping-row { display: grid; grid-template-columns: minmax(150px, 0.8fr) 22px minmax(180px, 1fr); gap: var(--ds-p-space-3); align-items: center; min-height: 72px; border-bottom: 1px solid var(--ds-border); }
+.ds-root .mapping-row:last-child { border-bottom: 0; }
+.ds-root .mapping-row > .icon { width: 16px; color: var(--ds-foreground-faint); transform: rotate(180deg); }
+.ds-root .mapping-row select { min-height: 42px; font-size: 11px; }
+.ds-root .target-field strong,
+.ds-root .target-field small { display: block; }
+.ds-root .target-field strong { color: var(--ds-foreground); font-size: 12px; }
+.ds-root .target-field small { margin-top: var(--ds-p-space-1); color: var(--ds-foreground-faint); font-size: 9px; }
+.ds-root .mapping-settings { position: sticky; top: 108px; display: grid; gap: var(--ds-p-space-5); padding: var(--ds-p-space-6); }
+.ds-root .mapping-settings select,
+.ds-root .mapping-settings input { font-size: 11px; }
+.ds-root .mapping-meta { display: grid; grid-template-columns: 1fr auto; gap: var(--ds-p-space-3); padding: var(--ds-p-space-4) 0; border-block: 1px solid var(--ds-border); font-size: 11px; }
+.ds-root .mapping-meta span { color: var(--ds-foreground-faint); }
+.ds-root .mapping-meta strong { color: var(--ds-foreground); text-align: end; }
+.ds-root .locked-note,
+.ds-root .issues-empty { display: flex; gap: var(--ds-p-space-3); align-items: flex-start; padding: var(--ds-p-space-4); color: var(--ds-foreground-soft); background: var(--ds-muted); font-size: 10px; line-height: 1.7; }
+.ds-root .locked-note > .icon,
+.ds-root .issues-empty > .icon { flex: 0 0 auto; width: 18px; color: var(--ds-success); }
+.ds-root .locked-note span,
+.ds-root .locked-note strong,
+.ds-root .issues-empty span,
+.ds-root .issues-empty strong { display: block; }
+.ds-root .locked-note strong,
+.ds-root .issues-empty strong { color: var(--ds-foreground); }
+.ds-root .table-scroll { overflow-x: auto; }
+.ds-root .data-preview table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
+.ds-root .data-preview th,
+.ds-root .data-preview td { max-width: 260px; padding: var(--ds-p-space-3) var(--ds-p-space-4); overflow: hidden; border-bottom: 1px solid var(--ds-border); text-align: right; text-overflow: ellipsis; }
+.ds-root .data-preview th { color: var(--ds-foreground-soft); background: var(--ds-table-header); font-weight: 800; }
+.ds-root .data-preview tbody tr:hover { background: var(--ds-table-hover); }
+.ds-root .data-preview tbody tr:last-child td { border-bottom: 0; }
+.ds-root .validation-summary { display: flex; gap: var(--ds-p-space-5); align-items: center; justify-content: space-between; padding: var(--ds-p-space-6); }
+.ds-root .validation-summary .primary-button { flex: 0 0 auto; }
+.ds-root .commit-complete { display: inline-flex; gap: var(--ds-p-space-2); align-items: center; color: var(--ds-success); font-size: 11px; font-weight: 800; }
+.ds-root .quality-stats { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid var(--ds-border); }
+.ds-root .quality-stats > div { padding: var(--ds-p-space-5) var(--ds-p-space-6); }
+.ds-root .quality-stats > div + div { border-inline-start: 1px solid var(--ds-border); }
+.ds-root .quality-stats small,
+.ds-root .quality-stats strong { display: block; }
+.ds-root .quality-stats small { color: var(--ds-foreground-faint); font-size: 10px; }
+.ds-root .quality-stats strong { margin-top: var(--ds-p-space-2); color: var(--ds-foreground); font-size: 22px; }
+.ds-root .quality-stats .quality-ok strong { color: var(--ds-success); }
+.ds-root .quality-stats .quality-error strong { color: var(--ds-danger); }
+.ds-root .quality-stats .quality-warning strong { color: var(--ds-warning); }
+.ds-root .issues-list { padding: 0 var(--ds-p-space-6) var(--ds-p-space-4); }
+.ds-root .issues-title { display: flex; justify-content: space-between; padding: var(--ds-p-space-5) 0 var(--ds-p-space-3); color: var(--ds-foreground); font-size: 11px; }
+.ds-root .issues-title span { color: var(--ds-foreground-faint); }
+.ds-root .issues-list article { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--ds-p-space-3); align-items: center; padding: var(--ds-p-space-3) 0; border-top: 1px solid var(--ds-border); }
+.ds-root .issue-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--ds-warning); background: color-mix(in oklch, var(--ds-warning) 12%, transparent); }
+.ds-root .issue-icon.issue-error,
+.ds-root .issue-icon.issue-blocking { color: var(--ds-danger); background: color-mix(in oklch, var(--ds-danger) 10%, transparent); }
+.ds-root .issue-icon .icon { width: 15px; }
+.ds-root .issues-list article strong { color: var(--ds-foreground); font-size: 11px; }
+.ds-root .issues-list article small { display: block; margin-top: var(--ds-p-space-1); color: var(--ds-foreground-faint); font-size: 9px; }
+.ds-root .issues-list article p { margin: var(--ds-p-space-1) 0 0; color: var(--ds-foreground-soft); font-size: 10px; }
+.ds-root .issues-list code { max-width: 220px; padding: 5px 8px; overflow: hidden; border-radius: 6px; color: var(--ds-foreground-soft); background: var(--ds-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.ds-root .issues-empty { margin: 0 var(--ds-p-space-6) var(--ds-p-space-6); }
 .ds-root .welcome-strip {
   margin-bottom: 18px;
   padding: 14px 18px;
@@ -331,6 +431,11 @@
 .ds-root .progress-track i { background: var(--ds-warning); }
 .ds-root .download-button { color: var(--ds-primary); border-color: var(--ds-border-strong); background: var(--ds-card-solid); }
 .ds-root .download-button:hover { background: var(--ds-muted); }
+.ds-root .import-row { grid-template-columns: auto minmax(0, 1fr) 150px auto; }
+.ds-root .import-actions { display: flex; gap: var(--ds-p-space-2); align-items: center; }
+.ds-root .prepare-link { display: inline-flex; gap: var(--ds-p-space-2); align-items: center; min-height: 34px; padding-inline: var(--ds-p-space-3); border-radius: var(--ds-radius-control); color: var(--ds-primary); background: color-mix(in oklch, var(--ds-primary) 10%, transparent); font-size: 10px; font-weight: 800; text-decoration: none; }
+.ds-root .prepare-link:hover { background: color-mix(in oklch, var(--ds-primary) 16%, transparent); }
+.ds-root .prepare-link .icon { width: 15px; }
 .ds-root .empty-icon { color: var(--ds-accent); background: var(--ds-accent-soft); }
 .ds-root .empty-state > p { color: var(--ds-foreground-soft); }
 .ds-root .empty-state .company-form { border-color: var(--ds-border); border-radius: 14px; background: var(--ds-card-solid); }
@@ -341,6 +446,11 @@
   .ds-root .summary-grid { grid-template-columns: 1fr; }
   .ds-root .summary-grid article { border-inline-end: 0; border-bottom: 1px solid var(--ds-border); }
   .ds-root .summary-grid article:last-child { border-bottom: 0; }
+  .ds-root .mapping-layout { grid-template-columns: 1fr; }
+  .ds-root .mapping-settings { position: static; }
+  .ds-root .workflow-steps { grid-template-columns: repeat(2, 1fr); }
+  .ds-root .workflow-steps li:nth-child(3) { border-inline-start: 0; border-top: 1px solid var(--ds-border); }
+  .ds-root .workflow-steps li:nth-child(4) { border-top: 1px solid var(--ds-border); }
 }
 
 @media (max-width: 600px) {
@@ -359,4 +469,20 @@
   .ds-root .action-links a + a { border-inline-start: 0; border-top: 1px solid var(--ds-border); }
   .ds-root .new-company-card { padding: var(--ds-p-space-5); }
   .ds-root .new-company-card .company-form { grid-template-columns: 1fr; }
+  .ds-root .mapping-file-header,
+  .ds-root .validation-summary { align-items: stretch; flex-direction: column; }
+  .ds-root .workflow-steps li { min-height: 70px; padding: var(--ds-p-space-3); }
+  .ds-root .workflow-steps small { display: none; }
+  .ds-root .mapping-section-heading { padding: var(--ds-p-space-5); }
+  .ds-root .mapping-rows { padding: 0 var(--ds-p-space-5); }
+  .ds-root .mapping-row { grid-template-columns: 1fr; gap: var(--ds-p-space-2); padding: var(--ds-p-space-4) 0; }
+  .ds-root .mapping-row > .icon { display: none; }
+  .ds-root .quality-stats { grid-template-columns: repeat(2, 1fr); }
+  .ds-root .quality-stats > div:nth-child(3) { border-inline-start: 0; border-top: 1px solid var(--ds-border); }
+  .ds-root .quality-stats > div:nth-child(4) { border-top: 1px solid var(--ds-border); }
+  .ds-root .issues-list article { grid-template-columns: auto minmax(0, 1fr); }
+  .ds-root .issues-list code { grid-column: 2; }
+  .ds-root .import-row { grid-template-columns: auto minmax(0, 1fr); }
+  .ds-root .import-row .file-progress,
+  .ds-root .import-row .import-actions { grid-column: 2; justify-content: flex-start; }
 }
