@@ -1,4 +1,21 @@
 @import "tailwindcss";
+@import "./design-tokens.css";
+
+@font-face { font-family:"IRANYekanX"; src:url("/fonts/IRANYekanX-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"IRANYekanX"; src:url("/fonts/IRANYekanX-Medium.ttf") format("truetype"); font-weight:500; font-style:normal; font-display:swap; }
+@font-face { font-family:"IRANYekanX"; src:url("/fonts/IRANYekanX-Bold.ttf") format("truetype"); font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"IRANYekanX"; src:url("/fonts/IRANYekanX-ExtraBold.ttf") format("truetype"); font-weight:800; font-style:normal; font-display:swap; }
+
+.ds-root, .ds-root button, .ds-root input, .ds-root select { font-family:"IRANYekanX",Tahoma,"Segoe UI",sans-serif; }
+.ds-root ::selection { background:var(--ds-selection); }
+.ds-root .ds-latin { direction:ltr; font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+.ds-root .ds-persian-numerals { font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; }
+.ds-grid-bg { background-image:linear-gradient(var(--ds-grid) 1px,transparent 1px),linear-gradient(90deg,var(--ds-grid) 1px,transparent 1px); background-size:28px 28px; }
+.ds-focus:focus-visible { outline:2px solid var(--ds-focus); outline-offset:3px; }
+.ds-glass { background:var(--ds-card); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+.ds-glow { box-shadow:var(--ds-shadow-glow); }
+
+@media (prefers-reduced-motion:reduce){.ds-root *{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
 :root { --ink:#172622; --muted:#66736f; --paper:#f3f1ea; --surface:#fdfcf8; --line:#daddd6; --green:#0c6b50; --green-dark:#0d493b; --green-soft:#e2f1e9; --amber:#b96d28; --danger:#b43d3d; }
 * { box-sizing:border-box; }

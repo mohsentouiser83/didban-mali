@@ -1,0 +1,136 @@
+/* دیدبان مالی — سه لایه: primitive → semantic → component */
+:root {
+  /* Primitive: neutral */
+  --ds-p-navy-950: oklch(0.135 0.026 255);
+  --ds-p-navy-900: oklch(0.18 0.035 255);
+  --ds-p-navy-800: oklch(0.24 0.04 255);
+  --ds-p-slate-700: oklch(0.38 0.028 255);
+  --ds-p-slate-600: oklch(0.47 0.025 255);
+  --ds-p-slate-500: oklch(0.56 0.022 255);
+  --ds-p-slate-400: oklch(0.67 0.018 255);
+  --ds-p-slate-300: oklch(0.79 0.014 255);
+  --ds-p-slate-200: oklch(0.89 0.01 255);
+  --ds-p-slate-100: oklch(0.95 0.007 255);
+  --ds-p-slate-50: oklch(0.98 0.004 255);
+  --ds-p-white: oklch(1 0 0);
+
+  /* Primitive: brand and status */
+  --ds-p-cyan-300: oklch(0.85 0.13 196);
+  --ds-p-cyan-400: oklch(0.78 0.145 196);
+  --ds-p-cyan-500: oklch(0.7 0.14 198);
+  --ds-p-cyan-600: oklch(0.61 0.125 201);
+  --ds-p-violet-400: oklch(0.68 0.19 292);
+  --ds-p-violet-500: oklch(0.59 0.23 292);
+  --ds-p-violet-600: oklch(0.51 0.22 292);
+  --ds-p-green-500: oklch(0.69 0.16 153);
+  --ds-p-amber-500: oklch(0.76 0.16 75);
+  --ds-p-red-500: oklch(0.63 0.22 27);
+
+  /* Primitive: scale */
+  --ds-p-space-1: 0.25rem;
+  --ds-p-space-2: 0.5rem;
+  --ds-p-space-3: 0.75rem;
+  --ds-p-space-4: 1rem;
+  --ds-p-space-5: 1.25rem;
+  --ds-p-space-6: 1.5rem;
+  --ds-p-space-8: 2rem;
+  --ds-p-space-10: 2.5rem;
+  --ds-p-space-12: 3rem;
+  --ds-p-radius-sm: 0.625rem;
+  --ds-p-radius-md: 0.875rem;
+  --ds-p-radius-lg: 1.125rem;
+  --ds-p-radius-xl: 1.5rem;
+  --ds-p-radius-full: 999px;
+  --ds-p-duration-fast: 140ms;
+  --ds-p-duration-normal: 220ms;
+  --ds-p-duration-slow: 420ms;
+}
+
+.ds-root {
+  /* Semantic: light */
+  --ds-background: var(--ds-p-slate-50);
+  --ds-background-raised: var(--ds-p-white);
+  --ds-foreground: var(--ds-p-navy-950);
+  --ds-foreground-soft: var(--ds-p-slate-600);
+  --ds-foreground-faint: var(--ds-p-slate-500);
+  --ds-card: color-mix(in oklch, var(--ds-p-white) 92%, transparent);
+  --ds-card-solid: var(--ds-p-white);
+  --ds-border: color-mix(in oklch, var(--ds-p-slate-300) 72%, transparent);
+  --ds-border-strong: var(--ds-p-slate-300);
+  --ds-muted: var(--ds-p-slate-100);
+  --ds-muted-hover: var(--ds-p-slate-200);
+  --ds-primary: var(--ds-p-cyan-600);
+  --ds-primary-hover: color-mix(in oklch, var(--ds-p-cyan-600) 86%, var(--ds-p-navy-950));
+  --ds-primary-foreground: var(--ds-p-white);
+  --ds-accent: var(--ds-p-violet-500);
+  --ds-accent-soft: color-mix(in oklch, var(--ds-p-violet-500) 12%, transparent);
+  --ds-success: var(--ds-p-green-500);
+  --ds-warning: var(--ds-p-amber-500);
+  --ds-danger: var(--ds-p-red-500);
+  --ds-focus: var(--ds-p-violet-500);
+  --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
+  --ds-selection: color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
+  --ds-shadow-sm: 0 1px 2px color-mix(in oklch, var(--ds-p-navy-950) 7%, transparent);
+  --ds-shadow-md: 0 14px 38px color-mix(in oklch, var(--ds-p-navy-950) 9%, transparent);
+  --ds-shadow-glow: 0 0 44px color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
+
+  /* Semantic: spacing and type */
+  --ds-space-control: var(--ds-p-space-3);
+  --ds-space-card: var(--ds-p-space-6);
+  --ds-space-section: var(--ds-p-space-8);
+  --ds-radius-control: var(--ds-p-radius-sm);
+  --ds-radius-card: var(--ds-p-radius-lg);
+  --ds-font-display: 1.875rem;
+  --ds-font-title: 1.25rem;
+  --ds-font-body: 0.875rem;
+  --ds-font-caption: 0.75rem;
+
+  /* Component */
+  --ds-button-bg: var(--ds-primary);
+  --ds-button-fg: var(--ds-primary-foreground);
+  --ds-button-hover-bg: var(--ds-primary-hover);
+  --ds-button-radius: var(--ds-radius-control);
+  --ds-input-bg: var(--ds-card-solid);
+  --ds-input-border: var(--ds-border-strong);
+  --ds-input-focus: var(--ds-focus);
+  --ds-card-bg: var(--ds-card);
+  --ds-card-border: var(--ds-border);
+  --ds-card-radius: var(--ds-radius-card);
+  --ds-table-header: var(--ds-muted);
+  --ds-table-hover: color-mix(in oklch, var(--ds-primary) 7%, transparent);
+  --ds-sidebar: color-mix(in oklch, var(--ds-p-white) 82%, transparent);
+  color: var(--ds-foreground);
+  background: var(--ds-background);
+}
+
+.dark .ds-root {
+  --ds-background: var(--ds-p-navy-950);
+  --ds-background-raised: var(--ds-p-navy-900);
+  --ds-foreground: var(--ds-p-slate-50);
+  --ds-foreground-soft: var(--ds-p-slate-300);
+  --ds-foreground-faint: var(--ds-p-slate-400);
+  --ds-card: color-mix(in oklch, var(--ds-p-navy-900) 82%, transparent);
+  --ds-card-solid: var(--ds-p-navy-900);
+  --ds-border: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
+  --ds-border-strong: color-mix(in oklch, var(--ds-p-slate-400) 34%, transparent);
+  --ds-muted: color-mix(in oklch, var(--ds-p-navy-800) 86%, transparent);
+  --ds-muted-hover: color-mix(in oklch, var(--ds-p-slate-700) 55%, transparent);
+  --ds-primary: var(--ds-p-cyan-400);
+  --ds-primary-hover: var(--ds-p-cyan-300);
+  --ds-primary-foreground: var(--ds-p-navy-950);
+  --ds-accent: var(--ds-p-violet-400);
+  --ds-accent-soft: color-mix(in oklch, var(--ds-p-violet-400) 15%, transparent);
+  --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 12%, transparent);
+  --ds-selection: color-mix(in oklch, var(--ds-p-cyan-400) 18%, transparent);
+  --ds-shadow-sm: 0 1px 2px color-mix(in oklch, black 28%, transparent);
+  --ds-shadow-md: 0 18px 48px color-mix(in oklch, black 34%, transparent);
+  --ds-shadow-glow: 0 0 48px color-mix(in oklch, var(--ds-p-cyan-400) 16%, transparent);
+  --ds-sidebar: color-mix(in oklch, var(--ds-p-navy-900) 78%, transparent);
+}
+
+@media (min-width: 768px) {
+  .ds-root {
+    --ds-font-display: 2.375rem;
+    --ds-space-section: var(--ds-p-space-10);
+  }
+}
