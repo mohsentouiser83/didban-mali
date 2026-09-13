@@ -30,7 +30,7 @@ async def live() -> LiveResponse:
 @router.get("/ready", response_model=DependencyStatus)
 async def ready(response: Response) -> DependencyStatus:
     database_ok = False
-    redis_ok = False
+    redis_ok = settings.celery_task_always_eager
 
     try:
         async with engine.connect() as connection:
@@ -39,13 +39,14 @@ async def ready(response: Response) -> DependencyStatus:
     except Exception:  # Readiness reports failure without leaking connection details.
         database_ok = False
 
-    redis_client = Redis.from_url(settings.redis_url)
-    try:
-        redis_ok = bool(await redis_client.ping())
-    except Exception:  # Readiness reports failure without leaking connection details.
-        redis_ok = False
-    finally:
-        await redis_client.aclose()
+    if not settings.celery_task_always_eager:
+        redis_client = Redis.from_url(settings.redis_url)
+        try:
+            redis_ok = bool(await redis_client.ping())
+        except Exception:  # Readiness reports failure without leaking connection details.
+            redis_ok = False
+        finally:
+            await redis_client.aclose()
 
     is_ready = database_ok and redis_ok
     if not is_ready:

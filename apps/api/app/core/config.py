@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     celery_broker_url: str = "redis://localhost:6379/1"
     celery_result_backend: str = "redis://localhost:6379/2"
+    celery_task_always_eager: bool = False
     minio_endpoint: str = "http://localhost:9000"
     minio_bucket: str = "didban-uploads"
     minio_access_key: str = "didban-local"

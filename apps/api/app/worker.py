@@ -36,6 +36,8 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=1800,
     task_soft_time_limit=1740,
+    task_always_eager=settings.celery_task_always_eager,
+    task_eager_propagates=settings.celery_task_always_eager,
 )
 
 
