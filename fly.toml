@@ -1,10 +1,24 @@
+# fly.toml app configuration file generated for didban-mali on 2026-09-13T17:54:34Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'didban-mali'
+primary_region = 'fra'
+
 [build]
-dockerfile = "apps/api/Dockerfile"
+  dockerfile = 'apps/api/Dockerfile'
 
 [processes]
-api = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
-worker = "celery -A app.worker.celery_app worker --loglevel=INFO --concurrency=2"
+  api = 'uvicorn app.main:app --host 0.0.0.0 --port 8000'
+  worker = 'celery -A app.worker.celery_app worker --loglevel=INFO --concurrency=2'
 
 [http_service]
-internal_port = 8000
-processes = ["api"]
+  internal_port = 8000
+  processes = ['api']
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
