@@ -52,6 +52,30 @@ export type AccountClass = "asset" | "liability" | "equity" | "revenue" | "expen
 export type FinancialAccount = { id: string; source_code: string; name: string; normalized_name: string; current_class: AccountClass | null; created_at: string };
 export type AccountClassification = { id: string; account_id: string; account_class: AccountClass; effective_from: string; rule_version: string; confirmed_by: string; confirmed_at: string };
 
+export type AnalysisStatus = "queued" | "processing" | "completed" | "completed_limited" | "failed";
+export type MetricCode = "revenue_irr" | "expenses_irr" | "net_profit_irr" | "net_margin_ratio" | "total_assets_irr" | "total_liabilities_irr" | "total_equity_irr" | "net_cash_movement_irr" | "sales_invoiced_irr" | "sales_collected_irr" | "sales_outstanding_irr";
+export type CoverageSection = { available?: boolean; score?: number; reasons?: string[]; total_lines?: number; classified_lines?: number; unclassified_lines?: number };
+export type AnalysisCoverage = { accounting?: CoverageSection; bank_cash_flow?: CoverageSection; sales?: CoverageSection; gross_profit?: CoverageSection };
+export type AnalysisRun = {
+  id: string;
+  company_id: string;
+  period_start: string;
+  period_end: string;
+  status: AnalysisStatus;
+  input_manifest: { import_batch_ids?: string[]; journal_line_count_through_period_end?: number; period_start?: string; period_end?: string };
+  rule_set_version: string;
+  coverage: AnalysisCoverage;
+  created_by: string;
+  started_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type MetricObservation = { analysis_run_id: string; metric_code: MetricCode; period_start: string; period_end: string; value_irr: string | null; value_ratio: string | null; calculation: { formula?: string; line_count?: number; record_count?: number; unit?: string }; calculated_at: string };
+export type MetricsResponse = { analysis_run: AnalysisRun; metrics: MetricObservation[] };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",
