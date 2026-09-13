@@ -137,6 +137,12 @@ export type DashboardResponse = {
   coverage: { overall_score: number; scoring_method: "simple_average_of_section_scores_v1"; sections: Record<string, DashboardCoverageSection>; limitations_fa: string[]; finding_generation_status: string | null; finding_generation_coverage: Record<string, unknown> };
 };
 
+export type ReportStatus = "queued" | "processing" | "completed" | "failed";
+export type ReportAdvisorNote = { body: string; actor_id: string; finding_id?: string; source?: "decision" | "finding_note"; created_at?: string };
+export type ReportFinding = { id: string; finding_code: FindingCode; title_fa: string; summary_fa: string; priority_band: PriorityBand; priority_score: string; confidence_score: string; affected_amount_irr: string | null; affected_ratio: string | null; workflow_status: FindingWorkflowStatus; is_top_finding: boolean; latest_decision: { decision: ReviewDecisionType; actor_id: string; created_at: string } | null; notes: Array<{ id: string; body: string; actor_id: string; supersedes_id: string | null; created_at: string }> };
+export type ReportPayload = { schema_version: "report-snapshot-v1"; generated_at: string; title_fa: string; company: { id: string; legal_name: string; currency: string }; analysis: { id: string; period_start: string; period_end: string; status: AnalysisStatus; rule_set_version: string; completed_at: string | null }; overall_status: DashboardResponse["health"]; financial_overview: DashboardMetric[]; top_findings: DashboardFinding[]; main_drivers: DashboardDriver[]; data_coverage: DashboardResponse["coverage"]; advisor_note: ReportAdvisorNote | null; advisor_notes: ReportAdvisorNote[]; review_status: DashboardResponse["finding_summary"]; all_findings: ReportFinding[] };
+export type ReportSnapshot = { id: string; company_id: string; analysis_run_id: string; period_start: string; period_end: string; title_fa: string; advisor_note: string | null; payload: ReportPayload; status: ReportStatus; progress: number; stage: string; download_ready: boolean; pdf_sha256: string | null; pdf_size_bytes: number | null; created_by: string; started_at: string | null; completed_at: string | null; failure_code: string | null; failure_message: string | null; created_at: string };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",

@@ -6,7 +6,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 from celery.exceptions import CeleryError
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -68,6 +68,25 @@ def _queue(report: ReportSnapshot) -> None:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="صف تولید گزارش موقتاً در دسترس نیست؛ درخواست را دوباره ارسال کنید.",
         ) from exc
+
+
+@router.get("", response_model=list[ReportResponse])
+async def list_reports(
+    company_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
+) -> list[ReportResponse]:
+    del access
+    reports = list(
+        await session.scalars(
+            select(ReportSnapshot)
+            .where(ReportSnapshot.company_id == company_id)
+            .order_by(ReportSnapshot.created_at.desc(), ReportSnapshot.id.desc())
+            .limit(limit)
+        )
+    )
+    return [_response(report) for report in reports]
 
 
 @router.post("", response_model=ReportResponse, status_code=status.HTTP_202_ACCEPTED)

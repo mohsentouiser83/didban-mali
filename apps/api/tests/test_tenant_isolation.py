@@ -910,6 +910,10 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert completed_report["payload"]["top_findings"] == []
     assert len(completed_report["payload"]["all_findings"]) == 1
     assert completed_report["payload"]["all_findings"][0]["workflow_status"] == "resolved"
+    report_list = owner.get(f"/companies/{company['id']}/reports")
+    assert report_list.status_code == 200, report_list.text
+    assert report_list.json()[0]["id"] == report_id
+    assert outsider.get(f"/companies/{company['id']}/reports").status_code == 404
     report_download = owner.get(f"/companies/{company['id']}/reports/{report_id}/download")
     assert report_download.status_code == 200, report_download.text
     assert report_download.headers["content-type"] == "application/pdf"
