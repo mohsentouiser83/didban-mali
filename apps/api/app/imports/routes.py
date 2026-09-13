@@ -180,6 +180,17 @@ def _require_clean(source_file: SourceFile) -> None:
         )
 
 
+async def _source_file_response(source_file: SourceFile) -> StreamingResponse:
+    _require_clean(source_file)
+    body = await run_in_threadpool(get_storage().open, source_file.object_key)
+    encoded_name = quote(source_file.original_name)
+    return StreamingResponse(
+        iter_object(body),
+        media_type=source_file.mime_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
+    )
+
+
 def _require_upload_role(access: CompanyAccess) -> None:
     if access.role not in UPLOAD_ROLES:
         raise HTTPException(
@@ -919,15 +930,23 @@ async def download_source_file(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
     _, source_file, _ = row
-    if source_file.scan_status != FileScanStatus.CLEAN:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="فایل تا پایان موفق بررسی امنیتی قابل دریافت نیست.",
+    return await _source_file_response(source_file)
+
+
+@router.get("/source-files/{source_file_id}/download")
+async def download_evidence_source_file(
+    company_id: UUID,
+    source_file_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+) -> StreamingResponse:
+    await _access(session, company_id, current_user.id)
+    source_file = await session.scalar(
+        select(SourceFile).where(
+            SourceFile.id == source_file_id,
+            SourceFile.company_id == company_id,
         )
-    body = await run_in_threadpool(get_storage().open, source_file.object_key)
-    encoded_name = quote(source_file.original_name)
-    return StreamingResponse(
-        iter_object(body),
-        media_type=source_file.mime_type,
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}"},
     )
+    if source_file is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="فایل منبع پیدا نشد.")
+    return await _source_file_response(source_file)

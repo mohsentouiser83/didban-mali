@@ -634,6 +634,19 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert evidence[2]["source_file_id"]
     assert evidence[2]["field_snapshot"]["raw"]
     assert evidence[2]["field_snapshot"]["source_file"]["original_name"] == "گردش بانک.csv"
+    evidence_download = owner.get(
+        f"/companies/{company['id']}/imports/source-files/"
+        f"{evidence[2]['source_file_id']}/download"
+    )
+    assert evidence_download.status_code == 200, evidence_download.text
+    assert evidence_download.content == bank_content
+    assert (
+        outsider.get(
+            f"/companies/{company['id']}/imports/source-files/"
+            f"{evidence[2]['source_file_id']}/download"
+        ).status_code
+        == 404
+    )
     default_ai_settings = owner.get(f"/companies/{company['id']}/ai/settings")
     assert default_ai_settings.status_code == 200, default_ai_settings.text
     assert default_ai_settings.json()["enabled"] is False

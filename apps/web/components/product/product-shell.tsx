@@ -25,7 +25,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const base = `/companies/${company.id}`;
-  const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
+  const meta = pathname.includes("/imports/") ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" } : pathname.includes("/findings/") ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / اولویت و شواهد" } : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
   const links: { href: string; label: string; icon: ProductIconName }[] = [
     { href: `${base}/overview`, label: "نمای کلی", icon: "home" },
     { href: `${base}/imports`, label: "ورود داده", icon: "upload" },
@@ -38,7 +38,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   ];
   async function logout() { try { await api("/auth/logout", { method: "POST" }); } finally { router.replace("/login"); router.refresh(); } }
   function switchCompany(companyId: string) {
-    const suffix = pathname.slice(base.length) || "/overview";
+    const suffix = pathname.includes("/findings/") ? "/findings" : pathname.slice(base.length) || "/overview";
     router.push(`/companies/${companyId}${suffix}`);
   }
 
