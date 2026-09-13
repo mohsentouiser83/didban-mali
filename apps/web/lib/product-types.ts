@@ -151,6 +151,12 @@ export type AiRankedCandidate = { candidate_id: string; confidence: string; reas
 export type AiSemanticMatching = { ranked_candidates: AiRankedCandidate[]; requires_human_review: true };
 export type AiInvocation = { id: string; company_id: string; purpose: AiPurpose; status: AiInvocationStatus; source_finding_id: string | null; source_reconciliation_run_id: string | null; provider: string; model: string; prompt_version: string; output: AiFindingExplanation | AiSemanticMatching | null; latency_ms: number; failure_code: string | null; failure_message: string | null; requires_human_review: true; created_at: string; completed_at: string };
 
+export type ReadinessState = "ready" | "limited" | "missing";
+export type SourceReadiness = { kind: "accounting" | "bank" | "sales"; state: ReadinessState; completed_batches: number; last_activity_at: string | null };
+export type JourneyStep = { id: string; state: ReadinessState; count: number; detail_fa: string; href: string };
+export type CompanyReadiness = { schema_version: "company-readiness-v1"; overall_state: ReadinessState; completed_steps: number; ready_steps: number; total_steps: number; sources: SourceReadiness[]; journey: JourneyStep[]; safeguards: { tenant_scoped: boolean; human_review_required: boolean; ai_fail_safe: boolean; immutable_report_snapshot: boolean } };
+export type DependencyStatus = { status: "ready" | "not_ready"; database: boolean; redis: boolean };
+
 export const roleLabels: Record<Role, string> = {
   owner: "مالک",
   finance_manager: "مدیر مالی",

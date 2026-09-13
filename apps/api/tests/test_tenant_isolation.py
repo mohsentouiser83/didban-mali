@@ -158,6 +158,11 @@ def test_tenants_are_isolated_and_roles_are_enforced() -> None:
     visible_to_a = owner_a.get("/companies").json()
     assert [company["id"] for company in visible_to_a] == [company_a["id"]]
     assert owner_b.get(f"/companies/{company_a['id']}").status_code == 404
+    readiness = owner_a.get(f"/companies/{company_a['id']}/readiness")
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json()["schema_version"] == "company-readiness-v1"
+    assert readiness.json()["total_steps"] == 8
+    assert owner_b.get(f"/companies/{company_a['id']}/readiness").status_code == 404
 
     added = owner_a.post(
         f"/companies/{company_a['id']}/members",

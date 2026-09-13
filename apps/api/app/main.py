@@ -15,6 +15,7 @@ from app.financial.routes import router as financial_router
 from app.findings.routes import router as findings_router
 from app.identity.routes import router as identity_router
 from app.imports.routes import router as imports_router
+from app.readiness.routes import router as readiness_router
 from app.reconciliation.routes import router as reconciliation_router
 from app.reports.routes import router as reports_router
 from app.reviews.routes import router as reviews_router
@@ -45,6 +46,7 @@ app.include_router(dashboard_router, prefix=settings.api_prefix)
 app.include_router(reviews_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(ai_router, prefix=settings.api_prefix)
+app.include_router(readiness_router, prefix=settings.api_prefix)
 
 
 @app.middleware("http")
