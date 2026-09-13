@@ -179,7 +179,14 @@ def test_tenants_are_isolated_and_roles_are_enforced() -> None:
 def test_secure_upload_scan_and_authorized_download() -> None:
     owner, owner_user, _ = register("بارگذاری")
     outsider, outsider_user, _ = register("خارج")
+    reviewer, reviewer_user, reviewer_email = register("مدیر مالی")
     company = create_company(owner, "شرکت بارگذاری امن")
+    reviewer_membership = owner.post(
+        f"/companies/{company['id']}/members",
+        headers={"X-CSRF-Token": owner.cookies["didban_csrf"]},
+        json={"email": reviewer_email, "role": "finance_manager"},
+    )
+    assert reviewer_membership.status_code == 201, reviewer_membership.text
     clean_content = (
         "شماره سند,تاریخ سند,کد حساب,نام حساب,شرح,بدهکار,بستانکار\n"
         '۱,۱۴۰۵/۰۶/۲۱,۴۱۰۱,فروش,فروش شهریور,۰,"۲۵۰,۰۰۰"\n'
@@ -635,10 +642,107 @@ def test_secure_upload_scan_and_authorized_download() -> None:
     assert period_dashboard.status_code == 200, period_dashboard.text
     assert period_dashboard.json()["snapshot"]["analysis_run_id"] == reconciliation_analysis_id
     assert outsider.get(f"/companies/{company['id']}/dashboard").status_code == 404
+    owner_decision = owner.post(
+        f"/companies/{company['id']}/findings/{finding_id}/decisions",
+        headers={
+            "X-CSRF-Token": owner.cookies["didban_csrf"],
+            "Idempotency-Key": f"owner-review-{time.time_ns()}",
+        },
+        json={"decision": "confirmed"},
+    )
+    assert owner_decision.status_code == 403
+    follow_up_key = f"follow-up-{time.time_ns()}"
+    follow_up_request = {
+        "decision": "follow_up",
+        "note": "پیگیری ثبت متناظر با واحد حسابداری",
+    }
+    follow_up = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/decisions",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": follow_up_key,
+        },
+        json=follow_up_request,
+    )
+    assert follow_up.status_code == 201, follow_up.text
+    assert follow_up.json()["previous_status"] == "needs_review"
+    assert follow_up.json()["resulting_status"] == "follow_up"
+    repeated_follow_up = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/decisions",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": follow_up_key,
+        },
+        json=follow_up_request,
+    )
+    assert repeated_follow_up.status_code == 201, repeated_follow_up.text
+    assert repeated_follow_up.json()["id"] == follow_up.json()["id"]
+    first_note = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/notes",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"note-{time.time_ns()}",
+        },
+        json={"body": "منتظر پاسخ واحد حسابداری"},
+    )
+    assert first_note.status_code == 201, first_note.text
+    replacement_note = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/notes",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"note-replacement-{time.time_ns()}",
+        },
+        json={
+            "body": "واحد حسابداری ثبت در دوره بعد را تأیید کرد",
+            "supersedes_id": first_note.json()["id"],
+        },
+    )
+    assert replacement_note.status_code == 201, replacement_note.text
+    resolved = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/decisions",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"resolve-{time.time_ns()}",
+        },
+        json={"decision": "resolved", "note": "پیگیری تکمیل شد"},
+    )
+    assert resolved.status_code == 201, resolved.text
+    assert resolved.json()["previous_status"] == "follow_up"
+    assert resolved.json()["resulting_status"] == "resolved"
+    duplicate_resolved = reviewer.post(
+        f"/companies/{company['id']}/findings/{finding_id}/decisions",
+        headers={
+            "X-CSRF-Token": reviewer.cookies["didban_csrf"],
+            "Idempotency-Key": f"resolve-again-{time.time_ns()}",
+        },
+        json={"decision": "resolved"},
+    )
+    assert duplicate_resolved.status_code == 409
+    review_timeline = owner.get(f"/companies/{company['id']}/findings/{finding_id}/reviews")
+    assert review_timeline.status_code == 200, review_timeline.text
+    timeline = review_timeline.json()
+    assert timeline["current_status"] == "resolved"
+    assert [item["kind"] for item in timeline["items"]] == [
+        "decision",
+        "note",
+        "note",
+        "decision",
+    ]
+    assert {item["actor_id"] for item in timeline["items"]} == {reviewer_user["id"]}
+    reviewed_dashboard = owner.get(
+        f"/companies/{company['id']}/dashboard",
+        params={"analysis_run_id": reconciliation_analysis_id},
+    ).json()
+    assert reviewed_dashboard["top_findings"] == []
+    assert reviewed_dashboard["health"]["overall_state"] == "limited_visibility"
+    assert reviewed_dashboard["finding_summary"]["by_workflow"]["resolved"] == 1
     assert outsider.get(f"/companies/{company['id']}/findings/{finding_id}").status_code == 404
     assert (
         outsider.get(f"/companies/{company['id']}/findings/{finding_id}/evidence").status_code
         == 404
+    )
+    assert (
+        outsider.get(f"/companies/{company['id']}/findings/{finding_id}/reviews").status_code == 404
     )
     assert (
         outsider.get(
@@ -695,10 +799,42 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 "SELECT id::text FROM evidence_items WHERE company_id = %s", (company["id"],)
             )
             assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM review_decisions WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
+            cursor.execute(
+                "SELECT id::text FROM finding_notes WHERE company_id = %s", (company["id"],)
+            )
+            assert cursor.fetchall() == []
 
     with psycopg.connect(APP_DATABASE_URL) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", owner_user["id"]))
+            cursor.execute(
+                """
+                SELECT action, metadata_json
+                FROM audit_events
+                WHERE company_id = %s
+                  AND metadata_json->>'finding_id' = %s
+                  AND action IN (
+                      'finding.review_decision_created',
+                      'finding.note_created'
+                  )
+                ORDER BY occurred_at, id
+                """,
+                (company["id"], finding_id),
+            )
+            review_audit_events = cursor.fetchall()
+            assert [event[0] for event in review_audit_events] == [
+                "finding.review_decision_created",
+                "finding.note_created",
+                "finding.note_created",
+                "finding.review_decision_created",
+            ]
+            assert all(
+                "note" not in event[1] and "body" not in event[1] for event in review_audit_events
+            )
             cursor.execute(
                 """
                 SELECT sr.raw_json->>'تاریخ سند', je.entry_date::text,
@@ -724,6 +860,26 @@ def test_secure_upload_scan_and_authorized_download() -> None:
                 cursor.execute(
                     "UPDATE source_rows SET raw_hash = repeat('0', 64) WHERE company_id = %s",
                     (company["id"],),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", reviewer_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE review_decisions SET note = 'تغییر' WHERE finding_id = %s",
+                    (finding_id,),
+                )
+            connection.rollback()
+
+    with psycopg.connect(APP_DATABASE_URL) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config(%s, %s, true)", ("app.user_id", reviewer_user["id"]))
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cursor.execute(
+                    "UPDATE finding_notes SET body = 'تغییر' WHERE finding_id = %s",
+                    (finding_id,),
                 )
             connection.rollback()
 
@@ -768,3 +924,4 @@ def test_secure_upload_scan_and_authorized_download() -> None:
 
     owner.close()
     outsider.close()
+    reviewer.close()

@@ -14,6 +14,7 @@ from app.findings import models as finding_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401
 from app.reconciliation import models as reconciliation_models  # noqa: F401
+from app.reviews import models as review_models  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)
