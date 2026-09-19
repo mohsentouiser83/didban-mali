@@ -1,22 +1,28 @@
-import * as React from "react"
+import { forwardRef, type TextareaHTMLAttributes } from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-const Textarea = React.forwardRef<
-  HTMLTextAreaElement,
-  React.ComponentProps<"textarea">
->(({ className, ...props }, ref) => {
-  return (
-    <textarea
-      className={cn(
-        "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        className
-      )}
-      ref={ref}
-      {...props}
-    />
-  )
-})
-Textarea.displayName = "Textarea"
+type TextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  isInvalid?: boolean;
+};
 
-export { Textarea }
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, isInvalid, "aria-invalid": ariaInvalid, ...props }, ref) => {
+    const hasError = Boolean(isInvalid || ariaInvalid === true || ariaInvalid === "true");
+
+    return (
+      <textarea
+        ref={ref}
+        aria-invalid={hasError ? "true" : undefined}
+        className={cn(
+          "ds-focus flex min-h-[88px] w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-input-border)] bg-[var(--ds-input-bg)] p-3 text-sm text-[var(--ds-foreground)] leading-relaxed shadow-[var(--ds-shadow-sm)] transition-[border-color,box-shadow,background-color] duration-150 placeholder:text-[var(--ds-foreground-faint)] hover:border-[var(--ds-primary)] disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-[var(--ds-muted)] aria-invalid:border-[var(--ds-danger)] aria-invalid:bg-[color-mix(in_oklch,var(--ds-danger)_6%,transparent)] aria-invalid:text-[var(--ds-danger)]",
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+Textarea.displayName = "Textarea";
+
+export { Textarea, type TextareaProps };

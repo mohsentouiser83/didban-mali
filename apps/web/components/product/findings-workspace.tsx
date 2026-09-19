@@ -1,40 +1,87 @@
 "use client";
 
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
 import Link from "next/link";
 import { FormEvent, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  Calendar,
+  ChevronLeft,
+  Filter,
+  Plus,
+  RefreshCcw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
+  Layers,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  MoneyDisplay,
+  RiskBadge,
+  StatusChip,
+  EvidenceSourceTag,
+  FinancialDataTable,
+  EvidenceDrawer,
+  Column,
+  toPersianDigits,
+  FindingEvidenceDetail,
+  RiskLevel,
+  FinancialStatus,
+} from "@/components/ui/financial";
 
 import { api } from "@/lib/product-api";
-import type { AnalysisRun, Company, EvidenceItem, EvidenceItemsResponse, Finding, FindingGenerationRun, FindingsResponse, PriorityBand, ReconciliationRun } from "@/lib/product-types";
-
-import { Icon } from "./icons";
+import type {
+  AnalysisRun,
+  Company,
+  EvidenceItem,
+  EvidenceItemsResponse,
+  Finding,
+  FindingGenerationRun,
+  FindingsResponse,
+  PriorityBand,
+  ReconciliationRun,
+} from "@/lib/product-types";
 
 type FindingFilter = "all" | "critical_high" | "hypothesis" | "reconciliation" | "financial";
-const runStatusLabels: Record<FindingGenerationRun["status"], string> = { queued: "در صف تولید", processing: "در حال تولید", completed: "تکمیل‌شده", completed_limited: "تکمیل با پوشش محدود", failed: "ناموفق" };
-const bandLabels: Record<PriorityBand, string> = { critical: "بحرانی", high: "بالا", medium: "متوسط", low: "پایین" };
-const workflowLabels: Record<Finding["workflow_status"], string> = { needs_review: "نیازمند بررسی", confirmed: "تأییدشده", dismissed: "ردشده", follow_up: "در پیگیری", resolved: "حل‌شده" };
-const evidenceLabels: Record<EvidenceItem["evidence_type"], string> = { rule: "قاعده تشخیص", calculation: "محاسبه", source_record: "رکورد منبع", comparison: "مقایسه دوره", coverage: "پوشش ورودی" };
-const factorLabels = { impact: "اثر", materiality: "اهمیت", confidence: "اطمینان", urgency: "فوریت" } as const;
+
 const filters: { id: FindingFilter; label: string }[] = [
   { id: "all", label: "همه یافته‌ها" },
   { id: "critical_high", label: "بحرانی و بالا" },
-  { id: "hypothesis", label: "فرضیه‌ها" },
-  { id: "reconciliation", label: "تطبیق" },
-  { id: "financial", label: "روند مالی" },
+  { id: "hypothesis", label: "فرضیه‌ها (غیرقطعی)" },
+  { id: "reconciliation", label: "مغایرت‌های تطبیق" },
+  { id: "financial", label: "روندهای مالی" },
 ];
 
 function faDate(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "short", day: "numeric" }).format(new Date(`${value}T12:00:00`));
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "short", day: "numeric" }).format(
+      new Date(`${value}T12:00:00`)
+    );
+  } catch {
+    return value;
+  }
 }
-function faDateTime(value: string | null) { return value ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—"; }
-function money(value?: string | null) { if (value == null) return "—"; try { return new Intl.NumberFormat("fa-IR").format(BigInt(value)); } catch { return new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(value)); } }
-function shortId(value?: string | null) { return value ? `${value.slice(0, 8)}…${value.slice(-4)}` : "—"; }
-function record(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
-function printable(value: unknown) { if (value == null) return "—"; if (typeof value === "boolean") return value ? "بله" : "خیر"; if (typeof value === "object") return JSON.stringify(value); return String(value); }
+
+function faDateTime(value: string | null) {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
 
 export function FindingsWorkspace({ company }: { company: Company }) {
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
@@ -49,148 +96,495 @@ export function FindingsWorkspace({ company }: { company: Company }) {
   const deferredSearch = useDeferredValue(search.trim());
   const [trendPercent, setTrendPercent] = useState(10);
   const [minimumAmount, setMinimumAmount] = useState("1000000");
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [evidenceByFinding, setEvidenceByFinding] = useState<Record<string, EvidenceItem[]>>({});
-  const [evidenceBusy, setEvidenceBusy] = useState<string | null>(null);
+  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
+
+  // Evidence Drawer state
+  const [selectedFindingDetail, setSelectedFindingDetail] = useState<FindingEvidenceDetail | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+
   const canRun = company.role !== "viewer";
   const isRunning = run?.status === "queued" || run?.status === "processing";
 
-  const loadFindings = useCallback(async (runId: string, cursor?: string, append = false) => {
-    const suffix = cursor ? `&cursor=${cursor}` : "";
-    const result = await api<FindingsResponse>(`/companies/${company.id}/findings?generation_run_id=${runId}&limit=200${suffix}`);
-    setFindings((current) => append ? [...current, ...result.items] : result.items);
-    setNextCursor(result.next_cursor);
-  }, [company.id]);
+  const loadFindings = useCallback(
+    async (runId: string, cursor?: string, append = false) => {
+      const suffix = cursor ? `&cursor=${cursor}` : "";
+      const result = await api<FindingsResponse>(
+        `/companies/${company.id}/findings?generation_run_id=${runId}&limit=200${suffix}`
+      );
+      setFindings((current) => (append ? [...current, ...result.items] : result.items));
+      setNextCursor(result.next_cursor);
+    },
+    [company.id]
+  );
 
-  const loadForAnalysis = useCallback(async (selectedAnalysisId: string) => {
-    const [reconciliationRuns, findingRuns] = await Promise.all([
-      api<ReconciliationRun[]>(`/companies/${company.id}/reconciliation-runs?analysis_run_id=${selectedAnalysisId}&limit=30`),
-      api<FindingGenerationRun[]>(`/companies/${company.id}/finding-runs?analysis_run_id=${selectedAnalysisId}&limit=20`),
-    ]);
-    const readyReconciliations = reconciliationRuns.filter((item) => item.status === "completed" || item.status === "completed_limited");
-    const latestFindingRun = findingRuns[0] ?? null;
-    setReconciliations(readyReconciliations);
-    setReconciliationId(latestFindingRun?.reconciliation_run_id ?? readyReconciliations[0]?.id ?? "");
-    setRun(latestFindingRun); setFindings([]); setNextCursor(null); setExpanded(new Set()); setEvidenceByFinding({});
-    if (latestFindingRun?.status === "completed" || latestFindingRun?.status === "completed_limited") await loadFindings(latestFindingRun.id);
-  }, [company.id, loadFindings]);
+  const loadForAnalysis = useCallback(
+    async (selectedAnalysisId: string) => {
+      const [reconciliationRuns, findingRuns] = await Promise.all([
+        api<ReconciliationRun[]>(
+          `/companies/${company.id}/reconciliation-runs?analysis_run_id=${selectedAnalysisId}&limit=30`
+        ),
+        api<FindingGenerationRun[]>(
+          `/companies/${company.id}/finding-runs?analysis_run_id=${selectedAnalysisId}&limit=20`
+        ),
+      ]);
+      const readyReconciliations = reconciliationRuns.filter(
+        (item) => item.status === "completed" || item.status === "completed_limited"
+      );
+      const latestFindingRun = findingRuns[0] ?? null;
+      setReconciliations(readyReconciliations);
+      setReconciliationId(latestFindingRun?.reconciliation_run_id ?? readyReconciliations[0]?.id ?? "");
+      setRun(latestFindingRun);
+      setFindings([]);
+      setNextCursor(null);
+      if (latestFindingRun?.status === "completed" || latestFindingRun?.status === "completed_limited") {
+        await loadFindings(latestFindingRun.id);
+      }
+    },
+    [company.id, loadFindings]
+  );
 
   useEffect(() => {
     let ignore = false;
     async function bootstrap() {
-      setLoading(true); setError("");
+      setLoading(true);
+      setError("");
       try {
         const allRuns = await api<AnalysisRun[]>(`/companies/${company.id}/analysis-runs?limit=30`);
         const ready = allRuns.filter((item) => item.status === "completed" || item.status === "completed_limited");
         if (ignore) return;
         setAnalyses(ready);
-        if (ready[0]) { setAnalysisId(ready[0].id); await loadForAnalysis(ready[0].id); }
-      } catch (caught) { if (!ignore) setError(caught instanceof Error ? caught.message : "یافته‌ها دریافت نشدند."); }
-      finally { if (!ignore) setLoading(false); }
+        const latest = ready[0];
+        if (latest) {
+          setAnalysisId(latest.id);
+          await loadForAnalysis(latest.id);
+        }
+      } catch (caught) {
+        if (!ignore) setError(caught instanceof Error ? caught.message : "اطلاعات یافته‌ها دریافت نشد.");
+      } finally {
+        if (!ignore) setLoading(false);
+      }
     }
     void bootstrap();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [company.id, loadForAnalysis]);
 
-  useEffect(() => {
-    if (!run || !isRunning) return;
-    const timer = window.setInterval(async () => {
-      try {
-        const current = await api<FindingGenerationRun>(`/companies/${company.id}/finding-runs/${run.id}`);
-        setRun(current);
-        if (current.status === "completed" || current.status === "completed_limited") { window.clearInterval(timer); await loadFindings(current.id); setSubmitting(false); }
-        if (current.status === "failed") { window.clearInterval(timer); setSubmitting(false); setError(current.failure_message ?? "تولید یافته ناموفق بود."); }
-      } catch (caught) { window.clearInterval(timer); setSubmitting(false); setError(caught instanceof Error ? caught.message : "وضعیت تولید یافته دریافت نشد."); }
-    }, 1200);
-    return () => window.clearInterval(timer);
-  }, [company.id, isRunning, loadFindings, run]);
-
-  async function changeAnalysis(value: string) { setAnalysisId(value); setError(""); setLoading(true); try { await loadForAnalysis(value); } catch (caught) { setError(caught instanceof Error ? caught.message : "snapshot یافته‌ها دریافت نشد."); } finally { setLoading(false); } }
-
-  async function startGeneration(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError("");
-    if (!analysisId) { setError("ابتدا یک snapshot تحلیل مالی انتخاب کنید."); return; }
-    setSubmitting(true); setFindings([]); setNextCursor(null); setExpanded(new Set()); setEvidenceByFinding({});
+  async function handleAnalysisChange(value: string) {
+    setAnalysisId(value);
+    setLoading(true);
+    setError("");
     try {
-      const created = await api<FindingGenerationRun>(`/companies/${company.id}/analysis-runs/${analysisId}/finding-runs`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ reconciliation_run_id: reconciliationId || null, config_version: "finding-rules-v1", trend_ratio: String(trendPercent / 100), minimum_amount_irr: minimumAmount }) });
-      setRun(created);
-    } catch (caught) { setSubmitting(false); setError(caught instanceof Error ? caught.message : "تولید یافته آغاز نشد."); }
-  }
-
-  async function toggleFinding(findingId: string) {
-    const opening = !expanded.has(findingId);
-    setExpanded((current) => { const next = new Set(current); if (opening) next.add(findingId); else next.delete(findingId); return next; });
-    if (opening && !evidenceByFinding[findingId]) {
-      setEvidenceBusy(findingId);
-      try {
-        const result = await api<EvidenceItemsResponse>(`/companies/${company.id}/findings/${findingId}/evidence`);
-        setEvidenceByFinding((current) => ({ ...current, [findingId]: result.items }));
-      } catch (caught) { setError(caught instanceof Error ? caught.message : "شواهد یافته دریافت نشد."); }
-      finally { setEvidenceBusy(null); }
+      await loadForAnalysis(value);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "اطلاعات این دوره دریافت نشد.");
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function loadMore() { if (!run || !nextCursor) return; setLoadingMore(true); try { await loadFindings(run.id, nextCursor, true); } catch (caught) { setError(caught instanceof Error ? caught.message : "ادامه یافته‌ها دریافت نشد."); } finally { setLoadingMore(false); } }
+  async function startFindingRun(event: FormEvent) {
+    event.preventDefault();
+    if (!analysisId || !canRun || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const created = await api<FindingGenerationRun>(`/companies/${company.id}/finding-runs`, {
+        method: "POST",
+        body: JSON.stringify({
+          analysis_run_id: analysisId,
+          reconciliation_run_id: reconciliationId || undefined,
+          rule_set_version: "findings-rules-v1",
+          trend_threshold_percent: trendPercent,
+          minimum_materiality_irr: minimumAmount,
+        }),
+      });
+      setRun(created);
+      toast.success("اجرای موتور یافته‌ها با موفقیت آغاز شد.");
+      await loadForAnalysis(analysisId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "اجرای موتور یافته‌ها ناموفق بود.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-  const selectedAnalysis = analyses.find((item) => item.id === analysisId);
-  const ordered = useMemo(() => [...findings].sort((left, right) => Number(right.priority_score) - Number(left.priority_score)), [findings]);
-  const visibleFindings = useMemo(() => ordered.filter((item) => {
-    if (filter === "critical_high" && !["critical", "high"].includes(item.priority_band)) return false;
-    if (filter === "hypothesis" && item.assertion_status !== "hypothesis") return false;
-    if (filter === "reconciliation" && item.category !== "reconciliation") return false;
-    if (filter === "financial" && item.category !== "financial_analysis") return false;
-    return !deferredSearch || `${item.title_fa} ${item.summary_fa}`.includes(deferredSearch);
-  }), [deferredSearch, filter, ordered]);
+  async function openFindingDrawer(finding: Finding) {
+    try {
+      const evidenceRes = await api<EvidenceItemsResponse>(
+        `/companies/${company.id}/findings/${finding.id}/evidence`
+      );
 
-  if (loading && !analyses.length) return <FindingsSkeleton />;
+      const factors = finding.priority_explanation?.factors ?? {};
 
-  return <div className="findings-workspace">
-    <section className="findings-intro"><div><span className="model-kicker"><Icon name="findings" />صف کنترل مالی</span><h2>یافته‌ها را بر اساس اثر و قوت شواهد بررسی کنید</h2><p>موتور فقط الگوهای تعریف‌شده را گزارش می‌کند؛ فرضیه‌ها صریح علامت می‌خورند و هر ادعا به قاعده، محاسبه و منبع وصل است.</p></div>{run ? <div className={`run-state state-${run.status}`}><span className="status-pulse" /><div><small>آخرین اجرای این snapshot</small><strong>{runStatusLabels[run.status]}</strong></div></div> : null}</section>
-    {error ? <p className="form-error global" role="alert">{error}</p> : null}
+      const detail: FindingEvidenceDetail = {
+        id: finding.id,
+        title: finding.title_fa,
+        riskLevel: (finding.priority_band as RiskLevel) ?? "medium",
+        status: (finding.workflow_status as FinancialStatus) ?? "potential_match",
+        priorityScore: Number(finding.priority_score),
+        amount: finding.affected_amount_irr ?? 0,
+        ratioToRevenue: finding.affected_ratio ? Number(finding.affected_ratio) : undefined,
+        ruleCode: finding.finding_code,
+        ruleDescription: finding.summary_fa,
+        factors: {
+          impact: {
+            score: Number(factors.impact?.score ?? 70),
+            weight: Number(factors.impact?.weight ?? 0.4),
+            reason: factors.impact?.reasons_fa?.[0] ?? "اثر مالی بر نقدینگی",
+          },
+          materiality: {
+            score: Number(factors.materiality?.score ?? 70),
+            weight: Number(factors.materiality?.weight ?? 0.25),
+            reason: factors.materiality?.reasons_fa?.[0] ?? "اهمیت نسبت به درآمد دوره",
+          },
+          confidence: {
+            score: Number(factors.confidence?.score ?? 80),
+            weight: Number(factors.confidence?.weight ?? 0.2),
+            reason: factors.confidence?.reasons_fa?.[0] ?? "سطح اطمینان قطعی قاعده",
+          },
+          urgency: {
+            score: Number(factors.urgency?.score ?? 75),
+            weight: Number(factors.urgency?.weight ?? 0.15),
+            reason: factors.urgency?.reasons_fa?.[0] ?? "فوریت بررسی در دوره جاری",
+          },
+        },
+        evidenceItems: evidenceRes.items.map((item) => ({
+          id: item.id,
+          sourceType: item.evidence_type === "source_record" ? "bank" : item.evidence_type === "rule" ? "rule" : "system",
+          title: item.claim_code || item.rule_code || "شاهد مالی",
+          description: typeof item.calculation === "object" && Object.keys(item.calculation).length ? JSON.stringify(item.calculation) : "رکورد تاییدشده در منبع ورودی",
+          fileName: item.source_file_id ? `فایل منبع ${item.source_file_id.slice(0, 8)}` : undefined,
+          rowNumber: item.source_row_id ? parseInt(item.source_row_id.slice(-4), 16) || undefined : undefined,
+        })),
+      };
 
-    {!analyses.length ? <section className="reconciliation-prerequisite"><span><Icon name="chart" /></span><div><h3>ابتدا تحلیل مالی را اجرا کنید</h3><p>موتور یافته‌ها به snapshot نهایی تحلیل نیاز دارد.</p></div><Link className="primary-button" href={`/companies/${company.id}/analysis`}>رفتن به تحلیل مالی</Link></section> : <section className="findings-control" aria-labelledby="finding-source-title"><div className="findings-source"><span><Icon name="shield" /></span><label><strong id="finding-source-title">مبنای یافته‌ها</strong><small>snapshot تحلیل</small><NativeSelect value={analysisId} onChange={(event) => void changeAnalysis(event.target.value)}>{analyses.map((item) => <NativeSelectOption key={item.id} value={item.id}>{faDate(item.period_start)} تا {faDate(item.period_end)} · {item.status === "completed" ? "کامل" : "محدود"}</NativeSelectOption>)}</NativeSelect></label><label><strong>تطبیق مرتبط</strong><small>اختیاری برای یافته‌های بانکی</small><NativeSelect value={reconciliationId} onChange={(event) => { setReconciliationId(event.target.value); setRun(null); setFindings([]); }}><NativeSelectOption value="">بدون اجرای تطبیق</NativeSelectOption>{reconciliations.map((item) => <NativeSelectOption key={item.id} value={item.id}>{faDateTime(item.completed_at)} · {item.status === "completed" ? "کامل" : "محدود"}</NativeSelectOption>)}</NativeSelect></label></div><form onSubmit={(event) => void startGeneration(event)}><Button className="primary-button" disabled={!canRun || submitting || isRunning}>{isRunning ? <><span className="button-spinner" />در حال تولید…</> : <><Icon name="target" />تولید یافته جدید</>}</Button><details><summary><Icon name="tune" />آستانه‌های موتور</summary><div className="finding-settings"><label>تغییر معنادار <span>درصد</span><Input type="number" min="0" max="100" value={trendPercent} onChange={(event) => setTrendPercent(Number(event.target.value))} /></label><label>حداقل مبلغ اثر <span>ریال</span><Input type="number" min="0" dir="ltr" value={minimumAmount} onChange={(event) => setMinimumAmount(event.target.value)} /></label><p>اولویت با مدل نسخه‌دار پیش‌فرض و وزن‌های مصوب محاسبه می‌شود.</p></div></details></form>{!canRun ? <div className="analysis-advisory"><Icon name="shield" /><p><strong>دسترسی مشاهده‌گر</strong>مشاهده یافته‌ها مجاز است؛ تولید اجرای جدید به نقش مدیر مالی یا مشاور نیاز دارد.</p></div> : !reconciliationId ? <div className="analysis-advisory warning"><Icon name="alert" /><p><strong>یافته بانکی تولید نمی‌شود</strong>یک اجرای تطبیق انتخاب کنید یا ابتدا <Link href={`/companies/${company.id}/reconciliation`}>تطبیق حساب‌ها</Link> را انجام دهید.</p></div> : null}</section>}
+      setSelectedFindingDetail(detail);
+      setDrawerOpen(true);
+    } catch {
+      toast.error("دریافت زنجیره شواهد این یافته با خطا مواجه شد.");
+    }
+  }
 
-    {isRunning ? <section className="analysis-running" aria-live="polite"><div className="finding-scan"><Icon name="target" /><i /></div><div><strong>{run?.status === "queued" ? "درخواست در صف موتور یافته‌ها است" : "قواعد و شواهد در حال ارزیابی‌اند"}</strong><p>یافته‌ها پس از محاسبه اولویت و ساخت زنجیره شواهد نمایش داده می‌شوند.</p></div></section> : null}
+  // Filter & Search Logic
+  const filteredFindings = useMemo(() => {
+    return findings.filter((finding) => {
+      if (filter === "critical_high" && finding.priority_band !== "critical" && finding.priority_band !== "high")
+        return false;
+      if (filter === "hypothesis" && finding.assertion_status !== "hypothesis") return false;
+      if (filter === "reconciliation" && finding.category !== "reconciliation") return false;
+      if (filter === "financial" && finding.category !== "financial_analysis") return false;
 
-    {run && !isRunning && (run.status === "completed" || run.status === "completed_limited") ? <>
-      <FindingsSummary run={run} findings={findings} />
-      <section className="findings-queue" aria-labelledby="findings-title"><div className="findings-heading"><div><h3 id="findings-title">صف یافته‌های دوره</h3><p>{selectedAnalysis ? `${faDate(selectedAnalysis.period_start)} تا ${faDate(selectedAnalysis.period_end)}` : "snapshot انتخاب‌شده"} · مرتب‌شده بر اساس اولویت</p></div><label className="finding-search"><span className="sr-only">جستجو در یافته‌ها</span><Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجو در عنوان یا توضیح…" /></label></div><div className="finding-filters" role="tablist" aria-label="فیلتر یافته‌ها">{filters.map((item) => <Button key={item.id} role="tab" aria-selected={filter === item.id} onClick={() => setFilter(item.id)}>{item.label}</Button>)}</div>{visibleFindings.length ? <div className="finding-list">{visibleFindings.map((finding) => <FindingRow key={finding.id} companyId={company.id} finding={finding} open={expanded.has(finding.id)} busy={evidenceBusy === finding.id} evidence={evidenceByFinding[finding.id]} onToggle={() => void toggleFinding(finding.id)} />)}</div> : <div className="findings-empty"><Icon name={findings.length ? "check" : "shield"} /><div><strong>{findings.length ? "یافته‌ای با این فیلتر وجود ندارد" : "یافته قابل گزارشی تولید نشد"}</strong><p>{findings.length ? "عبارت جستجو یا فیلتر را تغییر دهید." : "موتور در محدوده داده و آستانه‌های این اجرا، موردی از کاتالوگ هشت‌گانه پیدا نکرده است."}</p></div></div>}{nextCursor ? <Button className="load-more" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? "در حال دریافت…" : "نمایش یافته‌های بیشتر"}</Button> : null}</section>
-      <section className="reconciliation-manifest"><Icon name="shield" /><div><strong>کاتالوگ محدود و قابل حسابرسی</strong><p>این اجرا فقط از {new Intl.NumberFormat("fa-IR").format(run.counts.catalog_size ?? 8)} نوع مجاز استفاده کرده و خروجی آن تغییرناپذیر است.</p></div><code dir="ltr">{shortId(run.id)}</code></section>
-    </> : null}
-  </div>;
+      if (deferredSearch) {
+        const query = deferredSearch.toLowerCase();
+        const matchesTitle = finding.title_fa.toLowerCase().includes(query);
+        const matchesSummary = finding.summary_fa.toLowerCase().includes(query);
+        const matchesCode = finding.finding_code.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesSummary && !matchesCode) return false;
+      }
+
+      return true;
+    });
+  }, [findings, filter, deferredSearch]);
+
+  const columns: Column<Finding>[] = [
+    {
+      key: "finding_code",
+      header: "کد یافته",
+      width: "140px",
+      render: (row) => (
+        <span className="font-mono text-xs font-bold text-muted-foreground">{row.finding_code}</span>
+      ),
+    },
+    {
+      key: "title_fa",
+      header: "عنوان و شرح ریسک",
+      render: (row) => (
+        <div className="flex items-center gap-2 min-w-0">
+          <RiskBadge level={row.priority_band as RiskLevel} size="sm" showIcon={false} />
+          <div className="min-w-0">
+            <strong className="block text-xs font-bold text-foreground truncate max-w-sm">
+              {row.title_fa}
+            </strong>
+            <span className="block text-[11px] text-muted-foreground truncate max-w-sm">
+              {row.summary_fa}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "workflow_status",
+      header: "وضعیت بررسی",
+      width: "150px",
+      render: (row) => <StatusChip status={row.workflow_status} size="sm" />,
+    },
+    {
+      key: "affected_amount_irr",
+      header: "مبلغ درگیر",
+      numeric: true,
+      render: (row) =>
+        row.affected_amount_irr ? (
+          <MoneyDisplay amount={row.affected_amount_irr} currency="ریال" size="sm" direction="negative" />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "priority_score",
+      header: "امتیاز اولویت",
+      numeric: true,
+      render: (row) => (
+        <RiskBadge
+          level={row.priority_band as RiskLevel}
+          score={Number(row.priority_score)}
+          size="sm"
+          showIcon={false}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      header: "عملیات",
+      align: "center",
+      render: (row) => (
+        <div className="flex items-center gap-1.5 justify-center">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs gap-1 text-primary hover:text-primary hover:bg-primary/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              void openFindingDrawer(row);
+            }}
+          >
+            مشاهده شواهد
+            <ChevronLeft className="size-3" />
+          </Button>
+          <Link href={`/companies/${company.id}/findings/${row.id}`}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              title="پرونده کامل یافته"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ArrowUpRight className="size-3" />
+            </Button>
+          </Link>
+        </div>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse" aria-label="در حال دریافت یافته‌ها">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+              <ShieldAlert className="size-3.5" />
+              موتور یافته‌ها و اولویت‌بندی
+            </span>
+            <span className="text-xs text-muted-foreground">۸ نوع یافته قطعی و غیرمغرضانه</span>
+          </div>
+          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
+            صف یافته‌های مالی و مغایرت‌ها
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            هر یافته دارای امتیاز اولویت ۴‌عاملی و زنجیره شواهد (Lineage) تا فایل و ردیف منبع است.
+          </p>
+        </div>
+
+        {/* Period Selector */}
+        {analyses.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Select value={analysisId} onValueChange={(val) => void handleAnalysisChange(val)} dir="rtl">
+              <SelectTrigger className="w-[220px] font-bold text-xs">
+                <Calendar className="size-3.5 text-primary ms-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {analyses.map((item) => (
+                  <SelectItem key={item.id} value={item.id} className="text-xs">
+                    {faDate(item.period_start)} تا {faDate(item.period_end)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="text-xs">
+          {error}
+        </Alert>
+      )}
+
+      {/* Engine Run / Control Settings Card */}
+      <Card>
+        <CardContent className="pt-5">
+          <form onSubmit={(e) => void startFindingRun(e)} className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label htmlFor="trend-threshold-input" className="font-bold text-foreground">آستانه تغییر روند (درصد)</label>
+                <Input
+                  id="trend-threshold-input"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={trendPercent}
+                  onChange={(e) => setTrendPercent(Number(e.target.value))}
+                  className="w-24 text-center font-mono h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="min-materiality-input" className="font-bold text-foreground">کف اهمیت نسبی (ریال)</label>
+                <Input
+                  id="min-materiality-input"
+                  type="text"
+                  value={minimumAmount}
+                  onChange={(e) => setMinimumAmount(e.target.value)}
+                  className="w-36 text-center font-mono h-9 text-xs"
+                />
+              </div>
+
+              {reconciliations.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="font-bold text-foreground block">تطبیق مرتبط:</span>
+                  <Select value={reconciliationId} onValueChange={setReconciliationId} dir="rtl">
+                    <SelectTrigger className="w-[180px] h-9 text-xs">
+                      <SelectValue placeholder="انتخاب تطبیق" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reconciliations.map((r) => (
+                        <SelectItem key={r.id} value={r.id} className="text-xs">
+                          تطبیق {faDateTime(r.completed_at)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {run && (
+                <div className="text-xs text-muted-foreground text-start">
+                  <span>وضعیت اجرا: </span>
+                  <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status} size="sm" />
+                </div>
+              )}
+
+              {canRun && (
+                <Button type="submit" disabled={submitting || isRunning} className="gap-2 text-xs font-bold">
+                  {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                  اجرای مجدد موتور یافته‌ها
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map((f) => (
+            <Button
+              key={f.id}
+              size="sm"
+              variant={filter === f.id ? "default" : "outline"}
+              className="text-xs h-8"
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="جستجوی یافته…"
+              className="ps-9 h-8 text-xs"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-muted/40">
+            <Button
+              size="sm"
+              variant={tableDensity === "compact" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              title="تراکم فشرده (حسابداران)"
+              onClick={() => setTableDensity("compact")}
+            >
+              <SlidersHorizontal className="size-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant={tableDensity === "normal" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              title="تراکم استاندارد (مدیران)"
+              onClick={() => setTableDensity("normal")}
+            >
+              <Layers className="size-3" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Findings Data Table */}
+      <FinancialDataTable
+        data={filteredFindings}
+        columns={columns}
+        keyExtractor={(row) => row.id}
+        density={tableDensity}
+        emptyMessage="هیچ یافته‌ای با این فیلتر یا جستجو یافت نشد."
+        onRowClick={(row) => void openFindingDrawer(row)}
+      />
+
+      {/* Side Evidence Drawer */}
+      <EvidenceDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        finding={selectedFindingDetail}
+        onAction={async (action) => {
+          if (!selectedFindingDetail) return;
+          try {
+            await api(`/companies/${company.id}/findings/${selectedFindingDetail.id}/reviews`, {
+              method: "POST",
+              body: JSON.stringify({ decision: action }),
+            });
+            toast.success("تصمیم مشاور با موفقیت ثبت شد.");
+            setDrawerOpen(false);
+            if (run) await loadFindings(run.id);
+          } catch {
+            toast.error("ثبت تصمیم با خطا مواجه شد.");
+          }
+        }}
+      />
+    </div>
+  );
 }
-
-function FindingsSummary({ run, findings }: { run: FindingGenerationRun; findings: Finding[] }) {
-  const bands = findings.reduce<Record<PriorityBand, number>>((result, item) => { result[item.priority_band] += 1; return result; }, { critical: 0, high: 0, medium: 0, low: 0 });
-  return <section className="findings-summary" aria-label="خلاصه یافته‌ها"><div className="finding-total"><span><Icon name="findings" /></span><div><small>یافته نیازمند توجه</small><strong>{new Intl.NumberFormat("fa-IR").format(run.counts.total ?? findings.length)}</strong></div><p>{new Intl.NumberFormat("fa-IR").format(run.counts.evidence_items ?? 0)} قطعه شاهد ثبت شده</p></div><div className="priority-distribution">{(Object.keys(bands) as PriorityBand[]).map((band) => <div key={band}><span><i className={`band-${band}`} />{bandLabels[band]}</span><strong>{new Intl.NumberFormat("fa-IR").format(bands[band])}</strong></div>)}</div><div className="finding-coverage"><CoverageState label="یافته‌های تطبیق" available={run.coverage.reconciliation_findings?.available} reason={run.coverage.reconciliation_findings?.reason} /><CoverageState label="روندهای مالی" available={run.coverage.financial_trends?.available} reason={run.coverage.financial_trends?.reason} /></div></section>;
-}
-
-function CoverageState({ label, available, reason }: { label: string; available?: boolean; reason?: string | null }) { return <div><span className={available ? "ready" : "limited"}>{available ? <Icon name="check" /> : <Icon name="alert" />}</span><div><strong>{label}</strong><small>{available ? "پوشش فعال" : reason ?? "پوشش محدود"}</small></div></div>; }
-
-function FindingRow({ companyId, finding, open, busy, evidence, onToggle }: { companyId: string; finding: Finding; open: boolean; busy: boolean; evidence?: EvidenceItem[]; onToggle: () => void }) {
-  return <article className={`finding-row finding-${finding.priority_band}`}><Button className="finding-overview" onClick={onToggle} aria-expanded={open}><span className={`priority-band band-${finding.priority_band}`}>{bandLabels[finding.priority_band]}</span><span className="priority-score"><b>{new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(finding.priority_score))}</b><small>از ۱۰۰</small></span><span className="finding-copy"><span className="finding-meta"><i>{finding.assertion_status === "hypothesis" ? "فرضیه" : "قطعی"}</i><i>{finding.category === "reconciliation" ? "تطبیق" : "تحلیل مالی"}</i><i>{workflowLabels[finding.workflow_status]}</i></span><strong>{finding.title_fa}</strong><small>{finding.summary_fa}</small></span><span className="finding-impact"><small>اثر مالی</small><b dir="ltr">{money(finding.affected_amount_irr)}</b>{finding.affected_amount_irr ? <i>ریال</i> : null}</span><span className="finding-confidence"><small>اطمینان</small><b>{new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(finding.confidence_score))}٪</b></span><span className="finding-expand"><Icon name="chevron" /><i>{open ? "بستن" : "بررسی"}</i></span></Button>{open ? <div className="finding-detail"><PriorityBreakdown finding={finding} /><EvidenceTrail busy={busy} items={evidence} /><div className="finding-detail-actions"><Link className="secondary-button" href={`/companies/${companyId}/findings/${finding.id}`}><Icon name="evidence" />باز کردن پرونده کامل</Link></div></div> : null}</article>;
-}
-
-function PriorityBreakdown({ finding }: { finding: Finding }) {
-  const factors = finding.priority_explanation.factors ?? {};
-  return <section className="priority-breakdown"><div><h4>چرا این اولویت؟</h4><p>{finding.priority_explanation.summary_fa ?? "امتیاز از ترکیب اثر، اهمیت، اطمینان و فوریت ساخته شده است."}</p></div><div className="factor-list">{(Object.keys(factorLabels) as (keyof typeof factorLabels)[]).map((key) => { const factor = factors[key]; const score = Number(factor?.score ?? 0); return <div key={key}><span><strong>{factorLabels[key]}</strong><small>{new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(score)} × {Number(factor?.weight ?? 0).toLocaleString("fa-IR")}</small></span><div><i style={{ width: `${Math.max(0, Math.min(100, score))}%` }} /></div><b>{Number(factor?.weighted_score ?? 0).toLocaleString("fa-IR")}</b></div>; })}</div>{finding.priority_explanation.uncertainty_fa ? <p className="priority-uncertainty"><Icon name="alert" />{finding.priority_explanation.uncertainty_fa}</p> : null}</section>;
-}
-
-function EvidenceTrail({ busy, items }: { busy: boolean; items?: EvidenceItem[] }) {
-  return <section className="evidence-trail"><div><h4>زنجیره شواهد</h4><span>{items ? `${new Intl.NumberFormat("fa-IR").format(items.length)} مورد` : "در حال دریافت"}</span></div>{busy ? <div className="evidence-loading"><i /><i /><i /></div> : items?.length ? <ol>{items.map((item) => <EvidenceCard key={item.id} item={item} />)}</ol> : <p className="evidence-empty">شاهدی برای این یافته ثبت نشده است.</p>}</section>;
-}
-
-function EvidenceCard({ item }: { item: EvidenceItem }) {
-  const sourceFile = record(item.field_snapshot.source_file);
-  const sourceLocation = record(item.field_snapshot.source_location);
-  const normalized = record(item.field_snapshot.normalized);
-  const values = Object.keys(item.calculation).length ? item.calculation : normalized;
-  const entries = Object.entries(values).slice(0, 5);
-  return <li><span className={`evidence-kind evidence-kind-${item.evidence_type}`}><Icon name={item.evidence_type === "source_record" ? "file" : item.evidence_type === "rule" ? "target" : "evidence"} /></span><div className="evidence-card"><div><strong>{evidenceLabels[item.evidence_type]}</strong><code dir="ltr">{item.rule_code ?? item.claim_code}</code></div>{sourceFile.original_name ? <p className="evidence-file"><Icon name="file" />{String(sourceFile.original_name)}{sourceLocation.row_number ? ` · ردیف ${Number(sourceLocation.row_number).toLocaleString("fa-IR")}` : ""}</p> : null}{entries.length ? <dl>{entries.map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd dir={typeof value === "number" || /^-?\d/.test(String(value)) ? "ltr" : undefined}>{printable(value)}</dd></div>)}</dl> : <p className="evidence-reference">شناسه منبع: <code dir="ltr">{shortId(item.source_entity_id ?? item.source_row_id)}</code></p>}<small>نسخه قاعده: <code dir="ltr">{item.rule_version}</code></small></div></li>;
-}
-
-function FindingsSkeleton() { return <div className="findings-skeleton" aria-label="در حال دریافت یافته‌ها"><span /><span /><div><span /><span /></div><span /></div>; }

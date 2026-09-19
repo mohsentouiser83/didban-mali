@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
-const backendApiOrigin = process.env.BACKEND_API_ORIGIN ?? "https://didban-mali.fly.dev";
+const backendApiOrigin =
+  process.env.BACKEND_API_ORIGIN ??
+  (process.env.NODE_ENV === "production"
+    ? "https://didban-mali.fly.dev"
+    : "http://127.0.0.1:8000");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

@@ -6,10 +6,14 @@ from uuid import UUID
 from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.alerts.service import evaluate_and_sync_alerts
 from app.analysis.models import AnalysisRun
+from app.cashflow.service import get_cashflow_forecast, get_cashflow_summary
 from app.companies.models import Company
 from app.dashboard.service import build_dashboard
 from app.findings.models import Finding, PriorityBand
+from app.payables.service import get_payables_summary
+from app.receivables.service import get_receivables_summary
 from app.reviews.models import FindingNote, ReviewDecision
 
 
@@ -138,6 +142,41 @@ async def build_report_payload(
         for note in notes
     ]
     advisor_notes.sort(key=lambda item: str(item["created_at"]))
+
+    # Fetch Treasury, Working Capital & Early Warning data
+    receivables_data: dict[str, Any] | None = None
+    payables_data: dict[str, Any] | None = None
+    cashflow_data: dict[str, Any] | None = None
+    alerts_data: list[dict[str, Any]] = []
+
+    try:
+        rec_summary = await get_receivables_summary(session, company_id=company_id)
+        receivables_data = rec_summary.model_dump(mode="json")
+    except Exception:
+        pass
+
+    try:
+        pay_summary = await get_payables_summary(session, company_id=company_id)
+        payables_data = pay_summary.model_dump(mode="json")
+    except Exception:
+        pass
+
+    try:
+        cf_summary = await get_cashflow_summary(session, company_id=company_id)
+        cf_forecast = await get_cashflow_forecast(session, company_id=company_id)
+        cashflow_data = {
+            "summary": cf_summary.model_dump(mode="json"),
+            "weeks": [w.model_dump(mode="json") for w in cf_forecast.weeks],
+        }
+    except Exception:
+        pass
+
+    try:
+        alerts = await evaluate_and_sync_alerts(session, company_id=company_id)
+        alerts_data = [a.model_dump(mode="json") for a in alerts]
+    except Exception:
+        pass
+
     return {
         "schema_version": "report-snapshot-v1",
         "generated_at": (generated_at or datetime.now(UTC)).isoformat(),
@@ -168,4 +207,8 @@ async def build_report_payload(
         "advisor_notes": advisor_notes,
         "review_status": dashboard.finding_summary.model_dump(mode="json"),
         "all_findings": finding_payload,
+        "receivables_intelligence": receivables_data,
+        "payables_intelligence": payables_data,
+        "cashflow_runway": cashflow_data,
+        "early_warning_alerts": alerts_data,
     }

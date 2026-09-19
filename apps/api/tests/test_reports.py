@@ -118,3 +118,148 @@ def test_persian_pdf_is_a4_multipage_and_embeds_font() -> None:
     assert reader.metadata is not None
     assert reader.metadata.title == "گزارش بررسی مالی"
     assert b"IRANYekanX" in content
+
+
+def test_persian_pdf_with_treasury_and_alerts() -> None:
+    payload = sample_payload()
+    payload["early_warning_alerts"] = [
+        {
+            "code": "runway_critical",
+            "category": "liquidity",
+            "severity": "critical",
+            "title_fa": "بحران نقدینگی: تاب‌آوری نقد کمتر از ۱۵ روز",
+            "summary_fa": "موجودی نقد و بانک شرکت بر مبنای نرخ سوخت تنها ۱۲ روز کفایت می‌کند.",
+            "metric_key": "runway_days",
+            "current_value": "12",
+            "threshold_value": "15",
+            "metric_unit": "روز",
+            "suggested_action_fa": "پیگیری فوری وصول مطالبات و توقف خریدهای سرمایه‌ای.",
+        }
+    ]
+    payload["receivables_intelligence"] = {
+        "as_of_date": "2026-09-30",
+        "total_receivables_irr": "1500000000",
+        "total_overdue_irr": "450000000",
+        "overdue_ratio": 0.30,
+        "dso_days": 42,
+        "customer_count": 8,
+        "high_risk_customer_count": 1,
+        "buckets": [
+            {
+                "bucket_key": "not_due",
+                "label_fa": "جاری",
+                "amount_irr": "1050000000",
+                "invoice_count": 10,
+                "share_percentage": 70.0,
+            },
+            {
+                "bucket_key": "1_30",
+                "label_fa": "۱ تا ۳۰ روز",
+                "amount_irr": "200000000",
+                "invoice_count": 2,
+                "share_percentage": 13.3,
+            },
+            {
+                "bucket_key": "31_60",
+                "label_fa": "۳۱ تا ۶۰ روز",
+                "amount_irr": "100000000",
+                "invoice_count": 1,
+                "share_percentage": 6.7,
+            },
+            {
+                "bucket_key": "61_90",
+                "label_fa": "۶۱ تا ۹۰ روز",
+                "amount_irr": "50000000",
+                "invoice_count": 1,
+                "share_percentage": 3.3,
+            },
+            {
+                "bucket_key": "90_plus",
+                "label_fa": "بیش از ۹۰ روز",
+                "amount_irr": "100000000",
+                "invoice_count": 1,
+                "share_percentage": 6.7,
+            },
+        ],
+    }
+    payload["payables_intelligence"] = {
+        "as_of_date": "2026-09-30",
+        "total_payables_irr": "900000000",
+        "total_overdue_irr": "180000000",
+        "overdue_ratio": 0.20,
+        "dpo_days": 35,
+        "dso_days": 42,
+        "ccc_days": 7,
+        "vendor_count": 5,
+        "high_risk_vendor_count": 0,
+        "buckets": [
+            {
+                "bucket_key": "not_due",
+                "label_fa": "جاری",
+                "amount_irr": "720000000",
+                "vendor_count": 4,
+                "share_percentage": 80.0,
+            },
+            {
+                "bucket_key": "1_30",
+                "label_fa": "۱ تا ۳۰ روز",
+                "amount_irr": "100000000",
+                "vendor_count": 1,
+                "share_percentage": 11.1,
+            },
+            {
+                "bucket_key": "31_60",
+                "label_fa": "۳۱ تا ۶۰ روز",
+                "amount_irr": "50000000",
+                "vendor_count": 1,
+                "share_percentage": 5.6,
+            },
+            {
+                "bucket_key": "61_90",
+                "label_fa": "۶۱ تا ۹۰ روز",
+                "amount_irr": "20000000",
+                "vendor_count": 1,
+                "share_percentage": 2.2,
+            },
+            {
+                "bucket_key": "90_plus",
+                "label_fa": "بیش از ۹۰ روز",
+                "amount_irr": "10000000",
+                "vendor_count": 1,
+                "share_percentage": 1.1,
+            },
+        ],
+    }
+    payload["cashflow_runway"] = {
+        "summary": {
+            "as_of_date": "2026-09-30",
+            "current_cash_irr": "350000000",
+            "monthly_burn_rate_irr": "700000000",
+            "runway_days": 15,
+            "runway_months": 0.5,
+            "runway_status": "critical",
+            "safety_buffer_irr": "700000000",
+            "first_deficit_week": 3,
+            "lowest_projected_cash_irr": "-120000000",
+        },
+        "weeks": [
+            {
+                "week_number": i,
+                "start_date": f"2026-10-{i * 2 + 1:02d}",
+                "end_date": f"2026-10-{i * 2 + 7:02d}",
+                "projected_inflows_irr": "150000000",
+                "projected_outflows_irr": "180000000",
+                "net_movement_irr": "-30000000",
+                "projected_closing_cash_irr": str(350000000 - i * 30000000),
+                "is_deficit": (350000000 - i * 30000000) < 0,
+            }
+            for i in range(1, 14)
+        ],
+    }
+
+    content = render_report_pdf(payload)
+    reader = PdfReader(BytesIO(content))
+
+    assert len(reader.pages) >= 3
+    assert len(content) > 10000
+    assert b"IRANYekanX" in content

@@ -281,6 +281,166 @@ class PersianPdf:
             cursor_y -= 14
         self.y = top - height - 4 * mm
 
+    def table(
+        self,
+        headers: list[str],
+        rows: list[list[str]],
+        col_widths: list[float],
+        *,
+        header_bg: Color | None = None,
+        header_font: str = "IRANYekanX-Bold",
+        header_size: float = 8.5,
+        row_font: str = "IRANYekanX",
+        row_size: float = 8.0,
+        header_height: float = 7.5 * mm,
+        row_height: float = 6.8 * mm,
+    ) -> None:
+        total_width = self.right - self.left
+        scale = total_width / sum(col_widths)
+        w = [cw * scale for cw in col_widths]
+        total_height = header_height + len(rows) * row_height
+        self._ensure(min(total_height + 4 * mm, 60 * mm))
+
+        h_top = self.y
+        self.canvas.setFillColor(header_bg or HexColor("#F2F4F7"))
+        self.canvas.setStrokeColor(HexColor("#D0D5DD"))
+        self.canvas.rect(
+            self.left, h_top - header_height, total_width, header_height, fill=1, stroke=1
+        )
+
+        x_cursor = self.right
+        for idx, (head_text, col_w) in enumerate(zip(headers, w, strict=True)):
+            self._draw_rtl(
+                head_text,
+                x=x_cursor - 2.5 * mm,
+                y=h_top - 5.2 * mm,
+                font=header_font,
+                size=header_size,
+                color=HexColor("#344054"),
+            )
+            if idx > 0:
+                self.canvas.setStrokeColor(HexColor("#D0D5DD"))
+                self.canvas.line(x_cursor, h_top, x_cursor, h_top - header_height)
+            x_cursor -= col_w
+
+        self.y -= header_height
+
+        for r_idx, row in enumerate(rows):
+            if self.y - row_height < self.bottom:
+                self.new_page()
+            r_top = self.y
+            bg = HexColor("#FFFFFF") if r_idx % 2 == 0 else HexColor("#F9FAFB")
+            self.canvas.setFillColor(bg)
+            self.canvas.setStrokeColor(HexColor("#E4E7EC"))
+            self.canvas.rect(
+                self.left, r_top - row_height, total_width, row_height, fill=1, stroke=1
+            )
+
+            x_cursor = self.right
+            for c_idx, (val, col_w) in enumerate(zip(row, w, strict=True)):
+                self._draw_rtl(
+                    val,
+                    x=x_cursor - 2.5 * mm,
+                    y=r_top - 4.8 * mm,
+                    font=row_font,
+                    size=row_size,
+                    color=HexColor("#1D2939"),
+                )
+                if c_idx > 0:
+                    self.canvas.setStrokeColor(HexColor("#E4E7EC"))
+                    self.canvas.line(x_cursor, r_top, x_cursor, r_top - row_height)
+                x_cursor -= col_w
+
+            self.y -= row_height
+
+        self.y -= 4 * mm
+
+    def alert_card(
+        self,
+        title: str,
+        severity: str,
+        summary: str,
+        current_val: str | None,
+        threshold_val: str | None,
+        unit: str,
+        suggested_action: str | None,
+    ) -> None:
+        is_crit = severity == "critical"
+        border_color = HexColor("#FDA29B") if is_crit else HexColor("#FEDF89")
+        bg_color = HexColor("#FEF3F2") if is_crit else HexColor("#FFFAEB")
+        badge_text = "بحرانی" if is_crit else "هشدار"
+        badge_color = HexColor("#B42318") if is_crit else HexColor("#B54708")
+
+        summary_lines = self._wrap(summary, self.right - self.left - 10 * mm, "IRANYekanX", 8.8)
+        action_lines = (
+            self._wrap(
+                f"اقدام پیشنهادی: {suggested_action}",
+                self.right - self.left - 10 * mm,
+                "IRANYekanX-Medium",
+                8.5,
+            )
+            if suggested_action
+            else []
+        )
+
+        height = (
+            16 * mm
+            + len(summary_lines) * 13
+            + (len(action_lines) * 13 + 3 * mm if action_lines else 0)
+            + (7 * mm if current_val and threshold_val else 0)
+        )
+        self._ensure(height + 4 * mm)
+        top = self.y
+
+        self.canvas.setFillColor(bg_color)
+        self.canvas.setStrokeColor(border_color)
+        self.canvas.roundRect(
+            self.left, top - height, self.right - self.left, height, 2.5 * mm, fill=1, stroke=1
+        )
+
+        self._draw_rtl(
+            f"[{badge_text}]  {title}",
+            x=self.right - 5 * mm,
+            y=top - 6 * mm,
+            font="IRANYekanX-Bold",
+            size=9.6,
+            color=badge_color,
+        )
+
+        cursor_y = top - 12 * mm
+        for line in summary_lines:
+            self._draw_rtl(
+                line, x=self.right - 5 * mm, y=cursor_y, size=8.8, color=HexColor("#344054")
+            )
+            cursor_y -= 13
+
+        if current_val and threshold_val:
+            comp_text = f"مقدار فعلی: {current_val} {unit}  |  آستانه مجاز: {threshold_val} {unit}"
+            self._draw_rtl(
+                comp_text,
+                x=self.right - 5 * mm,
+                y=cursor_y - 2 * mm,
+                font="IRANYekanX-Medium",
+                size=8.2,
+                color=HexColor("#475467"),
+            )
+            cursor_y -= 7 * mm
+
+        if action_lines:
+            cursor_y -= 2 * mm
+            for line in action_lines:
+                self._draw_rtl(
+                    line,
+                    x=self.right - 5 * mm,
+                    y=cursor_y,
+                    font="IRANYekanX-Medium",
+                    size=8.5,
+                    color=badge_color,
+                )
+                cursor_y -= 13
+
+        self.y = top - height - 4 * mm
+
     def finish(self) -> None:
         self._footer()
         self.canvas.save()
@@ -314,6 +474,28 @@ def render_report_pdf(payload: dict[str, Any]) -> bytes:
     for reason in overall.get("reasons_fa", []):
         pdf.paragraph(f"• {reason}", size=8.8, indent=3 * mm)
 
+    # Section: Early Warning Alerts (if present)
+    alerts = list(payload.get("early_warning_alerts") or [])
+    if alerts:
+        pdf.section("هشدارهای زودهنگام و مخاطرات فوری")
+        pdf.paragraph(
+            "هشدارهای فعال زیر بر مبنای پایش خودکار شاخص‌های نقدینگی و اعتباری کشف شده‌اند:",
+            size=9,
+        )
+        for al in alerts:
+            al_dict = dict(al)
+            c_val = al_dict.get("current_value")
+            t_val = al_dict.get("threshold_value")
+            pdf.alert_card(
+                title=str(al_dict.get("title_fa") or ""),
+                severity=str(al_dict.get("severity") or "warning"),
+                summary=str(al_dict.get("summary_fa") or ""),
+                current_val=_fa_digits(c_val) if c_val is not None else None,
+                threshold_val=_fa_digits(t_val) if t_val is not None else None,
+                unit=str(al_dict.get("metric_unit") or ""),
+                suggested_action=al_dict.get("suggested_action_fa"),
+            )
+
     pdf.section("مرور مالی")
     for metric in payload.get("financial_overview", []):
         metric = dict(metric)
@@ -322,6 +504,91 @@ def render_report_pdf(payload: dict[str, Any]) -> bytes:
         if not metric.get("available"):
             formatted = f"ناموجود - {metric.get('unavailable_reason_fa') or 'داده کافی نیست'}"
         pdf.key_value(str(metric["label_fa"]), formatted)
+
+    # Section: Receivables Intelligence (if present)
+    rec = payload.get("receivables_intelligence")
+    if rec and isinstance(rec, dict):
+        pdf.section("هوشمندی مطالبات و تحلیل سنی وصول")
+        pdf.key_value("کل مطالبات تجاری", _irr(rec.get("total_receivables_irr")))
+        pdf.key_value("نسبت مطالبات معوق", _percent(rec.get("overdue_ratio")))
+        pdf.key_value("دوره وصول مطالبات (DSO)", f"{_fa_digits(rec.get('dso_days') or 0)} روز")
+
+        buckets = list(rec.get("buckets") or [])
+        if buckets:
+            b_headers = ["بازه سنی مطالبات", "مبلغ (ریال)", "سهم از کل", "تعداد فاکتور"]
+            b_rows = []
+            for b in buckets:
+                b_dict = dict(b)
+                b_rows.append(
+                    [
+                        str(b_dict.get("label_fa") or ""),
+                        _irr(b_dict.get("amount_irr")),
+                        _percent(float(b_dict.get("share_percentage") or 0) / 100),
+                        f"{_fa_digits(b_dict.get('invoice_count') or 0)} فاکتور",
+                    ]
+                )
+            pdf.table(b_headers, b_rows, [45 * mm, 55 * mm, 35 * mm, 35 * mm])
+
+    # Section: Payables & Working Capital (if present)
+    pay = payload.get("payables_intelligence")
+    if pay and isinstance(pay, dict):
+        pdf.section("بستانکاران، دوره پرداخت و سرمایه در گردش")
+        pdf.key_value("کل بدهی به بستانکاران", _irr(pay.get("total_payables_irr")))
+        pdf.key_value("دوره پرداخت بدهی‌ها (DPO)", f"{_fa_digits(pay.get('dpo_days') or 0)} روز")
+        pdf.key_value("چرخه تبدیل وجه نقد (CCC)", f"{_fa_digits(pay.get('ccc_days') or 0)} روز")
+        pdf.key_value("نسبت تعهدات معوق", _percent(pay.get("overdue_ratio")))
+
+        p_buckets = list(pay.get("buckets") or [])
+        if p_buckets:
+            p_headers = ["بازه سنی پرداختنی‌ها", "مبلغ (ریال)", "سهم از کل", "تعداد تامین‌کننده"]
+            p_rows = []
+            for pb in p_buckets:
+                pb_dict = dict(pb)
+                p_rows.append(
+                    [
+                        str(pb_dict.get("label_fa") or ""),
+                        _irr(pb_dict.get("amount_irr")),
+                        _percent(float(pb_dict.get("share_percentage") or 0) / 100),
+                        f"{_fa_digits(pb_dict.get('vendor_count') or 0)} تامین‌کننده",
+                    ]
+                )
+            pdf.table(p_headers, p_rows, [45 * mm, 55 * mm, 35 * mm, 35 * mm])
+
+    # Section: Cash Runway & 13-Week Forecast (if present)
+    cash = payload.get("cashflow_runway")
+    if cash and isinstance(cash, dict):
+        pdf.section("تاب‌آوری نقدینگی و پیش‌بینی ۱۳ هفته‌ای خزانه")
+        c_sum = dict(cash.get("summary") or {})
+        pdf.key_value("موجودی نقد و بانک فعلی", _irr(c_sum.get("current_cash_irr")))
+        pdf.key_value("نرخ سوخت ماهانه نقد (Burn Rate)", _irr(c_sum.get("monthly_burn_rate_irr")))
+        pdf.key_value(
+            "روزهای تاب‌آوری نقد (Runway)", f"{_fa_digits(c_sum.get('runway_days') or 0)} روز"
+        )
+        pdf.key_value("بافر امنیتی نقدینگی", _irr(c_sum.get("safety_buffer_irr")))
+
+        weeks = list(cash.get("weeks") or [])
+        if weeks:
+            pdf.paragraph("مسیر جریان نقدینگی پیش‌بینی‌شده برای ۱۳ هفته آینده:")
+            w_headers = [
+                "هفته",
+                "تاریخ شروع",
+                "پیش‌بینی ورودی",
+                "پیش‌بینی خروجی",
+                "مانده پایان هفته",
+            ]
+            w_rows = []
+            for w in weeks[:13]:
+                w_dict = dict(w)
+                w_rows.append(
+                    [
+                        f"هفته {_fa_digits(w_dict.get('week_number'))}",
+                        _jalali(str(w_dict.get("start_date"))),
+                        _irr(w_dict.get("projected_inflows_irr")),
+                        _irr(w_dict.get("projected_outflows_irr")),
+                        _irr(w_dict.get("projected_closing_cash_irr")),
+                    ]
+                )
+            pdf.table(w_headers, w_rows, [25 * mm, 32 * mm, 38 * mm, 38 * mm, 37 * mm])
 
     pdf.section("یافته‌های مهم")
     top_findings = list(payload.get("top_findings", []))

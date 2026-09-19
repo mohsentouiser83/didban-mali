@@ -1,10 +1,24 @@
-export function Mark() {
-  return <span className="mark" aria-hidden="true"><i /><i /><i /></span>;
+import { cn } from "@/lib/utils";
+
+export function Mark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "mark relative inline-flex items-end justify-center gap-1 size-8 p-1.5 rounded-xl bg-foreground overflow-hidden border border-border shadow-sm shrink-0",
+        className
+      )}
+      aria-hidden="true"
+    >
+      <i className="w-1 rounded-full bg-background h-2 opacity-55" />
+      <i className="w-1 rounded-full bg-background h-3.5" />
+      <i className="w-1 rounded-full bg-primary h-5" />
+    </span>
+  );
 }
 
-export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "table" | "layers" | "chart" | "calendar" | "activity" | "reconcile" | "bank" | "tune" | "chevron" | "findings" | "evidence" | "target";
+export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "bell" | "table" | "layers" | "chart" | "calendar" | "activity" | "reconcile" | "bank" | "tune" | "chevron" | "findings" | "evidence" | "target";
 
-export function Icon({ name }: { name: ProductIconName }) {
+export function Icon({ name, className }: { name: ProductIconName; className?: string }) {
   const paths = {
     home: <><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></>,
     company: <><path d="M4 21V5h10v16M14 9h6v12M8 9h2M8 13h2M8 17h2M17 13h1M17 17h1"/></>,
@@ -18,6 +32,7 @@ export function Icon({ name }: { name: ProductIconName }) {
     arrow: <><path d="m15 18-6-6 6-6"/></>,
     check: <><path d="m5 12 4 4L19 6"/></>,
     alert: <><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></>,
+    bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
     table: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></>,
     layers: <><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></>,
     chart: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/><path d="m4 7 6-4 6 7 5-4"/></>,
@@ -31,5 +46,15 @@ export function Icon({ name }: { name: ProductIconName }) {
     evidence: <><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
     target: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></>,
   };
-  return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">{paths[name]}</svg>;
+  return (
+    <svg
+      className={cn("icon size-4 stroke-[1.8] stroke-linecap-round stroke-linejoin-round shrink-0", className)}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      {paths[name]}
+    </svg>
+  );
 }

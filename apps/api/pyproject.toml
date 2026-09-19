@@ -29,12 +29,12 @@ dependencies = [
   "redis==8.1.0",
   "sqlalchemy[asyncio]==2.0.52",
   "uuid6==2025.0.1",
-  "uvicorn[standard]==0.52.4"
+  "uvicorn[standard]==0.52.4",
+  "httpx==0.28.1"
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx==0.28.1",
   "mypy==2.3.1",
   "pypdf==6.10.0",
   "pytest==9.1.1",

@@ -1,47 +1,76 @@
 "use client";
 
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ArrowRightLeft,
+  Calendar,
+  FileCheck2,
+  RefreshCcw,
+  SlidersHorizontal,
+  Layers,
+  Zap,
+  Building2,
+  BookOpen,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  MoneyDisplay,
+  StatusChip,
+  EvidenceSourceTag,
+  FinancialDataTable,
+  Column,
+  toPersianDigits,
+  FinancialStatus,
+} from "@/components/ui/financial";
 
 import { api } from "@/lib/product-api";
-import type { AnalysisRun, Company, MatchStatus, ReconciliationMatch, ReconciliationMatchesResponse, ReconciliationRun } from "@/lib/product-types";
+import type {
+  AnalysisRun,
+  Company,
+  MatchStatus,
+  ReconciliationMatch,
+  ReconciliationMatchesResponse,
+  ReconciliationRun,
+} from "@/lib/product-types";
 
-import { Icon } from "./icons";
 import { AiSemanticRanking } from "./ai-semantic-ranking";
 
 type MatchFilter = "all" | "matched" | "review" | "mismatch" | "duplicate" | "unresolved";
 
-const runStatusLabels: Record<ReconciliationRun["status"], string> = { queued: "در صف تطبیق", processing: "در حال تطبیق", completed: "تکمیل‌شده", completed_limited: "تکمیل با ورودی محدود", failed: "ناموفق" };
-const matchStatusLabels: Record<MatchStatus, string> = { auto_matched: "تطبیق قطعی", potential_match: "نیازمند بررسی", amount_mismatch: "مغایرت مبلغ", date_mismatch: "مغایرت تاریخ", duplicate_high: "تکراری قطعی", duplicate_possible: "تکراری احتمالی", unresolved: "بدون متناظر" };
 const filters: { id: MatchFilter; label: string; statuses?: MatchStatus[] }[] = [
-  { id: "all", label: "همه" },
-  { id: "matched", label: "تطبیق قطعی", statuses: ["auto_matched"] },
-  { id: "review", label: "نیازمند بررسی", statuses: ["potential_match"] },
-  { id: "mismatch", label: "مغایرت", statuses: ["amount_mismatch", "date_mismatch"] },
+  { id: "all", label: "همه تراکنش‌ها" },
+  { id: "matched", label: "تطبیق قطعی ۱۰۰٪", statuses: ["auto_matched"] },
+  { id: "review", label: "نیازمند بررسی انسانی", statuses: ["potential_match"] },
+  { id: "mismatch", label: "مغایرت مبلغ/تاریخ", statuses: ["amount_mismatch", "date_mismatch"] },
   { id: "duplicate", label: "تکراری", statuses: ["duplicate_high", "duplicate_possible"] },
   { id: "unresolved", label: "بدون متناظر", statuses: ["unresolved"] },
 ];
 
 function faDate(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "short", day: "numeric" }).format(new Date(`${value}T12:00:00`));
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "short", day: "numeric" }).format(
+      new Date(`${value}T12:00:00`)
+    );
+  } catch {
+    return value;
+  }
 }
 
 function faDateTime(value: string | null) {
-  return value ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
-
-function money(value?: string | null) {
-  if (value == null) return "—";
-  try { return new Intl.NumberFormat("fa-IR").format(BigInt(value)); }
-  catch { return new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(value)); }
-}
-
-function shortId(value?: string | null) { return value ? `${value.slice(0, 8)}…${value.slice(-4)}` : "—"; }
 
 export function ReconciliationWorkspace({ company }: { company: Company }) {
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
@@ -50,134 +79,471 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
   const [matches, setMatches] = useState<ReconciliationMatch[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState<MatchFilter>("all");
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
+
   const [ruleDays, setRuleDays] = useState(3);
   const [reviewDays, setReviewDays] = useState(10);
   const [fuzzyThreshold, setFuzzyThreshold] = useState(70);
   const [ambiguityMargin, setAmbiguityMargin] = useState(5);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+
   const canRun = company.role !== "viewer";
   const isRunning = run?.status === "queued" || run?.status === "processing";
 
-  const loadMatches = useCallback(async (runId: string, cursor?: string, append = false) => {
-    const suffix = cursor ? `&cursor=${cursor}` : "";
-    const result = await api<ReconciliationMatchesResponse>(`/companies/${company.id}/reconciliation-runs/${runId}/matches?limit=200${suffix}`);
-    setMatches((current) => append ? [...current, ...result.items] : result.items);
-    setNextCursor(result.next_cursor);
-  }, [company.id]);
+  const loadMatches = useCallback(
+    async (runId: string, cursor?: string, append = false) => {
+      const suffix = cursor ? `&cursor=${cursor}` : "";
+      const result = await api<ReconciliationMatchesResponse>(
+        `/companies/${company.id}/reconciliation-runs/${runId}/matches?limit=200${suffix}`
+      );
+      setMatches((current) => (append ? [...current, ...result.items] : result.items));
+      setNextCursor(result.next_cursor);
+    },
+    [company.id]
+  );
 
-  const loadRunForAnalysis = useCallback(async (selectedAnalysisId: string) => {
-    const runs = await api<ReconciliationRun[]>(`/companies/${company.id}/reconciliation-runs?analysis_run_id=${selectedAnalysisId}&limit=1`);
-    const latest = runs[0] ?? null;
-    setRun(latest); setMatches([]); setNextCursor(null);
-    if (latest?.status === "completed" || latest?.status === "completed_limited") await loadMatches(latest.id);
-  }, [company.id, loadMatches]);
+  const loadRunForAnalysis = useCallback(
+    async (selectedAnalysisId: string) => {
+      const runs = await api<ReconciliationRun[]>(
+        `/companies/${company.id}/reconciliation-runs?analysis_run_id=${selectedAnalysisId}&limit=1`
+      );
+      const latest = runs[0] ?? null;
+      setRun(latest);
+      setMatches([]);
+      setNextCursor(null);
+      if (latest?.status === "completed" || latest?.status === "completed_limited") {
+        await loadMatches(latest.id);
+      }
+    },
+    [company.id, loadMatches]
+  );
 
   useEffect(() => {
     let ignore = false;
     async function bootstrap() {
-      setLoading(true); setError("");
+      setLoading(true);
+      setError("");
       try {
         const allRuns = await api<AnalysisRun[]>(`/companies/${company.id}/analysis-runs?limit=30`);
         const ready = allRuns.filter((item) => item.status === "completed" || item.status === "completed_limited");
         if (ignore) return;
         setAnalyses(ready);
         const latest = ready[0];
-        if (latest) { setAnalysisId(latest.id); await loadRunForAnalysis(latest.id); }
-      } catch (caught) { if (!ignore) setError(caught instanceof Error ? caught.message : "اطلاعات تطبیق دریافت نشد."); }
-      finally { if (!ignore) setLoading(false); }
+        if (latest) {
+          setAnalysisId(latest.id);
+          await loadRunForAnalysis(latest.id);
+        }
+      } catch (caught) {
+        if (!ignore) setError(caught instanceof Error ? caught.message : "اطلاعات تطبیق دریافت نشد.");
+      } finally {
+        if (!ignore) setLoading(false);
+      }
     }
     void bootstrap();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [company.id, loadRunForAnalysis]);
 
-  useEffect(() => {
-    if (!run || !isRunning) return;
-    const timer = window.setInterval(async () => {
-      try {
-        const current = await api<ReconciliationRun>(`/companies/${company.id}/reconciliation-runs/${run.id}`);
-        setRun(current);
-        if (current.status === "completed" || current.status === "completed_limited") { window.clearInterval(timer); await loadMatches(current.id); setSubmitting(false); }
-        if (current.status === "failed") { window.clearInterval(timer); setSubmitting(false); setError(current.failure_message ?? "اجرای تطبیق ناموفق بود."); }
-      } catch (caught) { window.clearInterval(timer); setSubmitting(false); setError(caught instanceof Error ? caught.message : "وضعیت تطبیق دریافت نشد."); }
-    }, 1200);
-    return () => window.clearInterval(timer);
-  }, [company.id, isRunning, loadMatches, run]);
-
-  async function changeAnalysis(value: string) {
-    setAnalysisId(value); setError(""); setLoading(true);
-    try { await loadRunForAnalysis(value); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "اجرای تطبیق دریافت نشد."); }
-    finally { setLoading(false); }
-  }
-
-  async function startReconciliation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setError("");
-    if (!analysisId) { setError("ابتدا یک snapshot تحلیل مالی انتخاب کنید."); return; }
-    if (reviewDays < ruleDays) { setError("بازه بررسی نباید از بازه تطبیق قاعده‌ای کوچک‌تر باشد."); return; }
-    setSubmitting(true); setMatches([]); setNextCursor(null);
+  async function handleAnalysisChange(value: string) {
+    setAnalysisId(value);
+    setLoading(true);
+    setError("");
     try {
-      const created = await api<ReconciliationRun>(`/companies/${company.id}/analysis-runs/${analysisId}/reconciliation-runs`, { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ config_version: "reconciliation-v1", rule_business_days: ruleDays, review_calendar_days: reviewDays, fuzzy_threshold: String(fuzzyThreshold), ambiguity_margin: String(ambiguityMargin) }) });
+      await loadRunForAnalysis(value);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "اطلاعات تطبیق این دوره دریافت نشد.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startReconciliation(event: FormEvent) {
+    event.preventDefault();
+    if (!analysisId || !canRun || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const created = await api<ReconciliationRun>(`/companies/${company.id}/reconciliation-runs`, {
+        method: "POST",
+        body: JSON.stringify({
+          analysis_run_id: analysisId,
+          rule_set_version: "recon-rules-v1",
+          exact_day_window: ruleDays,
+          review_day_window: reviewDays,
+          fuzzy_similarity_threshold: fuzzyThreshold,
+          ambiguity_margin: ambiguityMargin,
+        }),
+      });
       setRun(created);
-    } catch (caught) { setSubmitting(false); setError(caught instanceof Error ? caught.message : "تطبیق آغاز نشد."); }
+      toast.success("اجرای موتور تطبیق آغاز شد.");
+      await loadRunForAnalysis(analysisId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "اجرای موتور تطبیق با خطا مواجه شد.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  async function loadMore() {
-    if (!run || !nextCursor) return;
-    setLoadingMore(true);
-    try { await loadMatches(run.id, nextCursor, true); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "ادامه نتایج دریافت نشد."); }
-    finally { setLoadingMore(false); }
+  const filteredMatches = useMemo(() => {
+    const activeFilter = filters.find((f) => f.id === filter);
+    if (!activeFilter || !activeFilter.statuses) return matches;
+    return matches.filter((m) => activeFilter.statuses!.includes(m.status));
+  }, [matches, filter]);
+
+  // Status mapping helper
+  function mapReconStatus(status: MatchStatus): FinancialStatus {
+    switch (status) {
+      case "auto_matched":
+        return "exact_match";
+      case "potential_match":
+        return "potential_match";
+      case "amount_mismatch":
+        return "amount_mismatch";
+      case "date_mismatch":
+        return "date_mismatch";
+      case "duplicate_high":
+      case "duplicate_possible":
+        return "duplicate";
+      case "unresolved":
+      default:
+        return "unmatched_bank";
+    }
   }
 
-  function toggleEvidence(id: string) {
-    setExpanded((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const columns: Column<ReconciliationMatch>[] = [
+    {
+      key: "status",
+      header: "وضعیت تطبیق",
+      width: "160px",
+      render: (row) => <StatusChip status={mapReconStatus(row.status)} size="sm" />,
+    },
+    {
+      key: "bank_record",
+      header: "تراکنش بانکی (مبدا بانک)",
+      render: (row) => (
+        <div className="space-y-0.5 min-w-0 max-w-xs">
+          <div className="flex items-center gap-1.5 text-xs">
+            <Building2 className="size-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <strong className="text-foreground truncate">{row.evidence.bank?.description || "تراکنش بانکی"}</strong>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+            <span>{row.evidence.bank?.date ? faDate(row.evidence.bank.date) : "—"}</span>
+            {row.evidence.bank?.reference && <span>پیگیری: {row.evidence.bank.reference}</span>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "bank_amount",
+      header: "مبلغ بانک",
+      numeric: true,
+      render: (row) =>
+        row.evidence.bank?.amount_irr ? (
+          <MoneyDisplay amount={row.evidence.bank.amount_irr} currency="ریال" size="sm" />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "gl_record",
+      header: "سند حسابداری (دفتر روزنامه)",
+      render: (row) => (
+        <div className="space-y-0.5 min-w-0 max-w-xs">
+          <div className="flex items-center gap-1.5 text-xs">
+            <BookOpen className="size-3 text-blue-600 dark:text-blue-400 shrink-0" />
+            <strong className="text-foreground truncate">
+              {row.journal_entry_id ? `سند شماره ${row.journal_entry_id.slice(0, 8)}` : "فاقد سند متناظر"}
+            </strong>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
+            <span>{row.evidence.accounting?.date ? faDate(row.evidence.accounting.date) : "—"}</span>
+            {row.evidence.accounting?.description && (
+              <span className="truncate max-w-[150px]">{row.evidence.accounting.description}</span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "gl_amount",
+      header: "مبلغ سند",
+      numeric: true,
+      render: (row) =>
+        row.evidence.accounting?.amount_irr ? (
+          <MoneyDisplay amount={row.evidence.accounting.amount_irr} currency="ریال" size="sm" />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "score",
+      header: "امتیاز اطمینان",
+      numeric: true,
+      render: (row) => (
+        <span className="font-mono text-xs font-bold text-foreground">
+          {toPersianDigits(Math.round(Number(row.score)))}٪
+        </span>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse" aria-label="در حال دریافت داده‌های تطبیق">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
   }
 
-  const selectedAnalysis = analyses.find((item) => item.id === analysisId);
-  const activeFilter = filters.find((item) => item.id === filter);
-  const visibleMatches = useMemo(() => activeFilter?.statuses ? matches.filter((item) => activeFilter.statuses?.includes(item.status)) : matches, [activeFilter, matches]);
+  return (
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+              <ArrowRightLeft className="size-3.5" />
+              موتور تطبیق خودکار و مغایرت‌گیری
+            </span>
+            <span className="text-xs text-muted-foreground">تطبیق ۱ به ۱ قطعی + کاندیدسازی هوشمند</span>
+          </div>
+          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
+            تطبیق تراکنش‌های بانکی و اسناد حسابداری
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            کشف دقیق مغایرت‌های مبلغ، تاریخ و تراکنش‌های فاقد سند با زنجیره کامل شواهد
+          </p>
+        </div>
 
-  if (loading && !analyses.length) return <ReconciliationSkeleton />;
+        {/* Period Selector */}
+        {analyses.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Select value={analysisId} onValueChange={(val) => void handleAnalysisChange(val)} dir="rtl">
+              <SelectTrigger className="w-[220px] font-bold text-xs">
+                <Calendar className="size-3.5 text-primary ms-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {analyses.map((item) => (
+                  <SelectItem key={item.id} value={item.id} className="text-xs">
+                    {faDate(item.period_start)} تا {faDate(item.period_end)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
-  return <div className="reconciliation-workspace">
-    <section className="reconciliation-intro"><div><span className="model-kicker"><Icon name="reconcile" />موتور تطبیق قطعی</span><h2>رد بانکی را با ثبت حسابداری، رو‌به‌روی هم ببینید</h2><p>تطبیق خودکار فقط برای جفت یکتا انجام می‌شود؛ موارد مبهم و مغایرت‌ها با شواهد دوطرفه در صف بررسی می‌مانند.</p></div>{run ? <div className={`run-state state-${run.status}`}><span className="status-pulse" /><div><small>آخرین اجرای این snapshot</small><strong>{runStatusLabels[run.status]}</strong></div></div> : null}</section>
+      {error && (
+        <Alert variant="destructive" className="text-xs">
+          {error}
+        </Alert>
+      )}
 
-    {error ? <p className="form-error global" role="alert">{error}</p> : null}
+      {/* Engine Run / Thresholds Card */}
+      <Card>
+        <CardContent className="pt-5">
+          <form onSubmit={(e) => void startReconciliation(e)} className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <div className="space-y-1.5">
+                <label htmlFor="rule-days-input" className="font-bold text-foreground">پنجره روز کاری قطعی</label>
+                <Input
+                  id="rule-days-input"
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={ruleDays}
+                  onChange={(e) => setRuleDays(Number(e.target.value))}
+                  className="w-20 text-center font-mono h-9 text-xs"
+                />
+              </div>
 
-    {!analyses.length ? <section className="reconciliation-prerequisite"><span><Icon name="chart" /></span><div><h3>ابتدا یک تحلیل مالی آماده کنید</h3><p>تطبیق روی snapshot ثابت تحلیل اجرا می‌شود تا ورودی‌ها در طول بررسی تغییر نکنند.</p></div><Link className="primary-button" href={`/companies/${company.id}/analysis`}>رفتن به تحلیل مالی</Link></section> : <section className="reconciliation-control" aria-labelledby="reconciliation-control-title"><div className="reconciliation-control-main"><div className="snapshot-select"><span><Icon name="shield" /></span><label htmlFor="analysis-snapshot"><strong id="reconciliation-control-title">مبنای تطبیق</strong><small>snapshot تحلیل مالی</small><NativeSelect id="analysis-snapshot" value={analysisId} onChange={(event) => void changeAnalysis(event.target.value)}>{analyses.map((item) => <NativeSelectOption key={item.id} value={item.id}>{faDate(item.period_start)} تا {faDate(item.period_end)} · {item.status === "completed" ? "کامل" : "محدود"}</NativeSelectOption>)}</NativeSelect></label></div><form onSubmit={(event) => void startReconciliation(event)}><Button className="primary-button" disabled={!canRun || submitting || isRunning}>{isRunning ? <><span className="button-spinner" />در حال تطبیق…</> : <><Icon name="reconcile" />اجرای تطبیق جدید</>}</Button><details><summary><Icon name="tune" />تنظیمات موتور</summary><div className="reconciliation-settings"><label>بازه تطبیق قاعده‌ای <span>روز کاری</span><Input type="number" min="0" max="10" value={ruleDays} onChange={(event) => setRuleDays(Number(event.target.value))} /></label><label>بازه بررسی <span>روز تقویمی</span><Input type="number" min="1" max="31" value={reviewDays} onChange={(event) => setReviewDays(Number(event.target.value))} /></label><label>حد شباهت متن <span>از ۱۰۰</span><Input type="number" min="50" max="100" value={fuzzyThreshold} onChange={(event) => setFuzzyThreshold(Number(event.target.value))} /></label><label>حاشیه ابهام <span>امتیاز</span><Input type="number" min="0" max="20" value={ambiguityMargin} onChange={(event) => setAmbiguityMargin(Number(event.target.value))} /></label></div></details></form></div>{!canRun ? <div className="analysis-advisory"><Icon name="shield" /><p><strong>دسترسی مشاهده‌گر</strong>مشاهده نتایج مجاز است؛ اجرای تطبیق جدید به نقش مدیر مالی یا مشاور نیاز دارد.</p></div> : selectedAnalysis?.coverage.bank_cash_flow?.available ? null : <div className="analysis-advisory warning"><Icon name="alert" /><p><strong>داده بانکی این snapshot کامل نیست</strong>تطبیق اجرا می‌شود اما احتمالاً نتیجه محدود خواهد بود. <Link href={`/companies/${company.id}/imports`}>ورود گردش بانکی</Link></p></div>}</section>}
+              <div className="space-y-1.5">
+                <label htmlFor="review-days-input" className="font-bold text-foreground">پنجره روز کاری بررسی</label>
+                <Input
+                  id="review-days-input"
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={reviewDays}
+                  onChange={(e) => setReviewDays(Number(e.target.value))}
+                  className="w-20 text-center font-mono h-9 text-xs"
+                />
+              </div>
 
-    {isRunning ? <section className="analysis-running" aria-live="polite"><div className="reconcile-motion"><span><Icon name="bank" /></span><i /><span><Icon name="file" /></span></div><div><strong>{run?.status === "queued" ? "اجرای تطبیق در صف است" : "کاندیدها در حال مقایسه‌اند"}</strong><p>مبلغ، تاریخ، مرجع و شباهت شرح برای هر جفت محاسبه می‌شود.</p></div></section> : null}
+              <div className="space-y-1.5">
+                <label htmlFor="fuzzy-threshold-input" className="font-bold text-foreground">آستانه شباهت شرح (درصد)</label>
+                <Input
+                  id="fuzzy-threshold-input"
+                  type="number"
+                  min={50}
+                  max={100}
+                  value={fuzzyThreshold}
+                  onChange={(e) => setFuzzyThreshold(Number(e.target.value))}
+                  className="w-20 text-center font-mono h-9 text-xs"
+                />
+              </div>
+            </div>
 
-    {run && !isRunning && (run.status === "completed" || run.status === "completed_limited") ? <>
-      <ReconciliationSummary run={run} />
-      <AiSemanticRanking company={company} runId={run.id} candidates={matches.filter((item) => item.status === "potential_match")} />
-      <section className="matches-panel" aria-labelledby="matches-title"><div className="matches-heading"><div><h3 id="matches-title">نتایج تطبیق</h3><p>هر نتیجه به ردیف بانکی و سند حسابداری منبع متصل است.</p></div><span>تکمیل: {faDateTime(run.completed_at)}</span></div><div className="match-filters" role="tablist" aria-label="فیلتر نتایج">{filters.map((item) => { const count = item.statuses ? matches.filter((match) => item.statuses?.includes(match.status)).length : matches.length; return <Button key={item.id} role="tab" aria-selected={filter === item.id} onClick={() => setFilter(item.id)}>{item.label}<span>{new Intl.NumberFormat("fa-IR").format(count)}</span></Button>; })}</div>{visibleMatches.length ? <div className="match-list">{visibleMatches.map((match) => <MatchRow key={match.id} match={match} open={expanded.has(match.id)} onToggle={() => toggleEvidence(match.id)} />)}</div> : <div className="matches-empty"><Icon name="check" /><div><strong>{matches.length ? "موردی در این فیلتر نیست" : "موردی برای مقایسه پیدا نشد"}</strong><p>{matches.length ? "فیلتر دیگری را انتخاب کنید." : "در این snapshot تراکنش بانکی یا آرتیکل دارایی قابل تطبیق وجود ندارد؛ پوشش ورودی‌ها را بررسی کنید."}</p></div>{!matches.length ? <Link className="secondary-button" href={`/companies/${company.id}/imports`}>بررسی ورودی‌ها</Link> : null}</div>}{nextCursor ? <Button className="load-more" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? "در حال دریافت…" : "نمایش نتایج بیشتر"}</Button> : null}</section>
-      <section className="reconciliation-manifest"><Icon name="shield" /><div><strong>نتایج این اجرا تغییرناپذیرند</strong><p>تنظیمات {run.config_version} روی snapshot انتخاب‌شده اجرا شده است؛ تصمیم انسانی در فاز یافته‌ها ثبت می‌شود.</p></div><code dir="ltr">{shortId(run.id)}</code></section>
-    </> : null}
-  </div>;
-}
+            <div className="flex items-center gap-3">
+              {run && (
+                <div className="text-xs text-muted-foreground text-start">
+                  <span>وضعیت تطبیق: </span>
+                  <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status} size="sm" />
+                </div>
+              )}
 
-function ReconciliationSummary({ run }: { run: ReconciliationRun }) {
-  const counts = run.counts;
-  const review = (counts.potential_matches ?? 0) + (counts.amount_mismatches ?? 0) + (counts.date_mismatches ?? 0) + (counts.duplicates ?? 0);
-  return <section className="reconciliation-summary" aria-label="خلاصه تطبیق"><div className="source-total"><span><Icon name="bank" /></span><small>تراکنش بانکی</small><strong>{new Intl.NumberFormat("fa-IR").format(counts.bank_transactions ?? 0)}</strong></div><div className="reconciliation-flow"><i /><div><span className="summary-auto">{new Intl.NumberFormat("fa-IR").format(counts.auto_matched ?? 0)} قطعی</span><span className="summary-review">{new Intl.NumberFormat("fa-IR").format(review)} نیازمند بررسی</span><span>{new Intl.NumberFormat("fa-IR").format(counts.unresolved ?? 0)} بدون متناظر</span></div><i /></div><div className="source-total"><span><Icon name="file" /></span><small>سند حسابداری</small><strong>{new Intl.NumberFormat("fa-IR").format(counts.accounting_entries ?? 0)}</strong></div></section>;
-}
+              {canRun && (
+                <Button type="submit" disabled={submitting || isRunning} className="gap-2 text-xs font-bold">
+                  {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+                  اجرای مجدد موتور تطبیق
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
-function MatchRow({ match, open, onToggle }: { match: ReconciliationMatch; open: boolean; onToggle: () => void }) {
-  const bank = match.evidence.bank;
-  const accounting = match.evidence.accounting;
-  return <article className={`match-row match-${match.status}`}><div className="match-overview"><span className={`match-badge badge-${match.status}`}>{matchStatusLabels[match.status]}</span><div className="match-side"><small>بانک</small><strong>{bank?.description ?? (match.bank_transaction_id ? "تراکنش بانکی" : "بدون رکورد بانکی")}</strong><span>{bank?.date ? faDate(bank.date) : "—"} · <b dir="ltr">{money(bank?.amount_irr)}</b> ریال</span></div><div className="match-connector"><b>{new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(match.score))}</b><span>امتیاز</span><i /></div><div className="match-side"><small>حسابداری</small><strong>{accounting?.description ?? (match.journal_entry_id ? "سند حسابداری" : "بدون سند متناظر")}</strong><span>{accounting?.date ? faDate(accounting.date) : "—"} · <b dir="ltr">{money(accounting?.amount_irr)}</b> ریال</span></div><Button className="evidence-toggle" onClick={onToggle} aria-expanded={open}><Icon name="chevron" /><span>{open ? "بستن شواهد" : "مشاهده شواهد"}</span></Button></div>{open ? <div className="match-evidence"><div className="evidence-features"><Feature label="مبلغ یکسان" value={match.features.amount_equal} /><Feature label="مرجع یکسان" value={match.features.reference_equal} /><Feature label="فاصله روز کاری" value={match.features.business_days} /><Feature label="شباهت شرح" value={match.features.description_similarity ? `${Number(match.features.description_similarity).toLocaleString("fa-IR", { maximumFractionDigits: 0 })}٪` : undefined} /></div><div className="evidence-sources"><div><span>ردیف منبع بانک</span><code dir="ltr">{shortId(bank?.source_row_id ?? match.evidence.source_row_id)}</code><small>{bank?.reference ? `مرجع ${bank.reference}` : "مرجع ثبت نشده"}</small></div><div><span>ردیف منبع حسابداری</span><code dir="ltr">{shortId(accounting?.source_row_id ?? match.evidence.source_row_id)}</code><small>{accounting?.reference ? `مرجع ${accounting.reference}` : "مرجع ثبت نشده"}</small></div></div><div className="evidence-rule"><span>قاعده</span><code dir="ltr">{match.rule_code}</code>{match.amount_difference_irr != null ? <small>اختلاف مبلغ: {money(match.amount_difference_irr)} ریال · اختلاف تاریخ: {new Intl.NumberFormat("fa-IR").format(match.date_difference_days ?? 0)} روز</small> : null}</div></div> : null}</article>;
-}
+      {/* AI Semantic Ranking for Potential Matches */}
+      {company.role !== "viewer" && run && (
+        <AiSemanticRanking
+          company={company}
+          runId={run.id}
+          candidates={matches.filter((m) => m.status === "potential_match")}
+        />
+      )}
 
-function Feature({ label, value }: { label: string; value: boolean | number | string | undefined }) {
-  const shown = typeof value === "boolean" ? (value ? "بله" : "خیر") : value ?? "—";
-  return <span><small>{label}</small><strong>{shown}</strong></span>;
-}
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1.5">
+          {filters.map((f) => (
+            <Button
+              key={f.id}
+              size="sm"
+              variant={filter === f.id ? "default" : "outline"}
+              className="text-xs h-8"
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
 
-function ReconciliationSkeleton() {
-  return <div className="reconciliation-skeleton" aria-label="در حال دریافت تطبیق"><span /><span /><div><span /><span /><span /></div><span /></div>;
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-muted/40">
+            <Button
+              size="sm"
+              variant={tableDensity === "compact" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              title="تراکم فشرده (حسابداران)"
+              onClick={() => setTableDensity("compact")}
+            >
+              <SlidersHorizontal className="size-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant={tableDensity === "normal" ? "default" : "ghost"}
+              className="h-7 px-2 text-xs"
+              title="تراکم استاندارد (مدیران)"
+              onClick={() => setTableDensity("normal")}
+            >
+              <Layers className="size-3" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reconciliation Matches Data Table */}
+      <FinancialDataTable
+        data={filteredMatches}
+        columns={columns}
+        keyExtractor={(row) => row.id}
+        density={tableDensity}
+        emptyMessage="هیچ تراکنشی در این دسته تطبیق یافت نشد."
+        onRowClick={(row) => {
+          setExpandedMatchId(expandedMatchId === row.id ? null : row.id);
+        }}
+      />
+
+      {/* Selected Match Drilldown Details Card */}
+      {expandedMatchId && (
+        <Card className="border-primary/30 bg-primary/[0.02]">
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+                <FileCheck2 className="size-4 text-primary" />
+                جزئیات و شواهد تطبیق جفت انتخابی
+              </CardTitle>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setExpandedMatchId(null)}>
+                بستن جزئیات
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {(() => {
+              const item = matches.find((m) => m.id === expandedMatchId);
+              if (!item) return null;
+              return (
+                <div className="grid gap-4 md:grid-cols-2 text-xs">
+                  {/* Bank Side Details */}
+                  <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <EvidenceSourceTag source="bank" size="sm" />
+                      <span className="font-mono text-muted-foreground">
+                        {item.evidence.bank?.date ? faDate(item.evidence.bank.date) : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">مبلغ تراکنش:</span>
+                      <MoneyDisplay amount={item.evidence.bank?.amount_irr} currency="ریال" size="lg" />
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">شرح بانک:</span>
+                      <p className="font-medium text-foreground">{item.evidence.bank?.description || "—"}</p>
+                    </div>
+                    {item.evidence.bank?.reference && (
+                      <div className="font-mono text-[11px] text-muted-foreground">
+                        شناسه پیگیری: {item.evidence.bank.reference}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Accounting Side Details */}
+                  <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <EvidenceSourceTag source="accounting" size="sm" />
+                      <span className="font-mono text-muted-foreground">
+                        {item.evidence.accounting?.date ? faDate(item.evidence.accounting.date) : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">مبلغ سند:</span>
+                      <MoneyDisplay amount={item.evidence.accounting?.amount_irr} currency="ریال" size="lg" />
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px]">شرح سند:</span>
+                      <p className="font-medium text-foreground">{item.evidence.accounting?.description || "—"}</p>
+                    </div>
+                    {item.journal_entry_id && (
+                      <div className="font-mono text-[11px] text-muted-foreground">
+                        شناسه سند: {item.journal_entry_id}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

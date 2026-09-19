@@ -50,6 +50,7 @@
   --ds-ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+:root,
 .ds-root {
   /* Semantic: light */
   --ds-background: var(--ds-p-slate-50);
@@ -103,6 +104,28 @@
   --ds-font-caption: 0.875rem;
   --ds-font-meta: 0.8125rem;
 
+  /* Financial: Semantic Risk & Flow (Light) */
+  --ds-risk-critical-bg: color-mix(in oklch, var(--ds-p-red-500) 12%, var(--ds-p-white));
+  --ds-risk-critical-fg: oklch(0.48 0.22 27);
+  --ds-risk-critical-border: color-mix(in oklch, var(--ds-p-red-500) 35%, transparent);
+
+  --ds-risk-high-bg: color-mix(in oklch, var(--ds-p-amber-500) 14%, var(--ds-p-white));
+  --ds-risk-high-fg: oklch(0.52 0.18 55);
+  --ds-risk-high-border: color-mix(in oklch, var(--ds-p-amber-500) 40%, transparent);
+
+  --ds-risk-medium-bg: color-mix(in oklch, var(--ds-p-amber-500) 8%, var(--ds-p-white));
+  --ds-risk-medium-fg: oklch(0.58 0.16 75);
+  --ds-risk-medium-border: color-mix(in oklch, var(--ds-p-amber-500) 25%, transparent);
+
+  --ds-risk-low-bg: var(--ds-p-slate-100);
+  --ds-risk-low-fg: var(--ds-p-slate-600);
+  --ds-risk-low-border: var(--ds-p-slate-300);
+
+  --ds-fin-inflow-bg: color-mix(in oklch, var(--ds-p-green-500) 12%, var(--ds-p-white));
+  --ds-fin-inflow-fg: oklch(0.48 0.16 153);
+  --ds-fin-outflow-bg: color-mix(in oklch, var(--ds-p-red-500) 10%, var(--ds-p-white));
+  --ds-fin-outflow-fg: oklch(0.52 0.2 27);
+
   /* Component */
   --ds-button-bg: var(--ds-primary);
   --ds-button-fg: var(--ds-primary-foreground);
@@ -121,6 +144,7 @@
   background: var(--ds-background);
 }
 
+.dark,
 .dark .ds-root {
   --ds-background: var(--ds-p-navy-950);
   --ds-background-raised: var(--ds-p-navy-900);
@@ -153,9 +177,32 @@
   --ds-shadow-glow: 0 0 48px
     color-mix(in oklch, var(--ds-p-cyan-400) 16%, transparent);
   --ds-sidebar: color-mix(in oklch, var(--ds-p-navy-900) 78%, transparent);
+
+  /* Financial: Semantic Risk & Flow (Dark) */
+  --ds-risk-critical-bg: color-mix(in oklch, var(--ds-p-red-500) 18%, var(--ds-p-navy-900));
+  --ds-risk-critical-fg: oklch(0.78 0.18 27);
+  --ds-risk-critical-border: color-mix(in oklch, var(--ds-p-red-500) 40%, transparent);
+
+  --ds-risk-high-bg: color-mix(in oklch, var(--ds-p-amber-500) 18%, var(--ds-p-navy-900));
+  --ds-risk-high-fg: oklch(0.82 0.16 65);
+  --ds-risk-high-border: color-mix(in oklch, var(--ds-p-amber-500) 40%, transparent);
+
+  --ds-risk-medium-bg: color-mix(in oklch, var(--ds-p-amber-500) 12%, var(--ds-p-navy-900));
+  --ds-risk-medium-fg: oklch(0.85 0.14 78);
+  --ds-risk-medium-border: color-mix(in oklch, var(--ds-p-amber-500) 30%, transparent);
+
+  --ds-risk-low-bg: color-mix(in oklch, var(--ds-p-navy-800) 60%, transparent);
+  --ds-risk-low-fg: var(--ds-p-slate-300);
+  --ds-risk-low-border: color-mix(in oklch, var(--ds-p-slate-400) 24%, transparent);
+
+  --ds-fin-inflow-bg: color-mix(in oklch, var(--ds-p-green-500) 16%, var(--ds-p-navy-900));
+  --ds-fin-inflow-fg: oklch(0.82 0.15 153);
+  --ds-fin-outflow-bg: color-mix(in oklch, var(--ds-p-red-500) 16%, var(--ds-p-navy-900));
+  --ds-fin-outflow-fg: oklch(0.82 0.18 27);
 }
 
 @media (min-width: 768px) {
+  :root,
   .ds-root {
     --ds-font-display: 2.5rem;
     --ds-space-section: var(--ds-p-space-10);

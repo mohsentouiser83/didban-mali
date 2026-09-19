@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
@@ -8,14 +9,83 @@ import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
+const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
-function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
-  return <DialogPrimitive.Portal><DialogPrimitive.Overlay className="ds-dialog-overlay fixed inset-0 z-50 bg-black/55 backdrop-blur-sm" /><DialogPrimitive.Content dir="rtl" className={cn("ds-dialog-content fixed start-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 gap-5 rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card-solid)] p-6 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-md)]", className)} {...props}>{children}<DialogPrimitive.Close className="ds-focus absolute end-4 top-4 grid size-10 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-[color,background-color,transform] duration-200 hover:bg-[var(--ds-muted)] active:scale-[0.96]" aria-label="بستن پنجره"><X className="size-4" /></DialogPrimitive.Close></DialogPrimitive.Content></DialogPrimitive.Portal>;
-}
-function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn("space-y-2 pe-8", className)} {...props} />; }
-function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) { return <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />; }
-function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) { return <DialogPrimitive.Title className={cn("text-lg font-extrabold", className)} {...props} />; }
-function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) { return <DialogPrimitive.Description className={cn("text-sm leading-7 text-[var(--ds-foreground-soft)]", className)} {...props} />; }
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/65 backdrop-blur-sm",
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
+));
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger };
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  ComponentProps<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      dir="rtl"
+      className={cn(
+        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-6 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-xl)] duration-200",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close
+        className="ds-focus absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)] active:scale-95"
+        aria-label="بستن پنجره"
+      >
+        <X className="size-4" />
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+));
+DialogContent.displayName = DialogPrimitive.Content.displayName;
+
+function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("space-y-1.5 pe-8 text-start", className)} {...props} />;
+}
+
+function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-start sm:flex-row-reverse border-t border-[var(--ds-border)] pt-4 mt-2", className)}
+      {...props}
+    />
+  );
+}
+
+function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
+  return <DialogPrimitive.Title className={cn("text-lg font-extrabold text-[var(--ds-foreground)]", className)} {...props} />;
+}
+
+function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
+  return <DialogPrimitive.Description className={cn("text-sm leading-relaxed text-[var(--ds-foreground-soft)]", className)} {...props} />;
+}
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+};

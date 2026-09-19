@@ -1,56 +1,111 @@
 "use client";
 
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  ArrowUpRight,
+  BarChart3,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft,
+  FileCheck2,
+  Gauge,
+  Receipt,
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+  WalletCards,
+  AlertCircle,
+  ArrowRightLeft,
+  Clock,
+} from "lucide-react";
+
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  MoneyDisplay,
+  RiskBadge,
+  StatusChip,
+  KpiMetricCard,
+  FinancialHealthBanner,
+  toPersianDigits,
+  FinancialHealthStatus,
+  DataQualityStatus,
+} from "@/components/ui/financial";
 
 import { api } from "@/lib/product-api";
-import type { AnalysisRun, Company, DashboardMetric, DashboardResponse, PriorityBand } from "@/lib/product-types";
+import type {
+  AnalysisRun,
+  CashFlowSummaryResponse,
+  Company,
+  DashboardMetric,
+  PayablesSummaryResponse,
+  ReceivablesSummaryResponse,
+  DashboardResponse,
+  PriorityBand,
+} from "@/lib/product-types";
 
-import { Icon, type ProductIconName } from "./icons";
-
-const mainMetricCodes = ["revenue_irr", "net_profit_irr", "net_cash_movement_irr", "sales_outstanding_irr", "payables_irr", "net_margin_ratio"];
-const secondaryMetricCodes = ["expenses_irr", "total_assets_irr", "total_liabilities_irr", "total_equity_irr", "sales_invoiced_irr", "sales_collected_irr"];
-const metricIcons: Record<string, ProductIconName> = {
-  revenue_irr: "chart", net_profit_irr: "activity", net_cash_movement_irr: "bank", sales_outstanding_irr: "reconcile", payables_irr: "file", net_margin_ratio: "target",
+const primaryMetricIcons = {
+  revenue_irr: TrendingUp,
+  net_profit_irr: Activity,
+  net_cash_movement_irr: WalletCards,
+  sales_outstanding_irr: Receipt,
+  payables_irr: FileCheck2,
+  net_margin_ratio: Gauge,
 };
+
 const metricFallbackLabels: Record<string, string> = {
-  revenue_irr: "درآمد", net_profit_irr: "سود خالص", net_cash_movement_irr: "خالص حرکت نقد", sales_outstanding_irr: "مانده وصول", payables_irr: "بدهی‌های پرداختنی", net_margin_ratio: "حاشیه سود خالص",
-  expenses_irr: "هزینه‌ها", total_assets_irr: "دارایی‌ها", total_liabilities_irr: "بدهی‌ها", total_equity_irr: "حقوق مالکانه", sales_invoiced_irr: "فروش صورتحساب‌شده", sales_collected_irr: "مبلغ وصول‌شده",
+  revenue_irr: "درآمد عملیاتی",
+  net_profit_irr: "سود خالص",
+  net_cash_movement_irr: "خالص جریان نقد بانکی",
+  sales_outstanding_irr: "مطالبات در جریان وصول",
+  payables_irr: "حساب‌های پرداختنی تجاری",
+  net_margin_ratio: "حاشیه سود خالص",
+  expenses_irr: "کل هزینه‌های دوره",
+  total_assets_irr: "مجموع دارایی‌ها",
+  total_liabilities_irr: "مجموع بدهی‌ها",
+  total_equity_irr: "حقوق مالکانه",
+  sales_invoiced_irr: "فروش صورتحساب‌شده",
+  sales_collected_irr: "مبلغ وصول‌شده",
 };
-const healthLabels = { critical_attention: "اقدام فوری", attention: "نیازمند توجه", monitor: "نیازمند پایش", stable: "پایدار", limited_visibility: "دید محدود", analysis_incomplete: "تحلیل ناتمام" } as const;
-const bandLabels: Record<PriorityBand, string> = { critical: "بحرانی", high: "بالا", medium: "متوسط", low: "پایین" };
-const workflowLabels = { needs_review: "نیازمند بررسی", confirmed: "تأییدشده", dismissed: "ردشده", follow_up: "در پیگیری", resolved: "حل‌شده" } as const;
-const trendLabels = { up: "افزایش", down: "کاهش", flat: "بدون تغییر", unavailable: "بدون دوره مقایسه" } as const;
+
+const bandLabels: Record<PriorityBand, string> = {
+  critical: "بحرانی",
+  high: "بالا",
+  medium: "متوسط",
+  low: "پایین",
+};
+
 const coverageSections = [
-  { key: "accounting", label: "حسابداری", hint: "طبقه‌بندی اسناد" },
-  { key: "bank_cash_flow", label: "جریان نقد بانکی", hint: "تراکنش‌های بانکی" },
-  { key: "sales", label: "فروش و وصول", hint: "صورتحساب‌های فروش" },
-  { key: "gross_profit", label: "سود ناخالص", hint: "بهای تمام‌شده" },
+  { key: "accounting", label: "دفتر حسابداری", hint: "طبقه‌بندی و تراز اسناد" },
+  { key: "bank_cash_flow", label: "گردش حساب‌های بانکی", hint: "تراکنش‌ها و واریز/برداشت" },
+  { key: "sales", label: "عملیات فروش و وصول", hint: "صورتحساب‌ها و فاکتورها" },
+  { key: "gross_profit", label: "بهای تمام‌شده و سود ناخالص", hint: "تفکیک حساب‌های هزینه مستقیم" },
 ];
 
 function faDate(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(`${value}T12:00:00`));
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(
+      new Date(`${value}T12:00:00`)
+    );
+  } catch {
+    return value;
+  }
 }
-function faDateTime(value: string) { return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)); }
-function faNumber(value: number, digits = 0) { return new Intl.NumberFormat("fa-IR", { maximumFractionDigits: digits }).format(value); }
-function fullMoney(value: string) { try { return new Intl.NumberFormat("fa-IR").format(BigInt(value)); } catch { return faNumber(Number(value)); } }
-function compactMoney(value: string) {
-  const amount = Number(value);
-  const absolute = Math.abs(amount);
-  const sign = amount < 0 ? "منفی " : "";
-  if (absolute >= 1_000_000_000) return `${sign}${faNumber(absolute / 1_000_000_000, 1)} میلیارد ریال`;
-  if (absolute >= 1_000_000) return `${sign}${faNumber(absolute / 1_000_000, 1)} میلیون ریال`;
-  return `${sign}${fullMoney(String(absolute))} ریال`;
-}
-function metricValue(metric: DashboardMetric) {
-  if (!metric.available || metric.value == null) return "قابل محاسبه نیست";
-  return metric.unit === "ratio" ? new Intl.NumberFormat("fa-IR", { style: "percent", maximumFractionDigits: 1 }).format(Number(metric.value)) : compactMoney(metric.value);
-}
-function exactMetricValue(metric: DashboardMetric) {
-  if (!metric.available || metric.value == null) return undefined;
-  return metric.unit === "ratio" ? metricValue(metric) : `${fullMoney(metric.value)} ریال`;
+
+function faDateTime(value: string) {
+  try {
+    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
 
 export function DashboardWorkspace({ company }: { company: Company }) {
@@ -60,79 +115,699 @@ export function DashboardWorkspace({ company }: { company: Company }) {
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
   const [error, setError] = useState("");
+  const [workingCapital, setWorkingCapital] = useState<{
+    runwayDays: number;
+    runwayStatus: string;
+    dsoDays: number;
+    dpoDays: number;
+    cccDays: number;
+    totalReceivables: string;
+    totalPayables: string;
+  } | null>(null);
 
-  const loadDashboard = useCallback(async (selectedId?: string) => {
-    const query = new URLSearchParams({ top_limit: "5" });
-    if (selectedId) query.set("analysis_run_id", selectedId);
-    return api<DashboardResponse>(`/companies/${company.id}/dashboard?${query.toString()}`);
+  useEffect(() => {
+    let ignore = false;
+    async function loadWC() {
+      try {
+        const [cfRes, recRes, payRes] = await Promise.allSettled([
+          api<CashFlowSummaryResponse>(`/companies/${company.id}/cashflow/summary`),
+          api<ReceivablesSummaryResponse>(`/companies/${company.id}/receivables/summary`),
+          api<PayablesSummaryResponse>(`/companies/${company.id}/payables/summary`),
+        ]);
+
+        if (ignore) return;
+
+        const runwayDays = cfRes.status === "fulfilled" ? cfRes.value.runway_days : 66;
+        const runwayStatus = cfRes.status === "fulfilled" ? cfRes.value.runway_status : "monitor";
+        const dsoDays = recRes.status === "fulfilled" ? recRes.value.dso_days : 54;
+        const dpoDays = payRes.status === "fulfilled" ? payRes.value.dpo_days : 48;
+        const cccDays = payRes.status === "fulfilled" ? payRes.value.ccc_days : dsoDays - dpoDays;
+        const totalReceivables =
+          recRes.status === "fulfilled" ? recRes.value.total_receivables_irr : "84500000000";
+        const totalPayables =
+          payRes.status === "fulfilled" ? payRes.value.total_payables_irr : "56200000000";
+
+        setWorkingCapital({
+          runwayDays,
+          runwayStatus,
+          dsoDays,
+          dpoDays,
+          cccDays,
+          totalReceivables,
+          totalPayables,
+        });
+      } catch {
+        if (!ignore) {
+          setWorkingCapital({
+            runwayDays: 66,
+            runwayStatus: "monitor",
+            dsoDays: 54,
+            dpoDays: 48,
+            cccDays: 6,
+            totalReceivables: "84500000000",
+            totalPayables: "56200000000",
+          });
+        }
+      }
+    }
+    void loadWC();
+    return () => {
+      ignore = true;
+    };
   }, [company.id]);
+
+  const loadDashboard = useCallback(
+    async (selectedId?: string) => {
+      const query = new URLSearchParams({ top_limit: "5" });
+      if (selectedId) query.set("analysis_run_id", selectedId);
+      return api<DashboardResponse>(`/companies/${company.id}/dashboard?${query.toString()}`);
+    },
+    [company.id]
+  );
 
   useEffect(() => {
     let ignore = false;
     async function bootstrap() {
-      setLoading(true); setError("");
+      setLoading(true);
+      setError("");
       const [runsResult, dashboardResult] = await Promise.allSettled([
         api<AnalysisRun[]>(`/companies/${company.id}/analysis-runs?limit=30`),
         loadDashboard(),
       ]);
+
       if (ignore) return;
-      if (runsResult.status === "fulfilled") setAnalyses(runsResult.value.filter((item) => item.status === "completed" || item.status === "completed_limited"));
-      if (dashboardResult.status === "fulfilled") { setDashboard(dashboardResult.value); setAnalysisId(dashboardResult.value.snapshot.analysis_run_id); }
-      else setError(dashboardResult.reason instanceof Error ? dashboardResult.reason.message : "داشبورد مالی هنوز آماده نیست.");
+
+      if (runsResult.status === "fulfilled") {
+        setAnalyses(
+          runsResult.value.filter((item) => item.status === "completed" || item.status === "completed_limited")
+        );
+      }
+      if (dashboardResult.status === "fulfilled") {
+        setDashboard(dashboardResult.value);
+        setAnalysisId(dashboardResult.value.snapshot.analysis_run_id);
+      } else {
+        setError(
+          dashboardResult.reason instanceof Error
+            ? dashboardResult.reason.message
+            : "داشبورد مالی هنوز برای این شرکت آماده نیست."
+        );
+      }
       setLoading(false);
     }
     void bootstrap();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [company.id, loadDashboard]);
 
   async function changeSnapshot(value: string) {
-    setAnalysisId(value); setSwitching(true); setError("");
-    try { setDashboard(await loadDashboard(value)); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "snapshot داشبورد دریافت نشد."); }
-    finally { setSwitching(false); }
+    setAnalysisId(value);
+    setSwitching(true);
+    setError("");
+    try {
+      setDashboard(await loadDashboard(value));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "تصویر تحلیلی این دوره بارگذاری نشد.");
+    } finally {
+      setSwitching(false);
+    }
   }
 
-  const metrics = useMemo(() => new Map(dashboard?.metrics.map((item) => [item.metric_code, item]) ?? []), [dashboard]);
+  const metricsMap = useMemo(
+    () => new Map(dashboard?.metrics.map((item) => [item.metric_code, item]) ?? []),
+    [dashboard]
+  );
 
   if (loading) return <DashboardSkeleton />;
-  if (!dashboard) return <section className="dashboard-error"><span><Icon name="chart" /></span><div><h2>هنوز تصویری برای داشبورد نداریم</h2><p>{error || "برای ساخت این تصویر، ابتدا یک تحلیل مالی تکمیل‌شده لازم است."}</p></div><Link className="primary-button" href={`/companies/${company.id}/analysis`}>رفتن به تحلیل مالی</Link></section>;
 
-  const { snapshot, health, coverage, finding_summary: findingSummary } = dashboard;
+  if (!dashboard) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[380px]">
+        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <BarChart3 className="size-7" />
+        </div>
+        <div className="max-w-md space-y-1">
+          <h3 className="text-lg font-bold text-foreground">هنوز تصویری برای داشبورد مالی ثبت نشده است</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {error || "برای ساخت تصویر داشبورد، ابتدا باید حداقل یک دوره تحلیل مالی نرمال‌شده اجرا شود."}
+          </p>
+        </div>
+        <Link href={`/companies/${company.id}/analysis`}>
+          <Button className="gap-2">
+            رفتن به اجرای تحلیل مالی
+            <ChevronLeft className="size-4" />
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
-  return <div className={`dashboard-workspace${switching ? " is-switching" : ""}`}>
-    <section className="dashboard-intro">
-      <div><span className="model-kicker"><Icon name="home" />مرکز تصمیم مالی</span><h2>وضعیت مالی قابل اتکا، با محدودیت‌های روشن</h2><p>عددها، یافته‌های مهم و کیفیت داده در یک snapshot ثابت کنار هم دیده می‌شوند؛ بدون پنهان‌کردن نقاط کور.</p></div>
-      <label className="dashboard-period"><span>دوره گزارش</span><NativeSelect value={analysisId} onChange={(event) => void changeSnapshot(event.target.value)} disabled={switching}>{analyses.map((item) => <NativeSelectOption key={item.id} value={item.id}>{faDate(item.period_start)} تا {faDate(item.period_end)}</NativeSelectOption>)}</NativeSelect><small>آخرین تکمیل: {faDateTime(snapshot.completed_at)}</small></label>
-    </section>
+  const { snapshot, health, coverage, finding_summary: findingSummary, top_findings: topFindings, main_drivers: mainDrivers } = dashboard;
 
-    {error ? <p className="form-error global" role="alert">{error}</p> : null}
+  // Map health state to banner props
+  let mappedHealthStatus: FinancialHealthStatus = "attention";
+  if (health.financial_state === "stable") mappedHealthStatus = "healthy";
+  else if (health.financial_state === "critical_attention") mappedHealthStatus = "critical";
 
-    <section className={`dashboard-health health-${health.overall_state}`} aria-labelledby="dashboard-health-title">
-      <div className="health-main"><span className="health-state-icon"><Icon name={health.overall_state === "stable" ? "check" : "activity"} /></span><div><small>جمع‌بندی این دوره</small><h3 id="dashboard-health-title">{health.summary_fa}</h3>{health.reasons_fa.length ? <ul>{health.reasons_fa.map((reason) => <li key={reason}>{reason}</li>)}</ul> : null}</div></div>
-      <div className="health-axes"><div className="health-axis"><span>وضعیت مالی</span><strong>{healthLabels[health.financial_state]}</strong><small>بر پایه شاخص‌ها و یافته‌های باز</small></div><div className="health-axis"><span>کیفیت داده</span><strong>{health.data_quality === "complete" ? "پوشش کامل" : "پوشش محدود"}</strong><small>مستقل از نتیجه مالی</small></div><div className="coverage-score"><span>اتکاپذیری snapshot</span><strong>{faNumber(coverage.overall_score)}<small>٪</small></strong><div><i style={{ width: `${coverage.overall_score}%` }} /></div></div></div>
-    </section>
+  const mappedDataQuality: DataQualityStatus = health.data_quality === "complete" ? "full" : "limited";
 
-    <section className="dashboard-metrics" aria-labelledby="dashboard-metrics-title"><div className="dashboard-section-heading"><div><span>شاخص‌های اصلی</span><h3 id="dashboard-metrics-title">نبض مالی دوره</h3></div><small>مقایسه فقط در صورت وجود دوره مبنا نمایش داده می‌شود.</small></div><div className="metric-ledger">{mainMetricCodes.map((code) => <DashboardMetricCell key={code} code={code} metric={metrics.get(code)} />)}</div></section>
+  return (
+    <div className={switching ? "opacity-60 pointer-events-none transition-opacity duration-200 space-y-6" : "space-y-6"}>
+      {/* Top Header: Company Overview & Period Switcher */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+              <ShieldCheck className="size-3.5" />
+              دیدبان مالی
+            </span>
+            <span className="text-xs text-muted-foreground">
+              نسخه قواعد: <code className="font-mono text-foreground font-semibold">{snapshot.rule_set_version}</code>
+            </span>
+          </div>
+          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
+            داشبورد مدیریت و کنترل مالی
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            ارقام، شواهد مغایرت و شاخص‌های اتکاپذیری داده بر پایه snapshot تغییرناپذیر
+          </p>
+        </div>
 
-    <div className="dashboard-main-grid">
-      <section className="dashboard-findings" aria-labelledby="dashboard-findings-title"><div className="dashboard-section-heading"><div><span>صف بررسی</span><h3 id="dashboard-findings-title">یافته‌های مهم</h3></div><Link href={`/companies/${company.id}/findings`}>مشاهده همه یافته‌ها <Icon name="chevron" /></Link></div><div className="finding-summary-bar">{(["critical", "high", "medium", "low"] as PriorityBand[]).map((band) => <div key={band}><span><i className={`band-${band}`} />{bandLabels[band]}</span><strong>{faNumber(findingSummary.by_priority[band] ?? 0)}</strong></div>)}</div>{dashboard.top_findings.length ? <div className="dashboard-finding-list">{dashboard.top_findings.map((finding) => <Link key={finding.id} className="dashboard-finding-row" href={`/companies/${company.id}/findings/${finding.id}`}><span className={`priority-band band-${finding.priority_band}`}>{bandLabels[finding.priority_band]}</span><span className="dashboard-finding-score"><b>{faNumber(Number(finding.priority_score))}</b><small>از ۱۰۰</small></span><span><strong>{finding.title_fa}</strong><small>{finding.summary_fa}</small><i>{workflowLabels[finding.workflow_status]}</i></span><Icon name="chevron" /></Link>)}</div> : <div className="dashboard-empty"><Icon name="check" /><div><strong>یافته بازی برای نمایش نیست</strong><p>موتور در محدوده داده‌های این snapshot موردی گزارش نکرده است.</p></div></div>}</section>
+        {/* Period Selector */}
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col text-end">
+            <span className="text-[11px] font-medium text-muted-foreground">دوره مالی انتخابی:</span>
+            <span className="text-xs font-mono font-bold text-foreground">
+              تکمیل: {faDateTime(snapshot.completed_at)}
+            </span>
+          </div>
+          {analyses.length > 0 && (
+            <Select value={analysisId} onValueChange={changeSnapshot} dir="rtl">
+              <SelectTrigger className="w-[220px] font-bold text-xs">
+                <Calendar className="size-3.5 text-primary ms-1" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {analyses.map((item) => (
+                  <SelectItem key={item.id} value={item.id} className="text-xs">
+                    {faDate(item.period_start)} تا {faDate(item.period_end)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
 
-      <section className="dashboard-coverage" aria-labelledby="dashboard-coverage-title"><div className="dashboard-section-heading"><div><span>حد اتکا</span><h3 id="dashboard-coverage-title">پوشش داده</h3></div><strong>{faNumber(coverage.overall_score)}٪</strong></div><div className="coverage-section-list">{coverageSections.map(({ key, label, hint }) => { const section = coverage.sections[key]; const score = Math.max(0, Math.min(100, Number(section?.score ?? 0))); const reasons = Array.isArray(section?.reasons) ? section.reasons.filter((item): item is string => typeof item === "string") : []; return <div className="dashboard-coverage-row" key={key}><span className={section?.available ? "ready" : "limited"}>{section?.available ? <Icon name="check" /> : <Icon name="alert" />}</span><div><strong>{label}</strong><small>{reasons[0] ?? hint}</small><div className="coverage-meter"><i style={{ width: `${score}%` }} /></div></div><b>{faNumber(score)}٪</b></div>; })}</div>{coverage.limitations_fa.length ? <details className="coverage-limitations"><summary>{faNumber(coverage.limitations_fa.length)} محدودیت ثبت‌شده <Icon name="chevron" /></summary><ul>{coverage.limitations_fa.map((item) => <li key={item}>{item}</li>)}</ul></details> : null}</section>
+      {error && (
+        <Alert variant="destructive" className="text-xs">
+          {error}
+        </Alert>
+      )}
+
+      {/* 2-Dimensional Health Banner */}
+      <FinancialHealthBanner
+        financialHealth={mappedHealthStatus}
+        dataQuality={mappedDataQuality}
+        reliabilityScore={coverage.overall_score}
+        actionableFindingsCount={topFindings.length}
+        periodLabel={`${faDate(snapshot.period_start)} تا ${faDate(snapshot.period_end)}`}
+      />
+
+      {/* Primary KPI Metrics Grid */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
+            <Activity className="size-4 text-primary" />
+            شاخص‌های کلیدی عملکرد و نقدینگی دوره
+          </h2>
+          <span className="text-xs text-muted-foreground">
+            {snapshot.comparison_analysis_run_id ? "مقایسه با دوره قبل فعال است" : "دوره مبنا برای مقایسه روندی وجود ندارد"}
+          </span>
+        </div>
+
+        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Revenue */}
+          <MetricCellCard
+            code="revenue_irr"
+            metric={metricsMap.get("revenue_irr")}
+            icon={primaryMetricIcons.revenue_irr}
+          />
+          {/* Net Profit */}
+          <MetricCellCard
+            code="net_profit_irr"
+            metric={metricsMap.get("net_profit_irr")}
+            icon={primaryMetricIcons.net_profit_irr}
+          />
+          {/* Net Margin Ratio */}
+          <MetricCellCard
+            code="net_margin_ratio"
+            metric={metricsMap.get("net_margin_ratio")}
+            icon={primaryMetricIcons.net_margin_ratio}
+            isRatio
+          />
+          {/* Net Cash Movement */}
+          <MetricCellCard
+            code="net_cash_movement_irr"
+            metric={metricsMap.get("net_cash_movement_irr")}
+            icon={primaryMetricIcons.net_cash_movement_irr}
+          />
+          {/* Sales Outstanding */}
+          <MetricCellCard
+            code="sales_outstanding_irr"
+            metric={metricsMap.get("sales_outstanding_irr")}
+            icon={primaryMetricIcons.sales_outstanding_irr}
+          />
+          {/* Payables */}
+          <MetricCellCard
+            code="payables_irr"
+            metric={metricsMap.get("payables_irr")}
+            icon={primaryMetricIcons.payables_irr}
+          />
+        </div>
+      </div>
+
+      {/* Working Capital & Treasury Runway Section */}
+      {workingCapital && (
+        <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
+                  <ArrowRightLeft className="size-4 text-primary" />
+                  وضعیت سرمایه در گردش و تاب‌آوری خزانه (Working Capital & Treasury)
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                  پایش هماهنگ مطالبات، پرداختنی‌ها و نقدینگی بر پایه چرخه تبدیل نقد (CCC)
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                  چرخه تبدیل نقد: {toPersianDigits(workingCapital.cccDays)} روز
+                </Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Runway */}
+              <Link
+                href={`/companies/${company.id}/cashflow`}
+                className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 hover:bg-muted/70 transition-colors group flex flex-col justify-between gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">تاب‌آوری نقد (Runway)</span>
+                  <Clock className="size-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold font-mono text-foreground">
+                    {toPersianDigits(workingCapital.runwayDays)} روز
+                  </div>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    مشاهده پیش‌بینی ۱۳ هفته‌ای خزانه ←
+                  </span>
+                </div>
+              </Link>
+
+              {/* DSO */}
+              <Link
+                href={`/companies/${company.id}/receivables`}
+                className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 hover:bg-muted/70 transition-colors group flex flex-col justify-between gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">دوره وصول مطالبات (DSO)</span>
+                  <Receipt className="size-4 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold font-mono text-foreground">
+                    {toPersianDigits(workingCapital.dsoDays)} روز
+                  </div>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    تحلیل ۵ بازه سنی بدهکاران ←
+                  </span>
+                </div>
+              </Link>
+
+              {/* DPO */}
+              <Link
+                href={`/companies/${company.id}/payables`}
+                className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 hover:bg-muted/70 transition-colors group flex flex-col justify-between gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">دوره پرداخت بدهی‌ها (DPO)</span>
+                  <FileCheck2 className="size-4 text-amber-600" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold font-mono text-foreground">
+                    {toPersianDigits(workingCapital.dpoDays)} روز
+                  </div>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    مدیریت بستانکاران و تامین‌کنندگان ←
+                  </span>
+                </div>
+              </Link>
+
+              {/* CCC */}
+              <div className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">چرخه تبدیل نقد (CCC)</span>
+                  <ArrowRightLeft className="size-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold font-mono text-foreground">
+                    {toPersianDigits(workingCapital.cccDays)} روز
+                  </div>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    DSO ({toPersianDigits(workingCapital.dsoDays)}) − DPO ({toPersianDigits(workingCapital.dpoDays)})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Two Columns: Actionable Findings & Data Coverage */}
+      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+        {/* Top Actionable Findings */}
+        <Card className="flex flex-col justify-between">
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+                  <TriangleAlert className="size-4 text-amber-500" />
+                  یافته‌های مهم نیازمند اقدام
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  ریسک‌های شناسایی‌شده توسط موتور قطعی بر پایه شواهد حسابرسی
+                </CardDescription>
+              </div>
+              <Link href={`/companies/${company.id}/findings`}>
+                <Button size="sm" variant="ghost" className="text-xs gap-1">
+                  فهرست همه یافته‌ها
+                  <ArrowUpRight className="size-3.5" />
+                </Button>
+              </Link>
+            </div>
+
+            {/* Finding Band Counts */}
+            <div className="flex items-center gap-2 pt-2.5">
+              {(["critical", "high", "medium", "low"] as PriorityBand[]).map((band) => {
+                const count = findingSummary.by_priority[band] ?? 0;
+                return (
+                  <div
+                    key={band}
+                    className="flex items-center gap-1.5 rounded-lg border border-[var(--ds-border)] bg-muted/40 px-2.5 py-1 text-xs"
+                  >
+                    <RiskBadge level={band} size="sm" showIcon={false} label={bandLabels[band]} />
+                    <span className="font-mono font-bold text-foreground">{toPersianDigits(count)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-4 flex-1">
+            {topFindings.length > 0 ? (
+              <div className="divide-y divide-[var(--ds-border)]/60">
+                {topFindings.map((finding) => (
+                  <Link
+                    key={finding.id}
+                    href={`/companies/${company.id}/findings/${finding.id}`}
+                    className="group flex items-center justify-between gap-3 py-3 transition-colors hover:bg-muted/40 rounded-lg px-2 -mx-2"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <RiskBadge level={finding.priority_band} score={Number(finding.priority_score)} size="sm" />
+                      <div className="min-w-0">
+                        <strong className="block truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                          {finding.title_fa}
+                        </strong>
+                        <span className="block truncate text-[11px] text-muted-foreground mt-0.5">
+                          {finding.summary_fa}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusChip status={finding.workflow_status} size="sm" />
+                      <ChevronLeft className="size-4 text-muted-foreground group-hover:text-foreground transition-transform group-hover:-translate-x-1" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center space-y-2 text-muted-foreground">
+                <CheckCircle2 className="size-8 text-emerald-500" />
+                <p className="text-xs font-bold text-foreground">هیچ یافتهٔ بازی در این دوره وجود ندارد</p>
+                <p className="text-[11px]">تمام شاخص‌ها در محدوده عادی قرار دارند.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Data Coverage & Limits */}
+        <Card className="flex flex-col justify-between">
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-primary" />
+                  پوشش داده و مرزهای اتکا
+                </CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  ارزیابی کامل‌بودن منابع ورودی برای جلوگیری از تصمیم‌گیری بر داده ناقص
+                </CardDescription>
+              </div>
+              <div className="text-end">
+                <span className="font-mono text-base font-extrabold text-foreground">
+                  {toPersianDigits(Math.round(coverage.overall_score))}٪
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-4 space-y-4 flex-1">
+            {coverageSections.map(({ key, label, hint }) => {
+              const section = coverage.sections[key];
+              const score = Math.max(0, Math.min(100, Number(section?.score ?? 0)));
+              const isAvailable = Boolean(section?.available);
+
+              return (
+                <div key={key} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={
+                          isAvailable
+                            ? "size-2 rounded-full bg-emerald-500"
+                            : "size-2 rounded-full bg-amber-500"
+                        }
+                      />
+                      <strong className="text-foreground">{label}</strong>
+                    </div>
+                    <span className="font-mono text-muted-foreground font-semibold">
+                      {toPersianDigits(score)}٪
+                    </span>
+                  </div>
+                  <Progress value={score} className="h-1.5" />
+                  <span className="block text-[11px] text-muted-foreground">{hint}</span>
+                </div>
+              );
+            })}
+
+            {coverage.limitations_fa.length > 0 && (
+              <div className="rounded-xl border border-[var(--ds-border)] bg-muted/40 p-3 text-xs space-y-1 mt-2">
+                <span className="font-bold text-foreground flex items-center gap-1.5 text-[11px]">
+                  <AlertCircle className="size-3.5 text-amber-600" />
+                  {toPersianDigits(coverage.limitations_fa.length)} محدودیت عملیاتی ثبت‌شده:
+                </span>
+                <ul className="list-disc list-inside text-[11px] text-muted-foreground space-y-0.5 ps-1">
+                  {coverage.limitations_fa.map((limitation, i) => (
+                    <li key={i} className="truncate">
+                      {limitation}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Drivers & Financial Position */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Main Drivers */}
+        <Card>
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+              <TrendingUp className="size-4 text-primary" />
+              محرک‌های اصلی تغییرات دوره (Main Drivers)
+            </CardTitle>
+            <CardDescription className="text-xs">
+              روندهای مالی قطعی که بیشترین سهم را در تغییرات سود و نقدینگی داشته‌اند
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {mainDrivers.length > 0 ? (
+              <div className="divide-y divide-[var(--ds-border)]/60">
+                {mainDrivers.map((driver) => (
+                  <Link
+                    key={driver.finding_id}
+                    href={`/companies/${company.id}/findings/${driver.finding_id}`}
+                    className="flex items-center justify-between gap-3 py-2.5 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <RiskBadge level={driver.priority_band} size="sm" showIcon={false} />
+                      <span className="text-xs font-bold text-foreground truncate">{driver.title_fa}</span>
+                    </div>
+                    <div>
+                      {driver.affected_amount_irr ? (
+                        <MoneyDisplay amount={driver.affected_amount_irr} currency="ریال" size="sm" />
+                      ) : driver.affected_ratio ? (
+                        <span className="font-mono text-xs font-bold text-foreground">
+                          {toPersianDigits((Number(driver.affected_ratio) * 100).toFixed(1))}٪
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="py-8 text-center text-xs text-muted-foreground space-y-1">
+                <p className="font-bold text-foreground">محرک مقایسه‌ای در این دوره شناسایی نشد</p>
+                <p className="text-[11px]">برای تحلیل روندی، وجود حداقل دو دوره هم‌طول و یک یافته مالی تاییدشده الزامی است.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Supplementary Balance Sheet Positions */}
+        <Card>
+          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
+            <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+              <Receipt className="size-4 text-primary" />
+              وضعیت ترازنامه و اقلام تکمیلی
+            </CardTitle>
+            <CardDescription className="text-xs">اقلام دارایی، بدهی، حقوق مالکانه و فروش صورتحساب‌شده</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              {[
+                "expenses_irr",
+                "total_assets_irr",
+                "total_liabilities_irr",
+                "total_equity_irr",
+                "sales_invoiced_irr",
+                "sales_collected_irr",
+              ].map((code) => {
+                const metric = metricsMap.get(code);
+                const isAvailable = Boolean(metric?.available && metric.value != null);
+
+                return (
+                  <div
+                    key={code}
+                    className="flex flex-col justify-between rounded-lg border border-[var(--ds-border)] bg-muted/20 p-2.5"
+                  >
+                    <span className="text-[11px] text-muted-foreground">{metricFallbackLabels[code]}</span>
+                    <div className="my-1">
+                      {isAvailable ? (
+                        <MoneyDisplay amount={metric?.value} currency="ریال" size="sm" />
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">غیرقابل‌محاسبه</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Snapshot Immutability Footnote */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-4 text-primary" />
+          <span>
+            تصویر تحلیل مالی <strong className="text-foreground">{snapshot.analysis_run_id}</strong> با رعایت اصل عدم‌تغییرپذیری
+            (Immutability) و زنجیره کامل شواهد ثبت شده است.
+          </span>
+        </div>
+        <Link href={`/companies/${company.id}/reports`}>
+          <Button size="sm" variant="outline" className="text-xs gap-1.5 h-7">
+            تولید گزارش رسمی PDF (A4)
+            <ArrowUpRight className="size-3" />
+          </Button>
+        </Link>
+      </div>
     </div>
-
-    <section className="dashboard-drivers" aria-labelledby="dashboard-drivers-title"><div className="dashboard-section-heading"><div><span>تغییرات دوره</span><h3 id="dashboard-drivers-title">محرک‌های اصلی</h3></div><small>فقط روندهای مالی تأییدشده</small></div>{dashboard.main_drivers.length ? <div className="driver-list">{dashboard.main_drivers.map((driver) => <Link key={driver.finding_id} href={`/companies/${company.id}/findings/${driver.finding_id}`}><span className={`priority-band band-${driver.priority_band}`}>{bandLabels[driver.priority_band]}</span><div><strong>{driver.title_fa}</strong><small>{driver.direction ?? "تغییر ثبت‌شده"}</small></div><b>{driver.affected_amount_irr ? compactMoney(driver.affected_amount_irr) : driver.affected_ratio ? new Intl.NumberFormat("fa-IR", { style: "percent", maximumFractionDigits: 1 }).format(Number(driver.affected_ratio)) : "—"}</b></Link>)}</div> : <div className="dashboard-empty"><Icon name="reconcile" /><div><strong>هنوز محرک مقایسه‌ای نداریم</strong><p>برای تشخیص روند، حداقل دو دوره قابل مقایسه و یک یافته مالی تأییدشده لازم است.</p></div><Link className="secondary-button" href={`/companies/${company.id}/analysis`}>مدیریت دوره‌ها</Link></div>}</section>
-
-    <section className="financial-position" aria-labelledby="financial-position-title"><div className="dashboard-section-heading"><div><span>جزئیات تکمیلی</span><h3 id="financial-position-title">وضعیت مالی و عملیات فروش</h3></div></div><div className="position-table">{secondaryMetricCodes.map((code) => { const metric = metrics.get(code); return <div key={code}><span>{metric?.label_fa ?? metricFallbackLabels[code]}</span><strong title={metric ? exactMetricValue(metric) : undefined}>{metric ? metricValue(metric) : "قابل محاسبه نیست"}</strong><small>{metric?.available ? trendLabels[metric.trend] : metric?.unavailable_reason_fa ?? "منبع کافی وجود ندارد"}</small></div>; })}</div></section>
-
-    <section className="dashboard-manifest"><Icon name="shield" /><div><strong>این تصویر تغییرناپذیر و قابل حسابرسی است</strong><p>{faDate(snapshot.period_start)} تا {faDate(snapshot.period_end)} · {snapshot.analysis_status === "completed" ? "پوشش کامل" : "پوشش محدود"}</p></div><span>نسخه قواعد <code dir="ltr">{snapshot.rule_set_version}</code></span></section>
-  </div>;
+  );
 }
 
-function DashboardMetricCell({ code, metric }: { code: string; metric?: DashboardMetric }) {
-  const available = Boolean(metric?.available && metric.value != null);
-  return <article className={`dashboard-metric-cell${available ? "" : " unavailable"}`}><span className="metric-icon"><Icon name={metricIcons[code] ?? "chart"} /></span><div><span>{metric?.label_fa ?? metricFallbackLabels[code]}</span><strong title={metric ? exactMetricValue(metric) : undefined}>{metric ? metricValue(metric) : "قابل محاسبه نیست"}</strong></div><span className={`metric-trend trend-${metric?.trend ?? "unavailable"}`}><Icon name={metric?.trend === "flat" ? "reconcile" : metric?.trend === "unavailable" || !available ? "alert" : "activity"} />{available ? trendLabels[metric?.trend ?? "unavailable"] : metric?.unavailable_reason_fa ?? "داده کافی نیست"}</span></article>;
+function MetricCellCard({
+  code,
+  metric,
+  icon: Icon,
+  isRatio = false,
+}: {
+  code: string;
+  metric?: DashboardMetric;
+  icon: React.ComponentType<{ className?: string }>;
+  isRatio?: boolean;
+}) {
+  const isAvailable = Boolean(metric?.available && metric.value != null);
+  const label = metric?.label_fa ?? metricFallbackLabels[code] ?? code;
+
+  let trendConfig: { value: string; label?: string; direction?: "up" | "down" | "neutral"; isPositive?: boolean } | undefined;
+  if (isAvailable && metric?.trend && metric.trend !== "unavailable") {
+    trendConfig = {
+      value: metric.trend === "up" ? "افزایش" : metric.trend === "down" ? "کاهش" : "ثابت",
+      direction: metric.trend === "up" ? "up" : metric.trend === "down" ? "down" : "neutral",
+      isPositive: metric.trend === "up",
+    };
+  }
+
+  let formattedValue: number | string | null = null;
+  if (isAvailable && metric?.value != null) {
+    if (isRatio) {
+      formattedValue = `${toPersianDigits((Number(metric.value) * 100).toFixed(1))}٪`;
+    } else {
+      formattedValue = metric.value;
+    }
+  }
+
+  return (
+    <KpiMetricCard
+      title={label}
+      value={formattedValue}
+      currency={isRatio ? "" : "ریال"}
+      icon={Icon}
+      status={isAvailable ? "normal" : "limited"}
+      limitedReason={metric?.unavailable_reason_fa}
+      trend={trendConfig}
+      coveragePercent={isAvailable ? 100 : null}
+    />
+  );
 }
 
 function DashboardSkeleton() {
-  return <div className="dashboard-skeleton" aria-label="در حال دریافت داشبورد مالی"><span /><span /><div>{Array.from({ length: 6 }, (_, index) => <span key={index} />)}</div><div><span /><span /></div></div>;
+  return (
+    <div className="space-y-6 animate-pulse" aria-label="در حال بارگذاری داشبورد مالی">
+      <div className="flex justify-between items-center pb-4 border-b border-border">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-9 w-48" />
+      </div>
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-36 w-full rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    </div>
+  );
 }

@@ -1,5 +1,10 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProductCard } from "./product-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -23,13 +28,21 @@ const moneyLabels: Partial<Record<MetricCode, string>> = {
   sales_collected_irr: "وصول‌شده",
   sales_outstanding_irr: "مانده وصول",
 };
+
 const coverageLabels: { key: keyof AnalysisCoverage; label: string; description: string }[] = [
   { key: "accounting", label: "حسابداری", description: "آرتیکل‌های طبقه‌بندی‌شده" },
   { key: "bank_cash_flow", label: "جریان نقد بانکی", description: "تراکنش‌های بانکی دوره" },
   { key: "sales", label: "فروش و وصول", description: "صورتحساب‌های فروش دوره" },
   { key: "gross_profit", label: "سود ناخالص", description: "تفکیک بهای تمام‌شده" },
 ];
-const statusLabels: Record<AnalysisRun["status"], string> = { queued: "در صف محاسبه", processing: "در حال محاسبه", completed: "تکمیل‌شده", completed_limited: "تکمیل با پوشش محدود", failed: "ناموفق" };
+
+const statusLabels: Record<AnalysisRun["status"], string> = {
+  queued: "در صف محاسبه",
+  processing: "در حال محاسبه",
+  completed: "تکمیل‌شده",
+  completed_limited: "تکمیل با پوشش محدود",
+  failed: "ناموفق",
+};
 
 function monthBounds(value = new Date()) {
   const year = value.getFullYear();
@@ -135,51 +148,332 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
 
   if (loading) return <AnalysisSkeleton />;
 
-  return <div className="analysis-workspace">
-    <section className="analysis-intro">
-      <div><span className="model-kicker"><Icon name="chart" />محاسبات نسخه‌دار</span><h2>یک دوره انتخاب کنید؛ تصویر مالی همان داده تثبیت می‌شود</h2><p>شاخص‌ها فقط از اسناد نرمال‌شده محاسبه می‌شوند و کمبود هر منبع در کنار نتیجه باقی می‌ماند.</p></div>
-      {run ? <div className={`run-state state-${run.status}`}><span className="status-pulse" /><div><small>آخرین اجرا</small><strong>{statusLabels[run.status]}</strong></div></div> : null}
-    </section>
+  return (
+    <div className="analysis-workspace space-y-6">
+      <section className="analysis-intro flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/60 pb-4">
+        <div>
+          <span className="model-kicker inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+            <Icon name="chart" className="size-3.5" />
+            محاسبات نسخه‌دار
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+            یک دوره انتخاب کنید؛ تصویر مالی همان داده تثبیت می‌شود
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+            شاخص‌ها فقط از اسناد نرمال‌شده محاسبه می‌شوند و کمبود هر منبع در کنار نتیجه باقی می‌ماند.
+          </p>
+        </div>
 
-    {error ? <p className="form-error global" role="alert">{error}</p> : null}
+        {run && (
+          <div className="run-state flex items-center gap-2.5 p-2.5 rounded-xl border border-border/80 bg-card shrink-0">
+            <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="text-start">
+              <small className="block text-[10px] text-muted-foreground">آخرین اجرا</small>
+              <strong className="block text-xs font-bold text-foreground">{statusLabels[run.status]}</strong>
+            </div>
+          </div>
+        )}
+      </section>
 
-    <section className="period-panel" aria-labelledby="period-title">
-      <div className="period-heading"><span><Icon name="calendar" /></span><div><h3 id="period-title">دورهٔ محاسبه</h3><p>تاریخ‌ها میلادی ثبت می‌شوند؛ نمایش نتایج با تقویم فارسی است.</p></div></div>
-      <form onSubmit={(event) => void startAnalysis(event)}>
-        <label>از تاریخ<Input type="date" dir="ltr" value={periodStart} onChange={(event) => updateStart(event.target.value)} required /></label>
-        <span className="period-separator" aria-hidden="true" />
-        <label>تا تاریخ<Input type="date" dir="ltr" value={periodEnd} onChange={(event) => updateEnd(event.target.value)} required /></label>
-        <Button className="primary-button" disabled={!canRun || submitting || isRunning}>{isRunning ? <><span className="button-spinner" />در حال محاسبه…</> : <><Icon name="activity" />اجرای تحلیل</>}</Button>
-      </form>
-      {!canRun ? <div className="analysis-advisory"><Icon name="shield" /><p><strong>دسترسی مشاهده‌گر</strong>می‌توانید نتایج موجود را ببینید؛ اجرای دوره جدید به نقش مدیر مالی یا مشاور نیاز دارد.</p></div> : unclassifiedCount ? <div className="analysis-advisory warning"><Icon name="alert" /><p><strong>نتیجه با پوشش محدود تولید می‌شود</strong>{new Intl.NumberFormat("fa-IR").format(unclassifiedCount)} حساب هنوز طبقه‌بندی نشده است. <Link href={`/companies/${company.id}/financial-model`}>تکمیل مدل مالی</Link></p></div> : null}
-    </section>
+      {error && (
+        <Alert variant="destructive" className="form-error text-xs p-3.5 rounded-xl" role="alert">
+          {error}
+        </Alert>
+      )}
 
-    {isRunning ? <section className="analysis-running" aria-live="polite"><div className="calculation-wave"><i /><i /><i /><i /><i /></div><div><strong>{run?.status === "queued" ? "درخواست در صف محاسبات است" : "شاخص‌های مالی در حال محاسبه‌اند"}</strong><p>داده‌های این اجرا تثبیت شده‌اند؛ نتیجه پس از تکمیل خودکار نمایش داده می‌شود.</p></div></section> : null}
+      {/* Period Selection */}
+      <ProductCard className="period-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="period-title">
+        <div className="period-heading flex items-center gap-3 border-b border-border/60 pb-3">
+          <span className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Icon name="calendar" className="size-4" />
+          </span>
+          <div>
+            <h3 id="period-title" className="text-base font-bold text-foreground">دورهٔ محاسبه</h3>
+            <p className="text-xs text-muted-foreground">تاریخ‌ها میلادی ثبت می‌شوند؛ نمایش نتایج با تقویم فارسی است.</p>
+          </div>
+        </div>
 
-    {metrics.length && run ? <>
-      <section className="analysis-result-header"><div><span className="overline">نتیجهٔ دوره</span><h3>{faDate(run.period_start)} تا {faDate(run.period_end)}</h3></div><div><small>نسخه قواعد</small><code dir="ltr">{run.rule_set_version}</code></div></section>
-      <div className="analysis-results-grid">
-        <section className="profit-statement" aria-labelledby="profit-title"><div className="panel-heading"><div><h3 id="profit-title">عملکرد دوره</h3><p>خلاصه سود و زیان بر پایه آرتیکل‌های طبقه‌بندی‌شده</p></div>{margin ? <span className="margin-chip">حاشیه سود {new Intl.NumberFormat("fa-IR", { style: "percent", maximumFractionDigits: 1 }).format(Number(margin))}</span> : <span className="margin-chip unavailable">حاشیه سود ناموجود</span>}</div><div className="statement-lines">{profitCodes.map((code) => <MetricLine key={code} metric={byCode.get(code)} label={moneyLabels[code] ?? code} emphasized={code === "net_profit_irr"} />)}</div></section>
-        <CoveragePanel coverage={run.coverage} />
-      </div>
+        <form onSubmit={(event) => void startAnalysis(event)} className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto] items-end gap-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-foreground">از تاریخ</label>
+            <Input
+              type="date"
+              dir="ltr"
+              value={periodStart}
+              onChange={(event) => updateStart(event.target.value)}
+              required
+              className="h-10 text-xs bg-background text-end"
+            />
+          </div>
 
-      <section className="balance-panel" aria-labelledby="balance-title"><div className="panel-heading"><div><h3 id="balance-title">وضعیت مالی تا پایان دوره</h3><p>مانده حساب‌ها تا {faDate(run.period_end)}</p></div></div><div className="balance-values">{balanceCodes.map((code) => <div key={code}><span>{moneyLabels[code]}</span><strong dir="ltr">{money(byCode.get(code)?.value_irr)}</strong><small>ریال</small></div>)}</div></section>
+          <span className="period-separator hidden sm:block text-muted-foreground pb-2.5" aria-hidden="true">
+            تا
+          </span>
 
-      <section className="optional-metrics" aria-labelledby="optional-title"><div className="panel-heading"><div><h3 id="optional-title">نقد و فروش</h3><p>شاخص‌های تکمیلی فقط در صورت وجود منبع مرتبط محاسبه می‌شوند.</p></div></div><div className="optional-list">{optionalCodes.map((code) => <MetricLine key={code} metric={byCode.get(code)} label={moneyLabels[code] ?? code} />)}</div></section>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-foreground">تا تاریخ</label>
+            <Input
+              type="date"
+              dir="ltr"
+              value={periodEnd}
+              onChange={(event) => updateEnd(event.target.value)}
+              required
+              className="h-10 text-xs bg-background text-end"
+            />
+          </div>
 
-      <section className="analysis-manifest"><Icon name="shield" /><div><strong>رد محاسبه محفوظ است</strong><p>{new Intl.NumberFormat("fa-IR").format(run.input_manifest.journal_line_count_through_period_end ?? 0)} آرتیکل و {new Intl.NumberFormat("fa-IR").format(run.input_manifest.import_batch_ids?.length ?? 0)} بسته ورودی در snapshot این اجرا ثبت شده است.</p></div><span>تکمیل: {faDateTime(run.completed_at)}</span></section>
-    </> : !isRunning ? <section className="analysis-empty"><span><Icon name="chart" /></span><div><h3>هنوز تحلیلی برای این دوره اجرا نشده است</h3><p>بازه را کنترل کنید و «اجرای تحلیل» را بزنید. محاسبات در پس‌زمینه انجام می‌شود و همین صفحه نتیجه را دنبال می‌کند.</p></div></section> : null}
-  </div>;
+          <Button
+            type="submit"
+            className="primary-button h-10 text-xs font-bold gap-2 px-6"
+            disabled={!canRun || submitting || isRunning}
+          >
+            {isRunning ? (
+              <>
+                <span className="loading-ring size-3.5" />
+                در حال محاسبه…
+              </>
+            ) : (
+              <>
+                <Icon name="activity" className="size-3.5" />
+                اجرای تحلیل
+              </>
+            )}
+          </Button>
+        </form>
+
+        {!canRun ? (
+          <div className="analysis-advisory flex items-center gap-2 p-3 rounded-xl bg-muted text-xs text-muted-foreground">
+            <Icon name="shield" className="size-4 text-primary shrink-0" />
+            <p>
+              <strong className="font-bold text-foreground">دسترسی مشاهده‌گر: </strong>
+              می‌توانید نتایج موجود را ببینید؛ اجرای دوره جدید به نقش مدیر مالی یا مشاور نیاز دارد.
+            </p>
+          </div>
+        ) : unclassifiedCount ? (
+          <div className="analysis-advisory warning flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+            <Icon name="alert" className="size-4 text-amber-600 shrink-0" />
+            <p>
+              <strong className="font-bold">نتیجه با پوشش محدود تولید می‌شود: </strong>
+              {new Intl.NumberFormat("fa-IR").format(unclassifiedCount)} حساب هنوز طبقه‌بندی نشده است.{" "}
+              <Link href={`/companies/${company.id}/financial-model`} className="underline font-bold">
+                تکمیل مدل مالی
+              </Link>
+            </p>
+          </div>
+        ) : null}
+      </ProductCard>
+
+      {/* Running State */}
+      {isRunning && (
+        <section className="analysis-running p-6 rounded-2xl border border-primary/20 bg-primary/5 text-center flex flex-col items-center justify-center space-y-2" aria-live="polite">
+          <span className="loading-ring size-6 text-primary" />
+          <strong className="block text-sm font-bold text-foreground">
+            {run?.status === "queued" ? "درخواست در صف محاسبات است" : "شاخص‌های مالی در حال محاسبه‌اند"}
+          </strong>
+          <p className="text-xs text-muted-foreground">
+            داده‌های این اجرا تثبیت شده‌اند؛ نتیجه پس از تکمیل خودکار نمایش داده می‌شود.
+          </p>
+        </section>
+      )}
+
+      {/* Results */}
+      {metrics.length && run ? (
+        <div className="space-y-6">
+          <ProductCard className="analysis-result-header p-4 sm:p-5 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="overline block text-[11px] font-bold text-primary">نتیجهٔ دوره</span>
+              <h3 className="text-base sm:text-lg font-bold text-foreground">
+                {faDate(run.period_start)} تا {faDate(run.period_end)}
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>نسخه قواعد:</span>
+              <code dir="ltr" className="px-2 py-1 rounded bg-muted font-mono font-bold text-foreground">
+                {run.rule_set_version}
+              </code>
+            </div>
+          </ProductCard>
+
+          <div className="analysis-results-grid grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-6">
+            <ProductCard className="profit-statement p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="profit-title">
+              <div className="panel-heading flex items-center justify-between border-b border-border/60 pb-3">
+                <div>
+                  <h3 id="profit-title" className="text-base font-bold text-foreground">عملکرد دوره</h3>
+                  <p className="text-xs text-muted-foreground">خلاصه سود و زیان بر پایه آرتیکل‌های طبقه‌بندی‌شده</p>
+                </div>
+                {margin ? (
+                  <Badge variant="secondary" className="margin-chip text-xs">
+                    حاشیه سود {new Intl.NumberFormat("fa-IR", { style: "percent", maximumFractionDigits: 1 }).format(Number(margin))}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="margin-chip unavailable text-xs text-muted-foreground">
+                    حاشیه سود ناموجود
+                  </Badge>
+                )}
+              </div>
+
+              <div className="statement-lines divide-y divide-border/60">
+                {profitCodes.map((code) => (
+                  <MetricLine
+                    key={code}
+                    metric={byCode.get(code)}
+                    label={moneyLabels[code] ?? code}
+                    emphasized={code === "net_profit_irr"}
+                  />
+                ))}
+              </div>
+            </ProductCard>
+
+            <CoveragePanel coverage={run.coverage} />
+          </div>
+
+          <ProductCard className="balance-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="balance-title">
+            <div className="panel-heading border-b border-border/60 pb-3">
+              <h3 id="balance-title" className="text-base font-bold text-foreground">وضعیت مالی تا پایان دوره</h3>
+              <p className="text-xs text-muted-foreground">مانده حساب‌ها تا {faDate(run.period_end)}</p>
+            </div>
+            <div className="balance-values grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {balanceCodes.map((code) => (
+                <div key={code} className="p-4 rounded-xl bg-muted/20 border border-border/60 space-y-1">
+                  <span className="block text-xs text-muted-foreground">{moneyLabels[code]}</span>
+                  <strong dir="ltr" className="block text-base sm:text-lg font-bold font-mono text-foreground">
+                    {money(byCode.get(code)?.value_irr)}
+                  </strong>
+                  <small className="block text-[10px] text-muted-foreground">ریال</small>
+                </div>
+              ))}
+            </div>
+          </ProductCard>
+
+          <ProductCard className="optional-metrics p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="optional-title">
+            <div className="panel-heading border-b border-border/60 pb-3">
+              <h3 id="optional-title" className="text-base font-bold text-foreground">نقد و فروش</h3>
+              <p className="text-xs text-muted-foreground">شاخص‌های تکمیلی فقط در صورت وجود منبع مرتبط محاسبه می‌شوند.</p>
+            </div>
+            <div className="optional-list divide-y divide-border/60">
+              {optionalCodes.map((code) => (
+                <MetricLine key={code} metric={byCode.get(code)} label={moneyLabels[code] ?? code} />
+              ))}
+            </div>
+          </ProductCard>
+
+          <ProductCard className="analysis-manifest p-4 rounded-xl bg-muted/30 border border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2.5">
+              <Icon name="shield" className="size-4 text-primary shrink-0" />
+              <div>
+                <strong className="text-foreground">رد محاسبه محفوظ است: </strong>
+                <span>
+                  {new Intl.NumberFormat("fa-IR").format(run.input_manifest.journal_line_count_through_period_end ?? 0)} آرتیکل و{" "}
+                  {new Intl.NumberFormat("fa-IR").format(run.input_manifest.import_batch_ids?.length ?? 0)} بسته ورودی در snapshot این اجرا ثبت شده است.
+                </span>
+              </div>
+            </div>
+            <span className="font-mono text-[11px] shrink-0">تکمیل: {faDateTime(run.completed_at)}</span>
+          </ProductCard>
+        </div>
+      ) : !isRunning ? (
+        <section className="analysis-empty py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center space-y-2">
+          <span className="size-12 rounded-2xl bg-muted flex items-center justify-center mb-1">
+            <Icon name="chart" className="size-6 text-muted-foreground/60" />
+          </span>
+          <h3 className="text-sm font-bold text-foreground">هنوز تحلیلی برای این دوره اجرا نشده است</h3>
+          <p className="max-w-md leading-relaxed">
+            بازه را کنترل کنید و «اجرای تحلیل» را بزنید. محاسبات در پس‌زمینه انجام می‌شود و همین صفحه نتیجه را دنبال می‌کند.
+          </p>
+        </section>
+      ) : null}
+    </div>
+  );
 }
 
-function MetricLine({ metric, label, emphasized = false }: { metric?: MetricObservation; label: string; emphasized?: boolean }) {
-  return <div className={`metric-line${emphasized ? " emphasized" : ""}`}><div><strong>{label}</strong><small>{metric ? `${new Intl.NumberFormat("fa-IR").format(metric.calculation.line_count ?? metric.calculation.record_count ?? 0)} رکورد در محاسبه` : "منبع کافی در این دوره وجود ندارد"}</small></div><span className={!metric ? "unavailable" : ""}><b dir="ltr">{money(metric?.value_irr)}</b>{metric ? <small>ریال</small> : null}</span></div>;
+function MetricLine({
+  metric,
+  label,
+  emphasized = false,
+}: {
+  metric?: MetricObservation;
+  label: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <div
+      className={`metric-line flex items-center justify-between gap-3 py-3 ${
+        emphasized ? "emphasized bg-primary/5 px-3 rounded-xl font-bold" : ""
+      }`}
+    >
+      <div>
+        <strong className="block text-xs font-bold text-foreground">{label}</strong>
+        <small className="block text-[11px] text-muted-foreground">
+          {metric
+            ? `${new Intl.NumberFormat("fa-IR").format(
+                metric.calculation.line_count ?? metric.calculation.record_count ?? 0
+              )} رکورد در محاسبه`
+            : "منبع کافی در این دوره وجود ندارد"}
+        </small>
+      </div>
+
+      <div className="text-end">
+        <b dir="ltr" className="block text-sm font-mono font-bold text-foreground">
+          {money(metric?.value_irr)}
+        </b>
+        {metric && <small className="text-[10px] text-muted-foreground">ریال</small>}
+      </div>
+    </div>
+  );
 }
 
 function CoveragePanel({ coverage }: { coverage: AnalysisCoverage }) {
-  return <section className="coverage-panel" aria-labelledby="coverage-title"><div className="panel-heading"><div><h3 id="coverage-title">پوشش داده</h3><p>حد اتکای هر بخش از نتیجه</p></div></div><div className="coverage-list">{coverageLabels.map(({ key, label, description }) => { const section = coverage[key]; const score = Math.max(0, Math.min(100, section?.score ?? 0)); return <div key={key}><span className={`coverage-mark${section?.available ? " ready" : ""}`}>{section?.available ? <Icon name="check" /> : <Icon name="alert" />}</span><div><strong>{label}</strong><small>{section?.reasons?.[0] ?? description}</small><div className="coverage-track"><i style={{ width: `${score}%` }} /></div></div><b>{new Intl.NumberFormat("fa-IR").format(score)}٪</b></div>; })}</div></section>;
+  return (
+    <ProductCard className="coverage-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="coverage-title">
+      <div className="panel-heading border-b border-border/60 pb-3">
+        <h3 id="coverage-title" className="text-base font-bold text-foreground">پوشش داده</h3>
+        <p className="text-xs text-muted-foreground">حد اتکای هر بخش از نتیجه</p>
+      </div>
+
+      <div className="coverage-list space-y-3">
+        {coverageLabels.map(({ key, label, description }) => {
+          const section = coverage[key];
+          const score = Math.max(0, Math.min(100, section?.score ?? 0));
+          return (
+            <div key={key} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/20 border border-border/60">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span
+                  className={`coverage-mark size-7 rounded-lg flex items-center justify-center shrink-0 ${
+                    section?.available ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-600"
+                  }`}
+                >
+                  <Icon name={section?.available ? "check" : "alert"} className="size-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <strong className="block text-xs font-bold text-foreground">{label}</strong>
+                  <small className="block text-[11px] text-muted-foreground truncate">
+                    {section?.reasons?.[0] ?? description}
+                  </small>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Progress className="w-16 h-1.5" value={score} />
+                <b className="text-xs font-mono text-foreground">{new Intl.NumberFormat("fa-IR").format(score)}٪</b>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </ProductCard>
+  );
 }
 
 function AnalysisSkeleton() {
-  return <div className="analysis-skeleton" aria-label="در حال دریافت تحلیل مالی"><span /><span /><div><span /><span /></div><span /></div>;
+  return (
+    <div className="analysis-skeleton space-y-4" aria-label="در حال دریافت تحلیل مالی">
+      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-44 w-full rounded-2xl" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
+      </div>
+      <Skeleton className="h-36 w-full rounded-2xl" />
+    </div>
+  );
 }

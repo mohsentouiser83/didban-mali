@@ -18,11 +18,11 @@ describe("LoginPage", () => {
 
   it("keeps registration values when switching modes", () => {
     render(<LoginPage />);
-    fireEvent.click(screen.getByRole("button", { name: "ساخت حساب" }));
+    fireEvent.click(screen.getByRole("tab", { name: "ساخت حساب" }));
     fireEvent.change(screen.getByLabelText("نام و نام خانوادگی"), { target: { value: "مهسا کریمی" } });
     fireEvent.change(screen.getByLabelText(/نام فضای کاری/), { target: { value: "گروه مالی آریا" } });
-    fireEvent.click(screen.getByRole("button", { name: "ورود", pressed: false }));
-    fireEvent.click(screen.getByRole("button", { name: "ساخت حساب", pressed: false }));
+    fireEvent.click(screen.getByRole("tab", { name: "ورود", selected: false }));
+    fireEvent.click(screen.getByRole("tab", { name: "ساخت حساب", selected: false }));
     expect(screen.getByLabelText("نام و نام خانوادگی")).toHaveValue("مهسا کریمی");
     expect(screen.getByLabelText(/نام فضای کاری/)).toHaveValue("گروه مالی آریا");
   });
@@ -40,7 +40,7 @@ describe("LoginPage", () => {
 
   it("shows localized inline validation", () => {
     render(<LoginPage />);
-    fireEvent.click(screen.getByRole("button", { name: "ساخت حساب" }));
+    fireEvent.click(screen.getByRole("tab", { name: "ساخت حساب" }));
     fireEvent.click(screen.getByRole("button", { name: "ساخت حساب امن" }));
     expect(screen.getByText("نام و نام خانوادگی را کامل وارد کنید.")).toBeInTheDocument();
     expect(screen.getByText("ایمیل یا نام کاربری را وارد کنید.")).toBeInTheDocument();

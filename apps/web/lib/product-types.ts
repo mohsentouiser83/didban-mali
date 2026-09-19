@@ -163,3 +163,375 @@ export const roleLabels: Record<Role, string> = {
   advisor: "مشاور",
   viewer: "مشاهده‌گر",
 };
+
+export type ReceivablesRiskLevel = "low" | "medium" | "high" | "critical";
+export type ReceivablesBucketKey = "not_due" | "1_30" | "31_60" | "61_90" | "90_plus";
+
+export type AgingBucketDetail = {
+  bucket_key: ReceivablesBucketKey;
+  label_fa: string;
+  amount_irr: string;
+  invoice_count: number;
+  share_percentage: number;
+};
+
+export type ReceivablesSummaryResponse = {
+  as_of_date: string;
+  total_receivables_irr: string;
+  total_overdue_irr: string;
+  overdue_ratio: number;
+  dso_days: number;
+  customer_count: number;
+  high_risk_customer_count: number;
+  buckets: AgingBucketDetail[];
+};
+
+export type CustomerReceivableItem = {
+  counterparty_id: string;
+  name: string;
+  national_id: string | null;
+  total_outstanding_irr: string;
+  overdue_amount_irr: string;
+  overdue_ratio: number;
+  avg_delay_days: number;
+  risk_level: ReceivablesRiskLevel;
+  risk_score: number;
+  recommended_action: string;
+  buckets: Record<ReceivablesBucketKey, string>;
+  open_invoices_count: number;
+};
+
+export type CustomersReceivablesResponse = {
+  as_of_date: string;
+  items: CustomerReceivableItem[];
+};
+
+export type ReceivableInvoiceItem = {
+  invoice_id: string;
+  invoice_no: string;
+  customer_name: string;
+  counterparty_id: string;
+  issue_date: string;
+  due_date: string;
+  gross_amount_irr: string;
+  paid_amount_irr: string;
+  remaining_amount_irr: string;
+  delay_days: number;
+  bucket_key: ReceivablesBucketKey;
+  is_overdue: boolean;
+  status: string;
+};
+
+export type InvoicesReceivablesResponse = {
+  as_of_date: string;
+  items: ReceivableInvoiceItem[];
+};
+
+export type CashRunwayStatus = "critical" | "warning" | "monitor" | "healthy" | "sustainable";
+export type ScenarioType = "base" | "pessimistic" | "optimistic";
+
+export type CashFlowWeekItem = {
+  week_number: number;
+  start_date: string;
+  end_date: string;
+  starting_cash_irr: string;
+  projected_inflows_irr: string;
+  projected_outflows_irr: string;
+  net_change_irr: string;
+  ending_cash_irr: string;
+  is_deficit: boolean;
+  deficit_amount_irr: string;
+};
+
+export type CashInflowSourceDetail = {
+  category: string;
+  amount_irr: string;
+  share_percentage: number;
+};
+
+export type CashOutflowSourceDetail = {
+  category: string;
+  amount_irr: string;
+  share_percentage: number;
+};
+
+export type CashFlowSummaryResponse = {
+  as_of_date: string;
+  current_cash_irr: string;
+  monthly_burn_rate_irr: string;
+  runway_days: number;
+  runway_months: number;
+  runway_status: CashRunwayStatus;
+  safety_buffer_irr: string;
+  first_deficit_week: number | null;
+  lowest_projected_cash_irr: string;
+};
+
+export type CashFlowForecastResponse = {
+  as_of_date: string;
+  scenario: ScenarioType;
+  safety_buffer_irr: string;
+  current_cash_irr: string;
+  total_projected_inflows_irr: string;
+  total_projected_outflows_irr: string;
+  net_period_movement_irr: string;
+  weeks: CashFlowWeekItem[];
+  inflow_sources: CashInflowSourceDetail[];
+  outflow_sources: CashOutflowSourceDetail[];
+};
+
+export type PayablesRiskLevel = "low" | "medium" | "high" | "critical";
+export type PayablesBucketKey = "not_due" | "1_30" | "31_60" | "61_90" | "90_plus";
+
+export type PayableAgingBucketDetail = {
+  bucket_key: PayablesBucketKey;
+  label_fa: string;
+  amount_irr: string;
+  vendor_count: number;
+  share_percentage: number;
+};
+
+export type VendorPayableItem = {
+  counterparty_id: string;
+  name: string;
+  national_id: string | null;
+  total_payable_irr: string;
+  overdue_amount_irr: string;
+  overdue_ratio: number;
+  avg_delay_days: number;
+  risk_level: PayablesRiskLevel;
+  risk_score: number;
+  recommended_action: string;
+  buckets: Record<PayablesBucketKey, string>;
+  share_of_total_payables: number;
+};
+
+export type PayablesSummaryResponse = {
+  as_of_date: string;
+  total_payables_irr: string;
+  total_overdue_irr: string;
+  overdue_ratio: number;
+  dpo_days: number;
+  dso_days: number;
+  ccc_days: number;
+  vendor_count: number;
+  high_risk_vendor_count: number;
+  buckets: PayableAgingBucketDetail[];
+};
+
+export type VendorsPayablesResponse = {
+  as_of_date: string;
+  items: VendorPayableItem[];
+};
+
+export type AlertSeverity = "critical" | "warning" | "info";
+export type AlertCategory = "liquidity" | "credit_risk" | "supply_chain" | "compliance";
+export type AlertCode =
+  | "runway_critical"
+  | "runway_warning"
+  | "cash_gap_high"
+  | "debtor_concentration"
+  | "overdue_receivables_surge"
+  | "customer_credit_alert"
+  | "supplier_stoppage_risk"
+  | "payables_overdue_surge"
+  | "unmatched_bank_outflow";
+export type AlertStatus = "active" | "acknowledged" | "resolved" | "dismissed";
+
+export type EarlyWarningAlertItem = {
+  id: string;
+  company_id: string;
+  code: AlertCode;
+  category: AlertCategory;
+  severity: AlertSeverity;
+  title_fa: string;
+  summary_fa: string;
+  metric_key: string;
+  current_value: string | null;
+  threshold_value: string | null;
+  metric_unit: string;
+  suggested_action_fa: string;
+  target_route: string;
+  status: AlertStatus;
+  triggered_at: string;
+  acknowledged_at: string | null;
+  acknowledged_by_user_id: string | null;
+  resolved_at: string | null;
+  action_note: string | null;
+};
+
+export type AlertsListResponse = {
+  items: EarlyWarningAlertItem[];
+  total_count: number;
+};
+
+export type AlertsSummaryResponse = {
+  total_active: number;
+  critical_count: number;
+  warning_count: number;
+  info_count: number;
+  liquidity_count: number;
+  credit_risk_count: number;
+  supply_chain_count: number;
+  compliance_count: number;
+  active_alerts: EarlyWarningAlertItem[];
+};
+
+export type AlertWebhookCreateRequest = {
+  name: string;
+  url: string;
+  secret_token?: string;
+  min_severity: AlertSeverity;
+};
+
+export type AlertWebhookItem = {
+  id: string;
+  company_id: string;
+  name: string;
+  url: string;
+  min_severity: AlertSeverity;
+  is_active: boolean;
+  created_at: string;
+  last_triggered_at: string | null;
+  last_delivery_status: string | null;
+  last_delivery_code: number | null;
+};
+
+export type AlertWebhooksListResponse = {
+  items: AlertWebhookItem[];
+};
+
+export type AlertWebhookTestResult = {
+  webhook_id: string;
+  is_success: boolean;
+  status_code: number | null;
+  message: string;
+  duration_ms: number;
+};
+
+export type SimulationParametersRequest = {
+  dso_change_days: number;
+  early_settlement_discount_pct: number;
+  discount_adoption_rate_pct: number;
+  new_hires_count: number;
+  avg_salary_monthly_irr: string;
+  fixed_cost_monthly_change_irr: string;
+  dpo_change_days: number;
+  shock_customer_id?: string | null;
+  shock_delay_days: number;
+  shock_default_pct: number;
+};
+
+export type MetricDeltaItem = {
+  baseline_value: string;
+  simulated_value: string;
+  delta_value: string;
+  unit: string;
+  is_improvement: boolean;
+};
+
+export type SimulatedWeekItem = {
+  week_number: number;
+  start_date: string;
+  end_date: string;
+  baseline_closing_cash_irr: string;
+  simulated_closing_cash_irr: string;
+  simulated_inflows_irr: string;
+  simulated_outflows_irr: string;
+  is_baseline_deficit: boolean;
+  is_simulated_deficit: boolean;
+};
+
+export type SimulationResultResponse = {
+  runway_days_delta: MetricDeltaItem;
+  monthly_burn_rate_delta: MetricDeltaItem;
+  cash_conversion_cycle_delta: MetricDeltaItem;
+  liquidity_released_irr: string;
+  discount_cost_annual_irr: string;
+  net_annual_profit_impact_irr: string;
+  first_deficit_week_baseline: number | null;
+  first_deficit_week_simulated: number | null;
+  executive_verdict_fa: string;
+  risk_warnings_fa: string[];
+  weeks: SimulatedWeekItem[];
+};
+
+export type PresetScenarioItem = {
+  id: string;
+  name_fa: string;
+  description_fa: string;
+  icon: string;
+  parameters: SimulationParametersRequest;
+};
+
+export type PresetScenariosResponse = {
+  items: PresetScenarioItem[];
+};
+
+export type SavedScenarioCreateRequest = {
+  name: string;
+  description?: string | null;
+  is_favorite?: boolean;
+  parameters: SimulationParametersRequest;
+};
+
+export type SavedScenarioItem = {
+  id: string;
+  company_id: string;
+  name: string;
+  description?: string | null;
+  is_favorite: boolean;
+  parameters: SimulationParametersRequest;
+  result_summary: {
+    runway_days_delta: string;
+    simulated_runway: string;
+    monthly_burn_delta: string;
+    ccc_delta: string;
+    net_annual_profit_impact: string;
+    liquidity_released: string;
+    executive_verdict: string;
+    first_deficit_week: number | null;
+  };
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavedScenariosListResponse = {
+  items: SavedScenarioItem[];
+};
+
+export type ComparativeMatrixColumn = {
+  scenario_id: string;
+  name: string;
+  is_baseline: boolean;
+  runway_days: number;
+  runway_delta_days: number;
+  monthly_burn_irr: string;
+  monthly_burn_delta_irr: string;
+  ccc_days: number;
+  ccc_delta_days: number;
+  liquidity_released_irr: string;
+  net_annual_profit_impact_irr: string;
+  first_deficit_week: number | null;
+  verdict_fa: string;
+  risk_level: "low" | "medium" | "high";
+};
+
+export type ComparativeMatrixRequest = {
+  scenario_ids: string[];
+  current_params?: SimulationParametersRequest | null;
+};
+
+export type ComparativeMatrixResponse = {
+  columns: ComparativeMatrixColumn[];
+};
+
+export type DecisionMemoExportRequest = {
+  scenario_id?: string | null;
+  custom_params?: SimulationParametersRequest | null;
+  scenario_title?: string;
+  prepared_for?: string;
+  memo_subject?: string;
+  advisor_notes?: string | null;
+};
+

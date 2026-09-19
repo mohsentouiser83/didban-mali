@@ -1,5 +1,11 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+
+import { Badge } from "@/components/ui/badge";
+
+import { ProductCard } from "./product-card";
+
 import { Button } from "@/components/ui/button";
 
 import Link from "next/link";
@@ -48,5 +54,69 @@ export function AiSemanticRanking({ company, runId, candidates }: { company: Com
 
   const ranking = invocation && isRanking(invocation.output) ? invocation.output : null;
   const effective = settings?.semantic_matching_effective ?? false;
-  return <section className="ai-semantic-panel" aria-labelledby="semantic-panel-title"><header><div><span><Icon name="shield" />لایه کمکی، نه موتور تصمیم</span><h3 id="semantic-panel-title">رتبه‌بندی معنایی نامزدهای مبهم</h3><p>AI فقط ترتیب همین نامزدهای ازپیش‌محدودشده را پیشنهاد می‌دهد و حق ساخت جفت تازه ندارد.</p></div><span className={`ai-status ${effective ? "status-succeeded" : "status-disabled"}`}>{effective ? "آماده" : "ارسال مسدود"}</span></header>{error ? <p className="form-error global" role="alert">{error}</p> : null}{candidateIds.length ? <div className="semantic-candidate-boundary"><span><strong>{candidateIds.length.toLocaleString("fa-IR")}</strong><small>نامزد مجاز</small></span><p>فقط موارد دارای وضعیت «نیازمند بررسی» وارد درخواست می‌شوند؛ نتیجه همچنان به تأیید انسان نیاز دارد.</p><Button className="secondary-button" onClick={() => void rank()} disabled={company.role === "viewer" || busy}>{busy ? "در حال کنترل…" : invocation ? "ثبت رتبه‌بندی تازه" : "رتبه‌بندی کنترل‌شده"}</Button></div> : <div className="semantic-empty"><Icon name="check" /><div><strong>نامزد مبهمی برای این اجرا وجود ندارد</strong><p>تطبیق قطعی به AI نیاز ندارد؛ فقط نتایج potential_match واجد ورود هستند.</p></div></div>}{ranking ? <ol className="semantic-ranking-list">{ranking.ranked_candidates.map((item, index) => <li key={item.candidate_id}><span>{(index + 1).toLocaleString("fa-IR")}</span><div><strong>{item.reason_fa}</strong><small><code dir="ltr">{item.candidate_id}</code></small></div><b>{(Number(item.confidence) * 100).toLocaleString("fa-IR", { maximumFractionDigits: 0 })}٪</b></li>)}</ol> : invocation ? <div className="ai-safe-stop"><Icon name={invocation.status === "disabled" ? "shield" : "alert"} /><div><strong>{invocation.status === "disabled" ? "درخواست پیش از ارسال متوقف شد" : "خروجی رتبه‌بندی پذیرفته نشد"}</strong><p>{invocation.failure_message}</p><small><code dir="ltr">{invocation.failure_code}</code></small></div></div> : null}<footer><Icon name="users" /><span>هر پیشنهاد نیازمند بررسی انسانی است.</span><Link href={`/companies/${company.id}/assistant`}>تنظیمات و ممیزی <Icon name="chevron" /></Link></footer></section>;
+  return (
+    <ProductCard className="ai-semantic-panel p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" aria-labelledby="semantic-panel-title">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
+        <div className="space-y-1">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full"><Icon name="shield" />لایه کمکی، نه موتور تصمیم</span>
+          <h3 id="semantic-panel-title" className="text-base font-bold text-foreground">رتبه‌بندی معنایی نامزدهای مبهم</h3>
+          <p className="text-xs text-muted-foreground">AI فقط ترتیب همین نامزدهای ازپیش‌محدودشده را پیشنهاد می‌دهد و حق ساخت جفت تازه ندارد.</p>
+        </div>
+        <Badge className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${effective ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60"}`}>{effective ? "آماده" : "ارسال مسدود"}</Badge>
+      </header>
+      {error ? <Alert className="form-error border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-900" role="alert">{error}</Alert> : null}
+      {candidateIds.length ? (
+        <div className="semantic-candidate-boundary flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/70 bg-card/60 text-xs">
+          <span className="flex items-center gap-2 font-semibold text-foreground bg-primary/10 px-3 py-1.5 rounded-xl shrink-0">
+            <strong>{candidateIds.length.toLocaleString("fa-IR")}</strong>
+            <small className="text-muted-foreground">نامزد مجاز</small>
+          </span>
+          <p className="text-muted-foreground flex-1">فقط موارد دارای وضعیت «نیازمند بررسی» وارد درخواست می‌شوند؛ نتیجه همچنان به تأیید انسان نیاز دارد.</p>
+          <Button className="secondary-button text-xs shrink-0" onClick={() => void rank()} disabled={company.role === "viewer" || busy}>
+            {busy ? "در حال کنترل…" : invocation ? "ثبت رتبه‌بندی تازه" : "رتبه‌بندی کنترل‌شده"}
+          </Button>
+        </div>
+      ) : (
+        <div className="semantic-empty flex items-start gap-3 p-4 rounded-xl border border-border/60 bg-muted/20 text-xs">
+          <span className="text-emerald-600 dark:text-emerald-400 mt-0.5"><Icon name="check" /></span>
+          <div>
+            <strong className="block font-semibold text-foreground">نامزد مبهمی برای این اجرا وجود ندارد</strong>
+            <p className="text-muted-foreground">تطبیق قطعی به AI نیاز ندارد؛ فقط نتایج potential_match واجد ورود هستند.</p>
+          </div>
+        </div>
+      )}
+      {ranking ? (
+        <ol className="semantic-ranking-list space-y-2.5">
+          {ranking.ranked_candidates.map((item, index) => (
+            <li key={item.candidate_id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border/70 bg-card/60 text-xs">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold">{(index + 1).toLocaleString("fa-IR")}</span>
+              <div className="flex-1">
+                <strong className="block font-semibold text-foreground">{item.reason_fa}</strong>
+                <small className="text-muted-foreground font-mono text-[11px]"><code dir="ltr">{item.candidate_id}</code></small>
+              </div>
+              <b className="font-semibold text-primary text-sm">{(Number(item.confidence) * 100).toLocaleString("fa-IR", { maximumFractionDigits: 0 })}٪</b>
+            </li>
+          ))}
+        </ol>
+      ) : invocation ? (
+        <div className="ai-safe-stop flex items-start gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/60 text-xs">
+          <span className="text-amber-600 dark:text-amber-400 mt-0.5"><Icon name={invocation.status === "disabled" ? "shield" : "alert"} /></span>
+          <div>
+            <strong className="block font-semibold text-foreground">{invocation.status === "disabled" ? "درخواست پیش از ارسال متوقف شد" : "خروجی رتبه‌بندی پذیرفته نشد"}</strong>
+            <p className="text-muted-foreground">{invocation.failure_message}</p>
+            <small className="text-[11px] text-muted-foreground"><code dir="ltr" className="font-mono">{invocation.failure_code}</code></small>
+          </div>
+        </div>
+      ) : null}
+      <footer className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/70 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Icon name="users" />
+          <span>هر پیشنهاد نیازمند بررسی انسانی است.</span>
+        </div>
+        <Link href={`/companies/${company.id}/assistant`} className="inline-flex items-center gap-1 text-primary hover:underline">
+          تنظیمات و ممیزی <Icon name="chevron" />
+        </Link>
+      </footer>
+    </ProductCard>
+  );
 }

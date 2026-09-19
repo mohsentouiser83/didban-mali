@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
+import { AlertCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
@@ -143,9 +144,9 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="field-description"
       className={cn(
-        "text-muted-foreground text-sm font-normal leading-normal group-has-[[data-orientation=horizontal]]/field:text-balance",
+        "text-[var(--ds-foreground-soft)] text-xs font-normal leading-relaxed group-has-[[data-orientation=horizontal]]/field:text-balance",
         "nth-last-2:-mt-1 last:mt-0 [[data-variant=legend]+&]:-mt-1.5",
-        "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
+        "[&>a:hover]:text-[var(--ds-primary)] [&>a]:underline [&>a]:underline-offset-4",
         className
       )}
       {...props}
@@ -222,10 +223,11 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn("text-destructive text-sm font-normal", className)}
+      className={cn("flex items-center gap-1.5 text-xs font-bold text-[var(--ds-danger)]", className)}
       {...props}
     >
-      {content}
+      <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+      <span>{content}</span>
     </div>
   )
 }
