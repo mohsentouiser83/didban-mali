@@ -96,7 +96,6 @@ export function FindingsWorkspace({ company }: { company: Company }) {
   const deferredSearch = useDeferredValue(search.trim());
   const [trendPercent, setTrendPercent] = useState(10);
   const [minimumAmount, setMinimumAmount] = useState("1000000");
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
 
   // Evidence Drawer state
   const [selectedFindingDetail, setSelectedFindingDetail] = useState<FindingEvidenceDetail | null>(null);
@@ -194,16 +193,19 @@ export function FindingsWorkspace({ company }: { company: Company }) {
     setSubmitting(true);
     setError("");
     try {
-      const created = await api<FindingGenerationRun>(`/companies/${company.id}/finding-runs`, {
-        method: "POST",
-        body: JSON.stringify({
-          analysis_run_id: analysisId,
-          reconciliation_run_id: reconciliationId || undefined,
-          rule_set_version: "findings-rules-v1",
-          trend_threshold_percent: trendPercent,
-          minimum_materiality_irr: minimumAmount,
-        }),
-      });
+      const created = await api<FindingGenerationRun>(
+        `/companies/${company.id}/analysis-runs/${analysisId}/finding-runs`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            reconciliation_run_id: reconciliationId || undefined,
+            config_version: "finding-rules-v1",
+            trend_ratio: (trendPercent / 100).toFixed(2),
+            minimum_amount_irr: minimumAmount,
+          }),
+        }
+      );
       setRun(created);
       toast.success("اجرای موتور یافته‌ها با موفقیت آغاز شد.");
       await loadForAnalysis(analysisId);
@@ -521,37 +523,14 @@ export function FindingsWorkspace({ company }: { company: Company }) {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="جستجوی یافته…"
-              className="ps-9 h-8 text-xs"
-            />
-          </div>
-
-          <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-muted/40">
-            <Button
-              size="sm"
-              variant={tableDensity === "compact" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              title="تراکم فشرده (حسابداران)"
-              onClick={() => setTableDensity("compact")}
-            >
-              <SlidersHorizontal className="size-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant={tableDensity === "normal" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              title="تراکم استاندارد (مدیران)"
-              onClick={() => setTableDensity("normal")}
-            >
-              <Layers className="size-3" />
-            </Button>
-          </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="pointer-events-none absolute start-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجوی یافته…"
+            className="ps-9 h-8 text-xs"
+          />
         </div>
       </div>
 
@@ -560,7 +539,7 @@ export function FindingsWorkspace({ company }: { company: Company }) {
         data={filteredFindings}
         columns={columns}
         keyExtractor={(row) => row.id}
-        density={tableDensity}
+        density="compact"
         emptyMessage="هیچ یافته‌ای با این فیلتر یا جستجو یافت نشد."
         onRowClick={(row) => void openFindingDrawer(row)}
       />

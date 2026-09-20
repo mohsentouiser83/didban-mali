@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     clamd_timeout_seconds: int = 90
     sentry_dsn: str | None = Field(default=None)
     jwt_secret: str = "local-development-secret-change-before-deploy"
-    access_token_minutes: int = 15
+    access_token_minutes: int = 1440
     refresh_token_days: int = 7
     cookie_secure: bool = False
     cors_origins: str = "http://localhost:3000"

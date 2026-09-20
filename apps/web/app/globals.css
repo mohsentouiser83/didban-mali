@@ -93,13 +93,13 @@
   --secondary-foreground: var(--ds-p-navy-950);
   --muted: var(--ds-p-slate-100);
   --muted-foreground: var(--ds-p-slate-600);
-  --accent: var(--ds-p-violet-600);
-  --accent-foreground: var(--ds-p-white);
+  --accent: var(--ds-p-slate-100);
+  --accent-foreground: var(--ds-p-navy-950);
   --destructive: var(--ds-p-red-500);
   --destructive-foreground: var(--ds-p-white);
   --border: var(--ds-p-slate-300);
   --input: var(--ds-p-slate-300);
-  --ring: var(--ds-p-violet-500);
+  --ring: var(--ds-p-cyan-600);
   --radius: var(--ds-p-radius-sm);
   --sidebar: var(--ds-p-white);
   --sidebar-foreground: var(--ds-p-navy-950);
@@ -108,7 +108,7 @@
   --sidebar-accent: var(--ds-p-slate-100);
   --sidebar-accent-foreground: var(--ds-p-navy-950);
   --sidebar-border: var(--ds-p-slate-300);
-  --sidebar-ring: var(--ds-p-violet-500);
+  --sidebar-ring: var(--ds-p-cyan-600);
 }
 
 .dark {
@@ -124,13 +124,13 @@
   --secondary-foreground: var(--ds-p-slate-50);
   --muted: var(--ds-p-navy-800);
   --muted-foreground: var(--ds-p-slate-300);
-  --accent: var(--ds-p-violet-400);
-  --accent-foreground: var(--ds-p-navy-950);
+  --accent: var(--ds-p-navy-800);
+  --accent-foreground: var(--ds-p-slate-50);
   --destructive: var(--ds-p-red-500);
   --destructive-foreground: var(--ds-p-white);
   --border: color-mix(in oklch, var(--ds-p-slate-400) 30%, transparent);
   --input: color-mix(in oklch, var(--ds-p-slate-400) 36%, transparent);
-  --ring: var(--ds-p-violet-400);
+  --ring: var(--ds-p-cyan-400);
   --sidebar: var(--ds-p-navy-900);
   --sidebar-foreground: var(--ds-p-slate-50);
   --sidebar-primary: var(--ds-p-cyan-400);
@@ -138,7 +138,7 @@
   --sidebar-accent: var(--ds-p-navy-800);
   --sidebar-accent-foreground: var(--ds-p-slate-50);
   --sidebar-border: color-mix(in oklch, var(--ds-p-slate-400) 30%, transparent);
-  --sidebar-ring: var(--ds-p-violet-400);
+  --sidebar-ring: var(--ds-p-cyan-400);
 }
 
 @font-face {

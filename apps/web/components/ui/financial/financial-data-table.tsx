@@ -33,7 +33,7 @@ export function FinancialDataTable<T>({
   data,
   columns,
   keyExtractor,
-  density = "normal",
+  density = "compact",
   sortColumn,
   sortDirection,
   onSort,

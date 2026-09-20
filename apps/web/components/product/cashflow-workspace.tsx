@@ -106,7 +106,6 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
   const [scenario, setScenario] = useState<ScenarioType>("base");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("compact");
 
   const loadData = useCallback(
     async (targetScenario: ScenarioType, isRefresh = false) => {
@@ -590,15 +589,6 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
                 <Calendar className="size-4 text-primary" />
                 جدول گردش هفتگی وجوه نقد در افق ۱۳ هفته
               </h3>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTableDensity(tableDensity === "compact" ? "normal" : "compact")}
-                className="h-8 text-xs gap-1"
-              >
-                <SlidersHorizontal className="size-3.5" />
-                <span>{tableDensity === "compact" ? "حالت فشرده" : "حالت عادی"}</span>
-              </Button>
             </div>
 
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] overflow-hidden">
@@ -606,7 +596,7 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
                 data={forecast?.weeks ?? []}
                 columns={forecastColumns}
                 keyExtractor={(row) => row.week_number}
-                density={tableDensity}
+                density="compact"
                 emptyMessage="اطلاعات پیش‌بینی برای این سناریو یافت نشد."
               />
             </Card>

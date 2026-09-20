@@ -260,70 +260,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         </div>
       </header>
 
-      {/* Workflow Stepper */}
-      <ol className="workflow-steps grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 p-4 rounded-2xl border border-border bg-card shadow-xs" aria-label="مراحل آماده‌سازی داده">
-        <li className="flex items-center gap-2.5 p-2 rounded-xl text-xs text-primary font-bold bg-primary/5">
-          <span className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0">
-            <Icon name="check" className="size-3.5" />
-          </span>
-          <div>
-            <strong className="block text-foreground">فایل امن</strong>
-            <small className="block text-[10px] text-muted-foreground font-normal">اسکن و پیش‌نمایش</small>
-          </div>
-        </li>
-
-        <li
-          className={`flex items-center gap-2.5 p-2 rounded-xl text-xs ${
-            preview.mapping
-              ? "text-primary font-bold bg-primary/5"
-              : "text-foreground font-bold border border-primary/30 bg-primary/10"
-          }`}
-        >
-          <span className="size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs shrink-0">
-            {preview.mapping ? <Icon name="check" className="size-3.5" /> : "۲"}
-          </span>
-          <div>
-            <strong className="block text-foreground">نگاشت ستون‌ها</strong>
-            <small className="block text-[10px] text-muted-foreground font-normal">تأیید معنای داده</small>
-          </div>
-        </li>
-
-        <li
-          className={`flex items-center gap-2.5 p-2 rounded-xl text-xs ${
-            isValidated
-              ? "text-primary font-bold bg-primary/5"
-              : preview.mapping
-              ? "text-foreground font-bold border border-primary/30 bg-primary/10"
-              : "text-muted-foreground opacity-60"
-          }`}
-        >
-          <span className="size-6 rounded-full bg-muted-foreground/20 text-foreground flex items-center justify-center text-xs shrink-0">
-            {isValidated ? <Icon name="check" className="size-3.5 text-primary" /> : "۳"}
-          </span>
-          <div>
-            <strong className="block text-foreground">اعتبارسنجی</strong>
-            <small className="block text-[10px] text-muted-foreground font-normal">کنترل همهٔ ردیف‌ها</small>
-          </div>
-        </li>
-
-        <li
-          className={`flex items-center gap-2.5 p-2 rounded-xl text-xs ${
-            isCommitted
-              ? "text-primary font-bold bg-primary/5"
-              : isValidated
-              ? "text-foreground font-bold border border-primary/30 bg-primary/10"
-              : "text-muted-foreground opacity-60"
-          }`}
-        >
-          <span className="size-6 rounded-full bg-muted-foreground/20 text-foreground flex items-center justify-center text-xs shrink-0">
-            {isCommitted ? <Icon name="check" className="size-3.5 text-primary" /> : "۴"}
-          </span>
-          <div>
-            <strong className="block text-foreground">ثبت نهایی</strong>
-            <small className="block text-[10px] text-muted-foreground font-normal">ارسال به مدل مالی</small>
-          </div>
-        </li>
-      </ol>
+      {/* Status & Alerts */}
 
       {error && (
         <Alert variant="destructive" className="form-error text-xs p-3.5 rounded-xl" role="alert">

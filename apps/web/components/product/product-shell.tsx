@@ -44,8 +44,10 @@ import {
   Users2,
   LogOut,
   Plus,
+  Settings,
 } from "lucide-react";
 
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/design-system/theme-toggle";
 import { api } from "@/lib/product-api";
 import { cn } from "@/lib/utils";
@@ -107,52 +109,67 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / بررسی مشاور و شواهد" }
     : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
 
-  const navigationGroups: NavGroup[] = [
+  const navigationItems: NavItem[] = [
+    { href: `${base}/overview`, label: "داشبورد مالی", icon: LayoutDashboard },
+    { href: `${base}/cashflow`, label: "جریان و تاب‌آوری نقد", icon: WalletCards },
+    { href: `${base}/receivables`, label: "هوشمندی مطالبات", icon: ArrowDownLeft },
+    { href: `${base}/payables`, label: "هوشمندی پرداختنی‌ها", icon: ArrowUpRight },
+    { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: ArrowLeftRight },
+    { href: `${base}/financial-model`, label: "مدل مالی و طبقه‌بندی", icon: Layers },
+    { href: `${base}/analysis`, label: "تحلیل مالی دوره‌ای", icon: BarChart3 },
+    { href: `${base}/reports`, label: "گزارش‌های مدیریتی", icon: FileText },
+  ];
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const gearMenuItems = [
     {
-      id: "financial-core",
-      label: "پیشخوان و خزانه‌داری",
-      items: [
-        { href: `${base}/overview`, label: "داشبورد مالی", icon: LayoutDashboard },
-        { href: `${base}/cashflow`, label: "جریان و تاب‌آوری نقد", icon: WalletCards },
-        { href: `${base}/receivables`, label: "هوشمندی مطالبات", icon: ArrowDownLeft },
-        { href: `${base}/payables`, label: "هوشمندی پرداختنی‌ها", icon: ArrowUpRight },
-        { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: ArrowLeftRight },
-      ],
+      href: `${base}/findings`,
+      title: "یافته‌ها و شواهد مالی",
+      description: "پرونده ناهنجاری‌های مالی، کشف ریسک‌ها و زنجیره شواهد",
+      icon: ScanSearch,
     },
     {
-      id: "data-modeling",
-      label: "داده‌ها و محاسبات",
-      items: [
-        { href: `${base}/imports`, label: "ورود داده‌های مالی", icon: FileUp },
-        { href: `${base}/financial-model`, label: "مدل مالی و طبقه‌بندی", icon: Layers },
-        { href: `${base}/analysis`, label: "تحلیل مالی دوره‌ای", icon: BarChart3 },
-        { href: `${base}/reports`, label: "گزارش‌های مدیریتی", icon: FileText },
-      ],
+      href: `${base}/simulation`,
+      title: "شبیه‌ساز تصمیمات",
+      description: "سناریوسازی و سنجش اثر تصمیمات بر نقدینگی و سود",
+      icon: SlidersHorizontal,
     },
     {
-      id: "intelligence",
-      label: "هوشمندی و تصمیم‌گیری",
-      items: [
-        {
-          href: `${base}/alerts`,
-          label: "هشدارهای زودهنگام",
-          icon: BellRing,
-          badge: alertSummary?.total_active,
-          badgeVariant: alertSummary?.critical_count && alertSummary.critical_count > 0 ? "critical" : "warning",
-        },
-        { href: `${base}/findings`, label: "یافته‌ها و شواهد", icon: ScanSearch },
-        { href: `${base}/simulation`, label: "شبیه‌ساز تصمیمات", icon: SlidersHorizontal },
-        { href: `${base}/assistant`, label: "دستیار کنترل‌شده", icon: Bot },
-      ],
+      href: `${base}/assistant`,
+      title: "دستیار مالی کنترل‌شده",
+      description: "پرسش و پاسخ تحلیلی هوشمند با گاردریل‌های حاکمیت داده",
+      icon: Bot,
     },
     {
-      id: "governance",
-      label: "مدیریت و حاکمیت",
-      items: [
-        { href: `${base}/readiness`, label: "آمادگی و پذیرش", icon: ShieldCheck },
-        { href: `${base}/settings/profile`, label: "پروفایل شرکت", icon: Building2 },
-        { href: `${base}/settings/members`, label: "اعضا و دسترسی‌ها", icon: Users2 },
-      ],
+      href: `${base}/imports`,
+      title: "ورود داده‌های مالی",
+      description: "بارگذاری و پردازش فایل‌های حسابداری، بانک و فاکتورها",
+      icon: FileUp,
+    },
+    {
+      href: `${base}/settings/members`,
+      title: "اعضا و دسترسی‌ها",
+      description: "مدیریت کاربران، حسابداران و تعیین سطوح دسترسی مالی",
+      icon: Users2,
+    },
+    {
+      href: `${base}/settings/profile`,
+      title: "مشخصات و تنظیمات شرکت",
+      description: "شناسه ملی، اطلاعات پایه و پیکربندی حقوقی شرکت",
+      icon: Building2,
+    },
+    {
+      href: `${base}/readiness`,
+      title: "آمادگی و ارزیابی سامانه",
+      description: "کنترل دروازه پذیرش، آزمون‌های کیفی و سلامت عملیاتی",
+      icon: ShieldCheck,
+    },
+    {
+      href: "/companies/new",
+      title: "ایجاد شرکت جدید",
+      description: "تعریف شخصیت حقوقی یا شعبه جدید در فضای کاری",
+      icon: Plus,
     },
   ];
 
@@ -177,7 +194,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider className="ds-root app-shell min-h-screen bg-background text-foreground" dir="rtl">
       <Sidebar side="left" collapsible="icon" className="product-sidebar border-inline-end border-border bg-sidebar backdrop-blur-md">
-        <SidebarHeader className="border-b border-border/70 p-3 space-y-2.5">
+        <SidebarHeader className="border-b border-border/70 p-3.5">
           <div className="flex items-center justify-between px-1">
             <Link
               className="brand flex items-center gap-2.5 font-extrabold text-foreground transition-opacity hover:opacity-90"
@@ -192,100 +209,60 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
               </div>
             </Link>
           </div>
-
-          <div className="company-box group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:border-0 flex items-center gap-2 p-1.5 rounded-xl border border-border/80 bg-muted/40 transition-colors">
-            <div
-              className="size-7 rounded-lg bg-primary text-primary-foreground font-extrabold text-xs grid place-items-center shrink-0 shadow-2xs"
-              title={company.legal_name}
-            >
-              {company.legal_name.slice(0, 1)}
-            </div>
-            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-              <label htmlFor="sidebar-company-select" className="sr-only">شرکت فعال</label>
-              <SelectField
-                id="sidebar-company-select"
-                value={company.id}
-                onChange={(event) => switchCompany(event.target.value)}
-                className="h-7 w-full border-0 bg-transparent p-0 text-xs font-bold text-foreground focus:ring-0 cursor-pointer"
-              >
-                {companies.map((item) => (
-                  <SelectOption key={item.id} value={item.id}>
-                    {item.legal_name}
-                  </SelectOption>
-                ))}
-              </SelectField>
-            </div>
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="size-7 shrink-0 text-muted-foreground hover:text-foreground rounded-lg group-data-[collapsible=icon]:hidden"
-              title="افزودن شرکت جدید"
-            >
-              <Link href="/companies/new" aria-label="افزودن شرکت جدید">
-                <Plus className="size-3.5" />
-              </Link>
-            </Button>
-          </div>
         </SidebarHeader>
 
-        <SidebarContent className="p-2 space-y-1">
-          {navigationGroups.map((group) => (
-            <SidebarGroup key={group.id} className="py-1 px-1">
-              <SidebarGroupLabel className="text-[10px] font-extrabold tracking-wider text-muted-foreground/75 px-2.5 mb-1 select-none">
-                {group.label}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu aria-label={group.label} className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const active = isItemActive(item.href);
-                    const IconComponent = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={active}
-                          tooltip={item.label}
-                          className={cn(
-                            "group/item relative flex h-9 w-full items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs sm:text-sm transition-all duration-200",
-                            active
-                              ? "!bg-primary/10 !text-primary font-bold shadow-xs border border-primary/20 dark:!bg-primary/15 dark:border-primary/30 before:absolute before:inset-y-1.5 before:start-1 before:w-1 before:rounded-full before:bg-primary"
-                              : "text-muted-foreground font-medium hover:!bg-muted/70 hover:!text-foreground hover:-translate-x-0.5"
-                          )}
-                        >
-                          <Link href={item.href} aria-current={active ? "page" : undefined} className="flex items-center gap-2.5 w-full">
-                            <div
-                              className={cn(
-                                "flex size-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-data-[collapsible=icon]:size-auto group-data-[collapsible=icon]:bg-transparent",
-                                active
-                                  ? "bg-primary text-primary-foreground shadow-2xs"
-                                  : "bg-transparent text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary group-hover/item:scale-105"
-                              )}
-                            >
-                              <IconComponent className="size-4 shrink-0" />
-                            </div>
-                            <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {item.badge && item.badge > 0 ? (
-                          <SidebarMenuBadge
+        <SidebarContent className="px-2.5 py-3 space-y-1">
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu className="space-y-1">
+                {navigationItems.map((item) => {
+                  const active = isItemActive(item.href);
+                  const IconComponent = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={active}
+                        tooltip={item.label}
+                        className={cn(
+                          "group/item relative flex h-[38px] w-full items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs sm:text-[13px] transition-all duration-200",
+                          active
+                            ? "!bg-primary/10 !text-primary font-bold shadow-xs border border-primary/20 dark:!bg-primary/15 dark:border-primary/30 before:absolute before:inset-y-1.5 before:start-1 before:w-1 before:rounded-full before:bg-primary"
+                            : "text-muted-foreground font-medium hover:!bg-muted/70 hover:!text-foreground hover:-translate-x-0.5"
+                        )}
+                      >
+                        <Link href={item.href} aria-current={active ? "page" : undefined} className="flex items-center gap-2.5 w-full">
+                          <div
                             className={cn(
-                              "rounded-full px-1.5 py-0.5 text-[10px] font-bold ms-auto",
-                              item.badgeVariant === "critical"
-                                ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
-                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                              "flex size-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-data-[collapsible=icon]:size-auto group-data-[collapsible=icon]:bg-transparent",
+                              active
+                                ? "bg-primary text-primary-foreground shadow-2xs"
+                                : "bg-transparent text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary group-hover/item:scale-105"
                             )}
                           >
-                            {item.badge}
-                          </SidebarMenuBadge>
-                        ) : null}
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
+                            <IconComponent className="size-4 shrink-0" />
+                          </div>
+                          <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      {item.badge && item.badge > 0 ? (
+                        <SidebarMenuBadge
+                          className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[10px] font-bold ms-auto",
+                            item.badgeVariant === "critical"
+                              ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                          )}
+                        >
+                          {item.badge}
+                        </SidebarMenuBadge>
+                      ) : null}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter className="border-t border-border/60 p-3">
@@ -326,7 +303,110 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="topbar-actions flex items-center gap-2.5 shrink-0">
+          <div className="topbar-actions flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Company Switcher in Header */}
+            <div className="company-switcher flex items-center gap-1.5 p-1 rounded-xl border border-border/80 bg-card/80 backdrop-blur-sm shadow-2xs hover:border-primary/40 transition-colors">
+              <div
+                className="size-7 rounded-lg bg-primary text-primary-foreground font-extrabold text-xs grid place-items-center shrink-0 shadow-2xs"
+                title={company.legal_name}
+              >
+                {company.legal_name.slice(0, 1)}
+              </div>
+              <div className="min-w-0">
+                <label htmlFor="header-company-select" className="sr-only">انتخاب شرکت</label>
+                <SelectField
+                  id="header-company-select"
+                  value={company.id}
+                  onChange={(event) => switchCompany(event.target.value)}
+                  className="h-7 border-0 bg-transparent py-0 pe-6 ps-1 text-xs font-bold text-foreground focus:ring-0 cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
+                >
+                  {companies.map((item) => (
+                    <SelectOption key={item.id} value={item.id}>
+                      {item.legal_name}
+                    </SelectOption>
+                  ))}
+                </SelectField>
+              </div>
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 text-muted-foreground hover:text-foreground rounded-lg hidden md:flex"
+                title="افزودن شرکت جدید"
+              >
+                <Link href="/companies/new" aria-label="افزودن شرکت جدید">
+                  <Plus className="size-3.5" />
+                </Link>
+              </Button>
+            </div>
+
+            {/* Gear Menu Settings Popover */}
+            <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={`size-9 rounded-xl border-border transition-colors ${
+                    settingsOpen ? "bg-accent text-primary border-primary/40" : ""
+                  }`}
+                  title="تنظیمات و مدیریت سامانه"
+                  aria-label="تنظیمات و مدیریت سامانه"
+                >
+                  <Settings className="size-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-[94vw] sm:w-[580px] md:w-[620px] p-3 rounded-2xl border-border bg-popover shadow-2xl"
+                dir="rtl"
+              >
+                <div className="px-2 py-2 border-b border-border/60 mb-2.5 flex items-center justify-between">
+                  <div>
+                    <span className="block text-xs font-bold text-foreground">تنظیمات و مدیریت سامانه</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">پیکربندی اسناد، اطلاعات شرکت، دسترسی‌ها و سلامت سیستم</span>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                    {company.legal_name}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {gearMenuItems.map((item) => {
+                    const IconComp = item.icon;
+                    const isActive = pathname.startsWith(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setSettingsOpen(false)}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
+                          isActive
+                            ? "bg-primary/10 text-primary border-primary/30"
+                            : "border-border/60 bg-card/50 hover:bg-card hover:border-primary/30 text-foreground"
+                        }`}
+                      >
+                        <div
+                          className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <IconComp className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <strong className="block text-xs font-bold leading-tight">{item.title}</strong>
+                          <p className="text-[11px] text-muted-foreground leading-normal mt-0.5 font-normal line-clamp-2">
+                            {item.description}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
             <Button asChild variant="outline" size="icon" className="relative size-9 rounded-xl border-border" title="هشدارهای زودهنگام">
               <Link href={`${base}/alerts`} aria-label="هشدارهای زودهنگام">
                 <BellRing className="size-4" />
@@ -342,10 +422,6 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
               </Link>
             </Button>
             <ThemeToggle />
-            <div className="company-badge hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-border/70 bg-card/70 text-xs font-bold text-foreground">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span className="truncate max-w-[160px]">{company.legal_name}</span>
-            </div>
           </div>
         </header>
 

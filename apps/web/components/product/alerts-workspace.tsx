@@ -48,7 +48,7 @@ const CATEGORY_META: Record<AlertCategory, { label: string; icon: typeof AlertTr
   liquidity: { label: "نقدینگی و تاب‌آوری", icon: Zap, color: "text-amber-500 bg-amber-500/10 border-amber-500/20" },
   credit_risk: { label: "ریسک اعتباری و وصول", icon: ShieldAlert, color: "text-red-500 bg-red-500/10 border-red-500/20" },
   supply_chain: { label: "زنجیره تامین و بدهی‌ها", icon: AlertOctagon, color: "text-orange-500 bg-orange-500/10 border-orange-500/20" },
-  compliance: { label: "انطباق و مغایرت بانکی", icon: AlertTriangle, color: "text-purple-500 bg-purple-500/10 border-purple-500/20" },
+  compliance: { label: "انطباق و مغایرت بانکی", icon: AlertTriangle, color: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20" },
 };
 
 export function AlertsWorkspace({ company }: { company: Company }) {

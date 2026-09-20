@@ -75,16 +75,16 @@
     var(--ds-p-navy-950)
   );
   --ds-primary-foreground: var(--ds-p-white);
-  --ds-accent: var(--ds-p-violet-600);
+  --ds-accent: var(--ds-p-cyan-700);
   --ds-accent-soft: color-mix(
     in oklch,
-    var(--ds-p-violet-600) 12%,
+    var(--ds-p-cyan-700) 10%,
     transparent
   );
   --ds-success: var(--ds-p-green-500);
   --ds-warning: var(--ds-p-amber-500);
   --ds-danger: var(--ds-p-red-500);
-  --ds-focus: var(--ds-p-violet-500);
+  --ds-focus: var(--ds-p-cyan-600);
   --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
   --ds-selection: color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
   --ds-shadow-sm: 0 1px 2px
@@ -174,10 +174,10 @@
   --ds-primary: var(--ds-p-cyan-400);
   --ds-primary-hover: var(--ds-p-cyan-300);
   --ds-primary-foreground: var(--ds-p-navy-950);
-  --ds-accent: var(--ds-p-violet-400);
+  --ds-accent: var(--ds-p-cyan-400);
   --ds-accent-soft: color-mix(
     in oklch,
-    var(--ds-p-violet-400) 15%,
+    var(--ds-p-cyan-400) 14%,
     transparent
   );
   --ds-grid: color-mix(in oklch, var(--ds-p-slate-400) 12%, transparent);

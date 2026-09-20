@@ -66,7 +66,7 @@ const statusDefinitions: Record<
   duplicate: {
     label: "تراکنش تکراری",
     icon: RefreshCcw,
-    className: "bg-purple-500/10 text-purple-700 border-purple-500/25 dark:text-purple-400 dark:border-purple-500/30",
+    className: "bg-indigo-500/10 text-indigo-700 border-indigo-500/25 dark:text-indigo-400 dark:border-indigo-500/30",
   },
   confirmed: {
     label: "تأییدشده توسط مشاور",

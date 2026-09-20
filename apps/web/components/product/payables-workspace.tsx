@@ -89,7 +89,6 @@ export function PayablesWorkspace({ company }: { company: Company }) {
   // Filters & Search
   const [riskFilter, setRiskFilter] = useState<"all" | PayablesRiskLevel>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("compact");
 
   // Selected vendor for detail drawer
   const [selectedVendor, setSelectedVendor] = useState<VendorPayableItem | null>(null);
@@ -520,7 +519,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
             </Button>
           </div>
 
-          {/* Search & Density */}
+          {/* Search */}
           <div className="flex items-center gap-2">
             <div className="relative w-full sm:w-64">
               <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-[var(--ds-muted-fg)]" />
@@ -531,15 +530,6 @@ export function PayablesWorkspace({ company }: { company: Company }) {
                 className="pr-8 text-xs h-9 bg-[var(--ds-card)]"
               />
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTableDensity(tableDensity === "compact" ? "normal" : "compact")}
-              className="h-9 px-2 text-xs gap-1"
-            >
-              <SlidersHorizontal className="size-3.5" />
-              <span>{tableDensity === "compact" ? "حالت فشرده" : "حالت عادی"}</span>
-            </Button>
           </div>
         </div>
 
@@ -549,7 +539,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
             data={filteredVendors}
             columns={vendorColumns}
             keyExtractor={(row) => row.counterparty_id}
-            density={tableDensity}
+            density="compact"
             emptyMessage="هیچ تامین‌کننده‌ای با معیارهای جستجو یافت نشد."
           />
         </Card>

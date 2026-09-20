@@ -38,7 +38,7 @@ const sourceConfig: Record<
   tax: {
     label: "سامانه مودیان",
     icon: FileSpreadsheet,
-    className: "bg-violet-500/10 text-violet-700 border-violet-500/20 dark:text-violet-400",
+    className: "bg-teal-500/10 text-teal-700 border-teal-500/20 dark:text-teal-400",
   },
   rule: {
     label: "قاعده سیستمی",

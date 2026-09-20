@@ -40,8 +40,6 @@ import type {
   ReconciliationRun,
 } from "@/lib/product-types";
 
-import { AiSemanticRanking } from "./ai-semantic-ranking";
-
 type MatchFilter = "all" | "matched" | "review" | "mismatch" | "duplicate" | "unresolved";
 
 const filters: { id: MatchFilter; label: string; statuses?: MatchStatus[] }[] = [
@@ -80,7 +78,6 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState<MatchFilter>("all");
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
 
   const [ruleDays, setRuleDays] = useState(3);
   const [reviewDays, setReviewDays] = useState(10);
@@ -168,17 +165,20 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
     setSubmitting(true);
     setError("");
     try {
-      const created = await api<ReconciliationRun>(`/companies/${company.id}/reconciliation-runs`, {
-        method: "POST",
-        body: JSON.stringify({
-          analysis_run_id: analysisId,
-          rule_set_version: "recon-rules-v1",
-          exact_day_window: ruleDays,
-          review_day_window: reviewDays,
-          fuzzy_similarity_threshold: fuzzyThreshold,
-          ambiguity_margin: ambiguityMargin,
-        }),
-      });
+      const created = await api<ReconciliationRun>(
+        `/companies/${company.id}/analysis-runs/${analysisId}/reconciliation-runs`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            config_version: "reconciliation-v1",
+            rule_business_days: ruleDays,
+            review_calendar_days: reviewDays,
+            fuzzy_threshold: fuzzyThreshold,
+            ambiguity_margin: ambiguityMargin,
+          }),
+        }
+      );
       setRun(created);
       toast.success("اجرای موتور تطبیق آغاز شد.");
       await loadRunForAnalysis(analysisId);
@@ -348,117 +348,80 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
         </Alert>
       )}
 
-      {/* Engine Run / Thresholds Card */}
-      <Card>
-        <CardContent className="pt-5">
-          <form onSubmit={(e) => void startReconciliation(e)} className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-              <div className="space-y-1.5">
-                <label htmlFor="rule-days-input" className="font-bold text-foreground">پنجره روز کاری قطعی</label>
-                <Input
-                  id="rule-days-input"
-                  type="number"
-                  min={0}
-                  max={30}
-                  value={ruleDays}
-                  onChange={(e) => setRuleDays(Number(e.target.value))}
-                  className="w-20 text-center font-mono h-9 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="review-days-input" className="font-bold text-foreground">پنجره روز کاری بررسی</label>
-                <Input
-                  id="review-days-input"
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={reviewDays}
-                  onChange={(e) => setReviewDays(Number(e.target.value))}
-                  className="w-20 text-center font-mono h-9 text-xs"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="fuzzy-threshold-input" className="font-bold text-foreground">آستانه شباهت شرح (درصد)</label>
-                <Input
-                  id="fuzzy-threshold-input"
-                  type="number"
-                  min={50}
-                  max={100}
-                  value={fuzzyThreshold}
-                  onChange={(e) => setFuzzyThreshold(Number(e.target.value))}
-                  className="w-20 text-center font-mono h-9 text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {run && (
-                <div className="text-xs text-muted-foreground text-start">
-                  <span>وضعیت تطبیق: </span>
-                  <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status} size="sm" />
-                </div>
-              )}
-
-              {canRun && (
-                <Button type="submit" disabled={submitting || isRunning} className="gap-2 text-xs font-bold">
-                  {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
-                  اجرای مجدد موتور تطبیق
-                </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* AI Semantic Ranking for Potential Matches */}
-      {company.role !== "viewer" && run && (
-        <AiSemanticRanking
-          company={company}
-          runId={run.id}
-          candidates={matches.filter((m) => m.status === "potential_match")}
-        />
-      )}
-
-      {/* Filter Tabs & Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {filters.map((f) => (
-            <Button
-              key={f.id}
-              size="sm"
-              variant={filter === f.id ? "default" : "outline"}
-              className="text-xs h-8"
-              onClick={() => setFilter(f.id)}
-            >
-              {f.label}
-            </Button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 border border-border rounded-lg p-0.5 bg-muted/40">
-            <Button
-              size="sm"
-              variant={tableDensity === "compact" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              title="تراکم فشرده (حسابداران)"
-              onClick={() => setTableDensity("compact")}
-            >
-              <SlidersHorizontal className="size-3" />
-            </Button>
-            <Button
-              size="sm"
-              variant={tableDensity === "normal" ? "default" : "ghost"}
-              className="h-7 px-2 text-xs"
-              title="تراکم استاندارد (مدیران)"
-              onClick={() => setTableDensity("normal")}
-            >
-              <Layers className="size-3" />
-            </Button>
+      {/* Engine Run / Compact Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card/70 text-xs">
+        <form onSubmit={(e) => void startReconciliation(e)} className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <label htmlFor="rule-days-input" className="text-muted-foreground font-medium">پنجره روز قطعی:</label>
+            <Input
+              id="rule-days-input"
+              type="number"
+              min={0}
+              max={30}
+              value={ruleDays}
+              onChange={(e) => setRuleDays(Number(e.target.value))}
+              className="w-14 h-8 text-center font-mono text-xs bg-background"
+            />
           </div>
-        </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="review-days-input" className="text-muted-foreground font-medium">پنجره روز بررسی:</label>
+            <Input
+              id="review-days-input"
+              type="number"
+              min={1}
+              max={60}
+              value={reviewDays}
+              onChange={(e) => setReviewDays(Number(e.target.value))}
+              className="w-14 h-8 text-center font-mono text-xs bg-background"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="fuzzy-threshold-input" className="text-muted-foreground font-medium">آستانه شباهت:</label>
+            <div className="flex items-center gap-1">
+              <Input
+                id="fuzzy-threshold-input"
+                type="number"
+                min={50}
+                max={100}
+                value={fuzzyThreshold}
+                onChange={(e) => setFuzzyThreshold(Number(e.target.value))}
+                className="w-14 h-8 text-center font-mono text-xs bg-background"
+              />
+              <span className="text-muted-foreground font-bold">٪</span>
+            </div>
+          </div>
+
+          {canRun && (
+            <Button type="submit" size="sm" disabled={submitting || isRunning} className="h-8 gap-1.5 text-xs font-bold ms-auto sm:ms-2">
+              {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
+              اجرای موتور تطبیق
+            </Button>
+          )}
+        </form>
+
+        {run && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">وضعیت:</span>
+            <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status === "completed" ? "تکمیل‌شده" : run.status} size="sm" />
+          </div>
+        )}
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap gap-1.5">
+        {filters.map((f) => (
+          <Button
+            key={f.id}
+            size="sm"
+            variant={filter === f.id ? "default" : "outline"}
+            className="text-xs h-8"
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label}
+          </Button>
+        ))}
       </div>
 
       {/* Reconciliation Matches Data Table */}
@@ -466,7 +429,7 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
         data={filteredMatches}
         columns={columns}
         keyExtractor={(row) => row.id}
-        density={tableDensity}
+        density="compact"
         emptyMessage="هیچ تراکنشی در این دسته تطبیق یافت نشد."
         onRowClick={(row) => {
           setExpandedMatchId(expandedMatchId === row.id ? null : row.id);

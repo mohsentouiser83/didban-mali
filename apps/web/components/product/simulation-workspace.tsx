@@ -860,7 +860,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Clock className="size-4 text-purple-600" />
+                  <Clock className="size-4 text-cyan-600 dark:text-cyan-400" />
                   اهرم ۳: شرایط اعتباری تامین‌کنندگان و مهلت پرداخت (DPO)
                 </CardTitle>
                 <CardDescription className="text-xs">
@@ -891,7 +891,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     <span>+۶۰ روز (استمهال بدهی)</span>
                   </div>
                 </div>
-                <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200/50 text-[11px] text-purple-800 dark:text-purple-300 leading-relaxed">
+                <div className="p-3 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg border border-cyan-200/50 text-[11px] text-cyan-800 dark:text-cyan-300 leading-relaxed">
                   افزایش DPO نقدینگی را درون خزانه حبس کرده و مانند وام بدون بهره عمل می‌کند، اما
                   افزایش بیش از ۲۰ روز ممکن است به تامین پایدار کالا لطمه بزند.
                 </div>
