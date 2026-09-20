@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
@@ -11,6 +12,7 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronLeft,
   Clock,
   Layers,
   RefreshCcw,
@@ -20,6 +22,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  WalletCards,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,216 +49,6 @@ import type {
   ScenarioType,
 } from "@/lib/product-types";
 
-// Realistic fallback demo data for unseeded companies
-const MOCK_SUMMARY: CashFlowSummaryResponse = {
-  as_of_date: "1403/06/31",
-  current_cash_irr: "48500000000",
-  monthly_burn_rate_irr: "22000000000",
-  runway_days: 66,
-  runway_months: 2.2,
-  runway_status: "monitor",
-  safety_buffer_irr: "4400000000",
-  first_deficit_week: 7,
-  lowest_projected_cash_irr: "2800000000",
-};
-
-const MOCK_FORECAST_BASE: CashFlowForecastResponse = {
-  as_of_date: "1403/06/31",
-  scenario: "base",
-  safety_buffer_irr: "4400000000",
-  current_cash_irr: "48500000000",
-  total_projected_inflows_irr: "62400000000",
-  total_projected_outflows_irr: "69500000000",
-  net_period_movement_irr: "-7100000000",
-  weeks: [
-    {
-      week_number: 1,
-      start_date: "1403/07/01",
-      end_date: "1403/07/07",
-      starting_cash_irr: "48500000000",
-      projected_inflows_irr: "8200000000",
-      projected_outflows_irr: "4500000000",
-      net_change_irr: "3700000000",
-      ending_cash_irr: "52200000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 2,
-      start_date: "1403/07/08",
-      end_date: "1403/07/14",
-      starting_cash_irr: "52200000000",
-      projected_inflows_irr: "6500000000",
-      projected_outflows_irr: "5100000000",
-      net_change_irr: "1400000000",
-      ending_cash_irr: "53600000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 3,
-      start_date: "1403/07/15",
-      end_date: "1403/07/21",
-      starting_cash_irr: "53600000000",
-      projected_inflows_irr: "4200000000",
-      projected_outflows_irr: "4800000000",
-      net_change_irr: "-600000000",
-      ending_cash_irr: "53000000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 4,
-      start_date: "1403/07/22",
-      end_date: "1403/07/28",
-      starting_cash_irr: "53000000000",
-      projected_inflows_irr: "7800000000",
-      projected_outflows_irr: "11500000000",
-      net_change_irr: "-3700000000",
-      ending_cash_irr: "49300000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 5,
-      start_date: "1403/07/29",
-      end_date: "1403/08/05",
-      starting_cash_irr: "49300000000",
-      projected_inflows_irr: "5100000000",
-      projected_outflows_irr: "5200000000",
-      net_change_irr: "-100000000",
-      ending_cash_irr: "49200000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 6,
-      start_date: "1403/08/06",
-      end_date: "1403/08/12",
-      starting_cash_irr: "49200000000",
-      projected_inflows_irr: "3400000000",
-      projected_outflows_irr: "4900000000",
-      net_change_irr: "-1500000000",
-      ending_cash_irr: "47700000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 7,
-      start_date: "1403/08/13",
-      end_date: "1403/08/19",
-      starting_cash_irr: "47700000000",
-      projected_inflows_irr: "2100000000",
-      projected_outflows_irr: "5200000000",
-      net_change_irr: "-3100000000",
-      ending_cash_irr: "44600000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 8,
-      start_date: "1403/08/20",
-      end_date: "1403/08/26",
-      starting_cash_irr: "44600000000",
-      projected_inflows_irr: "4500000000",
-      projected_outflows_irr: "11800000000",
-      net_change_irr: "-7300000000",
-      ending_cash_irr: "37300000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 9,
-      start_date: "1403/08/27",
-      end_date: "1403/09/03",
-      starting_cash_irr: "37300000000",
-      projected_inflows_irr: "4100000000",
-      projected_outflows_irr: "4800000000",
-      net_change_irr: "-700000000",
-      ending_cash_irr: "36600000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 10,
-      start_date: "1403/09/04",
-      end_date: "1403/09/10",
-      starting_cash_irr: "36600000000",
-      projected_inflows_irr: "3800000000",
-      projected_outflows_irr: "4600000000",
-      net_change_irr: "-800000000",
-      ending_cash_irr: "35800000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 11,
-      start_date: "1403/09/11",
-      end_date: "1403/09/17",
-      starting_cash_irr: "35800000000",
-      projected_inflows_irr: "3200000000",
-      projected_outflows_irr: "5100000000",
-      net_change_irr: "-1900000000",
-      ending_cash_irr: "33900000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 12,
-      start_date: "1403/09/18",
-      end_date: "1403/09/24",
-      starting_cash_irr: "33900000000",
-      projected_inflows_irr: "4200000000",
-      projected_outflows_irr: "11200000000",
-      net_change_irr: "-7000000000",
-      ending_cash_irr: "26900000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-    {
-      week_number: 13,
-      start_date: "1403/09/25",
-      end_date: "1403/10/01",
-      starting_cash_irr: "26900000000",
-      projected_inflows_irr: "4800000000",
-      projected_outflows_irr: "4600000000",
-      net_change_irr: "200000000",
-      ending_cash_irr: "27100000000",
-      is_deficit: false,
-      deficit_amount_irr: "0",
-    },
-  ],
-  inflow_sources: [
-    {
-      category: "وصول مطالبات فروش اعتباری",
-      amount_irr: "52400000000",
-      share_percentage: 84.0,
-    },
-    {
-      category: "فروش نقدی و سایر دریافت‌ها",
-      amount_irr: "10000000000",
-      share_percentage: 16.0,
-    },
-  ],
-  outflow_sources: [
-    {
-      category: "حقوق، دستمزد و بیمه پرسنل",
-      amount_irr: "34500000000",
-      share_percentage: 49.6,
-    },
-    {
-      category: "تامین‌کنندگان و خرید مواد",
-      amount_irr: "23000000000",
-      share_percentage: 33.1,
-    },
-    {
-      category: "سربار عمومی، اداری و اجاره",
-      amount_irr: "12000000000",
-      share_percentage: 17.3,
-    },
-  ],
-};
-
 const RUNWAY_CONFIG: Record<
   CashRunwayStatus,
   { label: string; badge: string; border: string; desc: string }
@@ -273,24 +66,39 @@ const RUNWAY_CONFIG: Record<
     desc: "تاب‌آوری بین ۱ تا ۲ ماه. نیازمند تسریع وصول فاکتورها جهت جلوگیری از کسری در پایان ماه.",
   },
   monitor: {
-    label: "نیازمند پایش (۶۰ تا ۱۲۰ روز)",
+    label: "پایش فعال (۶۰ تا ۹۰ روز)",
     badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
     border: "border-r-blue-500",
-    desc: "نقدینگی در محدوده کنترل‌شده (۲ تا ۴ ماه). خروج نقدینگی متناسب با پیش‌بینی است.",
+    desc: "ذخیره نقدینگی در وضعیت نظارت متعارف است. توصیه به حفظ تعادل وصول و پرداخت دوره‌ای.",
   },
   healthy: {
-    label: "مطلوب و ایمن (بیش از ۱۲۰ روز)",
+    label: "مطلوب و امن (بیش از ۱۲۰ روز)",
     badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
     border: "border-r-emerald-500",
-    desc: "تاب‌آوری بیش از ۴ ماه. امکان برنامه‌ریزی برای توسعه و پرداخت بموقع به تامین‌کنندگان.",
+    desc: "پوشش نقدینگی بیش از یک فصل مالی. ظرفیت مناسب جهت سرمایه‌گذاری یا توسعه فعالیت‌ها.",
   },
   sustainable: {
-    label: "پایدار و خودکفا (بدون کسری)",
+    label: "خودکفا و پایدار (جریان نقد مثبت)",
     badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
     border: "border-r-emerald-500",
-    desc: "ورودی نقدینگی عملیاتی بیشتر از نرخ مصرف است و نقدینگی روند صعودی دارد.",
+    desc: "عملیات شرکت جریان نقد مثبت تولید می‌کند و نیازی به مصرف ذخایر نقدینگی ندارد.",
   },
 };
+
+function CashFlowSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse" dir="rtl">
+      <div className="h-20 bg-muted rounded-xl" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="h-28 bg-muted rounded-xl" />
+        <div className="h-28 bg-muted rounded-xl" />
+        <div className="h-28 bg-muted rounded-xl" />
+        <div className="h-28 bg-muted rounded-xl" />
+      </div>
+      <div className="h-64 bg-muted rounded-xl" />
+    </div>
+  );
+}
 
 export function CashFlowWorkspace({ company }: { company: Company }) {
   const [summary, setSummary] = useState<CashFlowSummaryResponse | null>(null);
@@ -298,12 +106,12 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
   const [scenario, setScenario] = useState<ScenarioType>("base");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
+  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("compact");
 
   const loadData = useCallback(
-    async (targetScenario: ScenarioType, silent = false) => {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
+    async (targetScenario: ScenarioType, isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
       try {
         const [sumRes, fcRes] = await Promise.allSettled([
@@ -313,15 +121,14 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
           ),
         ]);
 
-        let hasData = false;
-
         if (
           sumRes.status === "fulfilled" &&
           sumRes.value &&
           Number(sumRes.value.current_cash_irr) > 0
         ) {
           setSummary(sumRes.value);
-          hasData = true;
+        } else {
+          setSummary(null);
         }
 
         if (
@@ -330,17 +137,12 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
           fcRes.value.weeks?.length > 0
         ) {
           setForecast(fcRes.value);
-          hasData = true;
-        }
-
-        if (!hasData) {
-          setSummary(MOCK_SUMMARY);
-          setForecast(MOCK_FORECAST_BASE);
+        } else {
+          setForecast(null);
         }
       } catch {
-        toast.info("نمایش نمونه شبیه‌سازی‌شده جریان نقدینگی به دلیل عدم تراکنش‌های بانکی تاییدشده");
-        setSummary(MOCK_SUMMARY);
-        setForecast(MOCK_FORECAST_BASE);
+        setSummary(null);
+        setForecast(null);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -443,6 +245,32 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
       },
     },
   ];
+
+  if (loading) {
+    return <CashFlowSkeleton />;
+  }
+
+  if (!summary && !forecast) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[380px]" dir="rtl">
+        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <WalletCards className="size-7 text-primary" />
+        </div>
+        <div className="max-w-md space-y-1">
+          <h3 className="text-lg font-bold text-foreground">هنوز جریان نقدی برای این شرکت ثبت نشده است</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            برای پیش‌بینی نقدینگی و تحلیل بازه بقا (Runway)، ابتدا باید گردش حساب بانکی یا صورتحساب‌های مالی بارگذاری و تایید شوند.
+          </p>
+        </div>
+        <Link href={`/companies/${company.id}/imports`}>
+          <Button className="gap-2">
+            رفتن به بارگذاری داده‌های مالی
+            <ChevronLeft className="size-4" />
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12" dir="rtl">

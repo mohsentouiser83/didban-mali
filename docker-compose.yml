@@ -122,6 +122,8 @@ services:
     environment:
       <<: *api-environment
       DATABASE_URL: ${DATABASE_ADMIN_URL:-postgresql+asyncpg://didban_admin:change-me-in-real-environments@postgres:5432/didban_mali}
+    volumes:
+      - ./apps/api/alembic:/workspace/apps/api/alembic
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +133,10 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment: *api-environment
+    volumes:
+      - ./apps/api/app:/workspace/apps/api/app
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -155,6 +159,8 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
     environment: *api-environment
+    volumes:
+      - ./apps/api/app:/workspace/apps/api/app
     depends_on:
       migrate:
         condition: service_completed_successfully

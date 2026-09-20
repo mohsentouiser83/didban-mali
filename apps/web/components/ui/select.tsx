@@ -66,7 +66,7 @@ export interface SelectContentProps
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   SelectContentProps
->(({ className, children, position = "popper", sideOffset = 4, ...props }, ref) => (
+>(({ className, children, position = "popper", sideOffset = 2, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -74,15 +74,13 @@ const SelectContent = React.forwardRef<
       position={position}
       sideOffset={sideOffset}
       className={cn(
-        "relative z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] text-[var(--ds-foreground)] shadow-[var(--ds-shadow-lg)]",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        "relative z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] text-[var(--ds-foreground)] shadow-xl",
+        "menu-animated-content",
         className
       )}
       {...props}
     >
-      <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center py-1 text-muted-foreground">
+      <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center py-1 text-[var(--ds-foreground-soft)]">
         <ChevronUp className="size-4" />
       </SelectPrimitive.ScrollUpButton>
       <SelectPrimitive.Viewport
@@ -94,7 +92,7 @@ const SelectContent = React.forwardRef<
       >
         {children}
       </SelectPrimitive.Viewport>
-      <SelectPrimitive.ScrollDownButton className="flex h-6 cursor-default items-center justify-center py-1 text-muted-foreground">
+      <SelectPrimitive.ScrollDownButton className="flex h-6 cursor-default items-center justify-center py-1 text-[var(--ds-foreground-soft)]">
         <ChevronDown className="size-4" />
       </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
@@ -113,7 +111,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-3 text-sm outline-none transition-colors",
-      "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] focus:text-[var(--ds-foreground)]",
+      "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] focus:text-[var(--ds-foreground)] hover:bg-[var(--ds-surface-subtle)] data-[highlighted]:bg-[var(--ds-surface-subtle)] data-[highlighted]:text-[var(--ds-foreground)]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className
     )}

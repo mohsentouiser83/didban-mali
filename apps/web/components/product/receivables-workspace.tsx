@@ -6,11 +6,13 @@ import {
   ArrowUpDown,
   Building2,
   Calendar,
+  ChevronLeft,
   Clock,
   Download,
   FileSpreadsheet,
   Filter,
   Layers,
+  Receipt,
   RefreshCcw,
   Search,
   ShieldAlert,
@@ -20,6 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { Alert } from "@/components/ui/alert";
@@ -87,185 +90,6 @@ const BUCKET_LABELS: Record<ReceivablesBucketKey, string> = {
   "90_plus": "بیش از ۹۰ روز معوق",
 };
 
-// Realistic mock fallback for demonstration or unseeded workspaces
-const MOCK_SUMMARY: ReceivablesSummaryResponse = {
-  as_of_date: "1403/06/31",
-  total_receivables_irr: "84500000000",
-  total_overdue_irr: "32800000000",
-  overdue_ratio: 0.3882,
-  dso_days: 54,
-  customer_count: 28,
-  high_risk_customer_count: 6,
-  buckets: [
-    {
-      bucket_key: "not_due",
-      label_fa: "جاری (قبل از سررسید)",
-      amount_irr: "51700000000",
-      invoice_count: 42,
-      share_percentage: 61.18,
-    },
-    {
-      bucket_key: "1_30",
-      label_fa: "۱ تا ۳۰ روز معوق",
-      amount_irr: "14200000000",
-      invoice_count: 15,
-      share_percentage: 16.8,
-    },
-    {
-      bucket_key: "31_60",
-      label_fa: "۳۱ تا ۶۰ روز معوق",
-      amount_irr: "9800000000",
-      invoice_count: 9,
-      share_percentage: 11.6,
-    },
-    {
-      bucket_key: "61_90",
-      label_fa: "۶۱ تا ۹۰ روز معوق",
-      amount_irr: "5300000000",
-      invoice_count: 5,
-      share_percentage: 6.27,
-    },
-    {
-      bucket_key: "90_plus",
-      label_fa: "بیش از ۹۰ روز معوق",
-      amount_irr: "3500000000",
-      invoice_count: 3,
-      share_percentage: 4.14,
-    },
-  ],
-};
-
-const MOCK_CUSTOMERS: CustomerReceivableItem[] = [
-  {
-    counterparty_id: "demo-cust-1",
-    name: "شرکت صنایع تجهیزات آریا پارس",
-    national_id: "10103456789",
-    total_outstanding_irr: "14500000000",
-    overdue_amount_irr: "11200000000",
-    overdue_ratio: 0.7724,
-    avg_delay_days: 94,
-    risk_level: "critical",
-    risk_score: 88,
-    recommended_action: "توقف کامل اعتبار، اخطار رسمی و آغاز فرآیند حقوقی وصول",
-    buckets: {
-      not_due: "3300000000",
-      "1_30": "1200000000",
-      "31_60": "3200000000",
-      "61_90": "3500000000",
-      "90_plus": "3300000000",
-    },
-    open_invoices_count: 6,
-  },
-  {
-    counterparty_id: "demo-cust-2",
-    name: "گروه توسعه بازرگانی خاورمیانه",
-    national_id: "14002341122",
-    total_outstanding_irr: "9800000000",
-    overdue_amount_irr: "6400000000",
-    overdue_ratio: 0.653,
-    avg_delay_days: 52,
-    risk_level: "high",
-    risk_score: 62,
-    recommended_action: "توقف فروش اعتباری جدید و تماس فوری مدیر مالی با مدیریت مشتری",
-    buckets: {
-      not_due: "3400000000",
-      "1_30": "2800000000",
-      "31_60": "3600000000",
-      "61_90": "0",
-      "90_plus": "0",
-    },
-    open_invoices_count: 4,
-  },
-  {
-    counterparty_id: "demo-cust-3",
-    name: "پتروشیمی نگین جنوب",
-    national_id: "10861112233",
-    total_outstanding_irr: "18200000000",
-    overdue_amount_irr: "4100000000",
-    overdue_ratio: 0.2252,
-    avg_delay_days: 22,
-    risk_level: "medium",
-    risk_score: 34,
-    recommended_action: "پیگیری تلفنی کارشناس وصول مطالبات و ارسال صورت‌وضعیت",
-    buckets: {
-      not_due: "14100000000",
-      "1_30": "4100000000",
-      "31_60": "0",
-      "61_90": "0",
-      "90_plus": "0",
-    },
-    open_invoices_count: 8,
-  },
-  {
-    counterparty_id: "demo-cust-4",
-    name: "شرکت فولاد کاوه یزد",
-    national_id: "10320098765",
-    total_outstanding_irr: "24000000000",
-    overdue_amount_irr: "0",
-    overdue_ratio: 0.0,
-    avg_delay_days: 0,
-    risk_level: "low",
-    risk_score: 10,
-    recommended_action: "حفظ ارتباط دوره‌ای و صدور صورتحساب‌های آتی",
-    buckets: {
-      not_due: "24000000000",
-      "1_30": "0",
-      "31_60": "0",
-      "61_90": "0",
-      "90_plus": "0",
-    },
-    open_invoices_count: 12,
-  },
-];
-
-const MOCK_INVOICES: ReceivableInvoiceItem[] = [
-  {
-    invoice_id: "inv-1",
-    invoice_no: "INV-1403-882",
-    customer_name: "شرکت صنایع تجهیزات آریا پارس",
-    counterparty_id: "demo-cust-1",
-    issue_date: "1403/03/15",
-    due_date: "1403/04/15",
-    gross_amount_irr: "4500000000",
-    paid_amount_irr: "1000000000",
-    remaining_amount_irr: "3500000000",
-    delay_days: 77,
-    bucket_key: "61_90",
-    is_overdue: true,
-    status: "issued",
-  },
-  {
-    invoice_id: "inv-2",
-    invoice_no: "INV-1403-915",
-    customer_name: "گروه توسعه بازرگانی خاورمیانه",
-    counterparty_id: "demo-cust-2",
-    issue_date: "1403/04/20",
-    due_date: "1403/05/20",
-    gross_amount_irr: "3600000000",
-    paid_amount_irr: "0",
-    remaining_amount_irr: "3600000000",
-    delay_days: 42,
-    bucket_key: "31_60",
-    is_overdue: true,
-    status: "issued",
-  },
-  {
-    invoice_id: "inv-3",
-    invoice_no: "INV-1403-1044",
-    customer_name: "شرکت فولاد کاوه یزد",
-    counterparty_id: "demo-cust-4",
-    issue_date: "1403/06/01",
-    due_date: "1403/07/01",
-    gross_amount_irr: "12000000000",
-    paid_amount_irr: "0",
-    remaining_amount_irr: "12000000000",
-    delay_days: -1,
-    bucket_key: "not_due",
-    is_overdue: false,
-    status: "issued",
-  },
-];
-
 export function ReceivablesWorkspace({ company }: { company: Company }) {
   const [summary, setSummary] = useState<ReceivablesSummaryResponse | null>(null);
   const [customers, setCustomers] = useState<CustomerReceivableItem[]>([]);
@@ -293,34 +117,27 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
           api<InvoicesReceivablesResponse>(`/companies/${company.id}/receivables/invoices`),
         ]);
 
-        let hasData = false;
-
         if (sumRes.status === "fulfilled" && sumRes.value && Number(sumRes.value.total_receivables_irr) > 0) {
           setSummary(sumRes.value);
-          hasData = true;
+        } else {
+          setSummary(null);
         }
 
         if (custRes.status === "fulfilled" && custRes.value && custRes.value.items?.length > 0) {
           setCustomers(custRes.value.items);
-          hasData = true;
+        } else {
+          setCustomers([]);
         }
 
         if (invRes.status === "fulfilled" && invRes.value && invRes.value.items?.length > 0) {
           setInvoices(invRes.value.items);
-          hasData = true;
-        }
-
-        // If company has no sales data yet, provide rich demo baseline so UI is fully usable
-        if (!hasData) {
-          setSummary(MOCK_SUMMARY);
-          setCustomers(MOCK_CUSTOMERS);
-          setInvoices(MOCK_INVOICES);
+        } else {
+          setInvoices([]);
         }
       } catch {
-        toast.info("نمایش نمونه شبیه‌سازی‌شده هوشمندی مطالبات به علت عدم بارگذاری فاکتورهای فروش");
-        setSummary(MOCK_SUMMARY);
-        setCustomers(MOCK_CUSTOMERS);
-        setInvoices(MOCK_INVOICES);
+        setSummary(null);
+        setCustomers([]);
+        setInvoices([]);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -520,6 +337,28 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
       ),
     },
   ];
+
+  if (!loading && !summary && customers.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[380px]" dir="rtl">
+        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <Receipt className="size-7 text-primary" />
+        </div>
+        <div className="max-w-md space-y-1">
+          <h3 className="text-lg font-bold text-foreground">هنوز مطالبه یا فاکتور فروشی برای این شرکت ثبت نشده است</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            برای پایش سن بدهکاران تجاری و ریسک وصول، فاکتورهای فروش را از بخش بارگذاری وارد کنید.
+          </p>
+        </div>
+        <Link href={`/companies/${company.id}/imports`}>
+          <Button className="gap-2">
+            رفتن به بارگذاری داده‌های مالی
+            <ChevronLeft className="size-4" />
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12" dir="rtl">

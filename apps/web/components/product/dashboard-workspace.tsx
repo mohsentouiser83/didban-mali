@@ -137,15 +137,26 @@ export function DashboardWorkspace({ company }: { company: Company }) {
 
         if (ignore) return;
 
-        const runwayDays = cfRes.status === "fulfilled" ? cfRes.value.runway_days : 66;
-        const runwayStatus = cfRes.status === "fulfilled" ? cfRes.value.runway_status : "monitor";
-        const dsoDays = recRes.status === "fulfilled" ? recRes.value.dso_days : 54;
-        const dpoDays = payRes.status === "fulfilled" ? payRes.value.dpo_days : 48;
+        const hasAny = cfRes.status === "fulfilled" || recRes.status === "fulfilled" || payRes.status === "fulfilled";
+        if (!hasAny) {
+          setWorkingCapital(null);
+          return;
+        }
+
+        const runwayDays = cfRes.status === "fulfilled" ? cfRes.value.runway_days : 0;
+        const runwayStatus = cfRes.status === "fulfilled" ? cfRes.value.runway_status : "normal";
+        const dsoDays = recRes.status === "fulfilled" ? recRes.value.dso_days : 0;
+        const dpoDays = payRes.status === "fulfilled" ? payRes.value.dpo_days : 0;
         const cccDays = payRes.status === "fulfilled" ? payRes.value.ccc_days : dsoDays - dpoDays;
         const totalReceivables =
-          recRes.status === "fulfilled" ? recRes.value.total_receivables_irr : "84500000000";
+          recRes.status === "fulfilled" ? recRes.value.total_receivables_irr : "0";
         const totalPayables =
-          payRes.status === "fulfilled" ? payRes.value.total_payables_irr : "56200000000";
+          payRes.status === "fulfilled" ? payRes.value.total_payables_irr : "0";
+
+        if (runwayDays === 0 && dsoDays === 0 && dpoDays === 0 && totalReceivables === "0" && totalPayables === "0") {
+          setWorkingCapital(null);
+          return;
+        }
 
         setWorkingCapital({
           runwayDays,
@@ -158,15 +169,7 @@ export function DashboardWorkspace({ company }: { company: Company }) {
         });
       } catch {
         if (!ignore) {
-          setWorkingCapital({
-            runwayDays: 66,
-            runwayStatus: "monitor",
-            dsoDays: 54,
-            dpoDays: 48,
-            cccDays: 6,
-            totalReceivables: "84500000000",
-            totalPayables: "56200000000",
-          });
+          setWorkingCapital(null);
         }
       }
     }

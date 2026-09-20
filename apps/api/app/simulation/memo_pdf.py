@@ -6,15 +6,15 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-import arabic_reshaper  # type: ignore[import-untyped]
-import jdatetime  # type: ignore[import-untyped]
-from bidi.algorithm import get_display  # type: ignore[import-untyped]
-from reportlab.lib.colors import Color, HexColor, white  # type: ignore[import-untyped]
-from reportlab.lib.pagesizes import A4  # type: ignore[import-untyped]
-from reportlab.lib.units import mm  # type: ignore[import-untyped]
-from reportlab.pdfbase import pdfmetrics  # type: ignore[import-untyped]
-from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
-from reportlab.pdfgen.canvas import Canvas  # type: ignore[import-untyped]
+import arabic_reshaper
+import jdatetime
+from bidi.algorithm import get_display
+from reportlab.lib.colors import Color, HexColor, white
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
 
 from app.simulation.schemas import (
     DecisionMemoExportRequest,

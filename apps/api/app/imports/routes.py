@@ -4,8 +4,19 @@ from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, Header, HTTPException, Query, Request, UploadFile, status
-from sqlalchemy import func, select
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import StreamingResponse
@@ -14,7 +25,16 @@ from uuid6 import uuid7
 from app.audit.service import record_audit_event
 from app.companies.models import CompanyAccess, CompanyRole
 from app.core.config import settings
+from app.core.tenant import set_request_company
+from app.financial.models import (
+    BankAccount,
+    BankTransaction,
+    JournalEntry,
+    JournalLine,
+    SalesInvoice,
+)
 from app.financial.tasks import normalize_import_task
+from app.findings.models import EvidenceItem
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
 from app.imports.mapping import (
     ALTERNATIVE_REQUIRED_FIELDS,
@@ -61,6 +81,7 @@ from app.imports.schemas import (
 from app.imports.storage import get_storage, iter_object
 from app.imports.tasks import inspect_upload
 from app.imports.validation import receive_and_validate
+from app.reconciliation.models import ReconciliationMatch
 
 router = APIRouter(prefix="/companies/{company_id}/imports", tags=["imports"])
 logger = logging.getLogger(__name__)
@@ -464,7 +485,7 @@ async def preview_import(
     return ImportPreviewResponse(
         sheets=parsed.sheets,
         selected_sheet=parsed.selected_sheet,
-        header_row=header_row,
+        header_row=parsed.header_row,
         columns=parsed.columns,
         column_fingerprint=fingerprint,
         rows=preview_rows,
@@ -950,3 +971,178 @@ async def download_evidence_source_file(
     if source_file is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="فایل منبع پیدا نشد.")
     return await _source_file_response(source_file)
+
+
+@router.delete("/{batch_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_import_batch(
+    company_id: UUID,
+    batch_id: UUID,
+    request: Request,
+    session: DbSession,
+    current_user: CurrentUser,
+    _: CsrfProtected,
+) -> Response:
+    access = await _access(session, company_id, current_user.id)
+    if access.role not in UPLOAD_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="اجازه حذف فایل برای این شرکت را ندارید.",
+        )
+    await set_request_company(session, company_id)
+    row = await _batch_row(session, company_id, batch_id, for_update=True)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
+    batch, source_file, source = row
+
+    source_row_ids_subq = (
+        select(SourceRow.id).where(
+            SourceRow.company_id == company_id,
+            SourceRow.import_batch_id == batch_id,
+        )
+    ).scalar_subquery()
+
+    journal_entry_ids_subq = (
+        select(JournalEntry.id).where(
+            JournalEntry.company_id == company_id,
+            JournalEntry.import_batch_id == batch_id,
+        )
+    ).scalar_subquery()
+
+    bank_tx_ids_subq = (
+        select(BankTransaction.id).where(
+            BankTransaction.company_id == company_id,
+            BankTransaction.source_row_id.in_(source_row_ids_subq),
+        )
+    ).scalar_subquery()
+
+    # 1. Evidence items
+    await session.execute(
+        delete(EvidenceItem).where(
+            EvidenceItem.company_id == company_id,
+            (EvidenceItem.source_row_id.in_(source_row_ids_subq))
+            | (EvidenceItem.source_file_id == source_file.id),
+        )
+    )
+
+    # 2. Reconciliation matches
+    await session.execute(
+        delete(ReconciliationMatch).where(
+            ReconciliationMatch.company_id == company_id,
+            (ReconciliationMatch.journal_entry_id.in_(journal_entry_ids_subq))
+            | (ReconciliationMatch.bank_transaction_id.in_(bank_tx_ids_subq)),
+        )
+    )
+
+    # 3. Journal lines
+    await session.execute(
+        delete(JournalLine).where(
+            JournalLine.company_id == company_id,
+            (JournalLine.source_row_id.in_(source_row_ids_subq))
+            | (JournalLine.entry_id.in_(journal_entry_ids_subq)),
+        )
+    )
+
+    # 4. Journal entries
+    await session.execute(
+        delete(JournalEntry).where(
+            JournalEntry.company_id == company_id,
+            JournalEntry.import_batch_id == batch_id,
+        )
+    )
+
+    # 5. Bank transactions
+    await session.execute(
+        delete(BankTransaction).where(
+            BankTransaction.company_id == company_id,
+            BankTransaction.source_row_id.in_(source_row_ids_subq),
+        )
+    )
+
+    # 6. Sales invoices
+    await session.execute(
+        delete(SalesInvoice).where(
+            SalesInvoice.company_id == company_id,
+            SalesInvoice.source_row_id.in_(source_row_ids_subq),
+        )
+    )
+
+    # 7. Validation issues
+    await session.execute(
+        delete(ValidationIssue).where(
+            ValidationIssue.company_id == company_id,
+            ValidationIssue.import_batch_id == batch_id,
+        )
+    )
+
+    # 8. Mapping versions
+    await session.execute(
+        delete(MappingVersion).where(
+            MappingVersion.company_id == company_id,
+            MappingVersion.import_batch_id == batch_id,
+        )
+    )
+
+    # 9. Source rows
+    await session.execute(
+        delete(SourceRow).where(
+            SourceRow.company_id == company_id,
+            SourceRow.import_batch_id == batch_id,
+        )
+    )
+
+    # 10. Delete import batch
+    await session.delete(batch)
+    await session.flush()
+
+    # 11. Source file cleanup
+    await session.execute(
+        update(SourceFile)
+        .where(SourceFile.duplicate_of_id == source_file.id)
+        .values(duplicate_of_id=None)
+    )
+    other_batch_using_file = await session.scalar(
+        select(func.count(ImportBatch.id)).where(ImportBatch.file_id == source_file.id)
+    )
+    if not other_batch_using_file:
+        await session.delete(source_file)
+        storage = get_storage()
+        try:
+            await run_in_threadpool(storage.delete, source_file.object_key)
+        except Exception:
+            logger.warning(
+                "Could not delete storage object %s for source file %s",
+                source_file.object_key,
+                source_file.id,
+            )
+
+    # 12. Data source cleanup if no more batches
+    other_batch_using_source = await session.scalar(
+        select(func.count(ImportBatch.id)).where(ImportBatch.source_id == source.id)
+    )
+    if not other_batch_using_source:
+        await session.execute(
+            delete(BankAccount).where(
+                BankAccount.company_id == company_id,
+                BankAccount.data_source_id == source.id,
+            )
+        )
+        await session.delete(source)
+
+    # 13. Audit event
+    record_audit_event(
+        session,
+        action="import.deleted",
+        entity_type="import_batch",
+        actor_id=current_user.id,
+        entity_id=batch_id,
+        company_id=company_id,
+        request_id=request.headers.get("X-Request-ID"),
+        metadata={
+            "original_name": source_file.original_name,
+            "source_kind": source.kind.value,
+            "source_label": source.label,
+        },
+    )
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+

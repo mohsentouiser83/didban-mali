@@ -128,7 +128,7 @@ async def _get_monthly_burn_rate(
         )
     )
     if bank_outflows is not None and bank_outflows > ZERO:
-        return (bank_outflows / Decimal(3)).quantize(Decimal("1"))
+        return Decimal(str((bank_outflows / Decimal(3)).quantize(Decimal("1"))))
 
     # If no bank transactions, sum expense ledger lines
     expense_outflows = await session.scalar(

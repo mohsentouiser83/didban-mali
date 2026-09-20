@@ -16,7 +16,7 @@ export function Mark({ className }: { className?: string }) {
   );
 }
 
-export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "bell" | "table" | "layers" | "chart" | "calendar" | "activity" | "reconcile" | "bank" | "tune" | "chevron" | "findings" | "evidence" | "target";
+export type ProductIconName = "home" | "company" | "shield" | "exit" | "plus" | "users" | "upload" | "file" | "download" | "arrow" | "check" | "alert" | "bell" | "table" | "layers" | "chart" | "calendar" | "activity" | "reconcile" | "bank" | "tune" | "chevron" | "findings" | "evidence" | "target" | "trash";
 
 export function Icon({ name, className }: { name: ProductIconName; className?: string }) {
   const paths = {
@@ -45,6 +45,7 @@ export function Icon({ name, className }: { name: ProductIconName; className?: s
     findings: <><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2M16 3h5v5M21 3l-6 6"/></>,
     evidence: <><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
     target: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></>,
+    trash: <><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></>,
   };
   return (
     <svg

@@ -8,8 +8,9 @@ Create Date: 2026-09-12 18:42:13.851278
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 RLS_SQL = """
 CREATE SCHEMA IF NOT EXISTS private;

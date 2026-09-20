@@ -31,6 +31,7 @@ import {
   Send,
   Trash2,
   Info,
+  CheckSquare,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -90,7 +91,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem, RadioCard } from "@/components/ui/radio-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, TooltipArrow } from "@/components/ui/tooltip";
 import {
   Table,
   TableHeader,
@@ -305,6 +309,16 @@ export function Showcase() {
   const [selectedRowCount, setSelectedRowCount] = useState(1);
   const [isBtnLoading, setIsBtnLoading] = useState(false);
   const [isInputError, setIsInputError] = useState(false);
+  const [chkTableRows, setChkTableRows] = useState<{ [id: string]: boolean }>({
+    "1": true,
+    "2": false,
+    "3": true,
+  });
+  const [switchMoadian, setSwitchMoadian] = useState(true);
+  const [switchContinuousAudit, setSwitchContinuousAudit] = useState(true);
+  const [switchSms, setSwitchSms] = useState(false);
+  const [selectedPaymentCard, setSelectedPaymentCard] = useState("pay-1");
+  const [progressVal, setProgressVal] = useState(68);
 
   const columns: Column<SampleFindingRow>[] = [
     {
@@ -2056,6 +2070,411 @@ export function Showcase() {
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
+                    </CardContent>
+                  </Card>
+                </div>
+              </section>
+
+              {/* Section 13: Checkbox, Switch & RadioGroup Showcase */}
+              <section className="space-y-4">
+                <div className="flex flex-col gap-1 border-b border-[var(--ds-border)] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" size="sm">بخش ۱۳</Badge>
+                    <h3 className="text-base font-extrabold text-foreground">
+                      سامانه کنترل‌های گزینش مالی (Checkbox, Switch & RadioGroup)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    چک‌باکس با وضعیت بینابینی (Indeterminate) در جدول‌های مالی، کلیدهای سوئیچ با جهت‌گیری RTL، و کارت‌های گزینش رادیویی
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Card 1: Checkbox & Financial Table Multiselect */}
+                  <Card className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <CheckSquare className="size-4 text-[var(--ds-primary)]" />
+                        ۱. چک‌باکس با حالت بینابینی (Indeterminate)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        پشتیبانی از ابعاد SM تا LG و حالت خطی (-) برای انتخاب گزینشی
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1">
+                      {/* Sizes Demo */}
+                      <div className="space-y-2.5 rounded-lg border border-[var(--ds-border)] p-3 bg-[var(--ds-surface-subtle)]/50">
+                        <span className="text-[11px] font-bold text-muted-foreground block">مقیاس ابعاد (SM, Default, LG)</span>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                            <Checkbox size="sm" defaultChecked />
+                            <span>فشرده (۱۶px)</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                            <Checkbox size="default" defaultChecked />
+                            <span>استاندارد (۱۸px)</span>
+                          </label>
+                          <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                            <Checkbox size="lg" defaultChecked />
+                            <span>لمسی (۲۲px)</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Live Table Multiselect */}
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-muted-foreground block">انتخاب گزینشی سطرهای جدول</span>
+                        <div className="rounded-lg border border-[var(--ds-border)] overflow-hidden">
+                          <table className="w-full text-xs text-start">
+                            <thead className="bg-[var(--ds-table-header)] border-b border-[var(--ds-border)]">
+                              <tr>
+                                <th className="p-2 w-8 text-center">
+                                  <Checkbox
+                                    size="sm"
+                                    checked={
+                                      Object.values(chkTableRows).every(Boolean)
+                                        ? true
+                                        : Object.values(chkTableRows).some(Boolean)
+                                        ? "indeterminate"
+                                        : false
+                                    }
+                                    onCheckedChange={(checked) => {
+                                      const target = checked === true;
+                                      setChkTableRows({ "1": target, "2": target, "3": target });
+                                    }}
+                                  />
+                                </th>
+                                <th className="p-2 text-start font-bold">شرح مغایرت</th>
+                                <th className="p-2 text-end font-bold">مبلغ (ریال)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--ds-border)]">
+                              {[
+                                { id: "1", title: "واریز پوز شاپرک", amount: "۱,۴۵۰,۰۰۰" },
+                                { id: "2", title: "انتقال ساتنا بانک پاسارگاد", amount: "۲۴۰,۰۰۰,۰۰۰" },
+                                { id: "3", title: "چک صیادی شماره ۹۰۴۱", amount: "۵۵,۲۰۰,۰۰۰" },
+                              ].map((row) => (
+                                <tr
+                                  key={row.id}
+                                  className={cn(
+                                    "transition-colors",
+                                    chkTableRows[row.id] ? "bg-[var(--ds-primary)]/5" : "hover:bg-[var(--ds-surface-subtle)]"
+                                  )}
+                                >
+                                  <td className="p-2 text-center">
+                                    <Checkbox
+                                      size="sm"
+                                      checked={chkTableRows[row.id]}
+                                      onCheckedChange={(checked) =>
+                                        setChkTableRows((prev) => ({ ...prev, [row.id]: checked === true }))
+                                      }
+                                    />
+                                  </td>
+                                  <td className="p-2 font-medium">{row.title}</td>
+                                  <td className="p-2 text-end font-mono tabular-nums">{row.amount}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <Checkbox isInvalid id="invalid-chk" />
+                        <label htmlFor="invalid-chk" className="text-xs text-[var(--ds-danger)] font-medium cursor-pointer">
+                          وضعیت خطای اعتبارسنجی (تأیید پذیرش مسئولیت الزامی است)
+                        </label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2: Switch Toggles */}
+                  <Card className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <SlidersHorizontal className="size-4 text-[var(--ds-primary)]" />
+                        ۲. کلید تعویض مدرن (Switch)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        ارگونومی حرکت چپ‌سو در RTL، ابعاد سه‌گانه و تم سبز عملیاتی
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1">
+                      {/* Scale Demo */}
+                      <div className="rounded-lg border border-[var(--ds-border)] p-3 bg-[var(--ds-surface-subtle)]/50 space-y-2">
+                        <span className="text-[11px] font-bold text-muted-foreground block">مقایسه ابعاد (SM, Default, LG)</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">کوچک ابزاربار (SM)</span>
+                          <Switch size="sm" defaultChecked />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">استاندارد فرم‌ها (Default)</span>
+                          <Switch size="default" defaultChecked />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs">شاخص لمسی (LG)</span>
+                          <Switch size="lg" defaultChecked />
+                        </div>
+                      </div>
+
+                      {/* Financial Settings Rows */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface-card)]">
+                          <div className="space-y-0.5 pe-2">
+                            <span className="text-xs font-bold block text-foreground">پایش مداوم اسناد و تطبیق دوبل</span>
+                            <span className="text-[11px] text-muted-foreground block">کشف خودکار اسناد ترازنشده</span>
+                          </div>
+                          <Switch checked={switchContinuousAudit} onCheckedChange={setSwitchContinuousAudit} />
+                        </div>
+
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface-card)]">
+                          <div className="space-y-0.5 pe-2">
+                            <span className="text-xs font-bold block text-foreground">ارسال برخط به سامانه مودیان</span>
+                            <span className="text-[11px] text-muted-foreground block">همگام‌سازی بلادرنگ فاکتورها</span>
+                          </div>
+                          <Switch
+                            variant="success"
+                            checked={switchMoadian}
+                            onCheckedChange={setSwitchMoadian}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface-card)]">
+                          <div className="space-y-0.5 pe-2">
+                            <span className="text-xs font-bold block text-foreground">ارسال پیامک هشدارهای بحرانی</span>
+                            <span className="text-[11px] text-muted-foreground block">مغایرت‌های بیش از ۵۰۰ میلیون ریال</span>
+                          </div>
+                          <Switch checked={switchSms} onCheckedChange={setSwitchSms} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3: RadioGroup & Radio Cards */}
+                  <Card className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Layers className="size-4 text-[var(--ds-primary)]" />
+                        ۳. دکمه‌های رادیویی و کارت‌های گزینش (Radio Cards)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        انتخاب انحصاری گزینه‌ها و کارت‌های روش تسویه حسابداری
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1">
+                      <RadioGroup defaultValue="annual" className="space-y-2">
+                        <label className="flex items-center gap-2.5 p-2 rounded-lg border border-[var(--ds-border)] hover:border-[var(--ds-border-strong)] cursor-pointer">
+                          <RadioGroupItem value="annual" id="r-annual" />
+                          <div className="flex-1">
+                            <span className="text-xs font-bold block text-foreground">دوره مالی سالانه ۱۴۰۴</span>
+                            <span className="text-[11px] text-muted-foreground block">تنظیم صورت‌های مالی اساسی</span>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-2.5 p-2 rounded-lg border border-[var(--ds-border)] hover:border-[var(--ds-border-strong)] cursor-pointer">
+                          <RadioGroupItem value="semi" id="r-semi" />
+                          <div className="flex-1">
+                            <span className="text-xs font-bold block text-foreground">گزارش میان‌دوره‌ای ۶ ماهه</span>
+                            <span className="text-[11px] text-muted-foreground block">تطبیق تراز و عملکرد میان‌دوره</span>
+                          </div>
+                        </label>
+                      </RadioGroup>
+
+                      {/* Radio Cards */}
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-bold text-muted-foreground block">روش تسویه سند (RadioCard)</span>
+                        <RadioGroup value={selectedPaymentCard} onValueChange={setSelectedPaymentCard} className="space-y-2">
+                          <RadioCard
+                            selected={selectedPaymentCard === "pay-1"}
+                            onClick={() => setSelectedPaymentCard("pay-1")}
+                          >
+                            <RadioGroupItem
+                              value="pay-1"
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-foreground">حواله پایا / ساتنا</span>
+                                <Badge variant="outline" size="xs">توصیه شده</Badge>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground block mt-0.5">
+                                تسویه آنی با تایید شماره شبا و تطبیق خودکار
+                              </span>
+                            </div>
+                          </RadioCard>
+
+                          <RadioCard
+                            selected={selectedPaymentCard === "pay-2"}
+                            onClick={() => setSelectedPaymentCard("pay-2")}
+                          >
+                            <RadioGroupItem
+                              value="pay-2"
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-foreground">چک صیادی</span>
+                                <span className="text-[10px] text-muted-foreground font-mono">سامانه پیچک</span>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground block mt-0.5">
+                                ثبت در سامانه صیاد با قفل خودکار تا سررسید
+                              </span>
+                            </div>
+                          </RadioCard>
+                        </RadioGroup>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </section>
+
+              {/* Section 14: Tooltip & Progress Showcase */}
+              <section className="space-y-4">
+                <div className="flex flex-col gap-1 border-b border-[var(--ds-border)] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" size="sm">بخش ۱۴ (نهایی)</Badge>
+                    <h3 className="text-base font-extrabold text-foreground">
+                      سامانه راهنماهای شناور و نوارهای پیشرفت مالی (Tooltip & Progress)
+                    </h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    نوار پیشرفت با پرشدن ۱۰۰٪ راست‌به‌چپ (RTL)، ۴ مقیاس ارتفاع، گونه‌های معنایی، و راهنماهای غنی متصل با فلش
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Card 1: Tooltips Lab */}
+                  <Card className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Info className="size-4 text-[var(--ds-primary)]" />
+                        ۱. راهنماهای شناور مالی (Tooltips)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        طراحی با فلش اشاره‌گر (Arrow)، کلیدهای میانبر کیبورد، و راهنماهای غنی اصطلاحات حسابداری
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Simple Tooltip */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              تراز آزمایشی
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            تراز ۴ ستونی منتهی به شهریور ۱۴۰۵
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* Tooltip with Shortcut */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="default" size="sm">
+                              صدور سند دوبل
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="flex items-center gap-2">
+                            <span>ثبت قطعی در دفتر روزنامه</span>
+                            <kbd className="rounded bg-white/20 px-1 py-0.5 text-[10px] font-mono">⌘ S</kbd>
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* Rich Accounting Term Tooltip */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="secondary" size="sm" className="border border-[var(--ds-border-strong)]">
+                              ℹ️ سامانه مودیان
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs space-y-1 p-3">
+                            <div className="font-bold text-[var(--ds-primary)]">کارپوشه مالیاتی کشور</div>
+                            <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+                              ارسال بلادرنگ صورت‌حساب‌های الکترونیکی و دریافت شناسه یکتای مالیاتی (UID).
+                            </p>
+                            <div className="flex justify-between border-t border-slate-700/60 pt-1.5 text-[10px] text-slate-300">
+                              <span>کلید اختصاصی:</span>
+                              <span className="font-mono">PK-8804</span>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+
+                      <div className="rounded-lg border border-[var(--ds-border)] p-3 bg-[var(--ds-surface-subtle)]/50 space-y-1.5 text-xs text-muted-foreground">
+                        <span className="font-bold text-foreground block">ویژگی‌های ارگونومی Tooltip:</span>
+                        <p>• فلش اشاره‌گر اختصاصی جهت تفکیک دقیق دکمه فعال در محیط‌های شلوغ مالی.</p>
+                        <p>• کنتراست حداکثری با رنگ‌های خوانا و عدم استفاده از پس‌زمینه‌های شفاف ناخوانا.</p>
+                        <p>• پشتیبانی خودکار از میانبرهای صفحه‌کلید مک و ویندوز در کارتابل‌ها.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2: Progress Lab */}
+                  <Card className="flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <TrendingUp className="size-4 text-[var(--ds-primary)]" />
+                        ۲. نوار پیشرفت با پرشدن راست‌به‌چپ (RTL Progress)
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        پرشدن طبیعی از سمت راست، ابعاد XS تا LG، گونه‌های معنایی و حالت راه‌راه متحرک
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5 flex-1">
+                      {/* Interactive Progress Controller */}
+                      <div className="space-y-2 rounded-lg border border-[var(--ds-border)] p-3 bg-[var(--ds-surface-subtle)]/50">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span>تطبیق اسناد بانکی دوره جاری</span>
+                          <span className="font-mono tabular-nums text-[var(--ds-primary)]">{progressVal}٪</span>
+                        </div>
+                        <Progress value={progressVal} size="default" />
+                        <div className="flex items-center gap-3 pt-1">
+                          <span className="text-[11px] text-muted-foreground">تنظیم تعاملی:</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={progressVal}
+                            onChange={(e) => setProgressVal(Number(e.target.value))}
+                            className="flex-1 accent-[var(--ds-primary)] cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Semantic Variants */}
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-medium">تطبیق ۱۰۰٪ قطعی دفاتر (Success)</span>
+                            <span className="font-mono text-[var(--ds-success)]">۱۰۰٪</span>
+                          </div>
+                          <Progress value={100} size="sm" variant="success" />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-medium">آستانه هشدار بودجه تنخواه (Warning)</span>
+                            <span className="font-mono text-[var(--ds-warning)]">۷۸٪</span>
+                          </div>
+                          <Progress value={78} size="sm" variant="warning" />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-medium">انحراف نامساعد سربار تولید (Danger)</span>
+                            <span className="font-mono text-[var(--ds-danger)]">۹۱٪</span>
+                          </div>
+                          <Progress value={91} size="sm" variant="danger" />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="font-medium">پایش و همگام‌سازی ابری اسناد (Striped متحرک)</span>
+                            <span className="text-[10px] text-[var(--ds-primary)]">در حال پردازش...</span>
+                          </div>
+                          <Progress value={85} size="default" striped />
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>

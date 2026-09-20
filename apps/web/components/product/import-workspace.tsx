@@ -7,8 +7,17 @@ import { SelectField, SelectOption } from "./select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { buildTransforms, fieldLabels, isRequiredField, targetFields } from "@/lib/import-mapping";
@@ -26,8 +35,10 @@ function displayValue(value: unknown) {
 }
 
 export function ImportWorkspace({ company, batchId }: { company: Company; batchId: string }) {
+  const router = useRouter();
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [headerRow, setHeaderRow] = useState<number | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [currencyUnit, setCurrencyUnit] = useState<"rial" | "toman">("rial");
   const [calendar, setCalendar] = useState<"jalali" | "gregorian">("jalali");
@@ -35,18 +46,41 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
   const [issues, setIssues] = useState<ImportIssue[]>([]);
   const [issueCounts, setIssueCounts] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<"mapping" | "validation" | "commit" | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const load = useCallback(async () => {
+  async function deleteBatch() {
+    if (!batch) return;
+    setDeleting(true);
     setError("");
     try {
+      await api(`/companies/${company.id}/imports/${batch.id}`, {
+        method: "DELETE",
+      });
+      router.push(`/companies/${company.id}/imports`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "حذف فایل انجام نشد.");
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  }
+
+  const load = useCallback(async (customHeaderRow?: number) => {
+    setError("");
+    try {
+      const activeHeaderRow = customHeaderRow ?? headerRow;
+      const previewUrl = activeHeaderRow && activeHeaderRow > 1
+        ? `/companies/${company.id}/imports/${batchId}/preview?header_row=${activeHeaderRow}`
+        : `/companies/${company.id}/imports/${batchId}/preview`;
       const [batchResult, previewResult] = await Promise.all([
         api<ImportBatch>(`/companies/${company.id}/imports/${batchId}`),
-        api<ImportPreview>(`/companies/${company.id}/imports/${batchId}/preview`),
+        api<ImportPreview>(previewUrl),
       ]);
       setBatch(batchResult);
       setPreview(previewResult);
+      setHeaderRow(previewResult.header_row);
       const stored = previewResult.mapping;
       setMapping(
         stored?.mapping ??
@@ -69,7 +103,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "اطلاعات واردسازی دریافت نشد.");
     }
-  }, [batchId, company.id]);
+  }, [batchId, company.id, headerRow]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -100,7 +134,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           sheet_name: preview.selected_sheet,
-          header_row: preview.header_row,
+          header_row: headerRow ?? preview.header_row,
           mapping: cleanedMapping,
           transforms: buildTransforms(cleanedMapping, currencyUnit),
           currency_unit: currencyUnit,
@@ -201,15 +235,29 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             </div>
           </div>
         </div>
-        <Badge variant="outline" className="status self-start sm:self-center text-xs py-1 px-3">
-          {isCommitted
-            ? "در صف نرمال‌سازی"
-            : isValidated
-            ? "اعتبارسنجی‌شده"
-            : preview.mapping
-            ? "نگاشت ثبت‌شده"
-            : "نیازمند نگاشت"}
-        </Badge>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          <Badge variant="outline" className="status text-xs py-1 px-3">
+            {isCommitted
+              ? "در صف نرمال‌سازی"
+              : isValidated
+              ? "اعتبارسنجی‌شده"
+              : preview.mapping
+              ? "نگاشت ثبت‌شده"
+              : "نیازمند نگاشت"}
+          </Badge>
+          {company.role !== "viewer" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="delete-link text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5 h-8"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Icon name="trash" className="size-3.5" />
+              <span>حذف سند</span>
+            </Button>
+          )}
+        </div>
       </header>
 
       {/* Workflow Stepper */}
@@ -291,13 +339,18 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
       {/* Mapping Layout */}
       <form className="mapping-layout grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6" onSubmit={saveMapping}>
         <ProductCard className="mapping-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="mapping-title">
-          <div className="mapping-section-heading flex items-center justify-between border-b border-border/60 pb-3">
+          <div className="mapping-section-heading flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
-              <h3 id="mapping-title" className="text-base font-bold text-foreground">معنای ستون‌ها را تأیید کنید</h3>
-              <p className="text-xs text-muted-foreground">پیشنهادها خودکارند، اما فقط با تأیید شما ثبت می‌شوند.</p>
+              <div className="flex items-center gap-2">
+                <h3 id="mapping-title" className="text-base font-bold text-foreground">معنای ستون‌ها را تأیید کنید</h3>
+                <span className="text-[11px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md">
+                  ردیف عناوین: {new Intl.NumberFormat("fa-IR").format(headerRow ?? preview.header_row)}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">پیشنهادها بر اساس الگوی گزارش‌های بانکی هماهنگ شده و خودکارند، اما با تأیید شما ثبت می‌شوند.</p>
             </div>
-            <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
-              {Object.values(mapping).filter(Boolean).length} از {fields.length}
+            <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg self-start sm:self-center">
+              {Object.values(mapping).filter(Boolean).length} از {fields.length} نگاشت‌شده
             </span>
           </div>
 
@@ -393,7 +446,27 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
           <div className="mapping-meta flex items-center justify-between p-3 rounded-xl bg-muted/40 text-xs text-muted-foreground">
             <span>شیت: <strong className="text-foreground">{preview.selected_sheet}</strong></span>
-            <span>ردیف عنوان: <strong className="text-foreground">{new Intl.NumberFormat("fa-IR").format(preview.header_row)}</strong></span>
+            <div className="flex items-center gap-1.5">
+              <span>ردیف عنوان:</span>
+              {canEdit ? (
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={headerRow ?? preview.header_row}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) {
+                      setHeaderRow(val);
+                      void load(val);
+                    }
+                  }}
+                  className="w-12 h-7 text-center rounded border border-border bg-background text-foreground font-semibold text-xs"
+                />
+              ) : (
+                <strong className="text-foreground">{new Intl.NumberFormat("fa-IR").format(preview.header_row)}</strong>
+              )}
+            </div>
           </div>
 
           {preview.mapping ? (
@@ -530,6 +603,40 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
           )}
         </ProductCard>
       )}
+
+      <Dialog open={showDeleteDialog} onOpenChange={(open) => { if (!open && !deleting) setShowDeleteDialog(false); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Icon name="trash" className="size-5 text-destructive" />
+              حذف سند مالی
+            </DialogTitle>
+            <DialogDescription>
+              آیا از حذف فایل «<strong className="text-foreground">{batch.original_name}</strong>» اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
+            >
+              انصراف
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={deleteBatch}
+              disabled={deleting}
+              className="gap-1.5"
+            >
+              <Icon name="trash" className="size-4" />
+              {deleting ? "در حال حذف…" : "حذف قطعی سند"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

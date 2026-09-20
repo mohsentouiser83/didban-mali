@@ -7,9 +7,10 @@ Create Date: 2026-09-19 12:35:00
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision: str = "20260919_0015"
 down_revision: str | None = "20260913_0013"
@@ -122,10 +123,16 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "ix_alerts_code_status", "early_warning_alerts", ["company_id", "code", "status"], unique=False
+        "ix_alerts_code_status",
+        "early_warning_alerts",
+        ["company_id", "code", "status"],
+        unique=False,
     )
     op.create_index(
-        "ix_alerts_company_severity", "early_warning_alerts", ["company_id", "severity"], unique=False
+        "ix_alerts_company_severity",
+        "early_warning_alerts",
+        ["company_id", "severity"],
+        unique=False,
     )
     op.create_index(
         "ix_alerts_company_status", "early_warning_alerts", ["company_id", "status"], unique=False
@@ -199,40 +206,52 @@ def upgrade() -> None:
         op.execute(f"ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"ALTER TABLE public.{table} FORCE ROW LEVEL SECURITY")
 
+    roles_all_read = "ARRAY['OWNER','FINANCE_MANAGER','ADVISOR','VIEWER']"
+    roles_manager = "ARRAY['OWNER','FINANCE_MANAGER']"
+    roles_advisor = "ARRAY['OWNER','FINANCE_MANAGER','ADVISOR']"
+
     op.execute(
         "CREATE POLICY alert_webhooks_select ON public.alert_webhook_configs FOR SELECT "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR','VIEWER']))"
+        f"USING (private.has_company_role(company_id, {roles_all_read}))"
     )
     op.execute(
         "CREATE POLICY alert_webhooks_all ON public.alert_webhook_configs FOR ALL "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER'])) "
-        "WITH CHECK (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER']))"
+        f"USING (private.has_company_role(company_id, {roles_manager})) "
+        f"WITH CHECK (private.has_company_role(company_id, {roles_manager}))"
     )
 
     op.execute(
         "CREATE POLICY early_warning_alerts_select ON public.early_warning_alerts FOR SELECT "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR','VIEWER']))"
+        f"USING (private.has_company_role(company_id, {roles_all_read}))"
     )
     op.execute(
         "CREATE POLICY early_warning_alerts_all ON public.early_warning_alerts FOR ALL "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR'])) "
-        "WITH CHECK (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR']))"
+        f"USING (private.has_company_role(company_id, {roles_advisor})) "
+        f"WITH CHECK (private.has_company_role(company_id, {roles_advisor}))"
     )
 
     op.execute(
         "CREATE POLICY saved_scenarios_select ON public.saved_simulation_scenarios FOR SELECT "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR','VIEWER']))"
+        f"USING (private.has_company_role(company_id, {roles_all_read}))"
     )
     op.execute(
         "CREATE POLICY saved_scenarios_all ON public.saved_simulation_scenarios FOR ALL "
-        "USING (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR'])) "
-        "WITH CHECK (private.has_company_role(company_id, ARRAY['OWNER','FINANCE_MANAGER','ADVISOR']))"
+        f"USING (private.has_company_role(company_id, {roles_advisor})) "
+        f"WITH CHECK (private.has_company_role(company_id, {roles_advisor}))"
     )
 
-    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON public.alert_webhook_configs TO didban_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON public.early_warning_alerts TO didban_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON public.saved_simulation_scenarios TO didban_app")
-    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON public.alert_webhook_delivery_logs TO didban_app")
+    op.execute(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON public.alert_webhook_configs TO didban_app"
+    )
+    op.execute(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON public.early_warning_alerts TO didban_app"
+    )
+    op.execute(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON public.saved_simulation_scenarios TO didban_app"
+    )
+    op.execute(
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON public.alert_webhook_delivery_logs TO didban_app"
+    )
 
 
 def downgrade() -> None:

@@ -33,6 +33,7 @@ FIELD_LABELS = {
     "deposit_amount": "واریز",
     "withdrawal_amount": "برداشت",
     "transaction_id": "شناسه تراکنش",
+    "transaction_type": "نوع تراکنش",
     "reference": "مرجع",
     "value_date": "تاریخ مؤثر",
     "running_balance": "مانده جاری",
@@ -57,20 +58,80 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "entry_date": ("تاریخ سند", "تاریخ", "entry date", "document date", "date"),
     "account_code": ("کد حساب", "کد", "account code", "ledger code"),
     "account_name": ("نام حساب", "حساب", "account name", "ledger name"),
-    "description": ("شرح", "توضیحات", "description", "memo", "details"),
+    "description": (
+        "شرح",
+        "شرح سند",
+        "شرح تراکنش",
+        "شرح عملیات",
+        "شرح ردیف",
+        "توضیحات",
+        "description",
+        "memo",
+        "details",
+    ),
     "debit": ("بدهکار", "مبلغ بدهکار", "debit", "debtor"),
     "credit": ("بستانکار", "مبلغ بستانکار", "credit", "creditor"),
     "booking_date": ("تاریخ تراکنش", "تاریخ", "تاریخ عملیات", "booking date", "date"),
-    "amount_signed": ("مبلغ", "مبلغ خالص", "amount", "signed amount"),
-    "deposit_amount": ("واریز", "بستانکار", "واریزی", "deposit", "credit amount"),
-    "withdrawal_amount": ("برداشت", "بدهکار", "برداشتی", "withdrawal", "debit amount"),
-    "transaction_id": ("شناسه تراکنش", "شماره پیگیری", "transaction id", "tracking id"),
+    "amount_signed": ("مبلغ", "مبلغ (ریال)", "مبلغ ریال", "مبلغ خالص", "amount", "signed amount"),
+    "deposit_amount": (
+        "واریز",
+        "واریز (ریال)",
+        "واریز ریال",
+        "واریز(ریال)",
+        "مبلغ واریز",
+        "بستانکار",
+        "بستانکار (ریال)",
+        "بستانکار ریال",
+        "واریزی",
+        "deposit",
+        "credit amount",
+    ),
+    "withdrawal_amount": (
+        "برداشت",
+        "برداشت (ریال)",
+        "برداشت ریال",
+        "برداشت(ریال)",
+        "مبلغ برداشت",
+        "بدهکار",
+        "بدهکار (ریال)",
+        "بدهکار ریال",
+        "برداشتی",
+        "withdrawal",
+        "debit amount",
+    ),
+    "transaction_id": (
+        "شناسه تراکنش",
+        "شماره پیگیری",
+        "شماره سند",
+        "شماره تراکنش",
+        "کد رهگیری",
+        "کد پیگیری",
+        "شماره ارجاع",
+        "شماره فیش",
+        "transaction id",
+        "tracking id",
+    ),
+    "transaction_type": ("نوع تراکنش", "نوع عملیات", "نوع", "transaction type", "type"),
     "reference": ("مرجع", "شماره مرجع", "reference", "ref"),
     "value_date": ("تاریخ موثر", "تاریخ ارزش", "value date"),
-    "running_balance": ("مانده", "مانده جاری", "running balance", "balance"),
+    "running_balance": (
+        "مانده",
+        "مانده (ریال)",
+        "مانده ریال",
+        "مانده(ریال)",
+        "مانده جاری",
+        "موجودی",
+        "موجودی (ریال)",
+        "موجودی ریال",
+        "تراز",
+        "تراز حساب",
+        "تراز مانده",
+        "running balance",
+        "balance",
+    ),
     "counterparty_name": ("طرف حساب", "نام طرف حساب", "counterparty", "party name"),
     "iban": ("شبا", "شماره شبا", "iban"),
-    "line_id": ("شماره ردیف", "ردیف سند", "line id"),
+    "line_id": ("شماره ردیف", "ردیف", "ردیف سند", "ردیف تراکنش", "line id", "row"),
     "invoice_ref": ("مرجع فاکتور", "شماره فاکتور", "invoice ref"),
     "invoice_no": ("شماره فاکتور", "فاکتور", "invoice no", "invoice number"),
     "issue_date": ("تاریخ فاکتور", "تاریخ صدور", "issue date", "invoice date", "date"),
@@ -125,6 +186,8 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "withdrawal_amount",
         "transaction_id",
         "reference",
+        "transaction_type",
+        "line_id",
         "value_date",
         "running_balance",
         "counterparty_name",
@@ -176,6 +239,7 @@ class ParsedTable:
     selected_sheet: str
     columns: list[str]
     rows: list[tuple[int, dict[str, object]]]
+    header_row: int = 1
 
 
 @dataclass(frozen=True)
@@ -221,15 +285,69 @@ def _cell_value(value: object) -> object:
     return value
 
 
-def _columns(values: Sequence[object]) -> list[str]:
-    columns = [str(_cell_value(value)).strip() for value in values]
-    if not columns or not any(columns):
-        raise TableParseError("ردیف عنوان ستون‌ها خالی است.")
-    if any(not column for column in columns):
-        raise TableParseError("همه ستون‌ها باید عنوان داشته باشند.")
-    if len(set(columns)) != len(columns):
-        raise TableParseError("عنوان ستون تکراری در فایل وجود دارد.")
-    return columns
+def _evaluate_header_candidate(
+    values: Sequence[object],
+) -> tuple[list[str] | None, list[int] | None, int]:
+    raw_strings = [str(_cell_value(v)).strip() for v in values]
+    all_known_headers = {
+        normalize_header(alias)
+        for aliases in ALIASES.values()
+        for alias in aliases
+    } | {normalize_header(label) for label in FIELD_LABELS.values()}
+
+    # Option A: Dense row (all columns from start to end are non-empty)
+    dense_cols: list[str] | None = list(raw_strings)
+    dense_indices: list[int] | None = None
+    dense_score = 0
+    while dense_cols and not dense_cols[-1]:
+        dense_cols.pop()
+    if (
+        dense_cols
+        and len(dense_cols) >= 2
+        and all(dense_cols)
+        and len(set(dense_cols)) == len(dense_cols)
+    ):
+        dense_score = sum(1 for col in dense_cols if normalize_header(col) in all_known_headers)
+        dense_indices = list(range(len(dense_cols)))
+    else:
+        dense_cols, dense_score, dense_indices = None, 0, None
+
+    # Option B: Sparse / Merged cells row (columns at specific non-empty indices)
+    non_empty = [(idx, s) for idx, s in enumerate(raw_strings) if s]
+    sparse_cols: list[str] | None = None
+    sparse_indices: list[int] | None = None
+    sparse_score = 0
+    if len(non_empty) >= 2:
+        sparse_candidates = [s for _, s in non_empty]
+        if len(set(sparse_candidates)) == len(sparse_candidates):
+            sparse_score = sum(
+                1 for col in sparse_candidates if normalize_header(col) in all_known_headers
+            )
+            sparse_cols = sparse_candidates
+            sparse_indices = [idx for idx, _ in non_empty]
+
+    if dense_cols is not None and dense_score >= sparse_score:
+        return dense_cols, dense_indices, dense_score
+    if sparse_cols is not None and sparse_score >= 2:
+        return sparse_cols, sparse_indices, sparse_score
+    if dense_cols is not None:
+        return dense_cols, dense_indices, dense_score
+    if sparse_cols is not None:
+        return sparse_cols, sparse_indices, sparse_score
+    return None, None, 0
+
+
+def _columns(values: Sequence[object]) -> tuple[list[str], list[int]]:
+    cols, indices, _ = _evaluate_header_candidate(values)
+    if cols is None or indices is None:
+        raw = [str(_cell_value(v)).strip() for v in values]
+        if not any(raw):
+            raise TableParseError("ردیف عنوان ستون‌ها خالی است.")
+        non_empty = [s for s in raw if s]
+        if len(set(non_empty)) != len(non_empty):
+            raise TableParseError("عنوان ستون تکراری در فایل وجود دارد.")
+        raise TableParseError("ردیف عنوان انتخاب‌شده معتبر نیست یا همه ستون‌ها عنوان ندارند.")
+    return cols, indices
 
 
 def parse_table(
@@ -262,26 +380,73 @@ def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> Parse
         dialect = csv.Sniffer().sniff(text[:8192], delimiters=",;\t|")
     except csv.Error:
         dialect = csv.excel
-    reader = csv.reader(io.StringIO(text), dialect)
-    header_values: list[str] | None = None
-    for row_number, values in enumerate(reader, start=1):
-        if row_number == header_row:
-            header_values = values
-            break
-    if header_values is None:
+    all_lines = list(csv.reader(io.StringIO(text), dialect))
+    if not all_lines:
+        raise TableParseError("فایل انتخابی خالی است.")
+
+    effective_header_row = header_row
+    chosen_cols: list[str] | None = None
+    chosen_indices: list[int] | None = None
+
+    if header_row == 1 and len(all_lines) > 1:
+        cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_lines[0])
+        if cand_cols is None or cand_score < 2:
+            best_row = 1
+            best_score = cand_score if cand_cols is not None else 0
+            best_cols = cand_cols
+            best_indices = cand_indices
+            for idx, line in enumerate(all_lines[:25], start=1):
+                cols, indices, score = _evaluate_header_candidate(line)
+                if cols is not None and score > best_score:
+                    best_score = score
+                    best_row = idx
+                    best_cols = cols
+                    best_indices = indices
+            if best_score >= 2 and best_cols is not None and best_indices is not None:
+                effective_header_row = best_row
+                chosen_cols = best_cols
+                chosen_indices = best_indices
+
+    if effective_header_row > len(all_lines):
         raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
-    columns = _columns(header_values)
+    header_values = all_lines[effective_header_row - 1]
+    if chosen_cols is None or chosen_indices is None:
+        chosen_cols, chosen_indices = _columns(header_values)
+
+    columns = chosen_cols
+    indices = chosen_indices
+
+    footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
     rows: list[tuple[int, dict[str, object]]] = []
-    for index, values in enumerate(reader, start=header_row + 1):
+    for index, values in enumerate(
+        all_lines[effective_header_row:], start=effective_header_row + 1
+    ):
         if not any(str(value).strip() for value in values):
             continue
-        if len(values) > len(columns):
-            raise TableParseError(f"تعداد مقدارهای ردیف {index} از تعداد ستون‌ها بیشتر است.")
-        padded = list(values[: len(columns)]) + [""] * max(0, len(columns) - len(values))
-        rows.append((index, dict(zip(columns, padded, strict=True))))
+        row_text = " ".join(str(v) for v in values if v)
+        if any(p in row_text for p in footer_patterns) and not any(
+            str(values[i]).strip()
+            for i in indices
+            if i < len(values)
+            and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
+        ):
+            continue
+        row_dict: dict[str, object] = {
+            columns[i]: values[col_idx] if col_idx < len(values) else ""
+            for i, col_idx in enumerate(indices)
+        }
+        if not any(str(v).strip() for v in row_dict.values()):
+            continue
+        rows.append((index, row_dict))
         if limit is not None and len(rows) >= limit:
             break
-    return ParsedTable(sheets=["CSV"], selected_sheet="CSV", columns=columns, rows=rows)
+    return ParsedTable(
+        sheets=["CSV"],
+        selected_sheet="CSV",
+        columns=columns,
+        rows=rows,
+        header_row=effective_header_row,
+    )
 
 
 def _parse_xlsx(
@@ -298,38 +463,87 @@ def _parse_xlsx(
         if selected not in sheets:
             raise TableParseError("شیت انتخاب‌شده در فایل وجود ندارد.")
         worksheet = workbook[selected]
-        iterator = worksheet.iter_rows(values_only=False)
-        header_values: tuple[object, ...] | None = None
-        columns: list[str] | None = None
-        rows: list[tuple[int, dict[str, object]]] = []
-        for row_number, cells in enumerate(iterator, start=1):
-            if row_number < header_row:
-                continue
-            values = tuple(
+        if hasattr(worksheet, "reset_dimensions"):
+            worksheet.reset_dimensions()
+        all_raw_rows: list[tuple[int, list[object]]] = []
+        for row_number, cells in enumerate(worksheet.iter_rows(values_only=False), start=1):
+            values = [
                 str(cell.value)
                 if getattr(cell, "data_type", None) == "f"
                 else _cell_value(cell.value)
                 for cell in cells
-            )
-            if row_number == header_row:
-                header_values = values
-                columns = _columns(header_values)
+            ]
+            all_raw_rows.append((row_number, values))
+
+        if not all_raw_rows:
+            raise TableParseError("شیت انتخاب‌شده خالی است.")
+
+        effective_header_row = header_row
+        chosen_cols: list[str] | None = None
+        chosen_indices: list[int] | None = None
+
+        if header_row == 1 and len(all_raw_rows) > 1:
+            cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_raw_rows[0][1])
+            if cand_cols is None or cand_score < 2:
+                best_row = 1
+                best_score = cand_score if cand_cols is not None else 0
+                best_cols = cand_cols
+                best_indices = cand_indices
+                for row_num, line in all_raw_rows[:25]:
+                    cols, indices, score = _evaluate_header_candidate(line)
+                    if cols is not None and score > best_score:
+                        best_score = score
+                        best_row = row_num
+                        best_cols = cols
+                        best_indices = indices
+                if best_score >= 2 and best_cols is not None and best_indices is not None:
+                    effective_header_row = best_row
+                    chosen_cols = best_cols
+                    chosen_indices = best_indices
+
+        header_entry = next(
+            (item for item in all_raw_rows if item[0] == effective_header_row), None
+        )
+        if header_entry is None:
+            raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
+
+        if chosen_cols is None or chosen_indices is None:
+            chosen_cols, chosen_indices = _columns(header_entry[1])
+
+        columns = chosen_cols
+        indices = chosen_indices
+
+        footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
+        rows: list[tuple[int, dict[str, object]]] = []
+        for row_number, values in all_raw_rows:
+            if row_number <= effective_header_row:
                 continue
-            if header_values is None or columns is None:
-                raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
             if not any(str(value).strip() for value in values):
                 continue
-            if any(str(value).strip() for value in values[len(columns) :]):
-                raise TableParseError(f"ردیف {row_number} در ستونی بدون عنوان دارای مقدار است.")
-            padded = list(values[: len(columns)]) + [""] * max(0, len(columns) - len(values))
-            rows.append((row_number, dict(zip(columns, padded, strict=True))))
+            row_text = " ".join(str(v) for v in values if v)
+            if any(p in row_text for p in footer_patterns) and not any(
+                str(values[i]).strip()
+                for i in indices
+                if i < len(values)
+                and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
+            ):
+                continue
+            row_dict = {
+                columns[i]: values[col_idx] if col_idx < len(values) else ""
+                for i, col_idx in enumerate(indices)
+            }
+            if not any(str(v).strip() for v in row_dict.values()):
+                continue
+            rows.append((row_number, row_dict))
             if limit is not None and len(rows) >= limit:
                 break
-        if header_values is None:
-            raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
-        if columns is None:
-            raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
-        return ParsedTable(sheets=sheets, selected_sheet=selected, columns=columns, rows=rows)
+        return ParsedTable(
+            sheets=sheets,
+            selected_sheet=selected,
+            columns=columns,
+            rows=rows,
+            header_row=effective_header_row,
+        )
     finally:
         workbook.close()
 
@@ -428,7 +642,8 @@ def _parse_date(value: object, calendar: str) -> str:
     if isinstance(value, date):
         return value.isoformat()
     normalized = normalize_digits(value).strip().replace(".", "/").replace("-", "/")
-    parts = normalized.split("/")
+    date_part = normalized.split()[0].split("t")[0].split("T")[0]
+    parts = date_part.split("/")
     if len(parts) != 3:
         raise ValueError("invalid date")
     year, month, day = (int(part) for part in parts)
@@ -439,7 +654,7 @@ def _parse_date(value: object, calendar: str) -> str:
 
 def _parse_money(value: object, *, toman: bool) -> str:
     normalized = THOUSANDS.sub("", normalize_digits(value)).strip()
-    if normalized == "":
+    if normalized in ("", "-", "–", "—", "None", "null", "."):
         return "0"
     try:
         amount = Decimal(normalized)

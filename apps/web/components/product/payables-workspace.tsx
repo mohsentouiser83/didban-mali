@@ -6,6 +6,7 @@ import {
   ArrowRightLeft,
   Building2,
   Calendar,
+  ChevronLeft,
   Clock,
   Layers,
   RefreshCcw,
@@ -17,6 +18,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -78,139 +80,6 @@ const BUCKET_LABELS: Record<PayablesBucketKey, string> = {
   "90_plus": "بیش از ۹۰ روز تاخیر (ریسک توقف تامین)",
 };
 
-// Realistic mock fallback for demonstration
-const MOCK_SUMMARY: PayablesSummaryResponse = {
-  as_of_date: "1403/06/31",
-  total_payables_irr: "56200000000",
-  total_overdue_irr: "19800000000",
-  overdue_ratio: 0.3523,
-  dpo_days: 48,
-  dso_days: 54,
-  ccc_days: 6, // CCC = DSO (54) - DPO (48) = 6 days
-  vendor_count: 22,
-  high_risk_vendor_count: 4,
-  buckets: [
-    {
-      bucket_key: "not_due",
-      label_fa: "جاری (قبل از سررسید)",
-      amount_irr: "36400000000",
-      vendor_count: 18,
-      share_percentage: 64.77,
-    },
-    {
-      bucket_key: "1_30",
-      label_fa: "۱ تا ۳۰ روز تاخیر پرداخت",
-      amount_irr: "8500000000",
-      vendor_count: 6,
-      share_percentage: 15.12,
-    },
-    {
-      bucket_key: "31_60",
-      label_fa: "۳۱ تا ۶۰ روز تاخیر پرداخت",
-      amount_irr: "5800000000",
-      vendor_count: 4,
-      share_percentage: 10.32,
-    },
-    {
-      bucket_key: "61_90",
-      label_fa: "۶۱ تا ۹۰ روز تاخیر پرداخت",
-      amount_irr: "3200000000",
-      vendor_count: 2,
-      share_percentage: 5.69,
-    },
-    {
-      bucket_key: "90_plus",
-      label_fa: "بیش از ۹۰ روز تاخیر (خطر توقف تامین)",
-      amount_irr: "2300000000",
-      vendor_count: 2,
-      share_percentage: 4.1,
-    },
-  ],
-};
-
-const MOCK_VENDORS: VendorPayableItem[] = [
-  {
-    counterparty_id: "vendor-1",
-    name: "شرکت پتروشیمی رازی (تامین مواد اولیه)",
-    national_id: "10100456123",
-    total_payable_irr: "18500000000",
-    overdue_amount_irr: "9200000000",
-    overdue_ratio: 0.4972,
-    avg_delay_days: 72,
-    risk_level: "critical",
-    risk_score: 82,
-    recommended_action: "مذاکره فوری مدیرعامل/مالی جهت جلوگیری از لغو سهمیه خرید و توقف خط تولید",
-    buckets: {
-      not_due: "9300000000",
-      "1_30": "2500000000",
-      "31_60": "3200000000",
-      "61_90": "1500000000",
-      "90_plus": "2000000000",
-    },
-    share_of_total_payables: 32.9,
-  },
-  {
-    counterparty_id: "vendor-2",
-    name: "صنایع بسته‌بندی نوین البرز",
-    national_id: "14003322114",
-    total_payable_irr: "8400000000",
-    overdue_amount_irr: "4600000000",
-    overdue_ratio: 0.5476,
-    avg_delay_days: 48,
-    risk_level: "high",
-    risk_score: 64,
-    recommended_action: "صدور چک صیادی جدید یا تسویه بخشی از بدهی معوق جهت حفظ سفارشات جاری",
-    buckets: {
-      not_due: "3800000000",
-      "1_30": "2100000000",
-      "31_60": "2200000000",
-      "61_90": "300000000",
-      "90_plus": "0",
-    },
-    share_of_total_payables: 14.9,
-  },
-  {
-    counterparty_id: "vendor-3",
-    name: "شرکت حمل و نقل سراسری ماهان بار",
-    national_id: "10260345678",
-    total_payable_irr: "6200000000",
-    overdue_amount_irr: "2100000000",
-    overdue_ratio: 0.3387,
-    avg_delay_days: 25,
-    risk_level: "medium",
-    risk_score: 38,
-    recommended_action: "هماهنگی با امور مالی تامین‌کننده و درخواست تمدید مهلت پرداخت",
-    buckets: {
-      not_due: "4100000000",
-      "1_30": "2100000000",
-      "31_60": "0",
-      "61_90": "0",
-      "90_plus": "0",
-    },
-    share_of_total_payables: 11.0,
-  },
-  {
-    counterparty_id: "vendor-4",
-    name: "فولاد آلیاژی پارس یزد",
-    national_id: "10861234567",
-    total_payable_irr: "15800000000",
-    overdue_amount_irr: "0",
-    overdue_ratio: 0.0,
-    avg_delay_days: 0,
-    risk_level: "low",
-    risk_score: 10,
-    recommended_action: "حفظ اعتبار تجاری و پرداخت در موعد سررسید توافقی",
-    buckets: {
-      not_due: "15800000000",
-      "1_30": "0",
-      "31_60": "0",
-      "61_90": "0",
-      "90_plus": "0",
-    },
-    share_of_total_payables: 28.1,
-  },
-];
-
 export function PayablesWorkspace({ company }: { company: Company }) {
   const [summary, setSummary] = useState<PayablesSummaryResponse | null>(null);
   const [vendors, setVendors] = useState<VendorPayableItem[]>([]);
@@ -220,7 +89,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
   // Filters & Search
   const [riskFilter, setRiskFilter] = useState<"all" | PayablesRiskLevel>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("normal");
+  const [tableDensity, setTableDensity] = useState<"compact" | "normal">("compact");
 
   // Selected vendor for detail drawer
   const [selectedVendor, setSelectedVendor] = useState<VendorPayableItem | null>(null);
@@ -236,15 +105,14 @@ export function PayablesWorkspace({ company }: { company: Company }) {
           api<VendorsPayablesResponse>(`/companies/${company.id}/payables/vendors`),
         ]);
 
-        let hasData = false;
-
         if (
           sumRes.status === "fulfilled" &&
           sumRes.value &&
           Number(sumRes.value.total_payables_irr) > 0
         ) {
           setSummary(sumRes.value);
-          hasData = true;
+        } else {
+          setSummary(null);
         }
 
         if (
@@ -253,17 +121,12 @@ export function PayablesWorkspace({ company }: { company: Company }) {
           venRes.value.items?.length > 0
         ) {
           setVendors(venRes.value.items);
-          hasData = true;
-        }
-
-        if (!hasData) {
-          setSummary(MOCK_SUMMARY);
-          setVendors(MOCK_VENDORS);
+        } else {
+          setVendors([]);
         }
       } catch {
-        toast.info("نمایش نمونه شبیه‌سازی‌شده پرداختنی‌ها به دلیل عدم ثبت دفاتر معین بستانکاران");
-        setSummary(MOCK_SUMMARY);
-        setVendors(MOCK_VENDORS);
+        setSummary(null);
+        setVendors([]);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -397,6 +260,28 @@ export function PayablesWorkspace({ company }: { company: Company }) {
       ),
     },
   ];
+
+  if (!loading && !summary && vendors.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[380px]" dir="rtl">
+        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <Truck className="size-7 text-primary" />
+        </div>
+        <div className="max-w-md space-y-1">
+          <h3 className="text-lg font-bold text-foreground">هنوز تعهد یا حساب پرداختنی برای این شرکت ثبت نشده است</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            برای پایش سن بدهی‌ها و مدیریت تامین‌کنندگان، داده‌های فاکتورهای خرید یا دفاتر معین بستانکاران را از بخش بارگذاری وارد کنید.
+          </p>
+        </div>
+        <Link href={`/companies/${company.id}/imports`}>
+          <Button className="gap-2">
+            رفتن به بارگذاری داده‌های مالی
+            <ChevronLeft className="size-4" />
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-12" dir="rtl">

@@ -60,6 +60,10 @@
   --ds-foreground-faint: var(--ds-p-slate-550);
   --ds-card: color-mix(in oklch, var(--ds-p-white) 92%, transparent);
   --ds-card-solid: var(--ds-p-white);
+  --ds-surface-card: var(--ds-card-solid);
+  --ds-surface-elevated: var(--ds-p-white);
+  --ds-surface-subtle: var(--ds-p-slate-100);
+  --ds-muted-fg: var(--ds-foreground-soft);
   --ds-border: color-mix(in oklch, var(--ds-p-slate-300) 72%, transparent);
   --ds-border-strong: var(--ds-p-slate-300);
   --ds-muted: var(--ds-p-slate-100);
@@ -89,6 +93,8 @@
     color-mix(in oklch, var(--ds-p-navy-950) 9%, transparent);
   --ds-shadow-glow: 0 0 44px
     color-mix(in oklch, var(--ds-p-cyan-400) 22%, transparent);
+  --ds-shadow-lg: 0 16px 36px -4px color-mix(in oklch, var(--ds-p-navy-950) 12%, transparent), 0 4px 12px -2px color-mix(in oklch, var(--ds-p-navy-950) 8%, transparent);
+  --ds-shadow-xl: 0 24px 48px -12px color-mix(in oklch, var(--ds-p-navy-950) 18%, transparent);
 
   /* Semantic: spacing and type */
   --ds-space-control: var(--ds-p-space-3);
@@ -153,6 +159,10 @@
   --ds-foreground-faint: var(--ds-p-slate-400);
   --ds-card: color-mix(in oklch, var(--ds-p-navy-900) 82%, transparent);
   --ds-card-solid: var(--ds-p-navy-900);
+  --ds-surface-card: var(--ds-card-solid);
+  --ds-surface-elevated: var(--ds-p-navy-900);
+  --ds-surface-subtle: color-mix(in oklch, var(--ds-p-navy-800) 65%, transparent);
+  --ds-muted-fg: var(--ds-foreground-soft);
   --ds-border: color-mix(in oklch, var(--ds-p-slate-400) 20%, transparent);
   --ds-border-strong: color-mix(
     in oklch,
@@ -176,6 +186,8 @@
   --ds-shadow-md: 0 18px 48px color-mix(in oklch, black 34%, transparent);
   --ds-shadow-glow: 0 0 48px
     color-mix(in oklch, var(--ds-p-cyan-400) 16%, transparent);
+  --ds-shadow-lg: 0 16px 36px -4px color-mix(in oklch, black 50%, transparent);
+  --ds-shadow-xl: 0 24px 52px -10px color-mix(in oklch, black 65%, transparent);
   --ds-sidebar: color-mix(in oklch, var(--ds-p-navy-900) 78%, transparent);
 
   /* Financial: Semantic Risk & Flow (Dark) */

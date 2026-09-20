@@ -7,6 +7,14 @@ import { ProductCard } from "./product-card";
 import { SelectField, SelectOption } from "./select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -48,6 +56,8 @@ const formatBytes = (bytes: number) =>
 export function ImportsPanel({ company }: { company: Company }) {
   const [items, setItems] = useState<ImportBatch[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [batchToDelete, setBatchToDelete] = useState<ImportBatch | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +72,26 @@ export function ImportsPanel({ company }: { company: Company }) {
       setError(caught instanceof Error ? caught.message : "فهرست فایل‌ها دریافت نشد.");
     }
   }, [company.id]);
+
+  async function confirmDelete() {
+    if (!batchToDelete) return;
+    setDeleting(true);
+    setError("");
+    setNotice("");
+    try {
+      await api(`/companies/${company.id}/imports/${batchToDelete.id}`, {
+        method: "DELETE",
+      });
+      setItems((current) => current.filter((item) => item.id !== batchToDelete.id));
+      setNotice(`فایل «${batchToDelete.original_name}» با موفقیت حذف شد.`);
+      setBatchToDelete(null);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "حذف فایل انجام نشد.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => {
     const initial = window.setTimeout(() => void load(), 0);
@@ -333,6 +363,20 @@ export function ImportsPanel({ company }: { company: Company }) {
                     ) : (
                       <span className="download-placeholder size-8" aria-hidden="true" />
                     )}
+
+                    {canUpload && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="delete-button size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title={`حذف ${item.original_name}`}
+                        onClick={() => setBatchToDelete(item)}
+                      >
+                        <Icon name="trash" className="size-3.5" />
+                        <span className="sr-only">حذف {item.original_name}</span>
+                      </Button>
+                    )}
                   </div>
                 </div>
               </article>
@@ -340,6 +384,40 @@ export function ImportsPanel({ company }: { company: Company }) {
           </div>
         )}
       </div>
+
+      <Dialog open={batchToDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setBatchToDelete(null); }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Icon name="trash" className="size-5 text-destructive" />
+              حذف سند مالی
+            </DialogTitle>
+            <DialogDescription>
+              آیا از حذف فایل «<strong className="text-foreground">{batchToDelete?.original_name}</strong>» اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBatchToDelete(null)}
+              disabled={deleting}
+            >
+              انصراف
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="gap-1.5"
+            >
+              <Icon name="trash" className="size-4" />
+              {deleting ? "در حال حذف…" : "حذف قطعی سند"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ProductCard>
   );
 }

@@ -60,7 +60,7 @@ def _as_date(value: object) -> date:
 
 
 def _as_decimal(value: object | None) -> Decimal | None:
-    if value is None or str(value).strip() == "":
+    if value is None or str(value).strip() in ("", "-", "–", "—", "None", "null"):
         return None
     return Decimal(str(value))
 
@@ -297,27 +297,30 @@ async def _normalize_bank_chunk(
     )
     if bank_account_id is None:
         raise ValueError("Bank account could not be resolved")
+    tx_records: list[dict[str, object]] = []
+    for row, item in values:
+        raw_desc = _text(item["description"])
+        tx_type = _optional_text(item.get("transaction_type"))
+        desc = f"[{tx_type}] {raw_desc}" if tx_type and tx_type not in raw_desc else raw_desc
+        tx_records.append(
+            {
+                "id": uuid7(),
+                "company_id": batch.company_id,
+                "bank_account_id": bank_account_id,
+                "source_row_id": row.id,
+                "source_transaction_id": _optional_text(item.get("transaction_id")),
+                "booking_date": _as_date(item["booking_date"]),
+                "value_date": _as_date(item["value_date"]) if item.get("value_date") else None,
+                "amount_irr": Decimal(str(item["amount_signed"])),
+                "description": desc,
+                "description_normalized": normalize_text(desc),
+                "reference": _optional_text(item.get("reference")),
+                "running_balance_irr": _as_decimal(item.get("running_balance")),
+            }
+        )
     await session.execute(
         insert(BankTransaction)
-        .values(
-            [
-                {
-                    "id": uuid7(),
-                    "company_id": batch.company_id,
-                    "bank_account_id": bank_account_id,
-                    "source_row_id": row.id,
-                    "source_transaction_id": _optional_text(item.get("transaction_id")),
-                    "booking_date": _as_date(item["booking_date"]),
-                    "value_date": _as_date(item["value_date"]) if item.get("value_date") else None,
-                    "amount_irr": Decimal(str(item["amount_signed"])),
-                    "description": _text(item["description"]),
-                    "description_normalized": normalize_text(item["description"]),
-                    "reference": _optional_text(item.get("reference")),
-                    "running_balance_irr": _as_decimal(item.get("running_balance")),
-                }
-                for row, item in values
-            ]
-        )
+        .values(tx_records)
         .on_conflict_do_nothing(constraint="uq_bank_transaction_source_row")
     )
 
