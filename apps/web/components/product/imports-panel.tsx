@@ -94,13 +94,23 @@ export function ImportsPanel({ company }: { company: Company }) {
   }
 
   useEffect(() => {
-    const initial = window.setTimeout(() => void load(), 0);
-    const timer = window.setInterval(() => void load(), 4000);
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    const hasActiveBatches = items.some((item) =>
+      ["inspecting", "validating", "queued", "processing"].includes(item.status)
+    );
+    if (!hasActiveBatches) return;
+
+    const timer = window.setInterval(() => {
+      void load();
+    }, 4000);
+
     return () => {
-      window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [load]);
+  }, [items, load]);
 
   function acceptFile(file: File | undefined) {
     setError("");
