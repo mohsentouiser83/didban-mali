@@ -18,9 +18,13 @@ import {
 
 import { DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { API_URL, api } from "@/lib/product-api";
 import type { Company, ImportBatch, ImportStatus } from "@/lib/product-types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FinancialModelWorkspace } from "./financial-model-workspace";
+import { FileUp, Layers } from "lucide-react";
 
 import { Icon } from "./icons";
 
@@ -53,7 +57,36 @@ const statusBadgeClasses: Record<ImportStatus, string> = {
 const formatBytes = (bytes: number) =>
   `${new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} مگابایت`;
 
-export function ImportsPanel({ company }: { company: Company }) {
+export type ImportsTab = "files" | "classification";
+
+export function ImportsPanel({ company, defaultTab = "files" }: { company: Company; defaultTab?: ImportsTab }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const tabParam = searchParams.get("tab") as ImportsTab | null;
+  const initialTab = tabParam && ["files", "classification"].includes(tabParam)
+    ? tabParam
+    : defaultTab;
+
+  const [activeTab, setActiveTab] = useState<ImportsTab>(initialTab);
+
+  useEffect(() => {
+    if (tabParam && ["files", "classification"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [tabParam, defaultTab]);
+
+  const handleTabChange = (value: string) => {
+    const nextTab = value as ImportsTab;
+    setActiveTab(nextTab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", nextTab);
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
   const [items, setItems] = useState<ImportBatch[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [batchToDelete, setBatchToDelete] = useState<ImportBatch | null>(null);
@@ -165,20 +198,51 @@ export function ImportsPanel({ company }: { company: Company }) {
   }
 
   return (
-    <ProductCard className="imports-card p-6 rounded-2xl border border-border bg-card shadow-sm space-y-6" aria-labelledby="imports-title">
-      <div className="card-heading imports-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
+    <div className="imports-workspace space-y-6" dir="rtl">
+      {/* Hub Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/70 pb-4">
         <div>
-          <span className="overline block text-[11px] font-bold text-primary mb-0.5">ورودی امن داده</span>
-          <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            فایل پس از بررسی نوع، ساختار و بدافزار وارد فضای امن شرکت می‌شود.
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+            <FileUp className="size-4" />
+            <span>ورود و آماده‌سازی داده‌های مالی</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+            بارگذاری اسناد، نگاشت ستون‌ها و طبقه‌بندی حساب‌ها
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            اسناد حسابداری یا صورتحساب بانک را بارگذاری کنید، ستون‌ها را تطبیق دهید و سرفصل حساب‌ها را برای آماده‌سازی صورت‌های مالی مشخص کنید.
           </p>
         </div>
-        <Badge variant="outline" className="secure-badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 self-start sm:self-center">
-          <Icon name="shield" className="size-3.5" />
-          قرنطینه و اسکن فعال
-        </Badge>
       </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} variant="line" className="w-full">
+        <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
+          <TabsTrigger value="files" className="gap-2 text-xs sm:text-sm py-2.5">
+            <FileUp className="size-4 text-primary" />
+            <span>اسناد و فایل‌های مالی</span>
+          </TabsTrigger>
+          <TabsTrigger value="classification" className="gap-2 text-xs sm:text-sm py-2.5">
+            <Layers className="size-4 text-cyan-500" />
+            <span>سرفصل‌ها و طبقه‌بندی حساب‌ها</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="pt-4">
+          <TabsContent value="files" className="m-0 focus-visible:outline-none">
+            <ProductCard className="imports-card p-6 rounded-2xl border border-border bg-card shadow-sm space-y-6" aria-labelledby="imports-title">
+              <div className="card-heading imports-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
+                <div>
+                  <span className="overline block text-[11px] font-bold text-primary mb-0.5">ورودی امن داده</span>
+                  <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    فایل پس از بررسی نوع، ساختار و بدافزار وارد فضای امن شرکت می‌شود.
+                  </p>
+                </div>
+                <Badge variant="outline" className="secure-badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 self-start sm:self-center">
+                  <Icon name="shield" className="size-3.5" />
+                  قرنطینه و اسکن فعال
+                </Badge>
+              </div>
 
       {canUpload ? (
         <form className="upload-form grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4" onSubmit={upload}>
@@ -428,6 +492,14 @@ export function ImportsPanel({ company }: { company: Company }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </ProductCard>
+            </ProductCard>
+          </TabsContent>
+
+          <TabsContent value="classification" className="m-0 focus-visible:outline-none">
+            <FinancialModelWorkspace company={company} />
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
   );
 }

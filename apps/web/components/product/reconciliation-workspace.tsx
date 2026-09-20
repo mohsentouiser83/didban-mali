@@ -1,31 +1,28 @@
-"use client";
-
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRightLeft,
   Calendar,
-  FileCheck2,
   RefreshCcw,
-  SlidersHorizontal,
-  Layers,
   Zap,
   Building2,
   BookOpen,
+  Scale,
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+  FileQuestion,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   MoneyDisplay,
   StatusChip,
-  EvidenceSourceTag,
-  FinancialDataTable,
-  Column,
   toPersianDigits,
   FinancialStatus,
 } from "@/components/ui/financial";
@@ -42,13 +39,13 @@ import type {
 
 type MatchFilter = "all" | "matched" | "review" | "mismatch" | "duplicate" | "unresolved";
 
-const filters: { id: MatchFilter; label: string; statuses?: MatchStatus[] }[] = [
-  { id: "all", label: "همه تراکنش‌ها" },
-  { id: "matched", label: "تطبیق قطعی ۱۰۰٪", statuses: ["auto_matched"] },
-  { id: "review", label: "نیازمند بررسی انسانی", statuses: ["potential_match"] },
-  { id: "mismatch", label: "مغایرت مبلغ/تاریخ", statuses: ["amount_mismatch", "date_mismatch"] },
-  { id: "duplicate", label: "تکراری", statuses: ["duplicate_high", "duplicate_possible"] },
-  { id: "unresolved", label: "بدون متناظر", statuses: ["unresolved"] },
+const filterConfigs: { id: MatchFilter; label: string; statuses?: MatchStatus[]; icon: typeof CheckCircle2 }[] = [
+  { id: "all", label: "همه موارد", icon: Scale },
+  { id: "matched", label: "تطبیق قطعی ۱۰۰٪", statuses: ["auto_matched"], icon: CheckCircle2 },
+  { id: "review", label: "نیازمند بررسی", statuses: ["potential_match"], icon: HelpCircle },
+  { id: "mismatch", label: "مغایرت مبلغ/تاریخ", statuses: ["amount_mismatch", "date_mismatch"], icon: AlertCircle },
+  { id: "duplicate", label: "تکراری", statuses: ["duplicate_high", "duplicate_possible"], icon: Copy },
+  { id: "unresolved", label: "بدون متناظر", statuses: ["unresolved"], icon: FileQuestion },
 ];
 
 function faDate(value: string) {
@@ -61,15 +58,6 @@ function faDate(value: string) {
   }
 }
 
-function faDateTime(value: string | null) {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
 export function ReconciliationWorkspace({ company }: { company: Company }) {
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
   const [analysisId, setAnalysisId] = useState("");
@@ -77,7 +65,6 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
   const [matches, setMatches] = useState<ReconciliationMatch[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [filter, setFilter] = useState<MatchFilter>("all");
-  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
 
   const [ruleDays, setRuleDays] = useState(3);
   const [reviewDays, setReviewDays] = useState(10);
@@ -146,6 +133,34 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
     };
   }, [company.id, loadRunForAnalysis]);
 
+  useEffect(() => {
+    if (!run || !isRunning) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const current = await api<ReconciliationRun>(
+          `/companies/${company.id}/reconciliation-runs/${run.id}`
+        );
+        setRun(current);
+        if (current.status === "completed" || current.status === "completed_limited") {
+          window.clearInterval(timer);
+          await loadMatches(current.id);
+          setSubmitting(false);
+          toast.success("تطبیق با موفقیت تکمیل شد.");
+        }
+        if (current.status === "failed") {
+          window.clearInterval(timer);
+          setSubmitting(false);
+          setError(current.failure_message ?? "اجرای موتور تطبیق با خطا مواجه شد.");
+        }
+      } catch (caught) {
+        window.clearInterval(timer);
+        setSubmitting(false);
+        setError(caught instanceof Error ? caught.message : "دریافت وضعیت تطبیق ناموفق بود.");
+      }
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [company.id, isRunning, loadMatches, run]);
+
   async function handleAnalysisChange(value: string) {
     setAnalysisId(value);
     setLoading(true);
@@ -180,123 +195,67 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
         }
       );
       setRun(created);
+      setMatches([]);
+      setNextCursor(null);
       toast.success("اجرای موتور تطبیق آغاز شد.");
-      await loadRunForAnalysis(analysisId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "اجرای موتور تطبیق با خطا مواجه شد.");
-    } finally {
       setSubmitting(false);
     }
   }
 
   const filteredMatches = useMemo(() => {
-    const activeFilter = filters.find((f) => f.id === filter);
+    const activeFilter = filterConfigs.find((f) => f.id === filter);
     if (!activeFilter || !activeFilter.statuses) return matches;
     return matches.filter((m) => activeFilter.statuses!.includes(m.status));
   }, [matches, filter]);
 
-  // Status mapping helper
-  function mapReconStatus(status: MatchStatus): FinancialStatus {
+  const counts = useMemo(() => {
+    const matched = matches.filter((m) => m.status === "auto_matched").length;
+    const review = matches.filter((m) => m.status === "potential_match").length;
+    const mismatch = matches.filter((m) => m.status === "amount_mismatch" || m.status === "date_mismatch").length;
+    const duplicate = matches.filter((m) => m.status === "duplicate_high" || m.status === "duplicate_possible").length;
+    const unresolved = matches.filter((m) => m.status === "unresolved").length;
+    return {
+      all: matches.length,
+      matched,
+      review,
+      mismatch,
+      duplicate,
+      unresolved,
+    };
+  }, [matches]);
+
+  function mapReconStatus(status: MatchStatus, row: ReconciliationMatch): { status: FinancialStatus; label: string } {
     switch (status) {
       case "auto_matched":
-        return "exact_match";
+        return { status: "exact_match", label: "تطبیق قطعی" };
       case "potential_match":
-        return "potential_match";
+        return { status: "potential_match", label: "نیازمند بررسی" };
       case "amount_mismatch":
-        return "amount_mismatch";
+        return { status: "amount_mismatch", label: "مغایرت مبلغ" };
       case "date_mismatch":
-        return "date_mismatch";
+        return { status: "date_mismatch", label: "مغایرت تاریخ" };
       case "duplicate_high":
       case "duplicate_possible":
-        return "duplicate";
+        return { status: "duplicate", label: "تکراری" };
       case "unresolved":
       default:
-        return "unmatched_bank";
+        if (row.bank_transaction_id && !row.journal_entry_id) {
+          return { status: "unmatched_bank", label: "فاقد سند در حسابداری" };
+        }
+        if (!row.bank_transaction_id && row.journal_entry_id) {
+          return { status: "unmatched_accounting", label: "فاقد گردش در بانک" };
+        }
+        return { status: "unmatched_bank", label: "بدون متناظر" };
     }
   }
-
-  const columns: Column<ReconciliationMatch>[] = [
-    {
-      key: "status",
-      header: "وضعیت تطبیق",
-      width: "160px",
-      render: (row) => <StatusChip status={mapReconStatus(row.status)} size="sm" />,
-    },
-    {
-      key: "bank_record",
-      header: "تراکنش بانکی (مبدا بانک)",
-      render: (row) => (
-        <div className="space-y-0.5 min-w-0 max-w-xs">
-          <div className="flex items-center gap-1.5 text-xs">
-            <Building2 className="size-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <strong className="text-foreground truncate">{row.evidence.bank?.description || "تراکنش بانکی"}</strong>
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-            <span>{row.evidence.bank?.date ? faDate(row.evidence.bank.date) : "—"}</span>
-            {row.evidence.bank?.reference && <span>پیگیری: {row.evidence.bank.reference}</span>}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "bank_amount",
-      header: "مبلغ بانک",
-      numeric: true,
-      render: (row) =>
-        row.evidence.bank?.amount_irr ? (
-          <MoneyDisplay amount={row.evidence.bank.amount_irr} currency="ریال" size="sm" />
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        ),
-    },
-    {
-      key: "gl_record",
-      header: "سند حسابداری (دفتر روزنامه)",
-      render: (row) => (
-        <div className="space-y-0.5 min-w-0 max-w-xs">
-          <div className="flex items-center gap-1.5 text-xs">
-            <BookOpen className="size-3 text-blue-600 dark:text-blue-400 shrink-0" />
-            <strong className="text-foreground truncate">
-              {row.journal_entry_id ? `سند شماره ${row.journal_entry_id.slice(0, 8)}` : "فاقد سند متناظر"}
-            </strong>
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono">
-            <span>{row.evidence.accounting?.date ? faDate(row.evidence.accounting.date) : "—"}</span>
-            {row.evidence.accounting?.description && (
-              <span className="truncate max-w-[150px]">{row.evidence.accounting.description}</span>
-            )}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "gl_amount",
-      header: "مبلغ سند",
-      numeric: true,
-      render: (row) =>
-        row.evidence.accounting?.amount_irr ? (
-          <MoneyDisplay amount={row.evidence.accounting.amount_irr} currency="ریال" size="sm" />
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        ),
-    },
-    {
-      key: "score",
-      header: "امتیاز اطمینان",
-      numeric: true,
-      render: (row) => (
-        <span className="font-mono text-xs font-bold text-foreground">
-          {toPersianDigits(Math.round(Number(row.score)))}٪
-        </span>
-      ),
-    },
-  ];
 
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse" aria-label="در حال دریافت داده‌های تطبیق">
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-28 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-96 w-full rounded-xl" />
       </div>
     );
@@ -305,21 +264,11 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border pb-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-              <ArrowRightLeft className="size-3.5" />
-              موتور تطبیق خودکار و مغایرت‌گیری
-            </span>
-            <span className="text-xs text-muted-foreground">تطبیق ۱ به ۱ قطعی + کاندیدسازی هوشمند</span>
-          </div>
-          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
-            تطبیق تراکنش‌های بانکی و اسناد حسابداری
+          <h1 className="text-xl font-bold text-foreground tracking-tight">
+            تطبیق و مغایرت‌گیری
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            کشف دقیق مغایرت‌های مبلغ، تاریخ و تراکنش‌های فاقد سند با زنجیره کامل شواهد
-          </p>
         </div>
 
         {/* Period Selector */}
@@ -348,10 +297,38 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
         </Alert>
       )}
 
+      {/* Quick Stats Banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <div className="rounded-xl border border-border bg-card/60 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted-foreground">کل موارد</span>
+          <span className="text-lg font-mono font-black text-foreground mt-1">{toPersianDigits(counts.all)}</span>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">تطبیق قطعی</span>
+          <span className="text-lg font-mono font-black text-emerald-600 dark:text-emerald-400 mt-1">{toPersianDigits(counts.matched)}</span>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">نیازمند بررسی</span>
+          <span className="text-lg font-mono font-black text-amber-600 dark:text-amber-400 mt-1">{toPersianDigits(counts.review)}</span>
+        </div>
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-300">مغایرت مبلغ/تاریخ</span>
+          <span className="text-lg font-mono font-black text-rose-600 dark:text-rose-400 mt-1">{toPersianDigits(counts.mismatch)}</span>
+        </div>
+        <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-purple-700 dark:text-purple-300">تکراری</span>
+          <span className="text-lg font-mono font-black text-purple-600 dark:text-purple-400 mt-1">{toPersianDigits(counts.duplicate)}</span>
+        </div>
+        <div className="rounded-xl border border-slate-500/20 bg-slate-500/5 p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-muted-foreground">بدون متناظر</span>
+          <span className="text-lg font-mono font-black text-foreground mt-1">{toPersianDigits(counts.unresolved)}</span>
+        </div>
+      </div>
+
       {/* Engine Run / Compact Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-border bg-card/70 text-xs">
-        <form onSubmit={(e) => void startReconciliation(e)} className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card/70 text-xs">
+        <form onSubmit={(e) => void startReconciliation(e)} className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5">
             <label htmlFor="rule-days-input" className="text-muted-foreground font-medium">پنجره روز قطعی:</label>
             <Input
               id="rule-days-input"
@@ -360,11 +337,11 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
               max={30}
               value={ruleDays}
               onChange={(e) => setRuleDays(Number(e.target.value))}
-              className="w-14 h-8 text-center font-mono text-xs bg-background"
+              className="w-12 h-7 text-center font-mono text-xs bg-background"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <label htmlFor="review-days-input" className="text-muted-foreground font-medium">پنجره روز بررسی:</label>
             <Input
               id="review-days-input"
@@ -373,11 +350,11 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
               max={60}
               value={reviewDays}
               onChange={(e) => setReviewDays(Number(e.target.value))}
-              className="w-14 h-8 text-center font-mono text-xs bg-background"
+              className="w-12 h-7 text-center font-mono text-xs bg-background"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <label htmlFor="fuzzy-threshold-input" className="text-muted-foreground font-medium">آستانه شباهت:</label>
             <div className="flex items-center gap-1">
               <Input
@@ -387,16 +364,16 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
                 max={100}
                 value={fuzzyThreshold}
                 onChange={(e) => setFuzzyThreshold(Number(e.target.value))}
-                className="w-14 h-8 text-center font-mono text-xs bg-background"
+                className="w-12 h-7 text-center font-mono text-xs bg-background"
               />
               <span className="text-muted-foreground font-bold">٪</span>
             </div>
           </div>
 
           {canRun && (
-            <Button type="submit" size="sm" disabled={submitting || isRunning} className="h-8 gap-1.5 text-xs font-bold ms-auto sm:ms-2">
-              {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
-              اجرای موتور تطبیق
+            <Button type="submit" size="sm" disabled={submitting || isRunning} className="h-7 gap-1.5 text-xs font-bold ms-auto sm:ms-2">
+              {isRunning ? <RefreshCcw className="size-3 animate-spin" /> : <Zap className="size-3" />}
+              اجرای تطبیق
             </Button>
           )}
         </form>
@@ -404,109 +381,199 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
         {run && (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">وضعیت:</span>
-            <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status === "completed" ? "تکمیل‌شده" : run.status} size="sm" />
+            <StatusChip status={run.status} size="sm" />
           </div>
         )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {filters.map((f) => (
-          <Button
-            key={f.id}
-            size="sm"
-            variant={filter === f.id ? "default" : "outline"}
-            className="text-xs h-8"
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </Button>
-        ))}
+      {/* Filter Tabs with Counts */}
+      <div className="flex flex-wrap gap-1.5 border-b border-border pb-3">
+        {filterConfigs.map((f) => {
+          const count = counts[f.id];
+          const Icon = f.icon;
+          const isActive = filter === f.id;
+          return (
+            <Button
+              key={f.id}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              className={`text-xs h-8 gap-1.5 rounded-lg font-medium transition-all ${
+                isActive ? "shadow-sm" : "bg-card/50 hover:bg-muted"
+              }`}
+              onClick={() => setFilter(f.id)}
+            >
+              <Icon className="size-3.5" />
+              <span>{f.label}</span>
+              <span
+                className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
+                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {toPersianDigits(count)}
+              </span>
+            </Button>
+          );
+        })}
       </div>
 
-      {/* Reconciliation Matches Data Table */}
-      <FinancialDataTable
-        data={filteredMatches}
-        columns={columns}
-        keyExtractor={(row) => row.id}
-        density="compact"
-        emptyMessage="هیچ تراکنشی در این دسته تطبیق یافت نشد."
-        onRowClick={(row) => {
-          setExpandedMatchId(expandedMatchId === row.id ? null : row.id);
-        }}
-      />
-
-      {/* Selected Match Drilldown Details Card */}
-      {expandedMatchId && (
-        <Card className="border-primary/30 bg-primary/[0.02]">
-          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-extrabold flex items-center gap-2">
-                <FileCheck2 className="size-4 text-primary" />
-                جزئیات و شواهد تطبیق جفت انتخابی
-              </CardTitle>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setExpandedMatchId(null)}>
-                بستن جزئیات
-              </Button>
+      {/* Accounting Split-Table Container */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+        {/* Split Table Header */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 bg-muted/50 border-b border-border text-xs font-bold select-none divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-border">
+          {/* Bank Side Header */}
+          <div className="lg:col-span-5 p-3 flex items-center justify-between bg-emerald-500/5 text-emerald-950 dark:text-emerald-200">
+            <div className="flex items-center gap-2">
+              <Building2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="font-bold text-xs">گردش صورت‌حساب بانکی</span>
             </div>
-          </CardHeader>
-          <CardContent className="pt-4">
-            {(() => {
-              const item = matches.find((m) => m.id === expandedMatchId);
-              if (!item) return null;
+            <span className="text-xs font-bold text-muted-foreground">مبلغ بانک</span>
+          </div>
+
+          {/* Center Bridge Header */}
+          <div className="lg:col-span-2 p-3 flex items-center justify-center bg-muted/70 text-foreground text-center">
+            <span className="font-bold text-xs">وضعیت تطبیق</span>
+          </div>
+
+          {/* Accounting Side Header */}
+          <div className="lg:col-span-5 p-3 flex items-center justify-between bg-blue-500/5 text-blue-950 dark:text-blue-200">
+            <span className="text-xs font-bold text-muted-foreground">مبلغ سند</span>
+            <div className="flex items-center gap-2 text-start">
+              <BookOpen className="size-4 text-blue-600 dark:text-blue-400" />
+              <span className="font-bold text-xs">اسناد دفاتر حسابداری</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Split Table Body */}
+        {filteredMatches.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground text-xs space-y-2">
+            <FileQuestion className="size-8 mx-auto text-muted-foreground/50" />
+            <p className="font-semibold">هیچ موردی یافت نشد.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {filteredMatches.map((row) => {
+              const hasBank = Boolean(row.evidence.bank?.amount_irr || row.bank_transaction_id);
+              const hasAccounting = Boolean(row.evidence.accounting?.amount_irr || row.journal_entry_id);
+              const scoreNum = Math.round(Number(row.score));
+              const reconStatus = mapReconStatus(row.status, row);
+
               return (
-                <div className="grid gap-4 md:grid-cols-2 text-xs">
-                  {/* Bank Side Details */}
-                  <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <EvidenceSourceTag source="bank" size="sm" />
-                      <span className="font-mono text-muted-foreground">
-                        {item.evidence.bank?.date ? faDate(item.evidence.bank.date) : "—"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">مبلغ تراکنش:</span>
-                      <MoneyDisplay amount={item.evidence.bank?.amount_irr} currency="ریال" size="lg" />
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">شرح بانک:</span>
-                      <p className="font-medium text-foreground">{item.evidence.bank?.description || "—"}</p>
-                    </div>
-                    {item.evidence.bank?.reference && (
-                      <div className="font-mono text-[11px] text-muted-foreground">
-                        شناسه پیگیری: {item.evidence.bank.reference}
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 lg:grid-cols-12 hover:bg-muted/25 transition-colors divide-y lg:divide-y-0 lg:divide-x lg:divide-x-reverse divide-border text-xs items-stretch"
+                >
+                  {/* Bank Column (Right) */}
+                  <div className="lg:col-span-5 p-3.5 flex flex-col justify-between">
+                    {hasBank ? (
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-0.5 min-w-0">
+                            <strong className="text-foreground text-xs font-bold block truncate">
+                              {row.evidence.bank?.description || "تراکنش بانکی"}
+                            </strong>
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                              <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-foreground border border-border/60">
+                                {row.evidence.bank?.date ? faDate(row.evidence.bank.date) : "—"}
+                              </span>
+                              {row.evidence.bank?.reference && (
+                                <span className="truncate">کد پیگیری: {row.evidence.bank.reference}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 text-start">
+                            {row.evidence.bank?.amount_irr ? (
+                              <MoneyDisplay
+                                amount={row.evidence.bank.amount_irr}
+                                currency="ریال"
+                                size="sm"
+                                className="font-extrabold text-emerald-600 dark:text-emerald-400"
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full min-h-[48px] rounded-lg border border-dashed border-muted-foreground/30 bg-muted/15 flex items-center justify-center p-2 text-muted-foreground">
+                        <span className="text-[11px] font-medium flex items-center gap-1.5">
+                          <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+                          فاقد گردش در صورت‌حساب بانکی
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Accounting Side Details */}
-                  <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <EvidenceSourceTag source="accounting" size="sm" />
-                      <span className="font-mono text-muted-foreground">
-                        {item.evidence.accounting?.date ? faDate(item.evidence.accounting.date) : "—"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">مبلغ سند:</span>
-                      <MoneyDisplay amount={item.evidence.accounting?.amount_irr} currency="ریال" size="lg" />
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-[11px]">شرح سند:</span>
-                      <p className="font-medium text-foreground">{item.evidence.accounting?.description || "—"}</p>
-                    </div>
-                    {item.journal_entry_id && (
-                      <div className="font-mono text-[11px] text-muted-foreground">
-                        شناسه سند: {item.journal_entry_id}
+                  {/* Middle Comparison Bridge Column */}
+                  <div className="lg:col-span-2 p-3 flex flex-col items-center justify-center gap-1.5 bg-muted/10 text-center">
+                    <StatusChip status={reconStatus.status} label={reconStatus.label} size="sm" />
+                    <span className="font-mono text-[11px] font-extrabold text-foreground bg-background px-2 py-0.5 rounded-full border border-border shadow-2xs">
+                      {toPersianDigits(scoreNum)}٪ اطمینان
+                    </span>
+                    {row.amount_difference_irr && Number(row.amount_difference_irr) !== 0 && (
+                      <div className="text-[10px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                        اختلاف: {toPersianDigits(Math.abs(Number(row.amount_difference_irr)).toLocaleString("fa-IR"))} ریال
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Accounting Column (Left) */}
+                  <div className="lg:col-span-5 p-3.5 flex flex-col justify-between">
+                    {hasAccounting ? (
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="shrink-0 text-start">
+                            {row.evidence.accounting?.amount_irr ? (
+                              <MoneyDisplay
+                                amount={row.evidence.accounting?.amount_irr}
+                                currency="ریال"
+                                size="sm"
+                                className="font-extrabold text-blue-600 dark:text-blue-400"
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-0.5 min-w-0 text-start">
+                            <strong className="text-foreground text-xs font-bold block truncate">
+                              {row.journal_entry_id ? `سند شماره ${row.journal_entry_id.slice(0, 8)}` : "سند حسابداری"}
+                            </strong>
+                            {row.evidence.accounting?.description && (
+                              <p className="text-[11px] text-muted-foreground truncate max-w-[220px]">
+                                {row.evidence.accounting.description}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground font-mono">
+                              <span className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-foreground border border-border/60">
+                                {row.evidence.accounting?.date ? faDate(row.evidence.accounting.date) : "—"}
+                              </span>
+                              {row.evidence.accounting?.reference && (
+                                <span className="truncate">مرجع: {row.evidence.accounting.reference}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full min-h-[48px] rounded-lg border border-dashed border-rose-500/30 bg-rose-500/5 flex items-center justify-center p-2 text-rose-700 dark:text-rose-300">
+                        <span className="text-[11px] font-semibold flex items-center gap-1.5">
+                          <span className="size-1.5 rounded-full bg-rose-500" />
+                          فاقد ثبت در دفاتر حسابداری
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
               );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+

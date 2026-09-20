@@ -83,6 +83,17 @@ function faDateTime(value: string | null) {
   }
 }
 
+const FINDING_CODE_LABELS: Record<string, string> = {
+  potential_missing_transaction: "فاقد ثبت متناظر",
+  duplicate_transaction: "تراکنش تکراری",
+  amount_mismatch: "مغایرت مبلغ",
+  date_mismatch: "مغایرت تاریخ",
+  revenue_drop: "افت درآمد",
+  profit_drop: "افت سود",
+  expense_increase: "افزایش هزینه",
+  receivables_increase: "افزایش مطالبات",
+};
+
 export function FindingsWorkspace({ company }: { company: Company }) {
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
   const [analysisId, setAnalysisId] = useState("");
@@ -174,6 +185,34 @@ export function FindingsWorkspace({ company }: { company: Company }) {
     };
   }, [company.id, loadForAnalysis]);
 
+  useEffect(() => {
+    if (!run || !isRunning) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const current = await api<FindingGenerationRun>(
+          `/companies/${company.id}/finding-runs/${run.id}`
+        );
+        setRun(current);
+        if (current.status === "completed" || current.status === "completed_limited") {
+          window.clearInterval(timer);
+          await loadFindings(current.id);
+          setSubmitting(false);
+          toast.success("موتور یافته‌ها با موفقیت تکمیل شد.");
+        }
+        if (current.status === "failed") {
+          window.clearInterval(timer);
+          setSubmitting(false);
+          setError(current.failure_message ?? "اجرای موتور یافته‌ها با خطا مواجه شد.");
+        }
+      } catch (caught) {
+        window.clearInterval(timer);
+        setSubmitting(false);
+        setError(caught instanceof Error ? caught.message : "دریافت وضعیت یافته‌ها ناموفق بود.");
+      }
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [company.id, isRunning, loadFindings, run]);
+
   async function handleAnalysisChange(value: string) {
     setAnalysisId(value);
     setLoading(true);
@@ -207,11 +246,11 @@ export function FindingsWorkspace({ company }: { company: Company }) {
         }
       );
       setRun(created);
+      setFindings([]);
+      setNextCursor(null);
       toast.success("اجرای موتور یافته‌ها با موفقیت آغاز شد.");
-      await loadForAnalysis(analysisId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "اجرای موتور یافته‌ها ناموفق بود.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -297,10 +336,12 @@ export function FindingsWorkspace({ company }: { company: Company }) {
   const columns: Column<Finding>[] = [
     {
       key: "finding_code",
-      header: "کد یافته",
-      width: "140px",
+      header: "نوع یافته",
+      width: "160px",
       render: (row) => (
-        <span className="font-mono text-xs font-bold text-muted-foreground">{row.finding_code}</span>
+        <span className="text-xs font-bold text-foreground">
+          {FINDING_CODE_LABELS[row.finding_code] ?? row.finding_code}
+        </span>
       ),
     },
     {
@@ -323,7 +364,7 @@ export function FindingsWorkspace({ company }: { company: Company }) {
     {
       key: "workflow_status",
       header: "وضعیت بررسی",
-      width: "150px",
+      width: "140px",
       render: (row) => <StatusChip status={row.workflow_status} size="sm" />,
     },
     {
@@ -395,30 +436,14 @@ export function FindingsWorkspace({ company }: { company: Company }) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-              <ShieldAlert className="size-3.5" />
-              موتور یافته‌ها و اولویت‌بندی
-            </span>
-            <span className="text-xs text-muted-foreground">۸ نوع یافته قطعی و غیرمغرضانه</span>
-          </div>
-          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
-            صف یافته‌های مالی و مغایرت‌ها
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            هر یافته دارای امتیاز اولویت ۴‌عاملی و زنجیره شواهد (Lineage) تا فایل و ردیف منبع است.
-          </p>
-        </div>
-
-        {/* Period Selector */}
-        {analyses.length > 0 && (
-          <div className="flex items-center gap-3">
+    <div className="space-y-4">
+      {/* Period Selector & Quick Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-muted-foreground">دوره مالی:</span>
+          {analyses.length > 0 ? (
             <Select value={analysisId} onValueChange={(val) => void handleAnalysisChange(val)} dir="rtl">
-              <SelectTrigger className="w-[220px] font-bold text-xs">
+              <SelectTrigger className="w-[220px] font-bold text-xs h-8">
                 <Calendar className="size-3.5 text-primary ms-1" />
                 <SelectValue />
               </SelectTrigger>
@@ -430,6 +455,15 @@ export function FindingsWorkspace({ company }: { company: Company }) {
                 ))}
               </SelectContent>
             </Select>
+          ) : (
+            <span className="text-xs text-muted-foreground">دوره‌ای یافت نشد</span>
+          )}
+        </div>
+
+        {run && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">وضعیت:</span>
+            <StatusChip status={run.status} size="sm" />
           </div>
         )}
       </div>
@@ -440,13 +474,13 @@ export function FindingsWorkspace({ company }: { company: Company }) {
         </Alert>
       )}
 
-      {/* Engine Run / Control Settings Card */}
-      <Card>
-        <CardContent className="pt-5">
-          <form onSubmit={(e) => void startFindingRun(e)} className="flex flex-wrap items-end justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-              <div className="space-y-1.5">
-                <label htmlFor="trend-threshold-input" className="font-bold text-foreground">آستانه تغییر روند (درصد)</label>
+      {/* Engine Run / Control Settings Bar */}
+      <div className="p-3 rounded-xl border border-border bg-card/70 text-xs">
+        <form onSubmit={(e) => void startFindingRun(e)} className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="trend-threshold-input" className="text-muted-foreground font-medium">آستانه تغییر روند:</label>
+              <div className="flex items-center gap-0.5">
                 <Input
                   id="trend-threshold-input"
                   type="number"
@@ -454,58 +488,50 @@ export function FindingsWorkspace({ company }: { company: Company }) {
                   max={100}
                   value={trendPercent}
                   onChange={(e) => setTrendPercent(Number(e.target.value))}
-                  className="w-24 text-center font-mono h-9 text-xs"
+                  className="w-14 text-center font-mono h-7 text-xs bg-background"
                 />
+                <span className="text-muted-foreground font-bold">٪</span>
               </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="min-materiality-input" className="font-bold text-foreground">کف اهمیت نسبی (ریال)</label>
-                <Input
-                  id="min-materiality-input"
-                  type="text"
-                  value={minimumAmount}
-                  onChange={(e) => setMinimumAmount(e.target.value)}
-                  className="w-36 text-center font-mono h-9 text-xs"
-                />
-              </div>
-
-              {reconciliations.length > 0 && (
-                <div className="space-y-1.5">
-                  <span className="font-bold text-foreground block">تطبیق مرتبط:</span>
-                  <Select value={reconciliationId} onValueChange={setReconciliationId} dir="rtl">
-                    <SelectTrigger className="w-[180px] h-9 text-xs">
-                      <SelectValue placeholder="انتخاب تطبیق" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reconciliations.map((r) => (
-                        <SelectItem key={r.id} value={r.id} className="text-xs">
-                          تطبیق {faDateTime(r.completed_at)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {run && (
-                <div className="text-xs text-muted-foreground text-start">
-                  <span>وضعیت اجرا: </span>
-                  <StatusChip status={run.status === "completed" ? "resolved" : "processing"} label={run.status} size="sm" />
-                </div>
-              )}
-
-              {canRun && (
-                <Button type="submit" disabled={submitting || isRunning} className="gap-2 text-xs font-bold">
-                  {isRunning ? <RefreshCcw className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
-                  اجرای مجدد موتور یافته‌ها
-                </Button>
-              )}
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="min-materiality-input" className="text-muted-foreground font-medium">کف اهمیت (ریال):</label>
+              <Input
+                id="min-materiality-input"
+                type="text"
+                value={minimumAmount}
+                onChange={(e) => setMinimumAmount(e.target.value)}
+                className="w-28 text-center font-mono h-7 text-xs bg-background"
+              />
             </div>
-          </form>
-        </CardContent>
-      </Card>
+
+            {reconciliations.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground font-medium">تطبیق مرتبط:</span>
+                <Select value={reconciliationId} onValueChange={setReconciliationId} dir="rtl">
+                  <SelectTrigger className="w-[180px] h-7 text-xs bg-background">
+                    <SelectValue placeholder="انتخاب تطبیق" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reconciliations.map((r) => (
+                      <SelectItem key={r.id} value={r.id} className="text-xs">
+                        تطبیق {faDateTime(r.completed_at)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {canRun && (
+            <Button type="submit" size="sm" disabled={submitting || isRunning} className="h-7 gap-1.5 text-xs font-bold ms-auto sm:ms-0">
+              {isRunning ? <RefreshCcw className="size-3 animate-spin" /> : <Zap className="size-3" />}
+              اجرای مجدد موتور یافته‌ها
+            </Button>
+          )}
+        </form>
+      </div>
 
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

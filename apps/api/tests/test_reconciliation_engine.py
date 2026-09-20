@@ -134,3 +134,12 @@ def test_duplicates_mismatches_and_unresolved_are_explicit() -> None:
     mismatch = next(item for item in results if item.status == MatchStatus.AMOUNT_MISMATCH)
     assert mismatch.amount_difference_irr == Decimal("-20")
     assert mismatch.evidence["bank"]
+
+    unresolved_bank = next(
+        item for item in results if item.rule_code == "BANK_WITHOUT_ACCOUNTING_MATCH"
+    )
+    assert unresolved_bank.evidence["bank"]["amount_irr"] == "999"
+    assert unresolved_bank.evidence["bank"]["description"] == "بدون متناظر"
+
+    duplicate_bank = next(item for item in results if item.status == MatchStatus.DUPLICATE_HIGH)
+    assert duplicate_bank.evidence["bank"]["amount_irr"] == "2500000"

@@ -38,6 +38,18 @@ const mockBatches: ImportBatch[] = [
   },
 ];
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/companies/comp-1/imports",
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/companies/comp-1/imports",
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/lib/product-api", () => ({
   API_URL: "/api/v1",
   api: vi.fn(),

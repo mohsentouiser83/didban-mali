@@ -1,9 +1,9 @@
 "use client";
 
-import { ReceivablesWorkspace } from "@/components/product/receivables-workspace";
+import { TreasuryWorkspace } from "@/components/product/treasury-workspace";
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function ReceivablesPage() {
   const { company } = useWorkspace();
-  return <ReceivablesWorkspace company={company} />;
+  return <TreasuryWorkspace company={company} defaultTab="receivables" />;
 }

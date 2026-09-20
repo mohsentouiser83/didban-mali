@@ -118,26 +118,34 @@ def _score(features: dict[str, object]) -> Decimal:
     )
 
 
+def _bank_evidence(bank: BankRecord) -> dict[str, object]:
+    return {
+        "transaction_id": str(bank.id),
+        "source_row_id": str(bank.source_row_id),
+        "date": bank.booking_date.isoformat(),
+        "amount_irr": str(bank.amount_irr),
+        "reference": bank.reference,
+        "description": bank.description,
+    }
+
+
+def _ledger_evidence(ledger: LedgerRecord) -> dict[str, object]:
+    return {
+        "journal_entry_id": str(ledger.entry_id),
+        "journal_line_id": str(ledger.line_id),
+        "source_row_id": str(ledger.source_row_id),
+        "date": ledger.entry_date.isoformat(),
+        "amount_irr": str(ledger.amount_irr),
+        "reference": ledger.reference,
+        "invoice_ref": ledger.invoice_ref,
+        "description": ledger.description,
+    }
+
+
 def _evidence(bank: BankRecord, ledger: LedgerRecord) -> dict[str, object]:
     return {
-        "bank": {
-            "transaction_id": str(bank.id),
-            "source_row_id": str(bank.source_row_id),
-            "date": bank.booking_date.isoformat(),
-            "amount_irr": str(bank.amount_irr),
-            "reference": bank.reference,
-            "description": bank.description,
-        },
-        "accounting": {
-            "journal_entry_id": str(ledger.entry_id),
-            "journal_line_id": str(ledger.line_id),
-            "source_row_id": str(ledger.source_row_id),
-            "date": ledger.entry_date.isoformat(),
-            "amount_irr": str(ledger.amount_irr),
-            "reference": ledger.reference,
-            "invoice_ref": ledger.invoice_ref,
-            "description": ledger.description,
-        },
+        "bank": _bank_evidence(bank),
+        "accounting": _ledger_evidence(ledger),
         "calculation": "bank.amount_irr compared with asset_line.debit_irr-credit_irr",
     }
 
@@ -218,7 +226,11 @@ def reconcile(
                     None,
                     rule_code,
                     {"strong_identifier_equal": duplicate_status == MatchStatus.DUPLICATE_HIGH},
-                    {"bank_transaction_id": str(bank.id), "source_row_id": str(bank.source_row_id)},
+                    {
+                        "bank": _bank_evidence(bank),
+                        "bank_transaction_id": str(bank.id),
+                        "source_row_id": str(bank.source_row_id),
+                    },
                 )
             )
             continue
@@ -249,6 +261,7 @@ def reconcile(
                     rule_code,
                     {"strong_identifier_equal": duplicate_status == MatchStatus.DUPLICATE_HIGH},
                     {
+                        "accounting": _ledger_evidence(ledger),
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },
@@ -370,7 +383,11 @@ def reconcile(
                     None,
                     "BANK_WITHOUT_ACCOUNTING_MATCH",
                     {},
-                    {"bank_transaction_id": str(bank.id), "source_row_id": str(bank.source_row_id)},
+                    {
+                        "bank": _bank_evidence(bank),
+                        "bank_transaction_id": str(bank.id),
+                        "source_row_id": str(bank.source_row_id),
+                    },
                 )
             )
 
@@ -391,6 +408,7 @@ def reconcile(
                     "ACCOUNTING_WITHOUT_BANK_MATCH",
                     {},
                     {
+                        "accounting": _ledger_evidence(ledger),
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },

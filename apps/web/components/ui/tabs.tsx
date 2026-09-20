@@ -19,12 +19,32 @@ const TabsContext = React.createContext<TabsContextValue>({
   size: "default",
 })
 
+export interface TabsProps
+  extends React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root> {
+  variant?: TabsVariant
+  size?: TabsSize
+}
+
 const Tabs = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
->(({ dir = "rtl", ...props }, ref) => (
-  <TabsPrimitive.Root ref={ref} dir={dir} {...props} />
-))
+  TabsProps
+>(({ dir = "rtl", variant = "segmented", size = "default", children, ...props }, ref) => {
+  const contextValue = React.useMemo(
+    () => ({
+      variant: variant ?? "segmented",
+      size: size ?? "default",
+    }),
+    [variant, size]
+  )
+
+  return (
+    <TabsContext.Provider value={contextValue}>
+      <TabsPrimitive.Root ref={ref} dir={dir} {...props}>
+        {children}
+      </TabsPrimitive.Root>
+    </TabsContext.Provider>
+  )
+})
 Tabs.displayName = TabsPrimitive.Root.displayName
 
 const tabsListVariants = cva(

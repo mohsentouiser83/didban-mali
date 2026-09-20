@@ -39,9 +39,34 @@ const statusDefinitions: Record<
     className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
   },
   potential_match: {
-    label: "کاندید نیازمند بررسی",
+    label: "نیازمند بررسی",
     icon: HelpCircle,
     className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+  },
+  needs_review: {
+    label: "نیازمند بررسی",
+    icon: HelpCircle,
+    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+  },
+  in_review: {
+    label: "در حال بررسی",
+    icon: Clock,
+    className: "bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-400 dark:border-blue-500/30",
+  },
+  investigating: {
+    label: "در حال بررسی",
+    icon: Clock,
+    className: "bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-400 dark:border-blue-500/30",
+  },
+  hypothesis: {
+    label: "فرضیه (غیرقطعی)",
+    icon: HelpCircle,
+    className: "bg-purple-500/10 text-purple-700 border-purple-500/25 dark:text-purple-400 dark:border-purple-500/30",
+  },
+  deterministic: {
+    label: "یافته قطعی",
+    icon: CheckCircle2,
+    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
   },
   amount_mismatch: {
     label: "مغایرت مبلغ",
@@ -92,6 +117,26 @@ const statusDefinitions: Record<
     label: "در حال پردازش",
     icon: RefreshCcw,
     className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/25 dark:text-cyan-400 dark:border-cyan-500/30",
+  },
+  queued: {
+    label: "در صف پردازش",
+    icon: Clock,
+    className: "bg-slate-500/10 text-slate-700 border-slate-500/25 dark:text-slate-400 dark:border-slate-500/30",
+  },
+  completed: {
+    label: "تکمیل‌شده",
+    icon: CheckCheck,
+    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+  },
+  completed_limited: {
+    label: "تکمیل‌شده (محدود)",
+    icon: AlertCircle,
+    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+  },
+  failed: {
+    label: "ناموفق",
+    icon: XCircle,
+    className: "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400 dark:border-rose-500/30",
   },
   ready: {
     label: "آماده",

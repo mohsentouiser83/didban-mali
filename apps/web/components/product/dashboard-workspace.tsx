@@ -40,6 +40,11 @@ import {
   DataQualityStatus,
 } from "@/components/ui/financial";
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnalysisWorkspace } from "./analysis-workspace";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { FileUp, Layers, Sparkles } from "lucide-react";
+
 import { api } from "@/lib/product-api";
 import type {
   AnalysisRun,
@@ -245,26 +250,128 @@ export function DashboardWorkspace({ company }: { company: Company }) {
 
   if (!dashboard) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[380px]">
-        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <BarChart3 className="size-7" />
+      <div className="onboarding-card rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6 shadow-sm" dir="rtl">
+        <div className="flex items-center gap-3 border-b border-border/60 pb-4">
+          <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
+            <Sparkles className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-foreground">
+              به سامانه دیدبان مالی خوش آمدید!
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              برای راه‌اندازی داشبورد و تحلیل هوشمند، این ۳ قدم ساده را دنبال کنید:
+            </p>
+          </div>
         </div>
-        <div className="max-w-md space-y-1">
-          <h3 className="text-lg font-bold text-foreground">هنوز تصویری برای داشبورد مالی ثبت نشده است</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {error || "برای ساخت تصویر داشبورد، ابتدا باید حداقل یک دوره تحلیل مالی نرمال‌شده اجرا شود."}
-          </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Step 1 */}
+          <div className="step-card flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/50 transition-colors space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="size-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center font-mono">
+                  ۱
+                </span>
+                <FileUp className="size-4 text-primary" />
+              </div>
+              <strong className="block text-sm font-bold text-foreground">بارگذاری اسناد و بانک</strong>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                فایل اکسل یا CSV دفتر روزنامه، تراز آزمایشی یا صورتحساب بانک را بارگذاری و ستون‌ها را نگاشت کنید.
+              </p>
+            </div>
+            <Button asChild size="sm" className="w-full text-xs gap-1.5">
+              <Link href={`/companies/${company.id}/imports`}>
+                <FileUp className="size-3.5" />
+                بارگذاری اسناد مالی
+              </Link>
+            </Button>
+          </div>
+
+          {/* Step 2 */}
+          <div className="step-card flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/50 transition-colors space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="size-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center font-mono">
+                  ۲
+                </span>
+                <Layers className="size-4 text-cyan-500" />
+              </div>
+              <strong className="block text-sm font-bold text-foreground">سرفصل‌ها و طبقه‌بندی</strong>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                حساب‌های استخراج‌شده را به ۶ سرفصل کلیدی (دارایی، بدهی، درآمد، هزینه، حقوق مالکانه) متصل کنید.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm" className="w-full text-xs gap-1.5">
+              <Link href={`/companies/${company.id}/imports?tab=classification`}>
+                <Layers className="size-3.5" />
+                سرفصل‌ها و طبقه‌بندی
+              </Link>
+            </Button>
+          </div>
+
+          {/* Step 3 */}
+          <div className="step-card flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/50 transition-colors space-y-3">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="size-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center font-mono">
+                  ۳
+                </span>
+                <BarChart3 className="size-4 text-emerald-500" />
+              </div>
+              <strong className="block text-sm font-bold text-foreground">محاسبه و تحلیل سود و زیان</strong>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                با انتخاب بازه زمانی، تحلیل خودکار صورت سود و زیان و شاخص‌های مالی را اجرا کنید.
+              </p>
+            </div>
+            <Button asChild variant="secondary" size="sm" className="w-full text-xs gap-1.5">
+              <Link href={`/companies/${company.id}/analysis`}>
+                <BarChart3 className="size-3.5" />
+                محاسبه و تحلیل دوره
+              </Link>
+            </Button>
+          </div>
         </div>
-        <Link href={`/companies/${company.id}/analysis`}>
-          <Button className="gap-2">
-            رفتن به اجرای تحلیل مالی
-            <ChevronLeft className="size-4" />
-          </Button>
-        </Link>
       </div>
     );
   }
 
+  return (
+    <DashboardContent
+      dashboard={dashboard}
+      switching={switching}
+      analyses={analyses}
+      analysisId={analysisId}
+      changeSnapshot={changeSnapshot}
+      error={error}
+      metricsMap={metricsMap}
+      workingCapital={workingCapital}
+      company={company}
+    />
+  );
+}
+
+function DashboardContent({
+  dashboard,
+  switching,
+  analyses,
+  analysisId,
+  changeSnapshot,
+  error,
+  metricsMap,
+  workingCapital,
+  company,
+}: {
+  dashboard: DashboardResponse;
+  switching: boolean;
+  analyses: AnalysisRun[];
+  analysisId: string;
+  changeSnapshot: (id: string) => void;
+  error: string;
+  metricsMap: Map<string, DashboardMetric>;
+  workingCapital: any;
+  company: Company;
+}) {
   const { snapshot, health, coverage, finding_summary: findingSummary, top_findings: topFindings, main_drivers: mainDrivers } = dashboard;
 
   // Map health state to banner props

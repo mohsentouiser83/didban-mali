@@ -121,13 +121,13 @@ export function FinancialModelWorkspace({ company }: { company: Company }) {
         <div>
           <span className="model-kicker inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
             <Icon name="layers" className="size-3.5" />
-            مدل مالی کانونیکال
+            سرفصل‌ها و طبقه‌بندی حساب‌ها
           </span>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-            دادهٔ خام به ساختار قابل تحلیل تبدیل شده است
+            کدینگ استاندارد و تعیین ماهیت حساب‌ها
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-            پوشش نرمال‌سازی و تراز اسناد را ببینید؛ سپس حساب‌های باقی‌مانده را برای محاسبات سود و زیان طبقه‌بندی کنید.
+            حساب‌های استخراج‌شده از اسناد را به سرفصل‌های ۶گانه (دارایی، بدهی، حقوق مالکانه، درآمد، هزینه، سایر) اختصاص دهید تا سود و زیان و تراز آزمایشی به‌طور خودکار آماده شوند.
           </p>
         </div>
 

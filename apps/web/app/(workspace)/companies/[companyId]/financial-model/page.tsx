@@ -1,9 +1,9 @@
 "use client";
 
-import { FinancialModelWorkspace } from "@/components/product/financial-model-workspace";
+import { ImportsPanel } from "@/components/product/imports-panel";
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function FinancialModelPage() {
   const { company } = useWorkspace();
-  return <FinancialModelWorkspace company={company} />;
+  return <ImportsPanel company={company} defaultTab="classification" />;
 }

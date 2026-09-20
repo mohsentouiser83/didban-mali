@@ -22,6 +22,15 @@ export function formatFinancialNumber(num: number | string | bigint): string {
   if (typeof num === "string") {
     const trimmed = num.trim();
     if (!trimmed || isNaN(Number(trimmed))) return trimmed;
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) return trimmed;
+    if (trimmed.toLowerCase().includes("e")) {
+      const isNeg = n < 0;
+      const abs = Math.abs(n);
+      const formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 2 });
+      const persianFormatted = toPersianDigits(formatted.replace(/,/g, "٬").replace(/\./g, "٫"));
+      return isNeg ? `${persianFormatted}−` : persianFormatted;
+    }
     const parts = trimmed.split(".");
     const integerPart = parts[0]?.replace(/\B(?=(\d{3})+(?!\d))/g, "٬") ?? "0";
     if (parts.length > 1 && parts[1]) {

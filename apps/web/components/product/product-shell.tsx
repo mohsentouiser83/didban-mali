@@ -56,20 +56,20 @@ import { Mark } from "./icons";
 import { useWorkspace } from "./workspace-provider";
 
 const pageMeta = [
-  { match: "/overview", title: "داشبورد مالی", breadcrumb: "فضای کاری / وضعیت مالی" },
-  { match: "/imports", title: "ورود داده‌های مالی", breadcrumb: "فضای کاری / ورود داده" },
-  { match: "/financial-model", title: "مدل مالی", breadcrumb: "فضای کاری / نرمال‌سازی و طبقه‌بندی" },
-  { match: "/analysis", title: "تحلیل مالی", breadcrumb: "فضای کاری / محاسبات دوره‌ای" },
-  { match: "/reconciliation", title: "تطبیق حساب‌ها", breadcrumb: "فضای کاری / بانک و حسابداری" },
-  { match: "/receivables", title: "هوشمندی مطالبات", breadcrumb: "فضای کاری / جریان نقد و وصول مطالبات" },
-  { match: "/payables", title: "هوشمندی پرداختنی‌ها", breadcrumb: "فضای کاری / بستانکاران و تامین‌کنندگان" },
-  { match: "/cashflow", title: "جریان و تاب‌آوری نقد", breadcrumb: "فضای کاری / پیش‌بینی نقدینگی و خزانه" },
-  { match: "/alerts", title: "هشدارهای زودهنگام", breadcrumb: "فضای کاری / پایش پیش‌دستانه و ریسک" },
-  { match: "/simulation", title: "شبیه‌ساز تصمیمات مالی", breadcrumb: "فضای کاری / شبیه‌سازی و سناریوسازی" },
-  { match: "/findings", title: "یافته‌ها", breadcrumb: "فضای کاری / اولویت و شواهد" },
-  { match: "/reports", title: "گزارش‌های مالی", breadcrumb: "فضای کاری / اسناد مدیریتی" },
-  { match: "/assistant", title: "دستیار کنترل‌شده", breadcrumb: "فضای کاری / هوشمندی و حاکمیت" },
-  { match: "/readiness", title: "آمادگی و پذیرش", breadcrumb: "فضای کاری / گیت نهایی محصول" },
+  { match: "/imports", title: "ورود و آماده‌سازی اسناد", breadcrumb: "فضای کاری / اسناد و سرفصل‌ها" },
+  { match: "/overview", title: "داشبورد و صورت‌های مالی", breadcrumb: "فضای کاری / وضعیت و صورت‌های مالی" },
+  { match: "/cashflow", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / جریان نقد، مطالبات و تسویه‌ها" },
+  { match: "/receivables", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / مطالبات و مشتریان" },
+  { match: "/payables", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / بدهی‌ها و تامین‌کنندگان" },
+  { match: "/reconciliation", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / تطبیق حساب‌ها و بانک" },
+  { match: "/findings", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / یافته‌ها و شواهد ناهنجاری" },
+  { match: "/alerts", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / هشدارهای زودهنگام" },
+  { match: "/simulation", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / شبیه‌ساز تصمیمات" },
+  { match: "/reports", title: "گزارش‌ها و خروجی‌ها", breadcrumb: "فضای کاری / اسناد مدیریتی و خروجی" },
+  { match: "/financial-model", title: "ورود و آماده‌سازی اسناد", breadcrumb: "فضای کاری / سرفصل‌ها و طبقه‌بندی" },
+  { match: "/analysis", title: "داشبورد و صورت‌های مالی", breadcrumb: "فضای کاری / تحلیل و صورت‌های مالی" },
+  { match: "/assistant", title: "دستیار مالی هوشمند", breadcrumb: "فضای کاری / هوشمندی و حاکمیت" },
+  { match: "/readiness", title: "آمادگی و ارزیابی سامانه", breadcrumb: "تنظیمات شرکت / آزمون‌های کیفی" },
   { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
   { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
 ];
@@ -111,41 +111,26 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
 
   const navigationItems: NavItem[] = [
     { href: `${base}/overview`, label: "داشبورد مالی", icon: LayoutDashboard },
-    { href: `${base}/cashflow`, label: "جریان و تاب‌آوری نقد", icon: WalletCards },
-    { href: `${base}/receivables`, label: "هوشمندی مطالبات", icon: ArrowDownLeft },
-    { href: `${base}/payables`, label: "هوشمندی پرداختنی‌ها", icon: ArrowUpRight },
-    { href: `${base}/reconciliation`, label: "تطبیق حساب‌ها", icon: ArrowLeftRight },
-    { href: `${base}/financial-model`, label: "مدل مالی و طبقه‌بندی", icon: Layers },
-    { href: `${base}/analysis`, label: "تحلیل مالی دوره‌ای", icon: BarChart3 },
-    { href: `${base}/reports`, label: "گزارش‌های مدیریتی", icon: FileText },
+    { href: `${base}/imports`, label: "ورود و آماده‌سازی اسناد", icon: FileUp },
+    { href: `${base}/cashflow`, label: "نقدینگی و خزانه‌داری", icon: WalletCards },
+    {
+      href: `${base}/findings`,
+      label: "ریسک‌ها و مغایرت‌ها",
+      icon: ScanSearch,
+      badge: alertSummary?.total_active ?? null,
+      badgeVariant: alertSummary?.critical_count ? "critical" : "warning",
+    },
+    { href: `${base}/reports`, label: "گزارش‌ها و خروجی‌ها", icon: FileText },
   ];
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const gearMenuItems = [
     {
-      href: `${base}/findings`,
-      title: "یافته‌ها و شواهد مالی",
-      description: "پرونده ناهنجاری‌های مالی، کشف ریسک‌ها و زنجیره شواهد",
-      icon: ScanSearch,
-    },
-    {
-      href: `${base}/simulation`,
-      title: "شبیه‌ساز تصمیمات",
-      description: "سناریوسازی و سنجش اثر تصمیمات بر نقدینگی و سود",
-      icon: SlidersHorizontal,
-    },
-    {
-      href: `${base}/assistant`,
-      title: "دستیار مالی کنترل‌شده",
-      description: "پرسش و پاسخ تحلیلی هوشمند با گاردریل‌های حاکمیت داده",
-      icon: Bot,
-    },
-    {
-      href: `${base}/imports`,
-      title: "ورود داده‌های مالی",
-      description: "بارگذاری و پردازش فایل‌های حسابداری، بانک و فاکتورها",
-      icon: FileUp,
+      href: `${base}/settings/profile`,
+      title: "مشخصات و تنظیمات شرکت",
+      description: "شناسه ملی، اطلاعات پایه و پیکربندی حقوقی شرکت",
+      icon: Building2,
     },
     {
       href: `${base}/settings/members`,
@@ -154,10 +139,10 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       icon: Users2,
     },
     {
-      href: `${base}/settings/profile`,
-      title: "مشخصات و تنظیمات شرکت",
-      description: "شناسه ملی، اطلاعات پایه و پیکربندی حقوقی شرکت",
-      icon: Building2,
+      href: `${base}/assistant`,
+      title: "دستیار مالی کنترل‌شده",
+      description: "پرسش و پاسخ تحلیلی هوشمند با گاردریل‌های حاکمیت داده",
+      icon: Bot,
     },
     {
       href: `${base}/readiness`,
@@ -185,7 +170,30 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
 
   const isItemActive = (href: string) => {
     if (pathname === href) return true;
-    if (["/imports", "/findings"].some((suffix) => href.endsWith(suffix)) && pathname.startsWith(`${href}/`)) {
+    if (href.endsWith("/imports") && (pathname.startsWith(`${base}/imports`) || pathname.startsWith(`${base}/financial-model`))) {
+      return true;
+    }
+    if (href.endsWith("/overview") && (pathname.startsWith(`${base}/overview`) || pathname.startsWith(`${base}/analysis`))) {
+      return true;
+    }
+    if (href.endsWith("/cashflow") && (
+      pathname.startsWith(`${base}/cashflow`) ||
+      pathname.startsWith(`${base}/receivables`) ||
+      pathname.startsWith(`${base}/payables`) ||
+      pathname.startsWith(`${base}/reconciliation`)
+    )) {
+      return true;
+    }
+    if (href.endsWith("/findings") && (
+      pathname.startsWith(`${base}/findings`) ||
+      pathname.startsWith(`${base}/alerts`) ||
+      pathname.startsWith(`${base}/simulation`)
+    )) {
+      return true;
+    }
+    if (href.endsWith("/reports") && (
+      pathname.startsWith(`${base}/reports`)
+    )) {
       return true;
     }
     return false;

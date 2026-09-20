@@ -380,6 +380,119 @@ svg tspan {
   animation: modal-scale-out 140ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* Sheet / Drawer slide animations */
+@keyframes sheet-slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-slide-out-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes sheet-slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-slide-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-slide-in-top {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-slide-out-top {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes sheet-slide-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-slide-out-bottom {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.sheet-overlay-animated[data-state="open"] {
+  animation: overlay-fade-in 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-overlay-animated[data-state="closed"] {
+  animation: overlay-fade-out 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.sheet-content-animated-left[data-state="open"] {
+  animation: sheet-slide-in-left 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-content-animated-left[data-state="closed"] {
+  animation: sheet-slide-out-left 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.sheet-content-animated-right[data-state="open"] {
+  animation: sheet-slide-in-right 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-content-animated-right[data-state="closed"] {
+  animation: sheet-slide-out-right 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.sheet-content-animated-top[data-state="open"] {
+  animation: sheet-slide-in-top 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-content-animated-top[data-state="closed"] {
+  animation: sheet-slide-out-top 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.sheet-content-animated-bottom[data-state="open"] {
+  animation: sheet-slide-in-bottom 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.sheet-content-animated-bottom[data-state="closed"] {
+  animation: sheet-slide-out-bottom 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

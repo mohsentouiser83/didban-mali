@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = Field(default=None)
     jwt_secret: str = "local-development-secret-change-before-deploy"
     access_token_minutes: int = 1440
-    refresh_token_days: int = 7
+    refresh_token_days: int = 30
     cookie_secure: bool = False
     cors_origins: str = "http://localhost:3000"
     ai_enabled: bool = False
