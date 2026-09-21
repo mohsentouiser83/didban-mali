@@ -78,7 +78,7 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
       <div className="card-heading flex items-center justify-between border-b border-border/60 pb-4">
         <div>
           <span className="overline block text-[11px] font-bold text-primary mb-0.5">کنترل دسترسی</span>
-          <h3 id="members-title" className="text-base sm:text-lg font-bold text-foreground">اعضای شرکت</h3>
+          <h3 id="members-title" className="text-base sm:text-lg font-bold text-foreground">مدیریت اعضای شرکت</h3>
         </div>
         <Badge variant="secondary" className="count-pill text-xs font-mono">
           {new Intl.NumberFormat("fa-IR").format(members.length)} نفر

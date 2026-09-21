@@ -366,15 +366,12 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              هوشمندی و تحلیل سنی مطالبات
+              تحلیل سنی و مدیریت مطالبات
             </h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
               کنترل وصول و ریسک اعتباری
             </Badge>
           </div>
-          <p className="text-xs lg:text-sm text-[var(--ds-muted-fg)] mt-1">
-            پایش ریسک مشتریان، تحلیل ۵ بازه سنی مطالبات و پیشنهاد اقدامات حقوقی و اعتباری
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -402,14 +399,14 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiMetricCard
-          title="کل مطالبات باز (Receivables)"
+          title="کل مطالبات تجاری"
           value={summary?.total_receivables_irr ?? 0}
           loading={loading}
           subtext={`${toPersianDigits(summary?.customer_count ?? 0)} مشتری دارای مانده حساب`}
           icon={Building2}
         />
         <KpiMetricCard
-          title="مطالبات معوق (Overdue)"
+          title="مطالبات معوق سررسیدشده"
           value={summary?.total_overdue_irr ?? 0}
           loading={loading}
           status={Number(summary?.total_overdue_irr ?? 0) > 0 ? "critical" : "normal"}
@@ -417,7 +414,7 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
           icon={ShieldAlert}
         />
         <KpiMetricCard
-          title="نسبت معوقات (Overdue Ratio)"
+          title="نسبت مطالبات معوق"
           value={`${toPersianDigits(((summary?.overdue_ratio ?? 0) * 100).toFixed(1))}%`}
           unit=""
           currency=""
@@ -444,11 +441,8 @@ export function ReceivablesWorkspace({ company }: { company: Company }) {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
-                توزیع سنی مطالبات (Aging Schedule)
+                ماتریس تحلیل سنی مطالبات
               </CardTitle>
-              <CardDescription className="text-xs text-[var(--ds-muted-fg)] mt-0.5">
-                تفکیک مانده بدهی بر اساس تاخیر از تاریخ سررسید رسمی فاکتورها
-              </CardDescription>
             </div>
             <div className="flex items-center gap-3 text-xs text-[var(--ds-muted-fg)]">
               <span className="flex items-center gap-1.5">

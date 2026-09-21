@@ -12,7 +12,6 @@ export default function CompanyProfilePage() {
         <div className="space-y-1">
           <span className="overline inline-block text-xs font-semibold text-primary">مشخصات پایه</span>
           <h3 className="text-lg font-bold text-foreground">پروفایل شرکت</h3>
-          <p className="text-xs text-muted-foreground">اطلاعات مرجع این فضای کاری و مرز امنیتی داده‌ها.</p>
         </div>
         <span className="role role-owner px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
           {company.currency}

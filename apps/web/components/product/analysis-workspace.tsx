@@ -154,14 +154,11 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
         <div>
           <span className="model-kicker inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
             <Icon name="chart" className="size-3.5" />
-            محاسبات نسخه‌دار
+            محاسبات و صورت‌های مالی
           </span>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-            یک دوره انتخاب کنید؛ تصویر مالی همان داده تثبیت می‌شود
+            محاسبه صورت‌های مالی دوره‌ای
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-            شاخص‌ها فقط از اسناد نرمال‌شده محاسبه می‌شوند و کمبود هر منبع در کنار نتیجه باقی می‌ماند.
-          </p>
         </div>
 
         {run && (
@@ -188,8 +185,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
             <Icon name="calendar" className="size-4" />
           </span>
           <div>
-            <h3 id="period-title" className="text-base font-bold text-foreground">دورهٔ محاسبه</h3>
-            <p className="text-xs text-muted-foreground">تاریخ‌ها میلادی ثبت می‌شوند؛ نمایش نتایج با تقویم فارسی است.</p>
+            <h3 id="period-title" className="text-base font-bold text-foreground">انتخاب بازه زمانی دوره مالی</h3>
           </div>
         </div>
 
@@ -202,14 +198,11 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
               value={periodStart}
               onChange={(event) => updateStart(event.target.value)}
               required
-              className="h-10 text-xs bg-background text-end"
+              disabled={submitting}
+              className="h-10 text-xs bg-background"
             />
           </div>
-
-          <span className="period-separator hidden sm:block text-muted-foreground pb-2.5" aria-hidden="true">
-            تا
-          </span>
-
+          <div className="pb-2 text-center text-xs text-muted-foreground">تا</div>
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-foreground">تا تاریخ</label>
             <Input
@@ -218,28 +211,28 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
               value={periodEnd}
               onChange={(event) => updateEnd(event.target.value)}
               required
-              className="h-10 text-xs bg-background text-end"
+              disabled={submitting}
+              className="h-10 text-xs bg-background"
             />
           </div>
 
-          <Button
-            type="submit"
-            className="primary-button h-10 text-xs font-bold gap-2 px-6"
-            disabled={!canRun || submitting || isRunning}
-          >
-            {isRunning ? (
-              <>
-                <span className="loading-ring size-3.5" />
-                در حال محاسبه…
-              </>
-            ) : (
-              <>
-                <Icon name="activity" className="size-3.5" />
-                اجرای تحلیل
-              </>
-            )}
+          <Button type="submit" disabled={submitting || isRunning} className="h-10 text-xs font-bold gap-2">
+            <Icon name="activity" className="size-3.5" />
+            {submitting ? "در حال ارسال…" : isRunning ? "در حال محاسبه…" : "محاسبه دوره"}
           </Button>
         </form>
+
+        {run?.coverage?.accounting?.score != null && (
+          <div className="coverage-hint flex items-center justify-between gap-3 pt-3 border-t border-border/60 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Icon name="shield" className="size-3.5 text-primary" />
+              کفایت داده‌های مالی برای تحلیل
+            </span>
+            <span className="font-mono font-bold text-foreground">
+              {new Intl.NumberFormat("fa-IR").format(run.coverage.accounting.score)}٪
+            </span>
+          </div>
+        )}
 
         {!canRun ? (
           <div className="analysis-advisory flex items-center gap-2 p-3 rounded-xl bg-muted text-xs text-muted-foreground">
@@ -281,7 +274,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
         <div className="space-y-6">
           <ProductCard className="analysis-result-header p-4 sm:p-5 rounded-2xl border border-border bg-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="overline block text-[11px] font-bold text-primary">نتیجهٔ دوره</span>
+              <span className="overline block text-[11px] font-bold text-primary">خلاصه شاخص‌های مالی دوره</span>
               <h3 className="text-base sm:text-lg font-bold text-foreground">
                 {faDate(run.period_start)} تا {faDate(run.period_end)}
               </h3>
@@ -298,8 +291,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
             <ProductCard className="profit-statement p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="profit-title">
               <div className="panel-heading flex items-center justify-between border-b border-border/60 pb-3">
                 <div>
-                  <h3 id="profit-title" className="text-base font-bold text-foreground">عملکرد دوره</h3>
-                  <p className="text-xs text-muted-foreground">خلاصه سود و زیان بر پایه آرتیکل‌های طبقه‌بندی‌شده</p>
+                  <h3 id="profit-title" className="text-base font-bold text-foreground">صورت سود و زیان دوره</h3>
                 </div>
                 {margin ? (
                   <Badge variant="secondary" className="margin-chip text-xs">
@@ -329,8 +321,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
 
           <ProductCard className="balance-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="balance-title">
             <div className="panel-heading border-b border-border/60 pb-3">
-              <h3 id="balance-title" className="text-base font-bold text-foreground">وضعیت مالی تا پایان دوره</h3>
-              <p className="text-xs text-muted-foreground">مانده حساب‌ها تا {faDate(run.period_end)}</p>
+              <h3 id="balance-title" className="text-base font-bold text-foreground">ترازنامه و وضعیت مالی پایان دوره</h3>
             </div>
             <div className="balance-values grid grid-cols-1 sm:grid-cols-3 gap-4">
               {balanceCodes.map((code) => (

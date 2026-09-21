@@ -58,9 +58,8 @@ export function AiSemanticRanking({ company, runId, candidates }: { company: Com
     <ProductCard className="ai-semantic-panel p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" aria-labelledby="semantic-panel-title">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
         <div className="space-y-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full"><Icon name="shield" />لایه کمکی، نه موتور تصمیم</span>
-          <h3 id="semantic-panel-title" className="text-base font-bold text-foreground">رتبه‌بندی معنایی نامزدهای مبهم</h3>
-          <p className="text-xs text-muted-foreground">AI فقط ترتیب همین نامزدهای ازپیش‌محدودشده را پیشنهاد می‌دهد و حق ساخت جفت تازه ندارد.</p>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full"><Icon name="shield" />هوش مصنوعی کمکی</span>
+          <h3 id="semantic-panel-title" className="text-base font-bold text-foreground">رتبه‌بندی هوشمند مغایرت‌های احتمالی</h3>
         </div>
         <Badge className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${effective ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60"}`}>{effective ? "آماده" : "ارسال مسدود"}</Badge>
       </header>

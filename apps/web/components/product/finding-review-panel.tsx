@@ -81,9 +81,8 @@ export function FindingReviewPanel({ company, currentUserId, findingId, currentS
     <ProductCard className="finding-review p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-6" aria-labelledby="finding-review-title">
       <header className="review-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border/70">
         <div className="space-y-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full"><Icon name="users" />گردش بررسی انسانی</span>
-          <h3 id="finding-review-title" className="text-lg font-bold text-foreground">تصمیم مشاور روی پرونده</h3>
-          <p className="text-xs text-muted-foreground">هر اقدام به نام ثبت‌کننده و بدون حذف سابقه نگهداری می‌شود.</p>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full"><Icon name="users" />بررسی و کارشناسی</span>
+          <h3 id="finding-review-title" className="text-lg font-bold text-foreground">ثبت تصمیم و تعیین وضعیت پرونده</h3>
         </div>
         <div className={`review-current status-${currentStatus} flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
           currentStatus === "confirmed" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" :
@@ -104,8 +103,7 @@ export function FindingReviewPanel({ company, currentUserId, findingId, currentS
               <form className="decision-form p-4 rounded-xl border border-border/70 bg-card/60 space-y-4" onSubmit={(event) => void submitDecision(event)}>
                 <fieldset disabled={busy !== null} className="space-y-4">
                   <div>
-                    <legend className="text-sm font-bold text-foreground">تصمیم بعدی</legend>
-                    <p className="text-xs text-muted-foreground mt-0.5">فقط گذارهای مجاز برای وضعیت فعلی نمایش داده شده‌اند.</p>
+                    <legend className="text-sm font-bold text-foreground">انتخاب اقدام و وضعیت جدید</legend>
                   </div>
                   <div className="decision-options grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {availableDecisions.map((value) => (

@@ -284,7 +284,6 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
                   ردیف عناوین: {new Intl.NumberFormat("fa-IR").format(headerRow ?? preview.header_row)}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">پیشنهادها بر اساس الگوی گزارش‌های بانکی هماهنگ شده و خودکارند، اما با تأیید شما ثبت می‌شوند.</p>
             </div>
             <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg self-start sm:self-center">
               {Object.values(mapping).filter(Boolean).length} از {fields.length} نگاشت‌شده
@@ -337,8 +336,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
         <aside className="mapping-settings p-6 rounded-2xl border border-border bg-card space-y-4 self-start">
           <div className="border-b border-border/60 pb-3">
-            <h3 className="text-base font-bold text-foreground">قواعد تبدیل</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">تبدیل تاریخ و مبلغ باید صریح و قابل حسابرسی باشد.</p>
+            <h3 className="text-base font-bold text-foreground">تنظیمات تبدیل و استانداردسازی</h3>
           </div>
 
           <div className="space-y-1.5">

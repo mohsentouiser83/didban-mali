@@ -50,7 +50,6 @@ export default function NewCompanyPage() {
           </span>
           <span className="overline inline-block text-xs font-semibold text-primary">فضای کاری تازه</span>
           <h1 className="text-xl sm:text-2xl font-black text-foreground">{companies.length ? "افزودن یک شرکت جدید" : "اولین شرکت را تعریف کنید"}</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">داده‌ها، اعضا و گزارش‌های هر شرکت در یک مرز امنیتی مستقل نگهداری می‌شوند.</p>
           <div className="text-right pt-2">
             <CreateCompany />
           </div>

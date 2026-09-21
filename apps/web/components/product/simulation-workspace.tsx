@@ -33,7 +33,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Column,
   FinancialDataTable,
@@ -388,20 +388,16 @@ export function SimulationWorkspace({ company }: { company: Company }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              شبیه‌ساز سناریوهای تصمیم‌گیری مالی (What-If Simulator)
+              شبیه‌ساز سناریوهای مالی
             </h1>
             <Badge
               variant="outline"
               className="bg-primary/5 text-primary border-primary/20 text-xs gap-1"
             >
               <Sparkles className="size-3" />
-              مدلسازی تصمیمات C-Suite
+              مدل‌سازی تصمیمات مدیریتی
             </Badge>
           </div>
-          <p className="text-xs lg:text-sm text-[var(--ds-muted-fg)] mt-1">
-            سنجش اثر همزمان تغییر سیاست وصول مطالبات، تخفیفات نقدی، استخدام جدید، مهلت پرداخت به
-            تامین‌کنندگان و شوک بازار بر تاب‌آوری و سودآوری.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -449,7 +445,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           }`}
         >
           <SlidersHorizontal className="size-3.5" />
-          <span>شبیه‌ساز تعاملی (Live Simulator)</span>
+          <span>شبیه‌ساز تعاملی</span>
         </button>
 
         <button
@@ -462,7 +458,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           }`}
         >
           <Columns className="size-3.5" />
-          <span>ماتریس مقایسه سناریوها (Comparative Matrix)</span>
+          <span>ماتریس مقایسه سناریوها</span>
           {savedScenarios.length > 0 && (
             <span
               className={`text-[10px] px-1.5 py-0.2 rounded-full ${
@@ -486,11 +482,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                     <Zap className="size-4 text-amber-500" />
-                    سناریوهای استراتژیک از پیش‌تعریف‌شده (Strategic Presets)
+                    الگوهای آماده سناریو
                   </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    برای اعمال سریع سیاست‌های استاندارد مالی و ارزیابی ضرب‌الاجل‌ها روی سناریو کلیک کنید:
-                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -686,11 +679,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <TrendingUp className="size-4 text-emerald-600" />
-                  اهرم ۱: مدیریت وصول مطالبات و تخفیف نقدی تسویه
+                  اهرم ۱: دوره وصول مطالبات و تخفیف نقدی
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  کاهش دوره وصول مطالبات (DSO) از طریق اعطای تخفیف نقدی به خریداران در ازای تسویه زودتر.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 <div>
@@ -774,11 +764,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <UserPlus className="size-4 text-blue-600" />
-                  اهرم ۲: استخدام پرسنل جدید و تغییر هزینه‌های ثابت (Opex)
+                  اهرم ۲: نیروی انسانی و هزینه‌های ثابت
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  محاسبه بار مالی حقوق و هزینه‌های ماهانه جدید بر نرخ مصرف نقدینگی و افت تاب‌آوری.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 <div>
@@ -792,64 +779,65 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                   </div>
                   <Slider
                     min={0}
-                    max={20}
+                    max={50}
                     step={1}
                     value={[params.new_hires_count]}
                     onValueChange={([val]) => handleParamChange({ new_hires_count: val })}
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
-                    <span>۰ نفر (فریز استخدام)</span>
-                    <span>۱۰ نفر جذب جدید</span>
-                    <span>۲۰ نفر استخدام گسترده</span>
+                    <span>۰ نفر (توقف استخدام)</span>
+                    <span>۲۵ نفر</span>
+                    <span>۵۰ نفر جذب نیرو</span>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center text-xs mb-2">
                     <span className="font-semibold text-[var(--ds-card-fg)]">
-                      میانگین حقوق و مزایای ماهانه هر نیرو (IRR):
+                      حقوق و مزایای ناخالص هر نیروی جدید:
                     </span>
                     <span className="font-mono font-bold text-primary">
-                      <MoneyDisplay amount={params.avg_salary_monthly_irr} compact />
+                      {toPersianDigits(Number(params.avg_salary_monthly_irr || 0) / 10_000_000)} میلیون تومان
                     </span>
                   </div>
                   <Slider
-                    min={150000000}
-                    max={800000000}
-                    step={25000000}
-                    value={[Number(params.avg_salary_monthly_irr) || 350000000]}
+                    min={150_000_000}
+                    max={1_500_000_000}
+                    step={50_000_000}
+                    value={[Number(params.avg_salary_monthly_irr || 0)]}
                     onValueChange={([val]) =>
-                      handleParamChange({ avg_salary_monthly_irr: val.toString() })
+                      handleParamChange({ avg_salary_monthly_irr: String(val) })
                     }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
-                    <span>۱۵۰ م ریال</span>
-                    <span>۳۵۰ م ریال</span>
-                    <span>۸۰۰ م ریال (حقوق کلیدی)</span>
+                    <span>۱۵ میلیون تومان</span>
+                    <span>۷۵ میلیون تومان</span>
+                    <span>۱۵۰ میلیون تومان</span>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center text-xs mb-2">
                     <span className="font-semibold text-[var(--ds-card-fg)]">
-                      تغییر سایر هزینه‌های ثابت ماهانه (اجاره/سربار):
+                      تغییر خالص ماهانه هزینه‌های عمومی و اداری:
                     </span>
                     <span className="font-mono font-bold text-primary">
-                      <MoneyDisplay amount={params.fixed_cost_monthly_change_irr} compact />
+                      {Number(params.fixed_cost_monthly_change_irr || 0) > 0 ? "+" : ""}
+                      {toPersianDigits(Number(params.fixed_cost_monthly_change_irr || 0) / 10_000_000)} م تومان
                     </span>
                   </div>
                   <Slider
-                    min={-1000000000}
-                    max={3000000000}
-                    step={100000000}
-                    value={[Number(params.fixed_cost_monthly_change_irr) || 0]}
+                    min={-2_000_000_000}
+                    max={3_000_000_000}
+                    step={100_000_000}
+                    value={[Number(params.fixed_cost_monthly_change_irr || 0)]}
                     onValueChange={([val]) =>
-                      handleParamChange({ fixed_cost_monthly_change_irr: val.toString() })
+                      handleParamChange({ fixed_cost_monthly_change_irr: String(val) })
                     }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
-                    <span>-۱ میلیارد (صرفه‌جویی)</span>
-                    <span>۰ (بدون تغییر)</span>
+                    <span>-۲ میلیارد (کاهش هزینه)</span>
+                    <span>بدون تغییر</span>
                     <span>+۳ میلیارد (افزایش سربار)</span>
                   </div>
                 </div>
@@ -861,11 +849,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <Clock className="size-4 text-cyan-600 dark:text-cyan-400" />
-                  اهرم ۳: شرایط اعتباری تامین‌کنندگان و مهلت پرداخت (DPO)
+                  اهرم ۳: دوره بازپرداخت بدهی به تامین‌کنندگان
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  مذاکره برای تمدید دوره تسویه خرید مواد اولیه جهت حفظ نقدینگی در خزانه شرکت.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 <div>
@@ -903,11 +888,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <AlertTriangle className="size-4 text-red-600" />
-                  اهرم ۴: تست استرس شوک وصولی و سوخت طلب مشتریان
+                  اهرم ۴: آزمون تنش وصولی و ریسک نکول
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  سنجش استقامت خزانه در برابر نکول ناگهانی بدهی مشتریان یا تاخیر بحرانی بدهکاران عمده.
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 <div>
@@ -966,11 +948,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Coins className="size-4 text-primary" />
-                    جدول مقایسه‌ای پیش‌بینی ۱۳ هفته‌ای خزانه (Baseline vs. Simulated)
+                    پیش‌بینی ۱۳ هفته‌ای جریان وجوه نقد سناریو
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    انعکاس هفتگی اثر تصمیمات بر مانده نقدی پایان دوره و تشخیص نخستین هفته کسری نقدینگی.
-                  </CardDescription>
                 </div>
                 {result?.first_deficit_week_simulated && (
                   <Badge variant="danger" className="text-xs animate-pulse">
@@ -1000,11 +979,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <BookmarkPlus className="size-4 text-primary" />
-                    سناریوهای ذخیره‌شده شرکت (Saved Strategic Scenarios)
+                    سناریوهای ذخیره‌شده
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    سناریوهایی را که مایل به مقایسه همزمان در ماتریس هستید انتخاب کنید (حداکثر ۳ سناریو):
-                  </CardDescription>
                 </div>
                 <Button
                   variant="outline"
@@ -1109,11 +1085,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-sm font-bold flex items-center gap-2">
                     <Columns className="size-4 text-primary" />
-                    ماتریس مقایسه‌ای متغیرهای استراتژیک (Side-by-Side Matrix)
+                    ماتریس مقایسه جامع سناریوها
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    ارزیابی مستقیم اثر سناریوهای مختلف در مقایسه با نقطه شروع عملیات خزانه‌داری:
-                  </CardDescription>
                 </div>
                 <Button
                   variant="outline"

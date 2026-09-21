@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "./product-card";
@@ -15,6 +16,8 @@ import { api } from "@/lib/product-api";
 import type { AccountClass, AccountClassification, Company, FinancialAccount, ImportBatch } from "@/lib/product-types";
 
 import { Icon } from "./icons";
+
+const sourceLabels = { accounting: "حسابداری", bank: "بانک", sales: "فروش" };
 
 const classLabels: Record<AccountClass, string> = {
   asset: "دارایی",
@@ -38,6 +41,7 @@ type CoverageSection = {
 
 type Coverage = {
   overall?: number;
+  overall_score?: number;
   canonical_model?: CoverageSection;
   journal_balance?: CoverageSection;
   profit_analysis?: CoverageSection;
@@ -124,11 +128,8 @@ export function FinancialModelWorkspace({ company }: { company: Company }) {
             سرفصل‌ها و طبقه‌بندی حساب‌ها
           </span>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-            کدینگ استاندارد و تعیین ماهیت حساب‌ها
+            کدینگ و استانداردسازی سرفصل‌ها
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
-            حساب‌های استخراج‌شده از اسناد را به سرفصل‌های ۶گانه (دارایی، بدهی، حقوق مالکانه، درآمد، هزینه، سایر) اختصاص دهید تا سود و زیان و تراز آزمایشی به‌طور خودکار آماده شوند.
-          </p>
         </div>
 
         <div className="model-readiness flex items-center gap-3 p-3 rounded-xl border border-border/80 bg-card self-start sm:self-auto shrink-0">
@@ -183,8 +184,7 @@ export function FinancialModelWorkspace({ company }: { company: Company }) {
       <ProductCard className="normalized-sources p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="normalized-title">
         <div className="section-title flex items-center justify-between border-b border-border/60 pb-3">
           <div>
-            <h3 id="normalized-title" className="text-base font-bold text-foreground">منابع نرمال‌شده</h3>
-            <p className="text-xs text-muted-foreground">هر ردیف مدل مالی به فایل و ردیف اصلی قابل ردیابی است.</p>
+            <h3 id="normalized-title" className="text-base font-bold text-foreground">اسناد و فایل‌های پردازش‌شده</h3>
           </div>
           <span className="text-xs font-mono text-muted-foreground font-bold">
             {new Intl.NumberFormat("fa-IR").format(normalizedBatches.length)} منبع
@@ -203,34 +203,26 @@ export function FinancialModelWorkspace({ company }: { company: Company }) {
                     </span>
                     <div className="min-w-0">
                       <strong className="block text-xs font-bold text-foreground truncate">{batch.original_name}</strong>
-                      <small className="block text-[11px] text-muted-foreground truncate">
-                        {batch.source_label} · {new Intl.NumberFormat("fa-IR").format(batch.row_count ?? 0)} ردیف
-                      </small>
+                      <small className="block text-[11px] text-muted-foreground">{sourceLabels[batch.source_kind]} · {batch.source_label}</small>
                     </div>
                   </div>
-
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="lineage-state inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                      <Icon name="check" className="size-3.5" />
-                      {coverage.canonical_model?.lineage_complete ? "ردیابی کامل" : "نرمال‌شده"}
+                    <span className="text-xs font-mono font-bold text-foreground">
+                      {new Intl.NumberFormat("fa-IR").format(batch.row_count ?? 0)} سطر
                     </span>
-                    <strong className="source-score text-xs font-mono font-bold text-foreground">
-                      {scoreOf(coverage.canonical_model?.score ?? coverage.overall)}٪
-                    </strong>
+                    <Badge variant="outline" className="text-xs">
+                      پوشش {scoreOf(coverage.overall_score ?? coverage.overall)}٪
+                    </Badge>
                   </div>
                 </article>
               );
             })}
           </div>
         ) : (
-          <div className="model-empty py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
-            <Icon name="upload" className="size-6 text-muted-foreground/60" />
-            <div>
-              <strong className="block font-bold text-foreground">هنوز منبع نرمال‌شده‌ای وجود ندارد</strong>
-              <p className="mt-1">ابتدا یک فایل را بارگذاری، نگاشت و ثبت نهایی کنید.</p>
-            </div>
-            <Button asChild variant="outline" size="sm" className="mt-2">
-              <Link href={`/companies/${company.id}/imports`}>رفتن به ورود داده</Link>
+          <div className="empty-sources text-center py-6 space-y-2">
+            <p className="text-xs text-muted-foreground">هنوز منبع نرمال‌شده‌ای ثبت نشده است.</p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/companies/${company.id}/imports`}>ورود و نگاشت فایل تازه</Link>
             </Button>
           </div>
         )}
@@ -240,8 +232,7 @@ export function FinancialModelWorkspace({ company }: { company: Company }) {
       <ProductCard className="classification-queue p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="classification-title">
         <div className="classification-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-3">
           <div>
-            <h3 id="classification-title" className="text-base font-bold text-foreground">صف طبقه‌بندی حساب‌ها</h3>
-            <p className="text-xs text-muted-foreground">هر انتخاب با تاریخ اثر و هویت تأییدکننده، به‌صورت تغییرناپذیر ثبت می‌شود.</p>
+            <h3 id="classification-title" className="text-base font-bold text-foreground">حساب‌های نیازمند طبقه‌بندی</h3>
           </div>
           <div className="queue-progress flex items-center gap-3">
             <span className="text-xs font-mono text-muted-foreground">

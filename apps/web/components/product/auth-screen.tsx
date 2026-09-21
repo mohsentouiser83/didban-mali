@@ -157,11 +157,6 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground">
                   {mode === "login" ? "خوش آمدید" : "شروع با دیدبان مالی"}
                 </h2>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  {mode === "login"
-                    ? "برای ادامه وارد حساب خود شوید."
-                    : "حساب مدیر و فضای کاری اولیه را بسازید؛ نام فضای کاری بعداً قابل تغییر است."}
-                </p>
               </div>
 
               <form onSubmit={submit} className="auth-form space-y-4" noValidate>

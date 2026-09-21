@@ -68,9 +68,8 @@ export function AiFindingExplanationPanel({ company, findingId }: { company: Com
     <ProductCard className={`ai-finding-panel p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4 ${effective ? "is-ready" : "is-locked"}`} aria-labelledby="ai-finding-title">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/70">
         <div className="space-y-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full"><Icon name="shield" />لایه توضیح کنترل‌شده</span>
-          <h3 id="ai-finding-title" className="text-base font-bold text-foreground">این یافته به زبان ساده</h3>
-          <p className="text-xs text-muted-foreground">توضیح احتمالی فقط بر پایه اعداد و شواهد همین پرونده ساخته می‌شود.</p>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full"><Icon name="shield" />تحلیل هوشمند</span>
+          <h3 id="ai-finding-title" className="text-base font-bold text-foreground">شرح و تفسیر تحلیلی یافته</h3>
         </div>
         <Badge className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${effective ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/60" : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/60"}`}>{effective ? "آماده" : "ارسال مسدود"}</Badge>
       </header>

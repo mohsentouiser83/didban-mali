@@ -56,22 +56,22 @@ import { Mark } from "./icons";
 import { useWorkspace } from "./workspace-provider";
 
 const pageMeta = [
-  { match: "/imports", title: "ورود و آماده‌سازی اسناد", breadcrumb: "فضای کاری / اسناد و سرفصل‌ها" },
-  { match: "/overview", title: "داشبورد و صورت‌های مالی", breadcrumb: "فضای کاری / وضعیت و صورت‌های مالی" },
-  { match: "/cashflow", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / جریان نقد، مطالبات و تسویه‌ها" },
-  { match: "/receivables", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / مطالبات و مشتریان" },
-  { match: "/payables", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / بدهی‌ها و تامین‌کنندگان" },
-  { match: "/reconciliation", title: "نقدینگی و خزانه‌داری", breadcrumb: "فضای کاری / تطبیق حساب‌ها و بانک" },
-  { match: "/findings", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / یافته‌ها و شواهد ناهنجاری" },
-  { match: "/alerts", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / هشدارهای زودهنگام" },
-  { match: "/simulation", title: "ریسک‌ها و مغایرت‌ها", breadcrumb: "فضای کاری / شبیه‌ساز تصمیمات" },
-  { match: "/reports", title: "گزارش‌ها و خروجی‌ها", breadcrumb: "فضای کاری / اسناد مدیریتی و خروجی" },
-  { match: "/financial-model", title: "ورود و آماده‌سازی اسناد", breadcrumb: "فضای کاری / سرفصل‌ها و طبقه‌بندی" },
-  { match: "/analysis", title: "داشبورد و صورت‌های مالی", breadcrumb: "فضای کاری / تحلیل و صورت‌های مالی" },
-  { match: "/assistant", title: "دستیار مالی هوشمند", breadcrumb: "فضای کاری / هوشمندی و حاکمیت" },
-  { match: "/readiness", title: "آمادگی و ارزیابی سامانه", breadcrumb: "تنظیمات شرکت / آزمون‌های کیفی" },
-  { match: "/settings/profile", title: "پروفایل شرکت", breadcrumb: "تنظیمات شرکت / مشخصات پایه" },
-  { match: "/settings/members", title: "اعضا و دسترسی‌ها", breadcrumb: "تنظیمات شرکت / اعضا" },
+  { match: "/imports", title: "ورود و پردازش اسناد", breadcrumb: "اسناد مالی / بارگذاری و پردازش" },
+  { match: "/overview", title: "داشبورد جامع مالی", breadcrumb: "گزارش‌های مدیریتی / داشبورد" },
+  { match: "/cashflow", title: "جریان وجوه نقد", breadcrumb: "خزانه‌داری / جریان نقدینگی" },
+  { match: "/receivables", title: "تحلیل مطالبات", breadcrumb: "خزانه‌داری / مطالبات تجاری" },
+  { match: "/payables", title: "تحلیل پرداختنی‌ها", breadcrumb: "خزانه‌داری / بدهی‌های تجاری" },
+  { match: "/reconciliation", title: "تطبیق حساب و بانک", breadcrumb: "خزانه‌داری / تطبیق بانکی" },
+  { match: "/findings", title: "مغایرت‌ها و ریسک‌های مالی", breadcrumb: "پایش و نظارت / مغایرت‌ها" },
+  { match: "/alerts", title: "هشدارهای مالی", breadcrumb: "پایش و نظارت / هشدارها" },
+  { match: "/simulation", title: "شبیه‌ساز سناریوهای مالی", breadcrumb: "تصمیم‌گیری / شبیه‌ساز" },
+  { match: "/reports", title: "گزارش‌های رسمی و مدیریتی", breadcrumb: "گزارش‌ها / اسناد رسمی" },
+  { match: "/financial-model", title: "کدینگ و طبقه‌بندی حساب‌ها", breadcrumb: "اسناد مالی / سرفصل‌ها" },
+  { match: "/analysis", title: "صورت‌های مالی و تحلیل عملکرد", breadcrumb: "گزارش‌های مدیریتی / صورت‌های مالی" },
+  { match: "/assistant", title: "دستیار هوشمند مالی", breadcrumb: "هوش مصنوعی / دستیار" },
+  { match: "/readiness", title: "ارزیابی و پایش سامانه", breadcrumb: "تنظیمات / ارزیابی سامانه" },
+  { match: "/settings/profile", title: "مشخصات شرکت", breadcrumb: "تنظیمات / مشخصات شرکت" },
+  { match: "/settings/members", title: "مدیریت اعضا و دسترسی‌ها", breadcrumb: "تنظیمات / اعضا و دسترسی‌ها" },
 ];
 
 type NavItem = {
@@ -111,16 +111,16 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
 
   const navigationItems: NavItem[] = [
     { href: `${base}/overview`, label: "داشبورد مالی", icon: LayoutDashboard },
-    { href: `${base}/imports`, label: "ورود و آماده‌سازی اسناد", icon: FileUp },
-    { href: `${base}/cashflow`, label: "نقدینگی و خزانه‌داری", icon: WalletCards },
+    { href: `${base}/imports`, label: "اسناد و فایل‌ها", icon: FileUp },
+    { href: `${base}/cashflow`, label: "خزانه‌داری و نقدینگی", icon: WalletCards },
     {
       href: `${base}/findings`,
-      label: "ریسک‌ها و مغایرت‌ها",
+      label: "مغایرت‌ها و ریسک‌ها",
       icon: ScanSearch,
       badge: alertSummary?.total_active ?? null,
       badgeVariant: alertSummary?.critical_count ? "critical" : "warning",
     },
-    { href: `${base}/reports`, label: "گزارش‌ها و خروجی‌ها", icon: FileText },
+    { href: `${base}/reports`, label: "گزارش‌های مالی", icon: FileText },
   ];
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -134,19 +134,19 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
     },
     {
       href: `${base}/settings/members`,
-      title: "اعضا و دسترسی‌ها",
+      title: "اعضا و سطوح دسترسی",
       description: "مدیریت کاربران، حسابداران و تعیین سطوح دسترسی مالی",
       icon: Users2,
     },
     {
       href: `${base}/assistant`,
-      title: "دستیار مالی کنترل‌شده",
+      title: "دستیار هوشمند مالی",
       description: "پرسش و پاسخ تحلیلی هوشمند با گاردریل‌های حاکمیت داده",
       icon: Bot,
     },
     {
       href: `${base}/readiness`,
-      title: "آمادگی و ارزیابی سامانه",
+      title: "ارزیابی و پایش سامانه",
       description: "کنترل دروازه پذیرش، آزمون‌های کیفی و سلامت عملیاتی",
       icon: ShieldCheck,
     },

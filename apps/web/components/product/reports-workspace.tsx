@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -207,15 +207,12 @@ export function ReportsWorkspace({ company }: { company: Company }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              گزارش‌های رسمی و اسناد مدیریتی
+              گزارش‌های رسمی و مدیریتی
             </h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
-              خروجی A4 با اثر انگشت دیجیتال
+              گزارش‌های مستند با شناسه رهگیری
             </Badge>
           </div>
-          <p className="text-xs lg:text-sm text-[var(--ds-muted-fg)] mt-1">
-            تهیه نسخه‌های منجمدشده و غیرقابل تغییر از وضعیت مالی، سرمایه در گردش و یافته‌ها ویژه هیئت مدیره و سهامداران
-          </p>
         </div>
 
         {selectedReport && (
@@ -262,11 +259,8 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Plus className="size-4 text-primary" />
-                    تنظیم و صدور نسخه جدید گزارش
+                    صدور گزارش مالی جدید
                   </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    مشخصات دوره مبنا و یادداشت‌های تفسیری مشاور را برای درج در فایل PDF تنظیم فرمایید
-                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -355,11 +349,8 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <FileCheck2 className="size-4 text-primary" />
-                    فهرست محتوای نسخه PDF
+                    ساختار و محتوای گزارش PDF
                   </CardTitle>
-                  <CardDescription className="text-xs mt-0.5">
-                    فایل نهایی خروجی شامل این بخش‌هاست:
-                  </CardDescription>
                 </div>
                 <Badge variant="outline" className="text-[11px] bg-primary/5 text-primary border-primary/20">
                   A4 · فارسی · RTL
@@ -409,10 +400,10 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                       {statusLabels[selectedReport.status]}
                     </Badge>
                   </div>
-                  <CardDescription className="text-xs mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     دوره تحلیلی: {faDate(selectedReport.period_start)} تا {faDate(selectedReport.period_end)} | زمان ثبت:{" "}
                     {faDateTime(selectedReport.created_at)}
-                  </CardDescription>
+                  </div>
                 </div>
               </div>
 
@@ -527,13 +518,10 @@ export function ReportsWorkspace({ company }: { company: Company }) {
           <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Layers className="size-4 text-primary" />
-                  آرشیو نسخه‌های گزارش‌های مدیریتی
-                </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  تمام نسخه‌ها به صورت snapshot مستقل، منجمد و قابل حسابرسی بایگانی شده‌اند
-                </CardDescription>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Layers className="size-4 text-primary" />
+                    آرشیو گزارش‌های صادرشده
+                  </CardTitle>
               </div>
               <Badge variant="outline" className="text-xs">
                 {toPersianDigits(reports.length)} نسخه بایگانی‌شده

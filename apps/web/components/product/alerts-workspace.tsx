@@ -22,7 +22,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   KpiMetricCard,
@@ -232,14 +232,11 @@ export function AlertsWorkspace({ company }: { company: Company }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">مرکز پایش هشدارهای زودهنگام مالی</h1>
+            <h1 className="text-2xl font-bold tracking-tight">مرکز پایش هشدارهای مالی</h1>
             <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-              Early Warning System
+              سامانه هشدار زودهنگام
             </Badge>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            پایش خودکار و پیش‌دستانه مخاطرات نقدینگی، ریسک‌های اعتباری مشتریان، بحران بستانکاران و مغایرت‌ها
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border bg-muted p-1 text-xs">
@@ -529,10 +526,7 @@ export function AlertsWorkspace({ company }: { company: Company }) {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold">افزودن کانال وب‌هوک جدید (Webhook Dispatcher)</CardTitle>
-                  <CardDescription className="text-xs">
-                    ارسال خودکار هشدارهای نقدینگی و ریسک به تلگرام، بله، ایتا، اسلک یا سیستم مالی مرکزی (ERP)
-                  </CardDescription>
+                  <CardTitle className="text-base font-bold">افزودن وب‌هوک ارسال هشدار</CardTitle>
                 </div>
                 <Radio className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -541,7 +535,7 @@ export function AlertsWorkspace({ company }: { company: Company }) {
               <form onSubmit={(e) => void handleCreateWebhook(e)} className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold">نام کانال / سامانه گیرنده</label>
+                    <label className="text-xs font-semibold">نام سامانه گیرنده</label>
                     <Input
                       placeholder="مثلاً: وب‌هوک بات تلگرام مدیر مالی"
                       value={newWebhook.name}
@@ -550,7 +544,7 @@ export function AlertsWorkspace({ company }: { company: Company }) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold">آدرس اینترنتی وب‌هوک (Endpoint URL)</label>
+                    <label className="text-xs font-semibold">آدرس وب‌هوک (Endpoint URL)</label>
                     <Input
                       dir="ltr"
                       placeholder="https://api.telegram.org/... یا https://erp.company.com/webhook"
@@ -560,7 +554,7 @@ export function AlertsWorkspace({ company }: { company: Company }) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold">کلید محرمانه / توکن احراز هویت (اختیاری)</label>
+                    <label className="text-xs font-semibold">کلید محرمانه (اختیاری)</label>
                     <Input
                       dir="ltr"
                       placeholder="Bearer token یا امضای اختصاصی"
@@ -622,10 +616,7 @@ export function AlertsWorkspace({ company }: { company: Company }) {
           {/* Configured Webhooks List */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-bold">کانال‌های وب‌هوک فعال شرکت</CardTitle>
-              <CardDescription className="text-xs">
-                فهرست سامانه‌های متصل برای دریافت زنده هشدارهای مالی
-              </CardDescription>
+              <CardTitle className="text-base font-bold">وب‌هوک‌های فعال</CardTitle>
             </CardHeader>
             <CardContent>
               {webhooks.length === 0 ? (
@@ -696,9 +687,6 @@ export function AlertsWorkspace({ company }: { company: Company }) {
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-base font-bold">تایید و پیگیری هشدار</CardTitle>
-              <CardDescription className="text-xs">
-                ثبت مشاهده هشدار «{acknowledgingAlert.title_fa}» توسط مشاور مالی
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
@@ -728,9 +716,6 @@ export function AlertsWorkspace({ company }: { company: Company }) {
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-base font-bold">ثبت رفع مشکل و بستن هشدار</CardTitle>
-              <CardDescription className="text-xs">
-                مستندسازی اقدام اصلاحی برای هشدار «{resolvingAlert.title_fa}»
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">

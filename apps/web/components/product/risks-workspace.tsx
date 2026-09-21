@@ -50,7 +50,7 @@ export function RisksWorkspace({ company, defaultTab = "findings" }: RisksWorksp
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-xl font-bold text-foreground tracking-tight">
-            پایش ریسک‌ها و مغایرت‌ها
+            ریسک‌ها و مغایرت‌های مالی
           </h1>
         </div>
       </div>
@@ -59,15 +59,15 @@ export function RisksWorkspace({ company, defaultTab = "findings" }: RisksWorksp
         <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
           <TabsTrigger value="findings" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
             <ScanSearch className="size-4 text-primary" />
-            <span>یافته‌ها و ناهنجاری‌ها</span>
+            <span>مغایرت‌ها و یافته‌ها</span>
           </TabsTrigger>
           <TabsTrigger value="alerts" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
             <BellRing className="size-4 text-amber-500" />
-            <span>هشدارهای زودهنگام</span>
+            <span>هشدارهای مالی</span>
           </TabsTrigger>
           <TabsTrigger value="simulation" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
             <SlidersHorizontal className="size-4 text-purple-500" />
-            <span>شبیه‌ساز سناریوها</span>
+            <span>شبیه‌ساز سناریوهای مالی</span>
           </TabsTrigger>
         </TabsList>
 

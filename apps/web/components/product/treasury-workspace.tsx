@@ -53,14 +53,11 @@ export function TreasuryWorkspace({ company, defaultTab = "cashflow" }: Treasury
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
             <WalletCards className="size-4" />
-            <span>مدیریت نقدینگی و خزانه‌داری</span>
+            <span>خزانه‌داری</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-            مرکز کنترل وجوه نقد، تسویه‌ها و تطبیق بانکی
+            خزانه‌داری و مدیریت نقدینگی
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            پایش یکپارچه جریان نقدینگی، پیش‌بینی تاب‌آوری، وصول مطالبات، تعهدات پرداختنی و مغایرت‌گیری اسناد با بانک.
-          </p>
         </div>
       </div>
 
@@ -68,19 +65,19 @@ export function TreasuryWorkspace({ company, defaultTab = "cashflow" }: Treasury
         <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
           <TabsTrigger value="cashflow" className="gap-2 text-xs sm:text-sm py-2.5">
             <WalletCards className="size-4" />
-            <span>جریان و پیش‌بینی نقد</span>
+            <span>جریان نقدینگی</span>
           </TabsTrigger>
           <TabsTrigger value="receivables" className="gap-2 text-xs sm:text-sm py-2.5">
             <ArrowDownLeft className="size-4 text-emerald-500" />
-            <span>مطالبات و مشتریان</span>
+            <span>مطالبات تجاری</span>
           </TabsTrigger>
           <TabsTrigger value="payables" className="gap-2 text-xs sm:text-sm py-2.5">
             <ArrowUpRight className="size-4 text-amber-500" />
-            <span>بدهی‌ها و تامین‌کنندگان</span>
+            <span>بدهی‌های تجاری</span>
           </TabsTrigger>
           <TabsTrigger value="reconciliation" className="gap-2 text-xs sm:text-sm py-2.5">
             <ArrowLeftRight className="size-4 text-blue-500" />
-            <span>تطبیق حساب‌ها و بانک</span>
+            <span>تطبیق بانکی</span>
           </TabsTrigger>
         </TabsList>
 

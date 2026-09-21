@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
   Calendar,
@@ -259,9 +260,6 @@ export function DashboardWorkspace({ company }: { company: Company }) {
             <h2 className="text-base sm:text-lg font-bold text-foreground">
               به سامانه دیدبان مالی خوش آمدید!
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              برای راه‌اندازی داشبورد و تحلیل هوشمند، این ۳ قدم ساده را دنبال کنید:
-            </p>
           </div>
         </div>
 
@@ -396,11 +394,8 @@ function DashboardContent({
             </span>
           </div>
           <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
-            داشبورد مدیریت و کنترل مالی
+            داشبورد جامع مالی
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            ارقام، شواهد مغایرت و شاخص‌های اتکاپذیری داده بر پایه snapshot تغییرناپذیر
-          </p>
         </div>
 
         {/* Period Selector */}
@@ -449,7 +444,7 @@ function DashboardContent({
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
             <Activity className="size-4 text-primary" />
-            شاخص‌های کلیدی عملکرد و نقدینگی دوره
+            شاخص‌های کلیدی عملکرد مالی
           </h2>
           <span className="text-xs text-muted-foreground">
             {snapshot.comparison_analysis_run_id ? "مقایسه با دوره قبل فعال است" : "دوره مبنا برای مقایسه روندی وجود ندارد"}
@@ -505,11 +500,8 @@ function DashboardContent({
               <div>
                 <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
                   <ArrowRightLeft className="size-4 text-primary" />
-                  وضعیت سرمایه در گردش و تاب‌آوری خزانه (Working Capital & Treasury)
+                  وضعیت سرمایه در گردش و نقدینگی
                 </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground mt-0.5">
-                  پایش هماهنگ مطالبات، پرداختنی‌ها و نقدینگی بر پایه چرخه تبدیل نقد (CCC)
-                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
@@ -530,11 +522,11 @@ function DashboardContent({
                   <Clock className="size-4 text-primary" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold font-mono text-foreground">
-                    {toPersianDigits(workingCapital.runwayDays)} روز
-                  </div>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    مشاهده پیش‌بینی ۱۳ هفته‌ای خزانه ←
+                  <span className="text-lg font-mono font-bold text-foreground">
+                    {workingCapital.runwayDays !== null ? `${toPersianDigits(workingCapital.runwayDays)} روز` : "پایدار"}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    بر مبنای نرخ مصرف فعلی
                   </span>
                 </div>
               </Link>
@@ -546,14 +538,14 @@ function DashboardContent({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">دوره وصول مطالبات (DSO)</span>
-                  <Receipt className="size-4 text-emerald-600" />
+                  <ArrowDownLeft className="size-4 text-emerald-600" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold font-mono text-foreground">
+                  <span className="text-lg font-mono font-bold text-foreground">
                     {toPersianDigits(workingCapital.dsoDays)} روز
-                  </div>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    تحلیل ۵ بازه سنی بدهکاران ←
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    میانگین وصول مطالبات
                   </span>
                 </div>
               </Link>
@@ -564,31 +556,31 @@ function DashboardContent({
                 className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 hover:bg-muted/70 transition-colors group flex flex-col justify-between gap-2"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">دوره پرداخت بدهی‌ها (DPO)</span>
-                  <FileCheck2 className="size-4 text-amber-600" />
+                  <span className="text-xs font-semibold text-muted-foreground">دوره پرداخت بدهی (DPO)</span>
+                  <ArrowUpRight className="size-4 text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold font-mono text-foreground">
+                  <span className="text-lg font-mono font-bold text-foreground">
                     {toPersianDigits(workingCapital.dpoDays)} روز
-                  </div>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    مدیریت بستانکاران و تامین‌کنندگان ←
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    میانگین تسویه با تامین‌کنندگان
                   </span>
                 </div>
               </Link>
 
-              {/* CCC */}
-              <div className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/40 flex flex-col justify-between gap-2">
+              {/* CCC Gap */}
+              <div className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/20 flex flex-col justify-between gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">چرخه تبدیل نقد (CCC)</span>
-                  <ArrowRightLeft className="size-4 text-blue-600" />
+                  <span className="text-xs font-semibold text-muted-foreground">شکاف نقدینگی (CCC)</span>
+                  <Calendar className="size-4 text-muted-foreground" />
                 </div>
                 <div>
-                  <div className="text-lg font-bold font-mono text-foreground">
+                  <span className="text-lg font-mono font-bold text-primary">
                     {toPersianDigits(workingCapital.cccDays)} روز
-                  </div>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    DSO ({toPersianDigits(workingCapital.dsoDays)}) − DPO ({toPersianDigits(workingCapital.dpoDays)})
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    {workingCapital.cccDays > 0 ? "فاصله خروج تا ورود نقد" : "تامین مالی توسط تامین‌کننده"}
                   </span>
                 </div>
               </div>
@@ -597,7 +589,7 @@ function DashboardContent({
         </Card>
       )}
 
-      {/* Two Columns: Actionable Findings & Data Coverage */}
+      {/* 2-Column Analytical Layout */}
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
         {/* Top Actionable Findings */}
         <Card className="flex flex-col justify-between">
@@ -606,11 +598,8 @@ function DashboardContent({
               <div>
                 <CardTitle className="text-sm font-extrabold flex items-center gap-2">
                   <TriangleAlert className="size-4 text-amber-500" />
-                  یافته‌های مهم نیازمند اقدام
+                  یافته‌های کلیدی و اولویت‌دار
                 </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  ریسک‌های شناسایی‌شده توسط موتور قطعی بر پایه شواهد حسابرسی
-                </CardDescription>
               </div>
               <Link href={`/companies/${company.id}/findings`}>
                 <Button size="sm" variant="ghost" className="text-xs gap-1">
@@ -681,11 +670,8 @@ function DashboardContent({
               <div>
                 <CardTitle className="text-sm font-extrabold flex items-center gap-2">
                   <ShieldCheck className="size-4 text-primary" />
-                  پوشش داده و مرزهای اتکا
+                  کفایت و پوشش اسناد مالی
                 </CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  ارزیابی کامل‌بودن منابع ورودی برای جلوگیری از تصمیم‌گیری بر داده ناقص
-                </CardDescription>
               </div>
               <div className="text-end">
                 <span className="font-mono text-base font-extrabold text-foreground">
@@ -750,11 +736,8 @@ function DashboardContent({
           <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
             <CardTitle className="text-sm font-extrabold flex items-center gap-2">
               <TrendingUp className="size-4 text-primary" />
-              محرک‌های اصلی تغییرات دوره (Main Drivers)
+              محرک‌های اصلی تغییرات سود و نقدینگی
             </CardTitle>
-            <CardDescription className="text-xs">
-              روندهای مالی قطعی که بیشترین سهم را در تغییرات سود و نقدینگی داشته‌اند
-            </CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             {mainDrivers.length > 0 ? (
@@ -797,9 +780,8 @@ function DashboardContent({
           <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
             <CardTitle className="text-sm font-extrabold flex items-center gap-2">
               <Receipt className="size-4 text-primary" />
-              وضعیت ترازنامه و اقلام تکمیلی
+              اقلام کلیدی ترازنامه
             </CardTitle>
-            <CardDescription className="text-xs">اقلام دارایی، بدهی، حقوق مالکانه و فروش صورتحساب‌شده</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="grid grid-cols-2 gap-3 text-xs">

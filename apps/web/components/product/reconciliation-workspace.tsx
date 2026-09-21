@@ -267,7 +267,7 @@ export function ReconciliationWorkspace({ company }: { company: Company }) {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-border pb-4">
         <div>
           <h1 className="text-xl font-bold text-foreground tracking-tight">
-            تطبیق و مغایرت‌گیری
+            تطبیق حساب‌ها و صورت‌حساب بانکی
           </h1>
         </div>
 

@@ -95,9 +95,8 @@ export function ReadinessWorkspace({ company }: { company: Company }) {
         "border-border/80 bg-card"
       }`}>
         <div className="space-y-2">
-          <span className="inline-block text-xs font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">فاز ۱۴ · پذیرش نهایی</span>
-          <h2 className="text-xl font-bold text-foreground">{complete ? "مسیر دمو از ابتدا تا گزارش آماده است" : "برای اجرای کامل دمو چند گام باقی مانده"}</h2>
-          <p className="text-xs text-muted-foreground max-w-2xl">{complete ? "هر هشت ایستگاه محصول داده واقعی دارد؛ موارد پوشش محدود نیز به‌جای پنهان‌شدن، صریح نمایش داده می‌شوند." : `${readiness.completed_steps.toLocaleString("fa-IR")} ایستگاه از ${readiness.total_steps.toLocaleString("fa-IR")} ایستگاه قابل اجرا است.`}</p>
+          <span className="inline-block text-xs font-semibold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">کنترل کیفیت و پذیرش سامانه</span>
+          <h2 className="text-xl font-bold text-foreground">{complete ? "آمادگی کامل فرآیند‌های مالی و گزارش‌گیری" : "مراحل باقی‌مانده تا تکمیل فرآیندها"}</h2>
         </div>
         <div className="readiness-score flex items-center gap-3 p-4 rounded-xl bg-card border border-border/70 shrink-0">
           <strong className="text-2xl font-black text-foreground">
@@ -135,8 +134,7 @@ export function ReadinessWorkspace({ company }: { company: Company }) {
       <ProductCard className="journey-board p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border/70">
           <div>
-            <h3 className="text-base font-bold text-foreground">مسیر اجرایی دمو</h3>
-            <p className="text-xs text-muted-foreground">هر کارت به صفحهٔ واقعی همان مرحله می‌رود و وضعیتش مستقیم از بک‌اند خوانده می‌شود.</p>
+            <h3 className="text-base font-bold text-foreground">گام‌های اجرایی سامانه</h3>
           </div>
           <span className="text-xs text-muted-foreground font-medium">{readiness.ready_steps.toLocaleString("fa-IR")} آماده کامل · {(readiness.completed_steps - readiness.ready_steps).toLocaleString("fa-IR")} محدود</span>
         </header>
@@ -149,8 +147,8 @@ export function ReadinessWorkspace({ company }: { company: Company }) {
         <ProductCard className="acceptance-ledger lg:col-span-7 p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4">
           <header className="flex items-center justify-between pb-3 border-b border-border/70">
             <div>
-              <span className="text-xs font-semibold text-primary">Acceptance Gate v1</span>
-              <h3 className="text-base font-bold text-foreground">۱۵ معیار پذیرش محصول</h3>
+              <span className="text-xs font-semibold text-primary">معیارهای پذیرش و انطباق</span>
+              <h3 className="text-base font-bold text-foreground">معیارهای ممیزی و پذیرش سیستم</h3>
             </div>
             <strong className="text-sm font-bold bg-primary/10 text-primary px-3 py-1 rounded-full">۱۵/۱۵</strong>
           </header>
@@ -196,7 +194,7 @@ export function ReadinessWorkspace({ company }: { company: Company }) {
                 <Icon name="shield" />
               </span>
               <div>
-                <small className="block text-[11px] text-muted-foreground">Recovery playbook</small>
+                <small className="block text-[11px] text-muted-foreground">دستورالعمل تاب‌آوری</small>
                 <strong className="text-sm font-semibold text-foreground">بازیابی مرحله‌ای و امن</strong>
               </div>
             </header>

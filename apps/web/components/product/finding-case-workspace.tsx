@@ -299,8 +299,7 @@ export function FindingCaseWorkspace({
           <ProductCard className="case-priority-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="priority-audit-title">
             <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-3">
               <div>
-                <h3 id="priority-audit-title" className="text-base font-bold text-foreground">دفتر محاسبه اولویت</h3>
-                <p className="text-xs text-muted-foreground">{finding.priority_explanation.summary_fa}</p>
+                <h3 id="priority-audit-title" className="text-base font-bold text-foreground">تحلیل عوامل و فرمول اولویت‌بندی</h3>
               </div>
               <code dir="ltr" className="px-2 py-1 rounded bg-muted text-xs font-mono self-start sm:self-center">
                 {finding.priority_explanation.formula}
@@ -347,8 +346,7 @@ export function FindingCaseWorkspace({
           <ProductCard className="case-evidence-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="case-evidence-title">
             <header className="flex items-center justify-between border-b border-border/60 pb-3">
               <div>
-                <h3 id="case-evidence-title" className="text-base font-bold text-foreground">مسیر شواهد</h3>
-                <p className="text-xs text-muted-foreground">هر مرحله، دادهٔ مرحله قبل را به ادعای نهایی متصل می‌کند.</p>
+                <h3 id="case-evidence-title" className="text-base font-bold text-foreground">زنجیره شواهد و مستندات</h3>
               </div>
               <span className="text-xs font-mono text-muted-foreground">
                 {new Intl.NumberFormat("fa-IR").format(evidence.length)} قطعه شاهد

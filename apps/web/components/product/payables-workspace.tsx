@@ -289,15 +289,12 @@ export function PayablesWorkspace({ company }: { company: Company }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              هوشمندی پرداختنی‌ها و تامین‌کنندگان (Payables Intelligence)
+              مدیریت و تحلیل پرداختنی‌ها
             </h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
               سرمایه در گردش و تعهدات خرید
             </Badge>
           </div>
-          <p className="text-xs lg:text-sm text-[var(--ds-muted-fg)] mt-1">
-            تحلیل سن بدهی‌ها، مدیریت روابط با تامین‌کنندگان کلیدی، و محاسبه چرخه تبدیل نقد (CCC)
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -325,14 +322,14 @@ export function PayablesWorkspace({ company }: { company: Company }) {
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiMetricCard
-          title="کل بدهی به بستانکاران تجاری"
+          title="کل بدهی‌های تجاری"
           value={summary?.total_payables_irr ?? 0}
           loading={loading}
           subtext={`${toPersianDigits(summary?.vendor_count ?? 0)} تامین‌کننده و پیمانکار فعال`}
           icon={Truck}
         />
         <KpiMetricCard
-          title="بدهی‌های معوق (Overdue Payables)"
+          title="بدهی‌های معوق سررسیدشده"
           value={summary?.total_overdue_irr ?? 0}
           loading={loading}
           status={Number(summary?.total_overdue_irr ?? 0) > 0 ? "warning" : "normal"}
@@ -340,7 +337,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
           icon={ShieldAlert}
         />
         <KpiMetricCard
-          title="دوره پرداخت بدهی‌ها (DPO)"
+          title="دوره بازپرداخت بدهی‌ها (DPO)"
           value={`${toPersianDigits(summary?.dpo_days ?? 0)} روز`}
           unit=""
           currency=""
@@ -349,7 +346,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
           icon={Clock}
         />
         <KpiMetricCard
-          title="چرخه تبدیل نقد (Cash Conversion Cycle)"
+          title="چرخه تبدیل نقد (CCC)"
           value={`${toPersianDigits(summary?.ccc_days ?? 0)} روز`}
           unit=""
           currency=""
@@ -368,7 +365,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-[var(--ds-card-fg)]">
-                  وضعیت سرمایه در گردش و شکاف نقدینگی (Working Capital):
+                  وضعیت سرمایه در گردش:
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/20 font-semibold">
                   CCC: {toPersianDigits(summary?.ccc_days ?? 0)} روز
@@ -391,11 +388,8 @@ export function PayablesWorkspace({ company }: { company: Company }) {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Layers className="size-4 text-primary" />
-                توزیع سنی بدهی‌ها به تامین‌کنندگان (Payables Aging Schedule)
+                ماتریس تحلیل سنی بدهی‌ها
               </CardTitle>
-              <CardDescription className="text-xs text-[var(--ds-muted-fg)] mt-0.5">
-                تفکیک بدهی‌ها بر مبنای موعد سررسید فاکتورهای خرید و چک‌های صادره
-              </CardDescription>
             </div>
             <div className="flex items-center gap-3 text-xs text-[var(--ds-muted-fg)]">
               <span className="flex items-center gap-1.5">

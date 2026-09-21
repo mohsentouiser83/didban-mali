@@ -204,14 +204,11 @@ export function ImportsPanel({ company, defaultTab = "files" }: { company: Compa
         <div>
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
             <FileUp className="size-4" />
-            <span>ورود و آماده‌سازی داده‌های مالی</span>
+            <span>اسناد مالی</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-            بارگذاری اسناد، نگاشت ستون‌ها و طبقه‌بندی حساب‌ها
+            ورود و پردازش اسناد مالی
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            اسناد حسابداری یا صورتحساب بانک را بارگذاری کنید، ستون‌ها را تطبیق دهید و سرفصل حساب‌ها را برای آماده‌سازی صورت‌های مالی مشخص کنید.
-          </p>
         </div>
       </div>
 
@@ -219,11 +216,11 @@ export function ImportsPanel({ company, defaultTab = "files" }: { company: Compa
         <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
           <TabsTrigger value="files" className="gap-2 text-xs sm:text-sm py-2.5">
             <FileUp className="size-4 text-primary" />
-            <span>اسناد و فایل‌های مالی</span>
+            <span>بارگذاری فایل‌ها</span>
           </TabsTrigger>
           <TabsTrigger value="classification" className="gap-2 text-xs sm:text-sm py-2.5">
             <Layers className="size-4 text-cyan-500" />
-            <span>سرفصل‌ها و طبقه‌بندی حساب‌ها</span>
+            <span>کدینگ و سرفصل‌ها</span>
           </TabsTrigger>
         </TabsList>
 
@@ -233,10 +230,7 @@ export function ImportsPanel({ company, defaultTab = "files" }: { company: Compa
               <div className="card-heading imports-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
                 <div>
                   <span className="overline block text-[11px] font-bold text-primary mb-0.5">ورودی امن داده</span>
-                  <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    فایل پس از بررسی نوع، ساختار و بدافزار وارد فضای امن شرکت می‌شود.
-                  </p>
+                  <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی بارگذاری‌شده</h3>
                 </div>
                 <Badge variant="outline" className="secure-badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 self-start sm:self-center">
                   <Icon name="shield" className="size-3.5" />

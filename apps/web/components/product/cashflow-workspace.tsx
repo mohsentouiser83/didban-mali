@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Column,
   FinancialDataTable,
@@ -278,15 +278,12 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              جریان وجوه نقد و تاب‌آوری نقدینگی (Cash Runway)
+              جریان وجوه نقد و پایش نقدینگی
             </h1>
             <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
               پیش‌بینی ۱۳ هفته‌ای خزانه
             </Badge>
           </div>
-          <p className="text-xs lg:text-sm text-[var(--ds-muted-fg)] mt-1">
-            پایش نرخ مصرف نقدینگی (Burn Rate)، مدیریت سررسید تعهدات و پیش‌بینی نقطه کسری نقد
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -321,7 +318,7 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
           icon={Wallet}
         />
         <KpiMetricCard
-          title="تاب‌آوری نقد (Runway)"
+          title="تاب‌آوری نقدینگی"
           value={summary?.runway_days ? `${toPersianDigits(summary.runway_days)} روز` : "پایدار"}
           unit=""
           currency=""
@@ -341,7 +338,7 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
           icon={Clock}
         />
         <KpiMetricCard
-          title="میانگین نرخ خروج ماهانه (Burn Rate)"
+          title="میانگین جریان خروجی ماهانه"
           value={summary?.monthly_burn_rate_irr ?? 0}
           loading={loading}
           subtext="میانگین هزینه‌های عملیاتی ۳ ماه اخیر"
@@ -406,11 +403,8 @@ export function CashFlowWorkspace({ company }: { company: Company }) {
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <SlidersHorizontal className="size-4 text-primary" />
-                شبیه‌سازی و پیش‌بینی ۱۳ هفته‌ای جریان نقد
+                پیش‌بینی ۱۳ هفته‌ای جریان وجوه نقد
               </CardTitle>
-              <CardDescription className="text-xs text-[var(--ds-muted-fg)] mt-0.5">
-                تطبیق سررسید مطالبات فروش با تعهدات حقوق و خرید بر اساس سناریوهای مدیریتی
-              </CardDescription>
             </div>
 
             {/* Scenario Segmented Selector */}

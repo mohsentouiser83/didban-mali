@@ -109,9 +109,8 @@ export function AiControlCenter({ company }: { company: Company }) {
         currentBlocker ? "border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900/60" : "border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900/60"
       }`}>
         <div className="space-y-2">
-          <span className="model-kicker inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full"><Icon name="shield" />دستیار با مرز کنترل‌شده</span>
-          <h2 className="text-xl font-bold text-foreground">AI فقط توضیح می‌دهد؛ تصمیم مالی را تغییر نمی‌دهد</h2>
-          <p className="text-xs text-muted-foreground max-w-2xl">محاسبات، تطبیق، اولویت و گزارش‌ها مستقل و قطعی می‌مانند. هر درخواست و نتیجه نیز برای ممیزی ثبت می‌شود.</p>
+          <span className="model-kicker inline-flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full"><Icon name="shield" />دستیار هوشمند مالی</span>
+          <h2 className="text-xl font-bold text-foreground">دستیار هوشمند و گاردریل‌های حاکمیت داده</h2>
         </div>
         <div className="ai-master-state flex items-center gap-3.5 p-4 rounded-xl bg-card border border-border/70 shrink-0">
           <span className={`flex h-10 w-10 items-center justify-center rounded-xl text-base ${
@@ -131,8 +130,7 @@ export function AiControlCenter({ company }: { company: Company }) {
       <ProductCard className="ai-readiness p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" aria-labelledby="ai-readiness-title">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/70">
           <div>
-            <h3 id="ai-readiness-title" className="text-base font-bold text-foreground">زنجیره اجازه پردازش</h3>
-            <p className="text-xs text-muted-foreground">تا برقرارشدن همه شرط‌ها، هیچ داده مالی به ارائه‌دهنده خارجی ارسال نمی‌شود.</p>
+            <h3 id="ai-readiness-title" className="text-base font-bold text-foreground">زنجیره اعتبارسنجی و مجوزها</h3>
           </div>
           <span className="text-xs text-muted-foreground font-medium">{readiness.filter((item) => item.ready).length.toLocaleString("fa-IR")} از ۴ آماده</span>
         </header>
@@ -159,8 +157,7 @@ export function AiControlCenter({ company }: { company: Company }) {
         <form className="ai-settings lg:col-span-6 p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" onSubmit={(event) => void save(event)}>
           <header className="flex items-center justify-between pb-3 border-b border-border/70">
             <div>
-              <h3 className="text-base font-bold text-foreground">اختیارات شرکت</h3>
-              <p className="text-xs text-muted-foreground">هر ذخیره یک نسخه تازه می‌سازد و سابقه قبلی حذف نمی‌شود.</p>
+              <h3 className="text-base font-bold text-foreground">تنظیمات و دسترسی‌های هوش مصنوعی</h3>
             </div>
             <span className="text-muted-foreground"><Icon name="tune" /></span>
           </header>
@@ -190,8 +187,8 @@ export function AiControlCenter({ company }: { company: Company }) {
 
         <ProductCard className="ai-contract lg:col-span-6 p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" aria-labelledby="ai-contract-title">
           <header className="flex items-center justify-between pb-3 border-b border-border/70">
-            <h3 id="ai-contract-title" className="text-base font-bold text-foreground">قرارداد غیرقابل عبور</h3>
-            <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">Guardrails v1</span>
+            <h3 id="ai-contract-title" className="text-base font-bold text-foreground">قوانین و گاردریل‌های امنیتی</h3>
+            <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">اصول حاکمیت داده</span>
           </header>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <li className="flex items-start gap-2.5 p-3 rounded-xl border border-border/60 bg-muted/20">
@@ -251,8 +248,7 @@ export function AiControlCenter({ company }: { company: Company }) {
       <ProductCard className="ai-history p-5 sm:p-6 bg-card border border-border/80 rounded-2xl shadow-sm space-y-4" aria-labelledby="ai-history-title">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/70">
           <div>
-            <h3 id="ai-history-title" className="text-base font-bold text-foreground">دفتر درخواست‌های هوشمند</h3>
-            <p className="text-xs text-muted-foreground">موفق، مسدود یا ردشده؛ همه نتیجه‌ها بدون زنجیره فکر نگهداری می‌شوند.</p>
+            <h3 id="ai-history-title" className="text-base font-bold text-foreground">تاریخچه درخواست‌های هوش مصنوعی</h3>
           </div>
           <span className="text-xs text-muted-foreground font-medium">{invocations.length.toLocaleString("fa-IR")} درخواست اخیر</span>
         </header>
