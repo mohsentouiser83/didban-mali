@@ -1319,3 +1319,58 @@ export type ValueMetricsOverview = {
   total_critical_errors_prevented: number;
   average_implementation_hours_per_company: number;
 };
+
+// Holding Consolidated Overview Types
+export type HoldingCompanyItem = {
+  id: string;
+  legal_name: string;
+  national_id?: string | null;
+  currency: string;
+  cash_balance_irr: number;
+  receivables_irr: number;
+  payables_irr: number;
+  net_liquidity_irr: number;
+  critical_findings_count: number;
+  reconciliation_match_rate: number;
+  last_data_at?: string | null;
+  is_live: boolean;
+};
+
+export type HoldingForecastWeek = {
+  week_number: number;
+  projected_cash_irr: number;
+  inflow_irr: number;
+  outflow_irr: number;
+};
+
+export type HoldingIntercompanyItem = {
+  from_company_id: string;
+  from_company_name: string;
+  to_company_id: string;
+  to_company_name: string;
+  amount_irr: number;
+  status: string;
+  description: string;
+};
+
+export type HoldingSummaryResponse = {
+  companies_count: number;
+  total_cash_balance_irr: number;
+  total_receivables_irr: number;
+  total_payables_irr: number;
+  total_net_liquidity_irr: number;
+  total_critical_findings_count: number;
+  companies: HoldingCompanyItem[];
+  weekly_forecast: HoldingForecastWeek[];
+  intercompany_transactions: HoldingIntercompanyItem[];
+  generated_at: string;
+};
+
+export type AgentKeyResponse = {
+  agent_key: string;
+  connection_id: string;
+  company_id: string;
+  provider: string;
+  created_at: string;
+  instructions_fa: string;
+};

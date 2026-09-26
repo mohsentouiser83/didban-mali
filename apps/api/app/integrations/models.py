@@ -39,6 +39,7 @@ class SyncJobType(enum.StrEnum):
     SCHEDULED = "scheduled"
     WEBHOOK = "webhook"
     INITIAL = "initial"
+    AGENT_PUSH = "agent_push"
 
 
 class SyncJobStatus(enum.StrEnum):

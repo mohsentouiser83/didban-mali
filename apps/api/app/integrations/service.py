@@ -20,6 +20,9 @@ from app.integrations.models import (
     SyncRecordStatus,
 )
 from app.integrations.schemas import (
+    AgentKeyResponse,
+    AgentSyncPushReceipt,
+    AgentSyncPushRequest,
     ConnectionTestResult,
     IntegrationConnectionCreate,
     IntegrationConnectionUpdate,
@@ -318,3 +321,169 @@ class IntegrationService:
         stmt = stmt.limit(50)
         res = await session.execute(stmt)
         return list(res.scalars().all())
+
+    @staticmethod
+    async def get_or_create_agent_key(
+        session: AsyncSession, company_id: UUID, connection_id: UUID, actor_id: UUID | None = None
+    ) -> AgentKeyResponse:
+        import secrets
+
+        conn = await IntegrationService.get_connection(session, company_id, connection_id)
+        if not conn:
+            raise ValueError("اتصال یافت نشد.")
+
+        creds = dict(conn.encrypted_credentials_json or {})
+        agent_key = creds.get("agent_key")
+        if not agent_key:
+            # Deterministic prefix with high entropy random token
+            agent_key = f"dmb_live_{conn.id.hex[:8]}_{secrets.token_urlsafe(24)}"
+            creds["agent_key"] = agent_key
+            conn.encrypted_credentials_json = creds
+            conn.updated_at = datetime.now(timezone.utc)
+            if actor_id:
+                record_audit_event(
+                    session=session,
+                    action="integration.agent_key_generated",
+                    entity_type="integration_connection",
+                    actor_id=actor_id,
+                    entity_id=conn.id,
+                    company_id=company_id,
+                )
+            await session.commit()
+
+        instructions_fa = (
+            "این کلید امنیتی اختصاصی را در متغیر محیطی DIDBAN_AGENT_KEY یا فایل didban-agent.json در سرور محلی قرار دهید. "
+            "کلاینت همگام‌ساز دیدبان داده‌های سپیدار/راهکاران را استخراج کرده و به صورت امن و برون‌گرا ارسال خواهد کرد."
+        )
+
+        return AgentKeyResponse(
+            agent_key=agent_key,
+            connection_id=conn.id,
+            company_id=conn.company_id,
+            provider=conn.provider,
+            created_at=conn.updated_at,
+            instructions_fa=instructions_fa,
+        )
+
+    @staticmethod
+    async def ingest_agent_sync(
+        session: AsyncSession,
+        company_id: UUID,
+        connection_id: UUID,
+        payload: AgentSyncPushRequest,
+    ) -> AgentSyncPushReceipt:
+        import hashlib
+
+        conn = await IntegrationService.get_connection(session, company_id, connection_id)
+        if not conn:
+            raise ValueError("اتصال یافت نشد.")
+
+        # Authenticate agent key
+        stored_creds = conn.encrypted_credentials_json or {}
+        expected_key = stored_creds.get("agent_key")
+        if not expected_key or payload.agent_key != expected_key:
+            raise PermissionError("کلید اختصاصی همگام‌ساز معتبر نیست یا منقضی شده است.")
+
+        now = datetime.now(timezone.utc)
+        batch_id_str = payload.batch_id or str(uuid.uuid4())
+
+        job = IntegrationSyncJob(
+            id=uuid.uuid4(),
+            company_id=company_id,
+            connection_id=conn.id,
+            sync_type=SyncJobType.AGENT_PUSH,
+            status=SyncJobStatus.RUNNING,
+            started_at=now,
+            records_received=len(payload.records),
+            records_imported=0,
+            records_rejected=0,
+            summary_json={
+                "batch_id": batch_id_str,
+                "source_system": payload.source_system,
+                "agent_version": payload.agent_version,
+                "checksum_sha256": payload.checksum_sha256,
+                "metadata": payload.metadata,
+            },
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(job)
+        await session.flush()
+
+        imported_count = 0
+        skipped_count = 0
+        rejected_count = 0
+
+        for rec in payload.records:
+            try:
+                # Deterministic fingerprint for idempotency
+                fp_raw = f"{rec.source_entity_type}:{rec.source_record_id}:{rec.record_date}:{rec.amount_irr}:{rec.reference or ''}"
+                fingerprint = hashlib.sha256(fp_raw.encode("utf-8")).hexdigest()
+
+                # Check if already imported
+                fp_stmt = select(IntegrationSyncRecord.id).where(
+                    IntegrationSyncRecord.company_id == company_id,
+                    IntegrationSyncRecord.connection_id == conn.id,
+                    IntegrationSyncRecord.source_fingerprint == fingerprint,
+                )
+                existing = (await session.execute(fp_stmt)).scalar_one_or_none()
+                if existing:
+                    skipped_count += 1
+                    continue
+
+                sync_rec = IntegrationSyncRecord(
+                    id=uuid.uuid4(),
+                    company_id=company_id,
+                    connection_id=conn.id,
+                    job_id=job.id,
+                    source_entity_type=rec.source_entity_type,
+                    source_record_id=rec.source_record_id,
+                    source_fingerprint=fingerprint,
+                    status=SyncRecordStatus.IMPORTED,
+                    raw_payload_json={
+                        "record_date": rec.record_date,
+                        "amount_irr": rec.amount_irr,
+                        "account_code": rec.account_code,
+                        "account_name": rec.account_name,
+                        "description": rec.description,
+                        "counterparty": rec.counterparty,
+                        "reference": rec.reference,
+                        "document_number": rec.document_number,
+                        **rec.raw_json,
+                    },
+                    created_at=now,
+                )
+                session.add(sync_rec)
+                imported_count += 1
+            except Exception:
+                rejected_count += 1
+
+        job.records_imported = imported_count
+        job.records_rejected = rejected_count
+        job.status = SyncJobStatus.COMPLETED
+        job.completed_at = datetime.now(timezone.utc)
+        job.watermark_cursor = payload.watermark or now.strftime("%Y-%m-%d %H:%M:%S")
+        job.summary_json = {
+            **job.summary_json,
+            "skipped_duplicates": skipped_count,
+        }
+
+        conn.status = ConnectionStatus.CONNECTED
+        conn.last_sync_at = job.completed_at
+        conn.last_sync_record_count = imported_count
+        conn.last_error_message = None
+        conn.updated_at = datetime.now(timezone.utc)
+
+        await session.commit()
+
+        return AgentSyncPushReceipt(
+            success=True,
+            batch_id=batch_id_str,
+            records_received=len(payload.records),
+            records_imported=imported_count,
+            records_skipped_duplicate=skipped_count,
+            records_rejected=rejected_count,
+            watermark_cursor=job.watermark_cursor,
+            message_fa=f"همگام‌سازی محلی با موفقیت انجام شد: {imported_count} سند ذخیره شد، {skipped_count} تکراری عبور داده شد.",
+            synced_at=job.completed_at,
+        )

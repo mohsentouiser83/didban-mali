@@ -8,10 +8,13 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   Clock,
+  Copy,
+  Check,
   ExternalLink,
   FileCheck2,
   FileSpreadsheet,
   HardDrive,
+  Key,
   Landmark,
   Layers,
   Network,
@@ -55,6 +58,7 @@ import {
 import { PageHeader, StatusChip, toPersianDigits } from "@/components/ui/financial";
 import { api } from "@/lib/product-api";
 import type {
+  AgentKeyResponse,
   Company,
   ConnectionStatus,
   ConnectionTestResult,
@@ -93,6 +97,38 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   const [apiToken, setApiToken] = useState("");
   const [accountNumber, setAccountNumber] = useState("410088992211");
   const [bankName, setBankName] = useState("بانک ملت");
+
+  // Local Sync Agent Modal
+  const [agentKeyOpen, setAgentKeyOpen] = useState(false);
+  const [agentKeyData, setAgentKeyData] = useState<AgentKeyResponse | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [agentKeyLoading, setAgentKeyLoading] = useState(false);
+
+  const handleOpenAgentKey = async (conn: IntegrationConnection) => {
+    setSelectedConn(conn);
+    setAgentKeyOpen(true);
+    setAgentKeyLoading(true);
+    setCopiedKey(false);
+    try {
+      const res = await api<AgentKeyResponse>(
+        `/companies/${company.id}/integrations/${conn.id}/agent-key`,
+        { method: "POST" }
+      );
+      setAgentKeyData(res);
+    } catch (e) {
+      console.error("Failed to load agent key:", e);
+    } finally {
+      setAgentKeyLoading(false);
+    }
+  };
+
+  const copyAgentKey = () => {
+    if (agentKeyData?.agent_key) {
+      navigator.clipboard.writeText(agentKeyData.agent_key);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    }
+  };
 
   const loadConnections = async () => {
     try {
@@ -359,6 +395,15 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                     <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => handleOpenAgentKey(conn)}
+                      >
+                        <Key className="h-3 w-3" />
+                        کلاینت محلی
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="ghost"
                         className="h-7 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => handleOpenHistory(conn)}
@@ -530,6 +575,75 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
             </Button>
             <Button size="sm" onClick={handleCreateConnection} className="text-xs font-bold">
               ثبت و فعال‌سازی اتصال
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Local Sync Agent Dialog */}
+      <Dialog open={agentKeyOpen} onOpenChange={setAgentKeyOpen}>
+        <DialogContent className="max-w-2xl font-sans" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <Key className="h-4 w-4 text-primary" />
+              کلاینت همگام‌ساز محلی (Local Sync Agent) — {selectedConn?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              استفاده از اسکریپت سبک همگام‌ساز برای استخراج خودکار اسناد مالی از دیتابیس محلی SQL Server
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <div className="text-xs font-bold text-foreground">کلید اختصاصی احراز هویت کلاینت (Agent Key):</div>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={agentKeyLoading ? "در حال دریافت کلید..." : agentKeyData?.agent_key || ""}
+                  className="font-mono text-xs h-9 bg-background"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5 text-xs h-9"
+                  disabled={!agentKeyData?.agent_key || agentKeyLoading}
+                  onClick={copyAgentKey}
+                >
+                  {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedKey ? "کپی شد" : "کپی"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                این کلید برای ارسال امن داده‌ها از سرور محلی به دیدبان استفاده می‌شود و نیازی به باز کردن پورت ورودی ندارد.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card p-3 space-y-2">
+              <div className="text-xs font-bold text-foreground">دستور اجرای تک‌نوبتی یا دوره‌ای در سرور محلی:</div>
+              <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
+                python scripts/didban_sync_agent.py --config didban-agent.json --once
+              </pre>
+              <div className="text-xs font-bold text-foreground mt-2">نمونه پیکربندی didban-agent.json:</div>
+              <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
+{JSON.stringify(
+  {
+    api_url: "http://localhost:8000",
+    company_id: company.id,
+    connection_id: selectedConn?.id || "...",
+    agent_key: agentKeyData?.agent_key || "dmb_live_...",
+    source_system: selectedConn?.provider || "sepidar",
+    sql_connection_string: "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=SepidarDB;UID=didban;PWD=***",
+  },
+  null,
+  2
+)}
+              </pre>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setAgentKeyOpen(false)} className="text-xs">
+              بستن
             </Button>
           </DialogFooter>
         </DialogContent>

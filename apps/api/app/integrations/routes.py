@@ -9,6 +9,9 @@ from app.identity.dependencies import get_current_user
 from app.identity.models import User
 from app.integrations.models import IntegrationConnection, IntegrationSyncJob
 from app.integrations.schemas import (
+    AgentKeyResponse,
+    AgentSyncPushReceipt,
+    AgentSyncPushRequest,
     ConnectionTestResult,
     IntegrationConnectionCreate,
     IntegrationConnectionResponse,
@@ -180,3 +183,43 @@ async def list_sync_jobs(
 ) -> list[IntegrationSyncJobResponse]:
     jobs = await IntegrationService.list_sync_jobs(session, company_id, connection_id)
     return [_to_job_response(j) for j in jobs]
+
+
+@router.get("/{connection_id}/agent-key", response_model=AgentKeyResponse)
+@router.post("/{connection_id}/agent-key", response_model=AgentKeyResponse)
+async def get_or_generate_agent_key(
+    company_id: UUID,
+    connection_id: UUID,
+    access: CurrentCompanyAccess,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> AgentKeyResponse:
+    try:
+        return await IntegrationService.get_or_create_agent_key(
+            session=session,
+            company_id=company_id,
+            connection_id=connection_id,
+            actor_id=user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.post("/{connection_id}/agent-sync", response_model=AgentSyncPushReceipt)
+async def push_agent_sync(
+    company_id: UUID,
+    connection_id: UUID,
+    payload: AgentSyncPushRequest,
+    session: AsyncSession = Depends(get_db),
+) -> AgentSyncPushReceipt:
+    try:
+        return await IntegrationService.ingest_agent_sync(
+            session=session,
+            company_id=company_id,
+            connection_id=connection_id,
+            payload=payload,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))

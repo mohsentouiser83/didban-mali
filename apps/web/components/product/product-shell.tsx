@@ -221,6 +221,12 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       icon: Users2,
     },
     {
+      href: "/admin/holding",
+      title: "دیدبان هلدینگ (نمای تجمیعی)",
+      description: "پایش یکپارچه نقدینگی، مطالبات و کنترل مالی کلیه شرکت‌های هلدینگ",
+      icon: Layers,
+    },
+    {
       href: "/admin/product-health",
       title: "داشبورد سلامت و حاکمیت محصول",
       description: "رصد ستاره قطبی، وضعیت کوهورت و پایش دروازه‌های ده‌گانه فاز ۸",
