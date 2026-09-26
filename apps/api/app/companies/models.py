@@ -1,7 +1,8 @@
+from datetime import datetime
 import enum
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +29,12 @@ class Company(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     currency: Mapped[str] = mapped_column(String(3), default="IRR", nullable=False)
     fiscal_year_start_month: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Tehran", nullable=False)
+    onboarding_stage: Mapped[str] = mapped_column(String(64), default="company_setup", nullable=False)
+    is_live: Mapped[bool] = mapped_column(default=False, nullable=False)
+    go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    champion_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    implementation_owner_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    primary_business_objective: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class CompanyAccess(UUIDPrimaryKeyMixin, TimestampMixin, Base):

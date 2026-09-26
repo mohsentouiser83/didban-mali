@@ -1,9 +1,10 @@
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
 from difflib import SequenceMatcher
-from typing import cast
+from itertools import combinations
+from typing import Any, cast
 from uuid import UUID
 
 from app.financial.normalization import normalize_text
@@ -25,6 +26,7 @@ class BankRecord:
     booking_date: date
     amount_irr: Decimal
     description: str
+    bank_account_id: UUID | None = None
     reference: str | None = None
     source_transaction_id: str | None = None
 
@@ -32,17 +34,27 @@ class BankRecord:
 @dataclass(frozen=True)
 class LedgerRecord:
     entry_id: UUID
-    source_row_id: UUID
     line_id: UUID
+    source_row_id: UUID
     entry_date: date
-    amount_irr: Decimal
+    amount_irr: Decimal  # signed: positive for bank debit (inflow), negative for bank credit (outflow)
     description: str
+    account_id: UUID | None = None
     reference: str | None = None
     invoice_ref: str | None = None
     source_entry_id: str | None = None
+    counterparty_name: str | None = None
 
 
 @dataclass(frozen=True)
+class ProposedAllocation:
+    side: str  # "bank" or "journal"
+    bank_transaction_id: UUID | None
+    journal_line_id: UUID | None
+    allocated_amount_irr: Decimal
+
+
+@dataclass
 class ProposedMatch:
     bank_transaction_id: UUID | None
     journal_entry_id: UUID | None
@@ -52,8 +64,11 @@ class ProposedMatch:
     amount_difference_irr: Decimal | None
     date_difference_days: int | None
     rule_code: str
-    features: dict[str, object]
-    evidence: dict[str, object]
+    features: dict[str, Any] = field(default_factory=dict)
+    evidence: dict[str, Any] = field(default_factory=dict)
+    match_type: str = "one_to_one"
+    match_reasons: list[str] = field(default_factory=list)
+    allocations: list[ProposedAllocation] = field(default_factory=list)
 
 
 def _normalized(value: str | None) -> str:
@@ -90,7 +105,7 @@ def _similarity(left: str, right: str) -> Decimal:
     return (max(sequence, jaccard) * 100).quantize(Decimal("0.01"))
 
 
-def _features(bank: BankRecord, ledger: LedgerRecord) -> dict[str, object]:
+def _features(bank: BankRecord, ledger: LedgerRecord) -> dict[str, Any]:
     reference_equal = bool(
         _normalized(bank.reference)
         and _normalized(bank.reference)
@@ -107,18 +122,18 @@ def _features(bank: BankRecord, ledger: LedgerRecord) -> dict[str, object]:
     }
 
 
-def _score(features: dict[str, object]) -> Decimal:
-    amount = Decimal(40) if features["amount_equal"] else Decimal(0)
+def _score(features: dict[str, Any]) -> Decimal:
+    amount = Decimal(60) if features["amount_equal"] else Decimal(0)
     business_days = cast(int, features["business_days"])
-    date_score = max(Decimal(0), Decimal(30) - Decimal(5 * business_days))
-    reference = Decimal(20) if features["reference_equal"] else Decimal(0)
+    date_score = max(Decimal(0), Decimal(25) - Decimal(3 * business_days))
+    reference = Decimal(15) if features["reference_equal"] else Decimal(0)
     description = Decimal(str(features["description_similarity"])) / Decimal(10)
     return min(Decimal(100), amount + date_score + reference + description).quantize(
         Decimal("0.01")
     )
 
 
-def _bank_evidence(bank: BankRecord) -> dict[str, object]:
+def _bank_evidence(bank: BankRecord) -> dict[str, Any]:
     return {
         "transaction_id": str(bank.id),
         "source_row_id": str(bank.source_row_id),
@@ -129,7 +144,7 @@ def _bank_evidence(bank: BankRecord) -> dict[str, object]:
     }
 
 
-def _ledger_evidence(ledger: LedgerRecord) -> dict[str, object]:
+def _ledger_evidence(ledger: LedgerRecord) -> dict[str, Any]:
     return {
         "journal_entry_id": str(ledger.entry_id),
         "journal_line_id": str(ledger.line_id),
@@ -142,11 +157,11 @@ def _ledger_evidence(ledger: LedgerRecord) -> dict[str, object]:
     }
 
 
-def _evidence(bank: BankRecord, ledger: LedgerRecord) -> dict[str, object]:
+def _evidence(bank: BankRecord, ledger: LedgerRecord) -> dict[str, Any]:
     return {
         "bank": _bank_evidence(bank),
         "accounting": _ledger_evidence(ledger),
-        "calculation": "bank.amount_irr compared with asset_line.debit_irr-credit_irr",
+        "calculation": "bank.amount_irr compared with journal_line.amount_irr",
     }
 
 
@@ -158,19 +173,33 @@ def _pair(
     status: MatchStatus,
     rule_code: str,
     forced_score: Decimal | None = None,
+    match_reasons: list[str] | None = None,
 ) -> ProposedMatch:
     features = _features(bank, ledger)
+    amount_difference = (
+        None if features["amount_equal"] else bank.amount_irr - ledger.amount_irr
+    )
+    date_difference = (
+        None if features["calendar_days"] == 0 else cast(int, features["calendar_days"])
+    )
+    allocations = [
+        ProposedAllocation("bank", bank.id, None, bank.amount_irr),
+        ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr),
+    ]
     return ProposedMatch(
-        bank_transaction_id=bank.id,
-        journal_entry_id=ledger.entry_id,
-        match_level=level,
-        status=status,
-        score=forced_score if forced_score is not None else _score(features),
-        amount_difference_irr=bank.amount_irr - ledger.amount_irr,
-        date_difference_days=(bank.booking_date - ledger.entry_date).days,
-        rule_code=rule_code,
-        features=features,
-        evidence=_evidence(bank, ledger),
+        bank.id,
+        ledger.entry_id,
+        level,
+        status,
+        forced_score if forced_score is not None else _score(features),
+        amount_difference,
+        date_difference,
+        rule_code,
+        features,
+        _evidence(bank, ledger),
+        match_type="one_to_one",
+        match_reasons=match_reasons or [],
+        allocations=allocations,
     )
 
 
@@ -208,7 +237,7 @@ def reconcile(
     eligible_banks: list[BankRecord] = []
     for bank in sorted(banks, key=lambda item: (item.booking_date, str(item.id))):
         strong, weak = bank_keys[bank.id]
-        duplicate_status: MatchStatus | None = None
+        duplicate_status = None
         rule_code = ""
         if strong and bank_strong_counts[strong] > 1:
             duplicate_status, rule_code = MatchStatus.DUPLICATE_HIGH, "BANK_DUPLICATE_STRONG"
@@ -231,6 +260,7 @@ def reconcile(
                         "bank_transaction_id": str(bank.id),
                         "source_row_id": str(bank.source_row_id),
                     },
+                    allocations=[ProposedAllocation("bank", bank.id, None, bank.amount_irr)],
                 )
             )
             continue
@@ -265,6 +295,7 @@ def reconcile(
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },
+                    allocations=[ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)],
                 )
             )
             continue
@@ -372,6 +403,77 @@ def reconcile(
         proposals.sort(key=lambda item: (-item.score, str(item.journal_entry_id)))
         results.extend(proposals[:5])
         if not proposals:
+            # Check 1:N batch settlement and smart FIFO allocation
+            nearby_ledgers = [
+                l
+                for l in eligible_ledgers
+                if l.entry_id not in accepted_journals
+                and _calendar_days(bank.booking_date, l.entry_date) <= 5
+                and ((bank.amount_irr > 0 and l.amount_irr > 0) or (bank.amount_irr < 0 and l.amount_irr < 0))
+                and abs(l.amount_irr) < abs(bank.amount_irr)
+            ]
+            matched_combo: list[LedgerRecord] | None = None
+
+            # 1. Exact subset sum matching up to 5 items
+            for k in range(2, min(6, len(nearby_ledgers) + 1)):
+                for combo in combinations(nearby_ledgers, k):
+                    if sum(l.amount_irr for l in combo) == bank.amount_irr:
+                        matched_combo = list(combo)
+                        break
+                if matched_combo:
+                    break
+
+            # 2. Counterparty-guided FIFO matching
+            if not matched_combo and bank.amount_irr > 0:
+                norm_bank_desc = _normalized(bank.description)
+                cp_ledgers = [
+                    l for l in nearby_ledgers
+                    if l.amount_irr > 0
+                    and l.counterparty_name
+                    and _normalized(l.counterparty_name) in norm_bank_desc
+                ]
+                if cp_ledgers:
+                    cp_ledgers.sort(key=lambda item: item.entry_date)
+                    running_sum = Decimal(0)
+                    fifo_subset: list[LedgerRecord] = []
+                    for l in cp_ledgers:
+                        if running_sum + l.amount_irr <= bank.amount_irr:
+                            running_sum += l.amount_irr
+                            fifo_subset.append(l)
+                            if running_sum == bank.amount_irr:
+                                matched_combo = fifo_subset
+                                break
+
+            if matched_combo:
+                allocations = [ProposedAllocation("bank", bank.id, None, bank.amount_irr)]
+                for l in matched_combo:
+                    allocations.append(ProposedAllocation("journal", None, l.line_id, l.amount_irr))
+                    accepted_journals.add(l.entry_id)
+                accepted_banks.add(bank.id)
+                results.append(
+                    ProposedMatch(
+                        bank.id,
+                        matched_combo[0].entry_id,
+                        MatchLevel.RULE,
+                        MatchStatus.POTENTIAL_MATCH,
+                        Decimal("90.0"),
+                        Decimal(0),
+                        0,
+                        "BATCH_SETTLEMENT_1_TO_N",
+                        {"batch_count": len(matched_combo)},
+                        {
+                            "bank": _bank_evidence(bank),
+                            "ledger_items": [_ledger_evidence(l) for l in matched_combo],
+                        },
+                        match_type="one_to_many",
+                        match_reasons=[
+                            f"تطبیق هوشمند یک‌به‌چند: مجموع {len(matched_combo)} سطر سند حسابداری با مبلغ تراکنش بانک ({bank.amount_irr:,} ریال) برابر است."
+                        ],
+                        allocations=allocations,
+                    )
+                )
+                continue
+
             results.append(
                 ProposedMatch(
                     bank.id,
@@ -388,6 +490,7 @@ def reconcile(
                         "bank_transaction_id": str(bank.id),
                         "source_row_id": str(bank.source_row_id),
                     },
+                    allocations=[ProposedAllocation("bank", bank.id, None, bank.amount_irr)],
                 )
             )
 
@@ -412,6 +515,7 @@ def reconcile(
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },
+                    allocations=[ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)],
                 )
             )
     return results

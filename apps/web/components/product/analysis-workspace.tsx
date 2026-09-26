@@ -8,11 +8,10 @@ import { ProductCard } from "./product-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+import type { AnalysisCoverage, AnalysisRun, Company, MetricCode, MetricObservation, MetricsResponse } from "@/lib/product-types";
 import { api } from "@/lib/product-api";
-import type { AnalysisCoverage, AnalysisRun, Company, FinancialAccount, MetricCode, MetricObservation, MetricsResponse } from "@/lib/product-types";
 
 import { Icon } from "./icons";
 
@@ -69,7 +68,6 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
   const defaults = useMemo(() => monthBounds(), []);
   const [periodStart, setPeriodStart] = useState(defaults.start);
   const [periodEnd, setPeriodEnd] = useState(defaults.end);
-  const [unclassifiedCount, setUnclassifiedCount] = useState(0);
   const [run, setRun] = useState<AnalysisRun | null>(null);
   const [metrics, setMetrics] = useState<MetricObservation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,8 +93,6 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
     async function bootstrap() {
       setLoading(true); setError("");
       try {
-        const accounts = await api<FinancialAccount[]>(`/companies/${company.id}/accounts/unclassified`);
-        if (!ignore) setUnclassifiedCount(accounts.length);
         const recentRuns = await api<AnalysisRun[]>(`/companies/${company.id}/analysis-runs?limit=20`);
         const savedId = window.localStorage.getItem(`didban:last-analysis:${company.id}`);
         const savedRun = recentRuns.find((item) => item.id === savedId) ?? recentRuns.find((item) => item.status === "completed" || item.status === "completed_limited");
@@ -240,17 +236,6 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
             <p>
               <strong className="font-bold text-foreground">دسترسی مشاهده‌گر: </strong>
               می‌توانید نتایج موجود را ببینید؛ اجرای دوره جدید به نقش مدیر مالی یا مشاور نیاز دارد.
-            </p>
-          </div>
-        ) : unclassifiedCount ? (
-          <div className="analysis-advisory warning flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
-            <Icon name="alert" className="size-4 text-amber-600 shrink-0" />
-            <p>
-              <strong className="font-bold">نتیجه با پوشش محدود تولید می‌شود: </strong>
-              {new Intl.NumberFormat("fa-IR").format(unclassifiedCount)} حساب هنوز طبقه‌بندی نشده است.{" "}
-              <Link href={`/companies/${company.id}/financial-model`} className="underline font-bold">
-                تکمیل مدل مالی
-              </Link>
             </p>
           </div>
         ) : null}

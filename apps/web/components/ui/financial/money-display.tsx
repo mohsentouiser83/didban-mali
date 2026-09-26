@@ -1,24 +1,32 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { toPersianDigits } from "@/lib/date-utils";
+
+export { toPersianDigits };
+
+export type FinancialUnit =
+  | "rial"
+  | "toman"
+  | "million_toman"
+  | "billion_toman"
+  | "percent"
+  | "auto";
 
 export interface MoneyDisplayProps extends React.HTMLAttributes<HTMLSpanElement> {
   amount: number | string | bigint | null | undefined;
-  currency?: "ریال" | "تومان" | "میلیارد ریال" | "همت" | "درصد" | "٪" | "" | string;
+  currency?: "ریال" | "تومان" | "میلیارد تومان" | "میلیون تومان" | "میلیارد ریال" | "همت" | "درصد" | "٪" | "" | string;
   direction?: "auto" | "positive" | "negative" | "neutral";
   showSign?: boolean;
   compact?: boolean;
+  executive?: boolean;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   subdued?: boolean;
   highlightZero?: boolean;
 }
 
-const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
-
-export function toPersianDigits(value: string | number): string {
-  return String(value).replace(/\d/g, (d) => persianDigits[parseInt(d, 10)] ?? d);
-}
-
 export function formatFinancialNumber(num: number | string | bigint): string {
+  if (num === null || num === undefined || num === "") return "—";
+
   if (typeof num === "string") {
     const trimmed = num.trim();
     if (!trimmed || isNaN(Number(trimmed))) return trimmed;
@@ -64,19 +72,23 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
       direction = "auto",
       showSign = false,
       compact = false,
+      executive = false,
       size = "md",
       subdued = false,
       highlightZero = false,
       className,
+      title,
       ...props
     },
     ref
   ) => {
+    // 1. Handle No Data State (Dash with proper explanation)
     if (amount === null || amount === undefined || amount === "") {
       return (
         <span
           ref={ref}
-          className={cn("inline-flex items-center font-mono text-muted-foreground", sizeClasses[size], className)}
+          className={cn("inline-flex items-center font-mono text-muted-foreground select-none", sizeClasses[size], className)}
+          title={title ?? "داده‌ای در دسترس نیست"}
           {...props}
         >
           —
@@ -85,6 +97,14 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
     }
 
     const numericVal = typeof amount === "string" ? parseFloat(amount) : Number(amount);
+    if (isNaN(numericVal)) {
+      return (
+        <span ref={ref} className={cn("inline-flex items-center font-mono text-muted-foreground", sizeClasses[size], className)} {...props}>
+          {String(amount)}
+        </span>
+      );
+    }
+
     const isZero = numericVal === 0;
     const isNegative = numericVal < 0;
 
@@ -97,9 +117,9 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
 
     let colorClass = "text-foreground";
     if (resolvedDirection === "positive") {
-      colorClass = "text-[var(--ds-fin-inflow-fg)]";
+      colorClass = "text-emerald-600 dark:text-emerald-400";
     } else if (resolvedDirection === "negative") {
-      colorClass = "text-[var(--ds-fin-outflow-fg)]";
+      colorClass = "text-rose-600 dark:text-rose-400";
     } else if (subdued || (isZero && !highlightZero)) {
       colorClass = "text-muted-foreground";
     }
@@ -107,28 +127,50 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
     let rawDisplay = formatFinancialNumber(amount);
     let resolvedCurrency = currency;
 
-    if (compact && typeof numericVal === "number" && !isNaN(numericVal)) {
-      const absVal = Math.abs(numericVal);
-      if (absVal >= 1_000_000_000_000) {
-        rawDisplay = toPersianDigits((numericVal / 1_000_000_000_000).toFixed(1).replace(".", "٫"));
-        resolvedCurrency = "همت";
-      } else if (absVal >= 1_000_000_000) {
-        rawDisplay = toPersianDigits((numericVal / 1_000_000_000).toFixed(1).replace(".", "٫"));
-        resolvedCurrency = "میلیارد ریال";
-      } else if (absVal >= 1_000_000) {
-        rawDisplay = toPersianDigits((numericVal / 1_000_000).toFixed(1).replace(".", "٫"));
-        resolvedCurrency = "میلیون ریال";
+    const absVal = Math.abs(numericVal);
+
+    // 2. Executive / Compact Smart Unit conversion
+    if ((compact || executive) && !isNaN(numericVal)) {
+      if (currency === "ریال" || currency === "IRR") {
+        const tomanVal = numericVal / 10;
+        const absToman = Math.abs(tomanVal);
+        if (absToman >= 1_000_000_000) {
+          rawDisplay = toPersianDigits((tomanVal / 1_000_000_000).toFixed(1).replace(".", "٫"));
+          resolvedCurrency = "میلیارد تومان";
+        } else if (absToman >= 1_000_000) {
+          rawDisplay = toPersianDigits((tomanVal / 1_000_000).toFixed(1).replace(".", "٫"));
+          resolvedCurrency = "میلیون تومان";
+        } else if (absToman >= 1_000) {
+          rawDisplay = toPersianDigits(Math.round(tomanVal).toLocaleString("fa-IR"));
+          resolvedCurrency = "تومان";
+        }
+      } else if (currency === "تومان") {
+        if (absVal >= 1_000_000_000) {
+          rawDisplay = toPersianDigits((numericVal / 1_000_000_000).toFixed(1).replace(".", "٫"));
+          resolvedCurrency = "میلیارد تومان";
+        } else if (absVal >= 1_000_000) {
+          rawDisplay = toPersianDigits((numericVal / 1_000_000).toFixed(1).replace(".", "٫"));
+          resolvedCurrency = "میلیون تومان";
+        }
       }
     }
 
     const signPrefix = showSign && numericVal > 0 ? "+" : "";
 
+    // 3. Computed legal full precision for tooltip
+    const computedTooltip =
+      title ??
+      (currency === "ریال" || currency === "IRR"
+        ? `${formatFinancialNumber(amount)} ریال (${formatFinancialNumber(Math.round(numericVal / 10))} تومان)`
+        : `${formatFinancialNumber(amount)} ${currency}`);
+
     return (
       <span
         ref={ref}
         dir="ltr"
+        title={computedTooltip}
         className={cn(
-          "inline-flex items-baseline gap-1 font-mono [font-variant-numeric:tabular-nums_lining-nums]",
+          "inline-flex items-baseline gap-1.5 font-mono cursor-default [font-variant-numeric:tabular-nums_lining-nums]",
           sizeClasses[size],
           colorClass,
           className
@@ -140,7 +182,7 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
             {resolvedCurrency}
           </span>
         )}
-        <span className="inline-block">
+        <span className="inline-block font-bold">
           {signPrefix}
           {rawDisplay}
         </span>

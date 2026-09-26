@@ -46,12 +46,20 @@ export function RisksWorkspace({ company, defaultTab = "findings" }: RisksWorksp
 
   return (
     <div className="risks-workspace space-y-6" dir="rtl">
-      {/* Clean Single Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4">
+      {/* Clean Header with Title, Subtitle and Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground tracking-tight">
-            ریسک‌ها و مغایرت‌های مالی
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">
+              ریسک‌ها و مغایرت‌های مالی
+            </h1>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+              {company.legal_name}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            مرکز پایش، کشف ناهنجاری‌ها و حل‌وفصل مغایرت‌های اسناد حسابداری، تراکنش‌های بانکی و هشدارهای زودهنگام
+          </p>
         </div>
       </div>
 

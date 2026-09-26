@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import { EvidenceSourceTag, EvidenceSourceType } from "./evidence-source-tag";
 import { MoneyDisplay, toPersianDigits } from "./money-display";
 import { ShieldCheck, Calculator, FileText, CheckCircle2, Clock, Ban, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export interface EvidenceLineageItem {
   id: string;
@@ -52,6 +53,12 @@ export interface EvidenceDrawerProps {
 }
 
 export function EvidenceDrawer({ open, onOpenChange, finding, onAction }: EvidenceDrawerProps) {
+  const [actionNote, setActionNote] = useState("");
+
+  useEffect(() => {
+    setActionNote("");
+  }, [finding?.id, open]);
+
   if (!finding) return null;
 
   return (
@@ -181,12 +188,19 @@ export function EvidenceDrawer({ open, onOpenChange, finding, onAction }: Eviden
           {onAction && (
             <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-3 sticky bottom-0 z-10 shadow-lg">
               <span className="block text-xs font-bold text-foreground">اقدام مشاور / تصمیم‌گیری:</span>
+              <Input
+                placeholder="یادداشت توضیحی مشاور (اختیاری)..."
+                value={actionNote}
+                onChange={(e) => setActionNote(e.target.value)}
+                className="h-8 text-xs bg-background"
+                dir="rtl"
+              />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-1 text-xs border-blue-500/30 text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
-                  onClick={() => onAction("confirmed")}
+                  onClick={() => onAction("confirmed", actionNote.trim() || undefined)}
                 >
                   <CheckCircle2 className="size-3.5" />
                   تأیید یافته
@@ -195,7 +209,7 @@ export function EvidenceDrawer({ open, onOpenChange, finding, onAction }: Eviden
                   size="sm"
                   variant="outline"
                   className="gap-1 text-xs border-amber-500/30 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
-                  onClick={() => onAction("follow_up")}
+                  onClick={() => onAction("follow_up", actionNote.trim() || undefined)}
                 >
                   <Clock className="size-3.5" />
                   شروع پیگیری
@@ -204,7 +218,7 @@ export function EvidenceDrawer({ open, onOpenChange, finding, onAction }: Eviden
                   size="sm"
                   variant="outline"
                   className="gap-1 text-xs border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
-                  onClick={() => onAction("resolved")}
+                  onClick={() => onAction("resolved", actionNote.trim() || undefined)}
                 >
                   <CheckCheck className="size-3.5" />
                   حل‌شد
@@ -213,7 +227,7 @@ export function EvidenceDrawer({ open, onOpenChange, finding, onAction }: Eviden
                   size="sm"
                   variant="ghost"
                   className="gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => onAction("dismissed")}
+                  onClick={() => onAction("dismissed", actionNote.trim() || undefined)}
                 >
                   <Ban className="size-3.5" />
                   رد / بی‌اثر

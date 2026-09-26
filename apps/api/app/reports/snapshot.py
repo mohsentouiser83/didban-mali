@@ -10,8 +10,8 @@ from app.alerts.service import evaluate_and_sync_alerts
 from app.analysis.models import AnalysisRun
 from app.cashflow.service import get_cashflow_forecast, get_cashflow_summary
 from app.companies.models import Company
-from app.dashboard.service import build_dashboard
-from app.findings.models import Finding, PriorityBand
+from app.dashboard.service import build_dashboard, build_health_and_coverage
+from app.findings.models import Finding, FindingGenerationRun, FindingRunStatus, PriorityBand
 from app.payables.service import get_payables_summary
 from app.receivables.service import get_receivables_summary
 from app.reviews.models import FindingNote, ReviewDecision
@@ -37,6 +37,18 @@ async def build_report_payload(
     dashboard = await build_dashboard(
         session, company_id=company_id, analysis=analysis, top_limit=5
     )
+    finding_run = await session.scalar(
+        select(FindingGenerationRun)
+        .where(
+            FindingGenerationRun.company_id == company_id,
+            FindingGenerationRun.analysis_run_id == analysis.id,
+            FindingGenerationRun.status.in_(
+                {FindingRunStatus.COMPLETED, FindingRunStatus.COMPLETED_LIMITED}
+            ),
+        )
+        .order_by(FindingGenerationRun.created_at.desc())
+    )
+    health, coverage = build_health_and_coverage(analysis, finding_run, dashboard.top_findings)
     priority_order = case(
         (Finding.priority_band == PriorityBand.CRITICAL, 4),
         (Finding.priority_band == PriorityBand.HIGH, 3),
@@ -109,15 +121,27 @@ async def build_report_payload(
         finding_payload.append(
             {
                 "id": str(finding.id),
-                "finding_code": finding.finding_code.value,
+                "finding_code": (
+                    finding.finding_code.value
+                    if hasattr(finding.finding_code, "value")
+                    else str(finding.finding_code)
+                ),
                 "title_fa": finding.title_fa,
                 "summary_fa": finding.summary_fa,
-                "priority_band": finding.priority_band.value,
+                "priority_band": (
+                    finding.priority_band.value
+                    if hasattr(finding.priority_band, "value")
+                    else str(finding.priority_band)
+                ),
                 "priority_score": _decimal(finding.priority_score),
                 "confidence_score": _decimal(finding.confidence_score),
                 "affected_amount_irr": _decimal(finding.affected_amount_irr),
                 "affected_ratio": _decimal(finding.affected_ratio),
-                "workflow_status": finding.workflow_status.value,
+                "workflow_status": (
+                    finding.workflow_status.value
+                    if hasattr(finding.workflow_status, "value")
+                    else str(finding.workflow_status)
+                ),
                 "is_top_finding": finding.id in top_ids,
                 "latest_decision": (
                     {
@@ -194,11 +218,11 @@ async def build_report_payload(
             "rule_set_version": analysis.rule_set_version,
             "completed_at": analysis.completed_at.isoformat() if analysis.completed_at else None,
         },
-        "overall_status": dashboard.health.model_dump(mode="json"),
+        "overall_status": health.model_dump(mode="json"),
         "financial_overview": [item.model_dump(mode="json") for item in dashboard.metrics],
         "top_findings": [item.model_dump(mode="json") for item in dashboard.top_findings],
         "main_drivers": [item.model_dump(mode="json") for item in dashboard.main_drivers],
-        "data_coverage": dashboard.coverage.model_dump(mode="json"),
+        "data_coverage": coverage.model_dump(mode="json"),
         "advisor_note": (
             {"body": advisor_note, "actor_id": str(created_by)}
             if advisor_note is not None

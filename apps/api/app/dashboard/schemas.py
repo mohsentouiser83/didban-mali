@@ -14,9 +14,9 @@ class DashboardSnapshot(BaseModel):
     period_start: date
     period_end: date
     analysis_status: AnalysisStatus
-    rule_set_version: str
     completed_at: datetime
     comparison_analysis_run_id: UUID | None
+    rule_set_version: str | None = None
 
 
 class DashboardHealth(BaseModel):
@@ -105,9 +105,7 @@ class DashboardCoverage(BaseModel):
 
 class DashboardResponse(BaseModel):
     snapshot: DashboardSnapshot
-    health: DashboardHealth
     metrics: list[DashboardMetric]
     top_findings: list[DashboardFinding]
     finding_summary: DashboardFindingSummary
     main_drivers: list[DashboardDriver]
-    coverage: DashboardCoverage

@@ -72,6 +72,7 @@ from app.imports.schemas import (
     MappingRequest,
     MappingResponse,
     MappingSuggestion,
+    MatchingProfileSummary,
     PreviewIssue,
     PreviewRow,
     UploadPolicyResponse,
@@ -448,8 +449,8 @@ async def preview_import(
         ) from exc
 
     fingerprint = column_fingerprint(parsed.columns)
-    profile_id = await session.scalar(
-        select(MappingProfile.id)
+    matched_profile = await session.scalar(
+        select(MappingProfile)
         .where(
             MappingProfile.company_id == company_id,
             MappingProfile.source_kind == source.kind,
@@ -458,6 +459,22 @@ async def preview_import(
         .order_by(MappingProfile.created_at.desc())
         .limit(1)
     )
+    profile_id = matched_profile.id if matched_profile else None
+    matching_summary = None
+    if matched_profile:
+        m_json = matched_profile.mapping_json or {}
+        matching_summary = MatchingProfileSummary(
+            id=matched_profile.id,
+            name=matched_profile.name,
+            source_kind=matched_profile.source_kind,
+            column_fingerprint=matched_profile.column_fingerprint,
+            mapping=m_json.get("fields", {}),
+            transforms=matched_profile.transforms_json or {},
+            currency_unit=m_json.get("currency_unit", "rial"),
+            calendar=m_json.get("calendar", "jalali"),
+            header_row=m_json.get("header_row", 1),
+            created_at=matched_profile.created_at,
+        )
     preview_rows: list[PreviewRow] = []
     mapping_response = _mapping_response(version) if version is not None else None
     for row_number, raw in parsed.rows:
@@ -499,6 +516,7 @@ async def preview_import(
         ],
         mapping=mapping_response,
         matching_profile_id=profile_id,
+        matching_profile=matching_summary,
     )
 
 
@@ -1145,4 +1163,63 @@ async def delete_import_batch(
     )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/templates", response_model=list[MatchingProfileSummary])
+async def list_mapping_templates(
+    company_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+    source_kind: SourceKind | None = None,
+) -> list[MatchingProfileSummary]:
+    await _access(session, company_id, current_user.id)
+    statement = select(MappingProfile).where(MappingProfile.company_id == company_id)
+    if source_kind is not None:
+        statement = statement.where(MappingProfile.source_kind == source_kind)
+    statement = statement.order_by(MappingProfile.created_at.desc())
+    profiles = (await session.scalars(statement)).all()
+    results: list[MatchingProfileSummary] = []
+    for p in profiles:
+        m_json = p.mapping_json or {}
+        results.append(
+            MatchingProfileSummary(
+                id=p.id,
+                name=p.name,
+                source_kind=p.source_kind,
+                column_fingerprint=p.column_fingerprint,
+                mapping=m_json.get("fields", {}),
+                transforms=p.transforms_json or {},
+                currency_unit=m_json.get("currency_unit", "rial"),
+                calendar=m_json.get("calendar", "jalali"),
+                header_row=m_json.get("header_row", 1),
+                created_at=p.created_at,
+            )
+        )
+    return results
+
+
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_mapping_template(
+    company_id: UUID,
+    template_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+    _: CsrfProtected,
+) -> Response:
+    access = await _access(session, company_id, current_user.id)
+    if access.role not in UPLOAD_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="اجازه حذف الگوی نگاشت را ندارید."
+        )
+    profile = await session.scalar(
+        select(MappingProfile).where(
+            MappingProfile.id == template_id, MappingProfile.company_id == company_id
+        )
+    )
+    if profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الگو پیدا نشد.")
+    await session.delete(profile)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 

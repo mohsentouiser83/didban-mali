@@ -96,6 +96,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
       data-risk={risk}
       className={cn(
         "border-b border-[var(--ds-border)] transition-colors duration-150 hover:bg-[var(--ds-table-hover)]",
+        props.onClick && "cursor-pointer",
         selected && "bg-[var(--ds-table-selected)] shadow-[inset_3px_0_0_var(--ds-primary)]",
         risk === "critical" && "shadow-[inset_3px_0_0_var(--ds-danger)]",
         risk === "high" && "shadow-[inset_3px_0_0_var(--ds-warning)]",

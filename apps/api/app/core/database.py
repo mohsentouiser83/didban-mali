@@ -10,7 +10,14 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+)
 async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 
@@ -19,4 +26,10 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         try:
             yield session
         finally:
+            try:
+                from app.core.tenant import reset_request_context
+
+                await reset_request_context(session)
+            except Exception:
+                pass
             await session.rollback()

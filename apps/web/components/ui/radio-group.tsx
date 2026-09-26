@@ -21,7 +21,7 @@ const RadioGroup = React.forwardRef<
 RadioGroup.displayName = RadioGroupPrimitive.Root.displayName
 
 const radioGroupItemVariants = cva(
-  "aspect-square rounded-full border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] text-[var(--ds-primary)] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-surface-card)] disabled:cursor-not-allowed disabled:opacity-45 hover:border-[var(--ds-primary)] grid place-content-center",
+  "aspect-square rounded-full border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] text-[var(--ds-primary)] transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-surface-card)] disabled:cursor-not-allowed disabled:opacity-45 hover:border-[var(--ds-primary)] grid place-content-center cursor-pointer",
   {
     variants: {
       variant: {

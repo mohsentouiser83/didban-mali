@@ -158,7 +158,11 @@ async def explain_finding(
     )
     manifest = {
         "finding_id": str(finding.id),
-        "finding_code": finding.finding_code.value,
+        "finding_code": (
+            finding.finding_code.value
+            if hasattr(finding.finding_code, "value")
+            else str(finding.finding_code)
+        ),
         "reason_code": finding.reason_code,
         "evidence_ids": [str(item.id) for item in evidence],
     }

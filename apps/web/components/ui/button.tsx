@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
 const buttonVariants = cva(
-  "ds-focus inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-bold transition-[color,background-color,border-color,box-shadow,transform] duration-150 select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:pointer-events-none",
+  "ds-focus inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-bold transition-[color,background-color,border-color,box-shadow,transform] duration-150 select-none active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:pointer-events-none cursor-pointer",
   {
     variants: {
       variant: {

@@ -194,6 +194,37 @@ kbd {
   font-family: inherit;
 }
 
+button,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+select,
+label[for],
+summary,
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+[role="switch"],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+a,
+[role="link"] {
+  cursor: pointer;
+}
+
 svg,
 svg text,
 svg tspan {

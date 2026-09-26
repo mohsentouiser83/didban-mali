@@ -109,6 +109,19 @@ class PreviewRow(BaseModel):
     issues: list[PreviewIssue] = Field(default_factory=list)
 
 
+class MatchingProfileSummary(BaseModel):
+    id: UUID
+    name: str
+    source_kind: SourceKind
+    column_fingerprint: str
+    mapping: dict[str, str]
+    transforms: dict[str, list[str]]
+    currency_unit: str
+    calendar: str
+    header_row: int | None = None
+    created_at: datetime
+
+
 class ImportPreviewResponse(BaseModel):
     sheets: list[str]
     selected_sheet: str
@@ -121,6 +134,7 @@ class ImportPreviewResponse(BaseModel):
     alternative_required_fields: list[list[str]] = Field(default_factory=list)
     mapping: MappingResponse | None = None
     matching_profile_id: UUID | None = None
+    matching_profile: MatchingProfileSummary | None = None
 
 
 class ValidationIssueResponse(BaseModel):

@@ -160,6 +160,10 @@ async def create_report(
         request_hash=request_hash,
         created_at=now,
     )
+    from app.core.tenant import set_request_company, set_request_user
+
+    await set_request_user(session, current_user.id)
+    await set_request_company(session, company_id)
     session.add(report)
     record_audit_event(
         session,

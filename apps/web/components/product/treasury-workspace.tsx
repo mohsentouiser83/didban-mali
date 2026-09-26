@@ -51,31 +51,34 @@ export function TreasuryWorkspace({ company, defaultTab = "cashflow" }: Treasury
       {/* Header Hub Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/70 pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-primary mb-1">
             <WalletCards className="size-4" />
             <span>خزانه‌داری</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
             خزانه‌داری و مدیریت نقدینگی
           </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            پایش تاب‌آوری نقدینگی، پیش‌بینی گردش وجوه نقد، کنترل مطالبات و بدهی‌ها و تطبیق بانکی
+          </p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} variant="line" className="w-full">
         <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
-          <TabsTrigger value="cashflow" className="gap-2 text-xs sm:text-sm py-2.5">
+          <TabsTrigger value="cashflow" className="gap-2 text-xs sm:text-sm py-2.5 font-medium">
             <WalletCards className="size-4" />
             <span>جریان نقدینگی</span>
           </TabsTrigger>
-          <TabsTrigger value="receivables" className="gap-2 text-xs sm:text-sm py-2.5">
+          <TabsTrigger value="receivables" className="gap-2 text-xs sm:text-sm py-2.5 font-medium">
             <ArrowDownLeft className="size-4 text-emerald-500" />
             <span>مطالبات تجاری</span>
           </TabsTrigger>
-          <TabsTrigger value="payables" className="gap-2 text-xs sm:text-sm py-2.5">
+          <TabsTrigger value="payables" className="gap-2 text-xs sm:text-sm py-2.5 font-medium">
             <ArrowUpRight className="size-4 text-amber-500" />
             <span>بدهی‌های تجاری</span>
           </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="gap-2 text-xs sm:text-sm py-2.5">
+          <TabsTrigger value="reconciliation" className="gap-2 text-xs sm:text-sm py-2.5 font-medium">
             <ArrowLeftRight className="size-4 text-blue-500" />
             <span>تطبیق بانکی</span>
           </TabsTrigger>

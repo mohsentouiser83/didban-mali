@@ -212,8 +212,12 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
     );
   }
 
+  // Calculate stepper state
+  const step = isCommitted ? 4 : isValidated ? 3 : preview.mapping ? 3 : 2;
+
   return (
-    <div className="mapping-workspace space-y-6">
+    <div className="mapping-workspace space-y-6" dir="rtl">
+      {/* Header & Back Action */}
       <header className="mapping-file-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
         <div>
           <Link
@@ -221,16 +225,16 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             href={`/companies/${company.id}/imports`}
           >
             <Icon name="arrow" className="size-3.5" />
-            بازگشت به فایل‌ها
+            <span>بازگشت به فهرست اسناد</span>
           </Link>
           <div className="file-title flex items-center gap-3">
-            <span className="file-state size-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Icon name="file" className="size-4" />
+            <span className="file-state size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+              <Icon name="file" className="size-5" />
             </span>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-foreground">{batch.original_name}</h2>
-              <p className="text-xs text-muted-foreground">
-                {sourceLabels[batch.source_kind]} · {batch.source_label}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {sourceLabels[batch.source_kind]} · {batch.source_label} · {preview.selected_sheet ? `شیت «${preview.selected_sheet}»` : ""}
               </p>
             </div>
           </div>
@@ -243,14 +247,14 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
               ? "اعتبارسنجی‌شده"
               : preview.mapping
               ? "نگاشت ثبت‌شده"
-              : "نیازمند نگاشت"}
+              : "نیازمند نگاشت ستون‌ها"}
           </Badge>
           {company.role !== "viewer" && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="delete-link text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5 h-8"
+              className="delete-link text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5 h-8 rounded-lg"
               onClick={() => setShowDeleteDialog(true)}
             >
               <Icon name="trash" className="size-3.5" />
@@ -260,8 +264,74 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         </div>
       </header>
 
-      {/* Status & Alerts */}
+      {/* Modern 4-Step Pipeline Stepper */}
+      <div className="stepper grid grid-cols-2 md:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-card border border-border/80 shadow-2xs">
+        <div className="step-item flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+          <span className="size-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0">
+            ✓
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-foreground truncate">۱. دریافت و اسکن</span>
+            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium truncate">تأیید امنیتی شد</span>
+          </div>
+        </div>
 
+        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
+          step === 2 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
+        }`}>
+          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+            step > 2
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : "bg-primary text-primary-foreground"
+          }`}>
+            {step > 2 ? "✓" : "۲"}
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-foreground truncate">۲. تطبیق سرستون‌ها</span>
+            <span className="block text-[10px] text-muted-foreground truncate">
+              {preview.mapping ? "تأیید و قفل شد" : "در حال تطبیق"}
+            </span>
+          </div>
+        </div>
+
+        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
+          step === 3 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
+        }`}>
+          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+            step > 3
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : step === 3
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground"
+          }`}>
+            {step > 3 ? "✓" : "۳"}
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-foreground truncate">۳. کنترل کیفیت و تراز</span>
+            <span className="block text-[10px] text-muted-foreground truncate">
+              {isValidated ? "اعتبارسنجی شد" : "منتظر نگاشت"}
+            </span>
+          </div>
+        </div>
+
+        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
+          step === 4 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
+        }`}>
+          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+            step === 4 ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+          }`}>
+            ۴
+          </span>
+          <div className="min-w-0">
+            <span className="block text-xs font-bold text-foreground truncate">۴. تجمیع در دفاتر</span>
+            <span className="block text-[10px] text-muted-foreground truncate">
+              {isCommitted ? "ثبت نهایی شد" : "گام آخر"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Status & Alerts */}
       {error && (
         <Alert variant="destructive" className="form-error text-xs p-3.5 rounded-xl" role="alert">
           {error}
@@ -273,48 +343,162 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         </Alert>
       )}
 
-      {/* Mapping Layout */}
-      <form className="mapping-layout grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6" onSubmit={saveMapping}>
-        <ProductCard className="mapping-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="mapping-title">
-          <div className="mapping-section-heading flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+      {/* Main Mapping Form with Horizontal Controls Bar */}
+      <form onSubmit={saveMapping} className="space-y-6">
+        {/* Settings Bar */}
+        <ProductCard className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-2xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div>
-              <div className="flex items-center gap-2">
-                <h3 id="mapping-title" className="text-base font-bold text-foreground">معنای ستون‌ها را تأیید کنید</h3>
-                <span className="text-[11px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-md">
-                  ردیف عناوین: {new Intl.NumberFormat("fa-IR").format(headerRow ?? preview.header_row)}
-                </span>
-              </div>
+              <h3 className="text-sm sm:text-base font-bold text-foreground">پیکربندی تبدیل و انطباق داده‌ها</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                تعیین استاندارد تاریخ، واحد پولی و ردیف عناوین قبل از بررسی اعتبارسنجی.
+              </p>
             </div>
-            <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg self-start sm:self-center">
-              {Object.values(mapping).filter(Boolean).length} از {fields.length} نگاشت‌شده
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
+                {Object.values(mapping).filter(Boolean).length} از {fields.length} ستون نگاشت‌شده
+              </span>
+            </div>
           </div>
 
-          <div className="mapping-rows space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-foreground">تقویم تاریخ‌ها</label>
+              <SelectField
+                value={calendar}
+                onChange={(event) => setCalendar(event.target.value as "jalali" | "gregorian")}
+                disabled={!canEdit}
+                className="h-9 text-xs rounded-xl bg-background"
+              >
+                <SelectOption value="jalali">هجری شمسی (جلالی)</SelectOption>
+                <SelectOption value="gregorian">میلادی (Gregorian)</SelectOption>
+              </SelectField>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-foreground">واحد مبالغ در فایل</label>
+              <SelectField
+                value={currencyUnit}
+                onChange={(event) => setCurrencyUnit(event.target.value as "rial" | "toman")}
+                disabled={!canEdit}
+                className="h-9 text-xs rounded-xl bg-background"
+              >
+                <SelectOption value="rial">ریال (واحد اصلی)</SelectOption>
+                <SelectOption value="toman">تومان (تبدیل به ریال)</SelectOption>
+              </SelectField>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-foreground">ردیف عناوین جدول</label>
+                <span className="text-[10px] text-muted-foreground">شماره سطر اکسل</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {canEdit ? (
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={headerRow ?? preview.header_row}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 1) {
+                        setHeaderRow(val);
+                        void load(val);
+                      }
+                    }}
+                    className="w-full h-9 px-3 text-start rounded-xl border border-border bg-background text-foreground font-semibold text-xs"
+                  />
+                ) : (
+                  <div className="h-9 px-3 flex items-center bg-muted/40 rounded-xl text-xs font-mono font-bold text-foreground">
+                    ردیف {new Intl.NumberFormat("fa-IR").format(preview.header_row)}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-foreground">نام الگو (اختیاری)</label>
+              <Input
+                value={profileName}
+                onChange={(event) => setProfileName(event.target.value)}
+                disabled={!canEdit}
+                placeholder="مثلاً الگوی سپیدار"
+                className="h-9 text-xs bg-background rounded-xl"
+              />
+            </div>
+          </div>
+        </ProductCard>
+
+        {/* Column Mapping Panel */}
+        <ProductCard className="mapping-panel p-6 rounded-2xl border border-border bg-card space-y-5" aria-labelledby="mapping-title">
+          <div className="mapping-section-heading flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
+            <div>
+              <h3 id="mapping-title" className="text-base font-bold text-foreground">تطبیق سرستون‌های فایل با استانداردهای دیدبان مالی</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                ستون‌های فایل اکسل را به فیلدهای استاندارد حسابداری متناظر اختصاص دهید. فیلدهای الزامی برای اعتبارسنجی الزامی هستند.
+              </p>
+            </div>
+            {preview.mapping ? (
+              <div className="locked-note flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs font-medium self-start sm:self-center">
+                <Icon name="shield" className="size-3.5" />
+                <span>نگاشت تأیید و قفل شده است</span>
+              </div>
+            ) : (
+              <Button
+                type="submit"
+                className="primary-button h-9 px-4 text-xs font-bold gap-2 rounded-xl self-start sm:self-center shadow-xs"
+                disabled={!mappingComplete || busy !== null}
+              >
+                {busy === "mapping" ? "در حال ثبت…" : "تأیید و ذخیره نگاشت"}
+              </Button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {fields.map((field) => {
               const required = isRequiredField(field, preview.required_fields, preview.alternative_required_fields);
               const suggestion = preview.suggestions.find((item) => item.target_field === field);
+              const isMapped = Boolean(mapping[field]);
+
               return (
                 <label
-                  className="mapping-row flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-border/60 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer"
+                  className={`mapping-row flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    isMapped
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : required
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                  }`}
                   key={field}
                 >
-                  <span className="target-field flex flex-col min-w-[140px]">
-                    <strong className="text-xs font-bold text-foreground">{fieldLabels[field] ?? field}</strong>
-                    <small className="text-[11px] text-muted-foreground font-normal mt-0.5">
-                      {required ? "الزامی" : "اختیاری"}
-                      {suggestion ? ` · پیشنهاد ${new Intl.NumberFormat("fa-IR").format(suggestion.confidence)}٪` : ""}
-                    </small>
-                  </span>
+                  <div className="target-field flex flex-col min-w-[140px]">
+                    <div className="flex items-center gap-1.5">
+                      <strong className="text-xs font-bold text-foreground">{fieldLabels[field] ?? field}</strong>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                        required
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {required ? "الزامی" : "اختیاری"}
+                      </span>
+                    </div>
+                    {suggestion && (
+                      <span className="text-[10px] text-primary/80 font-mono mt-0.5">
+                        پیشنهاد هوشمند: {new Intl.NumberFormat("fa-IR").format(suggestion.confidence)}٪
+                      </span>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-2 flex-1 sm:max-w-xs">
                     <Icon name="arrow" className="size-3 text-muted-foreground shrink-0 hidden sm:block" />
                     <SelectField
                       value={mapping[field] ?? ""}
                       onChange={(event) => setMapping((current) => ({ ...current, [field]: event.target.value }))}
                       disabled={!canEdit}
-                      className="h-9 text-xs w-full"
+                      className="h-9 text-xs w-full rounded-xl bg-background border-border/80"
                     >
-                      <SelectOption value="">انتخاب نشده</SelectOption>
+                      <SelectOption value="">— انتخاب ستون —</SelectOption>
                       {preview.columns.map((column) => (
                         <SelectOption
                           key={column}
@@ -333,95 +517,6 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             })}
           </div>
         </ProductCard>
-
-        <aside className="mapping-settings p-6 rounded-2xl border border-border bg-card space-y-4 self-start">
-          <div className="border-b border-border/60 pb-3">
-            <h3 className="text-base font-bold text-foreground">تنظیمات تبدیل و استانداردسازی</h3>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-foreground">تقویم تاریخ‌ها</label>
-            <SelectField
-              value={calendar}
-              onChange={(event) => setCalendar(event.target.value as "jalali" | "gregorian")}
-              disabled={!canEdit}
-              className="h-10 text-xs"
-            >
-              <SelectOption value="jalali">هجری شمسی</SelectOption>
-              <SelectOption value="gregorian">میلادی</SelectOption>
-            </SelectField>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-foreground">واحد مبالغ</label>
-            <SelectField
-              value={currencyUnit}
-              onChange={(event) => setCurrencyUnit(event.target.value as "rial" | "toman")}
-              disabled={!canEdit}
-              className="h-10 text-xs"
-            >
-              <SelectOption value="rial">ریال</SelectOption>
-              <SelectOption value="toman">تومان — تبدیل به ریال</SelectOption>
-            </SelectField>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-              <label>نام الگو</label>
-              <span className="text-[11px] font-normal text-muted-foreground">اختیاری</span>
-            </div>
-            <Input
-              value={profileName}
-              onChange={(event) => setProfileName(event.target.value)}
-              disabled={!canEdit}
-              placeholder="مثلاً خروجی نرم‌افزار سپیدار"
-              className="h-10 text-xs bg-background"
-            />
-          </div>
-
-          <div className="mapping-meta flex items-center justify-between p-3 rounded-xl bg-muted/40 text-xs text-muted-foreground">
-            <span>شیت: <strong className="text-foreground">{preview.selected_sheet}</strong></span>
-            <div className="flex items-center gap-1.5">
-              <span>ردیف عنوان:</span>
-              {canEdit ? (
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={headerRow ?? preview.header_row}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1) {
-                      setHeaderRow(val);
-                      void load(val);
-                    }
-                  }}
-                  className="w-12 h-7 text-center rounded border border-border bg-background text-foreground font-semibold text-xs"
-                />
-              ) : (
-                <strong className="text-foreground">{new Intl.NumberFormat("fa-IR").format(preview.header_row)}</strong>
-              )}
-            </div>
-          </div>
-
-          {preview.mapping ? (
-            <div className="locked-note flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
-              <Icon name="shield" className="size-4 text-primary shrink-0 mt-0.5" />
-              <span>
-                <strong className="block font-semibold text-foreground">نگاشت ثبت شده است</strong>
-                نسخهٔ تأییدشده برای حفظ قابلیت حسابرسی تغییر نمی‌کند.
-              </span>
-            </div>
-          ) : (
-            <Button
-              type="submit"
-              className="primary-button w-full h-10 text-xs font-bold gap-2"
-              disabled={!mappingComplete || busy !== null}
-            >
-              {busy === "mapping" ? "در حال ثبت…" : "تأیید نگاشت"}
-            </Button>
-          )}
-        </aside>
       </form>
 
       {/* Data Preview */}

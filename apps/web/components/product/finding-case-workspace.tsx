@@ -4,16 +4,54 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  MoneyDisplay,
+  toPersianDigits,
+  RiskBadge,
+  StatusChip,
+} from "@/components/ui/financial";
+import { toast } from "sonner";
+import {
+  ShieldAlert,
+  ShieldCheck,
+  UserCheck,
+  CheckCircle2,
+  RotateCcw,
+  UserPlus,
+  AlertCircle,
+  FileCheck2,
+  XCircle,
+  Calendar,
+  Layers,
+  RefreshCcw,
+  Check,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { ProductCard } from "./product-card";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toJalaliDate, toJalaliDateTime } from "@/lib/date-utils";
+import { cn } from "@/lib/utils";
 
 import { api, API_URL } from "@/lib/product-api";
 import type { Company, EvidenceItem, EvidenceItemsResponse, Finding, Member, PriorityBand, ReviewTimelineItem, ReviewTimelineResponse } from "@/lib/product-types";
 
 import { Icon } from "./icons";
-import { AiFindingExplanationPanel } from "./ai-finding-explanation";
 import { FindingReviewPanel } from "./finding-review-panel";
 
 const bandLabels: Record<PriorityBand, string> = { critical: "بحرانی", high: "بالا", medium: "متوسط", low: "پایین" };
@@ -74,12 +112,14 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function faDate(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(`${value}T12:00:00`));
+function faDate(value: string | null | undefined) {
+  if (!value) return "—";
+  return toJalaliDate(value);
 }
 
-function faDateTime(value: string) {
-  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "long", timeStyle: "short" }).format(new Date(value));
+function faDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  return toJalaliDateTime(value);
 }
 
 function money(value: string | null) {
@@ -121,6 +161,32 @@ export function FindingCaseWorkspace({
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const router = useRouter();
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+
+  // Phase 3 Action Modals State
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>("");
+  const [dueDate, setDueDate] = useState<string>("");
+  const [assignNote, setAssignNote] = useState<string>("");
+  const [submittingAssign, setSubmittingAssign] = useState(false);
+
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolutionType, setResolutionType] = useState<string>("reconciled");
+  const [resolutionNote, setResolutionNote] = useState<string>("");
+  const [submittingResolve, setSubmittingResolve] = useState(false);
+
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [verificationNote, setVerificationNote] = useState<string>("");
+  const [submittingVerify, setSubmittingVerify] = useState(false);
+
+  const [reopenOpen, setReopenOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState<string>("");
+  const [submittingReopen, setSubmittingReopen] = useState(false);
+
+  const [dismissOpen, setDismissOpen] = useState(false);
+  const [dismissReason, setDismissReason] = useState<string>("");
+  const [submittingDismiss, setSubmittingDismiss] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -170,6 +236,112 @@ export function FindingCaseWorkspace({
     setReviewCursor(result.next_cursor);
   }, [company.id, findingId, reviewCursor]);
 
+  const isResolver = Boolean(finding?.resolved_by_user_id && finding.resolved_by_user_id === currentUserId);
+  const canVerifyRole = company.role === "owner" || company.role === "finance_manager";
+  const canVerify = canVerifyRole && !isResolver;
+  const isResolved = finding?.workflow_status === "resolved" || (finding as any)?.status === "resolved";
+  const isVerified = (finding as any)?.status === "verified";
+  const canAct = company.role !== "viewer";
+
+  const handleAssign = async () => {
+    if (!selectedAssignee || submittingAssign) return;
+    setSubmittingAssign(true);
+    try {
+      await api(`/companies/${company.id}/findings/${findingId}/assign`, {
+        method: "POST",
+        body: JSON.stringify({
+          assigned_to_user_id: selectedAssignee,
+          due_date: dueDate || null,
+          note: assignNote || null,
+        }),
+      });
+      toast.success("مغایرت با موفقیت ارجاع داده شد.");
+      setAssignOpen(false);
+      await reloadReview();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در ارجاع مغایرت.");
+    } finally {
+      setSubmittingAssign(false);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (resolutionNote.trim().length < 5 || submittingResolve) return;
+    setSubmittingResolve(true);
+    try {
+      await api(`/companies/${company.id}/findings/${findingId}/resolve`, {
+        method: "POST",
+        body: JSON.stringify({
+          resolution_type: resolutionType,
+          resolution_note: resolutionNote,
+        }),
+      });
+      toast.success("حل‌وفصل مغایرت ثبت شد و پرونده به صف تایید دو امضایی (Maker-Checker) ارسال گردید.");
+      setResolveOpen(false);
+      await reloadReview();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در حل‌وفصل مغایرت.");
+    } finally {
+      setSubmittingResolve(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!canVerify || submittingVerify) return;
+    setSubmittingVerify(true);
+    try {
+      await api(`/companies/${company.id}/findings/${findingId}/verify`, {
+        method: "POST",
+        body: JSON.stringify({
+          verification_note: verificationNote || null,
+        }),
+      });
+      toast.success("تایید نهایی دو امضایی با موفقیت انجام شد و پرونده به صورت قطعی بسته گردید.");
+      setVerifyOpen(false);
+      await reloadReview();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در تایید پرونده.");
+    } finally {
+      setSubmittingVerify(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (reopenReason.trim().length < 5 || submittingReopen) return;
+    setSubmittingReopen(true);
+    try {
+      await api(`/companies/${company.id}/findings/${findingId}/reopen`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reopenReason }),
+      });
+      toast.success("پرونده با موفقیت بازگشایی شد.");
+      setReopenOpen(false);
+      await reloadReview();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در بازگشایی پرونده.");
+    } finally {
+      setSubmittingReopen(false);
+    }
+  };
+
+  const handleDismiss = async () => {
+    if (dismissReason.trim().length < 5 || submittingDismiss) return;
+    setSubmittingDismiss(true);
+    try {
+      await api(`/companies/${company.id}/findings/${findingId}/dismiss`, {
+        method: "POST",
+        body: JSON.stringify({ reason: dismissReason }),
+      });
+      toast.success("پرونده با موفقیت رد شد.");
+      setDismissOpen(false);
+      await reloadReview();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "خطا در رد پرونده.");
+    } finally {
+      setSubmittingDismiss(false);
+    }
+  };
+
   const evidenceKinds = useMemo(() => new Set(evidence.map((item) => item.evidence_type)), [evidence]);
 
   if (loading) return <FindingCaseSkeleton />;
@@ -198,13 +370,20 @@ export function FindingCaseWorkspace({
 
   return (
     <div className="finding-case-workspace space-y-6">
-      <Link
-        className="case-back inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        href={`/companies/${company.id}/findings`}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) {
+            router.back();
+          } else {
+            router.push(`/companies/${company.id}/findings`);
+          }
+        }}
+        className="case-back inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
-        <Icon name="arrow" className="size-3.5" />
-        بازگشت به صف یافته‌ها
-      </Link>
+        <ChevronRight className="size-3.5" />
+        <span>بازگشت به صف یافته‌ها</span>
+      </button>
 
       {/* Hero Header */}
       <section className="finding-case-hero p-6 sm:p-8 rounded-2xl border border-border bg-card shadow-sm grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-6 items-center">
@@ -279,8 +458,491 @@ export function FindingCaseWorkspace({
         </div>
       </ProductCard>
 
-      <AiFindingExplanationPanel company={company} findingId={finding.id} />
+      {/* Financial Control & Maker-Checker Action Center */}
+      <section className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-xs space-y-5" aria-labelledby="governance-center-title">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/70 pb-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-primary" />
+              <span className="text-xs font-bold text-primary">چرخه اقدام و حاکمیت مالی</span>
+            </div>
+            <h3 id="governance-center-title" className="text-base sm:text-lg font-black text-foreground">
+              مدیریت اقدام، حل‌وفصل و تایید دو امضایی (Maker-Checker)
+            </h3>
+          </div>
 
+          {/* Quick Action Buttons */}
+          {canAct && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAssignOpen(true)}
+                className="h-8 gap-1.5 text-xs font-bold rounded-xl border-border"
+              >
+                <UserPlus className="size-3.5 text-primary" />
+                <span>ارجاع وظیفه</span>
+              </Button>
+
+              {!isResolved && !isVerified && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setResolveOpen(true)}
+                  className="h-8 gap-1.5 text-xs font-bold rounded-xl border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                >
+                  <CheckCircle2 className="size-3.5 text-emerald-600" />
+                  <span>حل‌وفصل مغایرت</span>
+                </Button>
+              )}
+
+              {/* Verify Button (Maker-Checker) */}
+              <div className="relative group">
+                <Button
+                  size="sm"
+                  disabled={!isResolved || isVerified || isResolver || !canVerifyRole}
+                  onClick={() => setVerifyOpen(true)}
+                  className={`h-8 gap-1.5 text-xs font-extrabold rounded-xl ${
+                    isResolver
+                      ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                  }`}
+                >
+                  <FileCheck2 className="size-3.5" />
+                  <span>تایید نهایی (Maker-Checker)</span>
+                </Button>
+                {isResolver && (
+                  <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-30 w-64 p-2 rounded-lg bg-popover text-foreground border border-border shadow-lg text-[11px] leading-tight text-center">
+                    شما ثبت‌کننده حل این پرونده هستید و طبق قانون تفکیک وظایف مجاز به تایید خود نیستید.
+                  </div>
+                )}
+              </div>
+
+              {(isResolved || isVerified) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setReopenOpen(true)}
+                  className="h-8 gap-1.5 text-xs font-bold rounded-xl border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+                >
+                  <RotateCcw className="size-3.5 text-amber-600" />
+                  <span>بازگشایی مجدد</span>
+                </Button>
+              )}
+
+              {!isVerified && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setDismissOpen(true)}
+                  className="h-8 gap-1 text-xs font-medium text-muted-foreground hover:text-destructive"
+                >
+                  <XCircle className="size-3.5" />
+                  <span>رد یافته</span>
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Maker-Checker & Governance Status Alerts */}
+        {isResolver && (
+          <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-200 text-xs flex items-start gap-2.5">
+            <AlertCircle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-bold">اصل تفکیک وظایف (Maker-Checker Principle):</strong>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                شما ثبت‌کننده راه‌حل این پرونده بوده‌اید. جهت رعایت کنترل‌های داخلی و جلوگیری از تضاد منافع، تایید نهایی و بسته‌شدن قطعی پرونده منحصراً باید توسط مدیر مالی یا مالک دیگری انجام گیرد.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {finding.verified_by_user_id && (
+          <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 text-xs flex items-start gap-2.5">
+            <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-bold">
+                تایید نهایی دو امضایی توسط {finding.verifier_name || "مدیر مالی"} در تاریخ {faDateTime(finding.verified_at || "")}
+              </strong>
+              {finding.verification_note && (
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  یادداشت تایید: «{finding.verification_note}»
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isResolved && !finding.verified_by_user_id && !isResolver && (
+          <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-950 dark:text-blue-200 text-xs flex items-start gap-2.5">
+            <Clock className="size-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <strong className="block font-bold">پرونده حل‌شده و در انتظار تایید نهایی (Maker-Checker) است.</strong>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                روش حل: {finding.resolution_type || "ثبت‌شده"} • یادداشت: «{finding.resolution_note || "—"}» • اقدام‌کننده: {finding.resolver_name || "همکار"}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Financial Governance Context Meta */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-1">
+          <div className="p-3 rounded-xl border border-border/70 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground block">مسئول پیگیری:</span>
+            <strong className="text-foreground text-xs mt-0.5 block truncate">
+              {finding.assignee_name || "تخصیص نیافته"}
+            </strong>
+          </div>
+
+          <div className="p-3 rounded-xl border border-border/70 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground block">موعد اقدام (Due Date):</span>
+            <strong className="text-foreground text-xs mt-0.5 block font-mono">
+              {finding.due_date ? faDate(finding.due_date) : "تعیین نشده"}
+            </strong>
+          </div>
+
+          <div className="p-3 rounded-xl border border-border/70 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground block">مبلغ درگیر در مغایرت:</span>
+            <div className="mt-0.5">
+              <MoneyDisplay
+                amount={finding.affected_amount_irr || (finding as any).financial_impact_irr || 0}
+                currency="ریال"
+                size="sm"
+                className="font-bold text-foreground"
+              />
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl border border-border/70 bg-muted/20">
+            <span className="text-[10px] text-muted-foreground block">دفعات بازگشایی:</span>
+            <strong className="text-foreground text-xs mt-0.5 block font-mono">
+              {toPersianDigits(finding.reopened_count || 0)} بار
+            </strong>
+          </div>
+        </div>
+      </section>
+
+      {/* Assign Modal */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent className="max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <UserPlus className="size-5 text-primary" />
+              <span>ارجاع مغایرت به همکار</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              مسئول پیگیری و موعد نهایی اقدام را برای این پرونده تعیین نمایید.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">انتخاب عضو تیم مالی:</label>
+              <Select value={selectedAssignee} onValueChange={setSelectedAssignee} dir="rtl">
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="یک نفر را انتخاب کنید..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((m) => (
+                    <SelectItem key={m.user_id} value={m.user_id} className="text-xs">
+                      {m.full_name} ({m.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">موعد اقدام (اختیاری):</label>
+              <Input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="h-8 text-xs font-mono bg-background"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">یادداشت ارجاع:</label>
+              <Input
+                placeholder="توضیح یا دستور کار برای همکار..."
+                value={assignNote}
+                onChange={(e) => setAssignNote(e.target.value)}
+                className="h-8 text-xs bg-background"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              type="button"
+              disabled={!selectedAssignee || submittingAssign}
+              onClick={() => void handleAssign()}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              {submittingAssign ? <RefreshCcw className="size-3.5 animate-spin ms-1" /> : null}
+              ثبت ارجاع
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAssignOpen(false)}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              انصراف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resolve Modal */}
+      <Dialog open={resolveOpen} onOpenChange={setResolveOpen}>
+        <DialogContent className="max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <CheckCircle2 className="size-5 text-emerald-600" />
+              <span>حل‌وفصل پرونده مغایرت</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              شیوه حل‌وفصل و شرح اقدام انجام‌شده را ثبت نمایید. این اقدام پرونده را به صف Maker-Checker ارسال می‌کند.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">نوع راه‌حل (Resolution Type):</label>
+              <Select value={resolutionType} onValueChange={setResolutionType} dir="rtl">
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reconciled" className="text-xs">تطبیق بانکی انجام شد (Reconciled)</SelectItem>
+                  <SelectItem value="accounting_adjusted" className="text-xs">سند اصلاحی حسابداری صادر گردید (Adjusted)</SelectItem>
+                  <SelectItem value="bank_clarified" className="text-xs">استعلام بانکی اخذ و شفاف‌سازی شد (Clarified)</SelectItem>
+                  <SelectItem value="written_off" className="text-xs">سوخت بدهی یا بخشودگی مصوب شد (Written Off)</SelectItem>
+                  <SelectItem value="false_positive" className="text-xs">کشف نادرست / ناهنجاری ظاهری (False Positive)</SelectItem>
+                  <SelectItem value="policy_exception" className="text-xs">معافیت با تایید هیئت‌مدیره (Policy Exception)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">شرح راه‌حل (حداقل ۵ کاراکتر الزامی):</label>
+              <Textarea
+                rows={3}
+                placeholder="توضیح دهید چه اقدامی جهت رفع این مغایرت انجام شده است..."
+                value={resolutionNote}
+                onChange={(e) => setResolutionNote(e.target.value)}
+                className="text-xs bg-background"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              type="button"
+              disabled={resolutionNote.trim().length < 5 || submittingResolve}
+              onClick={() => void handleResolve()}
+              className="h-8 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {submittingResolve ? <RefreshCcw className="size-3.5 animate-spin ms-1" /> : null}
+              ثبت حل‌وفصل
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setResolveOpen(false)}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              انصراف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify Modal (Maker-Checker) */}
+      <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+        <DialogContent className="max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <FileCheck2 className="size-5 text-emerald-600" />
+              <span>تایید نهایی دو امضایی (Maker-Checker Verification)</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              با تایید شما به عنوان مدیر مالی یا مالک شرکت، راه‌حل ثبت‌شده صحه‌گذاری شده و پرونده به صورت قطعی بسته می‌شود.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 rounded-xl border border-border bg-muted/30 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">اقدام‌کننده اولیه:</span>
+                <span className="font-bold text-foreground">{finding.resolver_name || "کاربر سامانه"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">نوع راه‌حل:</span>
+                <span className="font-bold text-foreground">{finding.resolution_type}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                «{finding.resolution_note}»
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">یادداشت تایید (اختیاری):</label>
+              <Input
+                placeholder="توضیحات تکمیلی یا تاییدیه حسابرسی..."
+                value={verificationNote}
+                onChange={(e) => setVerificationNote(e.target.value)}
+                className="h-8 text-xs bg-background"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              type="button"
+              disabled={submittingVerify}
+              onClick={() => void handleVerify()}
+              className="h-8 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {submittingVerify ? <RefreshCcw className="size-3.5 animate-spin ms-1" /> : null}
+              تایید قطعی و بستن پرونده
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVerifyOpen(false)}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              انصراف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Modal */}
+      <Dialog open={reopenOpen} onOpenChange={setReopenOpen}>
+        <DialogContent className="max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <RotateCcw className="size-5 text-amber-600" />
+              <span>بازگشایی مجدد مغایرت</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              در صورت بروز شواهد جدید یا عدم صحت راه‌حل قبلی، دلیل بازگشایی را ثبت کنید تا پرونده مجدداً فعال گردد.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">دلیل بازگشایی (الزامی):</label>
+              <Textarea
+                rows={3}
+                placeholder="حداقل ۵ کاراکتر در خصوص علت بازگشایی بنویسید..."
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                className="text-xs bg-background"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              type="button"
+              disabled={reopenReason.trim().length < 5 || submittingReopen}
+              onClick={() => void handleReopen()}
+              className="h-8 text-xs font-bold rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {submittingReopen ? <RefreshCcw className="size-3.5 animate-spin ms-1" /> : null}
+              تایید بازگشایی
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setReopenOpen(false)}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              انصراف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dismiss Modal */}
+      <Dialog open={dismissOpen} onOpenChange={setDismissOpen}>
+        <DialogContent className="max-w-md p-6" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-extrabold text-foreground flex items-center gap-2">
+              <XCircle className="size-5 text-rose-600" />
+              <span>رد مغایرت یا یافته</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              با رد این یافته، پرونده از اولویت‌های فعال خارج می‌گردد. دلیل رد در تاریخچه حسابرسی ثبت خواهد شد.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">دلیل رد یافته (الزامی):</label>
+              <Textarea
+                rows={3}
+                placeholder="حداقل ۵ کاراکتر در خصوص علت رد این مغایرت بنویسید..."
+                value={dismissReason}
+                onChange={(e) => setDismissReason(e.target.value)}
+                className="text-xs bg-background"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:justify-start">
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={dismissReason.trim().length < 5 || submittingDismiss}
+              onClick={() => void handleDismiss()}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              {submittingDismiss ? <RefreshCcw className="size-3.5 animate-spin ms-1" /> : null}
+              تایید رد یافته
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDismissOpen(false)}
+              className="h-8 text-xs font-bold rounded-xl"
+            >
+              انصراف
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Layer 2: Accounting & Bank Evidence */}
+      <ProductCard className="case-evidence-panel p-6 rounded-2xl border border-border bg-card space-y-4 shadow-xs" aria-labelledby="case-evidence-title">
+        <header className="flex items-center justify-between border-b border-border/60 pb-3">
+          <div>
+            <h3 id="case-evidence-title" className="text-base font-bold text-foreground">
+              زنجیره شواهد و مستندات (دفاتر حسابداری و صورتحساب بانک)
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              مستندات ثبت‌شده در دفاتر، رکوردهای بانکی و محاسبات موید این مغایرت
+            </p>
+          </div>
+          <span className="text-xs font-mono text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-lg">
+            {toPersianDigits(evidence.length)} قطعه شاهد
+          </span>
+        </header>
+
+        <ol className="case-evidence-list space-y-3">
+          {evidence.map((item) => (
+            <EvidenceCaseItem key={item.id} companyId={company.id} item={item} />
+          ))}
+        </ol>
+      </ProductCard>
+
+      {/* Layer 3: Audit History & Activity Log */}
       <FindingReviewPanel
         company={company}
         currentUserId={currentUserId}
@@ -293,108 +955,110 @@ export function FindingCaseWorkspace({
         onLoadMore={loadMoreReviews}
       />
 
-      <div className="finding-case-layout grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-        <main className="case-main space-y-6">
-          {/* Priority Audit */}
-          <ProductCard className="case-priority-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="priority-audit-title">
-            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-3">
-              <div>
-                <h3 id="priority-audit-title" className="text-base font-bold text-foreground">تحلیل عوامل و فرمول اولویت‌بندی</h3>
-              </div>
-              <code dir="ltr" className="px-2 py-1 rounded bg-muted text-xs font-mono self-start sm:self-center">
-                {finding.priority_explanation.formula}
-              </code>
-            </header>
-
-            <div className="case-factor-list space-y-3">
-              {factorEntries.map(([key, factor]) => {
-                const score = Number(factor?.score ?? 0);
-                return (
-                  <article key={key} className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-foreground">{factorLabels[key]}</span>
-                      <strong className="font-mono text-primary">
-                        {new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(Number(factor?.weighted_score ?? 0))}
-                      </strong>
-                    </div>
-                    <Progress className="h-1.5" value={Math.max(0, Math.min(100, score))} />
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>امتیاز: {new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(score)}</span>
-                      <span>وزن: {percent(String(factor?.weight ?? 0))}</span>
-                    </div>
-                    {factor?.reasons_fa?.length ? (
-                      <ul className="text-[11px] text-muted-foreground space-y-0.5 border-t border-border/40 pt-1.5 list-disc list-inside">
-                        {factor.reasons_fa.map((reason) => (
-                          <li key={reason}>{reason}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-
-            {finding.priority_explanation.uncertainty_fa && (
-              <p className="priority-uncertainty flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs">
-                <Icon name="alert" className="size-4 shrink-0 text-amber-600" />
-                {finding.priority_explanation.uncertainty_fa}
-              </p>
-            )}
-          </ProductCard>
-
-          {/* Evidence Path */}
-          <ProductCard className="case-evidence-panel p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="case-evidence-title">
-            <header className="flex items-center justify-between border-b border-border/60 pb-3">
-              <div>
-                <h3 id="case-evidence-title" className="text-base font-bold text-foreground">زنجیره شواهد و مستندات</h3>
-              </div>
-              <span className="text-xs font-mono text-muted-foreground">
-                {new Intl.NumberFormat("fa-IR").format(evidence.length)} قطعه شاهد
+      {/* Layer 4: Technical Details & Audit Metadata (Collapsible) */}
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowTechnicalDetails((prev) => !prev)}
+          className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-muted/20 transition-colors text-start cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <Layers className="size-4 text-primary" />
+            <div>
+              <span className="text-sm font-bold text-foreground block">
+                جزئیات فنی، فرمول اولویت و شناسه‌های سیستمی
               </span>
-            </header>
-
-            <ol className="case-evidence-list space-y-3">
-              {evidence.map((item) => (
-                <EvidenceCaseItem key={item.id} companyId={company.id} item={item} />
-              ))}
-            </ol>
-          </ProductCard>
-        </main>
-
-        <aside className="case-sidebar space-y-6">
-          <section className="p-6 rounded-2xl border border-border bg-card space-y-3">
-            <h3 className="text-sm font-bold text-foreground border-b border-border/60 pb-2">مشخصات پرونده</h3>
-            <dl className="divide-y divide-border/60 text-xs">
-              <Fact label="اثر مالی" value={`${money(finding.affected_amount_irr)}${finding.affected_amount_irr ? " ریال" : ""}`} />
-              <Fact label="نسبت اثر به درآمد" value={percent(finding.affected_ratio)} />
-              <Fact label="نوع یافته" value={finding.finding_code} latin />
-              <Fact label="دلیل" value={finding.reason_code} latin />
-              <Fact label="زمان ثبت" value={faDateTime(finding.created_at)} />
-            </dl>
-          </section>
-
-          <section className="p-6 rounded-2xl border border-border bg-card space-y-3">
-            <h3 className="text-sm font-bold text-foreground border-b border-border/60 pb-2">نسخه‌ها و شناسه‌ها</h3>
-            <dl className="divide-y divide-border/60 text-xs">
-              <Fact label="مدل اولویت" value={finding.priority_model_version} latin />
-              <Fact label="قاعده یافته" value={finding.rule_version} latin />
-              <Fact label="شناسه یافته" value={finding.id} latin copy />
-              <Fact label="شناسه اجرای تولید" value={finding.generation_run_id} latin copy />
-            </dl>
-          </section>
-
-          <ProductCard className="case-thresholds p-4 rounded-xl border border-border bg-muted/20 space-y-2 text-xs">
-            <h3 className="font-bold text-foreground">مرزهای اولویت این اجرا</h3>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              این مرزها همراه یافته ذخیره شده‌اند و تغییر تنظیمات آینده روی این پرونده اثر نمی‌گذارد.
-            </p>
-            <div className="flex flex-col gap-1 text-[11px] pt-1">
-              <span>بحرانی از: <b className="font-mono text-foreground">{displayValue(record(finding.priority_config.bands).critical)}</b></span>
-              <span>بالا از: <b className="font-mono text-foreground">{displayValue(record(finding.priority_config.bands).high)}</b></span>
-              <span>متوسط از: <b className="font-mono text-foreground">{displayValue(record(finding.priority_config.bands).medium)}</b></span>
+              <span className="text-xs text-muted-foreground block">
+                مشاهده وزن عوامل، مرزهای اولویت، مدل ریاضی و شناسه‌های تغییرناپذیر
+              </span>
             </div>
-          </ProductCard>
-        </aside>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{showTechnicalDetails ? "بستن جزئیات" : "نمایش جزئیات"}</span>
+            <ChevronDown className={cn("size-4 transition-transform", showTechnicalDetails && "rotate-180")} />
+          </div>
+        </button>
+
+        {showTechnicalDetails && (
+          <div className="p-5 sm:p-6 border-t border-border space-y-6 bg-muted/10">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+              {/* Priority Audit */}
+              <div className="case-priority-panel p-5 rounded-xl border border-border bg-card space-y-4">
+                <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-3">
+                  <h4 className="text-sm font-bold text-foreground">تحلیل عوامل و فرمول اولویت‌بندی</h4>
+                  <code dir="ltr" className="px-2 py-1 rounded bg-muted text-xs font-mono self-start sm:self-center">
+                    {finding.priority_explanation.formula}
+                  </code>
+                </header>
+
+                <div className="case-factor-list space-y-3">
+                  {factorEntries.map(([key, factor]) => {
+                    const score = Number(factor?.score ?? 0);
+                    return (
+                      <article key={key} className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-foreground">{factorLabels[key]}</span>
+                          <strong className="font-mono text-primary">
+                            {toPersianDigits(Number(factor?.weighted_score ?? 0).toFixed(2))}
+                          </strong>
+                        </div>
+                        <Progress className="h-1.5" value={Math.max(0, Math.min(100, score))} />
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>امتیاز: {toPersianDigits(score.toFixed(2))}</span>
+                          <span>وزن: {percent(String(factor?.weight ?? 0))}</span>
+                        </div>
+                        {factor?.reasons_fa?.length ? (
+                          <ul className="text-[11px] text-muted-foreground space-y-0.5 border-t border-border/40 pt-1.5 list-disc list-inside">
+                            {factor.reasons_fa.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {finding.priority_explanation.uncertainty_fa && (
+                  <p className="priority-uncertainty flex items-center gap-2 p-3 rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs">
+                    <AlertCircle className="size-4 shrink-0 text-amber-600" />
+                    {finding.priority_explanation.uncertainty_fa}
+                  </p>
+                )}
+              </div>
+
+              {/* Sidebar metadata */}
+              <div className="space-y-4">
+                <section className="p-4 rounded-xl border border-border bg-card space-y-3">
+                  <h4 className="text-xs font-bold text-foreground border-b border-border/60 pb-2">مشخصات فنی پرونده</h4>
+                  <dl className="divide-y divide-border/60 text-xs">
+                    <Fact label="اثر مالی" value={`${money(finding.affected_amount_irr)}${finding.affected_amount_irr ? " ریال" : ""}`} />
+                    <Fact label="نسبت اثر به درآمد" value={percent(finding.affected_ratio)} />
+                    <Fact label="نوع یافته" value={finding.finding_code} latin />
+                    <Fact label="دلیل" value={finding.reason_code} latin />
+                    <Fact label="مدل اولویت" value={finding.priority_model_version} latin />
+                    <Fact label="قاعده یافته" value={finding.rule_version} latin />
+                    <Fact label="شناسه یافته" value={finding.id} latin copy />
+                    <Fact label="شناسه اجرا" value={finding.generation_run_id} latin copy />
+                    <Fact label="زمان ثبت" value={faDateTime(finding.created_at)} />
+                  </dl>
+                </section>
+
+                <div className="p-4 rounded-xl border border-border bg-card space-y-2 text-xs">
+                  <h4 className="font-bold text-foreground">مرزهای اولویت این اجرا</h4>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    این مرزها همراه یافته ثبت شده‌اند و تغییر تنظیمات روی این پرونده اثر نمی‌گذارد.
+                  </p>
+                  <div className="flex flex-col gap-1 text-[11px] pt-1">
+                    <span>بحرانی از: <b className="font-mono text-foreground">{toPersianDigits(displayValue(record(finding.priority_config.bands).critical))}</b></span>
+                    <span>بالا از: <b className="font-mono text-foreground">{toPersianDigits(displayValue(record(finding.priority_config.bands).high))}</b></span>
+                    <span>متوسط از: <b className="font-mono text-foreground">{toPersianDigits(displayValue(record(finding.priority_config.bands).medium))}</b></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

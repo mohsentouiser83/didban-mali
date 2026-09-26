@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -15,13 +16,16 @@ from app.financial import models as financial_models  # noqa: F401
 from app.findings import models as finding_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401
+from app.integrations import models as integration_models  # noqa: F401
+from app.automations import models as automation_models  # noqa: F401
 from app.reconciliation import models as reconciliation_models  # noqa: F401
 from app.reports import models as report_models  # noqa: F401
 from app.reviews import models as review_models  # noqa: F401
 from app.simulation import models as simulation_models  # noqa: F401
 
+db_url = os.getenv("ALEMBIC_DATABASE_URL", settings.database_url)
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", db_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

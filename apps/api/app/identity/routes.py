@@ -3,11 +3,12 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Cookie, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, update
 
 from app.audit.service import record_audit_event
 from app.core.config import settings
+from app.core.rate_limit import RateLimiter
 from app.core.tenant import set_request_user
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
 from app.identity.models import AuthSession, Membership, User, Workspace, WorkspaceRole
@@ -15,8 +16,17 @@ from app.identity.schemas import (
     AuthResponse,
     LoginRequest,
     MessageResponse,
+    MfaDisableRequest,
+    MfaEnableRequest,
+    MfaSetupResponse,
+    MfaStatusResponse,
     RegisterRequest,
     UserResponse,
+)
+from app.identity.totp import (
+    generate_totp_secret,
+    get_totp_uri,
+    verify_totp_code,
 )
 from app.identity.security import (
     ACCESS_COOKIE,
@@ -35,10 +45,20 @@ router = APIRouter(prefix="/auth", tags=["identity"])
 
 
 def _user_response(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.email, full_name=user.full_name)
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        mfa_enabled=bool(user.mfa_enabled),
+    )
 
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(RateLimiter(times=30, seconds=60, scope="auth:register"))],
+)
 async def register(
     payload: RegisterRequest, response: Response, request: Request, session: DbSession
 ) -> AuthResponse:
@@ -75,7 +95,11 @@ async def register(
     return AuthResponse(user=_user_response(user), csrf_token=tokens.csrf_token)
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post(
+    "/login",
+    response_model=AuthResponse,
+    dependencies=[Depends(RateLimiter(times=30, seconds=60, scope="auth:login"))],
+)
 async def login(
     payload: LoginRequest, response: Response, request: Request, session: DbSession
 ) -> AuthResponse:
@@ -90,6 +114,19 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="ایمیل یا رمز عبور صحیح نیست."
         )
+
+    if user.mfa_enabled:
+        if not payload.otp_code:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="MFA_REQUIRED",
+                headers={"X-MFA-Required": "true"},
+            )
+        if not verify_totp_code(user.mfa_secret or "", payload.otp_code):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="کد ورود دو مرحله‌ای نامعتبر است.",
+            )
 
     await set_request_user(session, user.id)
     tokens = issue_session_tokens(session, user_id=user.id)
@@ -180,3 +217,78 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: CurrentUser) -> UserResponse:
     return _user_response(current_user)
+
+
+@router.get("/mfa/status", response_model=MfaStatusResponse)
+async def get_mfa_status(current_user: CurrentUser) -> MfaStatusResponse:
+    return MfaStatusResponse(enabled=bool(current_user.mfa_enabled))
+
+
+@router.post("/mfa/setup", response_model=MfaSetupResponse)
+async def setup_mfa(current_user: CurrentUser, _: CsrfProtected) -> MfaSetupResponse:
+    secret = generate_totp_secret()
+    uri = get_totp_uri(secret, current_user.email)
+    return MfaSetupResponse(secret=secret, otpauth_uri=uri)
+
+
+@router.post("/mfa/enable", response_model=MessageResponse)
+async def enable_mfa(
+    payload: MfaEnableRequest,
+    current_user: CurrentUser,
+    session: DbSession,
+    request: Request,
+    _: CsrfProtected,
+) -> MessageResponse:
+    if not verify_totp_code(payload.secret, payload.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="کد وارد شده صحیح نیست. لطفاً مجدداً امتحان کنید.",
+        )
+
+    current_user.mfa_secret = payload.secret
+    current_user.mfa_enabled = True
+    session.add(current_user)
+    record_audit_event(
+        session,
+        action="auth.mfa_enabled",
+        entity_type="user",
+        actor_id=current_user.id,
+        entity_id=current_user.id,
+        request_id=request.headers.get("X-Request-ID"),
+    )
+    await session.commit()
+    return MessageResponse(message="احراز هویت دو مرحله‌ای با موفقیت فعال شد.")
+
+
+@router.post("/mfa/disable", response_model=MessageResponse)
+async def disable_mfa(
+    payload: MfaDisableRequest,
+    current_user: CurrentUser,
+    session: DbSession,
+    request: Request,
+    _: CsrfProtected,
+) -> MessageResponse:
+    if not verify_password(payload.password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="رمز عبور فعلی نادرست است.",
+        )
+    if not verify_totp_code(current_user.mfa_secret or "", payload.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="کد اعتبارسنجی نادرست است.",
+        )
+
+    current_user.mfa_secret = None
+    current_user.mfa_enabled = False
+    session.add(current_user)
+    record_audit_event(
+        session,
+        action="auth.mfa_disabled",
+        entity_type="user",
+        actor_id=current_user.id,
+        entity_id=current_user.id,
+        request_id=request.headers.get("X-Request-ID"),
+    )
+    await session.commit()
+    return MessageResponse(message="احراز هویت دو مرحله‌ای غیرفعال شد.")

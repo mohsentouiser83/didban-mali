@@ -59,7 +59,7 @@ function Badge({
   ...props
 }: BadgeProps) {
   return (
-    <span className={cn(badgeVariants({ variant, size }), className)} {...props}>
+    <span className={cn(badgeVariants({ variant, size }), props.onClick && "cursor-pointer", className)} {...props}>
       {dot && (
         <span
           className={cn(
@@ -77,7 +77,7 @@ function Badge({
             e.stopPropagation();
             onRemove(e);
           }}
-          className="ms-0.5 -me-0.5 rounded-full p-0.5 hover:bg-black/15 dark:hover:bg-white/20 transition-colors focus-visible:outline-none"
+          className="cursor-pointer ms-0.5 -me-0.5 rounded-full p-0.5 hover:bg-black/15 dark:hover:bg-white/20 transition-colors focus-visible:outline-none"
           aria-label="حذف"
         >
           <X className="size-2.5" />

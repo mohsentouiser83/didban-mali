@@ -81,7 +81,7 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
         {/* Header: Title + Icon / Badge */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-foreground/80 tracking-tight">{title}</span>
+            <span className="text-sm font-medium text-foreground/85 tracking-tight">{title}</span>
             {isLimited && limitedReason && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>

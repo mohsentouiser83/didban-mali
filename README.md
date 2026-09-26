@@ -6,6 +6,7 @@
 
 - [مشخصات فنی MVP نسخه ۰٫۱](docs/mvp-technical-spec-v0.1.fa.md)
 - [وضعیت پیاده‌سازی](docs/implementation-status.fa.md)
+- [گزارش جامع قابلیت‌های پیاده‌سازی‌شده و محدودیت‌های فعلی](docs/implemented-features-current.fa.md)
 - [راهنمای دمو و بازیابی](docs/demo-and-recovery-runbook.fa.md)
 - [پرونده پذیرش کامل MVP](docs/mvp-acceptance-v1.json)
 

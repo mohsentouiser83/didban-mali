@@ -1,9 +1,9 @@
 "use client";
 
-import { TreasuryWorkspace } from "@/components/product/treasury-workspace";
+import { PayablesWorkspace } from "@/components/product/payables-workspace";
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function PayablesPage() {
   const { company } = useWorkspace();
-  return <TreasuryWorkspace company={company} defaultTab="payables" />;
+  return <PayablesWorkspace company={company} />;
 }

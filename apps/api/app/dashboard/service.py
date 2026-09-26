@@ -222,16 +222,6 @@ async def build_dashboard(
     previous = await _previous_analysis(session, analysis)
     run_ids = [analysis.id] + ([previous.id] if previous is not None else [])
     metrics = await _metric_map(session, run_ids)
-    finding_run = await session.scalar(
-        select(FindingGenerationRun)
-        .where(
-            FindingGenerationRun.company_id == company_id,
-            FindingGenerationRun.analysis_run_id == analysis.id,
-            FindingGenerationRun.status.in_(FINAL_FINDINGS),
-        )
-        .order_by(FindingGenerationRun.completed_at.desc(), FindingGenerationRun.id.desc())
-        .limit(1)
-    )
     actionable_filter = Finding.workflow_status.in_(
         {
             FindingWorkflowStatus.NEEDS_REVIEW,
@@ -284,20 +274,6 @@ async def build_dashboard(
             .limit(4)
         )
     )
-    highest = top_findings[0].priority_band if top_findings else None
-    finding_status = finding_run.status.value if finding_run is not None else None
-    overall, financial, data_quality, summary, health_reasons = dashboard_health(
-        analysis_status=analysis.status,
-        finding_generation_status=finding_status,
-        highest_priority=highest,
-    )
-    coverage_score, coverage_limitations = coverage_summary(analysis.coverage_json)
-    finding_limitations: list[str] = []
-    if finding_run is not None:
-        for section in finding_run.coverage_json.values():
-            if isinstance(section, dict) and section.get("reason"):
-                finding_limitations.append(str(section["reason"]))
-    limitations = list(dict.fromkeys(coverage_limitations + finding_limitations))
     priority_map = {band.value: 0 for band in PriorityBand}
     priority_map.update({band.value: count for band, count in priority_counts})
     workflow_map = {status.value: 0 for status in FindingWorkflowStatus}
@@ -310,17 +286,8 @@ async def build_dashboard(
             period_start=analysis.period_start,
             period_end=analysis.period_end,
             analysis_status=analysis.status,
-            rule_set_version=analysis.rule_set_version,
             completed_at=analysis.completed_at,
             comparison_analysis_run_id=previous.id if previous is not None else None,
-        ),
-        health=DashboardHealth(
-            overall_state=overall,
-            financial_state=financial,
-            data_quality=data_quality,
-            highest_open_priority=highest,
-            summary_fa=summary,
-            reasons_fa=health_reasons,
         ),
         metrics=_dashboard_metrics(current=analysis, previous=previous, metrics=metrics),
         top_findings=[_finding_response(item) for item in top_findings],
@@ -350,14 +317,53 @@ async def build_dashboard(
             )
             for item in drivers
         ],
-        coverage=DashboardCoverage(
-            overall_score=coverage_score,
-            scoring_method="simple_average_of_section_scores_v1",
-            sections=analysis.coverage_json,
-            limitations_fa=limitations,
-            finding_generation_status=finding_status,
-            finding_generation_coverage=(
-                finding_run.coverage_json if finding_run is not None else {}
-            ),
+    )
+
+
+def build_health_and_coverage(
+    analysis: AnalysisRun,
+    finding_run: FindingGenerationRun | None,
+    top_findings: list[Any],
+) -> tuple[DashboardHealth, DashboardCoverage]:
+    highest = (
+        top_findings[0].priority_band
+        if top_findings
+        and any(
+            getattr(item, "workflow_status", None)
+            in {FindingWorkflowStatus.NEEDS_REVIEW, FindingWorkflowStatus.FOLLOW_UP}
+            for item in top_findings
+        )
+        else None
+    )
+    finding_status = finding_run.status.value if finding_run is not None else None
+    overall, financial, data_quality, summary, health_reasons = dashboard_health(
+        analysis_status=analysis.status,
+        finding_generation_status=finding_status,
+        highest_priority=highest,
+    )
+    coverage_score, coverage_limitations = coverage_summary(analysis.coverage_json)
+    finding_limitations: list[str] = []
+    if finding_run is not None:
+        for section in finding_run.coverage_json.values():
+            if isinstance(section, dict) and section.get("reason"):
+                finding_limitations.append(str(section["reason"]))
+    limitations = list(dict.fromkeys(coverage_limitations + finding_limitations))
+    health = DashboardHealth(
+        overall_state=overall,
+        financial_state=financial,
+        data_quality=data_quality,
+        highest_open_priority=highest,
+        summary_fa=summary,
+        reasons_fa=health_reasons,
+    )
+    coverage = DashboardCoverage(
+        overall_score=coverage_score,
+        scoring_method="simple_average_of_section_scores_v1",
+        sections=analysis.coverage_json,
+        limitations_fa=limitations,
+        finding_generation_status=finding_status,
+        finding_generation_coverage=(
+            finding_run.coverage_json if finding_run is not None else {}
         ),
     )
+    return health, coverage

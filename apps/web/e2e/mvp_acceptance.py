@@ -36,7 +36,6 @@ def main() -> None:
         routes = [
             ("overview", "داشبورد مالی"),
             ("imports", "ورود داده‌های مالی"),
-            ("financial-model", "مدل مالی"),
             ("analysis", "تحلیل مالی"),
             ("reconciliation", "تطبیق حساب‌ها"),
             ("findings", "یافته‌ها"),

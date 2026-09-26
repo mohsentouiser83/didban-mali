@@ -44,7 +44,7 @@ const DialogContent = React.forwardRef<
     >
       {children}
       <DialogPrimitive.Close
-        className="ds-focus absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)] active:scale-95"
+        className="ds-focus absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)] active:scale-95 cursor-pointer"
         aria-label="بستن پنجره"
       >
         <X className="size-4" />

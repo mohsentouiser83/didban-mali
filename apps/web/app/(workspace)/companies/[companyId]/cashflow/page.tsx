@@ -1,9 +1,9 @@
 "use client";
 
-import { TreasuryWorkspace } from "@/components/product/treasury-workspace";
+import { CashFlowWorkspace } from "@/components/product/cashflow-workspace";
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function CashFlowPage() {
   const { company } = useWorkspace();
-  return <TreasuryWorkspace company={company} defaultTab="cashflow" />;
+  return <CashFlowWorkspace company={company} />;
 }

@@ -4,47 +4,59 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  AlertCircle,
+  AlertTriangle,
   ArrowDownLeft,
+  ArrowRightLeft,
   ArrowUpRight,
   BarChart3,
   Calendar,
+  CheckCircle,
   CheckCircle2,
   ChevronLeft,
+  Clock,
+  Coins,
+  Compass,
   FileCheck2,
+  FileSpreadsheet,
+  FileText,
+  FileUp,
   Gauge,
+  Info,
+  Landmark,
+  PieChart,
   Receipt,
+  RefreshCw,
+  Scale,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   TriangleAlert,
   WalletCards,
-  AlertCircle,
-  ArrowRightLeft,
-  Clock,
 } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import {
   MoneyDisplay,
   RiskBadge,
   StatusChip,
-  KpiMetricCard,
-  FinancialHealthBanner,
   toPersianDigits,
-  FinancialHealthStatus,
-  DataQualityStatus,
+  PageHeader,
+  EmptyState,
 } from "@/components/ui/financial";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnalysisWorkspace } from "./analysis-workspace";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { FileUp, Layers, Sparkles } from "lucide-react";
+import { ExecutiveCalculationPanel } from "./executive-calculation-panel";
+import { CustomerValueSummary } from "./customer-value-summary";
+import { DataStalenessBanner } from "./data-staleness-banner";
 
 import { api } from "@/lib/product-api";
 import type {
@@ -52,20 +64,13 @@ import type {
   CashFlowSummaryResponse,
   Company,
   DashboardMetric,
+  ExecutiveDashboardResponse,
   PayablesSummaryResponse,
   ReceivablesSummaryResponse,
   DashboardResponse,
   PriorityBand,
 } from "@/lib/product-types";
 
-const primaryMetricIcons = {
-  revenue_irr: TrendingUp,
-  net_profit_irr: Activity,
-  net_cash_movement_irr: WalletCards,
-  sales_outstanding_irr: Receipt,
-  payables_irr: FileCheck2,
-  net_margin_ratio: Gauge,
-};
 
 const metricFallbackLabels: Record<string, string> = {
   revenue_irr: "درآمد عملیاتی",
@@ -82,37 +87,82 @@ const metricFallbackLabels: Record<string, string> = {
   sales_collected_irr: "مبلغ وصول‌شده",
 };
 
-const bandLabels: Record<PriorityBand, string> = {
-  critical: "بحرانی",
-  high: "بالا",
-  medium: "متوسط",
-  low: "پایین",
+const priorityBandConfigs: Record<
+  PriorityBand,
+  {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    textClass: string;
+    bgClass: string;
+    borderClass: string;
+  }
+> = {
+  critical: {
+    icon: ShieldAlert,
+    label: "ریسک بحرانی",
+    textClass: "text-rose-600 dark:text-rose-400",
+    bgClass: "bg-rose-500/10",
+    borderClass: "border-rose-500/30",
+  },
+  high: {
+    icon: AlertCircle,
+    label: "ریسک بالا",
+    textClass: "text-amber-600 dark:text-amber-400",
+    bgClass: "bg-amber-500/10",
+    borderClass: "border-amber-500/30",
+  },
+  medium: {
+    icon: AlertTriangle,
+    label: "ریسک متوسط",
+    textClass: "text-yellow-600 dark:text-yellow-500",
+    bgClass: "bg-yellow-500/10",
+    borderClass: "border-yellow-500/30",
+  },
+  low: {
+    icon: Info,
+    label: "ریسک پایین",
+    textClass: "text-slate-600 dark:text-slate-400",
+    bgClass: "bg-slate-500/10",
+    borderClass: "border-slate-500/30",
+  },
 };
 
-const coverageSections = [
-  { key: "accounting", label: "دفتر حسابداری", hint: "طبقه‌بندی و تراز اسناد" },
-  { key: "bank_cash_flow", label: "گردش حساب‌های بانکی", hint: "تراکنش‌ها و واریز/برداشت" },
-  { key: "sales", label: "عملیات فروش و وصول", hint: "صورتحساب‌ها و فاکتورها" },
-  { key: "gross_profit", label: "بهای تمام‌شده و سود ناخالص", hint: "تفکیک حساب‌های هزینه مستقیم" },
-];
+const balancePositionConfigs: Record<
+  string,
+  { icon: React.ComponentType<{ className?: string }>; colorClass: string; bgClass: string }
+> = {
+  expenses_irr: {
+    icon: Coins,
+    colorClass: "text-rose-600 dark:text-rose-400",
+    bgClass: "bg-rose-500/10",
+  },
+  total_assets_irr: {
+    icon: Landmark,
+    colorClass: "text-cyan-600 dark:text-cyan-400",
+    bgClass: "bg-cyan-500/10",
+  },
+  total_liabilities_irr: {
+    icon: Scale,
+    colorClass: "text-amber-600 dark:text-amber-400",
+    bgClass: "bg-amber-500/10",
+  },
+  total_equity_irr: {
+    icon: PieChart,
+    colorClass: "text-purple-600 dark:text-purple-400",
+    bgClass: "bg-purple-500/10",
+  },
+  sales_invoiced_irr: {
+    icon: FileSpreadsheet,
+    colorClass: "text-blue-600 dark:text-blue-400",
+    bgClass: "bg-blue-500/10",
+  },
+  sales_collected_irr: {
+    icon: CheckCircle,
+    colorClass: "text-emerald-600 dark:text-emerald-400",
+    bgClass: "bg-emerald-500/10",
+  },
+};
 
-function faDate(value: string) {
-  try {
-    return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(
-      new Date(`${value}T12:00:00`)
-    );
-  } catch {
-    return value;
-  }
-}
-
-function faDateTime(value: string) {
-  try {
-    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
 
 export function DashboardWorkspace({ company }: { company: Company }) {
   const [analyses, setAnalyses] = useState<AnalysisRun[]>([]);
@@ -130,6 +180,23 @@ export function DashboardWorkspace({ company }: { company: Company }) {
     totalReceivables: string;
     totalPayables: string;
   } | null>(null);
+
+  const [execDashboard, setExecDashboard] = useState<ExecutiveDashboardResponse | null>(null);
+  const [loadingExec, setLoadingExec] = useState(false);
+
+  const loadExecDashboard = useCallback(async () => {
+    setLoadingExec(true);
+    try {
+      const res = await api<ExecutiveDashboardResponse>(
+        `/companies/${company.id}/calculations/dashboard`
+      );
+      setExecDashboard(res);
+    } catch {
+      setExecDashboard(null);
+    } finally {
+      setLoadingExec(false);
+    }
+  }, [company.id]);
 
   useEffect(() => {
     let ignore = false;
@@ -180,10 +247,11 @@ export function DashboardWorkspace({ company }: { company: Company }) {
       }
     }
     void loadWC();
+    void loadExecDashboard();
     return () => {
       ignore = true;
     };
-  }, [company.id]);
+  }, [company.id, loadExecDashboard]);
 
   const loadDashboard = useCallback(
     async (selectedId?: string) => {
@@ -252,6 +320,11 @@ export function DashboardWorkspace({ company }: { company: Company }) {
   if (!dashboard) {
     return (
       <div className="onboarding-card rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-6 shadow-sm" dir="rtl">
+        {error && (
+          <Alert variant="destructive" className="text-xs mb-4">
+            {error}
+          </Alert>
+        )}
         <div className="flex items-center gap-3 border-b border-border/60 pb-4">
           <div className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
             <Sparkles className="size-5" />
@@ -263,7 +336,7 @@ export function DashboardWorkspace({ company }: { company: Company }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Step 1 */}
           <div className="step-card flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/50 transition-colors space-y-3">
             <div className="space-y-2">
@@ -275,11 +348,11 @@ export function DashboardWorkspace({ company }: { company: Company }) {
               </div>
               <strong className="block text-sm font-bold text-foreground">بارگذاری اسناد و بانک</strong>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                فایل اکسل یا CSV دفتر روزنامه، تراز آزمایشی یا صورتحساب بانک را بارگذاری و ستون‌ها را نگاشت کنید.
+                فایل اکسل یا CSV دفتر روزنامه، تراز آزمایشی یا صورتحساب بانک را بارگذاری و ستون‌ها را نگاشت کنید. سرفصل‌ها به صورت خودکار طبقه‌بندی می‌شوند.
               </p>
             </div>
             <Button asChild size="sm" className="w-full text-xs gap-1.5">
-              <Link href={`/companies/${company.id}/imports`}>
+              <Link href={`/companies/${company.id}/data`}>
                 <FileUp className="size-3.5" />
                 بارگذاری اسناد مالی
               </Link>
@@ -292,28 +365,6 @@ export function DashboardWorkspace({ company }: { company: Company }) {
               <div className="flex items-center justify-between">
                 <span className="size-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center font-mono">
                   ۲
-                </span>
-                <Layers className="size-4 text-cyan-500" />
-              </div>
-              <strong className="block text-sm font-bold text-foreground">سرفصل‌ها و طبقه‌بندی</strong>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                حساب‌های استخراج‌شده را به ۶ سرفصل کلیدی (دارایی، بدهی، درآمد، هزینه، حقوق مالکانه) متصل کنید.
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm" className="w-full text-xs gap-1.5">
-              <Link href={`/companies/${company.id}/imports?tab=classification`}>
-                <Layers className="size-3.5" />
-                سرفصل‌ها و طبقه‌بندی
-              </Link>
-            </Button>
-          </div>
-
-          {/* Step 3 */}
-          <div className="step-card flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/50 transition-colors space-y-3">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="size-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center font-mono">
-                  ۳
                 </span>
                 <BarChart3 className="size-4 text-emerald-500" />
               </div>
@@ -345,6 +396,9 @@ export function DashboardWorkspace({ company }: { company: Company }) {
       metricsMap={metricsMap}
       workingCapital={workingCapital}
       company={company}
+      execDashboard={execDashboard}
+      onRefreshExec={loadExecDashboard}
+      loadingExec={loadingExec}
     />
   );
 }
@@ -359,6 +413,9 @@ function DashboardContent({
   metricsMap,
   workingCapital,
   company,
+  execDashboard,
+  onRefreshExec,
+  loadingExec,
 }: {
   dashboard: DashboardResponse;
   switching: boolean;
@@ -369,60 +426,56 @@ function DashboardContent({
   metricsMap: Map<string, DashboardMetric>;
   workingCapital: any;
   company: Company;
+  execDashboard: ExecutiveDashboardResponse | null;
+  onRefreshExec: () => Promise<void>;
+  loadingExec: boolean;
 }) {
-  const { snapshot, health, coverage, finding_summary: findingSummary, top_findings: topFindings, main_drivers: mainDrivers } = dashboard;
+  const { finding_summary: findingSummary, top_findings: topFindings, main_drivers: mainDrivers } = dashboard;
 
-  // Map health state to banner props
-  let mappedHealthStatus: FinancialHealthStatus = "attention";
-  if (health.financial_state === "stable") mappedHealthStatus = "healthy";
-  else if (health.financial_state === "critical_attention") mappedHealthStatus = "critical";
-
-  const mappedDataQuality: DataQualityStatus = health.data_quality === "complete" ? "full" : "limited";
+  const daysSinceSnapshot = useMemo(() => {
+    if (!dashboard.snapshot?.completed_at) return 0;
+    const diffMs = Date.now() - new Date(dashboard.snapshot.completed_at).getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  }, [dashboard.snapshot?.completed_at]);
 
   return (
     <div className={switching ? "opacity-60 pointer-events-none transition-opacity duration-200 space-y-6" : "space-y-6"}>
-      {/* Top Header: Company Overview & Period Switcher */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[var(--ds-border)] pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-              <ShieldCheck className="size-3.5" />
-              دیدبان مالی
-            </span>
-            <span className="text-xs text-muted-foreground">
-              نسخه قواعد: <code className="font-mono text-foreground font-semibold">{snapshot.rule_set_version}</code>
-            </span>
-          </div>
-          <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
-            داشبورد جامع مالی
-          </h1>
-        </div>
+      {/* Top Header: Company Overview */}
+      <PageHeader
+        title="داشبورد جامع مالی"
+        description="نمای یکپارچه از موقعیت نقدینگی، مطالبات، تعهدات و اقلام نیازمند اقدام شرکت"
+        badge={
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+            <ShieldCheck className="size-3.5" />
+            دیدبان مالی
+          </span>
+        }
+        primaryAction={
+          <Button asChild size="sm" className="text-xs gap-1.5 h-8 font-bold">
+            <Link href={`/companies/${company.id}/actions`}>
+              کارتابل اقدامات
+              <ArrowUpRight className="size-3.5" />
+            </Link>
+          </Button>
+        }
+        secondaryActions={
+          <Button asChild size="sm" variant="outline" className="text-xs gap-1.5 h-8">
+            <Link href={`/companies/${company.id}/reports`}>
+              <FileText className="size-3.5" />
+              گزارش‌های رسمی
+            </Link>
+          </Button>
+        }
+      />
 
-        {/* Period Selector */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col text-end">
-            <span className="text-[11px] font-medium text-muted-foreground">دوره مالی انتخابی:</span>
-            <span className="text-xs font-mono font-bold text-foreground">
-              تکمیل: {faDateTime(snapshot.completed_at)}
-            </span>
-          </div>
-          {analyses.length > 0 && (
-            <Select value={analysisId} onValueChange={changeSnapshot} dir="rtl">
-              <SelectTrigger className="w-[220px] font-bold text-xs">
-                <Calendar className="size-3.5 text-primary ms-1" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {analyses.map((item) => (
-                  <SelectItem key={item.id} value={item.id} className="text-xs">
-                    {faDate(item.period_start)} تا {faDate(item.period_end)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
+      <DataStalenessBanner
+        companyId={company.id}
+        lastUpdatedDaysAgo={daysSinceSnapshot}
+      />
+
+      <CustomerValueSummary
+        resolvedFindingsCount={findingSummary?.by_workflow?.resolved ?? 0}
+      />
 
       {error && (
         <Alert variant="destructive" className="text-xs">
@@ -430,67 +483,13 @@ function DashboardContent({
         </Alert>
       )}
 
-      {/* 2-Dimensional Health Banner */}
-      <FinancialHealthBanner
-        financialHealth={mappedHealthStatus}
-        dataQuality={mappedDataQuality}
-        reliabilityScore={coverage.overall_score}
-        actionableFindingsCount={topFindings.length}
-        periodLabel={`${faDate(snapshot.period_start)} تا ${faDate(snapshot.period_end)}`}
+      {/* Section 1, 3 & 5: Canonical Executive Calculation Panel (Position, Forecast, Key Changes) */}
+      <ExecutiveCalculationPanel
+        companyId={company.id}
+        dashboard={execDashboard}
+        onRefresh={onRefreshExec}
+        loading={loadingExec}
       />
-
-      {/* Primary KPI Metrics Grid */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-extrabold text-foreground flex items-center gap-2">
-            <Activity className="size-4 text-primary" />
-            شاخص‌های کلیدی عملکرد مالی
-          </h2>
-          <span className="text-xs text-muted-foreground">
-            {snapshot.comparison_analysis_run_id ? "مقایسه با دوره قبل فعال است" : "دوره مبنا برای مقایسه روندی وجود ندارد"}
-          </span>
-        </div>
-
-        <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Revenue */}
-          <MetricCellCard
-            code="revenue_irr"
-            metric={metricsMap.get("revenue_irr")}
-            icon={primaryMetricIcons.revenue_irr}
-          />
-          {/* Net Profit */}
-          <MetricCellCard
-            code="net_profit_irr"
-            metric={metricsMap.get("net_profit_irr")}
-            icon={primaryMetricIcons.net_profit_irr}
-          />
-          {/* Net Margin Ratio */}
-          <MetricCellCard
-            code="net_margin_ratio"
-            metric={metricsMap.get("net_margin_ratio")}
-            icon={primaryMetricIcons.net_margin_ratio}
-            isRatio
-          />
-          {/* Net Cash Movement */}
-          <MetricCellCard
-            code="net_cash_movement_irr"
-            metric={metricsMap.get("net_cash_movement_irr")}
-            icon={primaryMetricIcons.net_cash_movement_irr}
-          />
-          {/* Sales Outstanding */}
-          <MetricCellCard
-            code="sales_outstanding_irr"
-            metric={metricsMap.get("sales_outstanding_irr")}
-            icon={primaryMetricIcons.sales_outstanding_irr}
-          />
-          {/* Payables */}
-          <MetricCellCard
-            code="payables_irr"
-            metric={metricsMap.get("payables_irr")}
-            icon={primaryMetricIcons.payables_irr}
-          />
-        </div>
-      </div>
 
       {/* Working Capital & Treasury Runway Section */}
       {workingCapital && (
@@ -504,7 +503,8 @@ function DashboardContent({
                 </CardTitle>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20 flex items-center gap-1.5">
+                  <RefreshCw className="size-3 text-primary" />
                   چرخه تبدیل نقد: {toPersianDigits(workingCapital.cccDays)} روز
                 </Badge>
               </div>
@@ -519,7 +519,9 @@ function DashboardContent({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">تاب‌آوری نقد (Runway)</span>
-                  <Clock className="size-4 text-primary" />
+                  <div className="grid size-7 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                    <Clock className="size-3.5" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-lg font-mono font-bold text-foreground">
@@ -538,7 +540,9 @@ function DashboardContent({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">دوره وصول مطالبات (DSO)</span>
-                  <ArrowDownLeft className="size-4 text-emerald-600" />
+                  <div className="grid size-7 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <ArrowDownLeft className="size-3.5" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-lg font-mono font-bold text-foreground">
@@ -557,7 +561,9 @@ function DashboardContent({
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">دوره پرداخت بدهی (DPO)</span>
-                  <ArrowUpRight className="size-4 text-amber-600" />
+                  <div className="grid size-7 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <ArrowUpRight className="size-3.5" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-lg font-mono font-bold text-foreground">
@@ -573,7 +579,9 @@ function DashboardContent({
               <div className="p-3.5 rounded-xl border border-[var(--ds-border)] bg-muted/20 flex flex-col justify-between gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">شکاف نقدینگی (CCC)</span>
-                  <Calendar className="size-4 text-muted-foreground" />
+                  <div className="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary">
+                    <Calendar className="size-3.5" />
+                  </div>
                 </div>
                 <div>
                   <span className="text-lg font-mono font-bold text-primary">
@@ -589,145 +597,111 @@ function DashboardContent({
         </Card>
       )}
 
-      {/* 2-Column Analytical Layout */}
-      <div className="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
-        {/* Top Actionable Findings */}
-        <Card className="flex flex-col justify-between">
-          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-extrabold flex items-center gap-2">
-                  <TriangleAlert className="size-4 text-amber-500" />
-                  یافته‌های کلیدی و اولویت‌دار
-                </CardTitle>
-              </div>
-              <Link href={`/companies/${company.id}/findings`}>
-                <Button size="sm" variant="ghost" className="text-xs gap-1">
-                  فهرست همه یافته‌ها
-                  <ArrowUpRight className="size-3.5" />
-                </Button>
-              </Link>
+      {/* Section 2: Actionable Findings & Needs Attention */}
+      <Card className="border-border bg-card shadow-xs">
+        <CardHeader className="pb-3 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-extrabold flex items-center gap-2">
+                <TriangleAlert className="size-4 text-amber-500" />
+                نیازمند توجه و اقدام (یافته‌های اولویت‌دار)
+              </CardTitle>
             </div>
+            <Link href={`/companies/${company.id}/findings`}>
+              <Button size="sm" variant="ghost" className="text-xs gap-1">
+                فهرست همه یافته‌ها
+                <ArrowUpRight className="size-3.5" />
+              </Button>
+            </Link>
+          </div>
 
-            {/* Finding Band Counts */}
-            <div className="flex items-center gap-2 pt-2.5">
-              {(["critical", "high", "medium", "low"] as PriorityBand[]).map((band) => {
-                const count = findingSummary.by_priority[band] ?? 0;
+          {/* Finding Band Counts (Icons with Count) */}
+          <div className="flex items-center gap-2 pt-2.5">
+            {(["critical", "high", "medium", "low"] as PriorityBand[]).map((band) => {
+              const count = findingSummary.by_priority[band] ?? 0;
+              const config = priorityBandConfigs[band];
+              const Icon = config.icon;
+              return (
+                <div
+                  key={band}
+                  title={`${config.label}: ${toPersianDigits(count)} مورد`}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors",
+                    config.bgClass,
+                    config.borderClass
+                  )}
+                >
+                  <Icon className={cn("size-3.5", config.textClass)} aria-label={config.label} />
+                  <span className={cn("font-mono font-bold", config.textClass)}>
+                    {toPersianDigits(count)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </CardHeader>
+
+        <CardContent className="pt-4">
+          {topFindings.length > 0 ? (
+            <div className="flex flex-col gap-2.5">
+              {topFindings.map((finding) => {
+                const findingConfig = priorityBandConfigs[finding.priority_band];
+                const FindingIcon = findingConfig.icon;
                 return (
                   <div
-                    key={band}
-                    className="flex items-center gap-1.5 rounded-lg border border-[var(--ds-border)] bg-muted/40 px-2.5 py-1 text-xs"
-                  >
-                    <RiskBadge level={band} size="sm" showIcon={false} label={bandLabels[band]} />
-                    <span className="font-mono font-bold text-foreground">{toPersianDigits(count)}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-4 flex-1">
-            {topFindings.length > 0 ? (
-              <div className="divide-y divide-[var(--ds-border)]/60">
-                {topFindings.map((finding) => (
-                  <Link
                     key={finding.id}
-                    href={`/companies/${company.id}/findings/${finding.id}`}
-                    className="group flex items-center justify-between gap-3 py-3 transition-colors hover:bg-muted/40 rounded-lg px-2 -mx-2"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 border border-border/70 bg-muted/20 hover:bg-muted/40 rounded-xl transition-colors"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <RiskBadge level={finding.priority_band} score={Number(finding.priority_score)} size="sm" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        title={`${findingConfig.label}${finding.priority_score ? ` (امتیاز: ${toPersianDigits(Math.round(Number(finding.priority_score)))})` : ""}`}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-1 rounded-lg border shrink-0",
+                          findingConfig.bgClass,
+                          findingConfig.borderClass
+                        )}
+                      >
+                        <FindingIcon className={cn("size-3.5", findingConfig.textClass)} aria-label={findingConfig.label} />
+                        {finding.priority_score && (
+                          <span className={cn("font-mono text-[11px] font-bold", findingConfig.textClass)}>
+                            {toPersianDigits(Math.round(Number(finding.priority_score)))}
+                          </span>
+                        )}
+                      </div>
                       <div className="min-w-0">
-                        <strong className="block truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                        <Link
+                          href={`/companies/${company.id}/findings/${finding.id}`}
+                          className="block truncate text-xs font-bold text-foreground hover:text-primary transition-colors"
+                        >
                           {finding.title_fa}
-                        </strong>
+                        </Link>
                         <span className="block truncate text-[11px] text-muted-foreground mt-0.5">
                           {finding.summary_fa}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                       <StatusChip status={finding.workflow_status} size="sm" />
-                      <ChevronLeft className="size-4 text-muted-foreground group-hover:text-foreground transition-transform group-hover:-translate-x-1" />
+                      <Button asChild size="sm" variant="outline" className="text-xs h-7 px-2.5 gap-1 text-primary hover:text-primary border-primary/20 hover:bg-primary/10">
+                        <Link href={`/companies/${company.id}/findings/${finding.id}`}>
+                          <span>مشاهده و اقدام</span>
+                          <ChevronLeft className="size-3.5" />
+                        </Link>
+                      </Button>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center space-y-2 text-muted-foreground">
-                <CheckCircle2 className="size-8 text-emerald-500" />
-                <p className="text-xs font-bold text-foreground">هیچ یافتهٔ بازی در این دوره وجود ندارد</p>
-                <p className="text-[11px]">تمام شاخص‌ها در محدوده عادی قرار دارند.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Data Coverage & Limits */}
-        <Card className="flex flex-col justify-between">
-          <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-sm font-extrabold flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-primary" />
-                  کفایت و پوشش اسناد مالی
-                </CardTitle>
-              </div>
-              <div className="text-end">
-                <span className="font-mono text-base font-extrabold text-foreground">
-                  {toPersianDigits(Math.round(coverage.overall_score))}٪
-                </span>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="pt-4 space-y-4 flex-1">
-            {coverageSections.map(({ key, label, hint }) => {
-              const section = coverage.sections[key];
-              const score = Math.max(0, Math.min(100, Number(section?.score ?? 0)));
-              const isAvailable = Boolean(section?.available);
-
-              return (
-                <div key={key} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={
-                          isAvailable
-                            ? "size-2 rounded-full bg-emerald-500"
-                            : "size-2 rounded-full bg-amber-500"
-                        }
-                      />
-                      <strong className="text-foreground">{label}</strong>
-                    </div>
-                    <span className="font-mono text-muted-foreground font-semibold">
-                      {toPersianDigits(score)}٪
-                    </span>
                   </div>
-                  <Progress value={score} className="h-1.5" />
-                  <span className="block text-[11px] text-muted-foreground">{hint}</span>
-                </div>
-              );
-            })}
-
-            {coverage.limitations_fa.length > 0 && (
-              <div className="rounded-xl border border-[var(--ds-border)] bg-muted/40 p-3 text-xs space-y-1 mt-2">
-                <span className="font-bold text-foreground flex items-center gap-1.5 text-[11px]">
-                  <AlertCircle className="size-3.5 text-amber-600" />
-                  {toPersianDigits(coverage.limitations_fa.length)} محدودیت عملیاتی ثبت‌شده:
-                </span>
-                <ul className="list-disc list-inside text-[11px] text-muted-foreground space-y-0.5 ps-1">
-                  {coverage.limitations_fa.map((limitation, i) => (
-                    <li key={i} className="truncate">
-                      {limitation}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={CheckCircle2}
+              title="هیچ یافتهٔ بازی ثبت نشده است"
+              description="تمام شاخص‌ها و آزمون‌های کنترلی در محدوده عادی قرار دارند و موردی نیازمند اقدام فوری نیست."
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Main Drivers & Financial Position */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -742,17 +716,31 @@ function DashboardContent({
           <CardContent className="pt-4">
             {mainDrivers.length > 0 ? (
               <div className="divide-y divide-[var(--ds-border)]/60">
-                {mainDrivers.map((driver) => (
-                  <Link
-                    key={driver.finding_id}
-                    href={`/companies/${company.id}/findings/${driver.finding_id}`}
-                    className="flex items-center justify-between gap-3 py-2.5 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <RiskBadge level={driver.priority_band} size="sm" showIcon={false} />
-                      <span className="text-xs font-bold text-foreground truncate">{driver.title_fa}</span>
-                    </div>
-                    <div>
+                {mainDrivers.map((driver) => {
+                  const driverConfig = priorityBandConfigs[driver.priority_band];
+                  const DriverIcon = driverConfig.icon;
+                  return (
+                    <Link
+                      key={driver.finding_id}
+                      href={`/companies/${company.id}/findings/${driver.finding_id}`}
+                      className="group flex items-center justify-between gap-3 py-2.5 hover:bg-muted/30 rounded px-2 -mx-2 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          title={driverConfig.label}
+                          className={cn(
+                            "grid size-6 shrink-0 place-items-center rounded-md border",
+                            driverConfig.bgClass,
+                            driverConfig.borderClass
+                          )}
+                        >
+                          <DriverIcon className={cn("size-3.5", driverConfig.textClass)} />
+                        </div>
+                        <span className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                          {driver.title_fa}
+                        </span>
+                      </div>
+                    <div className="flex items-center gap-2 shrink-0">
                       {driver.affected_amount_irr ? (
                         <MoneyDisplay amount={driver.affected_amount_irr} currency="ریال" size="sm" />
                       ) : driver.affected_ratio ? (
@@ -762,14 +750,17 @@ function DashboardContent({
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
+                      <ChevronLeft className="size-3.5 text-muted-foreground group-hover:text-primary transition-transform group-hover:-translate-x-0.5" />
                     </div>
                   </Link>
-                ))}
+                );
+              })}
               </div>
             ) : (
-              <div className="py-8 text-center text-xs text-muted-foreground space-y-1">
-                <p className="font-bold text-foreground">محرک مقایسه‌ای در این دوره شناسایی نشد</p>
-                <p className="text-[11px]">برای تحلیل روندی، وجود حداقل دو دوره هم‌طول و یک یافته مالی تاییدشده الزامی است.</p>
+              <div className="py-8 text-center text-xs text-muted-foreground space-y-2">
+                <Compass className="size-8 text-muted-foreground/40 mx-auto" />
+                <p className="font-bold text-foreground">محرک قابل‌توجهی برای تغییرات شناسایی نشد</p>
+                <p className="text-[11px]">یافته‌های مالی با اثر مستقیم سود یا نقدینگی در این بخش نمایش داده می‌شوند.</p>
               </div>
             )}
           </CardContent>
@@ -779,12 +770,12 @@ function DashboardContent({
         <Card>
           <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
             <CardTitle className="text-sm font-extrabold flex items-center gap-2">
-              <Receipt className="size-4 text-primary" />
+              <Landmark className="size-4 text-primary" />
               اقلام کلیدی ترازنامه
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-4">
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {[
                 "expenses_irr",
                 "total_assets_irr",
@@ -795,20 +786,31 @@ function DashboardContent({
               ].map((code) => {
                 const metric = metricsMap.get(code);
                 const isAvailable = Boolean(metric?.available && metric.value != null);
+                const config = balancePositionConfigs[code];
+                const ConfigIcon = config?.icon;
 
                 return (
                   <div
                     key={code}
-                    className="flex flex-col justify-between rounded-lg border border-[var(--ds-border)] bg-muted/20 p-2.5"
+                    className="flex items-center justify-between rounded-xl border border-[var(--ds-border)] bg-muted/20 p-3 hover:bg-muted/30 transition-colors"
                   >
-                    <span className="text-[11px] text-muted-foreground">{metricFallbackLabels[code]}</span>
-                    <div className="my-1">
-                      {isAvailable ? (
-                        <MoneyDisplay amount={metric?.value} currency="ریال" size="sm" />
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">غیرقابل‌محاسبه</span>
-                      )}
+                    <div className="space-y-1 min-w-0">
+                      <span className="text-[11px] font-medium text-muted-foreground block truncate">
+                        {metricFallbackLabels[code]}
+                      </span>
+                      <div>
+                        {isAvailable ? (
+                          <MoneyDisplay amount={metric?.value} currency="ریال" size="sm" />
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">غیرقابل‌محاسبه</span>
+                        )}
+                      </div>
                     </div>
+                    {ConfigIcon && (
+                      <div className={cn("grid size-8 shrink-0 place-items-center rounded-lg ms-2", config.bgClass)}>
+                        <ConfigIcon className={cn("size-4", config.colorClass)} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -816,70 +818,7 @@ function DashboardContent({
           </CardContent>
         </Card>
       </div>
-
-      {/* Snapshot Immutability Footnote */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-primary" />
-          <span>
-            تصویر تحلیل مالی <strong className="text-foreground">{snapshot.analysis_run_id}</strong> با رعایت اصل عدم‌تغییرپذیری
-            (Immutability) و زنجیره کامل شواهد ثبت شده است.
-          </span>
-        </div>
-        <Link href={`/companies/${company.id}/reports`}>
-          <Button size="sm" variant="outline" className="text-xs gap-1.5 h-7">
-            تولید گزارش رسمی PDF (A4)
-            <ArrowUpRight className="size-3" />
-          </Button>
-        </Link>
-      </div>
     </div>
-  );
-}
-
-function MetricCellCard({
-  code,
-  metric,
-  icon: Icon,
-  isRatio = false,
-}: {
-  code: string;
-  metric?: DashboardMetric;
-  icon: React.ComponentType<{ className?: string }>;
-  isRatio?: boolean;
-}) {
-  const isAvailable = Boolean(metric?.available && metric.value != null);
-  const label = metric?.label_fa ?? metricFallbackLabels[code] ?? code;
-
-  let trendConfig: { value: string; label?: string; direction?: "up" | "down" | "neutral"; isPositive?: boolean } | undefined;
-  if (isAvailable && metric?.trend && metric.trend !== "unavailable") {
-    trendConfig = {
-      value: metric.trend === "up" ? "افزایش" : metric.trend === "down" ? "کاهش" : "ثابت",
-      direction: metric.trend === "up" ? "up" : metric.trend === "down" ? "down" : "neutral",
-      isPositive: metric.trend === "up",
-    };
-  }
-
-  let formattedValue: number | string | null = null;
-  if (isAvailable && metric?.value != null) {
-    if (isRatio) {
-      formattedValue = `${toPersianDigits((Number(metric.value) * 100).toFixed(1))}٪`;
-    } else {
-      formattedValue = metric.value;
-    }
-  }
-
-  return (
-    <KpiMetricCard
-      title={label}
-      value={formattedValue}
-      currency={isRatio ? "" : "ریال"}
-      icon={Icon}
-      status={isAvailable ? "normal" : "limited"}
-      limitedReason={metric?.unavailable_reason_fa}
-      trend={trendConfig}
-      coveragePercent={isAvailable ? 100 : null}
-    />
   );
 }
 

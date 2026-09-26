@@ -19,4 +19,5 @@ dist/
 .vscode/
 minio-data/
 postgres-data/
+output/
 demo-data/

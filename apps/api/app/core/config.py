@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +38,31 @@ class Settings(BaseSettings):
     ai_model: str = "unconfigured"
     ai_data_region: str | None = None
     ai_request_timeout_seconds: int = 15
+
+    @model_validator(mode="after")
+    def validate_production_invariants(self) -> "Settings":
+        if self.app_env.lower() in ("production", "prod"):
+            if (
+                "change-me" in self.jwt_secret
+                or "local-development" in self.jwt_secret
+                or len(self.jwt_secret) < 32
+            ):
+                raise ValueError(
+                    "در محیط Production، مقدار JWT_SECRET باید حداقل ۳۲ کاراکتر باشد و نباید از مقادیر پیش‌فرض استفاده کند."
+                )
+            if not self.cookie_secure:
+                raise ValueError(
+                    "در محیط Production، مقدار COOKIE_SECURE باید حتماً True باشد."
+                )
+            if "change-me" in self.database_url:
+                raise ValueError(
+                    "در محیط Production، مقدار DATABASE_URL نباید حاوی رمز پیش‌فرض change-me باشد."
+                )
+            if "change-me" in self.minio_secret_key:
+                raise ValueError(
+                    "در محیط Production، مقدار MINIO_SECRET_KEY نباید حاوی رمز پیش‌فرض باشد."
+                )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

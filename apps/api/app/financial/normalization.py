@@ -1,7 +1,7 @@
 import re
 import unicodedata
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -14,6 +14,7 @@ from app.audit.service import record_audit_event
 from app.core.tenant import set_request_company, set_request_user
 from app.financial.models import (
     Account,
+    AccountClass,
     AccountClassification,
     BankAccount,
     BankTransaction,
@@ -71,6 +72,44 @@ def mask_iban(value: object | None) -> tuple[str | None, str | None]:
         return None, None
     last4 = cleaned[-4:]
     return f"{cleaned[:2]}••••••••••••••••••••{last4}", last4
+
+
+def infer_account_class(code: str, name: str) -> AccountClass:
+    code_digits = "".join(ch for ch in code if ch.isdigit())
+    first_digit = code_digits[0] if code_digits else ""
+    if first_digit == "1":
+        return AccountClass.ASSET
+    if first_digit == "2":
+        return AccountClass.LIABILITY
+    if first_digit == "3":
+        return AccountClass.EQUITY
+    if first_digit in ("4", "7"):
+        return AccountClass.REVENUE
+    if first_digit in ("5", "6", "8", "9"):
+        return AccountClass.EXPENSE
+
+    name_norm = normalize_text(name)
+    asset_keywords = (
+        "بانک", "صندوق", "تنخواه", "دریافتنی", "مشتریان", "موجودی", "دارایی", "پیش پرداخت"
+    )
+    if any(k in name_norm for k in asset_keywords):
+        return AccountClass.ASSET
+    liability_keywords = (
+        "پرداختنی", "تامین کنندگان", "بستانکاران", "بدهی", "پیش دریافت", "تسهیلات", "وام"
+    )
+    if any(k in name_norm for k in liability_keywords):
+        return AccountClass.LIABILITY
+    if any(k in name_norm for k in ["سرمایه", "اندوخته", "سود انباشته", "حقوق مالکانه"]):
+        return AccountClass.EQUITY
+    if any(k in name_norm for k in ["درآمد", "فروش", "کارمزد دریافتی"]):
+        return AccountClass.REVENUE
+    expense_keywords = (
+        "هزینه", "بهای تمام شده", "حقوق و دستمزد", "اجاره", "استهلاک", "مالیات"
+    )
+    if any(k in name_norm for k in expense_keywords):
+        return AccountClass.EXPENSE
+
+    return AccountClass.OTHER
 
 
 async def _accepted_rows(
@@ -148,14 +187,50 @@ async def _normalize_accounting_chunk(
         )
     account_rows = (
         await session.execute(
-            select(Account.source_code, Account.id, Account.normalized_name).where(
+            select(Account.source_code, Account.id, Account.name, Account.normalized_name).where(
                 Account.company_id == batch.company_id,
                 Account.source_code.in_(list(accounts)),
             )
         )
     ).all()
-    account_ids = {code: account_id for code, account_id, _ in account_rows}
-    existing_names = {code: normalized for code, _, normalized in account_rows}
+    account_ids = {code: account_id for code, account_id, _, _ in account_rows}
+    existing_names = {code: normalized for code, _, _, normalized in account_rows}
+
+    if account_rows:
+        all_account_ids = [acc_id for _, acc_id, _, _ in account_rows]
+        classified_ids = set(
+            (
+                await session.scalars(
+                    select(AccountClassification.account_id).where(
+                        AccountClassification.company_id == batch.company_id,
+                        AccountClassification.account_id.in_(all_account_ids),
+                    )
+                )
+            ).all()
+        )
+        earliest_date = min(
+            (_as_date(item["entry_date"]) for _, item in values), default=date(2000, 1, 1)
+        )
+        new_classifications = [
+            {
+                "id": uuid7(),
+                "company_id": batch.company_id,
+                "account_id": acc_id,
+                "account_class": infer_account_class(code, acc_name),
+                "effective_from": earliest_date,
+                "confirmed_by": source.created_by,
+                "rule_version": "auto-v1",
+                "confirmed_at": datetime.now(UTC),
+            }
+            for code, acc_id, acc_name, _ in account_rows
+            if acc_id not in classified_ids
+        ]
+        if new_classifications:
+            await session.execute(
+                insert(AccountClassification)
+                .values(new_classifications)
+                .on_conflict_do_nothing(constraint="uq_account_classification_effective")
+            )
     for row, item in values:
         code = _text(item["account_code"])
         incoming = normalize_text(item["account_name"])
@@ -584,4 +659,17 @@ async def normalize_import(
         metadata={"source_kind": source.kind.value, "normalized_rows": normalized},
     )
     await session.commit()
+
+    # Trigger calculation recalculation for newly ingested canonical data
+    try:
+        from app.calculations.service import execute_calculation_run
+        await execute_calculation_run(
+            session=session,
+            company_id=company_id,
+            trigger_source="import_event",
+            triggered_by=actor_id,
+        )
+    except Exception:
+        pass
+
     return {"status": batch.status.value, "normalized": normalized, "coverage": coverage}

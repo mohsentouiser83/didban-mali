@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, Clock, Ban, CheckCheck, MessageSquarePlus } from "lucide-react";
+import { CheckCircle2, Clock, Ban, CheckCheck, MessageSquarePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "./money-display";
@@ -11,6 +11,7 @@ export interface ReviewActionBarProps extends React.HTMLAttributes<HTMLDivElemen
   onResolve?: () => void;
   onDismiss?: () => void;
   onAddNote?: () => void;
+  onClear?: () => void;
   disabled?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function ReviewActionBar({
   onResolve,
   onDismiss,
   onAddNote,
+  onClear,
   disabled = false,
   className,
   ...props
@@ -43,6 +45,17 @@ export function ReviewActionBar({
             {toPersianDigits(selectedCount)}
           </span>
           <span className="text-xs font-bold text-foreground">مورد انتخاب‌شده</span>
+          {onClear && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-6 text-muted-foreground hover:text-foreground ms-1"
+              onClick={onClear}
+              title="لغو انتخاب‌ها"
+            >
+              <X className="size-3.5" />
+            </Button>
+          )}
         </div>
       )}
 

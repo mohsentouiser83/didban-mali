@@ -35,6 +35,7 @@ import {
   Layers,
   BarChart3,
   FileText,
+  Database,
   BellRing,
   ScanSearch,
   SlidersHorizontal,
@@ -45,34 +46,25 @@ import {
   LogOut,
   Plus,
   Settings,
+  ClipboardCheck,
+  CheckCheck,
+  LifeBuoy,
+  Sparkles,
+  HardDrive,
+  Zap,
+  Activity,
 } from "lucide-react";
 
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/design-system/theme-toggle";
 import { api } from "@/lib/product-api";
 import { cn } from "@/lib/utils";
+import type { ControlOverview, InAppAlert } from "@/lib/product-types";
 
 import { Mark } from "./icons";
 import { useWorkspace } from "./workspace-provider";
-
-const pageMeta = [
-  { match: "/imports", title: "ورود و پردازش اسناد", breadcrumb: "اسناد مالی / بارگذاری و پردازش" },
-  { match: "/overview", title: "داشبورد جامع مالی", breadcrumb: "گزارش‌های مدیریتی / داشبورد" },
-  { match: "/cashflow", title: "جریان وجوه نقد", breadcrumb: "خزانه‌داری / جریان نقدینگی" },
-  { match: "/receivables", title: "تحلیل مطالبات", breadcrumb: "خزانه‌داری / مطالبات تجاری" },
-  { match: "/payables", title: "تحلیل پرداختنی‌ها", breadcrumb: "خزانه‌داری / بدهی‌های تجاری" },
-  { match: "/reconciliation", title: "تطبیق حساب و بانک", breadcrumb: "خزانه‌داری / تطبیق بانکی" },
-  { match: "/findings", title: "مغایرت‌ها و ریسک‌های مالی", breadcrumb: "پایش و نظارت / مغایرت‌ها" },
-  { match: "/alerts", title: "هشدارهای مالی", breadcrumb: "پایش و نظارت / هشدارها" },
-  { match: "/simulation", title: "شبیه‌ساز سناریوهای مالی", breadcrumb: "تصمیم‌گیری / شبیه‌ساز" },
-  { match: "/reports", title: "گزارش‌های رسمی و مدیریتی", breadcrumb: "گزارش‌ها / اسناد رسمی" },
-  { match: "/financial-model", title: "کدینگ و طبقه‌بندی حساب‌ها", breadcrumb: "اسناد مالی / سرفصل‌ها" },
-  { match: "/analysis", title: "صورت‌های مالی و تحلیل عملکرد", breadcrumb: "گزارش‌های مدیریتی / صورت‌های مالی" },
-  { match: "/assistant", title: "دستیار هوشمند مالی", breadcrumb: "هوش مصنوعی / دستیار" },
-  { match: "/readiness", title: "ارزیابی و پایش سامانه", breadcrumb: "تنظیمات / ارزیابی سامانه" },
-  { match: "/settings/profile", title: "مشخصات شرکت", breadcrumb: "تنظیمات / مشخصات شرکت" },
-  { match: "/settings/members", title: "مدیریت اعضا و دسترسی‌ها", breadcrumb: "تنظیمات / اعضا و دسترسی‌ها" },
-];
+import { OnboardingWizardBanner } from "./onboarding-wizard-banner";
+import { SupportModal } from "./support-modal";
 
 type NavItem = {
   href: string;
@@ -83,8 +75,7 @@ type NavItem = {
 };
 
 type NavGroup = {
-  id: string;
-  label: string;
+  label?: string;
   items: NavItem[];
 };
 
@@ -94,38 +85,129 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const base = `/companies/${company.id}`;
   const [alertSummary, setAlertSummary] = useState<{ total_active: number; critical_count: number } | null>(null);
+  const [controlOverview, setControlOverview] = useState<ControlOverview | null>(null);
+  const [myActionsCount, setMyActionsCount] = useState<number>(0);
+  const [inAppAlerts, setInAppAlerts] = useState<InAppAlert[]>([]);
+  const [unreadAlertsCount, setUnreadAlertsCount] = useState<number>(0);
+  const [alertsPopoverOpen, setAlertsPopoverOpen] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
 
   useEffect(() => {
     let ignore = false;
     api<{ total_active: number; critical_count: number }>(`/companies/${company.id}/alerts/summary`)
       .then((res) => { if (!ignore) setAlertSummary(res); })
       .catch(() => { /* silent */ });
+
+    api<ControlOverview>(`/companies/${company.id}/control/overview`)
+      .then((res) => { if (!ignore) setControlOverview(res); })
+      .catch(() => { /* silent */ });
+
+    api<{ assigned_findings: any[]; verification_queue: any[] }>(`/companies/${company.id}/actions/my-queue`)
+      .then((res) => {
+        if (!ignore) {
+          const count = (res.assigned_findings?.length ?? 0) + (res.verification_queue?.length ?? 0);
+          setMyActionsCount(count);
+        }
+      })
+      .catch(() => { /* silent */ });
+
+    api<{ items: InAppAlert[]; unread_count: number }>(`/companies/${company.id}/in-app-alerts`)
+      .then((res) => {
+        if (!ignore) {
+          setInAppAlerts(res.items);
+          setUnreadAlertsCount(res.unread_count);
+        }
+      })
+      .catch(() => { /* silent */ });
+
     return () => { ignore = true; };
-  }, [company.id]);
+  }, [company.id, pathname]);
 
-  const meta = pathname.includes("/imports/")
-    ? { title: "آماده‌سازی داده", breadcrumb: "ورود داده / نگاشت و اعتبارسنجی" }
-    : pathname.includes("/findings/")
-    ? { title: "پرونده یافته", breadcrumb: "یافته‌ها / بررسی مشاور و شواهد" }
-    : pageMeta.find((item) => pathname.endsWith(item.match)) ?? pageMeta[0];
+  const markAllAlertsRead = async () => {
+    try {
+      await api(`/companies/${company.id}/in-app-alerts/read-all`, { method: "POST" });
+      setUnreadAlertsCount(0);
+      setInAppAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
+    } catch {
+      /* silent */
+    }
+  };
 
-  const navigationItems: NavItem[] = [
-    { href: `${base}/overview`, label: "داشبورد مالی", icon: LayoutDashboard },
-    { href: `${base}/imports`, label: "اسناد و فایل‌ها", icon: FileUp },
-    { href: `${base}/cashflow`, label: "خزانه‌داری و نقدینگی", icon: WalletCards },
+  const navGroups: NavGroup[] = [
     {
-      href: `${base}/findings`,
-      label: "مغایرت‌ها و ریسک‌ها",
-      icon: ScanSearch,
-      badge: alertSummary?.total_active ?? null,
-      badgeVariant: alertSummary?.critical_count ? "critical" : "warning",
+      items: [
+        { href: `${base}/overview`, label: "داشبورد", icon: LayoutDashboard },
+      ],
     },
-    { href: `${base}/reports`, label: "گزارش‌های مالی", icon: FileText },
+    {
+      label: "مالی",
+      items: [
+        { href: `${base}/cashflow`, label: "نقدینگی", icon: WalletCards },
+        { href: `${base}/receivables`, label: "مطالبات", icon: ArrowDownLeft },
+        { href: `${base}/payables`, label: "بدهی‌ها", icon: ArrowUpRight },
+        { href: `${base}/cashflow?view=forecast`, label: "پیش‌بینی نقدینگی", icon: BarChart3 },
+        { href: `${base}/scenarios`, label: "شبیه‌سازی سناریو", icon: Sparkles },
+      ],
+    },
+    {
+      label: "کنترل مالی",
+      items: [
+        {
+          href: `${base}/actions`,
+          label: "نیازمند اقدام",
+          icon: ClipboardCheck,
+          badge: myActionsCount > 0 ? myActionsCount : null,
+          badgeVariant: "warning",
+        },
+        {
+          href: `${base}/findings`,
+          label: "یافته‌ها",
+          icon: ScanSearch,
+          badge: controlOverview?.critical_count && controlOverview.critical_count > 0 ? controlOverview.critical_count : null,
+          badgeVariant: "critical",
+        },
+        { href: `${base}/reconciliation`, label: "تطبیق", icon: ArrowLeftRight },
+        { href: `${base}/control/policies`, label: "خط‌مشی‌های پایش", icon: SlidersHorizontal },
+      ],
+    },
+    {
+      label: "داده‌ها و اتصال‌ها",
+      items: [
+        { href: `${base}/reports`, label: "گزارش‌ها", icon: FileText },
+        { href: `${base}/data`, label: "داده‌ها", icon: Database },
+        { href: `${base}/integrations`, label: "اتصال‌ها", icon: HardDrive },
+        { href: `${base}/automations`, label: "اتوماسیون‌ها", icon: Zap },
+      ],
+    },
   ];
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const gearMenuItems = [
+    {
+      href: `${base}/integrations`,
+      title: "اتصال به سیستم‌های مالی و بانکی",
+      description: "مدیریت اتصال خودکار به سپیدار و دریافت مستقیم گردش حساب بانکی",
+      icon: HardDrive,
+    },
+    {
+      href: `${base}/automations`,
+      title: "اتوماسیون‌ها و چرخه‌های خودکار",
+      description: "تنظیم چرخه صبحگاهی خزانه‌داری، تطبیق خودکار و تخصیص وظایف",
+      icon: Zap,
+    },
+    {
+      href: `${base}/control/policies`,
+      title: "قوانین و خط‌مشی‌های کنترل مالی",
+      description: "تنظیم آستانه‌ها، سطح حساسیت و فعال‌سازی قواعد ۸ گانه تشخیص مغایرت",
+      icon: SlidersHorizontal,
+    },
+    {
+      href: `${base}/data`,
+      title: "مرکز داده‌های مالی",
+      description: "بارگذاری فایل‌های اکسل و CSV، تطبیق ستون‌ها، کیفیت و الگوهای نگاشت",
+      icon: FileUp,
+    },
     {
       href: `${base}/settings/profile`,
       title: "مشخصات و تنظیمات شرکت",
@@ -139,16 +221,10 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       icon: Users2,
     },
     {
-      href: `${base}/assistant`,
-      title: "دستیار هوشمند مالی",
-      description: "پرسش و پاسخ تحلیلی هوشمند با گاردریل‌های حاکمیت داده",
-      icon: Bot,
-    },
-    {
-      href: `${base}/readiness`,
-      title: "ارزیابی و پایش سامانه",
-      description: "کنترل دروازه پذیرش، آزمون‌های کیفی و سلامت عملیاتی",
-      icon: ShieldCheck,
+      href: "/admin/product-health",
+      title: "داشبورد سلامت و حاکمیت محصول",
+      description: "رصد ستاره قطبی، وضعیت کوهورت و پایش دروازه‌های ده‌گانه فاز ۸",
+      icon: Activity,
     },
     {
       href: "/companies/new",
@@ -169,34 +245,47 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   }
 
   const isItemActive = (href: string) => {
-    if (pathname === href) return true;
-    if (href.endsWith("/imports") && (pathname.startsWith(`${base}/imports`) || pathname.startsWith(`${base}/financial-model`))) {
-      return true;
+    if (href.includes("?view=forecast")) {
+      return (
+        pathname.startsWith(`${base}/cashflow`) &&
+        typeof window !== "undefined" &&
+        window.location.search.includes("view=forecast")
+      );
     }
-    if (href.endsWith("/overview") && (pathname.startsWith(`${base}/overview`) || pathname.startsWith(`${base}/analysis`))) {
-      return true;
+    if (href.endsWith("/cashflow")) {
+      return (
+        pathname.startsWith(`${base}/cashflow`) &&
+        (typeof window === "undefined" || !window.location.search.includes("view=forecast"))
+      );
     }
-    if (href.endsWith("/cashflow") && (
-      pathname.startsWith(`${base}/cashflow`) ||
-      pathname.startsWith(`${base}/receivables`) ||
-      pathname.startsWith(`${base}/payables`) ||
-      pathname.startsWith(`${base}/reconciliation`)
-    )) {
-      return true;
+    if (href.endsWith("/overview")) {
+      return pathname.startsWith(`${base}/overview`) || pathname.startsWith(`${base}/analysis`);
     }
-    if (href.endsWith("/findings") && (
-      pathname.startsWith(`${base}/findings`) ||
-      pathname.startsWith(`${base}/alerts`) ||
-      pathname.startsWith(`${base}/simulation`)
-    )) {
-      return true;
+    if (href.endsWith("/receivables")) {
+      return pathname.startsWith(`${base}/receivables`);
     }
-    if (href.endsWith("/reports") && (
-      pathname.startsWith(`${base}/reports`)
-    )) {
-      return true;
+    if (href.endsWith("/payables")) {
+      return pathname.startsWith(`${base}/payables`);
     }
-    return false;
+    if (href.endsWith("/actions")) {
+      return pathname.startsWith(`${base}/actions`);
+    }
+    if (href.endsWith("/findings")) {
+      return pathname.startsWith(`${base}/findings`);
+    }
+    if (href.endsWith("/reconciliation")) {
+      return pathname.startsWith(`${base}/reconciliation`);
+    }
+    if (href.endsWith("/control/policies")) {
+      return pathname.startsWith(`${base}/control/policies`);
+    }
+    if (href.endsWith("/reports")) {
+      return pathname.startsWith(`${base}/reports`);
+    }
+    if (href.endsWith("/data")) {
+      return pathname.startsWith(`${base}/data`) || pathname.startsWith(`${base}/imports`);
+    }
+    return pathname === href;
   };
 
   return (
@@ -219,58 +308,65 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-2.5 py-3 space-y-1">
-          <SidebarGroup className="p-0">
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-1">
-                {navigationItems.map((item) => {
-                  const active = isItemActive(item.href);
-                  const IconComponent = item.icon;
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={active}
-                        tooltip={item.label}
-                        className={cn(
-                          "group/item relative flex h-[38px] w-full items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs sm:text-[13px] transition-all duration-200",
-                          active
-                            ? "!bg-primary/10 !text-primary font-bold shadow-xs border border-primary/20 dark:!bg-primary/15 dark:border-primary/30 before:absolute before:inset-y-1.5 before:start-1 before:w-1 before:rounded-full before:bg-primary"
-                            : "text-muted-foreground font-medium hover:!bg-muted/70 hover:!text-foreground hover:-translate-x-0.5"
-                        )}
-                      >
-                        <Link href={item.href} aria-current={active ? "page" : undefined} className="flex items-center gap-2.5 w-full">
-                          <div
-                            className={cn(
-                              "flex size-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-data-[collapsible=icon]:size-auto group-data-[collapsible=icon]:bg-transparent",
-                              active
-                                ? "bg-primary text-primary-foreground shadow-2xs"
-                                : "bg-transparent text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary group-hover/item:scale-105"
-                            )}
-                          >
-                            <IconComponent className="size-4 shrink-0" />
-                          </div>
-                          <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      {item.badge && item.badge > 0 ? (
-                        <SidebarMenuBadge
+        <SidebarContent className="px-2.5 py-3 space-y-3">
+          {navGroups.map((group, groupIdx) => (
+            <SidebarGroup key={groupIdx} className="p-0">
+              {group.label && (
+                <SidebarGroupLabel className="px-2.5 text-[11px] font-bold text-muted-foreground/80 tracking-wider">
+                  {group.label}
+                </SidebarGroupLabel>
+              )}
+              <SidebarGroupContent>
+                <SidebarMenu className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const active = isItemActive(item.href);
+                    const IconComponent = item.icon;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.label}
                           className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[10px] font-bold ms-auto",
-                            item.badgeVariant === "critical"
-                              ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
-                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                            "group/item relative flex h-[38px] w-full items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs sm:text-[13px] transition-all duration-200",
+                            active
+                              ? "!bg-primary/10 !text-primary font-bold shadow-xs border border-primary/20 dark:!bg-primary/15 dark:border-primary/30 before:absolute before:inset-y-1.5 before:start-1 before:w-1 before:rounded-full before:bg-primary"
+                              : "text-muted-foreground font-medium hover:!bg-muted/70 hover:!text-foreground hover:-translate-x-0.5"
                           )}
                         >
-                          {item.badge}
-                        </SidebarMenuBadge>
-                      ) : null}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+                          <Link href={item.href} aria-current={active ? "page" : undefined} className="flex items-center gap-2.5 w-full">
+                            <div
+                              className={cn(
+                                "flex size-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-data-[collapsible=icon]:size-auto group-data-[collapsible=icon]:bg-transparent",
+                                active
+                                  ? "bg-primary text-primary-foreground shadow-2xs"
+                                  : "bg-transparent text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary group-hover/item:scale-105"
+                              )}
+                            >
+                              <IconComponent className="size-4 shrink-0" />
+                            </div>
+                            <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {item.badge && item.badge > 0 ? (
+                          <SidebarMenuBadge
+                            className={cn(
+                              "rounded-full px-1.5 py-0.5 text-[10px] font-bold ms-auto",
+                              item.badgeVariant === "critical"
+                                ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
+                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                            )}
+                          >
+                            {item.badge}
+                          </SidebarMenuBadge>
+                        ) : null}
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </SidebarContent>
 
         <SidebarFooter className="border-t border-border/60 p-3">
@@ -305,10 +401,6 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
         <header className="topbar sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-4 border-b border-border bg-background/85 px-4 sm:px-8 backdrop-blur-xl">
           <div className="topbar-leading flex items-center gap-3 min-w-0">
             <SidebarTrigger aria-label="باز و بسته‌کردن منو" className="size-9 rounded-xl border border-border/80" />
-            <div key={pathname} className="route-heading space-y-0.5 min-w-0">
-              <span className="breadcrumb block text-xs text-muted-foreground font-medium truncate">{meta.breadcrumb}</span>
-              <h1 className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight truncate">{meta.title}</h1>
-            </div>
           </div>
 
           <div className="topbar-actions flex items-center gap-2 sm:gap-2.5 shrink-0">
@@ -415,27 +507,140 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
               </PopoverContent>
             </Popover>
 
-            <Button asChild variant="outline" size="icon" className="relative size-9 rounded-xl border-border" title="هشدارهای زودهنگام">
-              <Link href={`${base}/alerts`} aria-label="هشدارهای زودهنگام">
-                <BellRing className="size-4" />
-                {alertSummary && alertSummary.total_active > 0 && (
-                  <span
-                    className={`absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${
-                      alertSummary.critical_count > 0 ? "bg-red-600 animate-pulse" : "bg-amber-600"
-                    }`}
-                  >
-                    {alertSummary.total_active}
-                  </span>
-                )}
+            {/* My Action Queue Shortcut */}
+            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl border-border text-xs font-bold hover:border-primary/40 transition-colors" title="کارتابل وظایف و اقدامات من">
+              <Link href={`${base}/actions`} aria-label="کارتابل وظایف و اقدامات من">
+                <ClipboardCheck className="size-4 text-primary" />
+                <span className="hidden md:inline">کارهای من</span>
               </Link>
             </Button>
+
+            {/* In-App Alerts & Early Warnings Popover */}
+            <Popover open={alertsPopoverOpen} onOpenChange={setAlertsPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className={`relative size-9 rounded-xl border-border transition-colors ${
+                    alertsPopoverOpen ? "bg-accent text-primary border-primary/40" : ""
+                  }`}
+                  title="اعلان‌ها و هشدارهای مالی"
+                  aria-label="اعلان‌ها و هشدارهای مالی"
+                >
+                  <BellRing className="size-4" />
+                  {unreadAlertsCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white bg-red-600 animate-pulse">
+                      {unreadAlertsCount}
+                    </span>
+                  ) : alertSummary && alertSummary.total_active > 0 ? (
+                    <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white bg-amber-600">
+                      {alertSummary.total_active}
+                    </span>
+                  ) : null}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-[94vw] sm:w-[420px] p-0 rounded-2xl border-border bg-popover shadow-2xl overflow-hidden"
+                dir="rtl"
+              >
+                <div className="p-3 border-b border-border/70 flex items-center justify-between bg-muted/40">
+                  <div className="flex items-center gap-2">
+                    <BellRing className="size-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">اعلان‌ها و هشدارهای مالی</span>
+                  </div>
+                  {unreadAlertsCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void markAllAlertsRead()}
+                      className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <CheckCheck className="size-3.5" />
+                      <span>خواندن همه</span>
+                    </Button>
+                  )}
+                </div>
+
+                <div className="max-h-[360px] overflow-y-auto divide-y divide-border/60">
+                  {inAppAlerts.length > 0 ? (
+                    inAppAlerts.map((alert) => {
+                      const targetHref = alert.finding_id
+                        ? `${base}/findings/${alert.finding_id}`
+                        : `${base}/control`;
+                      return (
+                        <Link
+                          key={alert.id}
+                          href={targetHref}
+                          onClick={() => setAlertsPopoverOpen(false)}
+                          className={`flex items-start gap-3 p-3 transition-colors hover:bg-muted/50 ${
+                            !alert.is_read ? "bg-primary/5" : ""
+                          }`}
+                        >
+                          <div className="mt-1 size-2 rounded-full shrink-0 bg-primary" style={{ opacity: alert.is_read ? 0.2 : 1 }} />
+                          <div className="flex-1 min-w-0">
+                            <strong className="block text-xs font-bold text-foreground truncate">{alert.title_fa}</strong>
+                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                              {alert.body_fa || alert.message_fa}
+                            </p>
+                            <span className="block text-[10px] text-muted-foreground/80 mt-1 font-mono">
+                              {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(new Date(alert.created_at))}
+                            </span>
+                          </div>
+                        </Link>
+                      );
+                    })
+                  ) : (
+                    <div className="p-8 text-center text-xs text-muted-foreground">
+                      هیچ اعلان خوانده‌نشده‌ای وجود ندارد.
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-2 border-t border-border/70 bg-muted/20 flex items-center justify-between text-xs">
+                  <Link
+                    href={`${base}/alerts`}
+                    onClick={() => setAlertsPopoverOpen(false)}
+                    className="text-primary hover:underline font-bold text-[11px] px-2 py-1"
+                  >
+                    مشاهده هشدارهای زودهنگام سیستم ←
+                  </Link>
+                  <Link
+                    href={`${base}/actions`}
+                    onClick={() => setAlertsPopoverOpen(false)}
+                    className="text-muted-foreground hover:text-foreground font-medium text-[11px] px-2 py-1"
+                  >
+                    کارتابل کارهای من
+                  </Link>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSupportModalOpen(true)}
+              className="size-8 rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
+              title="پشتیبانی و ثبت تیکت"
+            >
+              <LifeBuoy className="size-4" />
+            </Button>
+
             <ThemeToggle />
           </div>
         </header>
 
         <div key={pathname} className="content page-stack route-content w-full max-w-7xl mx-auto p-4 sm:p-8 space-y-6 animate-[route-content-in_260ms_ease-out]">
+          <OnboardingWizardBanner companyId={company.id} />
           {children}
         </div>
+
+        <SupportModal
+          companyId={company.id}
+          open={supportModalOpen}
+          onOpenChange={setSupportModalOpen}
+        />
       </SidebarInset>
     </SidebarProvider>
   );

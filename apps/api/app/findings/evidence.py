@@ -61,8 +61,16 @@ def rule_and_calculation_evidence(finding: Finding) -> list[EvidenceDraft]:
             evidence_type=EvidenceType.RULE,
             claim_code=finding.reason_code,
             field_snapshot={
-                "finding_code": finding.finding_code.value,
-                "assertion_status": finding.assertion_status.value,
+                "finding_code": (
+                    finding.finding_code.value
+                    if hasattr(finding.finding_code, "value")
+                    else str(finding.finding_code)
+                ),
+                "assertion_status": (
+                    finding.assertion_status.value
+                    if hasattr(finding.assertion_status, "value")
+                    else str(finding.assertion_status)
+                ),
                 "confidence_score": str(finding.confidence_score),
                 "reason_parameters": finding.reason_parameters_json,
             },

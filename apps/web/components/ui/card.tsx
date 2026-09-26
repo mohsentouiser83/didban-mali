@@ -41,7 +41,7 @@ function Card({ asChild = false, variant, className, ...props }: CardProps) {
   const Component = asChild ? Slot : "div";
   return (
     <Component
-      className={cn(cardVariants({ variant }), className)}
+      className={cn(cardVariants({ variant }), props.onClick && "cursor-pointer", className)}
       {...props}
     />
   );

@@ -1,11 +1,12 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -41,11 +42,18 @@ class MatchLevel(enum.StrEnum):
     FUZZY = "fuzzy"
     MISMATCH = "mismatch"
     UNRESOLVED = "unresolved"
+    SUGGESTED = "suggested"
+    MANUAL = "manual"
 
 
 class MatchStatus(enum.StrEnum):
     AUTO_MATCHED = "auto_matched"
     POTENTIAL_MATCH = "potential_match"
+    SUGGESTED_MATCH = "suggested_match"
+    NEEDS_REVIEW = "needs_review"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+    REVERSED = "reversed"
     AMOUNT_MISMATCH = "amount_mismatch"
     DATE_MISMATCH = "date_mismatch"
     DUPLICATE_HIGH = "duplicate_high"
@@ -57,9 +65,9 @@ class ReconciliationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "reconciliation_runs"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["analysis_run_id", "company_id"],
-            ["analysis_runs.id", "analysis_runs.company_id"],
-            ondelete="CASCADE",
+            ["bank_account_id", "company_id"],
+            ["bank_accounts.id", "bank_accounts.company_id"],
+            ondelete="SET NULL",
         ),
         UniqueConstraint("id", "company_id", name="uq_reconciliation_run_company"),
         UniqueConstraint(
@@ -68,6 +76,7 @@ class ReconciliationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_reconciliation_run_company_idempotency",
         ),
         Index("ix_reconciliation_runs_company_status", "company_id", "status"),
+        Index("ix_reconciliation_runs_company_period", "company_id", "period_start", "period_end"),
         Index("ix_reconciliation_runs_analysis", "analysis_run_id"),
         Index("ix_reconciliation_runs_created_by", "created_by"),
     )
@@ -75,7 +84,10 @@ class ReconciliationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     company_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
     )
-    analysis_run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    analysis_run_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    bank_account_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    period_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    period_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[ReconciliationStatus] = mapped_column(
         Enum(ReconciliationStatus, name="reconciliation_status", native_enum=False),
         nullable=False,
@@ -83,6 +95,12 @@ class ReconciliationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     config_version: Mapped[str] = mapped_column(String(80), nullable=False)
     config_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     counts_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
+    matched_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unmatched_bank_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    unmatched_journal_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    matched_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), default=0, nullable=False)
+    unmatched_bank_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), default=0, nullable=False)
+    unmatched_journal_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), default=0, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     created_by: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -149,6 +167,7 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
     run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     bank_transaction_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     journal_entry_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    match_type: Mapped[str] = mapped_column(String(40), default="one_to_one", nullable=False)
     match_level: Mapped[MatchLevel] = mapped_column(
         Enum(MatchLevel, name="match_level", native_enum=False), nullable=False
     )
@@ -158,7 +177,52 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
     score: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     amount_difference_irr: Mapped[Decimal | None] = mapped_column(Numeric(20, 0))
     date_difference_days: Mapped[int | None] = mapped_column(Integer)
-    features_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    features_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    evidence_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    match_reasons_json: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
     rule_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    reversed_by: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reversal_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReconciliationAllocation(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "reconciliation_allocations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["match_id", "company_id"],
+            ["reconciliation_matches.id", "reconciliation_matches.company_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["bank_transaction_id", "company_id"],
+            ["bank_transactions.id", "bank_transactions.company_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["journal_line_id", "company_id"],
+            ["journal_lines.id", "journal_lines.company_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "bank_transaction_id IS NOT NULL OR journal_line_id IS NOT NULL",
+            name="ck_recon_alloc_target",
+        ),
+        UniqueConstraint("id", "company_id", name="uq_reconciliation_allocation_company"),
+        Index("ix_reconciliation_alloc_match", "match_id"),
+        Index("ix_reconciliation_alloc_bank", "bank_transaction_id"),
+        Index("ix_reconciliation_alloc_journal", "journal_line_id"),
+    )
+
+    company_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    match_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    side: Mapped[str] = mapped_column(String(20), nullable=False)  # 'bank' or 'journal'
+    bank_transaction_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    journal_line_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    allocated_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

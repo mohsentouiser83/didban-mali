@@ -175,6 +175,7 @@ export const StatusChip = React.forwardRef<HTMLSpanElement, StatusChipProps>(
         ref={ref}
         className={cn(
           "inline-flex items-center border font-bold select-none whitespace-nowrap transition-colors",
+          props.onClick && "cursor-pointer",
           sizeClasses[size],
           def.className,
           className

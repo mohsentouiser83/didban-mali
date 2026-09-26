@@ -54,12 +54,8 @@ def upgrade() -> None:
             f"USING (private.has_company_role(company_id, {roles}))"
         )
         op.execute(
-            f"GRANT SELECT, INSERT, UPDATE, DELETE ON public.{table} TO didban_app"
+            f"GRANT DELETE ON public.{table} TO didban_app"
         )
-
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO didban_app"
-    )
 
 
 def downgrade() -> None:

@@ -18,13 +18,10 @@ import {
 
 import { DragEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { API_URL, api } from "@/lib/product-api";
 import type { Company, ImportBatch, ImportStatus } from "@/lib/product-types";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FinancialModelWorkspace } from "./financial-model-workspace";
-import { FileUp, Layers } from "lucide-react";
+import { FileUp } from "lucide-react";
 
 import { Icon } from "./icons";
 
@@ -57,35 +54,7 @@ const statusBadgeClasses: Record<ImportStatus, string> = {
 const formatBytes = (bytes: number) =>
   `${new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(bytes / (1024 * 1024))} مگابایت`;
 
-export type ImportsTab = "files" | "classification";
-
-export function ImportsPanel({ company, defaultTab = "files" }: { company: Company; defaultTab?: ImportsTab }) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const tabParam = searchParams.get("tab") as ImportsTab | null;
-  const initialTab = tabParam && ["files", "classification"].includes(tabParam)
-    ? tabParam
-    : defaultTab;
-
-  const [activeTab, setActiveTab] = useState<ImportsTab>(initialTab);
-
-  useEffect(() => {
-    if (tabParam && ["files", "classification"].includes(tabParam)) {
-      setActiveTab(tabParam);
-    } else if (defaultTab) {
-      setActiveTab(defaultTab);
-    }
-  }, [tabParam, defaultTab]);
-
-  const handleTabChange = (value: string) => {
-    const nextTab = value as ImportsTab;
-    setActiveTab(nextTab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", nextTab);
-    router.replace(`${pathname}?${params.toString()}`);
-  };
+export function ImportsPanel({ company }: { company: Company }) {
 
   const [items, setItems] = useState<ImportBatch[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -197,303 +166,456 @@ export function ImportsPanel({ company, defaultTab = "files" }: { company: Compa
     }
   }
 
+  const [sourceKind, setSourceKind] = useState<"accounting" | "bank" | "sales">("accounting");
+  const [sourceLabel, setSourceLabel] = useState("ورودی مالی سپیدار");
+  const [filterTab, setFilterTab] = useState<"all" | "active" | "completed">("all");
+
+  const completedCount = items.filter((i) => i.stage === "normalized" || i.status === "completed").length;
+  const pendingCount = items.filter((i) =>
+    ["uploaded", "inspecting", "awaiting_mapping", "validating", "queued", "processing"].includes(i.status)
+  ).length;
+
+  const filteredItems = items.filter((item) => {
+    if (filterTab === "active") {
+      return ["uploaded", "inspecting", "awaiting_mapping", "validating", "queued", "processing"].includes(item.status);
+    }
+    if (filterTab === "completed") {
+      return item.stage === "normalized" || item.status === "completed";
+    }
+    return true;
+  });
+
   return (
     <div className="imports-workspace space-y-6" dir="rtl">
-      {/* Hub Header */}
+      {/* Top Header & Breadcrumb */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/70 pb-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary mb-1">
-            <FileUp className="size-4" />
-            <span>اسناد مالی</span>
+          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-1">
+            <span>تنظیمات و مدیریت سامانه</span>
+            <span>/</span>
+            <span className="text-primary font-bold">ورود و پردازش اسناد</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight flex items-center gap-2.5">
+            <span className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <FileUp className="size-4" />
+            </span>
             ورود و پردازش اسناد مالی
           </h1>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            بارگذاری فایل‌های اکسل و CSV دفاتر کل، صورت‌حساب‌های بانکی و فاکتورها، قرنطینه امنیتی و اعتبارسنجی خودکار قبل از تجمیع در پایگاه مالی.
+          </p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} variant="line" className="w-full">
-        <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
-          <TabsTrigger value="files" className="gap-2 text-xs sm:text-sm py-2.5">
-            <FileUp className="size-4 text-primary" />
-            <span>بارگذاری فایل‌ها</span>
-          </TabsTrigger>
-          <TabsTrigger value="classification" className="gap-2 text-xs sm:text-sm py-2.5">
-            <Layers className="size-4 text-cyan-500" />
-            <span>کدینگ و سرفصل‌ها</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <div className="pt-4">
-          <TabsContent value="files" className="m-0 focus-visible:outline-none">
-            <ProductCard className="imports-card p-6 rounded-2xl border border-border bg-card shadow-sm space-y-6" aria-labelledby="imports-title">
-              <div className="card-heading imports-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
-                <div>
-                  <span className="overline block text-[11px] font-bold text-primary mb-0.5">ورودی امن داده</span>
-                  <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی بارگذاری‌شده</h3>
-                </div>
-                <Badge variant="outline" className="secure-badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 self-start sm:self-center">
-                  <Icon name="shield" className="size-3.5" />
-                  قرنطینه و اسکن فعال
-                </Badge>
-              </div>
-
-      {canUpload ? (
-        <form className="upload-form grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4" onSubmit={upload}>
-          <div
-            className={`dropzone flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-2xl text-center transition-all cursor-pointer ${
-              dragging
-                ? "border-primary bg-primary/5 scale-[1.01]"
-                : selectedFile
-                ? "border-emerald-500/40 bg-emerald-500/5"
-                : "border-border/80 bg-muted/20 hover:border-primary/50 hover:bg-muted/40"
-            }`}
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragging(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={() => setDragging(false)}
-            onDrop={drop}
-            onClick={() => inputRef.current?.click()}
-          >
-            <Input
-              ref={inputRef}
-              className="sr-only"
-              id="financial-file"
-              name="file-picker"
-              type="file"
-              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={(event) => acceptFile(event.target.files?.[0])}
-            />
-            <span className="upload-icon size-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <Icon name={selectedFile ? "file" : "upload"} className="size-5" />
-            </span>
-            {selectedFile ? (
-              <div className="space-y-1">
-                <strong className="block text-xs font-bold text-foreground truncate max-w-xs">{selectedFile.name}</strong>
-                <small className="block text-[11px] text-muted-foreground">{formatBytes(selectedFile.size)}</small>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <strong className="block text-xs font-bold text-foreground">فایل را اینجا رها کنید یا کلیک کنید</strong>
-                <small className="block text-[11px] text-muted-foreground">CSV یا XLSX، حداکثر ۵۰ مگابایت</small>
-              </div>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="secondary-button mt-3 h-8 text-xs font-medium"
-              onClick={(e) => {
-                e.stopPropagation();
-                inputRef.current?.click();
-              }}
-            >
-              {selectedFile ? "تغییر فایل" : "انتخاب فایل"}
-            </Button>
+      {/* KPI Stats Bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <ProductCard className="p-4 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm">
+          <span className="text-[11px] font-medium text-muted-foreground block mb-1">کل اسناد بارگذاری‌شده</span>
+          <strong className="text-lg sm:text-xl font-bold text-foreground font-mono">
+            {new Intl.NumberFormat("fa-IR").format(items.length)}
+          </strong>
+        </ProductCard>
+        <ProductCard className="p-4 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm">
+          <span className="text-[11px] font-medium text-muted-foreground block mb-1">در صف بررسی یا نگاشت</span>
+          <strong className="text-lg sm:text-xl font-bold text-amber-600 dark:text-amber-400 font-mono">
+            {new Intl.NumberFormat("fa-IR").format(pendingCount)}
+          </strong>
+        </ProductCard>
+        <ProductCard className="p-4 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm">
+          <span className="text-[11px] font-medium text-muted-foreground block mb-1">تکمیل و تجمیع در دفاتر</span>
+          <strong className="text-lg sm:text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+            {new Intl.NumberFormat("fa-IR").format(completedCount)}
+          </strong>
+        </ProductCard>
+        <ProductCard className="p-4 rounded-2xl border border-border/80 bg-card/60 backdrop-blur-sm flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-medium text-muted-foreground block mb-1">امنیت اسناد</span>
+            <strong className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <Icon name="shield" className="size-3.5" />
+              قرنطینه و اسکن فعال
+            </strong>
           </div>
+        </ProductCard>
+      </div>
 
-          <div className="upload-fields flex flex-col justify-between gap-4 p-2">
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-foreground">نوع منبع</label>
-                <SelectField name="source_kind" defaultValue="accounting" className="h-10 text-xs">
-                  <SelectOption value="accounting">نرم‌افزار حسابداری</SelectOption>
-                  <SelectOption value="bank">گردش حساب بانکی</SelectOption>
-                  <SelectOption value="sales">فروش و درآمد</SelectOption>
-                </SelectField>
-              </div>
+      {/* Main Upload Card */}
+      <ProductCard className="imports-card p-6 sm:p-7 rounded-2xl border border-border bg-card shadow-sm space-y-6" aria-labelledby="imports-title">
+        <div className="card-heading imports-heading flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
+          <div>
+            <span className="overline block text-[11px] font-bold text-primary mb-0.5">درگاه امن دریافت داده</span>
+            <h3 id="imports-title" className="text-base sm:text-lg font-bold text-foreground">فایل‌های مالی بارگذاری‌شده</h3>
+          </div>
+          <Badge variant="outline" className="secure-badge bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 self-start sm:self-center">
+            <Icon name="shield" className="size-3.5" />
+            قرنطینه و اسکن فعال
+          </Badge>
+        </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-foreground">عنوان منبع</label>
-                <Input
-                  name="source_label"
-                  required
-                  minLength={2}
-                  maxLength={160}
-                  defaultValue="ورودی مالی"
-                  placeholder="مثلاً دفتر کل شهریور"
-                  className="h-10 text-xs bg-background"
-                />
+        {canUpload ? (
+          <form className="upload-form grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-6" onSubmit={upload}>
+            {/* Interactive Dropzone */}
+            <div
+              className={`dropzone relative flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl text-center transition-all cursor-pointer ${
+                dragging
+                  ? "border-primary bg-primary/5 scale-[1.01] shadow-md"
+                  : selectedFile
+                  ? "border-emerald-500/50 bg-emerald-500/5 shadow-2xs"
+                  : "border-border/80 bg-muted/20 hover:border-primary/50 hover:bg-muted/30"
+              }`}
+              onDragEnter={(event) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDragLeave={() => setDragging(false)}
+              onDrop={drop}
+              onClick={() => inputRef.current?.click()}
+            >
+              <Input
+                ref={inputRef}
+                className="sr-only"
+                id="financial-file"
+                name="file-picker"
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(event) => acceptFile(event.target.files?.[0])}
+              />
+              <div className={`size-14 rounded-2xl flex items-center justify-center mb-3.5 transition-transform ${
+                selectedFile ? "bg-emerald-500/10 text-emerald-600 scale-105" : "bg-primary/10 text-primary"
+              }`}>
+                <Icon name={selectedFile ? "file" : "upload"} className="size-6" />
               </div>
+              {selectedFile ? (
+                <div className="space-y-1.5 max-w-sm">
+                  <strong className="block text-sm font-bold text-foreground truncate">{selectedFile.name}</strong>
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground font-mono">
+                    <span>{formatBytes(selectedFile.size)}</span>
+                    <span>·</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-sans font-medium">آماده بارگذاری</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <strong className="block text-sm font-bold text-foreground">فایل اکسل یا CSV را اینجا بکشید یا کلیک کنید</strong>
+                  <p className="text-xs text-muted-foreground">فرمت‌های مجاز: XLSX و CSV (حداکثر ۵۰ مگابایت)</p>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="secondary-button mt-4 h-8 px-4 text-xs font-semibold rounded-xl"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  inputRef.current?.click();
+                }}
+              >
+                {selectedFile ? "تغییر فایل انتخاب‌شده" : "انتخاب از کامپیوتر"}
+              </Button>
             </div>
 
-            <Button
-              type="submit"
-              className="primary-button h-10 text-xs font-bold gap-2 w-full mt-2"
-              disabled={busy}
-            >
-              <Icon name="upload" className="size-4" />
-              {busy ? "در حال دریافت…" : "بارگذاری امن"}
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <div className="viewer-note flex items-center gap-2.5 p-3 rounded-xl bg-muted text-xs text-muted-foreground">
-          <Icon name="shield" className="size-4 text-primary" />
-          <span>
-            <strong className="font-bold text-foreground">دسترسی مشاهده‌گر: </strong>
-            برای بارگذاری فایل، نقش مدیر مالی یا مشاور لازم است.
-          </span>
-        </div>
-      )}
+            {/* Ingestion Settings & Presets */}
+            <div className="upload-fields flex flex-col justify-between gap-5 p-1 sm:p-2">
+              <div className="space-y-4">
+                {/* Source Kind Selection */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-foreground">نوع منبع داده</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceKind("accounting");
+                        if (!sourceLabel || sourceLabel.includes("بانک") || sourceLabel.includes("فروش")) {
+                          setSourceLabel("دفتر کل حسابداری");
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border text-center text-xs transition-all ${
+                        sourceKind === "accounting"
+                          ? "bg-primary/10 border-primary text-primary font-bold shadow-2xs"
+                          : "border-border/70 bg-card text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="block font-bold">نرم‌افزار حسابداری</span>
+                      <span className="block text-[10px] text-muted-foreground mt-0.5 font-normal">سپیدار، راهکاران و…</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceKind("bank");
+                        if (!sourceLabel || sourceLabel.includes("دفتر") || sourceLabel.includes("فروش")) {
+                          setSourceLabel("گردش حساب بانکی");
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border text-center text-xs transition-all ${
+                        sourceKind === "bank"
+                          ? "bg-primary/10 border-primary text-primary font-bold shadow-2xs"
+                          : "border-border/70 bg-card text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="block font-bold">گردش بانکی</span>
+                      <span className="block text-[10px] text-muted-foreground mt-0.5 font-normal">صورت‌حساب بانک‌ها</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSourceKind("sales");
+                        if (!sourceLabel || sourceLabel.includes("دفتر") || sourceLabel.includes("بانک")) {
+                          setSourceLabel("فروش و درآمد");
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border text-center text-xs transition-all ${
+                        sourceKind === "sales"
+                          ? "bg-primary/10 border-primary text-primary font-bold shadow-2xs"
+                          : "border-border/70 bg-card text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="block font-bold">فروش و درآمد</span>
+                      <span className="block text-[10px] text-muted-foreground mt-0.5 font-normal">فاکتورها و سامانه مودیان</span>
+                    </button>
+                  </div>
+                  {/* Hidden select field for standard form submission fallback */}
+                  <div className="sr-only">
+                    <SelectField name="source_kind" value={sourceKind} onChange={(e) => setSourceKind(e.target.value as any)}>
+                      <SelectOption value="accounting">نرم‌افزار حسابداری</SelectOption>
+                      <SelectOption value="bank">گردش حساب بانکی</SelectOption>
+                      <SelectOption value="sales">فروش و درآمد</SelectOption>
+                    </SelectField>
+                  </div>
+                </div>
 
-      <div className="upload-messages space-y-2" aria-live="polite">
-        {error && (
-          <Alert variant="destructive" className="form-error text-xs p-3" role="alert">
-            {error}
-          </Alert>
-        )}
-        {notice && (
-          <Alert className="form-success text-xs p-3 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
-            {notice}
-          </Alert>
-        )}
-      </div>
-
-      <div className="imports-list space-y-3" aria-label="فایل‌های اخیر">
-        <div className="list-title flex items-center justify-between border-b border-border/60 pb-2">
-          <strong className="text-xs font-bold text-foreground">فایل‌های اخیر</strong>
-          <span className="text-[11px] font-mono text-muted-foreground">
-            {new Intl.NumberFormat("fa-IR").format(items.length)} مورد
-          </span>
-        </div>
-
-        {!items.length ? (
-          <div className="imports-empty py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
-            <Icon name="file" className="size-6 text-muted-foreground/60" />
-            <p>هنوز فایلی برای این شرکت بارگذاری نشده است.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border/60">
-            {items.map((item) => (
-              <article className="import-row py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3" key={item.id}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className={`file-state size-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      item.scan_status === "clean"
-                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : item.scan_status === "infected"
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <Icon name="file" className="size-4" />
+                {/* Source Label */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-foreground">عنوان یا برچسب سند</label>
+                  <Input
+                    name="source_label"
+                    required
+                    minLength={2}
+                    maxLength={160}
+                    value={sourceLabel}
+                    onChange={(e) => setSourceLabel(e.target.value)}
+                    placeholder="مثلاً دفتر کل شهریور ۱۴۰۵"
+                    className="h-10 text-xs bg-background rounded-xl border-border/80"
+                  />
+                  <span className="text-[11px] text-muted-foreground block">
+                    این عنوان برای جستجو و پیگیری این ورودی در گزارش‌ها استفاده خواهد شد.
                   </span>
-
-                  <div className="file-info min-w-0">
-                    <strong className="block text-xs font-bold text-foreground truncate">{item.original_name}</strong>
-                    <small className="block text-[11px] text-muted-foreground truncate">
-                      {item.source_label} · {formatBytes(item.size_bytes)} ·{" "}
-                      {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(
-                        new Date(item.created_at)
-                      )}
-                    </small>
-                    {item.duplicate_detected && (
-                      <span className="duplicate-note block text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
-                        نسخه‌ای با محتوای یکسان قبلاً ثبت شده است.
-                      </span>
-                    )}
-                    {item.failure_message && (
-                      <span className="failure-note block text-[10px] text-destructive mt-0.5">{item.failure_message}</span>
-                    )}
-                  </div>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end">
-                  <div className="file-progress flex flex-col items-end gap-1">
-                    <Badge variant="outline" className={`status text-[11px] ${statusBadgeClasses[item.status]}`}>
-                      {importStatusLabels[item.status]}
-                    </Badge>
-                    {["uploaded", "inspecting"].includes(item.status) && (
-                      <Progress className="progress-track w-20 h-1.5" value={item.progress} />
-                    )}
-                  </div>
-
-                  <div className="import-actions flex items-center gap-1.5">
-                    {item.scan_status === "clean" && (
-                      <Button asChild variant="outline" size="sm" className="prepare-link h-8 text-xs gap-1.5">
-                        <Link href={`/companies/${company.id}/imports/${item.id}`}>
-                          <Icon name="table" className="size-3.5" />
-                          <span>{item.stage === "normalized" ? "مشاهده" : "آماده‌سازی"}</span>
-                        </Link>
-                      </Button>
-                    )}
-
-                    {item.scan_status === "clean" ? (
-                      <Button asChild variant="ghost" size="icon" className="download-button size-8" title={`دریافت ${item.original_name}`}>
-                        <a href={`${API_URL}/companies/${company.id}/imports/${item.id}/download`}>
-                          <Icon name="download" className="size-3.5" />
-                          <span className="sr-only">دریافت {item.original_name}</span>
-                        </a>
-                      </Button>
-                    ) : (
-                      <span className="download-placeholder size-8" aria-hidden="true" />
-                    )}
-
-                    {canUpload && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="delete-button size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        title={`حذف ${item.original_name}`}
-                        onClick={() => setBatchToDelete(item)}
-                      >
-                        <Icon name="trash" className="size-3.5" />
-                        <span className="sr-only">حذف {item.original_name}</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
+              {/* Submit CTA */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  className="primary-button h-11 text-xs font-bold gap-2 w-full rounded-xl shadow-xs"
+                  disabled={busy || !selectedFile}
+                >
+                  <Icon name="upload" className="size-4" />
+                  {busy ? "در حال دریافت و اسکن امنیتی…" : "بارگذاری امن و شروع پردازش"}
+                </Button>
+              </div>
+            </div>
+          </form>
+        ) : (
+          <div className="viewer-note flex items-center gap-2.5 p-3.5 rounded-xl bg-muted/60 border border-border text-xs text-muted-foreground">
+            <Icon name="shield" className="size-4 text-primary shrink-0" />
+            <span>
+              <strong className="font-bold text-foreground">دسترسی محدود (مشاهده‌گر): </strong>
+              برای بارگذاری اسناد جدید، نیاز به نقش مدیر مالی یا حسابدار ارشد دارید.
+            </span>
           </div>
         )}
-      </div>
 
-      <Dialog open={batchToDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setBatchToDelete(null); }}>
-        <DialogContent className="sm:max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-destructive flex items-center gap-2">
-              <Icon name="trash" className="size-5 text-destructive" />
-              حذف سند مالی
-            </DialogTitle>
-            <DialogDescription>
-              آیا از حذف فایل «<strong className="text-foreground">{batchToDelete?.original_name}</strong>» اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setBatchToDelete(null)}
-              disabled={deleting}
-            >
-              انصراف
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleting}
-              className="gap-1.5"
-            >
-              <Icon name="trash" className="size-4" />
-              {deleting ? "در حال حذف…" : "حذف قطعی سند"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-            </ProductCard>
-          </TabsContent>
-
-          <TabsContent value="classification" className="m-0 focus-visible:outline-none">
-            <FinancialModelWorkspace company={company} />
-          </TabsContent>
+        {/* Upload Messages / Feedback */}
+        <div className="upload-messages space-y-2" aria-live="polite">
+          {error && (
+            <Alert variant="destructive" className="form-error text-xs p-3.5 rounded-xl" role="alert">
+              {error}
+            </Alert>
+          )}
+          {notice && (
+            <Alert className="form-success text-xs p-3.5 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+              {notice}
+            </Alert>
+          )}
         </div>
-      </Tabs>
+
+        {/* Recent Files Table */}
+        <div className="imports-list space-y-3 pt-2" aria-label="فایل‌های اخیر">
+          <div className="list-title flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2">
+              <strong className="text-xs sm:text-sm font-bold text-foreground">تاریخچه اسناد بارگذاری‌شده</strong>
+              <span className="text-[11px] font-mono font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-md">
+                {new Intl.NumberFormat("fa-IR").format(items.length)} سند
+              </span>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/60 self-start sm:self-center">
+              <button
+                type="button"
+                onClick={() => setFilterTab("all")}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-all ${
+                  filterTab === "all" ? "bg-card text-foreground font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                همه
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab("active")}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-all ${
+                  filterTab === "active" ? "bg-card text-amber-600 dark:text-amber-400 font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                در انتظار / فعال ({pendingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab("completed")}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-all ${
+                  filterTab === "completed" ? "bg-card text-emerald-600 dark:text-emerald-400 font-bold shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                تکمیل‌شده ({completedCount})
+              </button>
+            </div>
+          </div>
+
+          {!filteredItems.length ? (
+            <div className="imports-empty py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 bg-muted/10">
+              <div className="size-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground mb-1">
+                <Icon name="file" className="size-5" />
+              </div>
+              <strong className="text-foreground font-medium">سندی در این فیلتر یافت نشد.</strong>
+              <p className="text-[11px] text-muted-foreground">برای شروع، فایل مالی خود را در بخش بالا بارگذاری نمایید.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/60 border border-border/60 rounded-xl overflow-hidden bg-card/40">
+              {filteredItems.map((item) => (
+                <article
+                  className="import-row p-3.5 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
+                  key={item.id}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`file-state size-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                        item.scan_status === "clean"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : item.scan_status === "infected"
+                          ? "bg-destructive/10 text-destructive border-destructive/20"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}
+                    >
+                      <Icon name="file" className="size-4" />
+                    </span>
+
+                    <div className="file-info min-w-0">
+                      <strong className="block text-xs sm:text-sm font-bold text-foreground truncate">{item.original_name}</strong>
+                      <small className="block text-[11px] text-muted-foreground truncate mt-0.5">
+                        <span className="font-semibold text-foreground/80">{item.source_label}</span> · {formatBytes(item.size_bytes)} ·{" "}
+                        {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(
+                          new Date(item.created_at)
+                        )}
+                      </small>
+                      {item.duplicate_detected && (
+                        <span className="duplicate-note block text-[10px] text-amber-600 dark:text-amber-400 mt-0.5 font-medium">
+                          ⚠️ نسخه‌ای با محتوای یکسان قبلاً در سامانه ثبت شده است.
+                        </span>
+                      )}
+                      {item.failure_message && (
+                        <span className="failure-note block text-[10px] text-destructive mt-0.5">{item.failure_message}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 justify-between sm:justify-end">
+                    <div className="file-progress flex flex-col items-end gap-1 min-w-[100px]">
+                      <Badge variant="outline" className={`status text-[11px] font-medium ${statusBadgeClasses[item.status]}`}>
+                        {importStatusLabels[item.status]}
+                      </Badge>
+                      {["uploaded", "inspecting"].includes(item.status) && (
+                        <Progress className="progress-track w-20 h-1.5" value={item.progress} />
+                      )}
+                    </div>
+
+                    <div className="import-actions flex items-center gap-1.5">
+                      {item.scan_status === "clean" && (
+                        <Button asChild variant="outline" size="sm" className="prepare-link h-8 px-3 text-xs gap-1.5 rounded-lg border-primary/30 hover:bg-primary/10 hover:text-primary">
+                          <Link href={`/companies/${company.id}/imports/${item.id}`}>
+                            <Icon name="table" className="size-3.5" />
+                            <span>{item.stage === "normalized" ? "مشاهده جزئیات" : "آماده‌سازی و تطبیق"}</span>
+                          </Link>
+                        </Button>
+                      )}
+
+                      {item.scan_status === "clean" ? (
+                        <Button asChild variant="ghost" size="icon" className="download-button size-8 rounded-lg text-muted-foreground hover:text-foreground" title={`دریافت ${item.original_name}`}>
+                          <a href={`${API_URL}/companies/${company.id}/imports/${item.id}/download`}>
+                            <Icon name="download" className="size-3.5" />
+                            <span className="sr-only">دریافت {item.original_name}</span>
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="download-placeholder size-8" aria-hidden="true" />
+                      )}
+
+                      {canUpload && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="delete-button size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                          title={`حذف ${item.original_name}`}
+                          onClick={() => setBatchToDelete(item)}
+                        >
+                          <Icon name="trash" className="size-3.5" />
+                          <span className="sr-only">حذف {item.original_name}</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        <Dialog open={batchToDelete !== null} onOpenChange={(open) => { if (!open && !deleting) setBatchToDelete(null); }}>
+          <DialogContent className="sm:max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-destructive flex items-center gap-2 text-base font-bold">
+                <Icon name="trash" className="size-5 text-destructive" />
+                حذف سند مالی
+              </DialogTitle>
+              <DialogDescription className="text-xs leading-relaxed mt-2 text-muted-foreground">
+                آیا از حذف فایل «<strong className="text-foreground">{batchToDelete?.original_name}</strong>» اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2 sm:justify-end mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBatchToDelete(null)}
+                disabled={deleting}
+                className="text-xs h-9"
+              >
+                انصراف
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="gap-1.5 text-xs h-9 font-bold"
+              >
+                <Icon name="trash" className="size-4" />
+                {deleting ? "در حال حذف…" : "حذف قطعی سند"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </ProductCard>
     </div>
   );
 }
