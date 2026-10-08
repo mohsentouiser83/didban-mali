@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle2, Clock, HelpCircle, XCircle, AlertCircle, RefreshCcw, CheckCheck, Ban, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, HelpCircle, XCircle, AlertCircle, RefreshCcw, CheckCheck, Ban, Sparkles } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export type FinancialStatus =
@@ -36,112 +36,112 @@ const statusDefinitions: Record<
   exact_match: {
     label: "تطبیق قطعی ۱۰۰٪",
     icon: CheckCheck,
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/25",
   },
   potential_match: {
     label: "نیازمند بررسی",
     icon: HelpCircle,
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/25",
   },
   needs_review: {
     label: "نیازمند بررسی",
     icon: HelpCircle,
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/25",
   },
   in_review: {
     label: "در حال بررسی",
     icon: Clock,
-    className: "bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-400 dark:border-blue-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   investigating: {
     label: "در حال بررسی",
     icon: Clock,
-    className: "bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-400 dark:border-blue-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   hypothesis: {
     label: "فرضیه (غیرقطعی)",
     icon: HelpCircle,
-    className: "bg-purple-500/10 text-purple-700 border-purple-500/25 dark:text-purple-400 dark:border-purple-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   deterministic: {
     label: "یافته قطعی",
     icon: CheckCircle2,
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/25",
   },
   amount_mismatch: {
     label: "مغایرت مبلغ",
     icon: AlertCircle,
-    className: "bg-red-500/10 text-red-600 border-red-500/25 dark:text-red-400 dark:border-red-500/30",
+    className: "bg-ds-danger/10 text-ds-danger border-ds-danger/25",
   },
   date_mismatch: {
     label: "مغایرت تاریخ",
     icon: Clock,
-    className: "bg-orange-500/10 text-orange-700 border-orange-500/25 dark:text-orange-400 dark:border-orange-500/30",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/25",
   },
   unmatched_bank: {
     label: "فاقد سند در حسابداری",
     icon: XCircle,
-    className: "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400 dark:border-rose-500/30",
+    className: "bg-ds-danger/10 text-ds-danger border-ds-danger/25",
   },
   unmatched_accounting: {
     label: "فاقد تراکنش در بانک",
     icon: XCircle,
-    className: "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400 dark:border-rose-500/30",
+    className: "bg-ds-danger/10 text-ds-danger border-ds-danger/25",
   },
   duplicate: {
     label: "تراکنش تکراری",
     icon: RefreshCcw,
-    className: "bg-indigo-500/10 text-indigo-700 border-indigo-500/25 dark:text-indigo-400 dark:border-indigo-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   confirmed: {
     label: "تأییدشده توسط مشاور",
     icon: CheckCircle2,
-    className: "bg-blue-500/10 text-blue-700 border-blue-500/25 dark:text-blue-400 dark:border-blue-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   follow_up: {
     label: "در حال پیگیری",
     icon: Clock,
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/25",
   },
   resolved: {
     label: "حل و نهایی‌شده",
     icon: CheckCheck,
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/25",
   },
   dismissed: {
     label: "ردشده / بی‌اثر",
     icon: Ban,
-    className: "bg-slate-500/10 text-slate-600 border-slate-500/25 dark:text-slate-400 dark:border-slate-500/30",
+    className: "bg-slate-500/10 text-slate-600 border-slate-500/25",
   },
   processing: {
     label: "در حال پردازش",
     icon: RefreshCcw,
-    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/25 dark:text-cyan-400 dark:border-cyan-500/30",
+    className: "bg-primary/10 text-primary border-primary/25",
   },
   queued: {
     label: "در صف پردازش",
     icon: Clock,
-    className: "bg-slate-500/10 text-slate-700 border-slate-500/25 dark:text-slate-400 dark:border-slate-500/30",
+    className: "bg-slate-500/10 text-slate-700 border-slate-500/25",
   },
   completed: {
     label: "تکمیل‌شده",
     icon: CheckCheck,
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/25",
   },
   completed_limited: {
     label: "تکمیل‌شده (محدود)",
     icon: AlertCircle,
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:border-amber-500/30",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/25",
   },
   failed: {
     label: "ناموفق",
     icon: XCircle,
-    className: "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400 dark:border-rose-500/30",
+    className: "bg-ds-danger/10 text-ds-danger border-ds-danger/25",
   },
   ready: {
     label: "آماده",
     icon: Sparkles,
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:text-emerald-400 dark:border-emerald-500/30",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/25",
   },
 };
 
@@ -183,7 +183,7 @@ export const StatusChip = React.forwardRef<HTMLSpanElement, StatusChipProps>(
         {...props}
       >
         {isPulsing ? (
-          <span className="size-1.5 rounded-full bg-current shrink-0 animate-pulse" aria-hidden="true" />
+          <span className="size-1.5 rounded-full bg-current shrink-0" aria-hidden="true" />
         ) : (
           showIcon && <Icon className={iconSizes[size]} aria-hidden="true" />
         )}

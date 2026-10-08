@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -24,7 +23,6 @@ from app.customer_success.schemas import (
     OnboardingStep,
     ProductFeedbackCreate,
     SupportTicketCreate,
-    ValueMetricsOverview,
 )
 from app.imports.models import DataSource, ImportBatch, ImportStatus, SourceKind
 
@@ -409,7 +407,7 @@ async def get_customer_health_overview(
                 company_id=c.id,
                 company_name=c.legal_name,
                 is_live=bool(c.is_live),
-                health_status=health,  # type: ignore
+                health_status=health,
                 last_data_refresh=last_refresh,
                 last_user_activity=now,
                 critical_findings_count=0,

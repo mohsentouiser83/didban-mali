@@ -12,9 +12,9 @@ const switchVariants = cva(
     variants: {
       variant: {
         default:
-          "data-[state=checked]:bg-[var(--ds-primary)] data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:shadow-[0_0_12px_var(--ds-primary-glow)]",
+          "data-[state=checked]:bg-[var(--ds-primary)] data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:shadow-none",
         success:
-          "data-[state=checked]:bg-[var(--ds-success)] data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:shadow-[0_0_12px_var(--ds-success-glow)]",
+          "data-[state=checked]:bg-[var(--ds-success)] data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:shadow-none",
       },
       size: {
         sm: "h-[18px] w-8 p-0.5",
@@ -30,7 +30,7 @@ const switchVariants = cva(
 )
 
 const thumbVariants = cva(
-  "pointer-events-none block rounded-full bg-white shadow-md ring-0 transition-transform duration-200",
+  "pointer-events-none block rounded-full bg-white shadow-[var(--ds-shadow-md)] ring-0 transition-transform duration-200",
   {
     variants: {
       size: {

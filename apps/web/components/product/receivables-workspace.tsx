@@ -1,48 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ArrowUpDown,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronLeft,
-  Clock,
-  Download,
-  FileSpreadsheet,
-  Filter,
-  Layers,
-  Receipt,
-  RefreshCcw,
-  Search,
-  ShieldAlert,
-  SlidersHorizontal,
-  Target,
-  UserCheck,
-  Users,
-  X,
-} from "lucide-react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Column,
   FinancialDataTable,
-  KpiMetricCard,
   MoneyDisplay,
+  PageHeader,
   RiskBadge,
   toPersianDigits,
 } from "@/components/ui/financial";
-
+import { toJalaliDate } from "@/lib/date-utils";
 import { api } from "@/lib/product-api";
 import type {
-  AgingBucketDetail,
   Company,
   CustomerReceivableItem,
   CustomersReceivablesResponse,
@@ -52,694 +36,827 @@ import type {
   ReceivablesRiskLevel,
   ReceivablesSummaryResponse,
 } from "@/lib/product-types";
-
-const BUCKET_COLORS: Record<ReceivablesBucketKey, { bar: string; badge: string; border: string; activeBorder: string }> = {
-  not_due: {
-    bar: "bg-emerald-500",
-    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
-    border: "border-s-emerald-500",
-    activeBorder: "ring-2 ring-emerald-500/50",
-  },
-  "1_30": {
-    bar: "bg-amber-400",
-    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
-    border: "border-s-amber-400",
-    activeBorder: "ring-2 ring-amber-400/50",
-  },
-  "31_60": {
-    bar: "bg-orange-500",
-    badge: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/25",
-    border: "border-s-orange-500",
-    activeBorder: "ring-2 ring-orange-500/50",
-  },
-  "61_90": {
-    bar: "bg-rose-500",
-    badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25",
-    border: "border-s-rose-500",
-    activeBorder: "ring-2 ring-rose-500/50",
-  },
-  "90_plus": {
-    bar: "bg-red-600",
-    badge: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25",
-    border: "border-s-red-600",
-    activeBorder: "ring-2 ring-red-600/50",
-  },
-  due_date_missing: {
-    bar: "bg-slate-400 dark:bg-slate-500",
-    badge: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/25",
-    border: "border-s-slate-400",
-    activeBorder: "ring-2 ring-slate-400/50",
-  },
-};
+import { SelectField, SelectOption } from "./select-field";
+import styles from "./receivables.module.css";
 
 const BUCKET_LABELS: Record<ReceivablesBucketKey, string> = {
-  not_due: "جاری (قبل از سررسید)",
-  "1_30": "۱ تا ۳۰ روز معوق",
-  "31_60": "۳۱ تا ۶۰ روز معوق",
-  "61_90": "۶۱ تا ۹۰ روز معوق",
-  "90_plus": "بیش از ۹۰ روز معوق",
-  due_date_missing: "فاقد تاریخ سررسید صریح",
+  not_due: "هنوز سررسید نشده",
+  "1_30": "۱ تا ۳۰ روز",
+  "31_60": "۳۱ تا ۶۰ روز",
+  "61_90": "۶۱ تا ۹۰ روز",
+  "90_plus": "بیش از ۹۰ روز",
+  due_date_missing: "سررسید نامشخص",
 };
+const RISK_LABELS: Record<ReceivablesRiskLevel, string> = {
+  critical: "بحرانی",
+  high: "بالا",
+  medium: "متوسط",
+  low: "کم",
+};
+const RISK_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+const normalize = (value: string) =>
+  value
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .trim()
+    .toLocaleLowerCase();
+const percent = (value: number) =>
+  toPersianDigits(value.toFixed(1).replace(".", "٫")) + "٪";
 
 export function ReceivablesWorkspace({ company }: { company: Company }) {
-  const [summary, setSummary] = useState<ReceivablesSummaryResponse | null>(null);
+  const [summary, setSummary] = useState<ReceivablesSummaryResponse | null>(
+    null,
+  );
   const [customers, setCustomers] = useState<CustomerReceivableItem[]>([]);
   const [invoices, setInvoices] = useState<ReceivableInvoiceItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Filters & Search
-  const [riskFilter, setRiskFilter] = useState<"all" | ReceivablesRiskLevel>("all");
-  const [bucketFilter, setBucketFilter] = useState<"all" | ReceivablesBucketKey>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Selected customer for detail drawer
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerReceivableItem | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const request = useRef(0);
+  const [bucketFilter, setBucketFilter] = useState<
+    "all" | ReceivablesBucketKey
+  >("all");
+  const [riskFilter, setRiskFilter] = useState<"all" | ReceivablesRiskLevel>(
+    "all",
+  );
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("customers");
+  const [customerFilter, setCustomerFilter] = useState<string | null>(null);
+  const [sort, setSort] = useState("priority");
+  const [page, setPage] = useState({ key: "", index: 0 });
+  const [selected, setSelected] = useState<CustomerReceivableItem | null>(null);
+  const [reminder, setReminder] = useState<CustomerReceivableItem | null>(null);
+  const [tone, setTone] = useState("friendly");
+  const [draft, setDraft] = useState("");
+  const [copying, setCopying] = useState(false);
 
   const loadData = useCallback(
-    async (silent = false) => {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-
-      try {
-        const [sumRes, custRes, invRes] = await Promise.allSettled([
-          api<ReceivablesSummaryResponse>(`/companies/${company.id}/receivables/summary`),
-          api<CustomersReceivablesResponse>(`/companies/${company.id}/receivables/customers`),
-          api<InvoicesReceivablesResponse>(`/companies/${company.id}/receivables/invoices`),
-        ]);
-
-        if (sumRes.status === "fulfilled" && sumRes.value && Number(sumRes.value.total_receivables_irr) > 0) {
-          setSummary(sumRes.value);
-        } else {
-          setSummary(null);
-        }
-
-        if (custRes.status === "fulfilled" && custRes.value && custRes.value.items?.length > 0) {
-          setCustomers(custRes.value.items);
-        } else {
-          setCustomers([]);
-        }
-
-        if (invRes.status === "fulfilled" && invRes.value && invRes.value.items?.length > 0) {
-          setInvoices(invRes.value.items);
-        } else {
-          setInvoices([]);
-        }
-      } catch {
+    async (reset = false) => {
+      const id = ++request.current;
+      setLoading(true);
+      if (reset) {
         setSummary(null);
         setCustomers([]);
         setInvoices([]);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+        setErrors([]);
       }
+      const results = await Promise.allSettled([
+        api<ReceivablesSummaryResponse>(
+          `/companies/${company.id}/receivables/summary`,
+        ),
+        api<CustomersReceivablesResponse>(
+          `/companies/${company.id}/receivables/customers`,
+        ),
+        api<InvoicesReceivablesResponse>(
+          `/companies/${company.id}/receivables/invoices`,
+        ),
+      ]);
+      if (id !== request.current) return;
+      const [sum, cust, inv] = results;
+      setSummary(sum.status === "fulfilled" ? sum.value : null);
+      setCustomers(cust.status === "fulfilled" ? cust.value.items : []);
+      setInvoices(inv.status === "fulfilled" ? inv.value.items : []);
+      setErrors(
+        results.flatMap((result, index) =>
+          result.status === "rejected"
+            ? [["خلاصه مطالبات", "فهرست مشتریان", "فهرست فاکتورها"][index]]
+            : [],
+        ),
+      );
+      setLoading(false);
     },
-    [company.id]
+    [company.id],
   );
-
   useEffect(() => {
-    loadData();
+    setBucketFilter("all");
+    setRiskFilter("all");
+    setSearch("");
+    setSelected(null);
+    setCustomerFilter(null);
+    setReminder(null);
+    void loadData(true);
+    return () => {
+      request.current++;
+    };
   }, [loadData]);
 
-  // Filtered customers
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((c) => {
-      const matchesRisk = riskFilter === "all" || c.risk_level === riskFilter;
-      const matchesBucket =
-        bucketFilter === "all" ||
-        (Number(c.buckets[bucketFilter]) > 0);
-      const matchesSearch =
-        !searchQuery.trim() ||
-        c.name.includes(searchQuery.trim()) ||
-        (c.national_id && c.national_id.includes(searchQuery.trim()));
-      return matchesRisk && matchesBucket && matchesSearch;
-    });
-  }, [customers, riskFilter, bucketFilter, searchQuery]);
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter(
+        (c) =>
+          (riskFilter === "all" || c.risk_level === riskFilter) &&
+          (bucketFilter === "all" || Number(c.buckets[bucketFilter]) > 0) &&
+          (!normalize(search) ||
+            normalize(c.name + " " + (c.national_id ?? "")).includes(
+              normalize(search),
+            )),
+      ).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name, "fa")
+        : sort === "delay" ? b.avg_delay_days - a.avg_delay_days
+        : sort === "amount" || sort === "amount_asc" ? (Number(bucketFilter === "all" ? b.total_outstanding_irr : b.buckets[bucketFilter]) - Number(bucketFilter === "all" ? a.total_outstanding_irr : a.buckets[bucketFilter])) * (sort === "amount_asc" ? -1 : 1)
+        : b.risk_score - a.risk_score || Number(b.overdue_amount_irr) - Number(a.overdue_amount_irr)),
+    [customers, bucketFilter, riskFilter, search, sort],
+  );
+  const filteredInvoices = useMemo(
+    () =>
+      invoices.filter(
+        (inv) =>
+          (!customerFilter || inv.counterparty_id === customerFilter) &&
+          (bucketFilter === "all" || inv.bucket_key === bucketFilter) &&
+          (!normalize(search) ||
+            normalize(inv.invoice_no + " " + inv.counterparty_name).includes(
+              normalize(search),
+            )),
+      ).sort((a, b) => sort === "name" ? a.counterparty_name.localeCompare(b.counterparty_name, "fa")
+        : sort === "amount" || sort === "amount_asc" ? (Number(b.remaining_amount_irr) - Number(a.remaining_amount_irr)) * (sort === "amount_asc" ? -1 : 1)
+        : b.delay_days - a.delay_days || Number(b.remaining_amount_irr) - Number(a.remaining_amount_irr)),
+    [invoices, bucketFilter, search, sort, customerFilter],
+  );
+  const priorities = useMemo(
+    () =>
+      [...customers]
+        .filter((c) => Number(c.overdue_amount_irr) > 0)
+        .sort(
+          (a, b) =>
+            RISK_ORDER[a.risk_level] - RISK_ORDER[b.risk_level] ||
+            Number(b.overdue_amount_irr) - Number(a.overdue_amount_irr),
+        )
+        .slice(0, 3),
+    [customers],
+  );
+  const resetFilters = () => {
+    setBucketFilter("all");
+    setRiskFilter("all");
+    setSearch("");
+    setCustomerFilter(null);
+  };
+  const hasFilters =
+    bucketFilter !== "all" ||
+    search !== "" ||
+    (tab === "customers" && riskFilter !== "all") || customerFilter !== null;
+  const openReminder = (customer: CustomerReceivableItem) => {
+    setSelected(null);
+    setTone("friendly");
+    setReminder(customer);
+  };
+  useEffect(() => {
+    if (!reminder) return;
+    const amount =
+      Number(reminder.overdue_amount_irr) > 0
+        ? reminder.overdue_amount_irr
+        : reminder.total_outstanding_irr;
+    const balance = Number(amount).toLocaleString("fa-IR");
+    const intro =
+      tone === "friendly"
+        ? "با سلام و احترام،"
+        : tone === "formal"
+          ? "موضوع: پیگیری تسویه مانده حساب"
+          : "موضوع: درخواست تعیین زمان تسویه";
+    const requestText =
+      tone === "urgent"
+        ? "خواهشمند است در اولین فرصت، زمان قطعی تسویه را به واحد مالی اعلام فرمایید."
+        : tone === "formal"
+          ? "خواهشمند است نسبت به بررسی مانده حساب و اعلام برنامه تسویه اقدام فرمایید."
+          : "لطفاً مانده حساب را بررسی و زمان پرداخت را به ما اعلام کنید.";
+    setDraft(
+      `${intro}\nمسئول مالی محترم ${reminder.name}\nبر اساس سوابق فعلی ${company.legal_name}، مبلغ ${balance} ریال از مانده حساب شما ${Number(reminder.overdue_amount_irr) > 0 ? "سررسید گذشته است" : "در انتظار تسویه است"}.\n${requestText}\nدر صورت پرداخت، لطفاً رسید را برای تطبیق ارسال کنید.\nبا سپاس، واحد مالی ${company.legal_name}`,
+    );
+  }, [reminder, tone, company.legal_name]);
+  const copyDraft = async () => {
+    setCopying(true);
+    try {
+      await navigator.clipboard.writeText(draft);
+      toast.success("متن یادآوری کپی شد.");
+    } catch {
+      toast.error("کپی انجام نشد؛ متن را انتخاب و به‌صورت دستی کپی کنید.");
+    } finally {
+      setCopying(false);
+    }
+  };
 
-  // Filtered invoices
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      const matchesBucket = bucketFilter === "all" || inv.bucket_key === bucketFilter;
-      const matchesSearch =
-        !searchQuery.trim() ||
-        inv.invoice_no.includes(searchQuery.trim()) ||
-        inv.customer_name.includes(searchQuery.trim());
-      return matchesBucket && matchesSearch;
-    });
-  }, [invoices, bucketFilter, searchQuery]);
+  const tableKey = `${company.id}:${tab}:${bucketFilter}:${riskFilter}:${search}:${sort}:${customerFilter}`;
+  const resultCount = tab === "customers" ? filteredCustomers.length : filteredInvoices.length;
+  const pageCount = Math.max(1, Math.ceil(resultCount / 20));
+  const pageIndex = Math.min(page.key === tableKey ? page.index : 0, pageCount - 1);
+  const bucketTotal = bucketFilter === "all" ? null : (tab === "customers" ? filteredCustomers.reduce((sum, customer) => sum + Number(customer.buckets[bucketFilter] ?? 0), 0) : filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.remaining_amount_irr), 0));
+  const openCustomerInvoices = (customer: CustomerReceivableItem) => {
+    resetFilters();
+    setCustomerFilter(customer.counterparty_id);
+    setTab("invoices");
+    setSelected(null);
+    document.getElementById("receivable-cases")?.scrollIntoView({ block: "start", behavior: "instant" });
+  };
 
-  // Table Columns for Customers
   const customerColumns: Column<CustomerReceivableItem>[] = [
     {
       key: "name",
-      header: "مشتری / طرف حساب",
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => setSelectedCustomer(row)}
-          className="flex flex-col gap-0.5 text-start hover:text-primary transition-colors focus-visible:outline-none"
+      header: "مشتری",
+      render: (c) => (
+        <Button
+          variant="surface"
+          size="auto"
+          motion="none"
+          aria-label={`جزئیات مطالبات ${c.name}`}
+          className={styles.customerName}
+          onClick={() => setSelected(c)}
         >
-          <span className="font-semibold text-xs text-[var(--ds-card-fg)]">{row.name}</span>
-          <span className="text-[11px] text-[var(--ds-muted-fg)]">
-            {row.national_id ? `شناسه: ${toPersianDigits(row.national_id)}` : "بدون شناسه ملی"}
+          <strong>{c.name}</strong>
+          <span>
+            {c.national_id
+              ? `شناسه ${toPersianDigits(c.national_id)}`
+              : "شناسه ثبت نشده"}
           </span>
-        </button>
+        </Button>
       ),
     },
     {
-      key: "risk_level",
-      header: "سطح ریسک",
-      align: "center",
-      render: (row) => <RiskBadge level={row.risk_level} score={row.risk_score} showIcon size="sm" />,
-    },
-    {
-      key: "total_outstanding_irr",
-      header: "کل مانده بدهی",
+      key: "total",
+      header: "کل مانده مشتری",
       numeric: true,
-      align: "left",
-      render: (row) => <MoneyDisplay amount={row.total_outstanding_irr} compact />,
-    },
-    {
-      key: "overdue_amount_irr",
-      header: "مبلغ سررسید گذشته",
-      numeric: true,
-      align: "left",
-      render: (row) => (
+      render: (c) => (
         <MoneyDisplay
-          amount={row.overdue_amount_irr}
+          direction="neutral"
+          amount={c.total_outstanding_irr}
           compact
-          direction={Number(row.overdue_amount_irr) > 0 ? "negative" : "neutral"}
+          size="sm"
         />
       ),
     },
     {
-      key: "overdue_ratio",
-      header: "نسبت معوق",
-      align: "center",
-      render: (row) => (
-        <span
-          className={`font-mono text-xs font-medium ${
-            row.overdue_ratio > 0.5 ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-[var(--ds-card-fg)]"
-          }`}
-        >
-          {toPersianDigits((row.overdue_ratio * 100).toFixed(0))}٪
-        </span>
+      key: "overdue",
+      header: "مانده معوق",
+      numeric: true,
+      render: (c) => (
+        <MoneyDisplay
+          direction="neutral"
+          amount={c.overdue_amount_irr}
+          compact
+          size="sm"
+        />
       ),
     },
     {
-      key: "avg_delay_days",
-      header: "میانگین تاخیر",
-      align: "center",
-      render: (row) => (
-        <span className="text-xs text-[var(--ds-muted-fg)]">
-          {row.avg_delay_days > 0 ? `${toPersianDigits(row.avg_delay_days)} روز` : "سررسید نشده"}
-        </span>
-      ),
+      key: "delay",
+      header: "میانگین تأخیر",
+      render: (c) => `${toPersianDigits(c.avg_delay_days)} روز`,
     },
     {
-      key: "recommended_action",
-      header: "اقدام پیشنهادی وصول",
-      render: (row) => (
-        <span
-          className="text-xs text-[var(--ds-muted-fg)] line-clamp-1 max-w-[280px]"
-          title={row.recommended_action}
-        >
-          {row.recommended_action}
-        </span>
-      ),
+      key: "risk",
+      header: "ریسک وصول",
+      render: (c) => <>{!(c.risk_assessment_incomplete && Number(c.overdue_amount_irr) === 0) && <RiskBadge level={c.risk_level} size="sm" />}{c.risk_assessment_incomplete && <small className={styles.incomplete}>ارزیابی ناقص؛ سررسید نامشخص</small>}</>,
     },
     {
-      key: "actions",
-      header: "",
-      align: "center",
-      render: (row) => (
+      key: "action",
+      header: "پیگیری",
+      render: (c) => (
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setSelectedCustomer(row)}
-          className="h-7 text-xs px-2 text-primary hover:text-primary"
+          onClick={() => openReminder(c)}
+          aria-label={`پیش‌نویس یادآوری برای ${c.name}`}
         >
-          جزئیات
+          پیش‌نویس یادآوری
         </Button>
       ),
     },
   ];
+  if (bucketFilter !== "all") customerColumns.splice(1, 0, {
+    key: "bucket_amount", header: `مانده ${BUCKET_LABELS[bucketFilter]}`, numeric: true,
+    render: (customer) => <MoneyDisplay amount={customer.buckets[bucketFilter]} direction="neutral" compact size="sm" />,
+  });
 
-  // Table Columns for Invoices
   const invoiceColumns: Column<ReceivableInvoiceItem>[] = [
     {
-      key: "invoice_no",
+      key: "number",
       header: "شماره فاکتور",
-      render: (row) => <span className="font-mono text-xs font-medium">{toPersianDigits(row.invoice_no)}</span>,
+      render: (inv) => toPersianDigits(inv.invoice_no),
     },
     {
-      key: "customer_name",
+      key: "customer",
       header: "مشتری",
-      render: (row) => <span className="font-medium text-xs text-[var(--ds-card-fg)]">{row.customer_name}</span>,
+      render: (inv) => inv.counterparty_name,
     },
     {
-      key: "due_date",
-      header: "تاریخ سررسید",
-      align: "center",
-      render: (row) => <span className="text-xs text-[var(--ds-muted-fg)]">{toPersianDigits(row.due_date)}</span>,
+      key: "due",
+      header: "سررسید",
+      render: (inv) => (inv.due_date ? toJalaliDate(inv.due_date) : "ثبت نشده"),
     },
     {
-      key: "delay_days",
-      header: "وضعیت تاخیر",
-      align: "center",
-      render: (row) => {
-        if (!row.is_overdue) {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-medium">
-              سررسید جاری
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="outline" className="text-[11px] bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25 font-medium">
-            {toPersianDigits(row.delay_days)} روز تاخیر
-          </Badge>
-        );
-      },
+      key: "bucket",
+      header: "وضعیت سررسید",
+      render: (inv) =>
+        inv.bucket_key === "due_date_missing"
+          ? "سررسید نامشخص"
+          : inv.bucket_key === "not_due"
+            ? "هنوز سررسید نشده"
+            : `${toPersianDigits(inv.delay_days)} روز تأخیر`,
     },
     {
-      key: "bucket_key",
-      header: "بازه سنی",
-      align: "center",
-      render: (row) => {
-        const conf = BUCKET_COLORS[row.bucket_key];
-        return (
-          <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${conf.badge}`}>
-            {BUCKET_LABELS[row.bucket_key]}
-          </span>
-        );
-      },
-    },
-    {
-      key: "gross_amount_irr",
+      key: "gross",
       header: "مبلغ فاکتور",
       numeric: true,
-      align: "left",
-      render: (row) => <MoneyDisplay amount={row.gross_amount_irr} compact />,
+      render: (inv) => (
+        <MoneyDisplay
+          direction="neutral"
+          amount={inv.gross_amount_irr}
+          compact
+          size="sm"
+        />
+      ),
     },
     {
-      key: "outstanding_amount_irr",
+      key: "remaining",
       header: "مانده تسویه‌نشده",
       numeric: true,
-      align: "left",
-      render: (row) => (
-        <span className="font-semibold text-xs text-[var(--ds-card-fg)]">
-          <MoneyDisplay amount={row.remaining_amount_irr} compact />
-        </span>
+      render: (inv) => (
+        <MoneyDisplay
+          direction="neutral"
+          amount={inv.remaining_amount_irr}
+          compact
+          size="sm"
+        />
       ),
     },
   ];
 
-  if (loading && !summary) {
-    return (
-      <div className="space-y-6 animate-pulse" dir="rtl">
-        <div className="h-10 bg-muted/60 rounded-xl w-64" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-        </div>
-        <div className="h-64 bg-muted/60 rounded-xl" />
-      </div>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[360px]" dir="rtl">
-        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <Building2 className="size-7 text-primary" />
-        </div>
-        <div className="max-w-md space-y-1">
-          <h3 className="text-base font-bold text-foreground">هنوز داده‌های مطالبات تجاری ثبت نشده است</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            برای مشاهده ماتریس سنی و ریسک اعتباری مشتریان، ابتدا باید دفاتر معین یا لیست بدهکاران تجاری را بارگذاری نمایید.
-          </p>
-        </div>
-        <Link href={`/companies/${company.id}/imports`}>
-          <Button className="gap-2 text-xs">
-            بارگذاری اطلاعات مالی
-            <ChevronLeft className="size-4" />
-          </Button>
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 pb-12" dir="rtl">
-      {/* Sub-header Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[var(--ds-border)]/60">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--ds-card-fg)]">
-            تحلیل سنی و مدیریت مطالبات تجاری
-          </h2>
-          <p className="text-xs text-[var(--ds-muted-fg)]">
-            پایش سررسید فاکتورها، ارزیابی ریسک اعتباری خریداران و بهینه‌سازی دوره وصول (DSO)
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {summary?.as_of_date && (
-            <div className="flex items-center gap-1.5 text-xs text-[var(--ds-muted-fg)] bg-[var(--ds-muted-bg)] px-2.5 py-1 rounded-lg border border-[var(--ds-border)]">
-              <Calendar className="size-3 text-primary" />
-              <span>مبنای داده‌ها:</span>
-              <span className="font-medium text-[var(--ds-card-fg)]">{toPersianDigits(summary.as_of_date)}</span>
-            </div>
-          )}
-
+    <div className={styles.page} dir="rtl">
+      <PageHeader
+        title="مطالبات، از سررسید تا وصول"
+        description="زمان مانده‌ها را ببینید، اولویت پیگیری را مشخص کنید و جزئیات هر مشتری را بررسی کنید."
+        statusMetadata={
+          summary ? (
+            <span>مبنای داده‌ها: {toJalaliDate(summary.as_of_date)}</span>
+          ) : undefined
+        }
+        secondaryActions={
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            className="h-8 text-xs gap-1.5"
+            disabled={loading}
+            onClick={() => loadData()}
           >
-            <RefreshCcw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span>بروزرسانی</span>
+            {loading ? "در حال دریافت…" : "به‌روزرسانی"}
+          </Button>
+        }
+        primaryAction={
+          <Button asChild>
+            <Link href={`/companies/${company.id}/data`}>بررسی داده‌ها</Link>
+          </Button>
+        }
+      />
+      {errors.length > 0 && (
+        <div role="alert" className={styles.error}>
+          <strong>دریافت بخشی از اطلاعات انجام نشد.</strong>
+          <p>{errors.join("، ")} در دسترس نیست. دوباره تلاش کنید.</p>
+          <Button
+            variant="outline"
+            disabled={loading}
+            onClick={() => loadData()}
+          >
+            تلاش مجدد
           </Button>
         </div>
-      </div>
-
-      {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiMetricCard
-          title="کل مطالبات تجاری"
-          value={summary?.total_receivables_irr ?? 0}
-          loading={loading}
-          subtext={`${toPersianDigits(summary?.customer_count ?? 0)} طرف‌حساب دارای مانده`}
-          icon={Building2}
-        />
-        <KpiMetricCard
-          title="مطالبات معوق سررسیدشده"
-          value={summary?.total_overdue_irr ?? 0}
-          loading={loading}
-          status={Number(summary?.total_overdue_irr ?? 0) > 0 ? "critical" : "normal"}
-          subtext={`${toPersianDigits(summary?.high_risk_customer_count ?? 0)} مشتری در وضعیت ریسک بالا`}
-          icon={ShieldAlert}
-        />
-        <KpiMetricCard
-          title="نسبت مطالبات معوق"
-          value={`${toPersianDigits(((summary?.overdue_ratio ?? 0) * 100).toFixed(1))}٪`}
-          unit=""
-          currency=""
-          loading={loading}
-          status={(summary?.overdue_ratio ?? 0) > 0.3 ? "warning" : "normal"}
-          subtext="سهم معوقات از کل سبد مطالبات"
-          icon={Target}
-        />
-        <KpiMetricCard
-          title="دوره وصول مطالبات (DSO)"
-          value={`${toPersianDigits(summary?.dso_days ?? 0)} روز`}
-          unit=""
-          currency=""
-          loading={loading}
-          subtext="میانگین زمان نقدشوندگی فاکتورها"
-          icon={Clock}
-        />
-      </div>
-
-      {/* Interactive Aging Distribution Matrix */}
-      <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
-        <CardHeader className="p-4 pb-3 border-b border-[var(--ds-border)]/70">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="size-4 text-primary" />
-                <span>ماتریس تحلیل سنی مطالبات (Aging Breakdown)</span>
-              </CardTitle>
-              <p className="text-xs text-[var(--ds-muted-fg)] mt-0.5">
-                برای فیلتر کردن مشتریان و فاکتورها، روی هر طبقه سنی کلیک کنید
-              </p>
-            </div>
-            {bucketFilter !== "all" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBucketFilter("all")}
-                className="h-7 text-xs text-primary gap-1"
-              >
-                <span>حذف فیلتر سنی</span>
-                <X className="size-3.5" />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          {/* Proportion Bar */}
-          <div className="h-3 w-full rounded-full bg-[var(--ds-muted-bg)] overflow-hidden flex">
-            {summary?.buckets.map((b) => {
-              if (b.share_percentage <= 0) return null;
-              return (
-                <div
-                  key={b.bucket_key}
-                  style={{ width: `${b.share_percentage}%` }}
-                  className={`${BUCKET_COLORS[b.bucket_key].bar} transition-all duration-300 hover:opacity-80`}
-                  title={`${b.label_fa}: ${toPersianDigits(b.share_percentage.toFixed(1))}٪`}
-                />
-              );
-            })}
-          </div>
-
-          {/* 5 Clickable Bucket Metric Blocks */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {summary?.buckets.map((b) => {
-              const conf = BUCKET_COLORS[b.bucket_key];
-              const isSelected = bucketFilter === b.bucket_key;
-              return (
-                <button
-                  key={b.bucket_key}
-                  type="button"
-                  onClick={() => setBucketFilter(isSelected ? "all" : b.bucket_key)}
-                  className={`p-3 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card-bg)] border-s-4 ${conf.border} text-start flex flex-col justify-between gap-2 transition-all hover:shadow-xs focus-visible:outline-none ${
-                    isSelected ? conf.activeBorder : ""
-                  }`}
-                >
-                  <div>
-                    <span className="text-xs font-medium text-[var(--ds-muted-fg)] block">
-                      {b.label_fa}
-                    </span>
-                    <div className="mt-1 font-semibold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                      <MoneyDisplay amount={b.amount_irr} compact />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[var(--ds-border)]/60 text-[var(--ds-muted-fg)]">
-                    <span>{toPersianDigits(b.invoice_count)} فاکتور</span>
-                    <span className="font-semibold text-[var(--ds-card-fg)] tabular-nums">
-                      {toPersianDigits(b.share_percentage.toFixed(1))}٪
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs: Customer Credit Risk vs Invoices */}
-      <Tabs defaultValue="customers" className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <TabsList className="h-9 bg-[var(--ds-muted-bg)] p-1">
-            <TabsTrigger value="customers" className="text-xs gap-1.5 font-medium">
-              <Users className="size-3.5" />
-              <span>ریسک اعتباری طرف‌حساب‌ها ({toPersianDigits(filteredCustomers.length)})</span>
-            </TabsTrigger>
-            <TabsTrigger value="invoices" className="text-xs gap-1.5 font-medium">
-              <FileSpreadsheet className="size-3.5" />
-              <span>فاکتورهای باز ({toPersianDigits(filteredInvoices.length)})</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[var(--ds-muted-fg)]" />
-            <Input
-              placeholder="جستجوی مشتری یا شماره..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-8 text-xs h-8 bg-[var(--ds-card)]"
-            />
-          </div>
+      )}
+      {loading && !summary ? (
+        <div
+          role="status"
+          aria-label="در حال دریافت مطالبات"
+          className={styles.loading}
+        >
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-80 w-full" />
         </div>
-
-        {/* Tab 1: Customers */}
-        <TabsContent value="customers" className="space-y-4 m-0">
-          {/* Risk Filter Chips */}
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            <span className="text-[var(--ds-muted-fg)] ml-1 font-medium">سطح ریسک:</span>
-            <Button
-              variant={riskFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("all")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              همه ({toPersianDigits(customers.length)})
-            </Button>
-            <Button
-              variant={riskFilter === "critical" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("critical")}
-              className={`h-6 text-xs px-2.5 rounded-full ${
-                riskFilter !== "critical" ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30" : ""
-              }`}
-            >
-              بحرانی ({toPersianDigits(customers.filter((c) => c.risk_level === "critical").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "high" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("high")}
-              className={`h-6 text-xs px-2.5 rounded-full ${
-                riskFilter !== "high" ? "text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30" : ""
-              }`}
-            >
-              بالا ({toPersianDigits(customers.filter((c) => c.risk_level === "high").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "medium" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("medium")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              متوسط ({toPersianDigits(customers.filter((c) => c.risk_level === "medium").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "low" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("low")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              کم‌ریسک ({toPersianDigits(customers.filter((c) => c.risk_level === "low").length)})
-            </Button>
-          </div>
-
-          {/* Customers Table */}
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] overflow-hidden shadow-xs">
-            <FinancialDataTable
-              data={filteredCustomers}
-              columns={customerColumns}
-              keyExtractor={(row) => row.counterparty_id}
-              density="compact"
-              emptyMessage="هیچ مشتری با معیارهای جستجو یافت نشد."
-            />
-          </Card>
-        </TabsContent>
-
-        {/* Tab 2: Invoices */}
-        <TabsContent value="invoices" className="space-y-4 m-0">
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] overflow-hidden shadow-xs">
-            <FinancialDataTable
-              data={filteredInvoices}
-              columns={invoiceColumns}
-              keyExtractor={(row) => row.invoice_id}
-              density="compact"
-              emptyMessage="هیچ فاکتوری یافت نشد."
-            />
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Customer Aging Drawer / Detail Dialog */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl border-[var(--ds-border)] bg-[var(--ds-card)] shadow-2xl animate-in fade-in-50 zoom-in-95">
-            <CardHeader className="flex flex-row items-start justify-between pb-3 border-b border-[var(--ds-border)]">
+      ) : (
+        summary && (
+          <>
+            <section className={styles.metrics} aria-label="موقعیت مطالبات">
               <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-bold text-[var(--ds-card-fg)]">{selectedCustomer.name}</CardTitle>
-                  <RiskBadge level={selectedCustomer.risk_level} score={selectedCustomer.risk_score} size="sm" />
-                </div>
-                <CardDescription className="text-xs mt-1">
-                  شناسه ملی: {toPersianDigits(selectedCustomer.national_id ?? "—")} | تعداد فاکتور باز:{" "}
-                  {toPersianDigits(selectedCustomer.open_invoices_count)}
-                </CardDescription>
+                <h2>کل مطالبات</h2>
+                <MoneyDisplay
+                  direction="neutral"
+                  amount={summary.total_receivables_irr}
+                  executive
+                  size="2xl"
+                />
+                <p>
+                  {toPersianDigits(summary.customer_count)} مشتری دارای مانده
+                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full"
-                onClick={() => setSelectedCustomer(null)}
-              >
-                <X className="size-4" />
-              </Button>
-            </CardHeader>
-
-            <CardContent className="space-y-4 pt-4">
-              {/* Financial Balance Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)]">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">کل مانده بدهی</span>
-                  <div className="mt-1 font-bold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                    <MoneyDisplay amount={selectedCustomer.total_outstanding_irr} />
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)]">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">مبلغ معوق</span>
-                  <div className="mt-1 font-bold text-sm text-rose-600 dark:text-rose-400 tabular-nums">
-                    <MoneyDisplay amount={selectedCustomer.overdue_amount_irr} />
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)] col-span-2 sm:col-span-1">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">میانگین روزهای تاخیر</span>
-                  <div className="mt-1 font-bold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                    {toPersianDigits(selectedCustomer.avg_delay_days)} روز
-                  </div>
-                </div>
-              </div>
-
-              {/* Bucket Breakdown for this Customer */}
               <div>
-                <h4 className="text-xs font-semibold text-[var(--ds-card-fg)] mb-2 flex items-center gap-1.5">
-                  <Layers className="size-3.5 text-primary" />
-                  <span>سبد بازه سنی بدهی این مشتری</span>
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                  {(Object.keys(BUCKET_LABELS) as ReceivablesBucketKey[]).map((key) => {
-                    const amount = selectedCustomer.buckets[key] ?? "0";
-                    const conf = BUCKET_COLORS[key];
-                    return (
-                      <div
-                        key={key}
-                        className={`p-2.5 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card-bg)] border-s-2 ${conf.border}`}
-                      >
-                        <span className="text-[11px] text-[var(--ds-muted-fg)] block">{BUCKET_LABELS[key]}</span>
-                        <div className="mt-1 font-semibold text-xs tabular-nums">
-                          <MoneyDisplay amount={amount} compact />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <h2>مانده سررسید گذشته</h2>
+                <MoneyDisplay
+                  direction="neutral"
+                  amount={summary.total_overdue_irr}
+                  executive
+                  size="2xl"
+                />
+                <p>{percent(summary.overdue_ratio * 100)} از کل مطالبات</p>
               </div>
-
-              {/* Recommended Action Callout */}
-              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
-                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5 text-xs">
-                  <span className="font-semibold text-amber-800 dark:text-amber-300">
-                    اقدام پیشنهادی جهت کنترل ریسک اعتباری:
-                  </span>
-                  <p className="text-amber-900/90 dark:text-amber-200/90 leading-relaxed">
-                    {selectedCustomer.recommended_action}
+              <div>
+                <h2>دوره وصول مطالبات</h2>
+                <strong>
+                  {summary.dso_days == null ? "—" : toPersianDigits(String(summary.dso_days).replace(".", "٫"))} {summary.dso_days != null && <small>روز</small>}
+                </strong>
+                <p>تقریبی؛ بر اساس فروش صورتحساب‌شده</p>
+              </div>
+              <div>
+                <h2>مشتریان با ریسک بالا</h2>
+                <strong>
+                  {toPersianDigits(summary.high_risk_customer_count)}{" "}
+                  <small>مشتری</small>
+                </strong>
+              </div>
+            </section>
+            <details className={styles.method}>
+              <summary>مبنای دوره وصول و ارزیابی ریسک</summary>
+              <p>دوره وصول = (کل مطالبات باز ÷ فروش صورتحساب‌شده در {toPersianDigits(summary.dso_period_days ?? 90)} روز گذشته) × {toPersianDigits(summary.dso_period_days ?? 90)}. فروش نقد و اعتباری جدا نشده‌اند؛ این شاخص تقریبی است. بدون فروش دوره، مقدار قابل محاسبه نیست.</p>
+              {summary.dso_warnings?.map((warning) => <p key={warning}>{warning}</p>)}
+              <p>تعداد مشتریان با ریسک بالا شامل سطوح بالا و بحرانی است و از همان امتیازهای فهرست مشتریان محاسبه می‌شود.</p>
+            </details>
+            <section
+              className={styles.analysis}
+              aria-labelledby="receivable-aging-title"
+            >
+              <div className={styles.aging}>
+                <div className={styles.sectionHeader}>
+                  <div>
+                    <h2 id="receivable-aging-title">زمان، در ماندهٔ مطالبات</h2>
+                    <p>هر بازه را انتخاب کنید تا فهرست پایین صفحه محدود شود.</p>
+                  </div>
+                  {bucketFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBucketFilter("all")}
+                    >
+                      همه بازه‌ها
+                    </Button>
+                  )}
+                </div>
+                <div className={styles.proportion} aria-hidden="true">
+                  {summary.buckets
+                    .filter((b) => b.share_percentage > 0)
+                    .map((b) => (
+                      <span
+                        key={b.bucket_key}
+                        data-bucket={b.bucket_key}
+                        style={{ flexGrow: Math.max(0, b.share_percentage) }}
+                      />
+                    ))}
+                </div>
+                <div className={styles.buckets}>
+                  {summary.buckets.map((b) => (
+                    <Button
+                      variant="surface"
+                      size="auto"
+                      motion="none"
+                      key={b.bucket_key}
+                      className={styles.bucket}
+                      data-bucket={b.bucket_key}
+                      aria-pressed={bucketFilter === b.bucket_key}
+                      onClick={() =>
+                        setBucketFilter(
+                          bucketFilter === b.bucket_key ? "all" : b.bucket_key,
+                        )
+                      }
+                    >
+                      <span>{BUCKET_LABELS[b.bucket_key]}</span>
+                      <MoneyDisplay
+                        direction="neutral"
+                        amount={b.amount_irr}
+                        compact
+                        size="md"
+                      />
+                      <small>
+                        {toPersianDigits(b.invoice_count)} فاکتور{" "}
+                        <span>{percent(b.share_percentage)}</span>
+                      </small>
+                    </Button>
+                  ))}
+                </div>
+                {summary.buckets.some(
+                  (b) =>
+                    b.bucket_key === "due_date_missing" &&
+                    Number(b.amount_irr) > 0,
+                ) && (
+                  <p className={styles.footnote}>
+                    مانده‌های بدون تاریخ سررسید، معوق محسوب نشده‌اند؛ برای تحلیل
+                    دقیق‌تر، تاریخ آن‌ها را تکمیل کنید.
                   </p>
-                </div>
+                )}
               </div>
-
-              <div className="flex justify-end pt-2">
-                <Button variant="default" size="sm" onClick={() => setSelectedCustomer(null)} className="text-xs h-8">
-                  بستن
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <aside
+                className={styles.priorities}
+                aria-labelledby="receivable-priority-title"
+              >
+                <h2 id="receivable-priority-title">اولویت بررسی وصول</h2>
+                <p>بر اساس ریسک و مانده معوق</p>
+                {errors.includes("فهرست مشتریان") ? (
+                  <p>فهرست مشتریان در دسترس نیست.</p>
+                ) : priorities.length === 0 ? (
+                  <p className={styles.priorityEmpty}>
+                    مشتری با مانده معوق در داده‌های فعلی ثبت نشده است.
+                  </p>
+                ) : (
+                  <ol>
+                    {priorities.map((c) => (
+                      <li key={c.counterparty_id}>
+                        <Button
+                          variant="surface"
+                          size="auto"
+                          motion="none"
+                          onClick={() => setSelected(c)}
+                        >
+                          <strong>{c.name}</strong>
+                          <MoneyDisplay
+                            direction="neutral"
+                            amount={c.overdue_amount_irr}
+                            compact
+                            size="sm"
+                          />
+                        </Button>
+                        <div>
+                          <RiskBadge level={c.risk_level} size="sm" />
+                          <span>
+                            {toPersianDigits(c.avg_delay_days)} روز تأخیر
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </aside>
+            </section>
+          </>
+        )
+      )}
+      {!loading && !summary && errors.length === 0 && (
+        <div className={styles.empty}>
+          <h2>خلاصه مطالبات در دسترس نیست</h2>
+          <p>داده‌های فروش و دریافت‌ها را در مرکز داده بررسی کنید.</p>
+          <Button asChild>
+            <Link href={`/companies/${company.id}/data`}>بررسی داده‌ها</Link>
+          </Button>
         </div>
       )}
+      {(!loading || summary) && (
+        <section className={styles.records} aria-label="جزئیات مطالبات" id="receivable-cases">
+          <Tabs value={tab} onValueChange={setTab} dir="rtl">
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2>پرونده‌های وصول</h2>
+                <p>مانده و سابقه سررسید، در سطح مشتری یا فاکتور</p>
+              </div>
+              <TabsList>
+                <TabsTrigger value="customers">مشتریان</TabsTrigger>
+                <TabsTrigger value="invoices">فاکتورهای باز</TabsTrigger>
+              </TabsList>
+            </div>
+            <div className={styles.filters}>
+              <label className={styles.search}>
+                <span>
+                  {tab === "customers"
+                    ? "جستجوی مشتری یا شناسه"
+                    : "جستجوی مشتری یا شماره فاکتور"}
+                </span>
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={
+                    tab === "customers"
+                      ? "نام یا شناسه مشتری"
+                      : "نام مشتری یا شماره فاکتور"
+                  }
+                />
+              </label>
+              {tab === "customers" && (
+                <label className={styles.riskFilter}>
+                  <span>ریسک وصول</span>
+                  <SelectField
+                    value={riskFilter}
+                    onValueChange={(v) => setRiskFilter(v as typeof riskFilter)}
+                    aria-label="ریسک وصول"
+                  >
+                    <SelectOption value="all">همه ریسک‌ها</SelectOption>
+                    {Object.entries(RISK_LABELS).map(([key, label]) => (
+                      <SelectOption value={key} key={key}>
+                        {label}
+                      </SelectOption>
+                    ))}
+                  </SelectField>
+                </label>
+              )}
+              <label className={styles.riskFilter}>
+                <span>ترتیب نمایش</span>
+                <SelectField value={sort} onValueChange={setSort} aria-label="ترتیب نمایش">
+                  <SelectOption value="priority">{tab === "customers" ? "بیشترین ریسک" : "بیشترین تأخیر"}</SelectOption>
+                  <SelectOption value="amount">بیشترین مانده</SelectOption>
+                  <SelectOption value="amount_asc">کمترین مانده</SelectOption>
+                  <SelectOption value="delay">بیشترین تأخیر</SelectOption>
+                  <SelectOption value="name">نام مشتری</SelectOption>
+                </SelectField>
+              </label>
+              {customerFilter && <p className={styles.customerScope}>فاکتورهای {customers.find((customer) => customer.counterparty_id === customerFilter)?.name ?? "مشتری انتخاب‌شده"}<Button variant="ghost" size="sm" onClick={() => setCustomerFilter(null)}>همه مشتریان</Button></p>}
+              <div className={styles.filterSummary}>
+                <span>
+                  {toPersianDigits(
+                    tab === "customers"
+                      ? filteredCustomers.length
+                      : filteredInvoices.length,
+                  )}{" "}
+                  نتیجه
+                  {bucketFilter !== "all"
+                    ? ` در بازه ${BUCKET_LABELS[bucketFilter]}`
+                    : ""}
+                </span>
+                {bucketTotal != null && <span>جمع مانده بازه: <MoneyDisplay amount={String(bucketTotal)} direction="neutral" executive size="sm" /></span>}
+                {hasFilters && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters}>
+                    پاک‌کردن فیلترها
+                  </Button>
+                )}
+              </div>
+            </div>
+            <TabsContent value="customers">
+              {errors.includes("فهرست مشتریان") ? (
+                <p role="status">
+                  فهرست مشتریان دریافت نشده است؛ از تلاش مجدد استفاده کنید.
+                </p>
+              ) : (
+                <FinancialDataTable
+                  tableAriaLabel="مطالبات مشتریان"
+                  data={filteredCustomers.slice(pageIndex * 20, (pageIndex + 1) * 20)}
+                  columns={customerColumns}
+                  keyExtractor={(c) => c.counterparty_id}
+                  density="normal"
+                  emptyMessage={
+                    hasFilters
+                      ? "مشتری مطابق این فیلترها پیدا نشد؛ فیلترها را پاک کنید."
+                      : "مشتری دارای مانده در داده‌های فعلی ثبت نشده است."
+                  }
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="invoices">
+              {errors.includes("فهرست فاکتورها") ? (
+                <p role="status">
+                  فهرست فاکتورها دریافت نشده است؛ از تلاش مجدد استفاده کنید.
+                </p>
+              ) : (
+                <FinancialDataTable
+                  tableAriaLabel="فاکتورهای باز مطالبات"
+                  data={filteredInvoices.slice(pageIndex * 20, (pageIndex + 1) * 20)}
+                  columns={invoiceColumns}
+                  keyExtractor={(inv) => inv.id}
+                  density="normal"
+                  emptyMessage={
+                    hasFilters
+                      ? "فاکتور مطابق این فیلترها پیدا نشد؛ فیلترها را پاک کنید."
+                      : "فاکتور باز در داده‌های فعلی ثبت نشده است."
+                  }
+                />
+              )}
+            </TabsContent>
+            {bucketFilter !== "all" && tab === "customers" && <p className={styles.footnote}>ستون مانده بازه فقط مبلغ بازه انتخاب‌شده را نشان می‌دهد؛ کل مانده مشتری و مانده معوق شامل تمام بازه‌ها هستند.</p>}
+            <nav className={styles.pagination} aria-label="صفحه‌بندی مطالبات">
+              <span>{resultCount ? `${toPersianDigits(pageIndex * 20 + 1)} تا ${toPersianDigits(Math.min((pageIndex + 1) * 20, resultCount))} از ${toPersianDigits(resultCount)}` : "۰ نتیجه"} · صفحه {toPersianDigits(pageIndex + 1)} از {toPersianDigits(pageCount)}</span>
+              <Button variant="outline" disabled={loading || pageIndex === 0} onClick={() => setPage({ key: tableKey, index: pageIndex - 1 })}>صفحه قبل</Button>
+              <Button variant="outline" disabled={loading || pageIndex + 1 >= pageCount} onClick={() => setPage({ key: tableKey, index: pageIndex + 1 })}>صفحه بعد</Button>
+            </nav>
+          </Tabs>
+        </section>
+      )}
+      <p className={styles.footnote}>
+        ارزیابی ریسک بر اساس سوابق ثبت‌شده است. پیش از پیگیری، دریافت‌های جدید و
+        صحت مانده حساب را بررسی کنید.
+      </p>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(open) => !open && setSelected(null)}
+      >
+        <DialogContent className={styles.detailDialog} dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{selected?.name}</DialogTitle>
+            <DialogDescription>
+              جزئیات مانده و پیشنهاد پیگیری بر اساس داده‌های فعلی
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <>
+              <div className={styles.detailStatus}>
+                {selected.risk_assessment_incomplete && Number(selected.overdue_amount_irr) === 0 ? <span className={styles.incomplete}>ارزیابی ریسک ناقص</span> : <RiskBadge level={selected.risk_level} score={selected.risk_score} size="sm" />}
+                <span>
+                  {toPersianDigits(selected.open_invoices_count)} فاکتور باز
+                </span>
+                <span>
+                  {toPersianDigits(selected.avg_delay_days)} روز میانگین تأخیر
+                </span>
+              </div>
+              <dl className={styles.balances}>
+                <div>
+                  <dt>کل مانده</dt>
+                  <dd>
+                    <MoneyDisplay
+                      direction="neutral"
+                      amount={selected.total_outstanding_irr}
+                      executive
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt>مانده معوق</dt>
+                  <dd>
+                    <MoneyDisplay
+                      direction="neutral"
+                      amount={selected.overdue_amount_irr}
+                      executive
+                    />
+                  </dd>
+                </div>
+              </dl>
+              <dl className={styles.detailBuckets}>
+                {Object.entries(BUCKET_LABELS).map(([key, label]) => (
+                  <div key={key}>
+                    <dt>{label}</dt>
+                    <dd>
+                      <MoneyDisplay
+                        direction="neutral"
+                        amount={selected.buckets[key as ReceivablesBucketKey]}
+                        compact
+                        size="sm"
+                      />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              {selected.risk_assessment_incomplete && <p role="status" className={styles.incomplete}>بخشی از مانده فاقد سررسید است؛ امتیاز ریسک فقط اطلاعات دارای سررسید را پوشش می‌دهد و کامل نیست.</p>}
+              <details className={styles.method}>
+                <summary>چرا این امتیاز ریسک؟</summary>
+                <p>سهم مانده معوق × ۴۵، امتیاز قدمت (۵، ۱۰، ۲۰ یا ۳۵ برای قدیمی‌ترین بازه معوق) و میانگین تأخیر ÷ ۴ تا سقف ۲۰ امتیاز جمع می‌شوند. امتیاز نهایی از ۱۰۰ است؛ بالا از ۴۵ و بحرانی از ۷۰ یا سهم بیش از ۴۰٪ برای معوق بالای ۹۰ روز. میانگین تأخیر بر اساس تعداد فاکتورهای معوق دارای سررسید است.</p>
+                <p>این قواعد مدل‌اند؛ شرایط اعتبار و اقدام بعدی با سیاست شرکت و تأیید مسئول مالی تعیین می‌شود.</p>
+              </details>
+              <div className={styles.recommendation}>
+                <strong>پیشنهاد پیگیری</strong>
+                <p>{selected.recommended_action}</p>
+              </div>
+              <Button variant="outline" disabled={errors.includes("فهرست فاکتورها")} onClick={() => openCustomerInvoices(selected)}>مشاهده فاکتورهای این مشتری</Button>
+              {errors.includes("فهرست فاکتورها") && <p>فاکتورها دریافت نشده‌اند؛ پنجره را ببندید و تلاش مجدد را انتخاب کنید.</p>}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelected(null)}>
+                  بستن
+                </Button>
+                <Button onClick={() => openReminder(selected)}>
+                  تهیه پیش‌نویس یادآوری
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!reminder}
+        onOpenChange={(open) => !open && setReminder(null)}
+      >
+        <DialogContent className={styles.detailDialog} dir="rtl">
+          <DialogHeader>
+            <DialogTitle>یادآوری برای {reminder?.name}</DialogTitle>
+            <DialogDescription>
+              متن را بررسی و ویرایش کنید، سپس برای ارسال در کانال موردنظر کپی
+              کنید.
+            </DialogDescription>
+          </DialogHeader>
+          <label className={styles.tone}>
+            <span>لحن پیام</span>
+            <SelectField
+              aria-label="لحن پیام"
+              value={tone}
+              onValueChange={setTone}
+            >
+              <SelectOption value="friendly">دوستانه</SelectOption>
+              <SelectOption value="formal">رسمی</SelectOption>
+              <SelectOption value="urgent">پیگیری فوری</SelectOption>
+            </SelectField>
+          </label>
+          <label className={styles.draft}>
+            <span>متن یادآوری</span>
+            <Textarea
+              rows={9}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          </label>
+          <p className={styles.footnote}>
+            کپی متن، پیام را ارسال نمی‌کند و پیگیری در پرونده ثبت نمی‌شود.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReminder(null)}>
+              بستن
+            </Button>
+            <Button onClick={copyDraft} disabled={copying || !draft.trim()}>
+              {copying ? "در حال کپی…" : "کپی متن یادآوری"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

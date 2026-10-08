@@ -52,8 +52,8 @@ class PayablesSummaryResponse(BaseModel):
     total_overdue_irr: Decimal
     overdue_ratio: float
     dpo_days: int
-    dso_days: int
-    ccc_days: int
+    dso_days: float
+    ccc_days: float
     vendor_count: int
     high_risk_vendor_count: int
     buckets: list[PayableAgingBucketDetail]

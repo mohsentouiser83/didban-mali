@@ -136,7 +136,6 @@ async def test_reconciliation_finding_rules_detection() -> None:
         session.add(bank_acc)
         await session.flush()
 
-        now = datetime.now(UTC)
         # Bank transaction 1: Unmatched and aged > 7 days (e.g., 15 days old)
         # Bank transaction 2 & 3: Potential duplicates (same amount, same date, same bank account)
         # Bank transaction 4: Large unreconciled transaction (> 500,000,000 IRR)

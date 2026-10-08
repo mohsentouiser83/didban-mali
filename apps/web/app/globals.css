@@ -1,10 +1,17 @@
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 @import "./design-tokens.css";
+@import "./product-sidebar.css";
+@import "./product-header.css";
+@import "./product-layout.css";
+@import "./product-dashboard.css";
+@import "./product-controls.css";
+@import "./product-pages.css";
+
+:root { color-scheme: light; }
 
 @theme inline {
-  --font-sans: var(--font-sans), "IRANYekanX", Tahoma, "Segoe UI", sans-serif;
-  --font-mono: var(--font-mono), var(--font-sans), "IRANYekanX", monospace;
+  --font-sans: "IRANYekanX", Tahoma, sans-serif;
+  --font-mono: "IRANYekanX", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -79,96 +86,45 @@
 }
 
 :root {
-  --font-sans: "IRANYekanX", Tahoma, "Segoe UI", sans-serif;
-  --font-mono: "IRANYekanX", Tahoma, "Segoe UI", monospace;
-  --background: var(--ds-p-slate-50);
-  --foreground: var(--ds-p-navy-950);
-  --card: var(--ds-p-white);
-  --card-foreground: var(--ds-p-navy-950);
-  --popover: var(--ds-p-white);
-  --popover-foreground: var(--ds-p-navy-950);
-  --primary: var(--ds-p-cyan-700);
-  --primary-foreground: var(--ds-p-white);
-  --secondary: var(--ds-p-slate-100);
-  --secondary-foreground: var(--ds-p-navy-950);
-  --muted: var(--ds-p-slate-100);
-  --muted-foreground: var(--ds-p-slate-600);
-  --accent: var(--ds-p-slate-100);
-  --accent-foreground: var(--ds-p-navy-950);
-  --destructive: var(--ds-p-red-500);
+  --font-sans: "IRANYekanX", Tahoma, sans-serif;
+  --font-mono: "IRANYekanX", monospace;
+  --font-display: "Anjoman Max", "IRANYekanX", sans-serif;
+  --background: var(--ds-background);
+  --foreground: var(--ds-foreground);
+  --card: var(--ds-card-solid);
+  --card-foreground: var(--ds-foreground);
+  --popover: var(--ds-surface-elevated);
+  --popover-foreground: var(--ds-foreground);
+  --primary: var(--ds-primary);
+  --primary-foreground: var(--ds-primary-foreground);
+  --secondary: var(--ds-muted);
+  --secondary-foreground: var(--ds-foreground);
+  --muted: var(--ds-muted);
+  --muted-foreground: var(--ds-foreground-soft);
+  --accent: var(--ds-muted);
+  --accent-foreground: var(--ds-foreground);
+  --destructive: var(--ds-danger);
   --destructive-foreground: var(--ds-p-white);
-  --border: var(--ds-p-slate-300);
-  --input: var(--ds-p-slate-300);
-  --ring: var(--ds-p-cyan-600);
-  --radius: var(--ds-p-radius-sm);
-  --sidebar: var(--ds-p-white);
-  --sidebar-foreground: var(--ds-p-navy-950);
-  --sidebar-primary: var(--ds-p-cyan-700);
-  --sidebar-primary-foreground: var(--ds-p-white);
-  --sidebar-accent: var(--ds-p-slate-100);
-  --sidebar-accent-foreground: var(--ds-p-navy-950);
-  --sidebar-border: var(--ds-p-slate-300);
-  --sidebar-ring: var(--ds-p-cyan-600);
+  --border: var(--ds-border);
+  --input: var(--ds-input-border);
+  --ring: var(--ds-focus);
+  --radius: var(--ds-p-radius-md);
+  --sidebar: var(--ds-p-sidebar);
+  --sidebar-foreground: var(--ds-foreground);
+  --sidebar-primary: var(--ds-primary);
+  --sidebar-primary-foreground: var(--ds-primary-foreground);
+  --sidebar-accent: var(--ds-p-selected);
+  --sidebar-accent-foreground: var(--ds-primary);
+  --sidebar-border: var(--ds-border);
+  --sidebar-ring: var(--ds-focus);
 }
 
-.dark {
-  --background: var(--ds-p-navy-950);
-  --foreground: var(--ds-p-slate-50);
-  --card: var(--ds-p-navy-900);
-  --card-foreground: var(--ds-p-slate-50);
-  --popover: var(--ds-p-navy-900);
-  --popover-foreground: var(--ds-p-slate-50);
-  --primary: var(--ds-p-cyan-400);
-  --primary-foreground: var(--ds-p-navy-950);
-  --secondary: var(--ds-p-navy-800);
-  --secondary-foreground: var(--ds-p-slate-50);
-  --muted: var(--ds-p-navy-800);
-  --muted-foreground: var(--ds-p-slate-300);
-  --accent: var(--ds-p-navy-800);
-  --accent-foreground: var(--ds-p-slate-50);
-  --destructive: var(--ds-p-red-500);
-  --destructive-foreground: var(--ds-p-white);
-  --border: color-mix(in oklch, var(--ds-p-slate-400) 30%, transparent);
-  --input: color-mix(in oklch, var(--ds-p-slate-400) 36%, transparent);
-  --ring: var(--ds-p-cyan-400);
-  --sidebar: var(--ds-p-navy-900);
-  --sidebar-foreground: var(--ds-p-slate-50);
-  --sidebar-primary: var(--ds-p-cyan-400);
-  --sidebar-primary-foreground: var(--ds-p-navy-950);
-  --sidebar-accent: var(--ds-p-navy-800);
-  --sidebar-accent-foreground: var(--ds-p-slate-50);
-  --sidebar-border: color-mix(in oklch, var(--ds-p-slate-400) 30%, transparent);
-  --sidebar-ring: var(--ds-p-cyan-400);
-}
-
-@font-face {
-  font-family: "IRANYekanX";
-  src: url("/fonts/IRANYekanX-Regular.ttf") format("truetype");
-  font-weight: 100 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "IRANYekanX";
-  src: url("/fonts/IRANYekanX-Medium.ttf") format("truetype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "IRANYekanX";
-  src: url("/fonts/IRANYekanX-Bold.ttf") format("truetype");
-  font-weight: 600 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "IRANYekanX";
-  src: url("/fonts/IRANYekanX-ExtraBold.ttf") format("truetype");
-  font-weight: 800 900;
-  font-style: normal;
-  font-display: swap;
-}
+@font-face { font-family: "IRANYekanX"; src: url("/fonts/IRANYekanX-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IRANYekanX"; src: url("/fonts/IRANYekanX-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "IRANYekanX"; src: url("/fonts/IRANYekanX-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "IRANYekanX"; src: url("/fonts/IRANYekanX-ExtraBold.ttf") format("truetype"); font-weight: 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Anjoman Max"; src: url("/fonts/AnjomanMax-Medium.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Anjoman Max"; src: url("/fonts/AnjomanMax-Bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
 
 html {
   scroll-behavior: smooth;
@@ -256,26 +212,61 @@ svg tspan {
   font-feature-settings: "tnum";
 }
 
-.ds-grid-bg {
-  background-image:
-    linear-gradient(var(--ds-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ds-grid) 1px, transparent 1px);
-  background-size: 28px 28px;
+/* Luxury Thin Fintech Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+kbd,
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted-foreground);
+  background-color: var(--muted);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  user-select: none;
+}
+
+.app-shell { background: var(--ds-background); }
+.ds-grid-bg { background: var(--ds-background); }
+.ds-glass { background: var(--ds-card); }
+.ds-glow { box-shadow: none; }
+h1, h2, .page-header-title { font-family: var(--font-display); }
+h1, h2, h3 { letter-spacing: 0; }
+body { font-size: 14px; line-height: 1.8; }
 .ds-focus:focus-visible {
   outline: 2px solid var(--ds-focus);
   outline-offset: 3px;
-}
-
-.ds-glass {
-  background: var(--ds-card);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.ds-glow {
-  box-shadow: var(--ds-shadow-glow);
 }
 
 @keyframes spin {
@@ -297,7 +288,7 @@ svg tspan {
   from {
     opacity: 0.72;
     transform: translateY(6px);
-    filter: blur(2px);
+
   }
 }
 
@@ -305,7 +296,7 @@ svg tspan {
   from {
     opacity: 0.72;
     transform: translateY(8px);
-    filter: blur(2px);
+
   }
 }
 
@@ -322,22 +313,22 @@ svg tspan {
 @keyframes menu-scale-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
 }
 
 @keyframes menu-scale-out {
   from {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
-    transform: scale(0.96);
+    transform: translateY(4px);
   }
 }
 
@@ -376,22 +367,22 @@ svg tspan {
 @keyframes modal-scale-in {
   from {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.96);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: none;
   }
 }
 
 @keyframes modal-scale-out {
   from {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: none;
   }
   to {
     opacity: 0;
-    transform: translate(-50%, -48%) scale(0.96);
+    transform: translateY(4px);
   }
 }
 
@@ -524,6 +515,35 @@ svg tspan {
   animation: sheet-slide-out-bottom 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* Tour & Onboarding animations */
+@keyframes tour-step-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes tour-step-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.tour-animated-forward { animation: tour-step-forward 180ms var(--ds-control-ease); }
+.tour-animated-backward { animation: tour-step-backward 180ms var(--ds-control-ease); }
+.tour-animated-pop, .tour-stagger-1, .tour-stagger-2, .tour-stagger-3 { animation: none; }
+.tour-shimmer-effect::after { content: none; }
+.tour-celebrate-badge { animation: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -532,5 +552,59 @@ svg tspan {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Official Corporate Print Rules */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 20mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #09090b !important;
+    font-family: "IRANYekanX", sans-serif !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide navigation, sidebars, buttons, banners and background glow */
+  header,
+  nav,
+  aside,
+  .no-print,
+  button,
+  .app-shell::before,
+  [data-tour],
+  .tour-overlay,
+  .tour-tooltip {
+    display: none !important;
+  }
+
+  main,
+  .print-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .card,
+  .border,
+  table,
+  tr,
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .border,
+  table th,
+  table td {
+    border-color: #cbd5e1 !important;
   }
 }

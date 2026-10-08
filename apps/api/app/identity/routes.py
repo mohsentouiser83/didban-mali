@@ -23,11 +23,6 @@ from app.identity.schemas import (
     RegisterRequest,
     UserResponse,
 )
-from app.identity.totp import (
-    generate_totp_secret,
-    get_totp_uri,
-    verify_totp_code,
-)
 from app.identity.security import (
     ACCESS_COOKIE,
     REFRESH_COOKIE,
@@ -39,6 +34,11 @@ from app.identity.security import (
     normalize_email,
     set_auth_cookies,
     verify_password,
+)
+from app.identity.totp import (
+    generate_totp_secret,
+    get_totp_uri,
+    verify_totp_code,
 )
 
 router = APIRouter(prefix="/auth", tags=["identity"])

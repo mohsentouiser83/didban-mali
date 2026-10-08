@@ -1,8 +1,8 @@
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 CashRunwayStatus = Literal["critical", "warning", "monitor", "healthy", "sustainable"]
 ScenarioType = Literal["base", "pessimistic", "optimistic"]
@@ -69,6 +69,8 @@ class CashFlowSummaryResponse(BaseModel):
     runway_status: CashRunwayStatus
     safety_buffer_irr: Decimal
     first_deficit_week: int | None
+    cash_accounts: list[dict[str, Any]] = Field(default_factory=list)
+    cash_warnings: list[str] = Field(default_factory=list)
     lowest_projected_cash_irr: Decimal
 
     @field_serializer(

@@ -1,6 +1,6 @@
 import time
+
 import httpx
-import pytest
 
 from app.identity.totp import generate_totp_code
 

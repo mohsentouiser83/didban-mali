@@ -34,33 +34,35 @@ export function PageHeader({
     >
       {breadcrumb && <div className="text-xs text-muted-foreground">{breadcrumb}</div>}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="page-header-row flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Title and Description Area */}
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight leading-tight">
+        <div className="page-header-copy space-y-1.5 min-w-0">
+          <div className="page-header-title-row flex flex-wrap items-center gap-2.5">
+            <h1 className="page-header-title font-[family-name:var(--font-display)] text-[30px] font-bold text-foreground tracking-normal leading-tight">
               {title}
             </h1>
-            {badge && <div className="shrink-0">{badge}</div>}
+            {badge && <div className="page-header-badge shrink-0">{badge}</div>}
           </div>
           {description && (
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
+            <p className="page-header-description text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
               {description}
             </p>
           )}
           {statusMetadata && (
-            <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+            <div className="page-header-status flex items-center gap-3 pt-1 text-xs text-muted-foreground">
               {statusMetadata}
             </div>
           )}
         </div>
 
         {/* Action Controls Area */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
-          {periodSelector && <div className="shrink-0">{periodSelector}</div>}
-          {secondaryActions && <div className="flex items-center gap-2">{secondaryActions}</div>}
-          {primaryAction && <div className="shrink-0">{primaryAction}</div>}
-        </div>
+        {(periodSelector || secondaryActions || primaryAction) && (
+          <div className="page-header-actions flex flex-wrap items-center gap-2.5 shrink-0 self-start md:self-center">
+            {periodSelector && <div className="page-header-action-group shrink-0">{periodSelector}</div>}
+            {secondaryActions && <div className="page-header-action-group flex items-center gap-2">{secondaryActions}</div>}
+            {primaryAction && <div className="page-header-action-group shrink-0">{primaryAction}</div>}
+          </div>
+        )}
       </div>
     </div>
   );

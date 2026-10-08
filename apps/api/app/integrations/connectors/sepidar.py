@@ -1,6 +1,5 @@
-from datetime import datetime, timezone
-from decimal import Decimal
 import time
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -63,7 +62,7 @@ class SepidarConnectorV1(BaseConnector):
         Fetch incremental journal entries & sales invoices from Sepidar.
         Watermark represents the last synced document voucher date/sequence.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         current_watermark = watermark or "1404/01/01-0000"
         
         # Simulate realistic incremental batch from Sepidar API / Direct DB sync
@@ -135,6 +134,7 @@ class SepidarConnectorV1(BaseConnector):
             has_more=False,
             summary={
                 "provider": "sepidar",
+                "start_watermark": current_watermark,
                 "vouchers_read": len(records),
                 "cursor": new_watermark,
             },

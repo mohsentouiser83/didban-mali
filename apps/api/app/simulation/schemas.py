@@ -140,8 +140,8 @@ class ComparativeMatrixColumn(BaseModel):
     runway_delta_days: int
     monthly_burn_irr: Decimal
     monthly_burn_delta_irr: Decimal
-    ccc_days: int
-    ccc_delta_days: int
+    ccc_days: float
+    ccc_delta_days: float
     liquidity_released_irr: Decimal
     net_annual_profit_impact_irr: Decimal
     first_deficit_week: int | None = None

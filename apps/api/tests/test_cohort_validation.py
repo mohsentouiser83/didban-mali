@@ -1,11 +1,11 @@
-import pytest
-from uuid import UUID
 from decimal import Decimal
 
-from app.companies.models import Company
-from app.customer_success.models import CustomerSuccessRecord
-from app.core.database import async_session_factory, engine
+import pytest
 from sqlalchemy import select
+
+from app.companies.models import Company
+from app.core.database import async_session_factory, engine
+from app.customer_success.models import CustomerSuccessRecord
 
 
 @pytest.fixture(autouse=True)

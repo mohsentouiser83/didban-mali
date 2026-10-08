@@ -25,8 +25,13 @@ export function buildTransforms(mapping: Record<string, string>, currencyUnit: "
   }));
 }
 
-export function isRequiredField(field: string, required: string[], alternatives: string[][]) {
-  return required.includes(field) || alternatives.some((group) => group.includes(field));
+export function isRequiredField(field: string, required: string[], alternatives: string[][], mapping: Record<string, string> = {}) {
+  if (required.includes(field)) return true;
+  const isMapped = (target: string) => Boolean(mapping[target]?.trim());
+  // A complete alternative takes precedence over a partially mapped one.
+  const activeGroup = alternatives.find((group) => group.every(isMapped))
+    ?? alternatives.find((group) => group.some(isMapped));
+  return activeGroup?.includes(field) ?? false;
 }
 
 export function companyRoute(company: Company, suffix: string) { return `/companies/${company.id}${suffix}`; }

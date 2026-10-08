@@ -74,7 +74,7 @@ describe("HoldingWorkspace", () => {
     render(<HoldingWorkspace />);
 
     // Header title
-    expect(screen.getByText("دیدبان هلدینگ و شرکت‌های چندگانه")).toBeDefined();
+    expect(screen.getByText("شرکت‌ها، در یک نگاه")).toBeDefined();
 
     // Wait for data load
     await waitFor(() => {
@@ -89,9 +89,15 @@ describe("HoldingWorkspace", () => {
     expect(screen.getByText("خالص نقدینگی در گردش هلدینگ")).toBeDefined();
 
     // Check critical findings alert
-    expect(screen.getByText(/توجه مدیریت ارشد مالی: تعداد ۱ مغایرت بحرانی/)).toBeDefined();
+    expect(
+      screen.getByText(/توجه مدیریت ارشد مالی: تعداد ۱ مغایرت بحرانی/),
+    ).toBeDefined();
 
     // Check Local Agent Banner
-    expect(screen.getByText("کلاینت همگام‌ساز محلی دیدبان مالی (Didban Local Sync Agent)")).toBeDefined();
+    expect(
+      screen.getByText(
+        "کلاینت همگام‌ساز محلی دیدبان مالی (Didban Local Sync Agent)",
+      ),
+    ).toBeDefined();
   });
 });

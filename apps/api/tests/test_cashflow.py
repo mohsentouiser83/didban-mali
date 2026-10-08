@@ -1,5 +1,11 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pytest
+from fastapi import HTTPException
 
 from app.cashflow.schemas import (
     CashFlowForecastResponse,
@@ -8,7 +14,7 @@ from app.cashflow.schemas import (
     CashInflowSourceDetail,
     CashOutflowSourceDetail,
 )
-from app.cashflow.service import _compute_runway
+from app.cashflow.service import _compute_runway, _get_current_liquid_cash
 
 
 def test_compute_runway_logic() -> None:
@@ -95,3 +101,38 @@ def test_cashflow_schemas_serialization() -> None:
     assert f_data["scenario"] == "base"
     assert len(f_data["weeks"]) == 1
     assert f_data["weeks"][0]["net_change_irr"] == "-20000000"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("balance", ["30005295000", "0", "-1000"])
+async def test_cash_matches_dashboard_one_latest_balance_per_account(balance: str) -> None:
+    company_id, account_id = uuid4(), uuid4()
+    account = SimpleNamespace(id=account_id, bank_name="بانک", label="اصلی", account_last4="1234")
+    latest = SimpleNamespace(
+        id=uuid4(), running_balance_irr=Decimal(balance), booking_date=date(2026, 10, 7)
+    )
+    accounts, transactions = MagicMock(), MagicMock()
+    accounts.all.return_value = [account]
+    transactions.first.return_value = latest
+    session = AsyncMock()
+    session.scalar.return_value = None
+    session.scalars.side_effect = [accounts, transactions]
+    assert await _get_current_liquid_cash(session, company_id, date(2026, 10, 7)) == Decimal(
+        balance
+    )
+    query = str(session.scalars.call_args_list[1].args[0])
+    assert "LIMIT" in query
+    assert "booking_date DESC" in query and "id DESC" in query
+    assert "company_id" in query and "bank_account_id" in query
+
+
+@pytest.mark.asyncio
+async def test_missing_bank_balances_are_not_reported_as_zero_cash() -> None:
+    session = AsyncMock()
+    session.scalar.return_value = None
+    accounts = MagicMock()
+    accounts.all.return_value = []
+    session.scalars.return_value = accounts
+    with pytest.raises(HTTPException) as error:
+        await _get_current_liquid_cash(session, uuid4(), date(2026, 10, 7))
+    assert error.value.status_code == 422

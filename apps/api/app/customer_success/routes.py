@@ -1,16 +1,13 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.companies.models import Company, CompanyAccess, CompanyRole
 from app.core.database import get_db
 from app.customer_success.models import (
-    CustomerSuccessRecord,
-    GoLiveValidation,
     ProductAnalyticsEvent,
-    ProductFeedback,
     SupportTicket,
 )
 from app.customer_success.schemas import (
@@ -119,7 +116,7 @@ async def trigger_company_go_live(
     return GoLiveResponse(
         company_id=company.id,
         is_live=company.is_live,
-        go_live_at=company.go_live_at,  # type: ignore
+        go_live_at=company.go_live_at,
         message_fa="سامانه دیدبان مالی با موفقیت وارد فاز بهره‌برداری رسمی شد.",
     )
 

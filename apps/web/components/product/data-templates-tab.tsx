@@ -17,7 +17,7 @@ import {
   RefreshCw,
   Layers,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 interface DataTemplatesTabProps {
   company: Company;
@@ -47,12 +47,12 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
     setError("");
     try {
       const res = await api<MappingTemplateResponse[]>(
-        `/companies/${company.id}/imports/templates`
+        `/companies/${company.id}/imports/templates`,
       );
       setTemplates(res);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "خطا در دریافت الگوهای نگاشت."
+        err instanceof Error ? err.message : "خطا در دریافت الگوهای نگاشت.",
       );
     } finally {
       setLoading(false);
@@ -79,19 +79,22 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
   }
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="pp-data-templates space-y-4" dir="rtl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-foreground">الگوهای ذخیره‌شده تطبیق ستون‌ها</h3>
+          <h3 className="text-base font-bold text-foreground">
+            الگوهای ذخیره‌شده تطبیق ستون‌ها
+          </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            نگاشت‌های سفارشی ذخیره‌شده بر اساس ساختار نرم‌افزارهای حسابداری (سپیدار، راهکاران، پیوست، اکسل بانک‌ها)
+            نگاشت‌های سفارشی ذخیره‌شده بر اساس ساختار نرم‌افزارهای حسابداری
+            (سپیدار، راهکاران، پیوست، اکسل بانک‌ها)
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={loadTemplates}
-          className="h-8 gap-1.5 text-xs rounded-xl self-start sm:self-center"
+          className="gap-1.5 self-start sm:self-center"
         >
           <RefreshCw className="size-3.5" />
           <span>به‌روزرسانی الگوها</span>
@@ -99,7 +102,7 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
       </div>
 
       {error && (
-        <div className="p-3 text-xs rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
+        <div className="p-3 text-xs rounded-[var(--ds-card-radius)] bg-destructive/10 text-destructive border border-destructive/20">
           {error}
         </div>
       )}
@@ -108,14 +111,18 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
         <div className="py-16 text-center text-xs text-muted-foreground">
           در حال بارگذاری الگوهای نگاشت…
         </div>
-      ) : templates.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl border border-dashed border-border space-y-3">
-          <div className="size-10 rounded-xl bg-primary/10 text-primary mx-auto flex items-center justify-center">
+      ) : error ? null : templates.length === 0 ? (
+        <div className="p-12 text-center rounded-[var(--ds-card-radius)] border border-dashed border-border space-y-3">
+          <div className="size-10 rounded-[var(--ds-card-radius)] bg-primary/10 text-primary mx-auto flex items-center justify-center">
             <Sparkles className="size-5" />
           </div>
-          <h4 className="text-sm font-bold text-foreground">هنوز الگوی نگاشتی ذخیره نشده است</h4>
+          <h4 className="text-sm font-bold text-foreground">
+            هنوز الگوی نگاشتی ذخیره نشده است
+          </h4>
           <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-            هنگام بارگذاری فایل در مرحله تطبیق و تأیید، می‌توانید گزینه «ذخیره این نگاشت به‌عنوان الگو» را انتخاب کنید تا برای فایل‌های دوره‌های بعد به صورت خودکار شناسایی و پیشنهاد شود.
+            هنگام بارگذاری فایل در مرحله تطبیق و تأیید، می‌توانید گزینه «ذخیره
+            این نگاشت به‌عنوان الگو» را انتخاب کنید تا برای فایل‌های دوره‌های
+            بعد به صورت خودکار شناسایی و پیشنهاد شود.
           </p>
         </div>
       ) : (
@@ -127,7 +134,7 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
             return (
               <ProductCard
                 key={tpl.id}
-                className="p-4 rounded-2xl border border-border/80 bg-card hover:border-primary/40 transition-all shadow-2xs flex flex-col justify-between space-y-3"
+                className="p-4 rounded-[var(--ds-card-radius)] border border-border/80 bg-card hover:border-primary/40 transition-all shadow-2xs flex flex-col justify-between space-y-3"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2 border-b border-border/60 pb-2.5">
@@ -140,7 +147,8 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
                           {tpl.name}
                         </strong>
                         <span className="text-[11px] text-muted-foreground block truncate">
-                          منبع: {sourceLabels[tpl.source_kind] || tpl.source_kind}
+                          منبع:{" "}
+                          {sourceLabels[tpl.source_kind] || tpl.source_kind}
                         </span>
                       </div>
                     </div>
@@ -149,7 +157,7 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
+                        className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                         onClick={() => handleDelete(tpl.id)}
                         disabled={deletingId === tpl.id}
                         title="حذف الگو"
@@ -162,28 +170,38 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
                   {/* Attributes */}
                   <div className="grid grid-cols-2 gap-2 text-[11px]">
                     <div className="p-2 rounded-lg bg-muted/30">
-                      <span className="text-muted-foreground block">واحد ارزی:</span>
+                      <span className="text-muted-foreground block">
+                        واحد ارزی:
+                      </span>
                       <strong className="text-foreground block mt-0.5 font-bold">
-                        {tpl.currency_unit === "toman" ? "تومان (تبدیل به ریال)" : "ریال"}
+                        {tpl.currency_unit === "toman"
+                          ? "تومان (تبدیل به ریال)"
+                          : "ریال"}
                       </strong>
                     </div>
 
                     <div className="p-2 rounded-lg bg-muted/30">
-                      <span className="text-muted-foreground block">تقویم تاریخ:</span>
+                      <span className="text-muted-foreground block">
+                        تقویم تاریخ:
+                      </span>
                       <strong className="text-foreground block mt-0.5 font-bold">
                         {tpl.calendar === "jalali" ? "شمسی (جلالی)" : "میلادی"}
                       </strong>
                     </div>
 
                     <div className="p-2 rounded-lg bg-muted/30">
-                      <span className="text-muted-foreground block">ردیف سرستون:</span>
+                      <span className="text-muted-foreground block">
+                        ردیف سرستون:
+                      </span>
                       <strong className="text-foreground block mt-0.5 font-mono">
                         ردیف {tpl.header_row || 1}
                       </strong>
                     </div>
 
                     <div className="p-2 rounded-lg bg-muted/30">
-                      <span className="text-muted-foreground block">فیلدهای نگاشت‌شده:</span>
+                      <span className="text-muted-foreground block">
+                        فیلدهای نگاشت‌شده:
+                      </span>
                       <strong className="text-foreground block mt-0.5 font-mono text-primary">
                         {mappedCount} ستون
                       </strong>
@@ -192,16 +210,20 @@ export function DataTemplatesTab({ company }: DataTemplatesTabProps) {
 
                   {/* Preview of mapped fields */}
                   <div className="space-y-1">
-                    <span className="text-[10px] text-muted-foreground block">ستون‌های منطبق:</span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      ستون‌های منطبق:
+                    </span>
                     <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto">
-                      {Object.entries(tpl.mapping || {}).slice(0, 6).map(([tgt, src]) => (
-                        <span
-                          key={tgt}
-                          className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-mono truncate max-w-[120px]"
-                        >
-                          {tgt}
-                        </span>
-                      ))}
+                      {Object.entries(tpl.mapping || {})
+                        .slice(0, 6)
+                        .map(([tgt, src]) => (
+                          <span
+                            key={tgt}
+                            className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-mono truncate max-w-[120px]"
+                          >
+                            {tgt}
+                          </span>
+                        ))}
                       {mappedCount > 6 && (
                         <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground font-mono">
                           +{mappedCount - 6} فیلد دیگر

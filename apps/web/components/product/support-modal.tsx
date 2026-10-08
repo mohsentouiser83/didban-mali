@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LifeBuoy, Send, CheckCircle2 } from "lucide-react";
+import { LifeBuoy, Send, CheckCircle2, Compass } from "@/components/ui/icons";
 import { usePathname } from "next/navigation";
 
 import {
@@ -15,16 +15,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/product-api";
+import { Textarea } from "@/components/ui/textarea";
+import { SelectField, SelectOption } from "./select-field";
 
 interface SupportModalProps {
   companyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStartTour?: () => void;
 }
 
-export function SupportModal({ companyId, open, onOpenChange }: SupportModalProps) {
+export function SupportModal({
+  companyId,
+  open,
+  onOpenChange,
+  onStartTour,
+}: SupportModalProps) {
   const pathname = usePathname();
-  const [category, setCategory] = useState<"P1_CRITICAL" | "P2_HIGH" | "P3_NORMAL" | "P4_QUESTION">("P3_NORMAL");
+  const [category, setCategory] = useState<
+    "P1_CRITICAL" | "P2_HIGH" | "P3_NORMAL" | "P4_QUESTION"
+  >("P3_NORMAL");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +56,10 @@ export function SupportModal({ companyId, open, onOpenChange }: SupportModalProp
           current_route: pathname,
           safe_diagnostic_json: {
             url: pathname,
-            viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown",
+            viewport:
+              typeof window !== "undefined"
+                ? `${window.innerWidth}x${window.innerHeight}`
+                : "unknown",
             client_time: new Date().toISOString(),
           },
         }),
@@ -71,18 +84,45 @@ export function SupportModal({ companyId, open, onOpenChange }: SupportModalProp
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary mb-1">
             <LifeBuoy className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold">پشتیبانی و ارتباط با تیم مهندسی</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              پشتیبانی و ارتباط با تیم مهندسی
+            </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            درخواست‌های شما با اولویت‌بندی عملیاتی در تیم پشتیبانی بررسی می‌شود. اطلاعات حساس مالی شرکت به‌صورت خودکار ارسال نمی‌گردد.
+            درخواست‌های شما با اولویت‌بندی عملیاتی در تیم پشتیبانی بررسی می‌شود.
+            اطلاعات حساس مالی شرکت به‌صورت خودکار ارسال نمی‌گردد.
           </DialogDescription>
+          {onStartTour && (
+            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground text-[11px]">
+                نیاز به آموزش کار با بخش‌ها دارید؟
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  onStartTour();
+                }}
+                className="gap-1.5 cursor-pointer"
+              >
+                <Compass className="h-3.5 w-3.5" />
+                <span>مشاهده تور راهنما</span>
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
         {success ? (
           <div className="py-8 flex flex-col items-center justify-center text-center space-y-2">
-            <CheckCircle2 className="h-12 w-12 text-emerald-500 animate-bounce" />
-            <h4 className="font-bold text-base text-foreground">تیکت شما با موفقیت ثبت شد</h4>
-            <p className="text-xs text-muted-foreground">همکاران ما در اسرع وقت پاسخ را ارسال خواهند کرد.</p>
+            <CheckCircle2 className="h-12 w-12 text-ds-success " />
+            <h4 className="font-bold text-base text-foreground">
+              تیکت شما با موفقیت ثبت شد
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              همکاران ما در اسرع وقت پاسخ را ارسال خواهند کرد.
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -93,17 +133,27 @@ export function SupportModal({ companyId, open, onOpenChange }: SupportModalProp
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">سطح اولویت درخواست</label>
-              <select
+              <label className="text-xs font-semibold">
+                سطح اولویت درخواست
+              </label>
+              <SelectField
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full"
               >
-                <option value="P3_NORMAL">P3 — عادی (پرسش درباره عملکرد، گزارش خطا یا کندی جزئی)</option>
-                <option value="P2_HIGH">P2 — مهم (خطا در واردسازی فایل یا انطباق بانکی)</option>
-                <option value="P1_CRITICAL">P1 — بحرانی (قطعی سرویس یا مغایرت اساسی در ارقام محاسباتی)</option>
-                <option value="P4_QUESTION">P4 — سوال عمومی / پیشنهاد بهبود فرآیند</option>
-              </select>
+                <SelectOption value="P3_NORMAL">
+                  P3 — عادی (پرسش درباره عملکرد، گزارش خطا یا کندی جزئی)
+                </SelectOption>
+                <SelectOption value="P2_HIGH">
+                  P2 — مهم (خطا در واردسازی فایل یا انطباق بانکی)
+                </SelectOption>
+                <SelectOption value="P1_CRITICAL">
+                  P1 — بحرانی (قطعی سرویس یا مغایرت اساسی در ارقام محاسباتی)
+                </SelectOption>
+                <SelectOption value="P4_QUESTION">
+                  P4 — سوال عمومی / پیشنهاد بهبود فرآیند
+                </SelectOption>
+              </SelectField>
             </div>
 
             <div className="space-y-1.5">
@@ -112,18 +162,17 @@ export function SupportModal({ companyId, open, onOpenChange }: SupportModalProp
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="خلاصه مشکل یا سوال خود را بنویسید"
-                className="text-xs"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold">شرح کامل مشکل</label>
-              <textarea
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="w-full"
                 placeholder="توضیح دهید در کدام بخش چه رفتاری مشاهده شد..."
                 required
               />
@@ -134,10 +183,20 @@ export function SupportModal({ companyId, open, onOpenChange }: SupportModalProp
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onOpenChange(false)}
+              >
                 انصراف
               </Button>
-              <Button type="submit" size="sm" disabled={submitting} className="gap-1.5">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={submitting}
+                className="gap-1.5"
+              >
                 <Send className="h-3.5 w-3.5" />
                 <span>{submitting ? "در حال ارسال..." : "ارسال درخواست"}</span>
               </Button>

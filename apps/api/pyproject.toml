@@ -57,6 +57,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = [
+  "E501",  # line too long (strings, SQL queries, regex)
+  "B008",  # do not perform function calls in argument defaults (FastAPI Depends)
+  "E712",  # comparison to True/False (SQLAlchemy query expressions)
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

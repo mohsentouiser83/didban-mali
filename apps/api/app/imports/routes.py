@@ -395,6 +395,39 @@ async def upload_file(
     return _response(batch, source_file, source)
 
 
+@router.get("/templates", response_model=list[MatchingProfileSummary])
+async def list_mapping_templates(
+    company_id: UUID,
+    session: DbSession,
+    current_user: CurrentUser,
+    source_kind: SourceKind | None = None,
+) -> list[MatchingProfileSummary]:
+    await _access(session, company_id, current_user.id)
+    statement = select(MappingProfile).where(MappingProfile.company_id == company_id)
+    if source_kind is not None:
+        statement = statement.where(MappingProfile.source_kind == source_kind)
+    statement = statement.order_by(MappingProfile.created_at.desc())
+    profiles = (await session.scalars(statement)).all()
+    results: list[MatchingProfileSummary] = []
+    for p in profiles:
+        m_json = p.mapping_json or {}
+        results.append(
+            MatchingProfileSummary(
+                id=p.id,
+                name=p.name,
+                source_kind=p.source_kind,
+                column_fingerprint=p.column_fingerprint,
+                mapping=m_json.get("fields", {}),
+                transforms=p.transforms_json or {},
+                currency_unit=m_json.get("currency_unit", "rial"),
+                calendar=m_json.get("calendar", "jalali"),
+                header_row=m_json.get("header_row", 1),
+                created_at=p.created_at,
+            )
+        )
+    return results
+
+
 @router.get("/{batch_id}", response_model=ImportBatchResponse)
 async def get_import(
     company_id: UUID,
@@ -1163,39 +1196,6 @@ async def delete_import_batch(
     )
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get("/templates", response_model=list[MatchingProfileSummary])
-async def list_mapping_templates(
-    company_id: UUID,
-    session: DbSession,
-    current_user: CurrentUser,
-    source_kind: SourceKind | None = None,
-) -> list[MatchingProfileSummary]:
-    await _access(session, company_id, current_user.id)
-    statement = select(MappingProfile).where(MappingProfile.company_id == company_id)
-    if source_kind is not None:
-        statement = statement.where(MappingProfile.source_kind == source_kind)
-    statement = statement.order_by(MappingProfile.created_at.desc())
-    profiles = (await session.scalars(statement)).all()
-    results: list[MatchingProfileSummary] = []
-    for p in profiles:
-        m_json = p.mapping_json or {}
-        results.append(
-            MatchingProfileSummary(
-                id=p.id,
-                name=p.name,
-                source_kind=p.source_kind,
-                column_fingerprint=p.column_fingerprint,
-                mapping=m_json.get("fields", {}),
-                transforms=p.transforms_json or {},
-                currency_unit=m_json.get("currency_unit", "rial"),
-                calendar=m_json.get("calendar", "jalali"),
-                header_row=m_json.get("header_row", 1),
-                created_at=p.created_at,
-            )
-        )
-    return results
 
 
 @router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)

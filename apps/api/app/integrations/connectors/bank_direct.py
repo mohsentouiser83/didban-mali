@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 import time
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -58,7 +58,7 @@ class BankStatementConnectorV1(BaseConnector):
         watermark: str | None = None,
         limit: int = 500,
     ) -> SyncBatch:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         account_number = config.get("account_number", "410088992211")
 
         sample_bank_txs = [

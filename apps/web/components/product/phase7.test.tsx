@@ -64,7 +64,7 @@ describe("Phase 7 Frontend Workspaces", () => {
       render(<IntegrationsWorkspace company={mockCompany} />);
 
       await waitFor(() => {
-        expect(screen.getByText("مرکز اتصال‌ها و یکپارچه‌سازی مالی")).toBeDefined();
+        expect(screen.getByText("اتصال‌ها و جریان داده")).toBeDefined();
         expect(screen.getByText("ارتباط مستقیم با سپیدار سیستم")).toBeDefined();
         expect(screen.getByText(/بارگذاری دستی اکسل/)).toBeDefined();
       });
@@ -99,7 +99,7 @@ describe("Phase 7 Frontend Workspaces", () => {
       await waitFor(() => {
         expect(mockApi).toHaveBeenCalledWith(
           expect.stringContaining("/conn-1/test"),
-          expect.objectContaining({ method: "POST" })
+          expect.objectContaining({ method: "POST" }),
         );
       });
     });
@@ -134,8 +134,12 @@ describe("Phase 7 Frontend Workspaces", () => {
       render(<AutomationsWorkspace company={mockCompany} />);
 
       await waitFor(() => {
-        expect(screen.getByText("مرکز اتوماسیون‌های مالی تکراری")).toBeDefined();
-        expect(screen.getByText("چرخه پایش صبحگاهی خزانه‌داری (Daily Morning Cycle)")).toBeDefined();
+        expect(screen.getByText("چرخه‌های خودکار مالی")).toBeDefined();
+        expect(
+          screen.getByText(
+            "چرخه پایش صبحگاهی خزانه‌داری (Daily Morning Cycle)",
+          ),
+        ).toBeDefined();
         expect(screen.getByText("اجرای فوری چرخه")).toBeDefined();
       });
     });
@@ -169,7 +173,7 @@ describe("Phase 7 Frontend Workspaces", () => {
       await waitFor(() => {
         expect(mockApi).toHaveBeenCalledWith(
           expect.stringContaining("/rule-1/run"),
-          expect.objectContaining({ method: "POST" })
+          expect.objectContaining({ method: "POST" }),
         );
       });
     });
@@ -258,10 +262,16 @@ describe("Phase 7 Frontend Workspaces", () => {
       render(<ScenariosWorkspace company={mockCompany} />);
 
       await waitFor(() => {
-        expect(screen.getByText("شبیه‌سازی سناریو و تحلیل پیامد تصمیمات")).toBeDefined();
-        expect(screen.getByText("حالت بقا و انباشت نقدینگی (Cash Defense)")).toBeDefined();
-        expect(screen.getByText("این تصمیم تاب‌آوری را به ۶۵ روز افزایش می‌دهد.")).toBeDefined();
-        expect(screen.getByText("مسیر ۱۳ هفته‌ای تراز پایانی نقدینگی (مبنا در برابر سناریو)")).toBeDefined();
+        expect(screen.getByText("سناریوها، پیش از تصمیم")).toBeDefined();
+        expect(screen.getByText("حفظ نقدینگی")).toBeDefined();
+        expect(
+          screen.getByText("این تصمیم تاب‌آوری را به ۶۵ روز افزایش می‌دهد."),
+        ).toBeDefined();
+        expect(
+          screen.getByText(
+            "مسیر ۱۳ هفته‌ای تراز پایانی نقدینگی (مبنا در برابر سناریو)",
+          ),
+        ).toBeDefined();
       });
     });
 
@@ -282,10 +292,10 @@ describe("Phase 7 Frontend Workspaces", () => {
       render(<ScenariosWorkspace company={mockCompany} />);
 
       await waitFor(() => {
-        expect(screen.getByText("حالت بقا و انباشت نقدینگی (Cash Defense)")).toBeDefined();
+        expect(screen.getByText("حفظ نقدینگی")).toBeDefined();
       });
 
-      const presetCard = screen.getByText("حالت بقا و انباشت نقدینگی (Cash Defense)");
+      const presetCard = screen.getByRole("button", { name: /حفظ نقدینگی/ });
       fireEvent.click(presetCard);
 
       await waitFor(() => {
@@ -294,9 +304,25 @@ describe("Phase 7 Frontend Workspaces", () => {
           expect.objectContaining({
             method: "POST",
             body: expect.stringContaining("-15"),
-          })
+          }),
         );
       });
+      const runs = mockApi.mock.calls.filter(([url]) =>
+        String(url).includes("/simulation/run"),
+      );
+      expect(runs).toHaveLength(2);
+      expect(JSON.parse(runs.at(-1)?.[1]?.body as string).dso_change_days).toBe(
+        -15,
+      );
+      fireEvent.keyDown(presetCard, { key: "Enter" });
+      await waitFor(() =>
+        expect(
+          mockApi.mock.calls.filter(([url]) =>
+            String(url).includes("/simulation/run"),
+          ),
+        ).toHaveLength(3),
+      );
+      expect(presetCard).toHaveAttribute("aria-pressed", "true");
     });
   });
 });

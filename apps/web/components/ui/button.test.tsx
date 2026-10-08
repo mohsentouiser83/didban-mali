@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { Button } from "./button";
 
@@ -46,5 +46,29 @@ describe("Button Component", () => {
     render(<Button disabled>غیرفعال</Button>);
     const btn = screen.getByRole("button", { name: "غیرفعال" });
     expect(btn.hasAttribute("disabled")).toBe(true);
+  });
+  it("blocks activation of links composed as disabled buttons", () => {
+    const onActivate = vi.fn();
+    const { rerender } = render(
+      <Button asChild disabled>
+        <a href="/reports" onClick={onActivate}>
+          گزارش
+        </a>
+      </Button>,
+    );
+    const link = screen.getByRole("link", { name: "گزارش" });
+    fireEvent.click(link);
+    expect(onActivate).not.toHaveBeenCalled();
+    expect(link).toHaveAttribute("aria-disabled", "true");
+    expect(link).toHaveAttribute("tabindex", "-1");
+    rerender(
+      <Button asChild>
+        <a href="/reports" onClick={onActivate}>
+          گزارش
+        </a>
+      </Button>,
+    );
+    fireEvent.click(link);
+    expect(onActivate).toHaveBeenCalledOnce();
   });
 });

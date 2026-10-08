@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check, Minus } from "lucide-react"
+import { Check, Minus } from "@/components/ui/icons"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -13,7 +13,7 @@ const checkboxVariants = cva(
     variants: {
       variant: {
         default:
-          "border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] data-[state=checked]:bg-[var(--ds-primary)] data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:text-[var(--ds-primary-fg)] data-[state=indeterminate]:bg-[var(--ds-primary)] data-[state=indeterminate]:border-[var(--ds-primary)] data-[state=indeterminate]:text-[var(--ds-primary-fg)] hover:border-[var(--ds-primary)]",
+          "border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] data-[state=checked]:bg-[var(--ds-primary)] data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:text-[var(--ds-primary-foreground)] data-[state=indeterminate]:bg-[var(--ds-primary)] data-[state=indeterminate]:border-[var(--ds-primary)] data-[state=indeterminate]:text-[var(--ds-primary-foreground)] hover:border-[var(--ds-primary)]",
         success:
           "border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] data-[state=checked]:bg-[var(--ds-success)] data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:text-white data-[state=indeterminate]:bg-[var(--ds-success)] data-[state=indeterminate]:border-[var(--ds-success)] data-[state=indeterminate]:text-white hover:border-[var(--ds-success)]",
       },

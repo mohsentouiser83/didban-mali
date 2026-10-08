@@ -1,14 +1,13 @@
-from datetime import datetime, timezone
 import uuid
-from typing import Any
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit.service import record_audit_event
-from app.integrations.connectors.base import BaseConnector
 from app.integrations.connectors.bank_direct import BankStatementConnectorV1
+from app.integrations.connectors.base import BaseConnector
 from app.integrations.connectors.sepidar import SepidarConnectorV1
 from app.integrations.models import (
     ConnectionStatus,
@@ -73,7 +72,7 @@ class IntegrationService:
         payload: IntegrationConnectionCreate,
         actor_id: UUID,
     ) -> IntegrationConnection:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         conn = IntegrationConnection(
             id=uuid.uuid4(),
             company_id=company_id,
@@ -123,7 +122,7 @@ class IntegrationService:
         if payload.status is not None:
             conn.status = payload.status
 
-        conn.updated_at = datetime.now(timezone.utc)
+        conn.updated_at = datetime.now(UTC)
         await session.flush()
 
         record_audit_event(
@@ -182,7 +181,7 @@ class IntegrationService:
             conn.status = result.status
             conn.last_error_message = result.message_fa
 
-        conn.updated_at = datetime.now(timezone.utc)
+        conn.updated_at = datetime.now(UTC)
         await session.commit()
         return result
 
@@ -198,7 +197,7 @@ class IntegrationService:
         if not conn:
             raise ValueError("اتصال یافت نشد.")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         conn.status = ConnectionStatus.SYNCING
         job = IntegrationSyncJob(
             id=uuid.uuid4(),
@@ -275,7 +274,7 @@ class IntegrationService:
             job.records_imported = imported_count
             job.records_rejected = 0
             job.status = SyncJobStatus.COMPLETED
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
             job.watermark_cursor = batch.new_watermark
             job.summary_json = {
                 **batch.summary,
@@ -299,7 +298,7 @@ class IntegrationService:
 
         except Exception as exc:
             job.status = SyncJobStatus.FAILED
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
             job.error_message = str(exc)
             conn.status = ConnectionStatus.ERROR
             conn.last_error_message = f"خطا در همگام‌سازی: {str(exc)}"
@@ -339,7 +338,7 @@ class IntegrationService:
             agent_key = f"dmb_live_{conn.id.hex[:8]}_{secrets.token_urlsafe(24)}"
             creds["agent_key"] = agent_key
             conn.encrypted_credentials_json = creds
-            conn.updated_at = datetime.now(timezone.utc)
+            conn.updated_at = datetime.now(UTC)
             if actor_id:
                 record_audit_event(
                     session=session,
@@ -384,7 +383,7 @@ class IntegrationService:
         if not expected_key or payload.agent_key != expected_key:
             raise PermissionError("کلید اختصاصی همگام‌ساز معتبر نیست یا منقضی شده است.")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         batch_id_str = payload.batch_id or str(uuid.uuid4())
 
         job = IntegrationSyncJob(
@@ -461,7 +460,7 @@ class IntegrationService:
         job.records_imported = imported_count
         job.records_rejected = rejected_count
         job.status = SyncJobStatus.COMPLETED
-        job.completed_at = datetime.now(timezone.utc)
+        job.completed_at = datetime.now(UTC)
         job.watermark_cursor = payload.watermark or now.strftime("%Y-%m-%d %H:%M:%S")
         job.summary_json = {
             **job.summary_json,
@@ -472,7 +471,7 @@ class IntegrationService:
         conn.last_sync_at = job.completed_at
         conn.last_sync_record_count = imported_count
         conn.last_error_message = None
-        conn.updated_at = datetime.now(timezone.utc)
+        conn.updated_at = datetime.now(UTC)
 
         await session.commit()
 

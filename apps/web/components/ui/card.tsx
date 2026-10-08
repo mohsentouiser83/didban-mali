@@ -5,7 +5,7 @@ import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-[var(--ds-card-radius)] border text-[var(--ds-foreground)] transition-all duration-200",
+  "rounded-[var(--ds-card-radius)] border text-[var(--ds-foreground)] transition-colors duration-150",
   {
     variants: {
       variant: {
@@ -14,15 +14,13 @@ const cardVariants = cva(
         elevated:
           "border-[var(--ds-border-strong)] bg-[var(--ds-card-solid)] shadow-[var(--ds-shadow-md)]",
         interactive:
-          "cursor-pointer border-[var(--ds-card-border)] bg-[var(--ds-card-bg)] shadow-[var(--ds-shadow-sm)] hover:-translate-y-0.5 hover:border-[var(--ds-primary)] hover:shadow-[var(--ds-shadow-md)] active:translate-y-0",
-        ai:
-          "border-[color-mix(in_oklch,var(--ds-accent)_35%,transparent)] bg-[linear-gradient(135deg,var(--ds-card-bg),color-mix(in_oklch,var(--ds-accent)_8%,transparent))] shadow-[var(--ds-shadow-sm)]",
+          "cursor-pointer border-[var(--ds-card-border)] bg-[var(--ds-card-bg)] shadow-[var(--ds-shadow-sm)]  hover:border-[var(--ds-primary)]/80    transition-colors duration-150",
+        ai: "border-[color-mix(in_oklch,var(--ds-accent)_35%,transparent)] bg-[var(--ds-card-bg)] shadow-[var(--ds-shadow-sm)]",
         danger:
-          "border-[color-mix(in_oklch,var(--ds-danger)_35%,transparent)] bg-[linear-gradient(135deg,var(--ds-card-bg),color-mix(in_oklch,var(--ds-danger)_8%,transparent))] shadow-[var(--ds-shadow-sm)]",
+          "border-[color-mix(in_oklch,var(--ds-danger)_35%,transparent)] bg-[var(--ds-card-bg)] shadow-[var(--ds-shadow-sm)]",
         warning:
-          "border-[color-mix(in_oklch,var(--ds-warning)_35%,transparent)] bg-[linear-gradient(135deg,var(--ds-card-bg),color-mix(in_oklch,var(--ds-warning)_8%,transparent))] shadow-[var(--ds-shadow-sm)]",
-        subtle:
-          "border-transparent bg-[var(--ds-muted)]",
+          "border-[color-mix(in_oklch,var(--ds-warning)_35%,transparent)] bg-[var(--ds-card-bg)] shadow-[var(--ds-shadow-sm)]",
+        subtle: "border-transparent bg-[var(--ds-muted)]",
       },
     },
     defaultVariants: {
@@ -41,30 +39,88 @@ function Card({ asChild = false, variant, className, ...props }: CardProps) {
   const Component = asChild ? Slot : "div";
   return (
     <Component
-      className={cn(cardVariants({ variant }), props.onClick && "cursor-pointer", className)}
+      data-slot="card"
+      className={cn(
+        cardVariants({ variant }),
+        props.onClick && "cursor-pointer transition-colors duration-150   ",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col gap-1.5 p-5 md:p-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-header"
+      className={cn("flex flex-col gap-1.5 p-5 md:p-6", className)}
+      {...props}
+    />
+  );
 }
 
-function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-base font-extrabold text-balance md:text-lg", className)} {...props} />;
+function CardTitle({
+  className,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3
+      data-slot="card-title"
+      className={cn(
+        "font-[family-name:var(--font-display)] text-lg font-medium text-balance",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
-function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("text-xs leading-relaxed text-[var(--ds-foreground-soft)] text-pretty md:text-sm", className)} {...props} />;
+function CardDescription({
+  className,
+  ...props
+}: HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p
+      data-slot="card-description"
+      className={cn(
+        "text-xs leading-relaxed text-[var(--ds-foreground-soft)] text-pretty md:text-sm",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-5 pb-5 md:px-6 md:pb-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-5 pb-5 md:px-6 md:pb-6", className)}
+      {...props}
+    />
+  );
 }
 
 function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex items-center gap-3 px-5 pb-5 md:px-6 md:pb-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn(
+        "flex items-center gap-3 px-5 pb-5 md:px-6 md:pb-6",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
-export { Card, cardVariants, CardContent, CardDescription, CardFooter, CardHeader, CardTitle };
+export {
+  Card,
+  cardVariants,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+};

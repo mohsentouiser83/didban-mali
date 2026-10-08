@@ -26,11 +26,12 @@ describe("Card Component & Surfaces", () => {
     expect((container.firstChild as HTMLElement).className).toContain("shadow-[var(--ds-shadow-md)]");
   });
 
-  it("applies interactive variant with hover elevation", () => {
+  it("applies interactive variant with a restrained border response", () => {
     const { container } = render(<Card variant="interactive">کارت کلیک‌پذیر</Card>);
     const card = container.firstChild as HTMLElement;
     expect(card.className).toContain("cursor-pointer");
-    expect(card.className).toContain("hover:-translate-y-0.5");
+    expect(card.className).toContain("hover:border-[var(--ds-primary)]/80");
+    expect(card.className).not.toContain("translate");
   });
 
   it("applies AI intelligence variant with accent glow", () => {

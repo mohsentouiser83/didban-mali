@@ -1,14 +1,15 @@
 import os
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from alembic import context
 from app.ai import models as ai_models  # noqa: F401
 from app.alerts import models as alert_models  # noqa: F401
 from app.analysis import models as analysis_models  # noqa: F401
 from app.audit import models as audit_models  # noqa: F401
+from app.automations import models as automation_models  # noqa: F401
 from app.companies import models as company_models  # noqa: F401
 from app.core.config import settings
 from app.core.database import Base
@@ -17,7 +18,6 @@ from app.findings import models as finding_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401
 from app.integrations import models as integration_models  # noqa: F401
-from app.automations import models as automation_models  # noqa: F401
 from app.reconciliation import models as reconciliation_models  # noqa: F401
 from app.reports import models as report_models  # noqa: F401
 from app.reviews import models as review_models  # noqa: F401

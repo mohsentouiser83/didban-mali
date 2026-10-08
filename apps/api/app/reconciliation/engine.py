@@ -405,19 +405,19 @@ def reconcile(
         if not proposals:
             # Check 1:N batch settlement and smart FIFO allocation
             nearby_ledgers = [
-                l
-                for l in eligible_ledgers
-                if l.entry_id not in accepted_journals
-                and _calendar_days(bank.booking_date, l.entry_date) <= 5
-                and ((bank.amount_irr > 0 and l.amount_irr > 0) or (bank.amount_irr < 0 and l.amount_irr < 0))
-                and abs(l.amount_irr) < abs(bank.amount_irr)
+                ledger
+                for ledger in eligible_ledgers
+                if ledger.entry_id not in accepted_journals
+                and _calendar_days(bank.booking_date, ledger.entry_date) <= 5
+                and ((bank.amount_irr > 0 and ledger.amount_irr > 0) or (bank.amount_irr < 0 and ledger.amount_irr < 0))
+                and abs(ledger.amount_irr) < abs(bank.amount_irr)
             ]
             matched_combo: list[LedgerRecord] | None = None
 
             # 1. Exact subset sum matching up to 5 items
             for k in range(2, min(6, len(nearby_ledgers) + 1)):
                 for combo in combinations(nearby_ledgers, k):
-                    if sum(l.amount_irr for l in combo) == bank.amount_irr:
+                    if sum(combo_item.amount_irr for combo_item in combo) == bank.amount_irr:
                         matched_combo = list(combo)
                         break
                 if matched_combo:
@@ -427,28 +427,28 @@ def reconcile(
             if not matched_combo and bank.amount_irr > 0:
                 norm_bank_desc = _normalized(bank.description)
                 cp_ledgers = [
-                    l for l in nearby_ledgers
-                    if l.amount_irr > 0
-                    and l.counterparty_name
-                    and _normalized(l.counterparty_name) in norm_bank_desc
+                    ledger for ledger in nearby_ledgers
+                    if ledger.amount_irr > 0
+                    and ledger.counterparty_name
+                    and _normalized(ledger.counterparty_name) in norm_bank_desc
                 ]
                 if cp_ledgers:
                     cp_ledgers.sort(key=lambda item: item.entry_date)
                     running_sum = Decimal(0)
                     fifo_subset: list[LedgerRecord] = []
-                    for l in cp_ledgers:
-                        if running_sum + l.amount_irr <= bank.amount_irr:
-                            running_sum += l.amount_irr
-                            fifo_subset.append(l)
+                    for ledger in cp_ledgers:
+                        if running_sum + ledger.amount_irr <= bank.amount_irr:
+                            running_sum += ledger.amount_irr
+                            fifo_subset.append(ledger)
                             if running_sum == bank.amount_irr:
                                 matched_combo = fifo_subset
                                 break
 
             if matched_combo:
                 allocations = [ProposedAllocation("bank", bank.id, None, bank.amount_irr)]
-                for l in matched_combo:
-                    allocations.append(ProposedAllocation("journal", None, l.line_id, l.amount_irr))
-                    accepted_journals.add(l.entry_id)
+                for ledger in matched_combo:
+                    allocations.append(ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr))
+                    accepted_journals.add(ledger.entry_id)
                 accepted_banks.add(bank.id)
                 results.append(
                     ProposedMatch(
@@ -463,7 +463,7 @@ def reconcile(
                         {"batch_count": len(matched_combo)},
                         {
                             "bank": _bank_evidence(bank),
-                            "ledger_items": [_ledger_evidence(l) for l in matched_combo],
+                            "ledger_items": [_ledger_evidence(ledger) for ledger in matched_combo],
                         },
                         match_type="one_to_many",
                         match_reasons=[

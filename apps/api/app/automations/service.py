@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -51,7 +51,7 @@ class AutomationService:
         payload: AutomationRuleCreate,
         actor_id: UUID,
     ) -> AutomationRule:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rule = AutomationRule(
             id=uuid.uuid4(),
             company_id=company_id,
@@ -99,7 +99,7 @@ class AutomationService:
         if payload.config is not None:
             rule.config_json = payload.config
 
-        rule.updated_at = datetime.now(timezone.utc)
+        rule.updated_at = datetime.now(UTC)
         await session.flush()
 
         record_audit_event(
@@ -126,7 +126,7 @@ class AutomationService:
             raise ValueError("قانون اتوماسیون یافت نشد.")
 
         t0 = time.monotonic()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         run = AutomationRun(
             id=uuid.uuid4(),
             company_id=company_id,
@@ -176,7 +176,7 @@ class AutomationService:
                     "step": "recalculate_metrics",
                     "title_fa": "محاسبه مجدد شاخص‌های نقدینگی و مطالبات",
                     "status": "success",
-                    "details": {"calculated_at": datetime.now(timezone.utc).isoformat()},
+                    "details": {"calculated_at": datetime.now(UTC).isoformat()},
                 })
 
                 # Step 3: Bank Reconciliation
@@ -220,7 +220,7 @@ class AutomationService:
             })
             run.steps_executed_json = steps
 
-        run.completed_at = datetime.now(timezone.utc)
+        run.completed_at = datetime.now(UTC)
         run.duration_ms = int((time.monotonic() - t0) * 1000)
         rule.last_run_at = run.completed_at
 

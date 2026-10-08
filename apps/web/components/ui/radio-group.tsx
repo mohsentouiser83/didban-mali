@@ -26,9 +26,9 @@ const radioGroupItemVariants = cva(
     variants: {
       variant: {
         default:
-          "data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:shadow-[0_0_10px_var(--ds-primary-glow)]",
+          "data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:shadow-none",
         success:
-          "data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:shadow-[0_0_10px_var(--ds-success-glow)] hover:border-[var(--ds-success)]",
+          "data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:shadow-none hover:border-[var(--ds-success)]",
       },
       size: {
         sm: "h-4 w-4",
@@ -99,7 +99,7 @@ const RadioCard = React.forwardRef<
     ref={ref}
     data-selected={selected ? "true" : "false"}
     className={cn(
-      "flex items-start gap-3 p-4 rounded-xl border border-[var(--ds-border)] bg-[var(--ds-surface-card)] transition-all duration-150 cursor-pointer hover:border-[var(--ds-border-strong)]",
+      "flex items-start gap-3 p-4 rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-surface-card)] transition-all duration-150 cursor-pointer hover:border-[var(--ds-border-strong)]",
       selected &&
         "border-[var(--ds-primary)] bg-[var(--ds-primary)]/5 shadow-[0_4px_14px_var(--ds-primary-glow)]",
       className

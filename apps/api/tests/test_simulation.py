@@ -441,3 +441,26 @@ async def test_decision_memo_pdf_generation() -> None:
         assert len(pdf_bytes) > 1000
         # Valid PDF header magic number
         assert pdf_bytes.startswith(b"%PDF")
+
+
+@pytest.mark.asyncio
+async def test_fractional_negative_cash_cycle_survives_simulation_and_comparison() -> None:
+    cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
+    rec_sum = rec_sum.model_copy(update={"dso_days": 45.2})
+    pay_sum = PayablesSummaryResponse.model_validate({
+        **pay_sum.model_dump(), "dso_days": 45.2, "dpo_days": 90, "ccc_days": -44.8,
+    })
+    session = AsyncMock()
+    company_id = uuid4()
+    with (
+        patch("app.simulation.service.get_cashflow_summary", new=AsyncMock(return_value=cash_sum)),
+        patch("app.simulation.service.get_cashflow_forecast", new=AsyncMock(return_value=cash_forecast)),
+        patch("app.simulation.service.get_receivables_summary", new=AsyncMock(return_value=rec_sum)),
+        patch("app.simulation.service.get_payables_summary", new=AsyncMock(return_value=pay_sum)),
+    ):
+        result = await run_simulation(session, company_id, SimulationParametersRequest())
+        assert result.cash_conversion_cycle_delta.baseline_value == Decimal("-44.8")
+        assert result.cash_conversion_cycle_delta.simulated_value == Decimal("-44.8")
+        assert result.cash_conversion_cycle_delta.delta_value == Decimal("0")
+        matrix = await build_comparative_matrix(session, company_id, ComparativeMatrixRequest())
+        assert matrix.columns[0].ccc_days == -44.8

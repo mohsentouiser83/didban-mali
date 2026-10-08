@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/product-api";
 import type { RecordLineageResponse } from "@/lib/product-types";
-import { FileText, GitBranch, Hash, Layers, ShieldCheck } from "lucide-react";
+import { FileText, GitBranch, Hash, Layers, ShieldCheck } from "@/components/ui/icons";
 
 interface RecordLineageDialogProps {
   open: boolean;
@@ -69,7 +69,7 @@ export function RecordLineageDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-5"
+        className="w-[95vw] sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-[var(--ds-card-radius)] p-5"
         dir="rtl"
       >
         <DialogHeader className="border-b border-border/70 pb-3 text-start">
@@ -94,13 +94,13 @@ export function RecordLineageDialog({
             <p className="text-xs text-muted-foreground">در حال استعلام اصل منبع داده…</p>
           </div>
         ) : error ? (
-          <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 my-4">
+          <div className="p-4 rounded-[var(--ds-card-radius)] bg-destructive/10 text-destructive text-xs border border-destructive/20 my-4">
             {error}
           </div>
         ) : data ? (
           <div className="space-y-4 py-2 text-xs">
             {/* Source Origin Card */}
-            <div className="p-3.5 rounded-xl border border-border/70 bg-muted/30 space-y-2.5">
+            <div className="p-3.5 rounded-[var(--ds-card-radius)] border border-border/70 bg-muted/30 space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-foreground flex items-center gap-1.5">
                   <FileText className="size-3.5 text-primary" />
@@ -145,7 +145,7 @@ export function RecordLineageDialog({
                 <Hash className="size-3.5 text-muted-foreground" />
                 <span>مقادیر خام استخراج‌شده از اکسل / CSV:</span>
               </strong>
-              <div className="p-3 rounded-xl bg-card border border-border/80 font-mono text-[11px] overflow-x-auto" dir="ltr">
+              <div className="p-3 rounded-[var(--ds-card-radius)] bg-card border border-border/80 font-mono text-[11px] overflow-x-auto" dir="ltr">
                 <table className="w-full text-start">
                   <thead>
                     <tr className="border-b border-border/60 text-muted-foreground">
@@ -168,10 +168,10 @@ export function RecordLineageDialog({
             {/* Canonical Normalized Result */}
             <div className="space-y-1.5">
               <strong className="text-foreground block font-bold flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                <ShieldCheck className="size-3.5 text-ds-success" />
                 <span>نتیجه اعتبارسنجی و ثبت در دفاتر دیدبان مالی:</span>
               </strong>
-              <div className="p-3 rounded-xl bg-card border border-border/80 text-[11px] space-y-1.5">
+              <div className="p-3 rounded-[var(--ds-card-radius)] bg-card border border-border/80 text-[11px] space-y-1.5">
                 <div className="grid grid-cols-2 gap-2">
                   {Object.entries(data.normalized_fields).map(([k, v]) => (
                     <div key={k} className="p-1.5 rounded-lg bg-muted/20">

@@ -6,7 +6,14 @@ import { ProductCard } from "./product-card";
 import { SelectField, SelectOption } from "./select-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -20,21 +27,48 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-import { buildTransforms, fieldLabels, isRequiredField, targetFields } from "@/lib/import-mapping";
+import {
+  buildTransforms,
+  fieldLabels,
+  isRequiredField,
+  targetFields,
+} from "@/lib/import-mapping";
 import { api } from "@/lib/product-api";
-import type { Company, ImportBatch, ImportIssue, ImportPreview, IssuesPage, MappingResponse, ValidationResponse } from "@/lib/product-types";
+import type {
+  Company,
+  ImportBatch,
+  ImportIssue,
+  ImportPreview,
+  IssuesPage,
+  MappingResponse,
+  ValidationResponse,
+} from "@/lib/product-types";
 
 import { Icon } from "./icons";
 
-const sourceLabels = { accounting: "دفتر حسابداری", bank: "گردش بانکی", sales: "فروش" };
-const completedStages = new Set(["ready_for_normalization", "normalizing", "normalized"]);
+const sourceLabels = {
+  accounting: "دفتر حسابداری",
+  bank: "گردش بانکی",
+  sales: "فروش",
+};
+const completedStages = new Set([
+  "ready_for_normalization",
+  "normalizing",
+  "normalized",
+]);
 
 function displayValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "—";
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
-export function ImportWorkspace({ company, batchId }: { company: Company; batchId: string }) {
+export function ImportWorkspace({
+  company,
+  batchId,
+}: {
+  company: Company;
+  batchId: string;
+}) {
   const router = useRouter();
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
@@ -45,7 +79,9 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
   const [profileName, setProfileName] = useState("");
   const [issues, setIssues] = useState<ImportIssue[]>([]);
   const [issueCounts, setIssueCounts] = useState<Record<string, number>>({});
-  const [busy, setBusy] = useState<"mapping" | "validation" | "commit" | null>(null);
+  const [busy, setBusy] = useState<"mapping" | "validation" | "commit" | null>(
+    null,
+  );
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -61,64 +97,94 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
       });
       router.push(`/companies/${company.id}/imports`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "حذف فایل انجام نشد.");
+      setError(
+        caught instanceof Error ? caught.message : "حذف فایل انجام نشد.",
+      );
       setDeleting(false);
       setShowDeleteDialog(false);
     }
   }
 
-  const load = useCallback(async (customHeaderRow?: number) => {
-    setError("");
-    try {
-      const activeHeaderRow = customHeaderRow ?? headerRow;
-      const previewUrl = activeHeaderRow && activeHeaderRow > 1
-        ? `/companies/${company.id}/imports/${batchId}/preview?header_row=${activeHeaderRow}`
-        : `/companies/${company.id}/imports/${batchId}/preview`;
-      const [batchResult, previewResult] = await Promise.all([
-        api<ImportBatch>(`/companies/${company.id}/imports/${batchId}`),
-        api<ImportPreview>(previewUrl),
-      ]);
-      setBatch(batchResult);
-      setPreview(previewResult);
-      setHeaderRow(previewResult.header_row);
-      const stored = previewResult.mapping;
-      setMapping(
-        stored?.mapping ??
-          Object.fromEntries(previewResult.suggestions.map((item) => [item.target_field, item.source_column]))
-      );
-      if (stored) {
-        setCurrencyUnit(stored.currency_unit);
-        setCalendar(stored.calendar);
-      }
-      if (batchResult.stage === "validation_ready" || completedStages.has(batchResult.stage)) {
-        const issuePage = await api<IssuesPage>(`/companies/${company.id}/imports/${batchId}/issues?limit=200`);
-        setIssues(issuePage.items);
-        setIssueCounts(
-          issuePage.items.reduce<Record<string, number>>(
-            (counts, item) => ({ ...counts, [item.severity]: (counts[item.severity] ?? 0) + 1 }),
-            {}
-          )
+  const load = useCallback(
+    async (customHeaderRow?: number) => {
+      setError("");
+      try {
+        const activeHeaderRow = customHeaderRow ?? headerRow;
+        const previewUrl =
+          activeHeaderRow && activeHeaderRow > 1
+            ? `/companies/${company.id}/imports/${batchId}/preview?header_row=${activeHeaderRow}`
+            : `/companies/${company.id}/imports/${batchId}/preview`;
+        const [batchResult, previewResult] = await Promise.all([
+          api<ImportBatch>(`/companies/${company.id}/imports/${batchId}`),
+          api<ImportPreview>(previewUrl),
+        ]);
+        setBatch(batchResult);
+        setPreview(previewResult);
+        setHeaderRow(previewResult.header_row);
+        const stored = previewResult.mapping;
+        setMapping(
+          stored?.mapping ??
+            Object.fromEntries(
+              previewResult.suggestions.map((item) => [
+                item.target_field,
+                item.source_column,
+              ]),
+            ),
+        );
+        if (stored) {
+          setCurrencyUnit(stored.currency_unit);
+          setCalendar(stored.calendar);
+        }
+        if (
+          batchResult.stage === "validation_ready" ||
+          completedStages.has(batchResult.stage)
+        ) {
+          const issuePage = await api<IssuesPage>(
+            `/companies/${company.id}/imports/${batchId}/issues?limit=200`,
+          );
+          setIssues(issuePage.items);
+          setIssueCounts(
+            issuePage.items.reduce<Record<string, number>>(
+              (counts, item) => ({
+                ...counts,
+                [item.severity]: (counts[item.severity] ?? 0) + 1,
+              }),
+              {},
+            ),
+          );
+        }
+      } catch (caught) {
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "اطلاعات واردسازی دریافت نشد.",
         );
       }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "اطلاعات واردسازی دریافت نشد.");
-    }
-  }, [batchId, company.id, headerRow]);
+    },
+    [batchId, company.id, headerRow],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  const fields = useMemo(() => (batch ? targetFields[batch.source_kind] : []), [batch]);
+  const fields = useMemo(
+    () => (batch ? targetFields[batch.source_kind] : []),
+    [batch],
+  );
   const mappingComplete = Boolean(
     preview &&
       preview.required_fields.every((field) => mapping[field]) &&
       (!preview.alternative_required_fields.length ||
-        preview.alternative_required_fields.some((group) => group.every((field) => mapping[field])))
+        preview.alternative_required_fields.some((group) =>
+          group.every((field) => mapping[field]),
+        )),
   );
   const canEdit = company.role !== "viewer" && !preview?.mapping;
-  const isValidated = batch?.stage === "validation_ready" || (batch ? completedStages.has(batch.stage) : false);
+  const isValidated =
+    batch?.stage === "validation_ready" ||
+    (batch ? completedStages.has(batch.stage) : false);
   const isCommitted = batch ? completedStages.has(batch.stage) : false;
 
   async function saveMapping(event: FormEvent) {
@@ -127,25 +193,34 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
     setBusy("mapping");
     setError("");
     setNotice("");
-    const cleanedMapping = Object.fromEntries(Object.entries(mapping).filter(([, source]) => source));
+    const cleanedMapping = Object.fromEntries(
+      Object.entries(mapping).filter(([, source]) => source),
+    );
     try {
-      await api<MappingResponse>(`/companies/${company.id}/imports/${batchId}/mapping`, {
-        method: "PUT",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({
-          sheet_name: preview.selected_sheet,
-          header_row: headerRow ?? preview.header_row,
-          mapping: cleanedMapping,
-          transforms: buildTransforms(cleanedMapping, currencyUnit),
-          currency_unit: currencyUnit,
-          calendar,
-          profile_name: profileName.trim() || null,
-        }),
-      });
-      setNotice("نگاشت ستون‌ها ثبت شد. حالا می‌توانید کل فایل را اعتبارسنجی کنید.");
+      await api<MappingResponse>(
+        `/companies/${company.id}/imports/${batchId}/mapping`,
+        {
+          method: "PUT",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            sheet_name: preview.selected_sheet,
+            header_row: headerRow ?? preview.header_row,
+            mapping: cleanedMapping,
+            transforms: buildTransforms(cleanedMapping, currencyUnit),
+            currency_unit: currencyUnit,
+            calendar,
+            profile_name: profileName.trim() || null,
+          }),
+        },
+      );
+      setNotice(
+        "نگاشت ستون‌ها ثبت شد. حالا می‌توانید کل فایل را اعتبارسنجی کنید.",
+      );
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "ثبت نگاشت انجام نشد.");
+      setError(
+        caught instanceof Error ? caught.message : "ثبت نگاشت انجام نشد.",
+      );
     } finally {
       setBusy(null);
     }
@@ -156,17 +231,26 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
     setError("");
     setNotice("");
     try {
-      const result = await api<ValidationResponse>(`/companies/${company.id}/imports/${batchId}/validate`, {
-        method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-      });
+      const result = await api<ValidationResponse>(
+        `/companies/${company.id}/imports/${batchId}/validate`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        },
+      );
       setBatch(result.batch);
       setIssueCounts(result.issue_counts);
-      const issuePage = await api<IssuesPage>(`/companies/${company.id}/imports/${batchId}/issues?limit=200`);
+      const issuePage = await api<IssuesPage>(
+        `/companies/${company.id}/imports/${batchId}/issues?limit=200`,
+      );
       setIssues(issuePage.items);
-      setNotice("اعتبارسنجی کامل شد؛ نتیجه و خطاهای قابل اصلاح پایین صفحه آمده است.");
+      setNotice(
+        "اعتبارسنجی کامل شد؛ نتیجه و خطاهای قابل اصلاح پایین صفحه آمده است.",
+      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "اعتبارسنجی انجام نشد.");
+      setError(
+        caught instanceof Error ? caught.message : "اعتبارسنجی انجام نشد.",
+      );
     } finally {
       setBusy(null);
     }
@@ -177,14 +261,19 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
     setError("");
     setNotice("");
     try {
-      const result = await api<ImportBatch>(`/companies/${company.id}/imports/${batchId}/commit`, {
-        method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-      });
+      const result = await api<ImportBatch>(
+        `/companies/${company.id}/imports/${batchId}/commit`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        },
+      );
       setBatch(result);
       setNotice("فایل برای نرمال‌سازی ثبت شد و پردازش آن در صف قرار گرفت.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "ثبت نهایی انجام نشد.");
+      setError(
+        caught instanceof Error ? caught.message : "ثبت نهایی انجام نشد.",
+      );
     } finally {
       setBusy(null);
     }
@@ -196,16 +285,22 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         {error ? (
           <>
             <Icon name="alert" className="size-8 text-destructive" />
-            <h2 className="text-lg font-bold text-foreground">پیش‌نمایش آماده نیست</h2>
+            <h2 className="text-lg font-bold text-foreground">
+              پیش‌نمایش آماده نیست
+            </h2>
             <p className="text-xs text-muted-foreground max-w-sm">{error}</p>
             <Button asChild variant="outline" size="sm" className="mt-2">
-              <Link href={`/companies/${company.id}/imports`}>بازگشت به فایل‌ها</Link>
+              <Link href={`/companies/${company.id}/imports`}>
+                بازگشت به فایل‌ها
+              </Link>
             </Button>
           </>
         ) : (
           <>
             <span className="loading-ring size-6" />
-            <p className="text-xs text-muted-foreground">در حال خواندن ساختار فایل…</p>
+            <p className="text-xs text-muted-foreground">
+              در حال خواندن ساختار فایل…
+            </p>
           </>
         )}
       </section>
@@ -216,7 +311,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
   const step = isCommitted ? 4 : isValidated ? 3 : preview.mapping ? 3 : 2;
 
   return (
-    <div className="mapping-workspace space-y-6" dir="rtl">
+    <div className="pp-page pp-import mapping-workspace space-y-6" dir="rtl">
       {/* Header & Back Action */}
       <header className="mapping-file-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
         <div>
@@ -228,13 +323,18 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             <span>بازگشت به فهرست اسناد</span>
           </Link>
           <div className="file-title flex items-center gap-3">
-            <span className="file-state size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+            <span className="file-state size-10 rounded-[var(--ds-card-radius)] bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
               <Icon name="file" className="size-5" />
             </span>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-foreground">{batch.original_name}</h2>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">
+                {batch.original_name}
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {sourceLabels[batch.source_kind]} · {batch.source_label} · {preview.selected_sheet ? `شیت «${preview.selected_sheet}»` : ""}
+                {sourceLabels[batch.source_kind]} · {batch.source_label} ·{" "}
+                {preview.selected_sheet
+                  ? `شیت «${preview.selected_sheet}»`
+                  : ""}
               </p>
             </div>
           </div>
@@ -244,17 +344,17 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             {isCommitted
               ? "در صف نرمال‌سازی"
               : isValidated
-              ? "اعتبارسنجی‌شده"
-              : preview.mapping
-              ? "نگاشت ثبت‌شده"
-              : "نیازمند نگاشت ستون‌ها"}
+                ? "اعتبارسنجی‌شده"
+                : preview.mapping
+                  ? "نگاشت ثبت‌شده"
+                  : "نیازمند نگاشت ستون‌ها"}
           </Badge>
           {company.role !== "viewer" && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="delete-link text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5 h-8 rounded-lg"
+              className="delete-link text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5"
               onClick={() => setShowDeleteDialog(true)}
             >
               <Icon name="trash" className="size-3.5" />
@@ -265,65 +365,95 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
       </header>
 
       {/* Modern 4-Step Pipeline Stepper */}
-      <div className="stepper grid grid-cols-2 md:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-card border border-border/80 shadow-2xs">
-        <div className="step-item flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
-          <span className="size-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0">
+      <div className="stepper grid grid-cols-2 md:grid-cols-4 gap-2.5 p-3 rounded-[var(--ds-card-radius)] bg-card border border-border/80 shadow-2xs">
+        <div className="step-item flex items-center gap-2.5 p-2 rounded-[var(--ds-card-radius)] bg-muted/40">
+          <span className="size-7 rounded-lg bg-ds-success/10 text-ds-success flex items-center justify-center text-xs font-bold shrink-0">
             ✓
           </span>
           <div className="min-w-0">
-            <span className="block text-xs font-bold text-foreground truncate">۱. دریافت و اسکن</span>
-            <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium truncate">تأیید امنیتی شد</span>
+            <span className="block text-xs font-bold text-foreground truncate">
+              ۱. دریافت و اسکن
+            </span>
+            <span className="block text-[10px] text-ds-success font-medium truncate">
+              تأیید امنیتی شد
+            </span>
           </div>
         </div>
 
-        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
-          step === 2 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
-        }`}>
-          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-            step > 2
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              : "bg-primary text-primary-foreground"
-          }`}>
+        <div
+          className={`step-item flex items-center gap-2.5 p-2 rounded-[var(--ds-card-radius)] transition-all ${
+            step === 2
+              ? "bg-primary/10 border border-primary/30"
+              : "bg-muted/40"
+          }`}
+        >
+          <span
+            className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+              step > 2
+                ? "bg-ds-success/10 text-ds-success"
+                : "bg-primary text-primary-foreground"
+            }`}
+          >
             {step > 2 ? "✓" : "۲"}
           </span>
           <div className="min-w-0">
-            <span className="block text-xs font-bold text-foreground truncate">۲. تطبیق سرستون‌ها</span>
+            <span className="block text-xs font-bold text-foreground truncate">
+              ۲. تطبیق سرستون‌ها
+            </span>
             <span className="block text-[10px] text-muted-foreground truncate">
               {preview.mapping ? "تأیید و قفل شد" : "در حال تطبیق"}
             </span>
           </div>
         </div>
 
-        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
-          step === 3 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
-        }`}>
-          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-            step > 3
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              : step === 3
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
-          }`}>
+        <div
+          className={`step-item flex items-center gap-2.5 p-2 rounded-[var(--ds-card-radius)] transition-all ${
+            step === 3
+              ? "bg-primary/10 border border-primary/30"
+              : "bg-muted/40"
+          }`}
+        >
+          <span
+            className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+              step > 3
+                ? "bg-ds-success/10 text-ds-success"
+                : step === 3
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+            }`}
+          >
             {step > 3 ? "✓" : "۳"}
           </span>
           <div className="min-w-0">
-            <span className="block text-xs font-bold text-foreground truncate">۳. کنترل کیفیت و تراز</span>
+            <span className="block text-xs font-bold text-foreground truncate">
+              ۳. کنترل کیفیت و تراز
+            </span>
             <span className="block text-[10px] text-muted-foreground truncate">
               {isValidated ? "اعتبارسنجی شد" : "منتظر نگاشت"}
             </span>
           </div>
         </div>
 
-        <div className={`step-item flex items-center gap-2.5 p-2 rounded-xl transition-all ${
-          step === 4 ? "bg-primary/10 border border-primary/30" : "bg-muted/40"
-        }`}>
-          <span className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-            step === 4 ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
-          }`}>
+        <div
+          className={`step-item flex items-center gap-2.5 p-2 rounded-[var(--ds-card-radius)] transition-all ${
+            step === 4
+              ? "bg-primary/10 border border-primary/30"
+              : "bg-muted/40"
+          }`}
+        >
+          <span
+            className={`size-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+              step === 4
+                ? "bg-ds-success text-white"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
             ۴
           </span>
           <div className="min-w-0">
-            <span className="block text-xs font-bold text-foreground truncate">۴. تجمیع در دفاتر</span>
+            <span className="block text-xs font-bold text-foreground truncate">
+              ۴. تجمیع در دفاتر
+            </span>
             <span className="block text-[10px] text-muted-foreground truncate">
               {isCommitted ? "ثبت نهایی شد" : "گام آخر"}
             </span>
@@ -333,12 +463,19 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
       {/* Status & Alerts */}
       {error && (
-        <Alert variant="destructive" className="form-error text-xs p-3.5 rounded-xl" role="alert">
+        <Alert
+          variant="destructive"
+          className="form-error text-xs p-3.5 rounded-[var(--ds-card-radius)]"
+          role="alert"
+        >
           {error}
         </Alert>
       )}
       {notice && (
-        <Alert className="form-success text-xs p-3.5 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" role="status">
+        <Alert
+          className="form-success text-xs p-3.5 rounded-[var(--ds-card-radius)] bg-ds-success/10 text-ds-success border-ds-success/20"
+          role="status"
+        >
           {notice}
         </Alert>
       )}
@@ -346,42 +483,56 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
       {/* Main Mapping Form with Horizontal Controls Bar */}
       <form onSubmit={saveMapping} className="space-y-6">
         {/* Settings Bar */}
-        <ProductCard className="p-4 sm:p-5 rounded-2xl border border-border bg-card shadow-2xs space-y-4">
+        <ProductCard className="p-4 sm:p-5 rounded-[var(--ds-card-radius)] border border-border bg-card shadow-2xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-foreground">پیکربندی تبدیل و انطباق داده‌ها</h3>
+              <h3 className="text-sm sm:text-base font-bold text-foreground">
+                پیکربندی تبدیل و انطباق داده‌ها
+              </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                تعیین استاندارد تاریخ، واحد پولی و ردیف عناوین قبل از بررسی اعتبارسنجی.
+                تعیین استاندارد تاریخ، واحد پولی و ردیف عناوین قبل از بررسی
+                اعتبارسنجی.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
-                {Object.values(mapping).filter(Boolean).length} از {fields.length} ستون نگاشت‌شده
+                {Object.values(mapping).filter(Boolean).length} از{" "}
+                {fields.length} ستون نگاشت‌شده
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-foreground">تقویم تاریخ‌ها</label>
+              <label className="block text-xs font-bold text-foreground">
+                تقویم تاریخ‌ها
+              </label>
               <SelectField
                 value={calendar}
-                onChange={(event) => setCalendar(event.target.value as "jalali" | "gregorian")}
+                onChange={(event) =>
+                  setCalendar(event.target.value as "jalali" | "gregorian")
+                }
                 disabled={!canEdit}
-                className="h-9 text-xs rounded-xl bg-background"
+                size="sm"
               >
                 <SelectOption value="jalali">هجری شمسی (جلالی)</SelectOption>
-                <SelectOption value="gregorian">میلادی (Gregorian)</SelectOption>
+                <SelectOption value="gregorian">
+                  میلادی (Gregorian)
+                </SelectOption>
               </SelectField>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-foreground">واحد مبالغ در فایل</label>
+              <label className="block text-xs font-bold text-foreground">
+                واحد مبالغ در فایل
+              </label>
               <SelectField
                 value={currencyUnit}
-                onChange={(event) => setCurrencyUnit(event.target.value as "rial" | "toman")}
+                onChange={(event) =>
+                  setCurrencyUnit(event.target.value as "rial" | "toman")
+                }
                 disabled={!canEdit}
-                className="h-9 text-xs rounded-xl bg-background"
+                size="sm"
               >
                 <SelectOption value="rial">ریال (واحد اصلی)</SelectOption>
                 <SelectOption value="toman">تومان (تبدیل به ریال)</SelectOption>
@@ -390,12 +541,17 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-foreground">ردیف عناوین جدول</label>
-                <span className="text-[10px] text-muted-foreground">شماره سطر اکسل</span>
+                <label className="block text-xs font-bold text-foreground">
+                  ردیف عناوین جدول
+                </label>
+                <span className="text-[10px] text-muted-foreground">
+                  شماره سطر اکسل
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 {canEdit ? (
-                  <input
+                  <Input
+                    size="sm"
                     type="number"
                     min={1}
                     max={50}
@@ -407,47 +563,59 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
                         void load(val);
                       }
                     }}
-                    className="w-full h-9 px-3 text-start rounded-xl border border-border bg-background text-foreground font-semibold text-xs"
+                    className="w-full text-start"
                   />
                 ) : (
-                  <div className="h-9 px-3 flex items-center bg-muted/40 rounded-xl text-xs font-mono font-bold text-foreground">
-                    ردیف {new Intl.NumberFormat("fa-IR").format(preview.header_row)}
+                  <div className="h-9 px-3 flex items-center bg-muted/40 rounded-[var(--ds-card-radius)] text-xs font-mono font-bold text-foreground">
+                    ردیف{" "}
+                    {new Intl.NumberFormat("fa-IR").format(preview.header_row)}
                   </div>
                 )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-foreground">نام الگو (اختیاری)</label>
+              <label className="block text-xs font-bold text-foreground">
+                نام الگو (اختیاری)
+              </label>
               <Input
+                size="sm"
                 value={profileName}
                 onChange={(event) => setProfileName(event.target.value)}
                 disabled={!canEdit}
                 placeholder="مثلاً الگوی سپیدار"
-                className="h-9 text-xs bg-background rounded-xl"
               />
             </div>
           </div>
         </ProductCard>
 
         {/* Column Mapping Panel */}
-        <ProductCard className="mapping-panel p-6 rounded-2xl border border-border bg-card space-y-5" aria-labelledby="mapping-title">
+        <ProductCard
+          className="mapping-panel p-6 rounded-[var(--ds-card-radius)] border border-border bg-card space-y-5"
+          aria-labelledby="mapping-title"
+        >
           <div className="mapping-section-heading flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-3">
             <div>
-              <h3 id="mapping-title" className="text-base font-bold text-foreground">تطبیق سرستون‌های فایل با استانداردهای دیدبان مالی</h3>
+              <h3
+                id="mapping-title"
+                className="text-base font-bold text-foreground"
+              >
+                تطبیق سرستون‌های فایل با استانداردهای دیدبان مالی
+              </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                ستون‌های فایل اکسل را به فیلدهای استاندارد حسابداری متناظر اختصاص دهید. فیلدهای الزامی برای اعتبارسنجی الزامی هستند.
+                ستون‌های فایل اکسل را به فیلدهای استاندارد حسابداری متناظر
+                اختصاص دهید.
               </p>
             </div>
             {preview.mapping ? (
-              <div className="locked-note flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-xs font-medium self-start sm:self-center">
+              <div className="locked-note flex items-center gap-1.5 px-3 py-1 rounded-lg bg-ds-success/10 text-ds-success border border-ds-success/20 text-xs font-medium self-start sm:self-center">
                 <Icon name="shield" className="size-3.5" />
                 <span>نگاشت تأیید و قفل شده است</span>
               </div>
             ) : (
               <Button
                 type="submit"
-                className="primary-button h-9 px-4 text-xs font-bold gap-2 rounded-xl self-start sm:self-center shadow-xs"
+                className="primary-button gap-2 self-start sm:self-center"
                 disabled={!mappingComplete || busy !== null}
               >
                 {busy === "mapping" ? "در حال ثبت…" : "تأیید و ذخیره نگاشت"}
@@ -455,48 +623,82 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
             )}
           </div>
 
+          {batch.source_kind === "bank" && (
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              برای مبلغ تراکنش، یکی از دو روش کافی است: ستون «مبلغ خالص»
+              (واریز مثبت و برداشت منفی)، یا دو ستون جداگانهٔ «واریز» و
+              «برداشت». با تکمیل یک روش، ستون‌های روش دیگر لازم نیستند.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {fields.map((field) => {
-              const required = isRequiredField(field, preview.required_fields, preview.alternative_required_fields);
-              const suggestion = preview.suggestions.find((item) => item.target_field === field);
+              const required = isRequiredField(
+                field,
+                preview.required_fields,
+                preview.alternative_required_fields,
+                mapping,
+              );
+              const alternative = preview.alternative_required_fields.some(
+                (group) => group.includes(field),
+              );
+              const suggestion = preview.suggestions.find(
+                (item) => item.target_field === field,
+              );
               const isMapped = Boolean(mapping[field]);
 
               return (
                 <label
-                  className={`mapping-row flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  className={`mapping-row flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-[var(--ds-card-radius)] border transition-all cursor-pointer ${
                     isMapped
-                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      ? "border-ds-success/30 bg-ds-success/5"
                       : required
-                      ? "border-amber-500/30 bg-amber-500/5"
-                      : "border-border/60 bg-muted/20 hover:bg-muted/40"
+                        ? "border-ds-warning/30 bg-ds-warning/5"
+                        : "border-border/60 bg-muted/20 hover:bg-muted/40"
                   }`}
                   key={field}
                 >
                   <div className="target-field flex flex-col min-w-[140px]">
                     <div className="flex items-center gap-1.5">
-                      <strong className="text-xs font-bold text-foreground">{fieldLabels[field] ?? field}</strong>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
-                        required
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                          : "bg-muted text-muted-foreground"
-                      }`}>
-                        {required ? "الزامی" : "اختیاری"}
+                      <strong className="text-xs font-bold text-foreground">
+                        {fieldLabels[field] ?? field}
+                      </strong>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded font-medium ${
+                          required
+                            ? "bg-ds-warning/15 text-ds-warning"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {required ? "الزامی" : alternative ? "روش جایگزین" : "اختیاری"}
                       </span>
                     </div>
                     {suggestion && (
                       <span className="text-[10px] text-primary/80 font-mono mt-0.5">
-                        پیشنهاد هوشمند: {new Intl.NumberFormat("fa-IR").format(suggestion.confidence)}٪
+                        پیشنهاد هوشمند:{" "}
+                        {new Intl.NumberFormat("fa-IR").format(
+                          suggestion.confidence,
+                        )}
+                        ٪
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2 flex-1 sm:max-w-xs">
-                    <Icon name="arrow" className="size-3 text-muted-foreground shrink-0 hidden sm:block" />
+                    <Icon
+                      name="arrow"
+                      className="size-3 text-muted-foreground shrink-0 hidden sm:block"
+                    />
                     <SelectField
                       value={mapping[field] ?? ""}
-                      onChange={(event) => setMapping((current) => ({ ...current, [field]: event.target.value }))}
+                      onChange={(event) =>
+                        setMapping((current) => ({
+                          ...current,
+                          [field]: event.target.value,
+                        }))
+                      }
                       disabled={!canEdit}
-                      className="h-9 text-xs w-full rounded-xl bg-background border-border/80"
+                      size="sm"
+                      className="w-full"
                     >
                       <SelectOption value="">— انتخاب ستون —</SelectOption>
                       {preview.columns.map((column) => (
@@ -504,7 +706,8 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
                           key={column}
                           value={column}
                           disabled={Object.entries(mapping).some(
-                            ([target, source]) => target !== field && source === column
+                            ([target, source]) =>
+                              target !== field && source === column,
                           )}
                         >
                           {column}
@@ -520,18 +723,29 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
       </form>
 
       {/* Data Preview */}
-      <ProductCard className="data-preview p-6 rounded-2xl border border-border bg-card space-y-4" aria-labelledby="preview-title">
+      <ProductCard
+        className="data-preview p-6 rounded-[var(--ds-card-radius)] border border-border bg-card space-y-4"
+        aria-labelledby="preview-title"
+      >
         <div className="mapping-section-heading flex items-center justify-between border-b border-border/60 pb-3">
           <div>
-            <h3 id="preview-title" className="text-base font-bold text-foreground">پیش‌نمایش داده</h3>
-            <p className="text-xs text-muted-foreground">نمونه‌ای از فایل اصلی؛ ردیف عنوان در محاسبات وارد نمی‌شود.</p>
+            <h3
+              id="preview-title"
+              className="text-base font-bold text-foreground"
+            >
+              پیش‌نمایش داده
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              نمونه‌ای از فایل اصلی؛ ردیف عنوان در محاسبات وارد نمی‌شود.
+            </p>
           </div>
           <span className="text-xs font-mono text-muted-foreground">
-            {new Intl.NumberFormat("fa-IR").format(preview.rows.length)} ردیف نمونه
+            {new Intl.NumberFormat("fa-IR").format(preview.rows.length)} ردیف
+            نمونه
           </span>
         </div>
 
-        <div className="table-scroll overflow-x-auto rounded-xl border border-border">
+        <div className="table-scroll overflow-x-auto rounded-[var(--ds-card-radius)] border border-border">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
@@ -550,7 +764,11 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
                     {new Intl.NumberFormat("fa-IR").format(row.row_number)}
                   </TableCell>
                   {preview.columns.map((column) => (
-                    <TableCell key={column} className="text-xs max-w-xs truncate" title={displayValue(row.raw[column])}>
+                    <TableCell
+                      key={column}
+                      className="text-xs max-w-xs truncate"
+                      title={displayValue(row.raw[column])}
+                    >
                       {displayValue(row.raw[column])}
                     </TableCell>
                   ))}
@@ -563,14 +781,16 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
       {/* Validation Panel */}
       {preview.mapping && (
-        <ProductCard className="validation-panel p-6 rounded-2xl border border-border bg-card space-y-6">
+        <ProductCard className="validation-panel p-6 rounded-[var(--ds-card-radius)] border border-border bg-card space-y-6">
           <div className="validation-summary flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/60 pb-4">
             <div>
-              <h3 className="text-base font-bold text-foreground">کنترل کیفیت کل فایل</h3>
+              <h3 className="text-base font-bold text-foreground">
+                کنترل کیفیت کل فایل
+              </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isValidated
                   ? `${new Intl.NumberFormat("fa-IR").format(batch.accepted_count ?? 0)} ردیف پذیرفته و ${new Intl.NumberFormat(
-                      "fa-IR"
+                      "fa-IR",
                     ).format(batch.rejected_count ?? 0)} ردیف رد شده است.`
                   : "تمام ردیف‌ها با نگاشت تأییدشده بررسی می‌شوند."}
               </p>
@@ -578,22 +798,31 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
             {!isValidated ? (
               <Button
-                className="primary-button h-10 text-xs font-bold gap-2 self-start sm:self-center"
+                className="primary-button gap-2 self-start sm:self-center"
                 onClick={() => void validate()}
                 disabled={busy !== null}
               >
-                {busy === "validation" ? "در حال اعتبارسنجی…" : "شروع اعتبارسنجی"}
+                {busy === "validation"
+                  ? "در حال اعتبارسنجی…"
+                  : "شروع اعتبارسنجی"}
               </Button>
             ) : !isCommitted ? (
               <Button
-                className="primary-button h-10 text-xs font-bold gap-2 self-start sm:self-center"
+                className="primary-button gap-2 self-start sm:self-center"
                 onClick={() => void commit()}
-                disabled={busy !== null || Boolean(issueCounts.blocking) || !(batch.accepted_count ?? 0)}
+                disabled={
+                  busy !== null ||
+                  Boolean(issueCounts.blocking) ||
+                  !(batch.accepted_count ?? 0)
+                }
               >
                 {busy === "commit" ? "در حال ثبت…" : "ثبت نهایی و نرمال‌سازی"}
               </Button>
             ) : (
-              <Badge variant="outline" className="commit-complete bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-xs gap-1.5 py-1.5 px-3">
+              <Badge
+                variant="outline"
+                className="commit-complete bg-ds-success/10 text-ds-success border-ds-success/20 text-xs gap-1.5 py-1.5 px-3"
+              >
                 <Icon name="check" className="size-3.5" />
                 در صف پردازش
               </Badge>
@@ -602,29 +831,45 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 
           {isValidated && (
             <>
-              <div className="quality-stats grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-muted/40 border border-border/60 text-center">
+              <div className="quality-stats grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-[var(--ds-card-radius)] bg-muted/40 border border-border/60 text-center">
                 <div>
-                  <small className="block text-[11px] text-muted-foreground mb-1">کل ردیف‌ها</small>
+                  <small className="block text-[11px] text-muted-foreground mb-1">
+                    کل ردیف‌ها
+                  </small>
                   <strong className="text-sm font-bold text-foreground font-mono">
-                    {new Intl.NumberFormat("fa-IR").format(batch.row_count ?? 0)}
+                    {new Intl.NumberFormat("fa-IR").format(
+                      batch.row_count ?? 0,
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <small className="block text-[11px] text-muted-foreground mb-1">پذیرفته</small>
-                  <strong className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">
-                    {new Intl.NumberFormat("fa-IR").format(batch.accepted_count ?? 0)}
+                  <small className="block text-[11px] text-muted-foreground mb-1">
+                    پذیرفته
+                  </small>
+                  <strong className="text-sm font-bold text-ds-success font-mono">
+                    {new Intl.NumberFormat("fa-IR").format(
+                      batch.accepted_count ?? 0,
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <small className="block text-[11px] text-muted-foreground mb-1">ردشده</small>
+                  <small className="block text-[11px] text-muted-foreground mb-1">
+                    ردشده
+                  </small>
                   <strong className="text-sm font-bold text-destructive font-mono">
-                    {new Intl.NumberFormat("fa-IR").format(batch.rejected_count ?? 0)}
+                    {new Intl.NumberFormat("fa-IR").format(
+                      batch.rejected_count ?? 0,
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <small className="block text-[11px] text-muted-foreground mb-1">هشدار</small>
-                  <strong className="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono">
-                    {new Intl.NumberFormat("fa-IR").format(issueCounts.warning ?? 0)}
+                  <small className="block text-[11px] text-muted-foreground mb-1">
+                    هشدار
+                  </small>
+                  <strong className="text-sm font-bold text-ds-warning font-mono">
+                    {new Intl.NumberFormat("fa-IR").format(
+                      issueCounts.warning ?? 0,
+                    )}
                   </strong>
                 </div>
               </div>
@@ -634,7 +879,12 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
         </ProductCard>
       )}
 
-      <Dialog open={showDeleteDialog} onOpenChange={(open) => { if (!open && !deleting) setShowDeleteDialog(false); }}>
+      <Dialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setShowDeleteDialog(false);
+        }}
+      >
         <DialogContent className="sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
@@ -642,7 +892,10 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
               حذف سند مالی
             </DialogTitle>
             <DialogDescription>
-              آیا از حذف فایل «<strong className="text-foreground">{batch.original_name}</strong>» اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
+              آیا از حذف فایل «
+              <strong className="text-foreground">{batch.original_name}</strong>
+              » اطمینان دارید؟ تمامی ردیف‌ها و داده‌های استخراج‌شده از این سند
+              به طور کامل حذف خواهند شد. این عملیات غیرقابل بازگشت است.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:justify-end">
@@ -674,7 +927,7 @@ export function ImportWorkspace({ company, batchId }: { company: Company; batchI
 function IssuesList({ issues }: { issues: ImportIssue[] }) {
   if (!issues.length) {
     return (
-      <div className="issues-empty flex items-center justify-center gap-2 p-6 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400">
+      <div className="issues-empty flex items-center justify-center gap-2 p-6 rounded-[var(--ds-card-radius)] bg-ds-success/5 border border-ds-success/20 text-xs text-ds-success">
         <Icon name="check" className="size-4" />
         <span>
           <strong className="font-bold">خطایی پیدا نشد: </strong>
@@ -687,7 +940,9 @@ function IssuesList({ issues }: { issues: ImportIssue[] }) {
   return (
     <div className="issues-list space-y-3">
       <div className="issues-title flex items-center justify-between border-b border-border/60 pb-2">
-        <strong className="text-xs font-bold text-foreground">موارد نیازمند توجه</strong>
+        <strong className="text-xs font-bold text-foreground">
+          موارد نیازمند توجه
+        </strong>
         <span className="text-[11px] font-mono text-muted-foreground">
           {new Intl.NumberFormat("fa-IR").format(issues.length)} مورد
         </span>
@@ -697,32 +952,43 @@ function IssuesList({ issues }: { issues: ImportIssue[] }) {
         {issues.map((issue) => (
           <article
             key={issue.id}
-            className="flex items-start justify-between gap-3 p-3 rounded-xl border border-border/60 bg-muted/20 text-xs"
+            className="flex items-start justify-between gap-3 p-3 rounded-[var(--ds-card-radius)] border border-border/60 bg-muted/20 text-xs"
           >
             <div className="flex items-start gap-2.5">
               <span
                 className={`issue-icon size-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
                   issue.severity === "blocking"
                     ? "bg-destructive/10 text-destructive"
-                    : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    : "bg-ds-warning/10 text-ds-warning"
                 }`}
               >
                 <Icon name="alert" className="size-3.5" />
               </span>
               <div className="space-y-0.5">
-                <strong className="block font-bold text-foreground">{issue.message}</strong>
+                <strong className="block font-bold text-foreground">
+                  {issue.message}
+                </strong>
                 <small className="block text-[11px] text-muted-foreground">
                   {issue.row_number
                     ? `ردیف ${new Intl.NumberFormat("fa-IR").format(issue.row_number)}`
                     : "سطح فایل"}
-                  {issue.field ? ` · ${fieldLabels[issue.field] ?? issue.field}` : ""}
+                  {issue.field
+                    ? ` · ${fieldLabels[issue.field] ?? issue.field}`
+                    : ""}
                 </small>
-                {issue.remedy && <p className="text-[11px] text-muted-foreground/90 mt-1">{issue.remedy}</p>}
+                {issue.remedy && (
+                  <p className="text-[11px] text-muted-foreground/90 mt-1">
+                    {issue.remedy}
+                  </p>
+                )}
               </div>
             </div>
 
             {issue.raw_value && (
-              <code dir="ltr" className="px-2 py-1 rounded bg-muted text-[11px] font-mono shrink-0">
+              <code
+                dir="ltr"
+                className="px-2 py-1 rounded bg-muted text-[11px] font-mono shrink-0"
+              >
                 {issue.raw_value}
               </code>
             )}

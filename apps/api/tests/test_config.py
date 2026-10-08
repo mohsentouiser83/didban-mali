@@ -1,5 +1,7 @@
 import pytest
+
 from app.core.config import Settings
+
 
 def test_production_config_rejects_insecure_defaults():
     # Production with default jwt secret fails

@@ -2,9 +2,13 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.calculations.base import CalculatedMetricResult, CalculationContext
+from app.calculations.cash_position import CashPositionCalculator
+from app.calculations.models import FinancialPolicy
 from app.cashflow.schemas import (
     CashFlowForecastResponse,
     CashFlowSummaryResponse,
@@ -15,7 +19,6 @@ from app.cashflow.schemas import (
     ScenarioType,
 )
 from app.financial.models import (
-    Account,
     AccountClass,
     AccountClassification,
     BankTransaction,
@@ -40,76 +43,40 @@ async def _resolve_as_of_date(
         )
     )
     max_inv_date = await session.scalar(
-        select(func.max(SalesInvoice.issue_date)).where(
-            SalesInvoice.company_id == company_id
-        )
+        select(func.max(SalesInvoice.issue_date)).where(SalesInvoice.company_id == company_id)
     )
 
     dates = [d for d in (max_bank_date, max_inv_date) if d is not None]
     return max(dates) if dates else date.today()
 
 
+async def _cash_position(
+    session: AsyncSession, company_id: UUID, as_of_date: date
+) -> CalculatedMetricResult:
+    policy = await session.scalar(
+        select(FinancialPolicy).where(FinancialPolicy.company_id == company_id)
+    )
+    if policy is None:
+        policy = FinancialPolicy(company_id=company_id, excluded_internal_transfer_accounts=[])
+    return await CashPositionCalculator().calculate(
+        CalculationContext(
+            company_id=company_id,
+            as_of_date=as_of_date,
+            period_start=as_of_date,
+            period_end=as_of_date,
+            policy=policy,
+            session=session,
+        )
+    )
+
+
 async def _get_current_liquid_cash(
     session: AsyncSession, company_id: UUID, as_of_date: date
 ) -> Decimal:
-    """Calculates available liquid cash across bank accounts as of the given date."""
-    # 1. Try sum of latest running balances per bank account
-    subq = (
-        select(
-            BankTransaction.bank_account_id,
-            func.max(BankTransaction.booking_date).label("max_date"),
-        )
-        .where(
-            BankTransaction.company_id == company_id,
-            BankTransaction.booking_date <= as_of_date,
-            BankTransaction.running_balance_irr.isnot(None),
-        )
-        .group_by(BankTransaction.bank_account_id)
-        .subquery()
-    )
-
-    query = select(BankTransaction.running_balance_irr).join(
-        subq,
-        (BankTransaction.bank_account_id == subq.c.bank_account_id)
-        & (BankTransaction.booking_date == subq.c.max_date),
-    )
-    raw_balances = (await session.execute(query)).scalars().all()
-    valid_balances = [b for b in raw_balances if b is not None]
-    if valid_balances:
-        total_balance = sum(valid_balances, ZERO)
-        if total_balance > ZERO:
-            return total_balance
-
-    # 2. If no running balances, sum all net bank transactions
-    net_bank = await session.scalar(
-        select(func.sum(BankTransaction.amount_irr)).where(
-            BankTransaction.company_id == company_id,
-            BankTransaction.booking_date <= as_of_date,
-        )
-    )
-    if net_bank is not None and net_bank > ZERO:
-        return net_bank
-
-    # 3. Check cash/bank ledger lines
-    cash_ledger = await session.scalar(
-        select(func.sum(JournalLine.debit_irr - JournalLine.credit_irr))
-        .join(Account, JournalLine.account_id == Account.id)
-        .join(
-            AccountClassification,
-            (AccountClassification.account_id == Account.id)
-            & (AccountClassification.account_class == AccountClass.ASSET),
-        )
-        .where(
-            JournalLine.company_id == company_id,
-            (Account.source_code.ilike("%101%"))
-            | (Account.name.ilike("%بانک%"))
-            | (Account.name.ilike("%نقد%")),
-        )
-    )
-    if cash_ledger is not None and cash_ledger > ZERO:
-        return cash_ledger
-
-    return ZERO
+    result = await _cash_position(session, company_id, as_of_date)
+    if result.value_numeric is None:
+        raise HTTPException(status_code=422, detail="مانده قابل اتکای حساب‌های بانکی در دسترس نیست.")
+    return result.value_numeric
 
 
 async def _get_monthly_burn_rate(
@@ -177,7 +144,10 @@ def _compute_runway(
 
 
 async def get_cashflow_summary(
-    session: AsyncSession, company_id: UUID, as_of_date: date | None = None
+    session: AsyncSession,
+    company_id: UUID,
+    as_of_date: date | None = None,
+    safety_buffer_irr: Decimal | None = None,
 ) -> CashFlowSummaryResponse:
     effective_date = await _resolve_as_of_date(session, company_id, as_of_date)
     current_cash = await _get_current_liquid_cash(session, company_id, effective_date)
@@ -189,8 +159,12 @@ async def get_cashflow_summary(
     safety_buffer = (
         (monthly_burn * Decimal("0.2")).quantize(Decimal("1"))
         if monthly_burn > ZERO
-        else (current_cash * Decimal("0.1")).quantize(Decimal("1"))
+        else max(ZERO, current_cash * Decimal("0.1")).quantize(Decimal("1"))
     )
+
+    if safety_buffer_irr is not None:
+        safety_buffer = safety_buffer_irr
+    cash_evidence = await _cash_position(session, company_id, effective_date)
 
     # Calculate 13-week quick projection to find first deficit week
     forecast = await get_cashflow_forecast(
@@ -220,6 +194,8 @@ async def get_cashflow_summary(
         safety_buffer_irr=safety_buffer,
         first_deficit_week=first_deficit_week,
         lowest_projected_cash_irr=lowest_cash,
+        cash_accounts=cash_evidence.evidence_json.get("breakdown", []),
+        cash_warnings=cash_evidence.warnings,
     )
 
 
@@ -238,24 +214,24 @@ async def get_cashflow_forecast(
         safety_buffer_irr = (
             (monthly_burn * Decimal("0.2")).quantize(Decimal("1"))
             if monthly_burn > ZERO
-            else (current_cash * Decimal("0.1")).quantize(Decimal("1"))
+            else max(ZERO, current_cash * Decimal("0.1")).quantize(Decimal("1"))
         )
 
     # Fetch open sales invoices
     inv_query = (
         select(SalesInvoice, Counterparty)
         .join(Counterparty, SalesInvoice.counterparty_id == Counterparty.id)
-        .where(SalesInvoice.company_id == company_id)
+        .where(SalesInvoice.company_id == company_id, SalesInvoice.issue_date <= effective_date)
     )
     inv_results = (await session.execute(inv_query)).all()
 
     # Scenario multipliers
     if scenario == "pessimistic":
         collection_factor_multiplier = Decimal("0.70")  # 30% reduction in collections
-        burn_multiplier = Decimal("1.10")               # 10% increase in expenses
+        burn_multiplier = Decimal("1.10")  # 10% increase in expenses
     elif scenario == "optimistic":
         collection_factor_multiplier = Decimal("1.15")  # Faster collections
-        burn_multiplier = Decimal("0.95")               # 5% expense savings
+        burn_multiplier = Decimal("0.95")  # 5% expense savings
     else:
         collection_factor_multiplier = Decimal("1.00")
         burn_multiplier = Decimal("1.00")
@@ -310,10 +286,7 @@ async def get_cashflow_forecast(
 
         # Outflows for this week
         # If week contains end of calendar month (day 28-31), allocate higher payroll spike
-        has_month_end = any(
-            (w_start + timedelta(days=d)).day in (28, 29, 30, 31)
-            for d in range(7)
-        )
+        has_month_end = any((w_start + timedelta(days=d)).day in (28, 29, 30, 31) for d in range(7))
 
         if has_month_end and weekly_base_burn > ZERO:
             # Payroll spike: 45% of monthly burn
@@ -381,12 +354,8 @@ async def get_cashflow_forecast(
 
     outflow_sources: list[CashOutflowSourceDetail] = []
     if total_outflows > ZERO:
-        payroll_share = float(
-            (payroll_outflow_sum / total_outflows * 100).quantize(Decimal("0.1"))
-        )
-        vendor_share = float(
-            (vendor_outflow_sum / total_outflows * 100).quantize(Decimal("0.1"))
-        )
+        payroll_share = float((payroll_outflow_sum / total_outflows * 100).quantize(Decimal("0.1")))
+        vendor_share = float((vendor_outflow_sum / total_outflows * 100).quantize(Decimal("0.1")))
         overhead_share = float(
             (overhead_outflow_sum / total_outflows * 100).quantize(Decimal("0.1"))
         )

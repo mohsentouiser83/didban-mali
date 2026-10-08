@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, Building2, FileSpreadsheet, Receipt, ShieldCheck, FileText } from "lucide-react";
+import { BookOpen, Building2, FileSpreadsheet, Receipt, ShieldCheck, FileText } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export type EvidenceSourceType = "accounting" | "bank" | "sales" | "tax" | "rule" | "system" | "file";
@@ -23,37 +23,37 @@ const sourceConfig: Record<
   accounting: {
     label: "دفتر حسابداری",
     icon: BookOpen,
-    className: "bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-400",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   bank: {
     label: "گردش حساب بانکی",
     icon: Building2,
-    className: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400",
+    className: "bg-ds-success/10 text-ds-success border-ds-success/20",
   },
   sales: {
     label: "فاکتور فروش",
     icon: Receipt,
-    className: "bg-indigo-500/10 text-indigo-700 border-indigo-500/20 dark:text-indigo-400",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
   tax: {
     label: "سامانه مودیان",
     icon: FileSpreadsheet,
-    className: "bg-teal-500/10 text-teal-700 border-teal-500/20 dark:text-teal-400",
+    className: "bg-teal-500/10 text-teal-700 border-teal-500/20",
   },
   rule: {
     label: "قاعده سیستمی",
     icon: ShieldCheck,
-    className: "bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400",
+    className: "bg-ds-warning/10 text-ds-warning border-ds-warning/20",
   },
   system: {
     label: "محاسبه سیستم",
     icon: ShieldCheck,
-    className: "bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-400",
+    className: "bg-slate-500/10 text-slate-700 border-slate-500/20",
   },
   file: {
     label: "فایل ورودی",
     icon: FileText,
-    className: "bg-cyan-500/10 text-cyan-700 border-cyan-500/20 dark:text-cyan-400",
+    className: "bg-primary/10 text-primary border-primary/20",
   },
 };
 
@@ -74,7 +74,7 @@ export const EvidenceSourceTag = React.forwardRef<HTMLSpanElement, EvidenceSourc
     const config = sourceConfig[source] ?? {
       label: source,
       icon: FileText,
-      className: "bg-slate-500/10 text-slate-700 border-slate-500/20 dark:text-slate-400",
+      className: "bg-slate-500/10 text-slate-700 border-slate-500/20",
     };
     const Icon = config.icon;
     const displayLabel = label ?? config.label;

@@ -29,16 +29,16 @@ const indicatorVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-l from-[#0891b2] to-[var(--ds-primary)] shadow-[0_0_10px_var(--ds-primary-glow)]",
+          "bg-[var(--ds-primary)]",
         success:
-          "bg-gradient-to-l from-[#059669] to-[var(--ds-success)] shadow-[0_0_10px_var(--ds-success-glow)]",
+          "bg-[var(--ds-success)]",
         warning:
-          "bg-gradient-to-l from-[#d97706] to-[var(--ds-warning)] shadow-[0_0_10px_var(--ds-warning-glow)]",
+          "bg-[var(--ds-warning)]",
         danger:
-          "bg-gradient-to-l from-[#e11d48] to-[var(--ds-danger)] shadow-[0_0_10px_var(--ds-danger-glow)]",
+          "bg-[var(--ds-danger)]",
       },
       striped: {
-        true: "bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:16px_16px] animate-[progress-stripes_1s_linear_infinite]",
+        true: "",
         false: "",
       },
     },

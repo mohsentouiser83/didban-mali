@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AlertCircle,
   BarChart3,
+  Building2,
   Calendar,
   CheckCircle2,
   ChevronLeft,
@@ -18,25 +19,43 @@ import {
   Layers,
   Lock,
   Plus,
+  Printer,
   RefreshCcw,
   ShieldCheck,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { toast } from "sonner";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusChip, toPersianDigits } from "@/components/ui/financial";
 
 import { API_URL, api } from "@/lib/product-api";
-import type { AnalysisRun, Company, ReportSnapshot, ReportStatus } from "@/lib/product-types";
+import type {
+  AnalysisRun,
+  Company,
+  ReportSnapshot,
+  ReportStatus,
+} from "@/lib/product-types";
 
 const statusLabels: Record<ReportStatus, string> = {
   queued: "در صف تولید",
@@ -65,9 +84,11 @@ const reportSections = [
 
 function faDate(value: string) {
   try {
-    return new Intl.DateTimeFormat("fa-IR", { year: "numeric", month: "long", day: "numeric" }).format(
-      new Date(`${value}T12:00:00`)
-    );
+    return new Intl.DateTimeFormat("fa-IR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date(`${value}T12:00:00`));
   } catch {
     return value;
   }
@@ -76,7 +97,10 @@ function faDate(value: string) {
 function faDateTime(value: string | null) {
   if (!value) return "—";
   try {
-    return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+    return new Intl.DateTimeFormat("fa-IR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
   } catch {
     return value;
   }
@@ -108,7 +132,7 @@ export function ReportsWorkspace({ company }: { company: Company }) {
   const canCreate = company.role !== "viewer";
   const selectedReport = useMemo(
     () => reports.find((item) => item.id === selectedId) ?? reports[0] ?? null,
-    [reports, selectedId]
+    [reports, selectedId],
   );
   const selectedAnalysis = analyses.find((item) => item.id === analysisId);
 
@@ -124,7 +148,8 @@ export function ReportsWorkspace({ company }: { company: Company }) {
         ]);
         if (ignore) return;
         const ready = analysisResult.filter(
-          (item) => item.status === "completed" || item.status === "completed_limited"
+          (item) =>
+            item.status === "completed" || item.status === "completed_limited",
         );
         setAnalyses(ready);
         setAnalysisId(ready[0]?.id ?? "");
@@ -132,7 +157,11 @@ export function ReportsWorkspace({ company }: { company: Company }) {
         setSelectedId(reportResult[0]?.id ?? "");
       } catch (caught) {
         if (!ignore) {
-          setError(caught instanceof Error ? caught.message : "اطلاعات گزارش‌ها دریافت نشد.");
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : "اطلاعات گزارش‌ها دریافت نشد.",
+          );
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -145,13 +174,19 @@ export function ReportsWorkspace({ company }: { company: Company }) {
   }, [company.id]);
 
   useEffect(() => {
-    if (!selectedReport || !["queued", "processing"].includes(selectedReport.status)) return;
+    if (
+      !selectedReport ||
+      !["queued", "processing"].includes(selectedReport.status)
+    )
+      return;
     const timer = window.setInterval(async () => {
       try {
         const current = await api<ReportSnapshot>(
-          `/companies/${company.id}/reports/${selectedReport.id}`
+          `/companies/${company.id}/reports/${selectedReport.id}`,
         );
-        setReports((items) => items.map((item) => (item.id === current.id ? current : item)));
+        setReports((items) =>
+          items.map((item) => (item.id === current.id ? current : item)),
+        );
         if (current.status === "completed" || current.status === "failed") {
           window.clearInterval(timer);
           setSubmitting(false);
@@ -165,7 +200,9 @@ export function ReportsWorkspace({ company }: { company: Company }) {
       } catch (caught) {
         window.clearInterval(timer);
         setSubmitting(false);
-        setError(caught instanceof Error ? caught.message : "وضعیت گزارش دریافت نشد.");
+        setError(
+          caught instanceof Error ? caught.message : "وضعیت گزارش دریافت نشد.",
+        );
       }
     }, 1200);
     return () => window.clearInterval(timer);
@@ -180,36 +217,47 @@ export function ReportsWorkspace({ company }: { company: Company }) {
     }
     setSubmitting(true);
     try {
-      const created = await api<ReportSnapshot>(`/companies/${company.id}/reports`, {
-        method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({
-          analysis_run_id: analysisId,
-          title_fa: title,
-          advisor_note: advisorNote.trim() || null,
-        }),
-      });
-      setReports((items) => [created, ...items.filter((item) => item.id !== created.id)]);
+      const created = await api<ReportSnapshot>(
+        `/companies/${company.id}/reports`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: JSON.stringify({
+            analysis_run_id: analysisId,
+            title_fa: title,
+            advisor_note: advisorNote.trim() || null,
+          }),
+        },
+      );
+      setReports((items) => [
+        created,
+        ...items.filter((item) => item.id !== created.id),
+      ]);
       setSelectedId(created.id);
       toast.info("فرآیند تولید گزارش PDF در صف پردازش قرار گرفت.");
     } catch (caught) {
       setSubmitting(false);
-      setError(caught instanceof Error ? caught.message : "درخواست گزارش ثبت نشد.");
+      setError(
+        caught instanceof Error ? caught.message : "درخواست گزارش ثبت نشد.",
+      );
     }
   }
 
   if (loading) return <ReportsSkeleton />;
 
   return (
-    <div className="space-y-6 pb-12" dir="rtl">
+    <div className="pp-page pp-reports space-y-6 pb-12" dir="rtl">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[var(--ds-border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              گزارش‌های رسمی و مدیریتی
+            <h1 className="text-xl lg:text-2xl font-bold tracking-normal text-[var(--ds-card-fg)]">
+              گزارش‌ها، آمادهٔ بررسی و ارائه
             </h1>
-            <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-xs">
+            <Badge
+              variant="outline"
+              className="bg-primary/5 text-primary border-primary/20 text-xs"
+            >
               گزارش‌های مستند با شناسه رهگیری
             </Badge>
           </div>
@@ -243,23 +291,26 @@ export function ReportsWorkspace({ company }: { company: Company }) {
               برای ساخت گزارش، ابتدا یک تحلیل مالی محاسبه‌شده لازم است
             </h3>
             <p className="text-xs text-muted-foreground max-w-md">
-              ابتدا دوره مالی را در بخش تحلیل مالی اجرا کنید تا داده‌ها و یافته‌ها در قالب یک تصویر ساخت‌یافته (Snapshot) ثبت شوند.
+              ابتدا دوره مالی را در بخش تحلیل مالی اجرا کنید تا داده‌ها و
+              یافته‌ها در قالب یک تصویر ساخت‌یافته (Snapshot) ثبت شوند.
             </p>
             <Button asChild className="mt-2">
-              <Link href={`/companies/${company.id}/analysis`}>رفتن به بخش تحلیل مالی</Link>
+              <Link href={`/companies/${company.id}/reports/analysis`}>
+                رفتن به بخش تحلیل مالی
+              </Link>
             </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Form Composer (7 cols) */}
-          <Card className="lg:col-span-7 border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
+          <Card className="pp-report-composer lg:col-span-7 border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
             <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <Plus className="size-4 text-primary" />
-                    صدور گزارش مالی جدید
+                    ساخت گزارش جدید
                   </CardTitle>
                 </div>
               </div>
@@ -271,15 +322,22 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                   <label className="text-xs font-semibold text-foreground block">
                     دوره مالی مبنای گزارش
                   </label>
-                  <Select value={analysisId} onValueChange={setAnalysisId} dir="rtl">
-                    <SelectTrigger className="w-full text-xs font-medium">
+                  <Select
+                    value={analysisId}
+                    onValueChange={setAnalysisId}
+                    dir="rtl"
+                  >
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="انتخاب دوره مالی..." />
                     </SelectTrigger>
                     <SelectContent>
                       {analyses.map((item) => (
-                        <SelectItem key={item.id} value={item.id} className="text-xs">
-                          {faDate(item.period_start)} تا {faDate(item.period_end)} ·{" "}
-                          {item.status === "completed" ? "داده کامل" : "پوشش محدود"}
+                        <SelectItem key={item.id} value={item.id}>
+                          {faDate(item.period_start)} تا{" "}
+                          {faDate(item.period_end)} ·{" "}
+                          {item.status === "completed"
+                            ? "داده کامل"
+                            : "پوشش محدود"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -295,7 +353,6 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                     onChange={(e) => setTitle(e.target.value)}
                     required
                     maxLength={200}
-                    className="text-xs"
                     placeholder="مثال: گزارش تحلیلی هیئت مدیره - دوره ۶ ماهه اول"
                   />
                 </div>
@@ -314,7 +371,6 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                     onChange={(e) => setAdvisorNote(e.target.value)}
                     rows={4}
                     maxLength={4000}
-                    className="text-xs leading-relaxed"
                     placeholder="جمع‌بندی تحلیلی، نقاط قوت و ضعف عملکرد مالی، یا توصیه‌هایی که باید در نسخه چاپی هیئت مدیره درج شود..."
                   />
                 </div>
@@ -323,7 +379,7 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                   <Button
                     type="submit"
                     disabled={!canCreate || submitting || !title.trim()}
-                    className="w-full gap-2 text-xs font-bold"
+                    className="w-full gap-2"
                   >
                     {submitting ? (
                       <>
@@ -343,16 +399,19 @@ export function ReportsWorkspace({ company }: { company: Company }) {
           </Card>
 
           {/* Right Column: PDF Structure Blueprint (5 cols) */}
-          <Card className="lg:col-span-5 border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
+          <Card className="pp-report-outline lg:col-span-5 border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
             <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base font-bold flex items-center gap-2">
                     <FileCheck2 className="size-4 text-primary" />
-                    ساختار و محتوای گزارش PDF
+                    در این گزارش
                   </CardTitle>
                 </div>
-                <Badge variant="outline" className="text-[11px] bg-primary/5 text-primary border-primary/20">
+                <Badge
+                  variant="outline"
+                  className="text-[11px] bg-primary/5 text-primary border-primary/20"
+                >
                   A4 · فارسی · RTL
                 </Badge>
               </div>
@@ -373,7 +432,7 @@ export function ReportsWorkspace({ company }: { company: Company }) {
             </CardContent>
 
             <CardFooter className="pt-2 pb-4 text-[11px] text-muted-foreground border-t border-[var(--ds-border)] flex items-center gap-2">
-              <ShieldCheck className="size-4 text-emerald-600 shrink-0" />
+              <ShieldCheck className="size-4 text-ds-success shrink-0" />
               <span>
                 سند با شناسه SHA-256 رمزنگاری شده و داده‌های آن تغییرناپذیر است.
               </span>
@@ -388,7 +447,7 @@ export function ReportsWorkspace({ company }: { company: Company }) {
           <CardHeader className="pb-4 border-b border-[var(--ds-border)]">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5">
+                <div className="p-2.5 rounded-[var(--ds-card-radius)] bg-primary/10 text-primary shrink-0 mt-0.5">
                   <FileText className="size-6" />
                 </div>
                 <div>
@@ -401,37 +460,57 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                     </Badge>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    دوره تحلیلی: {faDate(selectedReport.period_start)} تا {faDate(selectedReport.period_end)} | زمان ثبت:{" "}
+                    دوره تحلیلی: {faDate(selectedReport.period_start)} تا{" "}
+                    {faDate(selectedReport.period_end)} | زمان ثبت:{" "}
                     {faDateTime(selectedReport.created_at)}
                   </div>
                 </div>
               </div>
 
-              {selectedReport.download_ready && (
-                <Button asChild className="gap-2 text-xs font-bold shrink-0">
-                  <a href={`${API_URL}/companies/${company.id}/reports/${selectedReport.id}/download`}>
-                    <Download className="size-4" />
-                    دریافت فایل چاپی PDF
-                  </a>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="gap-2"
+                  title="چاپ نسخه رسمی یا ذخیره با فرمت PDF"
+                >
+                  <Printer className="size-3.5" />
+                  <span>چاپ رسمی (Print / PDF)</span>
                 </Button>
-              )}
+                {selectedReport.download_ready && (
+                  <Button asChild size="sm" className="gap-2">
+                    <a
+                      href={`${API_URL}/companies/${company.id}/reports/${selectedReport.id}/download`}
+                    >
+                      <Download className="size-3.5" />
+                      دریافت فایل چاپی PDF
+                    </a>
+                  </Button>
+                )}
+              </div>
             </div>
           </CardHeader>
 
           <CardContent className="pt-5 space-y-5">
             {/* Progress bar if generating */}
-            {(selectedReport.status === "queued" || selectedReport.status === "processing") && (
-              <div className="p-4 rounded-xl border border-[var(--ds-border)] bg-muted/30 space-y-2.5">
+            {(selectedReport.status === "queued" ||
+              selectedReport.status === "processing") && (
+              <div className="p-4 rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-muted/30 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-foreground flex items-center gap-2">
                     <RefreshCcw className="size-3.5 animate-spin text-primary" />
                     {stageLabels[selectedReport.stage] ?? selectedReport.stage}
                   </span>
-                  <span className="font-mono font-bold">{toPersianDigits(selectedReport.progress)}٪</span>
+                  <span className="font-mono font-bold">
+                    {toPersianDigits(selectedReport.progress)}٪
+                  </span>
                 </div>
                 <Progress value={selectedReport.progress} className="h-2" />
                 <p className="text-[11px] text-muted-foreground">
-                  عملیات در سرور انجام می‌شود؛ بستن این صفحه فرآیند ساخت را متوقف نمی‌کند.
+                  عملیات در سرور انجام می‌شود؛ بستن این صفحه فرآیند ساخت را
+                  متوقف نمی‌کند.
                 </p>
               </div>
             )}
@@ -440,42 +519,75 @@ export function ReportsWorkspace({ company }: { company: Company }) {
             {selectedReport.status === "completed" && (
               <div className="space-y-4">
                 {/* 6 Metric Quick Stats */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="pp-metric-strip pp-metric-strip-six grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">وضعیت سلامت</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      وضعیت سلامت
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
                       {selectedReport.payload.overall_status.summary_fa}
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">شاخص‌های محاسباتی</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      شاخص‌های محاسباتی
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
-                      {toPersianDigits(selectedReport.payload.financial_overview.filter((m) => m.available).length)} از{" "}
-                      {toPersianDigits(selectedReport.payload.financial_overview.length)}
+                      {toPersianDigits(
+                        selectedReport.payload.financial_overview.filter(
+                          (m) => m.available,
+                        ).length,
+                      )}{" "}
+                      از{" "}
+                      {toPersianDigits(
+                        selectedReport.payload.financial_overview.length,
+                      )}
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">یافته‌های بااولویت</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      یافته‌های بااولویت
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
-                      {toPersianDigits(selectedReport.payload.top_findings.length)} یافته
+                      {toPersianDigits(
+                        selectedReport.payload.top_findings.length,
+                      )}{" "}
+                      یافته
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">کل یافته‌ها در ضمیمه</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      کل یافته‌ها در ضمیمه
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
-                      {toPersianDigits(selectedReport.payload.all_findings.length)} ردیف
+                      {toPersianDigits(
+                        selectedReport.payload.all_findings.length,
+                      )}{" "}
+                      ردیف
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">یادداشت‌های مشاور</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      یادداشت‌های مشاور
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
-                      {toPersianDigits(selectedReport.payload.advisor_notes.length + (selectedReport.payload.advisor_note ? 1 : 0))}
+                      {toPersianDigits(
+                        selectedReport.payload.advisor_notes.length +
+                          (selectedReport.payload.advisor_note ? 1 : 0),
+                      )}
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border border-[var(--ds-border)]">
-                    <span className="text-[11px] text-muted-foreground block">پوشش داده</span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      پوشش داده
+                    </span>
                     <strong className="text-xs font-bold text-foreground block mt-1">
-                      {toPersianDigits(Math.round(selectedReport.payload.data_coverage.overall_score))}٪
+                      {toPersianDigits(
+                        Math.round(
+                          selectedReport.payload.data_coverage.overall_score,
+                        ),
+                      )}
+                      ٪
                     </strong>
                   </div>
                 </div>
@@ -492,7 +604,9 @@ export function ReportsWorkspace({ company }: { company: Company }) {
 
                   <div className="flex items-center gap-2">
                     <Fingerprint className="size-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">اثر انگشت SHA-256:</span>
+                    <span className="text-muted-foreground">
+                      اثر انگشت SHA-256:
+                    </span>
                     <code className="font-mono text-[11px] bg-background px-2 py-0.5 rounded border">
                       {shortHash(selectedReport.pdf_sha256)}
                     </code>
@@ -506,6 +620,174 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                 </div>
+
+                {/* OFFICIAL IRANIAN PRINT LETTERHEAD & STATEMENT SHEET */}
+                <div className="rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] p-6 bg-card space-y-6 print:border-none print:p-0 print:m-0 print:space-y-6">
+                  {/* Official Corporate Letterhead */}
+                  <div className="border-b-2 border-primary/40 pb-4 flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="size-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                          <Building2 className="size-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-bold text-foreground">
+                            {company.legal_name || "دیدبان مالی"}
+                          </h3>
+                          <span className="text-xs text-muted-foreground">
+                            صورت‌های نظارتی و گزارش مدیریتی
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground pt-1">
+                        شناسه ملی: {toPersianDigits(company.national_id ?? "—")}{" "}
+                        | واحد سنجش:{" "}
+                        {company.currency === "IRR"
+                          ? "ریال ایران"
+                          : company.currency}
+                      </p>
+                    </div>
+
+                    <div className="text-left text-xs space-y-1 text-muted-foreground font-mono">
+                      <div>
+                        شماره سند:{" "}
+                        <span className="font-bold text-foreground">
+                          {selectedReport.id.slice(0, 8)}
+                        </span>
+                      </div>
+                      <div>
+                        تاریخ گزارش:{" "}
+                        <span className="font-bold text-foreground">
+                          {faDate(selectedReport.created_at.slice(0, 10))}
+                        </span>
+                      </div>
+                      <div>
+                        دوره مالی:{" "}
+                        <span className="font-bold text-foreground">
+                          {faDate(selectedReport.period_start)} تا{" "}
+                          {faDate(selectedReport.period_end)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Statement Title */}
+                  <div className="text-center py-1 space-y-1">
+                    <h2 className="text-base sm:text-lg font-bold text-foreground tracking-normal">
+                      {selectedReport.title_fa}
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      خلاصه اجرایی شاخص‌های کلیدی، وضعیت سلامت خزانه و ارزیابی
+                      ریسک‌های بااهمیت
+                    </p>
+                  </div>
+
+                  {/* Key Financial Metrics Table */}
+                  <div className="rounded-lg border border-border overflow-hidden print-avoid-break">
+                    <table className="w-full text-xs text-right divide-y divide-border">
+                      <thead className="bg-muted/50 font-bold text-muted-foreground">
+                        <tr>
+                          <th className="p-2.5">عنوان شاخص مالی</th>
+                          <th className="p-2.5 text-left">مقدار محاسبه‌شده</th>
+                          <th className="p-2.5">تحلیل و وضعیت نظارتی</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        <tr>
+                          <td className="p-2.5 font-medium">سلامت کلان مالی</td>
+                          <td className="p-2.5 text-left font-bold text-foreground">
+                            {selectedReport.payload.overall_status.summary_fa}
+                          </td>
+                          <td className="p-2.5 text-muted-foreground">
+                            پوشش اتکاپذیری داده:{" "}
+                            {toPersianDigits(
+                              Math.round(
+                                selectedReport.payload.data_coverage
+                                  .overall_score,
+                              ),
+                            )}
+                            ٪
+                          </td>
+                        </tr>
+                        {selectedReport.payload.financial_overview
+                          .slice(0, 5)
+                          .map((metric) => (
+                            <tr key={metric.metric_code}>
+                              <td className="p-2.5 font-medium">
+                                {metric.label_fa}
+                              </td>
+                              <td
+                                className="p-2.5 text-left font-mono font-bold text-foreground"
+                                dir="ltr"
+                              >
+                                {metric.value != null
+                                  ? toPersianDigits(
+                                      Number(metric.value).toLocaleString(
+                                        "fa-IR",
+                                      ),
+                                    )
+                                  : "—"}
+                              </td>
+                              <td className="p-2.5 text-muted-foreground">
+                                {metric.available
+                                  ? "محاسبه‌شده و معتبر"
+                                  : metric.unavailable_reason_fa ||
+                                    "عدم کفایت داده"}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Advisor Interpretation */}
+                  {(selectedReport.advisor_note ||
+                    selectedReport.payload.advisor_note?.body) && (
+                    <div className="p-3.5 rounded-lg bg-muted/40 border border-border text-xs space-y-1.5 print-avoid-break">
+                      <span className="font-bold text-foreground block">
+                        جمع‌بندی و توصیه‌های راهبردی مشاور مالی:
+                      </span>
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {selectedReport.advisor_note ||
+                          selectedReport.payload.advisor_note?.body}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Official 3-Party Signatures Row */}
+                  <div className="pt-6 border-t border-border grid grid-cols-3 gap-4 text-center text-xs print-avoid-break">
+                    <div className="space-y-14">
+                      <span className="font-bold text-foreground block">
+                        مدیر / مشاور ارشد مالی
+                      </span>
+                      <div className="text-[11px] text-muted-foreground border-t border-dashed border-border pt-1">
+                        امضاء و مهر واحد مالی
+                      </div>
+                    </div>
+                    <div className="space-y-14">
+                      <span className="font-bold text-foreground block">
+                        حسابرس و بازرس قانونی
+                      </span>
+                      <div className="text-[11px] text-muted-foreground border-t border-dashed border-border pt-1">
+                        امضاء و تاییدیه انطباق
+                      </div>
+                    </div>
+                    <div className="space-y-14">
+                      <span className="font-bold text-foreground block">
+                        مدیرعامل / هیئت مدیره
+                      </span>
+                      <div className="text-[11px] text-muted-foreground border-t border-dashed border-border pt-1">
+                        تصویب و ابلاغ نهایی
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Official Legal Footer */}
+                  <div className="text-center text-[10px] text-muted-foreground pt-4 border-t border-border/40 font-mono">
+                    این سند رسمی با رعایت الزامات گزارشگری استاندارد توسط سامانه
+                    هوشمند «دیدبان مالی» تهیه گردیده است.
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
@@ -514,14 +796,14 @@ export function ReportsWorkspace({ company }: { company: Company }) {
 
       {/* Report Archive List */}
       {reports.length > 0 && (
-        <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
+        <Card className="pp-report-archive border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
           <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
             <div className="flex items-center justify-between">
               <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Layers className="size-4 text-primary" />
-                    آرشیو گزارش‌های صادرشده
-                  </CardTitle>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Layers className="size-4 text-primary" />
+                  آرشیو گزارش‌های صادرشده
+                </CardTitle>
               </div>
               <Badge variant="outline" className="text-xs">
                 {toPersianDigits(reports.length)} نسخه بایگانی‌شده
@@ -534,7 +816,10 @@ export function ReportsWorkspace({ company }: { company: Company }) {
               {reports.map((report) => {
                 const isSelected = report.id === selectedReport?.id;
                 return (
-                  <button
+                  <Button
+                    variant="surface"
+                    size="auto"
+                    motion="none"
                     key={report.id}
                     type="button"
                     onClick={() => setSelectedId(report.id)}
@@ -548,10 +833,10 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                       <div
                         className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${
                           report.status === "completed"
-                            ? "bg-emerald-500/10 text-emerald-600"
+                            ? "bg-ds-success/10 text-ds-success"
                             : report.status === "failed"
-                            ? "bg-red-500/10 text-red-600"
-                            : "bg-amber-500/10 text-amber-600"
+                              ? "bg-ds-danger/10 text-ds-danger"
+                              : "bg-ds-warning/10 text-ds-warning"
                         }`}
                       >
                         <FileText className="size-4" />
@@ -561,7 +846,8 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                           {report.title_fa}
                         </strong>
                         <span className="text-[11px] text-muted-foreground block mt-0.5">
-                          {faDate(report.period_start)} تا {faDate(report.period_end)}
+                          {faDate(report.period_start)} تا{" "}
+                          {faDate(report.period_end)}
                         </span>
                       </div>
                     </div>
@@ -577,7 +863,7 @@ export function ReportsWorkspace({ company }: { company: Company }) {
                       </div>
                       <ChevronLeft className="size-4 text-muted-foreground" />
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -593,10 +879,10 @@ function ReportsSkeleton() {
     <div className="space-y-6 animate-pulse" dir="rtl">
       <div className="h-10 w-48 bg-muted rounded" />
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 h-64 bg-muted rounded-xl" />
-        <div className="lg:col-span-5 h-64 bg-muted rounded-xl" />
+        <div className="lg:col-span-7 h-64 bg-muted rounded-[var(--ds-card-radius)]" />
+        <div className="lg:col-span-5 h-64 bg-muted rounded-[var(--ds-card-radius)]" />
       </div>
-      <div className="h-48 bg-muted rounded-xl" />
+      <div className="h-48 bg-muted rounded-[var(--ds-card-radius)]" />
     </div>
   );
 }

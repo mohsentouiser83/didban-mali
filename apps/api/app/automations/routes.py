@@ -111,7 +111,7 @@ async def update_rule(
         )
         return _to_rule_response(rule)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
 @router.post("/{rule_id}/run", response_model=AutomationRunResponse)
@@ -132,7 +132,7 @@ async def execute_rule(
         )
         return _to_run_response(run)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
 @router.get("/{rule_id}/runs", response_model=list[AutomationRunResponse])

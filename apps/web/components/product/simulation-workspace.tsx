@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertOctagon,
@@ -28,7 +32,7 @@ import {
   Users,
   Wallet,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +63,7 @@ import type {
 
 import { DecisionMemoDialog } from "./decision-memo-dialog";
 import { SaveScenarioDialog } from "./save-scenario-dialog";
+import { Input } from "@/components/ui/input";
 
 const DEFAULT_PARAMS: SimulationParametersRequest = {
   dso_change_days: 0,
@@ -134,9 +139,24 @@ const FALLBACK_PRESETS: PresetScenarioItem[] = [
 ];
 
 export function SimulationWorkspace({ company }: { company: Company }) {
-  const [activeTab, setActiveTab] = useState<"simulator" | "matrix">("simulator");
-  const [params, setParams] = useState<SimulationParametersRequest>(DEFAULT_PARAMS);
-  const [presets, setPresets] = useState<PresetScenarioItem[]>(FALLBACK_PRESETS);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = searchParams.get("tab");
+  const activeTab = tab === "matrix" || tab === "saved" ? tab : "simulator";
+  const setActiveTab = (next: string) => {
+    const query = new URLSearchParams(searchParams.toString());
+    query.set("tab", next);
+    router.push(`${pathname}?${query}`, { scroll: false });
+  };
+  const calculationRequest = useRef(0);
+  const comparisonRequest = useRef(0);
+  const [calculationError, setCalculationError] = useState("");
+  const [comparisonError, setComparisonError] = useState("");
+  const [params, setParams] =
+    useState<SimulationParametersRequest>(DEFAULT_PARAMS);
+  const [presets, setPresets] =
+    useState<PresetScenarioItem[]>(FALLBACK_PRESETS);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -144,7 +164,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
   // Saved scenarios state
   const [savedScenarios, setSavedScenarios] = useState<SavedScenarioItem[]>([]);
   const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
-  const [matrixData, setMatrixData] = useState<ComparativeMatrixResponse | null>(null);
+  const [matrixData, setMatrixData] =
+    useState<ComparativeMatrixResponse | null>(null);
   const [matrixLoading, setMatrixLoading] = useState(false);
 
   // Dialogs state
@@ -164,7 +185,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
         // Silently use realistic fallback presets
       });
 
-    api<SavedScenariosListResponse>(`/companies/${company.id}/simulation/scenarios`)
+    api<SavedScenariosListResponse>(
+      `/companies/${company.id}/simulation/scenarios`,
+    )
       .then((res) => {
         if (!ignore && res.items) {
           setSavedScenarios(res.items);
@@ -183,6 +206,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
   // 2. Trigger Simulation Calculation
   const runSimulationCalculation = useCallback(
     async (p: SimulationParametersRequest) => {
+      const requestId = ++calculationRequest.current;
+      setCalculationError("");
       setLoading(true);
       try {
         const res = await api<SimulationResultResponse>(
@@ -190,21 +215,26 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           {
             method: "POST",
             body: JSON.stringify(p),
-          }
+          },
         );
-        setResult(res);
+        if (requestId === calculationRequest.current) setResult(res);
       } catch (err) {
-        toast.error("خطا در اجرای محاسبات شبیه‌سازی");
+        if (requestId === calculationRequest.current) {
+          setResult(null);
+          setCalculationError(err instanceof Error ? err.message : "محاسبات سناریو انجام نشد.");
+        }
       } finally {
-        setLoading(false);
+        if (requestId === calculationRequest.current) setLoading(false);
       }
     },
-    [company.id]
+    [company.id],
   );
 
   // 3. Load Comparative Matrix
   const loadComparativeMatrix = useCallback(
     async (scenarioIds: string[]) => {
+      const requestId = ++comparisonRequest.current;
+      setComparisonError("");
       setMatrixLoading(true);
       try {
         const res = await api<ComparativeMatrixResponse>(
@@ -215,23 +245,26 @@ export function SimulationWorkspace({ company }: { company: Company }) {
               scenario_ids: scenarioIds,
               current_params: params,
             }),
-          }
+          },
         );
-        setMatrixData(res);
-      } catch {
-        toast.error("خطا در دریافت ماتریس مقایسه سناریوها");
+        if (requestId === comparisonRequest.current) setMatrixData(res);
+      } catch (error) {
+        if (requestId === comparisonRequest.current) {
+          setMatrixData(null);
+          setComparisonError(error instanceof Error ? error.message : "مقایسه سناریوها انجام نشد.");
+        }
       } finally {
-        setMatrixLoading(false);
+        if (requestId === comparisonRequest.current) setMatrixLoading(false);
       }
     },
-    [company.id, params]
+    [company.id, params],
   );
 
   // Initial simulation run
   useEffect(() => {
-    runSimulationCalculation(params);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void runSimulationCalculation(DEFAULT_PARAMS);
+    return () => { calculationRequest.current++; comparisonRequest.current++; };
+  }, [runSimulationCalculation]);
 
   // When switching to Matrix tab, trigger comparison
   useEffect(() => {
@@ -322,7 +355,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
       header: "مانده پایان مبنا",
       numeric: true,
       align: "left",
-      render: (row) => <MoneyDisplay amount={row.baseline_closing_cash_irr} compact />,
+      render: (row) => (
+        <MoneyDisplay amount={row.baseline_closing_cash_irr} compact />
+      ),
     },
     {
       key: "simulated_inflows_irr",
@@ -330,7 +365,11 @@ export function SimulationWorkspace({ company }: { company: Company }) {
       numeric: true,
       align: "left",
       render: (row) => (
-        <MoneyDisplay amount={row.simulated_inflows_irr} compact direction="positive" />
+        <MoneyDisplay
+          amount={row.simulated_inflows_irr}
+          compact
+          direction="positive"
+        />
       ),
     },
     {
@@ -339,7 +378,11 @@ export function SimulationWorkspace({ company }: { company: Company }) {
       numeric: true,
       align: "left",
       render: (row) => (
-        <MoneyDisplay amount={row.simulated_outflows_irr} compact direction="negative" />
+        <MoneyDisplay
+          amount={row.simulated_outflows_irr}
+          compact
+          direction="negative"
+        />
       ),
     },
     {
@@ -352,7 +395,11 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           <MoneyDisplay
             amount={row.simulated_closing_cash_irr}
             compact
-            direction={Number(row.simulated_closing_cash_irr) < 0 ? "negative" : "neutral"}
+            direction={
+              Number(row.simulated_closing_cash_irr) < 0
+                ? "negative"
+                : "neutral"
+            }
           />
         </span>
       ),
@@ -364,7 +411,10 @@ export function SimulationWorkspace({ company }: { company: Company }) {
       render: (row) => {
         if (row.is_simulated_deficit) {
           return (
-            <Badge variant="danger" className="text-[11px] bg-red-50 text-red-700 border-red-200">
+            <Badge
+              variant="danger"
+              className="text-[11px] bg-ds-danger/10 text-ds-danger border-ds-danger/20"
+            >
               کسری نقدینگی
             </Badge>
           );
@@ -372,7 +422,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
         return (
           <Badge
             variant="outline"
-            className="text-[11px] bg-emerald-50 text-emerald-700 border-emerald-200"
+            className="text-[11px] bg-ds-success/10 text-ds-success border-ds-success/20"
           >
             پوشش امن
           </Badge>
@@ -382,13 +432,13 @@ export function SimulationWorkspace({ company }: { company: Company }) {
   ];
 
   return (
-    <div className="space-y-6 pb-16" dir="rtl">
+    <div className="pp-page pp-simulation space-y-6 pb-16" dir="rtl">
       {/* 1. Top Header & Action Buttons */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[var(--ds-border)] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--ds-card-fg)]">
-              شبیه‌ساز سناریوهای مالی
+            <h1 className="text-xl lg:text-2xl font-bold tracking-normal text-[var(--ds-card-fg)]">
+              سناریوها، پیش از تصمیم
             </h1>
             <Badge
               variant="outline"
@@ -404,8 +454,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           <Button
             variant="outline"
             size="sm"
+            disabled={loading || !result}
             onClick={() => setMemoDialogOpen(true)}
-            className="h-9 gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/5"
+            className="gap-1.5"
           >
             <FileText className="size-3.5 text-primary" />
             <span>صدور یادداشت تصمیم‌گیری (PDF)</span>
@@ -414,8 +465,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           <Button
             variant="outline"
             size="sm"
+            disabled={loading || !result}
             onClick={() => setSaveDialogOpen(true)}
-            className="h-9 gap-1.5 text-xs"
+            className="gap-1.5"
           >
             <BookmarkPlus className="size-3.5" />
             <span>ذخیره این سناریو</span>
@@ -425,7 +477,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             variant="ghost"
             size="sm"
             onClick={handleReset}
-            className="h-9 gap-1.5 text-xs text-[var(--ds-muted-fg)]"
+            className="gap-1.5 text-[var(--ds-muted-fg)]"
           >
             <RotateCcw className="size-3.5" />
             <span>بازنشانی</span>
@@ -433,56 +485,32 @@ export function SimulationWorkspace({ company }: { company: Company }) {
         </div>
       </div>
 
-      {/* 2. Primary Tabs: Live Simulator vs Comparative Matrix */}
-      <div className="flex items-center gap-2 border-b border-[var(--ds-border)] pb-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab("simulator")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-colors relative ${
-            activeTab === "simulator"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-[var(--ds-muted-fg)] hover:bg-[var(--ds-muted-bg)]"
-          }`}
-        >
-          <SlidersHorizontal className="size-3.5" />
-          <span>شبیه‌ساز تعاملی</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("matrix")}
-          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-colors relative ${
-            activeTab === "matrix"
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-[var(--ds-muted-fg)] hover:bg-[var(--ds-muted-bg)]"
-          }`}
-        >
-          <Columns className="size-3.5" />
-          <span>ماتریس مقایسه سناریوها</span>
-          {savedScenarios.length > 0 && (
-            <span
-              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                activeTab === "matrix"
-                  ? "bg-primary-foreground text-primary font-bold"
-                  : "bg-[var(--ds-muted-bg)] text-[var(--ds-muted-fg)] border border-[var(--ds-border)]"
-              }`}
-            >
-              {toPersianDigits(savedScenarios.length)}
-            </span>
-          )}
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} variant="line">
+        <TabsList aria-label="نمای سناریوها" className="max-w-full overflow-x-auto">
+          <TabsTrigger value="simulator">ویرایش سناریو</TabsTrigger>
+          <TabsTrigger value="saved">ذخیره‌شده‌ها · {toPersianDigits(savedScenarios.length)}</TabsTrigger>
+          <TabsTrigger value="matrix">مقایسه سناریوها</TabsTrigger>
+        </TabsList>
+      <TabsContent value={activeTab} className="space-y-6">
+      {calculationError && activeTab === "simulator" && <div role="alert" className="my-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ds-danger/30 bg-ds-danger/5 p-4 text-sm">
+        <p>محاسبات سناریو انجام نشد: {calculationError}</p>
+        <Button variant="outline" disabled={loading} onClick={() => void runSimulationCalculation(params)}>تلاش دوباره</Button>
+      </div>}
+      {comparisonError && activeTab === "matrix" && <div role="alert" className="my-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ds-danger/30 bg-ds-danger/5 p-4 text-sm">
+        <p>مقایسه سناریوها انجام نشد: {comparisonError}</p>
+        <Button variant="outline" disabled={matrixLoading} onClick={() => void loadComparativeMatrix(selectedScenarioIds)}>تلاش دوباره</Button>
+      </div>}
 
       {activeTab === "simulator" ? (
         <>
           {/* Preset Strategic Scenarios */}
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
+          <Card className="pp-section pp-presets border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                    <Zap className="size-4 text-amber-500" />
-                    الگوهای آماده سناریو
+                    <Zap className="size-4 text-ds-warning" />
+                    فرض‌های آماده برای شروع
                   </CardTitle>
                 </div>
               </div>
@@ -492,13 +520,16 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 {presets.map((preset) => {
                   const isSelected = activePresetId === preset.id;
                   return (
-                    <button
+                    <Button
+                      variant="surface"
+                      size="auto"
+                      motion="none"
                       key={preset.id}
                       type="button"
                       onClick={() => handleApplyPreset(preset)}
-                      className={`text-right p-3.5 rounded-xl border transition-all flex flex-col justify-between text-xs relative ${
+                      className={`text-right p-3.5 rounded-[var(--ds-card-radius)] border transition-all flex flex-col justify-between text-xs relative ${
                         isSelected
-                          ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                          ? "border-primary bg-primary/5 shadow-[var(--ds-shadow-sm)] ring-1 ring-primary"
                           : "border-[var(--ds-border)] hover:border-primary/50 hover:bg-[var(--ds-muted-bg)]"
                       }`}
                     >
@@ -522,9 +553,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                           {preset.parameters.dpo_change_days !== 0 &&
                             `تغییر پرداخت: ${preset.parameters.dpo_change_days > 0 ? "+" : ""}${toPersianDigits(preset.parameters.dpo_change_days)} روز`}
                         </span>
-                        <span>انتخاب ←</span>
+                        <span>انتخاب</span>
                       </div>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -534,32 +565,39 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           {/* Executive Verdict & Risk Warnings */}
           {result && (
             <div
-              className={`p-4 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+              className={`p-4 rounded-[var(--ds-card-radius)] border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
                 Number(result.runway_days_delta.delta_value) >= 10
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-300"
+                  ? "bg-ds-success/10 border-ds-success/30 text-ds-success"
                   : Number(result.runway_days_delta.delta_value) <= -10
-                    ? "bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-300"
-                    : "bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-300"
+                    ? "bg-ds-danger/10 border-ds-danger/30 text-ds-danger"
+                    : "bg-primary/10 border-primary/30 text-primary"
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">
                   {Number(result.runway_days_delta.delta_value) >= 10 ? (
-                    <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-400" />
+                    <ShieldCheck className="size-5 text-ds-success" />
                   ) : Number(result.runway_days_delta.delta_value) <= -10 ? (
-                    <AlertOctagon className="size-5 text-red-600 dark:text-red-400" />
+                    <AlertOctagon className="size-5 text-ds-danger" />
                   ) : (
-                    <Activity className="size-5 text-blue-600 dark:text-blue-400" />
+                    <Activity className="size-5 text-primary" />
                   )}
                 </div>
                 <div>
-                  <div className="font-bold text-sm">حکم مدیریتی سناریو (Executive Verdict)</div>
-                  <p className="text-xs mt-1 leading-relaxed">{result.executive_verdict_fa}</p>
+                  <div className="font-bold text-sm">
+                    حکم مدیریتی سناریو (Executive Verdict)
+                  </div>
+                  <p className="text-xs mt-1 leading-relaxed">
+                    {result.executive_verdict_fa}
+                  </p>
                   {result.risk_warnings_fa.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {result.risk_warnings_fa.map((warn, i) => (
-                        <div key={i} className="flex items-center gap-1.5 text-[11px] font-semibold">
-                          <AlertTriangle className="size-3 text-amber-600 dark:text-amber-400" />
+                        <div
+                          key={i}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold"
+                        >
+                          <AlertTriangle className="size-3 text-ds-warning" />
                           <span>{warn}</span>
                         </div>
                       ))}
@@ -570,9 +608,12 @@ export function SimulationWorkspace({ company }: { company: Company }) {
 
               <div className="shrink-0 flex items-center gap-2">
                 <div className="text-left">
-                  <span className="text-[10px] block opacity-80">تاب‌آوری جدید:</span>
-                  <span className="text-lg font-black font-mono">
-                    {toPersianDigits(result.runway_days_delta.simulated_value)} روز
+                  <span className="text-[10px] block opacity-80">
+                    تاب‌آوری جدید:
+                  </span>
+                  <span className="text-lg font-bold font-mono">
+                    {toPersianDigits(result.runway_days_delta.simulated_value)}{" "}
+                    روز
                   </span>
                 </div>
               </div>
@@ -580,7 +621,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           )}
 
           {/* Delta Comparison KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="pp-metric-strip grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiMetricCard
               title="تغییر تاب‌آوری نقد (Runway)"
               value={
@@ -605,11 +646,10 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                       ? "critical"
                       : "warning"
               }
-              icon={Clock}
             />
 
             <KpiMetricCard
-              title="تغییر نرخ سوخت ماهانه (Burn Rate)"
+              title="تغییر مصرف نقد ماهانه"
               value={result?.monthly_burn_rate_delta.simulated_value ?? 0}
               loading={loading}
               subtext={
@@ -624,7 +664,6 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     ? "warning"
                     : "normal"
               }
-              icon={Flame}
             />
 
             <KpiMetricCard
@@ -649,7 +688,6 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     ? "normal"
                     : "warning"
               }
-              icon={Coins}
             />
 
             <KpiMetricCard
@@ -668,18 +706,17 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     ? "normal"
                     : "warning"
               }
-              icon={DollarSign}
             />
           </div>
 
           {/* Interactive Decision Levers Controls */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="pp-lever-grid grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Lever 1: Receivables & Early Settlement Discount */}
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <TrendingUp className="size-4 text-emerald-600" />
-                  اهرم ۱: دوره وصول مطالبات و تخفیف نقدی
+                  <TrendingUp className="size-4 text-ds-success" />
+                  وصول مطالبات و تخفیف نقدی
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
@@ -694,11 +731,14 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="تغییر دوره وصول"
                     min={-60}
                     max={90}
                     step={1}
                     value={[params.dso_change_days]}
-                    onValueChange={([val]) => handleParamChange({ dso_change_days: val })}
+                    onValueChange={([val]) =>
+                      handleParamChange({ dso_change_days: val })
+                    }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
                     <span>۶۰ روز تسریع وصول</span>
@@ -717,6 +757,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="درصد تخفیف نقدی"
                     min={0}
                     max={10}
                     step={0.5}
@@ -742,6 +783,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="استقبال از تخفیف"
                     min={0}
                     max={100}
                     step={5}
@@ -763,7 +805,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <UserPlus className="size-4 text-blue-600" />
+                  <UserPlus className="size-4 text-primary" />
                   اهرم ۲: نیروی انسانی و هزینه‌های ثابت
                 </CardTitle>
               </CardHeader>
@@ -778,11 +820,14 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="تعداد نیروی جدید"
                     min={0}
                     max={50}
                     step={1}
                     value={[params.new_hires_count]}
-                    onValueChange={([val]) => handleParamChange({ new_hires_count: val })}
+                    onValueChange={([val]) =>
+                      handleParamChange({ new_hires_count: val })
+                    }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
                     <span>۰ نفر (توقف استخدام)</span>
@@ -797,10 +842,14 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                       حقوق و مزایای ناخالص هر نیروی جدید:
                     </span>
                     <span className="font-mono font-bold text-primary">
-                      {toPersianDigits(Number(params.avg_salary_monthly_irr || 0) / 10_000_000)} میلیون تومان
+                      {toPersianDigits(
+                        Number(params.avg_salary_monthly_irr || 0) / 10_000_000,
+                      )}{" "}
+                      میلیون تومان
                     </span>
                   </div>
                   <Slider
+                    aria-label="حقوق ماهانه نیروی جدید"
                     min={150_000_000}
                     max={1_500_000_000}
                     step={50_000_000}
@@ -822,17 +871,26 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                       تغییر خالص ماهانه هزینه‌های عمومی و اداری:
                     </span>
                     <span className="font-mono font-bold text-primary">
-                      {Number(params.fixed_cost_monthly_change_irr || 0) > 0 ? "+" : ""}
-                      {toPersianDigits(Number(params.fixed_cost_monthly_change_irr || 0) / 10_000_000)} م تومان
+                      {Number(params.fixed_cost_monthly_change_irr || 0) > 0
+                        ? "+"
+                        : ""}
+                      {toPersianDigits(
+                        Number(params.fixed_cost_monthly_change_irr || 0) /
+                          10_000_000,
+                      )}{" "}
+                      م تومان
                     </span>
                   </div>
                   <Slider
+                    aria-label="تغییر هزینه ثابت ماهانه"
                     min={-2_000_000_000}
                     max={3_000_000_000}
                     step={100_000_000}
                     value={[Number(params.fixed_cost_monthly_change_irr || 0)]}
                     onValueChange={([val]) =>
-                      handleParamChange({ fixed_cost_monthly_change_irr: String(val) })
+                      handleParamChange({
+                        fixed_cost_monthly_change_irr: String(val),
+                      })
                     }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
@@ -848,7 +906,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Clock className="size-4 text-cyan-600 dark:text-cyan-400" />
+                  <Clock className="size-4 text-primary" />
                   اهرم ۳: دوره بازپرداخت بدهی به تامین‌کنندگان
                 </CardTitle>
               </CardHeader>
@@ -864,11 +922,14 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="تغییر دوره پرداخت"
                     min={-30}
                     max={60}
                     step={1}
                     value={[params.dpo_change_days]}
-                    onValueChange={([val]) => handleParamChange({ dpo_change_days: val })}
+                    onValueChange={([val]) =>
+                      handleParamChange({ dpo_change_days: val })
+                    }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
                     <span>-۳۰ روز (تسویه سریع‌تر)</span>
@@ -876,9 +937,10 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     <span>+۶۰ روز (استمهال بدهی)</span>
                   </div>
                 </div>
-                <div className="p-3 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg border border-cyan-200/50 text-[11px] text-cyan-800 dark:text-cyan-300 leading-relaxed">
-                  افزایش DPO نقدینگی را درون خزانه حبس کرده و مانند وام بدون بهره عمل می‌کند، اما
-                  افزایش بیش از ۲۰ روز ممکن است به تامین پایدار کالا لطمه بزند.
+                <div className="p-3 bg-primary/10 rounded-lg border border-primary/50 text-[11px] text-primary leading-relaxed">
+                  افزایش DPO نقدینگی را درون خزانه حبس کرده و مانند وام بدون
+                  بهره عمل می‌کند، اما افزایش بیش از ۲۰ روز ممکن است به تامین
+                  پایدار کالا لطمه بزند.
                 </div>
               </CardContent>
             </Card>
@@ -887,7 +949,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)]">
               <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="size-4 text-red-600" />
+                  <AlertTriangle className="size-4 text-ds-danger" />
                   اهرم ۴: آزمون تنش وصولی و ریسک نکول
                 </CardTitle>
               </CardHeader>
@@ -897,16 +959,19 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     <span className="font-semibold text-[var(--ds-card-fg)]">
                       درصد سوخت یا نکول فرضی مطالبات (Default %):
                     </span>
-                    <span className="font-mono font-bold text-red-600">
+                    <span className="font-mono font-bold text-ds-danger">
                       {toPersianDigits(params.shock_default_pct)}٪
                     </span>
                   </div>
                   <Slider
+                    aria-label="درصد مطالبات وصول‌نشده در سناریوی بحران"
                     min={0}
                     max={50}
                     step={2}
                     value={[params.shock_default_pct]}
-                    onValueChange={([val]) => handleParamChange({ shock_default_pct: val })}
+                    onValueChange={([val]) =>
+                      handleParamChange({ shock_default_pct: val })
+                    }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
                     <span>۰٪ (حالت عادی)</span>
@@ -925,11 +990,14 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     </span>
                   </div>
                   <Slider
+                    aria-label="تأخیر وصول در سناریوی بحران"
                     min={0}
                     max={90}
                     step={5}
                     value={[params.shock_delay_days]}
-                    onValueChange={([val]) => handleParamChange({ shock_delay_days: val })}
+                    onValueChange={([val]) =>
+                      handleParamChange({ shock_delay_days: val })
+                    }
                   />
                   <div className="flex justify-between text-[10px] text-[var(--ds-muted-fg)] mt-1">
                     <span>۰ روز</span>
@@ -953,7 +1021,8 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 </div>
                 {result?.first_deficit_week_simulated && (
                   <Badge variant="danger" className="text-xs animate-pulse">
-                    نخستین هفته کسری: هفته {toPersianDigits(result.first_deficit_week_simulated)}
+                    نخستین هفته کسری: هفته{" "}
+                    {toPersianDigits(result.first_deficit_week_simulated)}
                   </Badge>
                 )}
               </div>
@@ -986,7 +1055,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                   variant="outline"
                   size="sm"
                   onClick={() => setSaveDialogOpen(true)}
-                  className="h-8 text-xs gap-1.5"
+                  className="gap-1.5"
                 >
                   <Plus className="size-3.5" />
                   <span>ذخیره سناریوی فعلی</span>
@@ -996,8 +1065,9 @@ export function SimulationWorkspace({ company }: { company: Company }) {
             <CardContent className="pt-4">
               {savedScenarios.length === 0 ? (
                 <div className="text-center py-8 text-xs text-[var(--ds-muted-fg)]">
-                  هنوز سناریوی سفارشی ذخیره نکرده‌اید. با کلیک بر روی «ذخیره سناریوی فعلی»،
-                  تنظیمات شبیه‌ساز را ذخیره کنید تا در ماتریس ارزیابی شوند.
+                  هنوز سناریوی سفارشی ذخیره نکرده‌اید. با کلیک بر روی «ذخیره
+                  سناریوی فعلی»، تنظیمات شبیه‌ساز را ذخیره کنید تا در ماتریس
+                  ارزیابی شوند.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1006,27 +1076,28 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                     return (
                       <div
                         key={sc.id}
-                        className={`p-3 rounded-xl border text-xs flex flex-col justify-between transition-all ${
+                        className={`p-3 rounded-[var(--ds-card-radius)] border text-xs flex flex-col justify-between transition-all ${
                           isSelected
-                            ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                            ? "border-primary bg-primary/5 shadow-[var(--ds-shadow-sm)] ring-1 ring-primary"
                             : "border-[var(--ds-border)] bg-[var(--ds-card-bg)]"
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-1.5">
                             <div className="flex items-center gap-1.5">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={isSelected}
-                                onChange={() => toggleScenarioSelection(sc.id)}
-                                className="rounded border-gray-300 text-primary focus:ring-primary size-3.5"
+                                aria-label={`انتخاب سناریوی ${sc.name}`}
+                                onCheckedChange={() =>
+                                  toggleScenarioSelection(sc.id)
+                                }
                               />
                               <span className="font-bold text-sm text-[var(--ds-card-fg)]">
                                 {sc.name}
                               </span>
                             </div>
                             {sc.is_favorite && (
-                              <Star className="size-3.5 fill-amber-500 text-amber-500 shrink-0" />
+                              <Star className="size-3.5 fill-amber-500 text-ds-warning shrink-0" />
                             )}
                           </div>
                           {sc.description && (
@@ -1036,16 +1107,25 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                           )}
                           <div className="grid grid-cols-2 gap-2 text-[10px] bg-[var(--ds-muted-bg)]/50 p-2 rounded-lg border border-[var(--ds-border)]/50">
                             <div>
-                              <span className="text-[var(--ds-muted-fg)] block">تاب‌آوری:</span>
+                              <span className="text-[var(--ds-muted-fg)] block">
+                                تاب‌آوری:
+                              </span>
                               <span className="font-bold text-primary">
-                                {toPersianDigits(sc.result_summary.simulated_runway)} روز
+                                {toPersianDigits(
+                                  sc.result_summary.simulated_runway,
+                                )}{" "}
+                                روز
                               </span>
                             </div>
                             <div>
-                              <span className="text-[var(--ds-muted-fg)] block">اثر سود سالانه:</span>
+                              <span className="text-[var(--ds-muted-fg)] block">
+                                اثر سود سالانه:
+                              </span>
                               <span className="font-bold text-[var(--ds-card-fg)]">
                                 <MoneyDisplay
-                                  amount={sc.result_summary.net_annual_profit_impact}
+                                  amount={
+                                    sc.result_summary.net_annual_profit_impact
+                                  }
                                   compact
                                 />
                               </span>
@@ -1054,21 +1134,25 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                         </div>
 
                         <div className="mt-3 pt-2 border-t border-[var(--ds-border)]/60 flex items-center justify-between">
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => handleLoadScenario(sc)}
-                            className="text-[11px] text-primary font-semibold hover:underline"
+                            className="text-[11px] hover:underline"
                           >
                             بارگذاری در شبیه‌ساز ←
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => handleDeleteScenario(sc.id, sc.name)}
-                            className="text-[var(--ds-muted-fg)] hover:text-red-600 p-1"
+                            className="text-[var(--ds-muted-fg)] hover:text-ds-danger"
                             title="حذف سناریو"
                           >
                             <Trash2 className="size-3.5" />
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -1079,7 +1163,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
           </Card>
 
           {/* Comparative Matrix Table */}
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)] overflow-hidden">
+          {activeTab === "matrix" && <Card className="border-[var(--ds-border)] bg-[var(--ds-card-bg)] overflow-hidden">
             <CardHeader className="pb-3 border-b border-[var(--ds-border)]">
               <div className="flex items-center justify-between">
                 <div>
@@ -1092,7 +1176,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                   variant="outline"
                   size="sm"
                   onClick={() => setMemoDialogOpen(true)}
-                  className="h-8 text-xs gap-1.5 text-primary border-primary/30"
+                  className="gap-1.5"
                 >
                   <Download className="size-3.5" />
                   <span>صدور یادداشت تصمیم‌گیری (PDF)</span>
@@ -1167,12 +1251,13 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                             <div
                               className={`text-[11px] font-mono mt-0.5 ${
                                 col.runway_delta_days >= 0
-                                  ? "text-emerald-600 font-bold"
-                                  : "text-red-600 font-bold"
+                                  ? "text-ds-success font-bold"
+                                  : "text-ds-danger font-bold"
                               }`}
                             >
                               {col.runway_delta_days >= 0 ? "+" : ""}
-                              {toPersianDigits(col.runway_delta_days)} روز انحراف
+                              {toPersianDigits(col.runway_delta_days)} روز
+                              انحراف
                             </div>
                           )}
                         </td>
@@ -1190,19 +1275,23 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                           className="p-3 border-r border-[var(--ds-border)]"
                         >
                           <div className="font-bold">
-                            <MoneyDisplay amount={col.monthly_burn_irr} compact />
+                            <MoneyDisplay
+                              amount={col.monthly_burn_irr}
+                              compact
+                            />
                           </div>
-                          {!col.is_baseline && Number(col.monthly_burn_delta_irr) !== 0 && (
-                            <div className="text-[11px] text-[var(--ds-muted-fg)] mt-0.5">
-                              تغییر:{" "}
-                              <MoneyDisplay
-                                amount={col.monthly_burn_delta_irr}
-                                compact
-                                showSign
-                                direction="auto"
-                              />
-                            </div>
-                          )}
+                          {!col.is_baseline &&
+                            Number(col.monthly_burn_delta_irr) !== 0 && (
+                              <div className="text-[11px] text-[var(--ds-muted-fg)] mt-0.5">
+                                تغییر:{" "}
+                                <MoneyDisplay
+                                  amount={col.monthly_burn_delta_irr}
+                                  compact
+                                  showSign
+                                  direction="auto"
+                                />
+                              </div>
+                            )}
                         </td>
                       ))}
                     </tr>
@@ -1217,13 +1306,15 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                           key={col.scenario_id}
                           className="p-3 border-r border-[var(--ds-border)]"
                         >
-                          <div className="font-bold">{toPersianDigits(col.ccc_days)} روز</div>
+                          <div className="font-bold">
+                            {toPersianDigits(col.ccc_days)} روز
+                          </div>
                           {!col.is_baseline && (
                             <div
                               className={`text-[11px] mt-0.5 ${
                                 col.ccc_delta_days <= 0
-                                  ? "text-emerald-600 font-semibold"
-                                  : "text-amber-600 font-semibold"
+                                  ? "text-ds-success font-semibold"
+                                  : "text-ds-warning font-semibold"
                               }`}
                             >
                               {col.ccc_delta_days > 0 ? "+" : ""}
@@ -1292,7 +1383,7 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                               هفته {toPersianDigits(col.first_deficit_week)}
                             </Badge>
                           ) : (
-                            <span className="text-emerald-600 font-semibold text-[11px]">
+                            <span className="text-ds-success font-semibold text-[11px]">
                               بدون کسری در ۱۳ هفته
                             </span>
                           )}
@@ -1318,9 +1409,13 @@ export function SimulationWorkspace({ company }: { company: Company }) {
                 </table>
               )}
             </CardContent>
-          </Card>
+          </Card>}
+
         </div>
       )}
+
+      </TabsContent>
+      </Tabs>
 
       {/* Save Scenario Dialog */}
       <SaveScenarioDialog

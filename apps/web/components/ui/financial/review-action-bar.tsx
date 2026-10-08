@@ -1,10 +1,18 @@
 import React from "react";
-import { CheckCircle2, Clock, Ban, CheckCheck, MessageSquarePlus, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Ban,
+  CheckCheck,
+  MessageSquarePlus,
+  X,
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "./money-display";
 
-export interface ReviewActionBarProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface ReviewActionBarProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   selectedCount?: number;
   onConfirm?: () => void;
   onFollowUp?: () => void;
@@ -34,8 +42,8 @@ export function ReviewActionBar({
   return (
     <div
       className={cn(
-        "fixed bottom-6 inset-x-4 sm:inset-x-auto sm:start-1/2 sm:-translate-x-1/2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--ds-border)] bg-[var(--ds-card)]/95 p-3 shadow-xl backdrop-blur-md transition-all duration-300",
-        className
+        "fixed bottom-6 inset-x-4 sm:inset-x-auto sm:start-1/2 sm:-translate-x-1/2 z-30 flex flex-wrap items-center justify-between gap-3 rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)]/95 p-3 shadow-[var(--ds-shadow-lg)]  transition-all duration-300",
+        className,
       )}
       {...props}
     >
@@ -44,7 +52,9 @@ export function ReviewActionBar({
           <span className="grid size-6 place-items-center rounded-full bg-primary text-primary-foreground text-xs font-mono font-bold">
             {toPersianDigits(selectedCount)}
           </span>
-          <span className="text-xs font-bold text-foreground">مورد انتخاب‌شده</span>
+          <span className="text-xs font-bold text-foreground">
+            مورد انتخاب‌شده
+          </span>
           {onClear && (
             <Button
               size="icon"
@@ -65,7 +75,7 @@ export function ReviewActionBar({
             size="sm"
             variant="outline"
             disabled={disabled}
-            className="gap-1.5 text-xs border-blue-500/30 text-blue-700 hover:bg-blue-500/10 dark:text-blue-400"
+            className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
             onClick={onConfirm}
           >
             <CheckCircle2 className="size-3.5" />
@@ -78,7 +88,7 @@ export function ReviewActionBar({
             size="sm"
             variant="outline"
             disabled={disabled}
-            className="gap-1.5 text-xs border-amber-500/30 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+            className="gap-1.5 border-ds-warning/30 text-ds-warning hover:bg-ds-warning/10"
             onClick={onFollowUp}
           >
             <Clock className="size-3.5" />
@@ -91,7 +101,7 @@ export function ReviewActionBar({
             size="sm"
             variant="default"
             disabled={disabled}
-            className="gap-1.5 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
+            className="gap-1.5 bg-ds-success text-white hover:bg-ds-success"
             onClick={onResolve}
           >
             <CheckCheck className="size-3.5" />
@@ -104,7 +114,7 @@ export function ReviewActionBar({
             size="sm"
             variant="ghost"
             disabled={disabled}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
             onClick={onAddNote}
           >
             <MessageSquarePlus className="size-3.5" />
@@ -117,7 +127,7 @@ export function ReviewActionBar({
             size="sm"
             variant="ghost"
             disabled={disabled}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-destructive"
+            className="gap-1.5 text-muted-foreground hover:text-destructive"
             onClick={onDismiss}
           >
             <Ban className="size-3.5" />

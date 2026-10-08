@@ -1,11 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { HTMLAttributes, MouseEvent } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/icons";
 
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const badgeVariants = cva(
-  "inline-flex shrink-0 items-center select-none font-bold whitespace-nowrap transition-colors",
+  "inline-flex shrink-0 items-center select-none font-medium whitespace-nowrap transition-colors duration-150",
   {
     variants: {
       variant: {
@@ -23,14 +24,14 @@ const badgeVariants = cva(
           "border border-[color-mix(in_oklch,var(--ds-danger)_25%,transparent)] bg-[color-mix(in_oklch,var(--ds-danger)_13%,transparent)] text-[var(--ds-danger)]",
         accent:
           "border border-[color-mix(in_oklch,var(--ds-accent)_25%,transparent)] bg-[var(--ds-accent-soft)] text-[var(--ds-accent)]",
-        info:
-          "border border-blue-500/25 bg-blue-500/12 text-blue-600 dark:text-blue-400",
+        info: "border border-primary/25 bg-primary/12 text-primary",
       },
       size: {
         xs: "min-h-5 px-1.5 py-0 text-[10.5px] rounded gap-1 [&_svg]:size-2.5",
-        sm: "min-h-6 px-2 py-0.5 text-xs rounded-md gap-1 [&_svg]:size-3",
-        default: "min-h-7 px-2.5 py-1 text-xs rounded-full gap-1.5 [&_svg]:size-3.5",
-        lg: "min-h-8 px-3.5 py-1 text-sm rounded-full gap-2 [&_svg]:size-4",
+        sm: "min-h-6 px-2 py-0.5 text-xs rounded gap-1 [&_svg]:size-3",
+        default:
+          "min-h-7 px-2.5 py-1 text-xs rounded gap-1.5 [&_svg]:size-3.5",
+        lg: "min-h-8 px-3.5 py-1 text-sm rounded gap-2 [&_svg]:size-4",
       },
     },
     defaultVariants: {
@@ -59,7 +60,14 @@ function Badge({
   ...props
 }: BadgeProps) {
   return (
-    <span className={cn(badgeVariants({ variant, size }), props.onClick && "cursor-pointer", className)} {...props}>
+    <span
+      className={cn(
+        badgeVariants({ variant, size }),
+        props.onClick && "cursor-pointer",
+        className,
+      )}
+      {...props}
+    >
       {dot && (
         <span
           className={cn(
@@ -71,17 +79,20 @@ function Badge({
       )}
       {children}
       {onRemove && (
-        <button
+        <Button
+          variant="surface"
+          size="auto"
+          motion="none"
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(e);
           }}
-          className="cursor-pointer ms-0.5 -me-0.5 rounded-full p-0.5 hover:bg-black/15 dark:hover:bg-white/20 transition-colors focus-visible:outline-none"
+          className="cursor-pointer ms-0.5 -me-0.5 rounded-full p-0.5 hover:bg-black/15 transition-colors focus-visible:outline-none"
           aria-label="حذف"
         >
           <X className="size-2.5" />
-        </button>
+        </Button>
       )}
     </span>
   );

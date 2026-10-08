@@ -1,11 +1,16 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.calculations.base import CalculationContext
+from app.calculations.dso import DSOCalculator
+from app.calculations.models import FinancialPolicy
 from app.financial.models import Counterparty, SalesInvoice
 from app.receivables.schemas import (
     AgingBucketDetail,
@@ -26,6 +31,7 @@ BUCKET_CONFIG: list[tuple[BucketKey, str]] = [
     ("31_60", "۳۱ تا ۶۰ روز معوق"),
     ("61_90", "۶۱ تا ۹۰ روز معوق"),
     ("90_plus", "بیش از ۹۰ روز معوق"),
+    ("due_date_missing", "سررسید نامشخص"),
 ]
 
 
@@ -60,9 +66,7 @@ async def _resolve_as_of_date(
         return explicit_date
     max_issue = (
         await session.execute(
-            select(func.max(SalesInvoice.issue_date)).where(
-                SalesInvoice.company_id == company_id
-            )
+            select(func.max(SalesInvoice.issue_date)).where(SalesInvoice.company_id == company_id)
         )
     ).scalar_one_or_none()
     today = date.today()
@@ -79,7 +83,7 @@ async def get_receivables_summary(
     query = (
         select(SalesInvoice, Counterparty)
         .join(Counterparty, SalesInvoice.counterparty_id == Counterparty.id)
-        .where(SalesInvoice.company_id == company_id)
+        .where(SalesInvoice.company_id == company_id, SalesInvoice.issue_date <= effective_date)
     )
     results = (await session.execute(query)).all()
 
@@ -87,7 +91,6 @@ async def get_receivables_summary(
     bucket_counts: dict[BucketKey, int] = {k: 0 for k, _ in BUCKET_CONFIG}
     total_receivables = ZERO
     total_overdue = ZERO
-    customers_with_overdue: set[UUID] = set()
     all_customers: set[UUID] = set()
 
     for invoice, counterparty in results:
@@ -98,17 +101,14 @@ async def get_receivables_summary(
         all_customers.add(counterparty.id)
         total_receivables += remaining
 
-        due = invoice.due_date or (invoice.issue_date + timedelta(days=30))
-        delay = (effective_date - due).days
-        bucket = _classify_delay(delay)
+        delay = (effective_date - invoice.due_date).days if invoice.due_date else 0
+        bucket = _classify_delay(delay) if invoice.due_date else "due_date_missing"
 
         bucket_totals[bucket] += remaining
         bucket_counts[bucket] += 1
 
         if delay > 0:
             total_overdue += remaining
-            if bucket in ("61_90", "90_plus"):
-                customers_with_overdue.add(counterparty.id)
 
     overdue_ratio = (
         float((total_overdue / total_receivables).quantize(Decimal("0.0001")))
@@ -135,33 +135,38 @@ async def get_receivables_summary(
             )
         )
 
-    # Simple deterministic DSO estimate based on weighted delay
-    def _inv_delay(inv: SalesInvoice) -> int:
-        due = inv.due_date or (inv.issue_date + timedelta(days=30))
-        return max(0, (effective_date - due).days)
-
-    weighted_delay_sum = sum(
-        (
-            (invoice.gross_amount_irr - (invoice.paid_amount_irr or ZERO))
-            * _inv_delay(invoice)
+    policy = await session.scalar(
+        select(FinancialPolicy).where(FinancialPolicy.company_id == company_id)
+    )
+    if policy is None:
+        policy = FinancialPolicy(
+            company_id=company_id, dso_period_days=90, dso_method="sales_proxy"
         )
-        for invoice, _ in results
-        if (invoice.gross_amount_irr - (invoice.paid_amount_irr or ZERO)) > ZERO
+    dso = await DSOCalculator().calculate(
+        CalculationContext(
+            company_id=company_id,
+            as_of_date=effective_date,
+            period_start=effective_date,
+            period_end=effective_date,
+            policy=policy,
+            session=session,
+            extra={"open_receivables": total_receivables},
+        )
     )
-    dso_days = (
-        int(weighted_delay_sum / total_receivables) + 30
-        if total_receivables > ZERO
-        else 30
-    )
+    customer_items = _customer_items(results, effective_date)
 
     return ReceivablesSummaryResponse(
         as_of_date=effective_date,
         total_receivables_irr=total_receivables,
         total_overdue_irr=total_overdue,
         overdue_ratio=overdue_ratio,
-        dso_days=dso_days,
+        dso_days=float(dso.value_numeric) if dso.value_numeric is not None else None,
+        dso_period_days=policy.dso_period_days,
+        dso_warnings=dso.warnings,
         customer_count=len(all_customers),
-        high_risk_customer_count=len(customers_with_overdue),
+        high_risk_customer_count=sum(
+            item.risk_level in ("high", "critical") for item in customer_items
+        ),
         buckets=buckets_detail,
     )
 
@@ -174,10 +179,18 @@ async def get_customer_receivables(
     query = (
         select(SalesInvoice, Counterparty)
         .join(Counterparty, SalesInvoice.counterparty_id == Counterparty.id)
-        .where(SalesInvoice.company_id == company_id)
+        .where(SalesInvoice.company_id == company_id, SalesInvoice.issue_date <= effective_date)
     )
     results = (await session.execute(query)).all()
 
+    return CustomersReceivablesResponse(
+        as_of_date=effective_date, items=_customer_items(results, effective_date)
+    )
+
+
+def _customer_items(
+    results: Sequence[Row[tuple[SalesInvoice, Counterparty]]], effective_date: date
+) -> list[CustomerReceivableItem]:
     customer_map: dict[UUID, _CustomerAccumulator] = {}
 
     for invoice, counterparty in results:
@@ -193,9 +206,8 @@ async def get_customer_receivables(
         data.total_outstanding += remaining
         data.open_count += 1
 
-        due = invoice.due_date or (invoice.issue_date + timedelta(days=30))
-        delay = (effective_date - due).days
-        bucket = _classify_delay(delay)
+        delay = (effective_date - invoice.due_date).days if invoice.due_date else 0
+        bucket = _classify_delay(delay) if invoice.due_date else "due_date_missing"
 
         data.buckets[bucket] += remaining
 
@@ -236,10 +248,10 @@ async def get_customer_receivables(
 
             if risk_score >= 70 or buckets["90_plus"] > (total_out * Decimal("0.4")):
                 risk_level = "critical"
-                action = "توقف کامل اعتبار، اخطار رسمی و آغاز فرآیند حقوقی وصول"
+                action = "مانده و اسناد را تطبیق دهید؛ ارجاع به مدیر مالی برای بررسی برنامه وصول و شرایط اعتبار طبق سیاست شرکت."
             elif risk_score >= 45:
                 risk_level = "high"
-                action = "توقف فروش اعتباری جدید و تماس فوری مدیر مالی با مدیریت مشتری"
+                action = "دریافت‌های جدید را تطبیق دهید و برنامه پرداخت را با مشتری بررسی کنید؛ شرایط اعتبار نیاز به تصمیم مدیر مالی دارد."
             elif risk_score >= 25:
                 risk_level = "medium"
                 action = "پیگیری تلفنی کارشناس وصول مطالبات و ارسال صورت‌وضعیت"
@@ -261,6 +273,7 @@ async def get_customer_receivables(
                 risk_level=risk_level,
                 risk_score=risk_score,
                 recommended_action=action,
+                risk_assessment_incomplete=buckets["due_date_missing"] > ZERO,
                 buckets=formatted_buckets,
                 open_invoices_count=open_count,
             )
@@ -269,7 +282,7 @@ async def get_customer_receivables(
     # Sort customers by risk score descending, then overdue amount descending
     items.sort(key=lambda x: (x.risk_score, x.overdue_amount_irr), reverse=True)
 
-    return CustomersReceivablesResponse(as_of_date=effective_date, items=items)
+    return items
 
 
 async def get_receivable_invoices(
@@ -284,7 +297,7 @@ async def get_receivable_invoices(
     query = (
         select(SalesInvoice, Counterparty)
         .join(Counterparty, SalesInvoice.counterparty_id == Counterparty.id)
-        .where(SalesInvoice.company_id == company_id)
+        .where(SalesInvoice.company_id == company_id, SalesInvoice.issue_date <= effective_date)
     )
     if counterparty_id is not None:
         query = query.where(SalesInvoice.counterparty_id == counterparty_id)
@@ -297,9 +310,8 @@ async def get_receivable_invoices(
         if remaining <= ZERO:
             continue
 
-        due = invoice.due_date or (invoice.issue_date + timedelta(days=30))
-        delay = (effective_date - due).days
-        bucket = _classify_delay(delay)
+        delay = (effective_date - invoice.due_date).days if invoice.due_date else 0
+        bucket = _classify_delay(delay) if invoice.due_date else "due_date_missing"
 
         if bucket_key is not None and bucket != bucket_key:
             continue

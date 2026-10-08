@@ -155,49 +155,57 @@ def test_iranian_bank_statement_with_metadata_and_columns_maps_perfectly() -> No
     sheet.title = "صورتحساب"
     sheet.append(["مانده از قبل: 361,603 (ریال)", "", "", "", "", "", "", ""])
     sheet.append(["", "", "", "", "", "", "", ""])
-    sheet.append([
-        "جمع کل واریز: 15,000,000 (ریال)", "", "", "", "نام صاحب حساب: محسن تویسرکانی", "", "", ""
-    ])
-    sheet.append([
-        "جمع کل برداشت: 8,729,000 (ریال)",
-        "",
-        "",
-        "",
-        "شماره شبا: IR550560611828005701924501",
-        "",
-        "",
-        "",
-    ])
-    sheet.append([
-        "ردیف",
-        "تاریخ",
-        "شماره سند",
-        "شرح سند",
-        "نوع تراکنش",
-        "واریز (ریال)",
-        "برداشت (ریال)",
-        "مانده (ریال)",
-    ])
-    sheet.append([
-        1,
-        "1405/06/20 19:51:25",
-        "14054933597169",
-        "انتقال به سپرده بلو - شماره سپرده: 611828006401150402 بنام: امیرحسین خانی ولوجردی",
-        "انتقال به سپرده",
-        "0",
-        "1,540,000",
-        "6,632,603",
-    ])
-    sheet.append([
-        2,
-        "1405/06/09 11:02:00",
-        "14054558840898",
-        "انتقال از کارت شماره: 5022291540508601 بنام: محسن تویسرکانی",
-        "دریافت از کارت",
-        "15,000,000",
-        "0",
-        "15,361,603",
-    ])
+    sheet.append(
+        ["جمع کل واریز: 15,000,000 (ریال)", "", "", "", "نام صاحب حساب: محسن تویسرکانی", "", "", ""]
+    )
+    sheet.append(
+        [
+            "جمع کل برداشت: 8,729,000 (ریال)",
+            "",
+            "",
+            "",
+            "شماره شبا: IR550560611828005701924501",
+            "",
+            "",
+            "",
+        ]
+    )
+    sheet.append(
+        [
+            "ردیف",
+            "تاریخ",
+            "شماره سند",
+            "شرح سند",
+            "نوع تراکنش",
+            "واریز (ریال)",
+            "برداشت (ریال)",
+            "مانده (ریال)",
+        ]
+    )
+    sheet.append(
+        [
+            1,
+            "1405/06/20 19:51:25",
+            "14054933597169",
+            "انتقال به سپرده بلو - شماره سپرده: 611828006401150402 بنام: امیرحسین خانی ولوجردی",
+            "انتقال به سپرده",
+            "0",
+            "1,540,000",
+            "6,632,603",
+        ]
+    )
+    sheet.append(
+        [
+            2,
+            "1405/06/09 11:02:00",
+            "14054558840898",
+            "انتقال از کارت شماره: 5022291540508601 بنام: محسن تویسرکانی",
+            "دریافت از کارت",
+            "15,000,000",
+            "0",
+            "15,361,603",
+        ]
+    )
     payload = io.BytesIO()
     workbook.save(payload)
     payload.seek(0)
@@ -300,25 +308,67 @@ def test_iranian_bank_statement_with_merged_cells_and_sparse_headers() -> None:
 
     # Row 5: Table header with merged empty cells
     # Note right-to-left layout where cells are sparse
-    sheet.append([
-        "", "مانده (ریال)", "برداشت (ریال)", "واریز (ریال)", "",
-        "نوع تراکنش", "", "شرح سند", "", "",
-        "شماره سند", "", "تاریخ", "ردیف", ""
-    ])
+    sheet.append(
+        [
+            "",
+            "مانده (ریال)",
+            "برداشت (ریال)",
+            "واریز (ریال)",
+            "",
+            "نوع تراکنش",
+            "",
+            "شرح سند",
+            "",
+            "",
+            "شماره سند",
+            "",
+            "تاریخ",
+            "ردیف",
+            "",
+        ]
+    )
 
     # Row 6: Data row 1
-    sheet.append([
-        "", 6632603, 1540000, 0, "",
-        "انتقال به سپرده", "", "انتقال به سپرده بلو", "", "",
-        "14054933597169", "", "1405/06/20 19:51:23", 1, ""
-    ])
+    sheet.append(
+        [
+            "",
+            6632603,
+            1540000,
+            0,
+            "",
+            "انتقال به سپرده",
+            "",
+            "انتقال به سپرده بلو",
+            "",
+            "",
+            "14054933597169",
+            "",
+            "1405/06/20 19:51:23",
+            1,
+            "",
+        ]
+    )
 
     # Row 7: Data row 2
-    sheet.append([
-        "", 15361603, 0, 15000000, "",
-        "دریافت از کارت", "", "انتقال از کارت", "", "",
-        "14054558840898", "", "1405/06/09 11:02:06", 2, ""
-    ])
+    sheet.append(
+        [
+            "",
+            15361603,
+            0,
+            15000000,
+            "",
+            "دریافت از کارت",
+            "",
+            "انتقال از کارت",
+            "",
+            "",
+            "14054558840898",
+            "",
+            "1405/06/09 11:02:06",
+            2,
+            "",
+        ]
+    )
 
     # Row 8: Footer metadata row
     sheet.append(["تاریخ صدور: 28 شهریور 1405 17:04", "", "", "", "", "", "", "صفحه 1 از 1"])
@@ -356,3 +406,44 @@ def test_iranian_bank_statement_with_merged_cells_and_sparse_headers() -> None:
     assert suggestions["line_id"] == "ردیف"
 
 
+def test_blank_optional_sales_dates_are_absent_not_server_errors() -> None:
+    for blank in ("", "   ", None):
+        raw = {
+            "invoice_no": "SEED-1",
+            "issue_date": "2026-10-07",
+            "customer_name": "نمونه",
+            "gross_amount": "1000",
+            "payment_date": blank,
+            "due_date": blank,
+        }
+        transformed, issues = transform_and_validate_row(
+            source_kind=SourceKind.SALES,
+            row_number=2,
+            raw=raw,
+            mapping={key: key for key in raw},
+            transforms={},
+            currency_unit="rial",
+            calendar="gregorian",
+        )
+        assert transformed["payment_date"] is None
+        assert transformed["due_date"] is None
+        assert issues == []
+
+
+def test_blank_required_sales_date_is_a_validation_issue() -> None:
+    raw = {
+        "invoice_no": "SEED-1",
+        "issue_date": "   ",
+        "customer_name": "نمونه",
+        "gross_amount": "1000",
+    }
+    _, issues = transform_and_validate_row(
+        source_kind=SourceKind.SALES,
+        row_number=2,
+        raw=raw,
+        mapping={key: key for key in raw},
+        transforms={},
+        currency_unit="rial",
+        calendar="gregorian",
+    )
+    assert any(issue.code == "INVALID_DATE" and issue.field == "issue_date" for issue in issues)

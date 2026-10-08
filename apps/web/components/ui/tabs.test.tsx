@@ -49,7 +49,7 @@ describe("Tabs & Segmented Controller Component", () => {
     );
 
     const trigger = screen.getByText("همه").closest("button");
-    expect(trigger?.className).toContain("rounded-full");
+    expect(trigger?.className).toContain("rounded-md");
   });
 
   it("supports sizes xs, sm, default, and lg", () => {

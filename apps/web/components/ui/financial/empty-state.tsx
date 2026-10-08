@@ -1,5 +1,10 @@
 import React from "react";
-import { FolderSearch, Inbox, Database, CheckCircle2 } from "lucide-react";
+import {
+  FolderSearch,
+  Inbox,
+  Database,
+  CheckCircle2,
+} from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -36,18 +41,22 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "empty-state flex flex-col items-center justify-center p-8 sm:p-12 text-center rounded-2xl border border-dashed border-border/80 bg-muted/15 space-y-4 max-w-xl mx-auto my-6",
-        className
+        "empty-state group flex flex-col items-center justify-center p-8 sm:p-12 text-center rounded-[var(--ds-card-radius)] border border-dashed border-border/80 bg-muted/15 space-y-4 max-w-xl mx-auto my-6 hover:border-primary/40 hover:bg-muted/25 transition-all duration-200",
+        className,
       )}
       {...props}
     >
-      <div className="size-14 rounded-2xl bg-muted/60 text-muted-foreground grid place-items-center border border-border/60 shadow-2xs">
+      <div className="size-14 rounded-[var(--ds-card-radius)] bg-muted/60 text-muted-foreground grid place-items-center border border-border/60 shadow-2xs transition-transform duration-300   group-hover:text-primary group-hover:bg-primary/10">
         <IconComponent className="size-7" />
       </div>
 
       <div className="space-y-1.5 max-w-md">
-        <h3 className="text-base sm:text-lg font-bold text-foreground">{title}</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{description}</p>
+        <h3 className="text-base sm:text-lg font-bold text-foreground">
+          {title}
+        </h3>
+        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+          {description}
+        </p>
       </div>
 
       {(action || secondaryAction || (hasActiveFilters && onClearFilters)) && (
@@ -56,7 +65,7 @@ export function EmptyState({
             <Button
               size="sm"
               onClick={action.onClick}
-              className="gap-2 text-xs font-bold rounded-xl"
+              className="gap-2"
               asChild={Boolean(action.href)}
             >
               {action.href ? (
@@ -78,7 +87,7 @@ export function EmptyState({
               size="sm"
               variant="outline"
               onClick={onClearFilters}
-              className="text-xs font-medium rounded-xl border-border"
+              className=""
             >
               پاک کردن فیلترها
             </Button>
@@ -89,7 +98,7 @@ export function EmptyState({
               size="sm"
               variant="ghost"
               onClick={secondaryAction.onClick}
-              className="text-xs font-medium text-muted-foreground rounded-xl"
+              className="text-muted-foreground"
               asChild={Boolean(secondaryAction.href)}
             >
               {secondaryAction.href ? (

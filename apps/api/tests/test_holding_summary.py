@@ -1,13 +1,10 @@
-from datetime import datetime, timezone
-import uuid
 import pytest
 from sqlalchemy import select
 
-from app.core.database import async_session_factory, engine
-from app.core.tenant import set_request_user, set_request_company
-from app.companies.models import Company, CompanyAccess, CompanyRole
 from app.companies.routes import get_holding_summary
-from app.identity.models import User, Workspace
+from app.core.database import async_session_factory, engine
+from app.core.tenant import set_request_user
+from app.identity.models import User
 
 
 @pytest.fixture(autouse=True)

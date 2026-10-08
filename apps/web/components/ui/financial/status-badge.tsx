@@ -1,6 +1,7 @@
 import React from "react";
 import {
   CheckCircle2,
+  Sparkles,
   Clock,
   HelpCircle,
   XCircle,
@@ -12,7 +13,7 @@ import {
   FileCheck2,
   PlayCircle,
   Ban,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export type DomainStatus =
@@ -76,27 +77,27 @@ const statusConfigs: Record<string, StatusConfig> = {
   new: {
     label: "جدید",
     icon: PlayCircle,
-    bgClass: "bg-sky-500/10",
-    textClass: "text-sky-700 dark:text-sky-300",
-    borderClass: "border-sky-500/30",
-    dotClass: "bg-sky-500",
+    bgClass: "bg-primary/10",
+    textClass: "text-primary",
+    borderClass: "border-primary/30",
+    dotClass: "bg-primary",
   },
   // Needs Review
   needs_review: {
     label: "نیازمند بررسی",
     icon: HelpCircle,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   potential_match: {
     label: "نیازمند بررسی",
     icon: HelpCircle,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   suggested_match: {
     label: "پیشنهاد تطبیق",
@@ -110,18 +111,18 @@ const statusConfigs: Record<string, StatusConfig> = {
   in_progress: {
     label: "در حال پیگیری",
     icon: Clock,
-    bgClass: "bg-blue-500/10",
-    textClass: "text-blue-700 dark:text-blue-300",
-    borderClass: "border-blue-500/30",
-    dotClass: "bg-blue-500",
+    bgClass: "bg-primary/10",
+    textClass: "text-primary",
+    borderClass: "border-primary/30",
+    dotClass: "bg-primary",
   },
   follow_up: {
     label: "در حال پیگیری",
     icon: Clock,
-    bgClass: "bg-blue-500/10",
-    textClass: "text-blue-700 dark:text-blue-300",
-    borderClass: "border-blue-500/30",
-    dotClass: "bg-blue-500",
+    bgClass: "bg-primary/10",
+    textClass: "text-primary",
+    borderClass: "border-primary/30",
+    dotClass: "bg-primary",
   },
   processing: {
     label: "در حال پردازش",
@@ -143,25 +144,25 @@ const statusConfigs: Record<string, StatusConfig> = {
   resolved: {
     label: "رفع‌شده",
     icon: CheckCircle2,
-    bgClass: "bg-emerald-500/10",
-    textClass: "text-emerald-700 dark:text-emerald-300",
-    borderClass: "border-emerald-500/30",
-    dotClass: "bg-emerald-500",
+    bgClass: "bg-ds-success/10",
+    textClass: "text-ds-success",
+    borderClass: "border-ds-success/30",
+    dotClass: "bg-ds-success",
   },
   auto_matched: {
     label: "تطبیق قطعی",
     icon: CheckCheck,
-    bgClass: "bg-emerald-500/10",
-    textClass: "text-emerald-700 dark:text-emerald-300",
-    borderClass: "border-emerald-500/30",
-    dotClass: "bg-emerald-500",
+    bgClass: "bg-ds-success/10",
+    textClass: "text-ds-success",
+    borderClass: "border-ds-success/30",
+    dotClass: "bg-ds-success",
   },
   // Verified (Maker-Checker approved)
   verified: {
     label: "صحه‌گذاری‌شده",
     icon: ShieldCheck,
     bgClass: "bg-teal-500/10",
-    textClass: "text-teal-700 dark:text-teal-300",
+    textClass: "text-teal-700",
     borderClass: "border-teal-500/30",
     dotClass: "bg-teal-500",
   },
@@ -169,33 +170,33 @@ const statusConfigs: Record<string, StatusConfig> = {
     label: "تاییدشده",
     icon: ShieldCheck,
     bgClass: "bg-teal-500/10",
-    textClass: "text-teal-700 dark:text-teal-300",
+    textClass: "text-teal-700",
     borderClass: "border-teal-500/30",
     dotClass: "bg-teal-500",
   },
   completed: {
     label: "تکمیل‌شده",
     icon: CheckCircle2,
-    bgClass: "bg-emerald-500/10",
-    textClass: "text-emerald-700 dark:text-emerald-300",
-    borderClass: "border-emerald-500/30",
-    dotClass: "bg-emerald-500",
+    bgClass: "bg-ds-success/10",
+    textClass: "text-ds-success",
+    borderClass: "border-ds-success/30",
+    dotClass: "bg-ds-success",
   },
   completed_limited: {
     label: "تکمیل با هشدار",
     icon: AlertCircle,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   ready: {
     label: "آماده",
     icon: CheckCircle2,
-    bgClass: "bg-emerald-500/10",
-    textClass: "text-emerald-700 dark:text-emerald-300",
-    borderClass: "border-emerald-500/30",
-    dotClass: "bg-emerald-500",
+    bgClass: "bg-ds-success/10",
+    textClass: "text-ds-success",
+    borderClass: "border-ds-success/30",
+    dotClass: "bg-ds-success",
   },
   // Dismissed / Rejected / Reversed
   dismissed: {
@@ -209,92 +210,92 @@ const statusConfigs: Record<string, StatusConfig> = {
   reversed: {
     label: "ابطال‌شده",
     icon: RefreshCcw,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   reopened: {
     label: "بازگشایی‌شده",
     icon: RefreshCcw,
-    bgClass: "bg-orange-500/10",
-    textClass: "text-orange-700 dark:text-orange-300",
-    borderClass: "border-orange-500/30",
-    dotClass: "bg-orange-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   failed: {
     label: "ناموفق",
     icon: XCircle,
-    bgClass: "bg-rose-500/10",
-    textClass: "text-rose-700 dark:text-rose-300",
-    borderClass: "border-rose-500/30",
-    dotClass: "bg-rose-500",
+    bgClass: "bg-ds-danger/10",
+    textClass: "text-ds-danger",
+    borderClass: "border-ds-danger/30",
+    dotClass: "bg-ds-danger",
   },
   // Mismatches
   unmatched_bank: {
     label: "فاقد سند در دفاتر",
     icon: XCircle,
-    bgClass: "bg-rose-500/10",
-    textClass: "text-rose-700 dark:text-rose-300",
-    borderClass: "border-rose-500/30",
-    dotClass: "bg-rose-500",
+    bgClass: "bg-ds-danger/10",
+    textClass: "text-ds-danger",
+    borderClass: "border-ds-danger/30",
+    dotClass: "bg-ds-danger",
   },
   unmatched_journal: {
     label: "فاقد گردش در بانک",
     icon: XCircle,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   amount_mismatch: {
     label: "مغایرت مبلغ",
     icon: AlertCircle,
-    bgClass: "bg-rose-500/10",
-    textClass: "text-rose-700 dark:text-rose-300",
-    borderClass: "border-rose-500/30",
-    dotClass: "bg-rose-500",
+    bgClass: "bg-ds-danger/10",
+    textClass: "text-ds-danger",
+    borderClass: "border-ds-danger/30",
+    dotClass: "bg-ds-danger",
   },
   date_mismatch: {
     label: "مغایرت تاریخ",
     icon: Clock,
-    bgClass: "bg-amber-500/10",
-    textClass: "text-amber-700 dark:text-amber-300",
-    borderClass: "border-amber-500/30",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/10",
+    textClass: "text-ds-warning",
+    borderClass: "border-ds-warning/30",
+    dotClass: "bg-ds-warning",
   },
   duplicate: {
     label: "تکراری",
     icon: RefreshCcw,
-    bgClass: "bg-purple-500/10",
-    textClass: "text-purple-700 dark:text-purple-300",
-    borderClass: "border-purple-500/30",
-    dotClass: "bg-purple-500",
+    bgClass: "bg-primary/10",
+    textClass: "text-primary",
+    borderClass: "border-primary/30",
+    dotClass: "bg-primary",
   },
   // Severity
   critical: {
     label: "بحرانی",
     icon: ShieldAlert,
-    bgClass: "bg-rose-500/15",
-    textClass: "text-rose-700 dark:text-rose-400 font-bold",
-    borderClass: "border-rose-500/40",
-    dotClass: "bg-rose-500",
+    bgClass: "bg-ds-danger/15",
+    textClass: "text-ds-danger font-bold",
+    borderClass: "border-ds-danger/40",
+    dotClass: "bg-ds-danger",
   },
   high: {
     label: "بالا",
     icon: AlertCircle,
-    bgClass: "bg-amber-500/15",
-    textClass: "text-amber-700 dark:text-amber-400 font-bold",
-    borderClass: "border-amber-500/40",
-    dotClass: "bg-amber-500",
+    bgClass: "bg-ds-warning/15",
+    textClass: "text-ds-warning font-bold",
+    borderClass: "border-ds-warning/40",
+    dotClass: "bg-ds-warning",
   },
   medium: {
     label: "متوسط",
     icon: HelpCircle,
-    bgClass: "bg-blue-500/10",
-    textClass: "text-blue-700 dark:text-blue-400",
-    borderClass: "border-blue-500/30",
-    dotClass: "bg-blue-500",
+    bgClass: "bg-primary/10",
+    textClass: "text-primary",
+    borderClass: "border-primary/30",
+    dotClass: "bg-primary",
   },
   low: {
     label: "پایین",
@@ -307,11 +308,7 @@ const statusConfigs: Record<string, StatusConfig> = {
 };
 
 function SparkleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-    </svg>
-  );
+  return <Sparkles className={className} />;
 }
 
 const sizeClasses = {
@@ -350,7 +347,7 @@ export const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center rounded-lg border font-medium select-none transition-colors",
+          "group inline-flex items-center rounded-lg border font-medium select-none transition-all duration-200   cursor-default",
           sizeClasses[size],
           config.bgClass,
           config.textClass,
@@ -363,13 +360,15 @@ export const StatusBadge = React.forwardRef<HTMLSpanElement, StatusBadgeProps>(
         {showDot && (
           <span
             className={cn(
-              "size-1.5 rounded-full shrink-0",
+              "size-1.5 rounded-full shrink-0 transition-transform duration-200 ",
               config.dotClass,
-              pulse && "animate-ping"
+              pulse && ""
             )}
           />
         )}
-        {showIcon && !showDot && <IconComponent className="size-3.5 shrink-0" />}
+        {showIcon && !showDot && (
+          <IconComponent className="size-3.5 shrink-0 transition-transform duration-200 " />
+        )}
         <span className="truncate leading-none">{displayLabel}</span>
       </span>
     );

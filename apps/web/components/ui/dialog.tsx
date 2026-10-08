@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
@@ -19,7 +19,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/65 backdrop-blur-sm modal-overlay-animated",
+      "fixed inset-0 z-50 bg-[rgb(24_45_59_/_32%)] modal-overlay-animated",
       className
     )}
     {...props}
@@ -37,17 +37,17 @@ const DialogContent = React.forwardRef<
       ref={ref}
       dir="rtl"
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-6 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-xl)] modal-content-animated",
+        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-5 rounded-[var(--ds-p-radius-xl)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-6 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-xl)] modal-content-animated",
         className
       )}
       {...props}
     >
       {children}
       <DialogPrimitive.Close
-        className="ds-focus absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)] active:scale-95 cursor-pointer"
+        className="ds-focus group absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)]  cursor-pointer"
         aria-label="بستن پنجره"
       >
-        <X className="size-4" />
+        <X className="size-4 transition-transform duration-200  " />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
@@ -68,7 +68,7 @@ function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 }
 
 function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn("text-lg font-extrabold text-[var(--ds-foreground)]", className)} {...props} />;
+  return <DialogPrimitive.Title className={cn("text-lg font-bold text-[var(--ds-foreground)]", className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {

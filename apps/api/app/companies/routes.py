@@ -1,9 +1,8 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import func, select
-
-from datetime import datetime, timezone
 
 from app.audit.service import record_audit_event
 from app.companies.dependencies import CurrentCompanyAccess
@@ -15,7 +14,6 @@ from app.companies.schemas import (
     CompanyUpdate,
     HoldingCompanyItem,
     HoldingForecastWeek,
-    HoldingIntercompanyItem,
     HoldingSummaryResponse,
     MemberCreate,
     MemberRoleUpdate,
@@ -117,7 +115,7 @@ async def get_holding_summary(
         )
     ).scalars().all()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     company_items: list[HoldingCompanyItem] = []
     total_cash = 0
     total_ar = 0

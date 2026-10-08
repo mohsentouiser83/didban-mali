@@ -3,10 +3,10 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 RiskLevel = Literal["low", "medium", "high", "critical"]
-BucketKey = Literal["not_due", "1_30", "31_60", "61_90", "90_plus"]
+BucketKey = Literal["not_due", "1_30", "31_60", "61_90", "90_plus", "due_date_missing"]
 
 
 class AgingBucketDetail(BaseModel):
@@ -30,7 +30,9 @@ class ReceivablesSummaryResponse(BaseModel):
     total_receivables_irr: Decimal
     total_overdue_irr: Decimal
     overdue_ratio: float
-    dso_days: int
+    dso_days: float | None
+    dso_period_days: int = 90
+    dso_warnings: list[str] = Field(default_factory=list)
     customer_count: int
     high_risk_customer_count: int
     buckets: list[AgingBucketDetail]
@@ -53,6 +55,7 @@ class CustomerReceivableItem(BaseModel):
     risk_level: RiskLevel
     risk_score: int
     recommended_action: str
+    risk_assessment_incomplete: bool = False
     buckets: dict[BucketKey, str]
     open_invoices_count: int
 

@@ -53,9 +53,13 @@ def main() -> None:
             expect(page.get_by_text(label, exact=True).first).to_be_visible()
         expect(page.get_by_text("admin / admin", exact=True)).to_be_visible()
 
-        page.get_by_role("button", name="فعال‌کردن تم تاریک").click()
-        expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
+        page.emulate_media(color_scheme="dark")
+        page.evaluate("localStorage.setItem('theme', 'dark')")
         page.reload(wait_until="networkidle")
+        expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
+        assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "light"
+        expect(page.get_by_role("button", name="فعال‌کردن تم تاریک")).to_have_count(0)
+        assert page.evaluate("localStorage.getItem('theme')") is None
         expect(page.get_by_text("۱۵/۱۵")).to_be_visible()
 
         page.set_viewport_size({"width": 390, "height": 844})
@@ -69,7 +73,7 @@ def main() -> None:
     critical_console_errors = [item for item in console_errors if not any(token in item.lower() for token in ignored)]
     assert not page_errors, f"Page errors: {page_errors}"
     assert not critical_console_errors, f"Console errors: {critical_console_errors}"
-    print("MVP browser acceptance passed: 9 routes, light/dark persistence, mobile layout, 0 critical errors")
+    print("MVP browser acceptance passed: 9 routes, light-only appearance with legacy preference cleanup, mobile layout, 0 critical errors")
 
 
 if __name__ == "__main__":

@@ -1,580 +1,694 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Activity,
-  AlertCircle,
-  AlertTriangle,
-  ArrowDownLeft,
-  ArrowUpRight,
-  Banknote,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
-  Clock,
-  Layers,
-  PieChart,
-  RefreshCcw,
-  ShieldAlert,
-  ShieldCheck,
-  Table,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-  WalletCards,
-} from "lucide-react";
-import { toast } from "sonner";
-
-import { Badge } from "@/components/ui/badge";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, RefreshCcw, RotateCcw } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Column,
-  FinancialDataTable,
-  KpiMetricCard,
+  EmptyState,
   MoneyDisplay,
+  PageHeader,
+  toJalaliDate,
   toPersianDigits,
 } from "@/components/ui/financial";
-
 import { api } from "@/lib/product-api";
 import type {
   CashFlowForecastResponse,
   CashFlowSummaryResponse,
-  CashFlowWeekItem,
   CashRunwayStatus,
   Company,
   ScenarioType,
 } from "@/lib/product-types";
-import { CashFlowForecastChart } from "./cashflow-forecast-chart";
+import {
+  CashFlowForecastChart,
+  CASH_SCENARIOS,
+} from "./cashflow-forecast-chart";
+import styles from "./cashflow.module.css";
 
-const RUNWAY_CONFIG: Record<
-  CashRunwayStatus,
-  { label: string; badge: string; border: string; desc: string }
-> = {
-  critical: {
-    label: "بحرانی (کمتر از ۳۰ روز)",
-    badge: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25",
-    border: "border-s-red-600",
-    desc: "ذخیره نقدینگی کمتر از ۱ ماه است. توقف فوری تعهدات غیرضروری و پیگیری فوری وصول مطالبات الزامی است.",
-  },
-  warning: {
-    label: "هشدار نقدینگی (۳۰ تا ۶۰ روز)",
-    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
-    border: "border-s-amber-500",
-    desc: "تاب‌آوری بین ۱ تا ۲ ماه. نیازمند تسریع وصول فاکتورها جهت پیشگیری از کسری در پایان ماه.",
-  },
-  monitor: {
-    label: "پایش فعال (۶۰ تا ۹۰ روز)",
-    badge: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25",
-    border: "border-s-blue-500",
-    desc: "ذخیره نقدینگی در وضعیت نظارت متعارف است. حفظ تعادل وصول و پرداخت دوره‌ای توصیه می‌شود.",
-  },
-  healthy: {
-    label: "مطلوب و امن (بیش از ۱۲۰ روز)",
-    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
-    border: "border-s-emerald-500",
-    desc: "پوشش نقدینگی بیش از یک فصل مالی. شرکت از ظرفیت مناسب جهت توسعه و مانور مالی برخوردار است.",
-  },
-  sustainable: {
-    label: "خودکفا و پایدار (جریان نقد مثبت)",
-    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
-    border: "border-s-emerald-500",
-    desc: "عملیات شرکت جریان نقد خالص مثبت تولید می‌کند و نیازی به اتکا به ذخایر نقدینگی ندارد.",
-  },
-};
+const RUNWAY: Record<CashRunwayStatus, { label: string; description: string }> =
+  {
+    critical: {
+      label: "تاب‌آوری کمتر از ۳۰ روز",
+      description: "با نرخ مصرف فعلی، ذخیره نقد کمتر از یک ماه را پوشش می‌دهد.",
+    },
+    warning: {
+      label: "تاب‌آوری ۳۰ تا ۶۰ روز",
+      description: "ذخیره نقد با نرخ مصرف فعلی، یک تا دو ماه را پوشش می‌دهد.",
+    },
+    monitor: {
+      label: "تاب‌آوری ۶۰ تا ۱۲۰ روز",
+      description:
+        "ذخیره نقد بین دو تا چهار ماه را پوشش می‌دهد؛ تغییر وصول و پرداخت‌ها بر این برآورد اثر دارد.",
+    },
+    healthy: {
+      label: "تاب‌آوری حداقل ۱۲۰ روز",
+      description: "با نرخ مصرف فعلی، ذخیره نقد حداقل چهار ماه را پوشش می‌دهد.",
+    },
+    sustainable: {
+      label: "نرخ مصرف ثبت‌شده صفر است",
+      description:
+        "در داده‌های فعلی نرخ مصرف مثبت ثبت نشده است؛ مدت تاب‌آوری قابل محاسبه نیست.",
+    },
+  };
 
-function CashFlowSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse" dir="rtl">
-      <div className="h-10 bg-muted/60 rounded-xl w-64" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="h-28 bg-muted/60 rounded-xl" />
-        <div className="h-28 bg-muted/60 rounded-xl" />
-        <div className="h-28 bg-muted/60 rounded-xl" />
-        <div className="h-28 bg-muted/60 rounded-xl" />
-      </div>
-      <div className="h-72 bg-muted/60 rounded-xl" />
-    </div>
-  );
+function validAmount(value: string | undefined) {
+  return value != null && value.trim() !== "" && Number.isFinite(Number(value));
 }
 
 export function CashFlowWorkspace({ company }: { company: Company }) {
   const searchParams = useSearchParams();
-  const isForecastView = searchParams.get("view") === "forecast";
+  const router = useRouter();
+  const pathname = usePathname();
   const [summary, setSummary] = useState<CashFlowSummaryResponse | null>(null);
-  const [forecast, setForecast] = useState<CashFlowForecastResponse | null>(null);
+  const [forecast, setForecast] = useState<CashFlowForecastResponse | null>(
+    null,
+  );
   const [scenario, setScenario] = useState<ScenarioType>("base");
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFullTable, setShowFullTable] = useState(true);
-
-  useEffect(() => {
-    if (isForecastView && !loading) {
-      const el = document.getElementById("forecast-section");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [isForecastView, loading]);
+  const [summaryError, setSummaryError] = useState(false);
+  const [forecastError, setForecastError] = useState(false);
+  const request = useRef(0);
+  const reserveAmount = useRef("");
+  const [reserveDays, setReserveDays] = useState("default");
+  const [baseline, setBaseline] = useState<CashFlowForecastResponse | null>(null);
 
   const loadData = useCallback(
-    async (targetScenario: ScenarioType, isRefresh = false) => {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-
-      try {
-        const [sumRes, fcRes] = await Promise.allSettled([
-          api<CashFlowSummaryResponse>(`/companies/${company.id}/cashflow/summary`),
-          api<CashFlowForecastResponse>(
-            `/companies/${company.id}/cashflow/forecast?scenario=${targetScenario}`
-          ),
-        ]);
-
-        if (
-          sumRes.status === "fulfilled" &&
-          sumRes.value &&
-          Number(sumRes.value.current_cash_irr) > 0
-        ) {
-          setSummary(sumRes.value);
-        } else {
-          setSummary(null);
-        }
-
-        if (
-          fcRes.status === "fulfilled" &&
-          fcRes.value &&
-          fcRes.value.weeks?.length > 0
-        ) {
-          setForecast(fcRes.value);
-        } else {
-          setForecast(null);
-        }
-      } catch {
+    async (target: ScenarioType, reset = false) => {
+      const id = ++request.current;
+      setLoading(true);
+      setScenario(target);
+      if (reset) {
         setSummary(null);
         setForecast(null);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
       }
+      const reserveQuery = reserveAmount.current ? `&safety_buffer_irr=${reserveAmount.current}` : "";
+      const results = await Promise.allSettled([
+        api<CashFlowSummaryResponse>(
+          `/companies/${company.id}/cashflow/summary${reserveQuery ? `?${reserveQuery.slice(1)}` : ""}`,
+        ),
+        api<CashFlowForecastResponse>(
+          `/companies/${company.id}/cashflow/forecast?scenario=${target}${reserveQuery}`,
+        ),
+        ...(target !== "base" ? [api<CashFlowForecastResponse>(`/companies/${company.id}/cashflow/forecast?scenario=base${reserveQuery}`)] : []),
+      ]);
+      if (id !== request.current) return;
+      const [sum, fc] = results;
+      setSummaryError(sum.status === "rejected");
+      setForecastError(fc.status === "rejected");
+      setSummary(sum.status === "fulfilled" ? sum.value : null);
+      setForecast(fc.status === "fulfilled" ? fc.value : null);
+      const baseResult = target === "base" ? fc : results[2];
+      setBaseline(baseResult?.status === "fulfilled" ? baseResult.value as CashFlowForecastResponse : null);
+      setLoading(false);
     },
-    [company.id]
+    [company.id],
   );
 
   useEffect(() => {
-    loadData(scenario);
-  }, [loadData, scenario]);
+    reserveAmount.current = "";
+    void loadData("base", true);
+    return () => {
+      request.current++;
+    };
+  }, [loadData]);
+  const forecastView = searchParams.get("view") === "forecast";
 
-  const runwayConf = summary
-    ? RUNWAY_CONFIG[summary.runway_status]
-    : RUNWAY_CONFIG.monitor;
-
-  // Buffer multiple for current cash KPI
-  const bufferMultiple = useMemo(() => {
-    if (!summary || !Number(summary.safety_buffer_irr)) return null;
-    const current = Number(summary.current_cash_irr) || 0;
-    const buffer = Number(summary.safety_buffer_irr) || 1;
-    return (current / buffer).toFixed(1);
-  }, [summary]);
-
-  // Forecast table columns
-  const forecastColumns: Column<CashFlowWeekItem>[] = [
-    {
-      key: "week_number",
-      header: "هفته",
-      align: "center",
-      render: (row) => (
-        <span className="font-mono text-xs font-medium bg-[var(--ds-muted-bg)] px-2 py-0.5 rounded border border-[var(--ds-border)]/60">
-          هفته {toPersianDigits(row.week_number)}
-        </span>
-      ),
-    },
-    {
-      key: "dates",
-      header: "بازه زمانی",
-      render: (row) => (
-        <span className="text-xs text-[var(--ds-muted-fg)]">
-          {toPersianDigits(row.start_date)} تا {toPersianDigits(row.end_date)}
-        </span>
-      ),
-    },
-    {
-      key: "starting_cash_irr",
-      header: "مانده ابتدای دوره",
-      numeric: true,
-      align: "left",
-      render: (row) => <MoneyDisplay amount={row.starting_cash_irr} compact />,
-    },
-    {
-      key: "projected_inflows_irr",
-      header: "ورودی پیش‌بینی‌شده (+)",
-      numeric: true,
-      align: "left",
-      render: (row) => (
-        <MoneyDisplay amount={row.projected_inflows_irr} compact direction="positive" />
-      ),
-    },
-    {
-      key: "projected_outflows_irr",
-      header: "خروجی برنامه‌ریزی‌شده (-)",
-      numeric: true,
-      align: "left",
-      render: (row) => (
-        <MoneyDisplay amount={row.projected_outflows_irr} compact direction="negative" />
-      ),
-    },
-    {
-      key: "net_change_irr",
-      header: "خالص گردش",
-      numeric: true,
-      align: "left",
-      render: (row) => (
-        <MoneyDisplay amount={row.net_change_irr} compact direction="auto" showSign />
-      ),
-    },
-    {
-      key: "ending_cash_irr",
-      header: "مانده پایان هفته",
-      numeric: true,
-      align: "left",
-      render: (row) => (
-        <span className="font-semibold text-[var(--ds-card-fg)]">
-          <MoneyDisplay amount={row.ending_cash_irr} compact />
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      header: "وضعیت بافر امن",
-      align: "center",
-      render: (row) => {
-        if (row.is_deficit) {
-          return (
-            <Badge variant="outline" className="text-[11px] bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25 font-medium">
-              کسری ({toPersianDigits(row.deficit_amount_irr)})
-            </Badge>
-          );
-        }
-        return (
-          <Badge variant="outline" className="text-[11px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25 font-medium">
-            محدوده امن
-          </Badge>
-        );
-      },
-    },
-  ];
-
-  if (loading && !summary && !forecast) {
-    return <CashFlowSkeleton />;
-  }
-
-  if (!summary && !forecast) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[360px]" dir="rtl">
-        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <WalletCards className="size-7 text-primary" />
-        </div>
-        <div className="max-w-md space-y-1">
-          <h3 className="text-base font-bold text-foreground">هنوز جریان نقدی برای این شرکت ثبت نشده است</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            برای پیش‌بینی نقدینگی و تحلیل تاب‌آوری (Runway)، ابتدا باید صورتحساب‌های بانکی یا اسناد مالی بارگذاری و پردازش شوند.
-          </p>
-        </div>
-        <Link href={`/companies/${company.id}/imports`}>
-          <Button className="gap-2 text-xs">
-            بارگذاری اسناد و گردش مالی
-            <ChevronLeft className="size-4" />
-          </Button>
-        </Link>
-      </div>
-    );
-  }
+  const firstDeficit = forecast?.weeks.find((week) => week.is_deficit);
+  const buffer =
+    summary &&
+    Number(summary.safety_buffer_irr) > 0 &&
+    validAmount(summary.current_cash_irr)
+      ? (
+          Number(summary.current_cash_irr) / Number(summary.safety_buffer_irr)
+        ).toFixed(1)
+      : null;
+  const base = `/companies/${company.id}`;
+  const dataDate = summary?.as_of_date ?? forecast?.as_of_date;
+  const hasData = !!(summary || forecast);
 
   return (
-    <div className="space-y-6 pb-12" dir="rtl">
-      {/* Sub-header Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[var(--ds-border)]/60">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--ds-card-fg)]">
-            داشبورد نقدینگی و تاب‌آوری مالی
-          </h2>
-          <p className="text-xs text-[var(--ds-muted-fg)]">
-            پایش موجودی در دسترس، شاخص بقای نقدی و شبیه‌سازی ورود و خروج وجوه
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {summary?.as_of_date && (
-            <div className="flex items-center gap-1.5 text-xs text-[var(--ds-muted-fg)] bg-[var(--ds-muted-bg)] px-2.5 py-1 rounded-lg border border-[var(--ds-border)]">
-              <Calendar className="size-3 text-primary" />
-              <span>مبنای داده‌ها:</span>
-              <span className="font-medium text-[var(--ds-card-fg)]">{toPersianDigits(summary.as_of_date)}</span>
-            </div>
-          )}
-
+    <div className={styles.page} dir="rtl" aria-busy={loading}>
+      <PageHeader
+        title="نقدینگی، با دیدِ رو به جلو"
+        description="موجودی امروز، مسیر نقد در هفته‌های آینده و اثر زمان‌بندی وصول و پرداخت."
+        statusMetadata={
+          dataDate ? (
+            <span>مبنای داده‌ها: {toJalaliDate(dataDate)}</span>
+          ) : undefined
+        }
+        primaryAction={
+          <Button asChild>
+            <Link href={`${base}/scenarios`}>
+              بررسی سناریوها
+              <ChevronLeft size={16} />
+            </Link>
+          </Button>
+        }
+        secondaryActions={
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => loadData(scenario, true)}
-            disabled={refreshing}
-            className="h-8 text-xs gap-1.5"
+            disabled={loading}
+            onClick={() => void loadData(scenario)}
+            aria-busy={loading}
           >
-            <RefreshCcw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span>بروزرسانی</span>
+            <RefreshCcw
+              size={16}
+              className={loading ? "animate-spin" : undefined}
+            />
+            به‌روزرسانی
           </Button>
-        </div>
+        }
+      />
+      <Tabs className="flex min-w-0 flex-col gap-7" value={forecastView ? "forecast" : "current"} variant="line" onValueChange={(view) => {
+        const query = new URLSearchParams(searchParams.toString());
+        query.set("view", view);
+        router.push(`${pathname}?${query}`, { scroll: false });
+      }}>
+        <TabsList aria-label="نمای نقدینگی">
+          <TabsTrigger value="current">موقعیت فعلی</TabsTrigger>
+          <TabsTrigger value="forecast">پیش‌بینی نقدینگی</TabsTrigger>
+        </TabsList>
+      <TabsContent value={forecastView ? "forecast" : "current"} className="m-0 flex min-w-0 flex-col gap-7">
+      {loading && !hasData ? (
+        <CashFlowSkeleton />
+      ) : (
+        <>
+          {(summaryError || forecastError) && (
+            <div className={styles.error} role="alert">
+              <p>
+                {summaryError && forecastError
+                  ? "اطلاعات نقدینگی دریافت نشد. دوباره تلاش کنید."
+                  : summaryError
+                    ? "شاخص‌های نقدینگی دریافت نشد؛ پیش‌بینی موجود در ادامه نمایش داده می‌شود."
+                    : "پیش‌بینی دریافت نشد؛ شاخص‌های موجود در ادامه نمایش داده می‌شوند."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadData(scenario)}
+                disabled={loading}
+              >
+                تلاش دوباره
+              </Button>
+            </div>
+          )}
+          {!hasData && !summaryError && !forecastError && (
+            <EmptyState
+              title="اطلاعات نقدینگی در دسترس نیست"
+              description="گردش بانکی و اسناد مالی را در مرکز داده‌های شرکت بارگذاری و پردازش کنید."
+              action={{ label: "رفتن به مرکز داده‌ها", href: `${base}/data` }}
+            />
+          )}
+          {hasData && (
+            <>
+              <section className={styles.metrics} aria-label="موقعیت نقدینگی">
+                <CashMetric
+                  label="موجودی نقد در دسترس"
+                  note={
+                    buffer
+                      ? `${toPersianDigits(buffer.replace(".", "٫"))} برابر ذخیره امن`
+                      : "بر اساس مانده حساب‌ها"
+                  }
+                >
+                  <MoneyDisplay
+                    amount={
+                      summary?.current_cash_irr ?? forecast?.current_cash_irr
+                    }
+                    executive
+                    direction="neutral"
+                    size="xl"
+                  />
+                </CashMetric>
+                <CashMetric
+                  label="تاب‌آوری با نرخ مصرف فعلی"
+                  note={
+                    summary?.runway_status === "sustainable"
+                      ? "نرخ مصرف مثبت ثبت نشده"
+                      : summary
+                        ? `معادل ${toPersianDigits(String(summary.runway_months).replace(".", "٫"))} ماه`
+                        : "شاخص در دسترس نیست"
+                  }
+                >
+                  <strong>
+                    {summary
+                      ? summary.runway_status === "sustainable"
+                        ? "—"
+                        : toPersianDigits(summary.runway_days)
+                      : "—"}
+                  </strong>
+                  {summary && summary.runway_status !== "sustainable" && (
+                    <span>روز</span>
+                  )}
+                </CashMetric>
+                <CashMetric
+                  label="میانگین مصرف ماهانه"
+                  note="برآورد بر اساس ۹۰ روز گذشته"
+                >
+                  <MoneyDisplay
+                    amount={summary?.monthly_burn_rate_irr}
+                    executive
+                    direction="neutral"
+                    size="xl"
+                  />
+                </CashMetric>
+                <CashMetric
+                  label="اولین افت زیر ذخیره امن"
+                  note={`سناریوی ${CASH_SCENARIOS.find((item) => item.value === (forecast?.scenario ?? scenario))?.label ?? "پایه"}`}
+                >
+                  <strong className={styles.riskValue}>
+                    {forecast
+                      ? firstDeficit
+                        ? `هفته ${toPersianDigits(firstDeficit.week_number)}`
+                        : "بدون افت در ۱۳ هفته"
+                      : "—"}
+                  </strong>
+                </CashMetric>
+              </section>
+              {!forecastView && summary && (
+                <section
+                  className={`${styles.assessment} ${styles[summary.runway_status]}`}
+                  aria-label="ارزیابی تاب‌آوری"
+                >
+                  <div>
+                    <strong>{RUNWAY[summary.runway_status].label}</strong>
+                    <p>{RUNWAY[summary.runway_status].description}</p>
+                  </div>
+                  <div className={styles.bufferAmount}>
+                    <span>حداقل ذخیره امن</span>
+                    <MoneyDisplay
+                      amount={summary.safety_buffer_irr}
+                      executive
+                      direction="neutral"
+                      size="md"
+                    />
+                  </div>
+                </section>
+              )}
+              {summary && (
+                <section className={styles.policy} aria-label="مبنای موجودی و ذخیره">
+                  {forecastView && <div className={styles.reserveControl}>
+                    <label htmlFor="reserve-days">سیاست ذخیره برای این پیش‌بینی</label>
+                    <Select dir="rtl" value={reserveDays} disabled={loading}
+                      onValueChange={(days) => {
+                        setReserveDays(days);
+                        reserveAmount.current = days === "default" ? "" : String(Math.round(Number(summary.monthly_burn_rate_irr) / 30 * Number(days)));
+                        void loadData(scenario);
+                      }}>
+                      <SelectTrigger id="reserve-days" className={styles.reserveSelect}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">پیش‌فرض مدل</SelectItem>
+                        {[15, 30, 60].map((days) => <SelectItem key={days} value={String(days)} disabled={Number(summary.monthly_burn_rate_irr) <= 0}>{toPersianDigits(days)} روز مصرف</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p>{reserveDays === "default"
+                      ? Number(summary.monthly_burn_rate_irr) > 0 ? "پیش‌فرض: ۲۰٪ مصرف ماهانه، معادل ۶ روز مصرف." : "بدون نرخ مصرف مثبت، پیش‌فرض ۱۰٪ موجودی نقدِ مثبت است."
+                      : `آستانه برابر مصرف روزانه × ${toPersianDigits(reserveDays)} روز است.`} انتخاب ذخیره فقط در این صفحه اعمال می‌شود.</p>
+                  </div>
+                  }
+                  {!!summary.cash_warnings?.length && <div role="alert">{summary.cash_warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>}
+                  {!forecastView && <details className={styles.accountDetails}>
+                    <summary>مبنای موجودی و مانده حساب‌ها</summary>
+                    <p>همان تعریف داشبورد: یک مانده برای هر حساب، با رعایت حساب‌های مستثناشده. مانده صفر و منفی نیز در جمع لحاظ می‌شود.</p>
+                    {summary.cash_accounts?.map((account) => <div className={styles.accountRow} key={account.bank_account_id}>
+                      <span>{account.bank_name} · {account.label}{account.account_last4 ? ` · ${toPersianDigits(account.account_last4)}` : ""}<small>{account.balance_date ? toJalaliDate(account.balance_date) : "بدون مانده معتبر"} · {account.method === "transaction_net_sum" ? "خالص تراکنش‌ها؛ مانده بانکی ثبت نشده" : account.method === "unavailable" ? "از جمع کنار گذاشته شده" : "آخرین مانده ثبت‌شده"}</small></span>
+                      <MoneyDisplay amount={account.balance_irr} direction="neutral" size="sm" />
+                    </div>)}
+                  </details>}
+                </section>
+              )}
+              {forecastView && (forecast?.weeks.length ? (
+                <CashFlowForecastChart
+                  key={`${company.id}:${forecast.as_of_date}`}
+                  baseline={baseline}
+                  forecast={forecast}
+                  scenario={scenario}
+                  onScenarioChange={(value) => void loadData(value)}
+                  loading={loading}
+                />
+              ) : (
+                !forecastError && (
+                  <div className={styles.empty}>
+                    پیش‌بینی هفتگی در دسترس نیست. اطلاعات فروش و مصرف نقد را در
+                    مرکز داده‌ها بررسی کنید.
+                  </div>
+                )
+              ))}
+              {forecastView && forecast && (
+                <>
+                  <section
+                    className={styles.sources}
+                    aria-labelledby="cash-sources-title"
+                  >
+                    <div className={styles.sectionHeading}>
+                      <div>
+                        <h2 id="cash-sources-title">پشتوانه ورود و خروج نقد</h2>
+                        <p>ورودی از فاکتورهای باز؛ خروجی برآوردی از مصرف گذشته، نه تعهدات سررسیددار</p>
+                      </div>
+                      <Link className={styles.textLink} href={`${base}/data`}>
+                        بررسی داده‌ها
+                        <ChevronLeft size={14} />
+                      </Link>
+                    </div>
+                    <div className={styles.sourcesBody}>
+                      <SourceBreakdown
+                        title="منابع ورودی"
+                        total={forecast.total_projected_inflows_irr}
+                        items={forecast.inflow_sources}
+                      />
+                      <SourceBreakdown
+                        title="مصارف برآوردی مدل"
+                        total={forecast.total_projected_outflows_irr}
+                        items={forecast.outflow_sources}
+                      />
+                    </div>
+                  </section>
+                  <details className={styles.detailSection}>
+                    <summary>
+                      جدول کامل پیش‌بینی هفتگی{" "}
+                      <span>مانده، ورودی و خروجی با مبلغ دقیق</span>
+                    </summary>
+                    <div className={styles.tableScroll}>
+                      <table>
+                        <caption className="sr-only">
+                          جدول پیش‌بینی نقدینگی؛ همه مبالغ به ریال
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>هفته</th>
+                            <th>بازه زمانی</th>
+                            <th>مانده ابتدا</th>
+                            <th>ورودی</th>
+                            <th>خروجی برآوردی</th>
+                            <th>خالص تغییر</th>
+                            <th>مانده پایان</th>
+                            <th>وضعیت ذخیره</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {forecast.weeks.map((week) => (
+                            <tr key={week.week_number}>
+                              <th scope="row">
+                                {toPersianDigits(week.week_number)}
+                              </th>
+                              <td>
+                                {toJalaliDate(week.start_date)} تا{" "}
+                                {toJalaliDate(week.end_date)}
+                              </td>
+                              {[
+                                week.starting_cash_irr,
+                                week.projected_inflows_irr,
+                                week.projected_outflows_irr,
+                                week.net_change_irr,
+                                week.ending_cash_irr,
+                              ].map((value, index) => (
+                                <td key={index}>
+                                  <MoneyDisplay
+                                    amount={value}
+                                    direction="neutral"
+                                    size="sm"
+                                    showSign={index === 3}
+                                  />
+                                </td>
+                              ))}
+                              <td
+                                className={
+                                  week.is_deficit ? styles.danger : undefined
+                                }
+                              >
+                                {week.is_deficit
+                                  ? "زیر ذخیره امن"
+                                  : "در محدوده امن"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </>
+              )}
+              {forecastView && summary && forecast && (
+                <CashSensitivity
+                  key={company.id}
+                  summary={summary}
+                  forecast={forecast}
+                  base={base}
+                />
+              )}
+              {!forecastView && <Button variant="outline" asChild><Link href={`${base}/cashflow?view=forecast`}>مشاهده مسیر نقد در ۱۳ هفته آینده</Link></Button>}
+              {forecastView && <footer className={styles.footer}>
+                <p>
+                  این برآورد فقط افق ۱۳ هفته و سناریوی انتخاب‌شده را پوشش می‌دهد؛ تضمین توان پرداخت نیست. بدهی‌های سررسیددار، مالیات و هزینه‌های ثبت‌نشده در مدل پرداخت لحاظ نشده‌اند. تغییر
+                  زمان وصول، پرداخت یا ورود داده جدید می‌تواند مسیر نقد را تغییر
+                  دهد.
+                </p>
+                <Link className={styles.textLink} href={`${base}/data`}>
+                  منابع و پوشش داده‌ها
+                  <ChevronLeft size={14} />
+                </Link>
+              </footer>}
+            </>
+          )}
+        </>
+      )}
+      </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function CashMetric({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.metric}>
+      <h2>{label}</h2>
+      <div className={styles.metricValue}>{children}</div>
+      <p>{note}</p>
+    </div>
+  );
+}
+
+function SourceBreakdown({
+  title,
+  total,
+  items,
+}: {
+  title: string;
+  total: string;
+  items: { category: string; amount_irr: string; share_percentage: number }[];
+}) {
+  return (
+    <div className={styles.sourceColumn}>
+      <div className={styles.sourceHeading}>
+        <h3>{title}</h3>
+        <MoneyDisplay amount={total} executive direction="neutral" size="md" />
       </div>
-
-      {/* KPI Cards Row with refined typography */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Current Cash */}
-        <KpiMetricCard
-          title="موجودی نقد و بانک آزاد"
-          value={summary?.current_cash_irr ?? 0}
-          loading={loading}
-          subtext={
-            bufferMultiple
-              ? `پوشش ${toPersianDigits(bufferMultiple)} برابری بافر امن`
-              : "مجموع مانده‌های آزاد حساب‌ها"
-          }
-          icon={Wallet}
-        />
-
-        {/* KPI 2: Runway */}
-        <KpiMetricCard
-          title="تاب‌آوری نقدینگی (Runway)"
-          value={summary?.runway_days ? `${toPersianDigits(summary.runway_days)} روز` : "پایدار"}
-          unit=""
-          currency=""
-          loading={loading}
-          status={
-            summary?.runway_status === "critical"
-              ? "critical"
-              : summary?.runway_status === "warning"
-              ? "warning"
-              : "normal"
-          }
-          subtext={
-            summary?.runway_months
-              ? `معادل ${toPersianDigits(summary.runway_months)} ماه با نرخ مصرف فعلی`
-              : "جریان نقد پایدار"
-          }
-          icon={Clock}
-        />
-
-        {/* KPI 3: Monthly Burn Rate */}
-        <KpiMetricCard
-          title="نرخ مصرف خالص نقد (Burn Rate)"
-          value={
-            summary?.runway_status === "sustainable" || Number(summary?.monthly_burn_rate_irr || 0) <= 0
-              ? "صفر / مازاد نقد"
-              : summary?.monthly_burn_rate_irr ?? 0
-          }
-          loading={loading}
-          subtext={
-            summary?.runway_status === "sustainable"
-              ? "شرکت مازاد نقد داشته و جریان نقد خودکفا است"
-              : "میانگین مصرف خالص ماهانه"
-          }
-          icon={Activity}
-        />
-
-        {/* KPI 4: First Deficit Point */}
-        <KpiMetricCard
-          title="نخستین نقطه ریسک کسری"
-          value={
-            summary?.first_deficit_week
-              ? `هفته ${toPersianDigits(summary.first_deficit_week)}`
-              : "بدون کسری (امن)"
-          }
-          unit=""
-          currency=""
-          loading={loading}
-          status={summary?.first_deficit_week ? "critical" : "normal"}
-          subtext={
-            summary?.first_deficit_week
-              ? "ورود موجودی به زیر بافر ایمنی"
-              : "تراز مثبت تا پایان افق ۱۳ هفته"
-          }
-          icon={summary?.first_deficit_week ? ShieldAlert : ShieldCheck}
-        />
-      </div>
-
-      {/* Runway Advisory Banner (Clean, lighter typography) */}
-      <div
-        className={`rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] border-s-4 ${runwayConf.border} p-4 shadow-xs`}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            {summary?.runway_status === "critical" || summary?.runway_status === "warning" ? (
-              <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            ) : (
-              <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            )}
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-xs text-[var(--ds-muted-fg)]">
-                  ارزیابی تاب‌آوری خزانه:
-                </span>
-                <span className={`text-xs px-2 py-0.5 rounded-md border font-medium ${runwayConf.badge}`}>
-                  {runwayConf.label}
-                </span>
+      {items.length ? (
+        <ul>
+          {items.map((item) => (
+            <li key={item.category}>
+              <div>
+                <span>{item.category}</span>
+                <MoneyDisplay
+                  amount={item.amount_irr}
+                  executive
+                  direction="neutral"
+                  size="sm"
+                />
+                <small>
+                  {Number.isFinite(item.share_percentage)
+                    ? `${toPersianDigits(item.share_percentage.toFixed(1).replace(".", "٫"))}٪`
+                    : "—"}
+                </small>
               </div>
-              <p className="text-xs text-[var(--ds-muted-fg)] leading-relaxed">{runwayConf.desc}</p>
+              <span className={styles.sourceTrack} aria-hidden="true">
+                <span
+                  style={{
+                    width: `${Number.isFinite(item.share_percentage) ? Math.max(0, Math.min(100, item.share_percentage)) : 0}%`,
+                  }}
+                />
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className={styles.secondary}>جزئیات منابع ثبت نشده است.</p>
+      )}
+    </div>
+  );
+}
+
+function CashSensitivity({
+  summary,
+  forecast,
+  base,
+}: {
+  summary: CashFlowSummaryResponse;
+  forecast: CashFlowForecastResponse;
+  base: string;
+}) {
+  const [dso, setDso] = useState(0);
+  const [dpo, setDpo] = useState(0);
+  const changed = dso !== 0 || dpo !== 0;
+  const impact = useMemo(() => {
+    const horizon = forecast.weeks.length * 7;
+    if (
+      !horizon ||
+      !validAmount(forecast.total_projected_inflows_irr) ||
+      !validAmount(forecast.total_projected_outflows_irr)
+    )
+      return null;
+    const cash = Math.round(
+      (-dso * Number(forecast.total_projected_inflows_irr)) / horizon +
+        (dpo * Number(forecast.total_projected_outflows_irr)) / horizon,
+    );
+    const burn = Number(summary.monthly_burn_rate_irr);
+    return {
+      cash,
+      runway:
+        burn > 0 &&
+        Number.isFinite(burn) &&
+        summary.runway_status !== "sustainable"
+          ? Math.max(0, summary.runway_days + Math.round(cash / (burn / 30)))
+          : null,
+    };
+  }, [dso, dpo, summary, forecast]);
+  return (
+    <details className={styles.sensitivity}>
+      <summary>
+        <span>
+          اگر زمان وصول یا پرداخت تغییر کند؟
+          <small>برآورد سریع حساسیت نقدینگی</small>
+        </span>
+        <span className={styles.secondary}>شبیه‌سازی</span>
+      </summary>
+      <div className={styles.sensitivityBody}>
+        <div className={styles.simulationHeading}>
+          <p>
+            اثر فرضی تغییر زمان‌بندی، با میانگین جریان روزانه همین پیش‌بینی
+            محاسبه می‌شود. این برآورد، پیش‌بینی هفتگی را تغییر نمی‌دهد.
+          </p>
+          <div>
+            {changed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setDso(0);
+                  setDpo(0);
+                }}
+              >
+                <RotateCcw size={14} />
+                بازنشانی
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`${base}/scenarios`}>
+                سناریوسازی کامل
+                <ChevronLeft size={14} />
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <div className={styles.sliders}>
+          <div>
+            <div className={styles.sliderLabel}>
+              <label id="cash-dso-label">زمان وصول مطالبات</label>
+              <output>
+                {dso === 0
+                  ? "بدون تغییر"
+                  : `${toPersianDigits(Math.abs(dso))} روز ${dso < 0 ? "زودتر" : "دیرتر"}`}
+              </output>
+            </div>
+            <Slider
+              dir="ltr"
+              min={-20}
+              max={20}
+              step={1}
+              value={[dso]}
+              onValueChange={([value]) => setDso(value ?? 0)}
+              aria-labelledby="cash-dso-label"
+            />
+            <div className={styles.sliderEnds}>
+              <span>۲۰ روز زودتر</span>
+              <span>۲۰ روز دیرتر</span>
             </div>
           </div>
-          <div className="text-xs text-start sm:text-end border-t sm:border-t-0 pt-2 sm:pt-0 border-[var(--ds-border)]/70 shrink-0">
-            <span className="text-[var(--ds-muted-fg)] block">حداقل بافر نقدینگی امن:</span>
-            <span className="font-semibold text-sm text-[var(--ds-card-fg)]">
-              <MoneyDisplay amount={summary?.safety_buffer_irr ?? 0} compact />
-            </span>
+          <div>
+            <div className={styles.sliderLabel}>
+              <label id="cash-dpo-label">زمان پرداخت بدهی‌ها</label>
+              <output>
+                {dpo === 0
+                  ? "بدون تغییر"
+                  : `${toPersianDigits(Math.abs(dpo))} روز ${dpo < 0 ? "زودتر" : "دیرتر"}`}
+              </output>
+            </div>
+            <Slider
+              dir="ltr"
+              min={-20}
+              max={20}
+              step={1}
+              value={[dpo]}
+              onValueChange={([value]) => setDpo(value ?? 0)}
+              aria-labelledby="cash-dpo-label"
+            />
+            <div className={styles.sliderEnds}>
+              <span>۲۰ روز زودتر</span>
+              <span>۲۰ روز دیرتر</span>
+            </div>
           </div>
         </div>
+        <div className={styles.simulationResult} aria-live="polite">
+          <div>
+            <span>اثر فرضی بر موجودی نقد</span>
+            <MoneyDisplay
+              amount={impact?.cash}
+              executive
+              showSign
+              direction="auto"
+              size="lg"
+            />
+          </div>
+          <div>
+            <span>تاب‌آوری برآوردشده</span>
+            <strong>
+              {impact?.runway != null
+                ? `${toPersianDigits(impact.runway)} روز`
+                : "قابل محاسبه نیست"}
+            </strong>
+          </div>
+          <p>
+            {changed
+              ? "سناریوی فرضی فعال است؛ هیچ داده یا تعهدی در شرکت تغییر نکرده است."
+              : "برای مقایسه با وضعیت فعلی، زمان وصول یا پرداخت را تغییر دهید."}
+          </p>
+        </div>
       </div>
+    </details>
+  );
+}
 
-      {/* DEDICATED SECTION: 13-Week Cash Flow Forecast & Interactive Inspector */}
-      {forecast && (
-        <div id="forecast-section" className="scroll-mt-6">
-          <CashFlowForecastChart
-            forecast={forecast}
-            scenario={scenario}
-            onScenarioChange={(nextScenario) => {
-              setScenario(nextScenario);
-              loadData(nextScenario);
-            }}
-            loading={refreshing}
-          />
-        </div>
-      )}
-
-      {/* Sources Breakdown Grid (Inflows vs Outflows) */}
-      {forecast && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Inflows Breakdown */}
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
-            <CardHeader className="p-4 pb-3 border-b border-[var(--ds-border)]/70">
-              <CardTitle className="text-xs font-semibold flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <ArrowDownLeft className="size-4" />
-                  ترکیب منابع ورودی پیش‌بینی‌شده
-                </span>
-                <span className="font-bold text-[var(--ds-card-fg)]">
-                  <MoneyDisplay amount={forecast.total_projected_inflows_irr} compact />
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {forecast.inflow_sources.length > 0 ? (
-                forecast.inflow_sources.map((item) => (
-                  <div key={item.category} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--ds-muted-fg)] font-medium">{item.category}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[var(--ds-muted-fg)]">
-                          <MoneyDisplay amount={item.amount_irr} compact />
-                        </span>
-                        <span className="font-semibold text-[var(--ds-card-fg)] tabular-nums">
-                          {toPersianDigits(item.share_percentage.toFixed(1))}٪
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-[var(--ds-muted-bg)] rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${item.share_percentage}%` }}
-                        className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground py-2 text-center">
-                  داده‌ای برای ترکیب ورودی‌ها ثبت نشده است.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Outflows Breakdown */}
-          <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
-            <CardHeader className="p-4 pb-3 border-b border-[var(--ds-border)]/70">
-              <CardTitle className="text-xs font-semibold flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
-                  <ArrowUpRight className="size-4" />
-                  ترکیب مصارف و خروجی‌های برنامه‌ریزی‌شده
-                </span>
-                <span className="font-bold text-[var(--ds-card-fg)]">
-                  <MoneyDisplay amount={forecast.total_projected_outflows_irr} compact />
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {forecast.outflow_sources.length > 0 ? (
-                forecast.outflow_sources.map((item) => (
-                  <div key={item.category} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--ds-muted-fg)] font-medium">{item.category}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[var(--ds-muted-fg)]">
-                          <MoneyDisplay amount={item.amount_irr} compact />
-                        </span>
-                        <span className="font-semibold text-[var(--ds-card-fg)] tabular-nums">
-                          {toPersianDigits(item.share_percentage.toFixed(1))}٪
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 w-full bg-[var(--ds-muted-bg)] rounded-full overflow-hidden">
-                      <div
-                        style={{ width: `${item.share_percentage}%` }}
-                        className="h-full bg-rose-500 rounded-full transition-all duration-300"
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground py-2 text-center">
-                  داده‌ای برای ترکیب خروجی‌ها ثبت نشده است.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Detailed Forecast Table */}
-      {forecast && (
-        <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs overflow-hidden">
-          <CardHeader className="p-4 border-b border-[var(--ds-border)]/70 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[var(--ds-card-fg)]">
-              <Table className="size-4 text-primary" />
-              <span>جدول تفصیلی گردش هفتگی وجوه نقد در افق ۱۳ هفته</span>
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFullTable((prev) => !prev)}
-              className="text-xs h-7 gap-1 text-[var(--ds-muted-fg)]"
-            >
-              <span>{showFullTable ? "بستن جدول" : "مشاهده جدول"}</span>
-              <ChevronDown className={`size-3.5 transition-transform ${showFullTable ? "rotate-180" : ""}`} />
-            </Button>
-          </CardHeader>
-
-          {showFullTable && (
-            <CardContent className="p-0">
-              <FinancialDataTable
-                data={forecast.weeks ?? []}
-                columns={forecastColumns}
-                keyExtractor={(row) => row.week_number}
-                density="compact"
-                emptyMessage="اطلاعات پیش‌بینی برای این سناریو یافت نشد."
-              />
-            </CardContent>
-          )}
-        </Card>
-      )}
+function CashFlowSkeleton() {
+  return (
+    <div
+      className={styles.skeleton}
+      role="status"
+      aria-label="در حال بارگذاری نقدینگی"
+    >
+      <Skeleton className="h-36 w-full" />
+      <Skeleton className="h-[440px] w-full" />
     </div>
   );
 }

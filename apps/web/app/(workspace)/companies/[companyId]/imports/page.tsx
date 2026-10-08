@@ -1,20 +1,16 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useWorkspace } from "@/components/product/workspace-provider";
+export default async function LegacyPage({ params, searchParams }: {
+  params: Promise<{ companyId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { companyId } = await params;
+  const values = await searchParams;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(values)) {
+    if (Array.isArray(value)) value.forEach((item) => query.append(key, item));
+    else if (value !== undefined) query.set(key, value);
+  }
 
-export default function ImportsPage() {
-  const { company } = useWorkspace();
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(`/companies/${company.id}/data`);
-  }, [company.id, router]);
-
-  return (
-    <div className="py-20 text-center text-xs text-muted-foreground" dir="rtl">
-      در حال انتقال به مرکز مدیریت داده‌ها…
-    </div>
-  );
+  redirect(`/companies/${companyId}/data${query.size ? `?${query}` : ""}`);
 }

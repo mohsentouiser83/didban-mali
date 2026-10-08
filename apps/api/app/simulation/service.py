@@ -109,9 +109,9 @@ async def run_simulation(
     current_cash = Decimal(cash_sum.current_cash_irr)
     monthly_burn = Decimal(cash_sum.monthly_burn_rate_irr)
     baseline_runway = Decimal(cash_sum.runway_days)
-    baseline_dso = Decimal(rec_sum.dso_days)
+    baseline_dso = Decimal(str(rec_sum.dso_days))
     baseline_dpo = Decimal(pay_sum.dpo_days)
-    baseline_ccc = Decimal(pay_sum.ccc_days)
+    baseline_ccc = Decimal(str(pay_sum.ccc_days))
 
     total_rec = rec_sum.total_receivables_irr
     total_pay = pay_sum.total_payables_irr
@@ -161,7 +161,7 @@ async def run_simulation(
 
     # Simulated CCC (CCC delta = delta_DSO - delta_DPO)
     ccc_delta = Decimal(params.dso_change_days - params.dpo_change_days)
-    sim_ccc = max(Decimal(0), baseline_ccc + ccc_delta)
+    sim_ccc = baseline_ccc + ccc_delta
 
     # Annual profit impact
     annual_profit_impact = (
@@ -470,8 +470,8 @@ async def build_comparative_matrix(
                 runway_delta_days=delta_runway,
                 monthly_burn_irr=Decimal(str(sim_res.monthly_burn_rate_delta.simulated_value)),
                 monthly_burn_delta_irr=Decimal(str(sim_res.monthly_burn_rate_delta.delta_value)),
-                ccc_days=int(Decimal(str(sim_res.cash_conversion_cycle_delta.simulated_value))),
-                ccc_delta_days=int(Decimal(str(sim_res.cash_conversion_cycle_delta.delta_value))),
+                ccc_days=float(sim_res.cash_conversion_cycle_delta.simulated_value),
+                ccc_delta_days=float(sim_res.cash_conversion_cycle_delta.delta_value),
                 liquidity_released_irr=sim_res.liquidity_released_irr,
                 net_annual_profit_impact_irr=sim_res.net_annual_profit_impact_irr,
                 first_deficit_week=sim_res.first_deficit_week_simulated,

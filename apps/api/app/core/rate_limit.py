@@ -1,10 +1,9 @@
 import asyncio
 import os
 import time
-from typing import Any
 
-from fastapi import HTTPException, Request, Response, status
 import redis.asyncio as redis
+from fastapi import HTTPException, Request, Response, status
 
 from app.core.config import settings
 

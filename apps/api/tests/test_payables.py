@@ -110,3 +110,20 @@ def test_vendor_payable_item_serialization() -> None:
     assert data["total_payable_irr"] == "350000000"
     assert data["risk_level"] == "high"
     assert data["buckets"]["not_due"] == "200000000"
+
+
+def test_payables_summary_preserves_fractional_collection_and_cash_cycle_days() -> None:
+    summary = PayablesSummaryResponse(
+        as_of_date=date(2026, 10, 8),
+        total_payables_irr=Decimal("100000000"),
+        total_overdue_irr=Decimal("0"),
+        overdue_ratio=0.0,
+        dpo_days=90,
+        dso_days=45.2,
+        ccc_days=-44.8,
+        vendor_count=1,
+        high_risk_vendor_count=0,
+        buckets=[],
+    )
+    assert summary.model_dump(mode="json")["dso_days"] == 45.2
+    assert summary.model_dump(mode="json")["ccc_days"] == -44.8

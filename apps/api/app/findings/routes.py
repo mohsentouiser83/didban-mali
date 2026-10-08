@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -116,6 +116,10 @@ async def trigger_finding_detection(
         reconciliation_run_id=payload.reconciliation_run_id,
     )
 
+    return _detection_run_response(run)
+
+
+def _detection_run_response(run: FindingDetectionRun) -> FindingDetectionRunResponse:
     return FindingDetectionRunResponse(
         id=run.id,
         company_id=run.company_id,
@@ -476,12 +480,31 @@ async def get_finding(
     try:
         data = await get_finding_detail(session, company_id=company_id, finding_id=finding_id)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     f: Finding = data["finding"]
     return FindingDetailResponse(
         id=f.id,
         fingerprint=f.fingerprint,
+        analysis_run_id=f.analysis_run_id,
+        generation_run_id=f.generation_run_id,
+        finding_code=f.finding_code,
+        kind=f.kind.value if hasattr(f.kind, "value") else str(f.kind),
+        assertion_status=f.assertion_status.value if hasattr(f.assertion_status, "value") else str(f.assertion_status),
+        priority_band=f.priority_band.value if hasattr(f.priority_band, "value") else str(f.priority_band),
+        priority_score=f.priority_score,
+        priority_explanation=f.priority_explanation_json,
+        priority_model_version=f.priority_model_version,
+        priority_config=f.priority_config_json,
+        confidence_score=f.confidence_score,
+        confidence_basis=f.confidence_basis_json,
+        affected_amount_irr=f.affected_amount_irr,
+        affected_ratio=f.affected_ratio,
+        reason_code=f.reason_code,
+        reason_parameters=f.reason_parameters_json,
+        calculation=f.calculation_json,
+        rule_version=f.rule_version,
+        workflow_status=f.workflow_status.value if hasattr(f.workflow_status, "value") else str(f.workflow_status),
         rule_code=f.rule_code,
         category=f.category,
         severity=f.severity,
@@ -542,7 +565,7 @@ async def assign_finding_route(
             note=payload.note,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await get_finding(company_id, finding_id, session, access)
 
@@ -573,7 +596,7 @@ async def resolve_finding_route(
             resolution_note=payload.resolution_note,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await get_finding(company_id, finding_id, session, access)
 
@@ -606,7 +629,7 @@ async def verify_finding_route(
             verification_note=payload.verification_note,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await get_finding(company_id, finding_id, session, access)
 
@@ -636,7 +659,7 @@ async def reopen_finding_route(
             reason=payload.reason,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await get_finding(company_id, finding_id, session, access)
 
@@ -666,7 +689,7 @@ async def dismiss_finding_route(
             reason=payload.reason,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return await get_finding(company_id, finding_id, session, access)
 
@@ -697,7 +720,7 @@ async def add_comment_route(
             comment=payload.comment,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     return FindingActivityResponse(
         id=act.id,
@@ -942,9 +965,9 @@ async def list_in_app_alerts(
                 company_id=a.company_id,
                 user_id=a.user_id,
                 finding_id=a.finding_id,
-                channel=a.channel,
+                channel="in_app",
                 title_fa=a.title_fa,
-                body_fa=a.body_fa,
+                body_fa=a.summary_fa,
                 is_read=a.is_read,
                 created_at=a.created_at,
             )

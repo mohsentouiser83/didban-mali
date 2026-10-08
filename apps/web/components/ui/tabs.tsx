@@ -15,7 +15,7 @@ interface TabsContextValue {
 }
 
 const TabsContext = React.createContext<TabsContextValue>({
-  variant: "segmented",
+  variant: "line",
   size: "default",
 })
 
@@ -28,10 +28,10 @@ export interface TabsProps
 const Tabs = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Root>,
   TabsProps
->(({ dir = "rtl", variant = "segmented", size = "default", children, ...props }, ref) => {
+>(({ dir = "rtl", variant = "line", size = "default", children, ...props }, ref) => {
   const contextValue = React.useMemo(
     () => ({
-      variant: variant ?? "segmented",
+      variant: variant ?? "line",
       size: size ?? "default",
     }),
     [variant, size]
@@ -53,7 +53,7 @@ const tabsListVariants = cva(
     variants: {
       variant: {
         segmented:
-          "rounded-xl bg-[var(--ds-muted-bg)] p-1 border border-[var(--ds-border)] justify-center",
+          "rounded-[var(--ds-card-radius)] bg-[var(--ds-muted-bg)] p-1 border border-[var(--ds-border)] justify-center",
         line:
           "w-full justify-start rounded-none border-b border-[var(--ds-border)] bg-transparent p-0",
         pills:
@@ -80,12 +80,12 @@ const tabsListVariants = cva(
       {
         variant: "segmented",
         size: "default",
-        className: "h-11 p-1 rounded-xl",
+        className: "h-11 p-1 rounded-[var(--ds-card-radius)]",
       },
       {
         variant: "segmented",
         size: "lg",
-        className: "h-12 p-1.5 rounded-xl",
+        className: "h-12 p-1.5 rounded-[var(--ds-card-radius)]",
       },
       {
         variant: "line",
@@ -129,7 +129,7 @@ const tabsListVariants = cva(
       },
     ],
     defaultVariants: {
-      variant: "segmented",
+      variant: "line",
       size: "default",
     },
   }
@@ -142,10 +142,10 @@ export interface TabsListProps
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   TabsListProps
->(({ className, variant = "segmented", size = "default", children, ...props }, ref) => {
+>(({ className, variant = "line", size = "default", children, ...props }, ref) => {
   const contextValue = React.useMemo(
     () => ({
-      variant: variant ?? "segmented",
+      variant: variant ?? "line",
       size: size ?? "default",
     }),
     [variant, size]
@@ -166,16 +166,16 @@ const TabsList = React.forwardRef<
 TabsList.displayName = TabsPrimitive.List.displayName
 
 const tabsTriggerVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer",
+  "group inline-flex items-center justify-center whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer  [&_svg]:transition-transform [&_svg]:duration-200 ",
   {
     variants: {
       variant: {
         segmented:
-          "text-[var(--ds-foreground-soft)] hover:text-[var(--ds-foreground)] data-[state=active]:bg-[var(--ds-surface-elevated)] data-[state=active]:text-[var(--ds-foreground)] data-[state=active]:shadow-sm data-[state=active]:font-bold",
+          "text-[var(--ds-foreground-soft)] hover:text-[var(--ds-foreground)] data-[state=active]:bg-[var(--ds-surface-elevated)] data-[state=active]:text-[var(--ds-foreground)] data-[state=active]:shadow-[var(--ds-shadow-sm)] data-[state=active]:font-bold",
         line:
           "border-b-2 border-transparent -mb-px text-[var(--ds-muted-fg)] hover:text-[var(--ds-foreground)] data-[state=active]:border-[var(--ds-primary)] data-[state=active]:text-[var(--ds-primary)] data-[state=active]:font-bold bg-transparent shadow-none rounded-none",
         pills:
-          "rounded-full border border-[var(--ds-border)] bg-[var(--ds-surface-subtle)] text-[var(--ds-foreground-soft)] hover:bg-[var(--ds-surface-elevated)] hover:text-[var(--ds-foreground)] data-[state=active]:bg-[var(--ds-primary-subtle)] data-[state=active]:border-[var(--ds-primary)] data-[state=active]:text-[var(--ds-primary)] data-[state=active]:font-bold",
+          "rounded-md border border-[var(--ds-border)] bg-[var(--ds-surface-subtle)] text-[var(--ds-foreground-soft)] hover:bg-[var(--ds-surface-elevated)] hover:text-[var(--ds-foreground)] data-[state=active]:bg-[var(--ds-primary-subtle)] data-[state=active]:border-[var(--ds-primary)] data-[state=active]:text-[var(--ds-primary)] data-[state=active]:font-bold",
         accent:
           "border-b-2 border-transparent -mb-px text-[var(--ds-muted-fg)] hover:text-[var(--ds-foreground)] data-[state=active]:border-[var(--ds-accent)] data-[state=active]:text-[var(--ds-accent)] data-[state=active]:font-bold bg-transparent shadow-none rounded-none",
       },
@@ -269,7 +269,7 @@ const tabsTriggerVariants = cva(
       },
     ],
     defaultVariants: {
-      variant: "segmented",
+      variant: "line",
       size: "default",
     },
   }
@@ -284,7 +284,7 @@ const TabsTrigger = React.forwardRef<
   TabsTriggerProps
 >(({ className, variant: propVariant, size: propSize, ...props }, ref) => {
   const context = React.useContext(TabsContext)
-  const variant = propVariant ?? context.variant ?? "segmented"
+  const variant = propVariant ?? context.variant ?? "line"
   const size = propSize ?? context.size ?? "default"
 
   return (
@@ -304,7 +304,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2 transition-all",
+      "mt-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2",
       className
     )}
     {...props}

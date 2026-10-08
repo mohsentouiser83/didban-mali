@@ -11,23 +11,37 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/product-api";
-import { type Company, type Member, type Role, roleLabels } from "@/lib/product-types";
+import {
+  type Company,
+  type Member,
+  type Role,
+  roleLabels,
+} from "@/lib/product-types";
 
 import { Icon } from "./icons";
 
 const roleBadgeVariants: Record<Role, string> = {
-  owner: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
-  finance_manager: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
-  advisor: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
+  owner: "bg-ds-success/10 text-ds-success border-ds-success/20",
+  finance_manager: "bg-ds-warning/10 text-ds-warning border-ds-warning/20",
+  advisor: "bg-primary/10 text-primary border-primary/20",
   viewer: "bg-muted text-muted-foreground border-border",
 };
 
-export function MembersPanel({ company, currentUserId }: { company: Company; currentUserId: string }) {
+export function MembersPanel({
+  company,
+  currentUserId,
+}: {
+  company: Company;
+  currentUserId: string;
+}) {
   const [members, setMembers] = useState<Member[]>([]);
   const [error, setError] = useState("");
   const load = useCallback(
-    () => api<Member[]>(`/companies/${company.id}/members`).then(setMembers).catch((e: Error) => setError(e.message)),
-    [company.id]
+    () =>
+      api<Member[]>(`/companies/${company.id}/members`)
+        .then(setMembers)
+        .catch((e: Error) => setError(e.message)),
+    [company.id],
   );
   useEffect(() => {
     void load();
@@ -41,7 +55,10 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
     try {
       await api(`/companies/${company.id}/members`, {
         method: "POST",
-        body: JSON.stringify({ email: data.get("email"), role: data.get("role") }),
+        body: JSON.stringify({
+          email: data.get("email"),
+          role: data.get("role"),
+        }),
       });
       form.reset();
       await load();
@@ -59,14 +76,18 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
       });
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "نقش عضو تغییر نکرد.");
+      setError(
+        caught instanceof Error ? caught.message : "نقش عضو تغییر نکرد.",
+      );
     }
   }
 
   async function remove(member: Member) {
     setError("");
     try {
-      await api(`/companies/${company.id}/members/${member.user_id}`, { method: "DELETE" });
+      await api(`/companies/${company.id}/members/${member.user_id}`, {
+        method: "DELETE",
+      });
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "عضو حذف نشد.");
@@ -74,11 +95,21 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
   }
 
   return (
-    <ProductCard className="members-card p-6 rounded-2xl border border-border bg-card shadow-sm space-y-5" aria-labelledby="members-title">
+    <ProductCard
+      className="pp-member-settings members-card p-6 rounded-[var(--ds-card-radius)] border border-border bg-card shadow-[var(--ds-shadow-sm)] space-y-5"
+      aria-labelledby="members-title"
+    >
       <div className="card-heading flex items-center justify-between border-b border-border/60 pb-4">
         <div>
-          <span className="overline block text-[11px] font-bold text-primary mb-0.5">کنترل دسترسی</span>
-          <h3 id="members-title" className="text-base sm:text-lg font-bold text-foreground">مدیریت اعضای شرکت</h3>
+          <span className="overline block text-[11px] font-bold text-primary mb-0.5">
+            کنترل دسترسی
+          </span>
+          <h3
+            id="members-title"
+            className="text-base sm:text-lg font-bold text-foreground"
+          >
+            مدیریت اعضای شرکت
+          </h3>
         </div>
         <Badge variant="secondary" className="count-pill text-xs font-mono">
           {new Intl.NumberFormat("fa-IR").format(members.length)} نفر
@@ -86,23 +117,35 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
       </div>
 
       {company.role === "owner" && (
-        <form className="member-form grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2.5" onSubmit={add}>
-          <label className="sr-only">ایمیل عضو جدید</label>
+        <form
+          className="member-form grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2.5"
+          onSubmit={add}
+        >
+          <label className="sr-only" htmlFor="new-member-email">
+            ایمیل عضو جدید
+          </label>
           <Input
+            id="new-member-email"
             name="email"
             type="email"
             dir="ltr"
             required
             placeholder="ایمیل عضو جدید"
-            className="h-10 text-xs bg-background text-end"
+            className="text-end"
           />
-          <label className="sr-only">نقش عضو جدید</label>
-          <SelectField name="role" defaultValue="viewer" className="h-10 text-xs">
+          <label className="sr-only" htmlFor="new-member-role">
+            نقش عضو جدید
+          </label>
+          <SelectField id="new-member-role" name="role" defaultValue="viewer">
             <SelectOption value="finance_manager">مدیر مالی</SelectOption>
             <SelectOption value="advisor">مشاور</SelectOption>
             <SelectOption value="viewer">مشاهده‌گر</SelectOption>
           </SelectField>
-          <Button type="submit" variant="secondary" className="h-10 text-xs font-bold gap-1.5 px-4 cursor-pointer">
+          <Button
+            type="submit"
+            variant="secondary"
+            className="gap-1.5 cursor-pointer"
+          >
             <Icon name="plus" className="size-3.5" />
             افزودن
           </Button>
@@ -110,14 +153,21 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
       )}
 
       {error && (
-        <Alert variant="destructive" className="form-error text-xs p-3" role="alert">
+        <Alert
+          variant="destructive"
+          className="form-error text-xs p-3"
+          role="alert"
+        >
           {error}
         </Alert>
       )}
 
       <div className="member-list divide-y divide-border/60">
         {members.map((member) => (
-          <div className="member-row flex items-center justify-between gap-3 py-3" key={member.user_id}>
+          <div
+            className="member-row flex items-center justify-between gap-3 py-3"
+            key={member.user_id}
+          >
             <div className="flex items-center gap-3 min-w-0">
               <Avatar className="avatar size-8 shrink-0">
                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
@@ -125,8 +175,13 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <strong className="block truncate text-xs font-bold text-foreground">{member.full_name}</strong>
-                <small dir="ltr" className="block truncate text-[11px] text-muted-foreground text-start">
+                <strong className="block truncate text-xs font-bold text-foreground">
+                  {member.full_name}
+                </strong>
+                <small
+                  dir="ltr"
+                  className="block truncate text-[11px] text-muted-foreground text-start"
+                >
                   {member.email}
                 </small>
               </div>
@@ -136,9 +191,12 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
               <div className="member-actions flex items-center gap-2 shrink-0">
                 <label className="sr-only">نقش {member.full_name}</label>
                 <SelectField
-                  className="role-select h-8 text-[11px] min-w-[100px]"
+                  size="sm"
+                  className="min-w-[100px]"
                   value={member.role}
-                  onChange={(event) => void updateRole(member, event.target.value as Role)}
+                  onChange={(event) =>
+                    void updateRole(member, event.target.value as Role)
+                  }
                 >
                   <SelectOption value="owner">مالک</SelectOption>
                   <SelectOption value="finance_manager">مدیر مالی</SelectOption>
@@ -149,7 +207,7 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="remove-button h-8 px-2.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+                    className="remove-button text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
                     onClick={() => void remove(member)}
                   >
                     حذف
@@ -157,7 +215,10 @@ export function MembersPanel({ company, currentUserId }: { company: Company; cur
                 )}
               </div>
             ) : (
-              <Badge variant="outline" className={`role text-xs ${roleBadgeVariants[member.role]}`}>
+              <Badge
+                variant="outline"
+                className={`role text-xs ${roleBadgeVariants[member.role]}`}
+              >
                 {roleLabels[member.role]}
               </Badge>
             )}

@@ -1,86 +1,35 @@
 "use client";
 
-import { SelectField, SelectOption } from "./select-field";
 
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuBadge,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ProductSidebar, type ProductNavGroup } from "./product-sidebar";
+import { ProductHeader } from "./product-header";
+import { ProductPageFrame } from "./product-page-frame";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  WalletCards,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowLeftRight,
-  FileUp,
-  Layers,
-  BarChart3,
-  FileText,
-  Database,
-  BellRing,
-  ScanSearch,
-  SlidersHorizontal,
-  Bot,
-  ShieldCheck,
-  Building2,
-  Users2,
-  LogOut,
-  Plus,
-  Settings,
-  ClipboardCheck,
-  CheckCheck,
-  LifeBuoy,
-  Sparkles,
-  HardDrive,
-  Zap,
-  Activity,
-} from "lucide-react";
+import { LayoutDashboard, WalletCards, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, FileUp, Layers, BarChart3, FileText, Database, ScanSearch, SlidersHorizontal, Building2, Users2, Plus, ClipboardCheck, LifeBuoy, Sparkles, HardDrive, Zap, Activity, Compass } from "@/components/ui/icons";
 
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { ThemeToggle } from "@/components/design-system/theme-toggle";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { api } from "@/lib/product-api";
-import { cn } from "@/lib/utils";
+
 import type { ControlOverview, InAppAlert } from "@/lib/product-types";
 
-import { Mark } from "./icons";
 import { useWorkspace } from "./workspace-provider";
-import { OnboardingWizardBanner } from "./onboarding-wizard-banner";
 import { SupportModal } from "./support-modal";
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  badge?: number | null;
-  badgeVariant?: "critical" | "warning";
-};
-
-type NavGroup = {
-  label?: string;
-  items: NavItem[];
-};
+import { ProductTour } from "./product-tour";
 
 export function ProductShell({ children }: { children: React.ReactNode }) {
-  const { user, companies, company } = useWorkspace();
+  const { companies, company, user } = useWorkspace();
   const pathname = usePathname();
   const router = useRouter();
   const base = `/companies/${company.id}`;
@@ -89,8 +38,36 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const [myActionsCount, setMyActionsCount] = useState<number>(0);
   const [inAppAlerts, setInAppAlerts] = useState<InAppAlert[]>([]);
   const [unreadAlertsCount, setUnreadAlertsCount] = useState<number>(0);
-  const [alertsPopoverOpen, setAlertsPopoverOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const tourSeen = localStorage.getItem("didban_user_tour_completed");
+      if (!tourSeen) {
+        const timer = setTimeout(() => {
+          setTourOpen(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setCommandOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -102,7 +79,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       .then((res) => { if (!ignore) setControlOverview(res); })
       .catch(() => { /* silent */ });
 
-    api<{ assigned_findings: any[]; verification_queue: any[] }>(`/companies/${company.id}/actions/my-queue`)
+    api<{ assigned_findings: unknown[]; verification_queue: unknown[] }>(`/companies/${company.id}/actions/my-queue`)
       .then((res) => {
         if (!ignore) {
           const count = (res.assigned_findings?.length ?? 0) + (res.verification_queue?.length ?? 0);
@@ -124,16 +101,12 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   }, [company.id, pathname]);
 
   const markAllAlertsRead = async () => {
-    try {
-      await api(`/companies/${company.id}/in-app-alerts/read-all`, { method: "POST" });
-      setUnreadAlertsCount(0);
-      setInAppAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
-    } catch {
-      /* silent */
-    }
+    await api(`/companies/${company.id}/in-app-alerts/read-all`, { method: "POST" });
+    setUnreadAlertsCount(0);
+    setInAppAlerts((prev) => prev.map((a) => ({ ...a, is_read: true })));
   };
 
-  const navGroups: NavGroup[] = [
+  const navGroups: ProductNavGroup[] = [
     {
       items: [
         { href: `${base}/overview`, label: "داشبورد", icon: LayoutDashboard },
@@ -145,8 +118,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
         { href: `${base}/cashflow`, label: "نقدینگی", icon: WalletCards },
         { href: `${base}/receivables`, label: "مطالبات", icon: ArrowDownLeft },
         { href: `${base}/payables`, label: "بدهی‌ها", icon: ArrowUpRight },
-        { href: `${base}/cashflow?view=forecast`, label: "پیش‌بینی نقدینگی", icon: BarChart3 },
-        { href: `${base}/scenarios`, label: "شبیه‌سازی سناریو", icon: Sparkles },
+        { href: `${base}/scenarios`, label: "سناریوها", icon: Sparkles },
       ],
     },
     {
@@ -161,45 +133,35 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
         },
         {
           href: `${base}/findings`,
-          label: "یافته‌ها",
+          label: "یافته‌ها و هشدارها",
           icon: ScanSearch,
           badge: controlOverview?.critical_count && controlOverview.critical_count > 0 ? controlOverview.critical_count : null,
           badgeVariant: "critical",
         },
         { href: `${base}/reconciliation`, label: "تطبیق", icon: ArrowLeftRight },
-        { href: `${base}/control/policies`, label: "خط‌مشی‌های پایش", icon: SlidersHorizontal },
       ],
     },
     {
-      label: "داده‌ها و اتصال‌ها",
+      label: "گزارش و داده",
       items: [
-        { href: `${base}/reports`, label: "گزارش‌ها", icon: FileText },
-        { href: `${base}/data`, label: "داده‌ها", icon: Database },
-        { href: `${base}/integrations`, label: "اتصال‌ها", icon: HardDrive },
-        { href: `${base}/automations`, label: "اتوماسیون‌ها", icon: Zap },
+        { href: `${base}/reports`, label: "گزارش‌ها و تحلیل", icon: FileText },
+        { href: `${base}/data`, label: "داده‌ها و اتصال‌ها", icon: Database },
       ],
     },
   ];
 
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const gearMenuItems = [
     {
-      href: `${base}/integrations`,
+      href: `${base}/data/connections`,
       title: "اتصال به سیستم‌های مالی و بانکی",
       description: "مدیریت اتصال خودکار به سپیدار و دریافت مستقیم گردش حساب بانکی",
       icon: HardDrive,
     },
     {
-      href: `${base}/automations`,
-      title: "اتوماسیون‌ها و چرخه‌های خودکار",
-      description: "تنظیم چرخه صبحگاهی خزانه‌داری، تطبیق خودکار و تخصیص وظایف",
-      icon: Zap,
-    },
-    {
-      href: `${base}/control/policies`,
-      title: "قوانین و خط‌مشی‌های کنترل مالی",
-      description: "تنظیم آستانه‌ها، سطح حساسیت و فعال‌سازی قواعد ۸ گانه تشخیص مغایرت",
+      href: `${base}/settings/financial-controls/policies`,
+      title: "تنظیمات کنترل مالی",
+      description: "خط‌مشی‌های پایش، آستانه‌ها و چرخه‌های خودکار مالی",
       icon: SlidersHorizontal,
     },
     {
@@ -227,6 +189,12 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       icon: Layers,
     },
     {
+      href: `${base}/settings/system-health`,
+      title: "سلامت سامانه و تشخیص مشکلات",
+      description: "وضعیت سرویس‌ها و جزئیات آمادگی سامانه",
+      icon: Activity,
+    },
+    {
       href: "/admin/product-health",
       title: "داشبورد سلامت و حاکمیت محصول",
       description: "رصد ستاره قطبی، وضعیت کوهورت و پایش دروازه‌های ده‌گانه فاز ۸",
@@ -238,6 +206,15 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       description: "تعریف شخصیت حقوقی یا شعبه جدید در فضای کاری",
       icon: Plus,
     },
+    {
+      href: "#tour",
+      title: "تور آشنایی با دیدبان مالی",
+      description: "مرور تعاملی ۶ مرحله‌ای بخش‌های کلیدی سامانه برای کاربران جدید",
+      icon: Compass,
+      onClick: () => {
+        setTourOpen(true);
+      },
+    },
   ];
 
   async function logout() {
@@ -247,405 +224,185 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
 
   function switchCompany(companyId: string) {
     const suffix = pathname.includes("/findings/") ? "/findings" : pathname.slice(base.length) || "/overview";
-    router.push(`/companies/${companyId}${suffix}`);
+    router.push(`/companies/${companyId}${suffix}${window.location.search}`);
   }
 
   const isItemActive = (href: string) => {
-    if (href.includes("?view=forecast")) {
-      return (
-        pathname.startsWith(`${base}/cashflow`) &&
-        typeof window !== "undefined" &&
-        window.location.search.includes("view=forecast")
-      );
-    }
-    if (href.endsWith("/cashflow")) {
-      return (
-        pathname.startsWith(`${base}/cashflow`) &&
-        (typeof window === "undefined" || !window.location.search.includes("view=forecast"))
-      );
-    }
-    if (href.endsWith("/overview")) {
-      return pathname.startsWith(`${base}/overview`) || pathname.startsWith(`${base}/analysis`);
-    }
-    if (href.endsWith("/receivables")) {
-      return pathname.startsWith(`${base}/receivables`);
-    }
-    if (href.endsWith("/payables")) {
-      return pathname.startsWith(`${base}/payables`);
-    }
-    if (href.endsWith("/actions")) {
-      return pathname.startsWith(`${base}/actions`);
-    }
-    if (href.endsWith("/findings")) {
-      return pathname.startsWith(`${base}/findings`);
-    }
-    if (href.endsWith("/reconciliation")) {
-      return pathname.startsWith(`${base}/reconciliation`);
-    }
-    if (href.endsWith("/control/policies")) {
-      return pathname.startsWith(`${base}/control/policies`);
-    }
-    if (href.endsWith("/reports")) {
-      return pathname.startsWith(`${base}/reports`);
-    }
-    if (href.endsWith("/data")) {
+    const target = href.split("?")[0];
+    if (target === `${base}/data`) {
       return pathname.startsWith(`${base}/data`) || pathname.startsWith(`${base}/imports`);
     }
-    return pathname === href;
+    if (target === `${base}/settings/profile`) {
+      return pathname.startsWith(`${base}/settings`);
+    }
+    return pathname === target || pathname.startsWith(`${target}/`);
   };
 
   return (
-    <SidebarProvider className="ds-root app-shell min-h-screen bg-background text-foreground" dir="rtl">
-      <Sidebar side="left" collapsible="icon" className="product-sidebar border-inline-end border-border bg-sidebar backdrop-blur-md">
-        <SidebarHeader className="border-b border-border/70 p-3.5">
-          <div className="flex items-center justify-between px-1">
-            <Link
-              className="brand flex items-center gap-2.5 font-extrabold text-foreground transition-opacity hover:opacity-90"
-              href={`${base}/overview`}
-            >
-              <div className="size-8 rounded-xl bg-primary/10 text-primary grid place-items-center shrink-0">
-                <Mark className="size-5" />
-              </div>
-              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                <span className="font-extrabold text-sm leading-tight text-foreground">دیدبان مالی</span>
-                <span className="text-[10px] text-muted-foreground font-medium">هوشمندی و کنترل مالی</span>
-              </div>
-            </Link>
-          </div>
-        </SidebarHeader>
+    <SidebarProvider style={{ "--sidebar-width": "14rem", "--sidebar-width-icon": "4.5rem" } as React.CSSProperties} className="ds-root app-shell product-shell min-h-screen bg-background text-foreground" dir="rtl">
+      <a className="product-skip-link" href="#workspace-content">پرش به محتوای صفحه</a>
+      <ProductSidebar
+        groups={navGroups}
+        companyName={company.legal_name}
+        userName={user.full_name}
+        base={base}
+        isItemActive={isItemActive}
+        onLogout={logout}
+        onSupport={() => setSupportModalOpen(true)}
+      />
 
-        <SidebarContent className="px-2.5 py-3 space-y-3">
-          {navGroups.map((group, groupIdx) => (
-            <SidebarGroup key={groupIdx} className="p-0">
-              {group.label && (
-                <SidebarGroupLabel className="px-2.5 text-[11px] font-bold text-muted-foreground/80 tracking-wider">
-                  {group.label}
-                </SidebarGroupLabel>
-              )}
-              <SidebarGroupContent>
-                <SidebarMenu className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const active = isItemActive(item.href);
-                    const IconComponent = item.icon;
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={active}
-                          tooltip={item.label}
-                          className={cn(
-                            "group/item relative flex h-[38px] w-full items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs sm:text-[13px] transition-all duration-200",
-                            active
-                              ? "!bg-primary/10 !text-primary font-bold shadow-xs border border-primary/20 dark:!bg-primary/15 dark:border-primary/30 before:absolute before:inset-y-1.5 before:start-1 before:w-1 before:rounded-full before:bg-primary"
-                              : "text-muted-foreground font-medium hover:!bg-muted/70 hover:!text-foreground hover:-translate-x-0.5"
-                          )}
-                        >
-                          <Link href={item.href} aria-current={active ? "page" : undefined} className="flex items-center gap-2.5 w-full">
-                            <div
-                              className={cn(
-                                "flex size-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 group-data-[collapsible=icon]:size-auto group-data-[collapsible=icon]:bg-transparent",
-                                active
-                                  ? "bg-primary text-primary-foreground shadow-2xs"
-                                  : "bg-transparent text-muted-foreground group-hover/item:bg-primary/10 group-hover/item:text-primary group-hover/item:scale-105"
-                              )}
-                            >
-                              <IconComponent className="size-4 shrink-0" />
-                            </div>
-                            <span className="truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                        {item.badge && item.badge > 0 ? (
-                          <SidebarMenuBadge
-                            className={cn(
-                              "rounded-full px-1.5 py-0.5 text-[10px] font-bold ms-auto",
-                              item.badgeVariant === "critical"
-                                ? "bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/30 animate-pulse"
-                                : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
-                            )}
-                          >
-                            {item.badge}
-                          </SidebarMenuBadge>
-                        ) : null}
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
-        </SidebarContent>
+      <SidebarInset className="workspace product-workspace flex-1 flex flex-col min-w-0">
+        <ProductHeader
+          company={company}
+          companies={companies}
+          base={base}
+          pathname={pathname}
+          settingsItems={gearMenuItems}
+          alerts={inAppAlerts}
+          unreadCount={unreadAlertsCount}
+          activeAlertCount={alertSummary?.total_active ?? 0}
+          onSwitchCompany={switchCompany}
+          onSearch={() => setCommandOpen(true)}
+          onTour={() => setTourOpen(true)}
+          onSupport={() => setSupportModalOpen(true)}
+          onMarkAllRead={markAllAlertsRead}
+        />
 
-        <SidebarFooter className="border-t border-border/60 p-3">
-          <div className="user-box group-data-[collapsible=icon]:p-1 group-data-[collapsible=icon]:justify-center flex items-center justify-between gap-2.5 p-2 rounded-xl border border-border/70 bg-muted/30">
-            <Avatar className="avatar size-8 shrink-0 border border-border/60">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                {user.full_name.slice(0, 1)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-              <strong className="block truncate text-xs font-bold text-foreground">{user.full_name}</strong>
-              <small dir="ltr" className="block truncate text-[11px] text-muted-foreground text-start">
-                {user.email}
-              </small>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 cursor-pointer group-data-[collapsible=icon]:hidden transition-colors"
-              onClick={() => void logout()}
-              title="خروج از حساب کاربری"
-            >
-              <LogOut className="size-4" />
-              <span className="sr-only">خروج از حساب کاربری</span>
-            </Button>
-          </div>
-        </SidebarFooter>
-        <SidebarRail />
-      </Sidebar>
+        {/* Global Command Palette Dialog */}
+        <CommandDialog open={commandOpen} onOpenChange={setCommandOpen}>
+          <CommandInput placeholder="جستجو در بخش‌های مالی، اسناد، شرکت‌ها و ابزارها..." />
+          <CommandList className="max-h-[380px]">
+            <CommandEmpty>نتیجه‌ای یافت نشد.</CommandEmpty>
 
-      <SidebarInset className="workspace flex-1 flex flex-col min-w-0">
-        <header className="topbar sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-4 border-b border-border bg-background/85 px-4 sm:px-8 backdrop-blur-xl">
-          <div className="topbar-leading flex items-center gap-3 min-w-0">
-            <SidebarTrigger aria-label="باز و بسته‌کردن منو" className="size-9 rounded-xl border border-border/80" />
-          </div>
+            <CommandGroup heading="صفحات و ماژول‌های مالی">
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/overview`); }}>
+                <LayoutDashboard className="size-4 me-2 text-primary" />
+                <span>داشبورد تحلیلی و مدیریتی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/cashflow`); }}>
+                <WalletCards className="size-4 me-2 text-primary" />
+                <span>جریان و وضعیت نقدینگی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/cashflow?view=forecast`); }}>
+                <BarChart3 className="size-4 me-2 text-primary" />
+                <span>پیش‌بینی نقدینگی و کسری‌ها</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/receivables`); }}>
+                <ArrowDownLeft className="size-4 me-2 text-primary" />
+                <span>مدیریت و وصول مطالبات</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/payables`); }}>
+                <ArrowUpRight className="size-4 me-2 text-primary" />
+                <span>بدهی‌ها و تعهدات سررسیدشده</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/scenarios`); }}>
+                <Sparkles className="size-4 me-2 text-primary" />
+                <span>شبیه‌ساز سناریوهای مالی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reconciliation`); }}>
+                <ArrowLeftRight className="size-4 me-2 text-primary" />
+                <span>تطبیق هوشمند بانکی و دفاتر</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/findings`); }}>
+                <ScanSearch className="size-4 me-2 text-primary" />
+                <span>یافته‌ها و مغایرت‌های مالی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/actions`); }}>
+                <ClipboardCheck className="size-4 me-2 text-primary" />
+                <span>کارتابل کارهای من</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/settings/financial-controls/policies`); }}>
+                <SlidersHorizontal className="size-4 me-2 text-primary" />
+                <span>خط‌مشی‌ها و قوانین پایش</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/data`); }}>
+                <Database className="size-4 me-2 text-primary" />
+                <span>مرکز داده‌ها و بارگذاری فایل‌ها</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/data/connections`); }}>
+                <HardDrive className="size-4 me-2 text-primary" />
+                <span>اتصال به نرم‌افزارها و بانک‌ها</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/settings/financial-controls/automations`); }}>
+                <Zap className="size-4 me-2 text-primary" />
+                <span>اتوماسیون‌ها و چرخه‌های خودکار</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reports/analysis`); }}>
+                <BarChart3 className="size-4 me-2 text-primary" />
+                <span>محاسبه و تحلیل صورت‌های مالی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reports`); }}>
+                <FileText className="size-4 me-2 text-primary" />
+                <span>گزارش‌های جامع مالی</span>
+              </CommandItem>
+            </CommandGroup>
 
-          <div className="topbar-actions flex items-center gap-2 sm:gap-2.5 shrink-0">
-            {/* Company Switcher in Header */}
-            <div className="company-switcher flex items-center gap-1.5 p-1 rounded-xl border border-border/80 bg-card/80 backdrop-blur-sm shadow-2xs hover:border-primary/40 transition-colors">
-              <div
-                className="size-7 rounded-lg bg-primary text-primary-foreground font-extrabold text-xs grid place-items-center shrink-0 shadow-2xs"
-                title={company.legal_name}
-              >
-                {company.legal_name.slice(0, 1)}
-              </div>
-              <div className="min-w-0">
-                <label htmlFor="header-company-select" className="sr-only">انتخاب شرکت</label>
-                <SelectField
-                  id="header-company-select"
-                  value={company.id}
-                  onChange={(event) => switchCompany(event.target.value)}
-                  className="h-7 border-0 bg-transparent py-0 pe-6 ps-1 text-xs font-bold text-foreground focus:ring-0 cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
+            <CommandSeparator />
+
+            <CommandGroup heading="جابجایی بین شرکت‌ها">
+              {companies.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  onSelect={() => {
+                    setCommandOpen(false);
+                    switchCompany(c.id);
+                  }}
                 >
-                  {companies.map((item) => (
-                    <SelectOption key={item.id} value={item.id}>
-                      {item.legal_name}
-                    </SelectOption>
-                  ))}
-                </SelectField>
-              </div>
-              <Button
-                asChild
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-muted-foreground hover:text-foreground rounded-lg hidden md:flex"
-                title="افزودن شرکت جدید"
-              >
-                <Link href="/companies/new" aria-label="افزودن شرکت جدید">
-                  <Plus className="size-3.5" />
-                </Link>
-              </Button>
-            </div>
-
-            {/* Gear Menu Settings Popover */}
-            <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={`size-9 rounded-xl border-border transition-colors ${
-                    settingsOpen ? "bg-accent text-primary border-primary/40" : ""
-                  }`}
-                  title="تنظیمات و مدیریت سامانه"
-                  aria-label="تنظیمات و مدیریت سامانه"
-                >
-                  <Settings className="size-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                sideOffset={8}
-                className="w-[94vw] sm:w-[580px] md:w-[620px] p-3 rounded-2xl border-border bg-popover shadow-2xl"
-                dir="rtl"
-              >
-                <div className="px-2 py-2 border-b border-border/60 mb-2.5 flex items-center justify-between">
-                  <div>
-                    <span className="block text-xs font-bold text-foreground">تنظیمات و مدیریت سامانه</span>
-                    <span className="block text-[11px] text-muted-foreground mt-0.5">پیکربندی اسناد، اطلاعات شرکت، دسترسی‌ها و سلامت سیستم</span>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-md">
-                    {company.legal_name}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {gearMenuItems.map((item) => {
-                    const IconComp = item.icon;
-                    const isActive = pathname.startsWith(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setSettingsOpen(false)}
-                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all ${
-                          isActive
-                            ? "bg-primary/10 text-primary border-primary/30"
-                            : "border-border/60 bg-card/50 hover:bg-card hover:border-primary/30 text-foreground"
-                        }`}
-                      >
-                        <div
-                          className={`size-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                            isActive
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <IconComp className="size-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <strong className="block text-xs font-bold leading-tight">{item.title}</strong>
-                          <p className="text-[11px] text-muted-foreground leading-normal mt-0.5 font-normal line-clamp-2">
-                            {item.description}
-                          </p>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            {/* My Action Queue Shortcut */}
-            <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl border-border text-xs font-bold hover:border-primary/40 transition-colors" title="کارتابل وظایف و اقدامات من">
-              <Link href={`${base}/actions`} aria-label="کارتابل وظایف و اقدامات من">
-                <ClipboardCheck className="size-4 text-primary" />
-                <span className="hidden md:inline">کارهای من</span>
-              </Link>
-            </Button>
-
-            {/* In-App Alerts & Early Warnings Popover */}
-            <Popover open={alertsPopoverOpen} onOpenChange={setAlertsPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className={`relative size-9 rounded-xl border-border transition-colors ${
-                    alertsPopoverOpen ? "bg-accent text-primary border-primary/40" : ""
-                  }`}
-                  title="اعلان‌ها و هشدارهای مالی"
-                  aria-label="اعلان‌ها و هشدارهای مالی"
-                >
-                  <BellRing className="size-4" />
-                  {unreadAlertsCount > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white bg-red-600 animate-pulse">
-                      {unreadAlertsCount}
-                    </span>
-                  ) : alertSummary && alertSummary.total_active > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white bg-amber-600">
-                      {alertSummary.total_active}
-                    </span>
-                  ) : null}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                sideOffset={8}
-                className="w-[94vw] sm:w-[420px] p-0 rounded-2xl border-border bg-popover shadow-2xl overflow-hidden"
-                dir="rtl"
-              >
-                <div className="p-3 border-b border-border/70 flex items-center justify-between bg-muted/40">
-                  <div className="flex items-center gap-2">
-                    <BellRing className="size-4 text-primary" />
-                    <span className="text-xs font-bold text-foreground">اعلان‌ها و هشدارهای مالی</span>
-                  </div>
-                  {unreadAlertsCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void markAllAlertsRead()}
-                      className="h-7 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      <CheckCheck className="size-3.5" />
-                      <span>خواندن همه</span>
-                    </Button>
+                  <Building2 className="size-4 me-2 text-primary" />
+                  <span>{c.legal_name}</span>
+                  {c.id === company.id && (
+                    <span className="ms-auto text-[11px] font-bold text-primary">فعال</span>
                   )}
-                </div>
+                </CommandItem>
+              ))}
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push("/companies/new"); }}>
+                <Plus className="size-4 me-2 text-primary" />
+                <span>تعریف شرکت جدید</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push("/admin/holding"); }}>
+                <Layers className="size-4 me-2 text-primary" />
+                <span>دیدبان هلدینگ (نمای تجمیعی)</span>
+              </CommandItem>
+            </CommandGroup>
 
-                <div className="max-h-[360px] overflow-y-auto divide-y divide-border/60">
-                  {inAppAlerts.length > 0 ? (
-                    inAppAlerts.map((alert) => {
-                      const targetHref = alert.finding_id
-                        ? `${base}/findings/${alert.finding_id}`
-                        : `${base}/control`;
-                      return (
-                        <Link
-                          key={alert.id}
-                          href={targetHref}
-                          onClick={() => setAlertsPopoverOpen(false)}
-                          className={`flex items-start gap-3 p-3 transition-colors hover:bg-muted/50 ${
-                            !alert.is_read ? "bg-primary/5" : ""
-                          }`}
-                        >
-                          <div className="mt-1 size-2 rounded-full shrink-0 bg-primary" style={{ opacity: alert.is_read ? 0.2 : 1 }} />
-                          <div className="flex-1 min-w-0">
-                            <strong className="block text-xs font-bold text-foreground truncate">{alert.title_fa}</strong>
-                            <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-                              {alert.body_fa || alert.message_fa}
-                            </p>
-                            <span className="block text-[10px] text-muted-foreground/80 mt-1 font-mono">
-                              {new Intl.DateTimeFormat("fa-IR", { dateStyle: "short", timeStyle: "short" }).format(new Date(alert.created_at))}
-                            </span>
-                          </div>
-                        </Link>
-                      );
-                    })
-                  ) : (
-                    <div className="p-8 text-center text-xs text-muted-foreground">
-                      هیچ اعلان خوانده‌نشده‌ای وجود ندارد.
-                    </div>
-                  )}
-                </div>
+            <CommandSeparator />
 
-                <div className="p-2 border-t border-border/70 bg-muted/20 flex items-center justify-between text-xs">
-                  <Link
-                    href={`${base}/alerts`}
-                    onClick={() => setAlertsPopoverOpen(false)}
-                    className="text-primary hover:underline font-bold text-[11px] px-2 py-1"
-                  >
-                    مشاهده هشدارهای زودهنگام سیستم ←
-                  </Link>
-                  <Link
-                    href={`${base}/actions`}
-                    onClick={() => setAlertsPopoverOpen(false)}
-                    className="text-muted-foreground hover:text-foreground font-medium text-[11px] px-2 py-1"
-                  >
-                    کارتابل کارهای من
-                  </Link>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <CommandGroup heading="پشتیبانی و تنظیمات">
+              <CommandItem onSelect={() => { setCommandOpen(false); setTourOpen(true); }}>
+                <Compass className="size-4 me-2 text-primary" />
+                <span>تور آشنایی با دیدبان مالی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); setSupportModalOpen(true); }}>
+                <LifeBuoy className="size-4 me-2 text-primary" />
+                <span>ثبت تیکت و پشتیبانی</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/settings/profile`); }}>
+                <Building2 className="size-4 me-2 text-primary" />
+                <span>مشخصات و تنظیمات شرکت</span>
+              </CommandItem>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/settings/members`); }}>
+                <Users2 className="size-4 me-2 text-primary" />
+                <span>اعضا و سطوح دسترسی مالی</span>
+              </CommandItem>
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSupportModalOpen(true)}
-              className="size-8 rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
-              title="پشتیبانی و ثبت تیکت"
-            >
-              <LifeBuoy className="size-4" />
-            </Button>
-
-            <ThemeToggle />
-          </div>
-        </header>
-
-        <div key={pathname} className="content page-stack route-content w-full max-w-7xl mx-auto p-4 sm:p-8 space-y-6 animate-[route-content-in_260ms_ease-out]">
-          <OnboardingWizardBanner companyId={company.id} />
+        <ProductPageFrame>
           {children}
-        </div>
+        </ProductPageFrame>
 
         <SupportModal
           companyId={company.id}
           open={supportModalOpen}
           onOpenChange={setSupportModalOpen}
+          onStartTour={() => setTourOpen(true)}
+        />
+
+        <ProductTour
+          companyId={company.id}
+          open={tourOpen}
+          onOpenChange={setTourOpen}
         />
       </SidebarInset>
     </SidebarProvider>

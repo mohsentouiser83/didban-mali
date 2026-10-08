@@ -26,9 +26,12 @@ async def get_summary(
     session: DbSession,
     access: CurrentCompanyAccess,
     as_of_date: Annotated[date | None, Query(description="تاریخ مبنای محاسبه تاب‌آوری نقد")] = None,
+    safety_buffer_irr: Annotated[Decimal | None, Query(ge=0)] = None,
 ) -> CashFlowSummaryResponse:
     del access
-    return await get_cashflow_summary(session, company_id=company_id, as_of_date=as_of_date)
+    return await get_cashflow_summary(
+        session, company_id=company_id, as_of_date=as_of_date, safety_buffer_irr=safety_buffer_irr
+    )
 
 
 @router.get("/forecast", response_model=CashFlowForecastResponse)
@@ -42,7 +45,7 @@ async def get_forecast(
     ] = "base",
     safety_buffer_irr: Annotated[
         Decimal | None,
-        Query(description="حداقل بافر نقدینگی امن"),
+        Query(ge=0, description="حداقل بافر نقدینگی امن"),
     ] = None,
     as_of_date: Annotated[
         date | None,

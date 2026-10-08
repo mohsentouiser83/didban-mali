@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { TableDensity } from "@/components/ui/table";
 
@@ -62,7 +62,7 @@ export function FinancialDataTable<T>({
   return (
     <div
       className={cn(
-        "relative w-full overflow-hidden rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] shadow-sm",
+        "relative w-full overflow-hidden rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] shadow-[var(--ds-shadow-sm)]",
         className
       )}
       {...props}

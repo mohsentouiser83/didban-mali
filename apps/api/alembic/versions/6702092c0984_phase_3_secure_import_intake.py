@@ -8,9 +8,8 @@ Create Date: 2026-09-12 19:27:53.817556
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 RLS_SQL = """
 ALTER TABLE public.data_sources ENABLE ROW LEVEL SECURITY;

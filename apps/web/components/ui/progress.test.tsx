@@ -28,10 +28,10 @@ describe("Progress Component", () => {
     expect((container.firstChild as HTMLElement).className).toContain("h-4");
   });
 
-  it("applies semantic variant success and striped animation", () => {
+  it("preserves semantic success without decorative looping motion", () => {
     const { container } = render(<Progress variant="success" striped value={80} />);
     const indicator = (container.firstChild as HTMLElement).firstChild as HTMLElement;
     expect(indicator.className).toContain("var(--ds-success)");
-    expect(indicator.className).toContain("animate-[progress-stripes");
+    expect(indicator.className).not.toContain("animate-");
   });
 });

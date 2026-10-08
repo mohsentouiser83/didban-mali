@@ -7,7 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const labelVariants = cva(
-  "inline-flex items-center gap-1.5 text-xs font-bold leading-none text-[var(--ds-foreground)] select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
+  "inline-flex items-center gap-1.5 text-sm font-medium leading-relaxed text-[var(--ds-control-ink)] select-none peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
 );
 
 type LabelProps = React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &

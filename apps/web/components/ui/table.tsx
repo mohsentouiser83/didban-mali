@@ -26,7 +26,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
 
     return (
       <TableContext.Provider value={{ density: normalizedDensity }}>
-        <div className={cn("relative w-full overflow-x-auto rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] shadow-sm", containerClassName)}>
+        <div className={cn("relative w-full overflow-x-auto rounded-none border border-[var(--ds-border)] bg-[var(--ds-card)] ", containerClassName)}>
           <table
             ref={ref}
             className={cn("w-full min-w-[720px] border-collapse text-start", className)}
@@ -95,8 +95,8 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
       data-selected={selected ? "true" : undefined}
       data-risk={risk}
       className={cn(
-        "border-b border-[var(--ds-border)] transition-colors duration-150 hover:bg-[var(--ds-table-hover)]",
-        props.onClick && "cursor-pointer",
+        "group/row border-b border-[var(--ds-border)] transition-all duration-150 hover:bg-[var(--ds-table-hover)]",
+        props.onClick && "cursor-pointer active:bg-[var(--ds-table-selected)]/50",
         selected && "bg-[var(--ds-table-selected)] shadow-[inset_3px_0_0_var(--ds-primary)]",
         risk === "critical" && "shadow-[inset_3px_0_0_var(--ds-danger)]",
         risk === "high" && "shadow-[inset_3px_0_0_var(--ds-warning)]",

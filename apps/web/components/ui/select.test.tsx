@@ -56,6 +56,6 @@ describe("Select Component", () => {
     const trigger = screen.getByRole("combobox");
     expect(trigger.getAttribute("aria-invalid")).toBe("true");
     expect(trigger.className).toContain("border-[var(--ds-danger)]");
-    expect(trigger.className).toContain("bg-[var(--ds-danger-subtle)]");
+    expect(trigger.className).toContain("bg-[var(--ds-input-bg)]");
   });
 });

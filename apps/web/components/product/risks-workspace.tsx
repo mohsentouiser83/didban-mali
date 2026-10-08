@@ -3,38 +3,45 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FindingsWorkspace } from "./findings-workspace";
 import { AlertsWorkspace } from "./alerts-workspace";
-import { SimulationWorkspace } from "./simulation-workspace";
 import type { Company } from "@/lib/product-types";
-import { ScanSearch, BellRing, SlidersHorizontal } from "lucide-react";
+import { ScanSearch, BellRing } from "@/components/ui/icons";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
-export type RisksTab = "findings" | "alerts" | "simulation";
+export type RisksTab = "findings" | "alerts";
 
 interface RisksWorkspaceProps {
   company: Company;
   defaultTab?: RisksTab;
 }
 
-export function RisksWorkspace({ company, defaultTab = "findings" }: RisksWorkspaceProps) {
+export function RisksWorkspace({
+  company,
+  defaultTab = "findings",
+}: RisksWorkspaceProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const tabParam = searchParams.get("tab") as RisksTab | null;
-  const initialTab = tabParam && ["findings", "alerts", "simulation"].includes(tabParam)
-    ? tabParam
-    : defaultTab;
+  const initialTab =
+    tabParam && ["findings", "alerts"].includes(tabParam)
+      ? tabParam
+      : defaultTab;
 
   const [activeTab, setActiveTab] = useState<RisksTab>(initialTab);
 
   useEffect(() => {
-    if (tabParam && ["findings", "alerts", "simulation"].includes(tabParam)) {
+    if (searchParams.get("tab") === "simulation") {
+      router.replace(`/companies/${company.id}/scenarios`);
+      return;
+    }
+    if (tabParam && ["findings", "alerts"].includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (defaultTab) {
       setActiveTab(defaultTab);
     }
-  }, [tabParam, defaultTab]);
+  }, [tabParam, defaultTab, searchParams, router, company.id]);
 
   const handleTabChange = (value: string) => {
     const nextTab = value as RisksTab;
@@ -45,49 +52,42 @@ export function RisksWorkspace({ company, defaultTab = "findings" }: RisksWorksp
   };
 
   return (
-    <div className="risks-workspace space-y-6" dir="rtl">
-      {/* Clean Header with Title, Subtitle and Status */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">
-              ریسک‌ها و مغایرت‌های مالی
-            </h1>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
-              {company.legal_name}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            مرکز پایش، کشف ناهنجاری‌ها و حل‌وفصل مغایرت‌های اسناد حسابداری، تراکنش‌های بانکی و هشدارهای زودهنگام
-          </p>
-        </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={handleTabChange} variant="line" className="w-full">
+    <div className="pp-risks risks-workspace space-y-6" dir="rtl">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        variant="line"
+        className="w-full"
+      >
         <TabsList className="w-full border-b border-border/80 gap-2 sm:gap-6 overflow-x-auto justify-start">
-          <TabsTrigger value="findings" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
+          <TabsTrigger
+            value="findings"
+            className="gap-2 text-xs sm:text-sm py-2.5 font-bold"
+          >
             <ScanSearch className="size-4 text-primary" />
             <span>مغایرت‌ها و یافته‌ها</span>
           </TabsTrigger>
-          <TabsTrigger value="alerts" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
-            <BellRing className="size-4 text-amber-500" />
+          <TabsTrigger
+            value="alerts"
+            className="gap-2 text-xs sm:text-sm py-2.5 font-bold"
+          >
+            <BellRing className="size-4 text-ds-warning" />
             <span>هشدارهای مالی</span>
-          </TabsTrigger>
-          <TabsTrigger value="simulation" className="gap-2 text-xs sm:text-sm py-2.5 font-bold">
-            <SlidersHorizontal className="size-4 text-purple-500" />
-            <span>شبیه‌ساز سناریوهای مالی</span>
           </TabsTrigger>
         </TabsList>
 
         <div className="pt-4">
-          <TabsContent value="findings" className="m-0 focus-visible:outline-none">
+          <TabsContent
+            value="findings"
+            className="m-0 focus-visible:outline-none"
+          >
             <FindingsWorkspace company={company} />
           </TabsContent>
-          <TabsContent value="alerts" className="m-0 focus-visible:outline-none">
+          <TabsContent
+            value="alerts"
+            className="m-0 focus-visible:outline-none"
+          >
             <AlertsWorkspace company={company} />
-          </TabsContent>
-          <TabsContent value="simulation" className="m-0 focus-visible:outline-none">
-            <SimulationWorkspace company={company} />
           </TabsContent>
         </div>
       </Tabs>

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative w-full rounded-xl border p-4 text-sm leading-relaxed transition-all [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:start-4 [&>svg]:top-4 [&>svg]:size-5 [&>svg~*]:ps-8",
+  "relative w-full rounded-[var(--ds-card-radius)] border p-4 text-sm leading-relaxed transition-all [&>svg+div]:translate-y-[-2px] [&>svg]:absolute [&>svg]:start-4 [&>svg]:top-4 [&>svg]:size-5 [&>svg~*]:ps-8",
   {
     variants: {
       variant: {
@@ -21,9 +21,9 @@ const alertVariants = cva(
         danger:
           "bg-[var(--ds-danger-subtle)] border-[color-mix(in_srgb,var(--ds-danger)_35%,transparent)] text-[var(--ds-foreground)] [&>svg]:text-[var(--ds-danger)] [&_h5]:text-[var(--ds-danger)]",
         accent:
-          "bg-[linear-gradient(135deg,var(--ds-surface-subtle),color-mix(in_srgb,var(--ds-accent)_12%,transparent))] border-[color-mix(in_srgb,var(--ds-accent)_35%,transparent)] text-[var(--ds-foreground)] shadow-[0_0_16px_-4px_var(--ds-accent-subtle)] [&>svg]:text-[var(--ds-accent)] [&_h5]:text-[var(--ds-accent)]",
+          "bg-[var(--ds-accent-subtle)] border-[color-mix(in_srgb,var(--ds-accent)_35%,transparent)] text-[var(--ds-foreground)] shadow-none [&>svg]:text-[var(--ds-accent)] [&_h5]:text-[var(--ds-accent)]",
         ai:
-          "bg-[linear-gradient(135deg,var(--ds-surface-subtle),color-mix(in_srgb,var(--ds-accent)_12%,transparent))] border-[color-mix(in_srgb,var(--ds-accent)_35%,transparent)] text-[var(--ds-foreground)] shadow-[0_0_16px_-4px_var(--ds-accent-subtle)] [&>svg]:text-[var(--ds-accent)] [&_h5]:text-[var(--ds-accent)]",
+          "bg-[var(--ds-accent-subtle)] border-[color-mix(in_srgb,var(--ds-accent)_35%,transparent)] text-[var(--ds-foreground)] shadow-none [&>svg]:text-[var(--ds-accent)] [&_h5]:text-[var(--ds-accent)]",
       },
     },
     defaultVariants: {
@@ -54,7 +54,7 @@ const AlertTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h5
     ref={ref}
-    className={cn("mb-1 font-bold text-sm tracking-tight text-[var(--ds-foreground)]", className)}
+    className={cn("mb-1 font-bold text-sm tracking-normal text-[var(--ds-foreground)]", className)}
     {...props}
   />
 ))

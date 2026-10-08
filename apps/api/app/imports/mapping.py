@@ -642,6 +642,8 @@ def _parse_date(value: object, calendar: str) -> str:
     if isinstance(value, date):
         return value.isoformat()
     normalized = normalize_digits(value).strip().replace(".", "/").replace("-", "/")
+    if not normalized:
+        raise ValueError("invalid date")
     date_part = normalized.split()[0].split("t")[0].split("T")[0]
     parts = date_part.split("/")
     if len(parts) != 3:
@@ -695,6 +697,13 @@ def transform_and_validate_row(
                     "فرمول را در فایل منبع به مقدار ثابت تبدیل کنید.",
                 )
             )
+            continue
+        if (
+            target in DATE_FIELDS
+            and target not in REQUIRED_FIELDS[source_kind]
+            and (raw_value is None or str(raw_value).strip() == "")
+        ):
+            transformed[target] = None
             continue
         value: object = raw_value
         operations = transforms.get(target, [])

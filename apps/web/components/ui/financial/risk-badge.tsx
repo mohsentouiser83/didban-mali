@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, AlertTriangle, Info, ShieldAlert } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, ShieldAlert } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "./money-display";
 
@@ -32,7 +32,7 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-critical-bg)]",
     textClass: "text-[var(--ds-risk-critical-fg)]",
     borderClass: "border-[var(--ds-risk-critical-border)]",
-    dotClass: "bg-red-500",
+    dotClass: "bg-ds-danger",
   },
   high: {
     label: "ریسک بالا",
@@ -40,7 +40,7 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-high-bg)]",
     textClass: "text-[var(--ds-risk-high-fg)]",
     borderClass: "border-[var(--ds-risk-high-border)]",
-    dotClass: "bg-amber-600",
+    dotClass: "bg-ds-warning",
   },
   medium: {
     label: "ریسک متوسط",
@@ -84,7 +84,7 @@ export const RiskBadge = React.forwardRef<HTMLSpanElement, RiskBadgeProps>(
       <span
         ref={ref}
         className={cn(
-          "inline-flex items-center border select-none transition-colors",
+          "group inline-flex items-center border select-none transition-all duration-200   cursor-default",
           config.bgClass,
           config.textClass,
           config.borderClass,
@@ -96,14 +96,16 @@ export const RiskBadge = React.forwardRef<HTMLSpanElement, RiskBadgeProps>(
         {showDot && (
           <span
             className={cn(
-              "size-1.5 rounded-full shrink-0",
+              "size-1.5 rounded-full shrink-0 transition-transform duration-200 ",
               config.dotClass,
               pulse && "animate-pulse"
             )}
             aria-hidden="true"
           />
         )}
-        {showIcon && !showDot && <Icon className={iconSizes[size]} aria-hidden="true" />}
+        {showIcon && !showDot && (
+          <Icon className={cn(iconSizes[size], "transition-transform duration-200 ")} aria-hidden="true" />
+        )}
         <span>{displayLabel}</span>
         {score !== undefined && score !== null && (
           <span className="font-mono text-[0.88em] opacity-80 border-s border-current/20 ps-1.5 ms-0.5">

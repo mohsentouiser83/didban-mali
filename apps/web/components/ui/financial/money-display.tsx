@@ -12,9 +12,20 @@ export type FinancialUnit =
   | "percent"
   | "auto";
 
-export interface MoneyDisplayProps extends React.HTMLAttributes<HTMLSpanElement> {
+export interface MoneyDisplayProps
+  extends React.HTMLAttributes<HTMLSpanElement> {
   amount: number | string | bigint | null | undefined;
-  currency?: "ریال" | "تومان" | "میلیارد تومان" | "میلیون تومان" | "میلیارد ریال" | "همت" | "درصد" | "٪" | "" | string;
+  currency?:
+    | "ریال"
+    | "تومان"
+    | "میلیارد تومان"
+    | "میلیون تومان"
+    | "میلیارد ریال"
+    | "همت"
+    | "درصد"
+    | "٪"
+    | ""
+    | string;
   direction?: "auto" | "positive" | "negative" | "neutral";
   showSign?: boolean;
   compact?: boolean;
@@ -35,14 +46,19 @@ export function formatFinancialNumber(num: number | string | bigint): string {
     if (trimmed.toLowerCase().includes("e")) {
       const isNeg = n < 0;
       const abs = Math.abs(n);
-      const formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 2 });
-      const persianFormatted = toPersianDigits(formatted.replace(/,/g, "٬").replace(/\./g, "٫"));
+      const formatted = abs.toLocaleString("en-US", {
+        maximumFractionDigits: 2,
+      });
+      const persianFormatted = toPersianDigits(
+        formatted.replace(/,/g, "٬").replace(/\./g, "٫"),
+      );
       return isNeg ? `${persianFormatted}−` : persianFormatted;
     }
     const parts = trimmed.split(".");
     const integerPart = parts[0]?.replace(/\B(?=(\d{3})+(?!\d))/g, "٬") ?? "0";
-    if (parts.length > 1 && parts[1]) {
-      return toPersianDigits(`${integerPart}٫${parts[1]}`);
+    const fraction = parts[1]?.replace(/0+$/, "");
+    if (fraction) {
+      return toPersianDigits(`${integerPart}٫${fraction}`);
     }
     return toPersianDigits(integerPart);
   }
@@ -51,7 +67,9 @@ export function formatFinancialNumber(num: number | string | bigint): string {
   const isNegative = n < 0;
   const abs = Math.abs(n);
   const formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  const persianFormatted = toPersianDigits(formatted.replace(/,/g, "٬").replace(/\./g, "٫"));
+  const persianFormatted = toPersianDigits(
+    formatted.replace(/,/g, "٬").replace(/\./g, "٫"),
+  );
   return isNegative ? `${persianFormatted}−` : persianFormatted;
 }
 
@@ -60,11 +78,14 @@ const sizeClasses: Record<NonNullable<MoneyDisplayProps["size"]>, string> = {
   sm: "text-sm font-semibold",
   md: "text-base font-bold",
   lg: "text-lg font-bold",
-  xl: "text-xl font-extrabold tracking-tight",
-  "2xl": "text-2xl lg:text-3xl font-extrabold tracking-tight",
+  xl: "text-xl font-bold tracking-normal",
+  "2xl": "text-2xl lg:text-3xl font-bold tracking-normal",
 };
 
-export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>(
+export const MoneyDisplay = React.forwardRef<
+  HTMLSpanElement,
+  MoneyDisplayProps
+>(
   (
     {
       amount,
@@ -80,14 +101,18 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
       title,
       ...props
     },
-    ref
+    ref,
   ) => {
     // 1. Handle No Data State (Dash with proper explanation)
     if (amount === null || amount === undefined || amount === "") {
       return (
         <span
           ref={ref}
-          className={cn("inline-flex items-center font-mono text-muted-foreground select-none", sizeClasses[size], className)}
+          className={cn(
+            "inline-flex items-center font-mono text-muted-foreground select-none",
+            sizeClasses[size],
+            className,
+          )}
           title={title ?? "داده‌ای در دسترس نیست"}
           {...props}
         >
@@ -96,10 +121,19 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
       );
     }
 
-    const numericVal = typeof amount === "string" ? parseFloat(amount) : Number(amount);
+    const numericVal =
+      typeof amount === "string" ? parseFloat(amount) : Number(amount);
     if (isNaN(numericVal)) {
       return (
-        <span ref={ref} className={cn("inline-flex items-center font-mono text-muted-foreground", sizeClasses[size], className)} {...props}>
+        <span
+          ref={ref}
+          className={cn(
+            "inline-flex items-center font-mono text-muted-foreground",
+            sizeClasses[size],
+            className,
+          )}
+          {...props}
+        >
           {String(amount)}
         </span>
       );
@@ -117,9 +151,9 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
 
     let colorClass = "text-foreground";
     if (resolvedDirection === "positive") {
-      colorClass = "text-emerald-600 dark:text-emerald-400";
+      colorClass = "text-ds-success";
     } else if (resolvedDirection === "negative") {
-      colorClass = "text-rose-600 dark:text-rose-400";
+      colorClass = "text-ds-danger";
     } else if (subdued || (isZero && !highlightZero)) {
       colorClass = "text-muted-foreground";
     }
@@ -135,21 +169,31 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
         const tomanVal = numericVal / 10;
         const absToman = Math.abs(tomanVal);
         if (absToman >= 1_000_000_000) {
-          rawDisplay = toPersianDigits((tomanVal / 1_000_000_000).toFixed(1).replace(".", "٫"));
+          rawDisplay = toPersianDigits(
+            (tomanVal / 1_000_000_000).toFixed(1).replace(".", "٫"),
+          );
           resolvedCurrency = "میلیارد تومان";
         } else if (absToman >= 1_000_000) {
-          rawDisplay = toPersianDigits((tomanVal / 1_000_000).toFixed(1).replace(".", "٫"));
+          rawDisplay = toPersianDigits(
+            (tomanVal / 1_000_000).toFixed(1).replace(".", "٫"),
+          );
           resolvedCurrency = "میلیون تومان";
         } else if (absToman >= 1_000) {
-          rawDisplay = toPersianDigits(Math.round(tomanVal).toLocaleString("fa-IR"));
+          rawDisplay = toPersianDigits(
+            Math.round(tomanVal).toLocaleString("fa-IR"),
+          );
           resolvedCurrency = "تومان";
         }
       } else if (currency === "تومان") {
         if (absVal >= 1_000_000_000) {
-          rawDisplay = toPersianDigits((numericVal / 1_000_000_000).toFixed(1).replace(".", "٫"));
+          rawDisplay = toPersianDigits(
+            (numericVal / 1_000_000_000).toFixed(1).replace(".", "٫"),
+          );
           resolvedCurrency = "میلیارد تومان";
         } else if (absVal >= 1_000_000) {
-          rawDisplay = toPersianDigits((numericVal / 1_000_000).toFixed(1).replace(".", "٫"));
+          rawDisplay = toPersianDigits(
+            (numericVal / 1_000_000).toFixed(1).replace(".", "٫"),
+          );
           resolvedCurrency = "میلیون تومان";
         }
       }
@@ -173,7 +217,7 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
           "inline-flex items-baseline gap-1.5 font-mono cursor-default [font-variant-numeric:tabular-nums_lining-nums]",
           sizeClasses[size],
           colorClass,
-          className
+          className,
         )}
         {...props}
       >
@@ -188,7 +232,7 @@ export const MoneyDisplay = React.forwardRef<HTMLSpanElement, MoneyDisplayProps>
         </span>
       </span>
     );
-  }
+  },
 );
 
 MoneyDisplay.displayName = "MoneyDisplay";

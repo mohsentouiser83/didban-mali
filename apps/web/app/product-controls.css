@@ -1,0 +1,12 @@
+/* Shared interaction responses; component variants define geometry. */
+.ds-button { transition: color 140ms var(--ds-control-ease), background-color 140ms var(--ds-control-ease), border-color 140ms var(--ds-control-ease); -webkit-tap-highlight-color: transparent; }
+.ds-control { transition: border-color 140ms var(--ds-control-ease), background-color 140ms var(--ds-control-ease), outline-color 140ms var(--ds-control-ease); outline: 2px solid transparent; outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .ds-control:not(:disabled):not([readonly]):not([aria-invalid="true"]):hover { border-color: var(--ds-control-hover-border); } }
+.ds-button[aria-disabled="true"] { pointer-events: none; opacity: .5; }
+.ds-control:is(:focus-visible,[data-state="open"]) { border-color: var(--ds-input-focus); outline-color: var(--ds-input-focus); box-shadow: var(--ds-control-shadow); }
+.ds-control[aria-invalid="true"] { border-color: var(--ds-danger); }
+.ds-control[aria-invalid="true"]:focus-visible { outline-color: var(--ds-danger); }
+.ds-control[readonly] { background: var(--ds-control-muted); }
+.ds-button.ds-focus:focus-visible { outline-offset: 2px; }
+@media (pointer: coarse) { .ds-button:not([data-size="auto"]), .ds-control:not(textarea) { min-height: 44px; } .ds-button[data-size^="icon"] { min-width: 44px; } }
+@media (prefers-reduced-motion: reduce) { .ds-button, .ds-button svg, .ds-control { transition: none; } .ds-button [role="status"] { animation: none; } }

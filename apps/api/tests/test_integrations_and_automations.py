@@ -1,29 +1,23 @@
-from datetime import datetime, timezone
-from decimal import Decimal
-import uuid
 import pytest
 from sqlalchemy import select
 
+from app.automations.models import AutomationActionType
+from app.automations.schemas import AutomationRuleCreate
+from app.automations.service import AutomationService
+from app.companies.models import Company, CompanyAccess
 from app.core.database import async_session_factory, engine
-from app.core.tenant import set_request_user, set_request_company
-from app.companies.models import Company, CompanyAccess, CompanyRole
-from app.identity.models import User, Membership
+from app.core.tenant import set_request_company, set_request_user
+from app.identity.models import User
 from app.integrations.models import (
     ConnectionStatus,
-    IntegrationConnection,
-    IntegrationSyncJob,
     IntegrationSyncRecord,
     SyncJobStatus,
     SyncRecordStatus,
 )
 from app.integrations.schemas import (
     IntegrationConnectionCreate,
-    IntegrationConnectionUpdate,
 )
 from app.integrations.service import IntegrationService
-from app.automations.models import AutomationRule, AutomationActionType
-from app.automations.schemas import AutomationRuleCreate
-from app.automations.service import AutomationService
 
 
 @pytest.fixture(autouse=True)

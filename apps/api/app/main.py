@@ -8,6 +8,7 @@ from app.ai.routes import router as ai_router
 from app.alerts.routes import router as alerts_router
 from app.analysis.routes import router as analysis_router
 from app.api.routes.health import router as health_router
+from app.automations.routes import router as automations_router
 from app.calculations.routes import calculations_router
 from app.cashflow.routes import router as cashflow_router
 from app.companies.routes import router as companies_router
@@ -19,6 +20,7 @@ from app.data.routes import router as data_router
 from app.findings.routes import router as findings_router
 from app.identity.routes import router as identity_router
 from app.imports.routes import router as imports_router
+from app.integrations.routes import router as integrations_router
 from app.payables.routes import router as payables_router
 from app.readiness.routes import router as readiness_router
 from app.receivables.routes import router as receivables_router
@@ -26,8 +28,6 @@ from app.reconciliation.routes import router as reconciliation_router
 from app.reports.routes import router as reports_router
 from app.reviews.routes import router as reviews_router
 from app.simulation.routes import router as simulation_router
-from app.integrations.routes import router as integrations_router
-from app.automations.routes import router as automations_router
 
 install_log_redaction()
 

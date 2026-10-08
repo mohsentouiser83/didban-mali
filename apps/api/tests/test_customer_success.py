@@ -1,7 +1,7 @@
 import time
 from typing import Any
+
 import httpx
-import pytest
 
 API_URL = "http://localhost:8000/api/v1"
 

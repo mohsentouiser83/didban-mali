@@ -25,7 +25,7 @@ import {
   Trash2,
   Wifi,
   WifiOff,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +55,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PageHeader, StatusChip, toPersianDigits } from "@/components/ui/financial";
+import {
+  PageHeader,
+  StatusChip,
+  toPersianDigits,
+} from "@/components/ui/financial";
 import { api } from "@/lib/product-api";
 import type {
   AgentKeyResponse,
@@ -66,6 +70,7 @@ import type {
   IntegrationProvider,
   IntegrationSyncJob,
 } from "@/lib/product-types";
+import { SelectField, SelectOption } from "./select-field";
 
 interface IntegrationsWorkspaceProps {
   company: Company;
@@ -85,7 +90,8 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   const [loading, setLoading] = useState(true);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [selectedConn, setSelectedConn] = useState<IntegrationConnection | null>(null);
+  const [selectedConn, setSelectedConn] =
+    useState<IntegrationConnection | null>(null);
   const [syncJobs, setSyncJobs] = useState<IntegrationSyncJob[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [newConnOpen, setNewConnOpen] = useState(false);
@@ -93,14 +99,18 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   // New connection form
   const [provider, setProvider] = useState<IntegrationProvider>("sepidar");
   const [connName, setConnName] = useState("");
-  const [serverUrl, setServerUrl] = useState("http://sepidar.local:8080/api/v1");
+  const [serverUrl, setServerUrl] = useState(
+    "http://sepidar.local:8080/api/v1",
+  );
   const [apiToken, setApiToken] = useState("");
   const [accountNumber, setAccountNumber] = useState("410088992211");
   const [bankName, setBankName] = useState("بانک ملت");
 
   // Local Sync Agent Modal
   const [agentKeyOpen, setAgentKeyOpen] = useState(false);
-  const [agentKeyData, setAgentKeyData] = useState<AgentKeyResponse | null>(null);
+  const [agentKeyData, setAgentKeyData] = useState<AgentKeyResponse | null>(
+    null,
+  );
   const [copiedKey, setCopiedKey] = useState(false);
   const [agentKeyLoading, setAgentKeyLoading] = useState(false);
 
@@ -112,7 +122,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
     try {
       const res = await api<AgentKeyResponse>(
         `/companies/${company.id}/integrations/${conn.id}/agent-key`,
-        { method: "POST" }
+        { method: "POST" },
       );
       setAgentKeyData(res);
     } catch (e) {
@@ -133,7 +143,9 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   const loadConnections = async () => {
     try {
       setLoading(true);
-      const data = await api<IntegrationConnection[]>(`/companies/${company.id}/integrations`);
+      const data = await api<IntegrationConnection[]>(
+        `/companies/${company.id}/integrations`,
+      );
       setConnections(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error("Failed to load connections:", e);
@@ -149,9 +161,12 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   const handleTestConnection = async (connId: string) => {
     setTestingId(connId);
     try {
-      const res = await api<ConnectionTestResult>(`/companies/${company.id}/integrations/${connId}/test`, {
-        method: "POST",
-      });
+      const res = await api<ConnectionTestResult>(
+        `/companies/${company.id}/integrations/${connId}/test`,
+        {
+          method: "POST",
+        },
+      );
       await loadConnections();
       alert(res.message_fa);
     } catch (e: any) {
@@ -164,10 +179,13 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   const handleTriggerSync = async (connId: string) => {
     setSyncingId(connId);
     try {
-      await api<IntegrationSyncJob>(`/companies/${company.id}/integrations/${connId}/sync`, {
-        method: "POST",
-        body: JSON.stringify({ sync_type: "manual" }),
-      });
+      await api<IntegrationSyncJob>(
+        `/companies/${company.id}/integrations/${connId}/sync`,
+        {
+          method: "POST",
+          body: JSON.stringify({ sync_type: "manual" }),
+        },
+      );
       await loadConnections();
     } catch (e: any) {
       alert(e.message || "خطا در تحریک همگام‌سازی");
@@ -180,7 +198,9 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
     setSelectedConn(conn);
     setHistoryOpen(true);
     try {
-      const jobs = await api<IntegrationSyncJob[]>(`/companies/${company.id}/integrations/${conn.id}/jobs`);
+      const jobs = await api<IntegrationSyncJob[]>(
+        `/companies/${company.id}/integrations/${conn.id}/jobs`,
+      );
       setSyncJobs(jobs);
     } catch (e) {
       console.error("Failed to load sync jobs:", e);
@@ -189,13 +209,23 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
 
   const handleCreateConnection = async () => {
     try {
-      const config = provider === "sepidar" ? { server_url: serverUrl } : { bank_name: bankName, account_number: accountNumber };
-      const credentials = provider === "sepidar" ? { api_token: apiToken } : { api_key: apiToken };
+      const config =
+        provider === "sepidar"
+          ? { server_url: serverUrl }
+          : { bank_name: bankName, account_number: accountNumber };
+      const credentials =
+        provider === "sepidar"
+          ? { api_token: apiToken }
+          : { api_key: apiToken };
       await api(`/companies/${company.id}/integrations`, {
         method: "POST",
         body: JSON.stringify({
           provider,
-          name: connName || (provider === "sepidar" ? "سپیدار سیستم مرکزی" : `حساب شرکتی ${bankName}`),
+          name:
+            connName ||
+            (provider === "sepidar"
+              ? "سپیدار سیستم مرکزی"
+              : `حساب شرکتی ${bankName}`),
           config,
           credentials,
           sync_interval_minutes: 1440,
@@ -223,10 +253,10 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
   };
 
   return (
-    <div dir="rtl" className="space-y-6">
+    <div dir="rtl" className="pp-page pp-integrations space-y-6">
       <PageHeader
-        title="مرکز اتصال‌ها و یکپارچه‌سازی مالی"
-        description="زیرساخت عملیاتی همگام‌سازی خودکار داده‌های مالی از نرم‌افزارهای حسابداری و سامانه‌های بانکی"
+        title="اتصال‌ها و جریان داده"
+        description="وضعیت دریافت داده از حسابداری و بانک را بررسی و اتصال‌های شرکت را مدیریت کنید."
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
             <Network className="h-3.5 w-3.5" />
@@ -234,13 +264,17 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
           </span>
         }
         primaryAction={
-          <Button size="sm" onClick={() => setNewConnOpen(true)} className="text-xs font-bold gap-1.5 h-8">
+          <Button
+            size="sm"
+            onClick={() => setNewConnOpen(true)}
+            className="gap-1.5"
+          >
             <Plus className="h-3.5 w-3.5" />
             افزودن اتصال جدید
           </Button>
         }
         secondaryActions={
-          <Button asChild size="sm" variant="outline" className="text-xs gap-1.5 h-8">
+          <Button asChild size="sm" variant="outline" className="gap-1.5">
             <Link href={`/companies/${company.id}/data`}>
               <FileSpreadsheet className="h-3.5 w-3.5" />
               بارگذاری دستی اکسل (پشتیبان)
@@ -250,61 +284,84 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
       />
 
       {/* Observability Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+      <div className="pp-metric-strip pp-metric-strip-three grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ds-success/10 text-ds-success shrink-0">
             <CheckCircle2 className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-base font-extrabold font-mono text-foreground">
-              {toPersianDigits(connections.filter((c) => c.status === "connected").length)} اتصال
+            <div className="text-base font-bold font-mono text-foreground">
+              {toPersianDigits(
+                connections.filter((c) => c.status === "connected").length,
+              )}{" "}
+              اتصال
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">اتصال‌های فعال و پایدار</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              اتصال‌های فعال و پایدار
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
+        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
             <RefreshCw className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-base font-extrabold font-mono text-foreground">
+            <div className="text-base font-bold font-mono text-foreground">
               {toPersianDigits(
-                connections.reduce((acc, c) => acc + (c.last_sync_record_count || 0), 0)
+                connections.reduce(
+                  (acc, c) => acc + (c.last_sync_record_count || 0),
+                  0,
+                ),
               )}{" "}
               رکورد
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">دریافت خودکار در ۲۴ ساعت گذشته</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              رکوردهای آخرین همگام‌سازی
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-base font-extrabold font-mono text-foreground">تکرارناپذیر (Idempotent)</div>
-            <div className="text-xs text-muted-foreground mt-0.5">ردیابی دقیق شجره داده تا منبع</div>
+            <div className="text-base font-bold font-mono text-foreground">
+              داده با ردِ منبع
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              ردیابی دقیق شجره داده تا منبع
+            </div>
           </div>
         </div>
       </div>
 
       {/* Connections Grid */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-foreground">سیستم‌های مالی و بانکی متصل</h3>
+      <div className="pp-connections space-y-4">
+        <h3 className="text-sm font-bold text-foreground">
+          سیستم‌های مالی و بانکی متصل
+        </h3>
 
         {loading ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-xs text-muted-foreground">
+          <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-8 text-center text-xs text-muted-foreground">
             در حال بارگذاری وضعیت اتصال‌ها...
           </div>
         ) : connections.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
+          <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-8 text-center space-y-3">
             <HardDrive className="h-8 w-8 text-muted-foreground mx-auto" />
-            <div className="text-sm font-bold text-foreground">هنوز اتصالی برقرار نشده است</div>
+            <div className="text-sm font-bold text-foreground">
+              هنوز اتصالی برقرار نشده است
+            </div>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              جهت حذف فرآیند بارگذاری دستی اکسل، اتصال به نرم‌افزار حسابداری (سپیدار) یا گردش حساب‌های بانکی را فعال نمایید.
+              جهت حذف فرآیند بارگذاری دستی اکسل، اتصال به نرم‌افزار حسابداری
+              (سپیدار) یا گردش حساب‌های بانکی را فعال نمایید.
             </p>
-            <Button size="sm" onClick={() => setNewConnOpen(true)} className="text-xs gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => setNewConnOpen(true)}
+              className="gap-1.5"
+            >
               <Plus className="h-3.5 w-3.5" />
               ایجاد اولین اتصال
             </Button>
@@ -319,21 +376,35 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
               const isSepidar = conn.provider === "sepidar";
 
               return (
-                <Card key={conn.id} className="border-border bg-card shadow-xs flex flex-col justify-between">
+                <Card
+                  key={conn.id}
+                  className="border-border bg-card shadow-xs flex flex-col justify-between"
+                >
                   <CardHeader className="pb-3 border-b border-border/50">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground shrink-0">
-                          {isSepidar ? <FileCheck2 className="h-4 w-4" /> : <Landmark className="h-4 w-4" />}
+                          {isSepidar ? (
+                            <FileCheck2 className="h-4 w-4" />
+                          ) : (
+                            <Landmark className="h-4 w-4" />
+                          )}
                         </div>
                         <div>
-                          <CardTitle className="text-sm font-bold text-foreground">{conn.name}</CardTitle>
+                          <CardTitle className="text-sm font-bold text-foreground">
+                            {conn.name}
+                          </CardTitle>
                           <CardDescription className="text-xs text-muted-foreground">
-                            {isSepidar ? "نرم‌افزار حسابداری سپیدار سیستم" : "گردش حساب بانکی شرکتی"}
+                            {isSepidar
+                              ? "نرم‌افزار حسابداری سپیدار سیستم"
+                              : "گردش حساب بانکی شرکتی"}
                           </CardDescription>
                         </div>
                       </div>
-                      <StatusChip status={statusCfg.status} label={statusCfg.label} />
+                      <StatusChip
+                        status={statusCfg.status}
+                        label={statusCfg.label}
+                      />
                     </div>
                   </CardHeader>
 
@@ -348,7 +419,11 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                     <div className="flex items-center justify-between border-b border-border/40 pb-2">
                       <span>آخرین همگام‌سازی:</span>
                       <strong className="text-foreground font-mono">
-                        {conn.last_sync_at ? new Date(conn.last_sync_at).toLocaleTimeString("fa-IR") : "—"}
+                        {conn.last_sync_at
+                          ? new Date(conn.last_sync_at).toLocaleTimeString(
+                              "fa-IR",
+                            )
+                          : "—"}
                       </strong>
                     </div>
 
@@ -362,7 +437,8 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                     <div className="flex items-center justify-between">
                       <span>دوره تکرار زمان‌بندی:</span>
                       <strong className="text-foreground">
-                        هر {toPersianDigits(conn.sync_interval_minutes / 60)} ساعت
+                        هر {toPersianDigits(conn.sync_interval_minutes / 60)}{" "}
+                        ساعت
                       </strong>
                     </div>
                   </CardContent>
@@ -372,7 +448,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="h-7 text-xs gap-1.5"
+                        className="gap-1.5"
                         disabled={testingId === conn.id}
                         onClick={() => handleTestConnection(conn.id)}
                       >
@@ -383,12 +459,16 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs gap-1.5"
+                        className="gap-1.5"
                         disabled={syncingId === conn.id}
                         onClick={() => handleTriggerSync(conn.id)}
                       >
-                        <RefreshCw className={`h-3 w-3 ${syncingId === conn.id ? "animate-spin" : ""}`} />
-                        {syncingId === conn.id ? "در حال سینک..." : "همگام‌سازی فوری"}
+                        <RefreshCw
+                          className={`h-3 w-3 ${syncingId === conn.id ? "animate-spin" : ""}`}
+                        />
+                        {syncingId === conn.id
+                          ? "در حال سینک..."
+                          : "همگام‌سازی فوری"}
                       </Button>
                     </div>
 
@@ -396,7 +476,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs gap-1.5"
+                        className="gap-1.5"
                         onClick={() => handleOpenAgentKey(conn)}
                       >
                         <Key className="h-3 w-3" />
@@ -405,7 +485,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                        className="text-muted-foreground hover:text-foreground"
                         onClick={() => handleOpenHistory(conn)}
                       >
                         تاریخچه Sync
@@ -413,7 +493,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                        className="w-7 text-destructive hover:bg-destructive/10"
                         onClick={() => handleDeleteConnection(conn.id)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -435,7 +515,8 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
               تاریخچه همگام‌سازی — {selectedConn?.name}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              سوابق اجرای چرخه‌های دریافت خودکار داده و گزارش موارد نادیده‌گرفته‌شده تکراری
+              سوابق اجرای چرخه‌های دریافت خودکار داده و گزارش موارد
+              نادیده‌گرفته‌شده تکراری
             </DialogDescription>
           </DialogHeader>
 
@@ -451,28 +532,37 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
                     <TableHead className="text-xs">زمان شروع</TableHead>
                     <TableHead className="text-xs">نوع اجرا</TableHead>
                     <TableHead className="text-xs">وضعیت</TableHead>
-                    <TableHead className="text-xs text-left">دریافتی / واردشده</TableHead>
+                    <TableHead className="text-xs text-left">
+                      دریافتی / واردشده
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {syncJobs.map((job) => (
                     <TableRow key={job.id}>
                       <TableCell className="text-xs font-mono">
-                        {job.started_at ? new Date(job.started_at).toLocaleTimeString("fa-IR") : "—"}
+                        {job.started_at
+                          ? new Date(job.started_at).toLocaleTimeString("fa-IR")
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {job.sync_type === "scheduled" ? "خودکار شبانه" : "دستی"}
+                        {job.sync_type === "scheduled"
+                          ? "خودکار شبانه"
+                          : "دستی"}
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={job.status === "completed" ? "success" : "danger"}
+                          variant={
+                            job.status === "completed" ? "success" : "danger"
+                          }
                           className="text-[10px]"
                         >
                           {job.status === "completed" ? "موفق" : "ناموفق"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs font-mono text-left">
-                        {toPersianDigits(job.records_imported)} از {toPersianDigits(job.records_received)} سطر
+                        {toPersianDigits(job.records_imported)} از{" "}
+                        {toPersianDigits(job.records_received)} سطر
                       </TableCell>
                     </TableRow>
                   ))}
@@ -487,82 +577,114 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
       <Dialog open={newConnOpen} onOpenChange={setNewConnOpen}>
         <DialogContent className="max-w-md font-sans" dir="rtl">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-foreground">افزودن اتصال مالی جدید</DialogTitle>
+            <DialogTitle className="text-base font-bold text-foreground">
+              افزودن اتصال مالی جدید
+            </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              انتخاب سامانه مبدا جهت همگام‌سازی پایدار با پایپ‌لاین کانونیکال دیدبان
+              انتخاب سامانه مبدا جهت همگام‌سازی پایدار با پایپ‌لاین کانونیکال
+              دیدبان
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3.5 py-2">
             <div>
-              <label className="text-xs font-bold text-foreground mb-1 block">نوع ارائه‌دهنده:</label>
-              <select
+              <label className="text-xs font-bold text-foreground mb-1 block">
+                نوع ارائه‌دهنده:
+              </label>
+              <SelectField
+                size="sm"
                 value={provider}
-                onChange={(e) => setProvider(e.target.value as IntegrationProvider)}
-                className="w-full h-8 text-xs rounded-md border border-input bg-background px-2.5"
+                onChange={(e) =>
+                  setProvider(e.target.value as IntegrationProvider)
+                }
+                className="w-full"
               >
-                <option value="sepidar">سپیدار سیستم (Sepidar V1)</option>
-                <option value="bank_direct">صورتحساب مستقیم بانکی (Bank Feed V1)</option>
-              </select>
+                <SelectOption value="sepidar">
+                  سپیدار سیستم (Sepidar V1)
+                </SelectOption>
+                <SelectOption value="bank_direct">
+                  صورتحساب مستقیم بانکی (Bank Feed V1)
+                </SelectOption>
+              </SelectField>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-foreground mb-1 block">نام نمایشی اتصال:</label>
+              <label className="text-xs font-bold text-foreground mb-1 block">
+                نام نمایشی اتصال:
+              </label>
               <Input
-                placeholder={provider === "sepidar" ? "سپیدار سیستم دفتر مرکزی" : "حساب جاری بانک ملت"}
+                size="sm"
+                placeholder={
+                  provider === "sepidar"
+                    ? "سپیدار سیستم دفتر مرکزی"
+                    : "حساب جاری بانک ملت"
+                }
                 value={connName}
                 onChange={(e) => setConnName(e.target.value)}
-                className="h-8 text-xs"
               />
             </div>
 
             {provider === "sepidar" ? (
               <>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">آدرس وب‌سرویس / سرور سپیدار:</label>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    آدرس وب‌سرویس / سرور سپیدار:
+                  </label>
                   <Input
+                    size="sm"
                     value={serverUrl}
                     onChange={(e) => setServerUrl(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="font-mono"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">توکن دسترسی (API Token):</label>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    توکن دسترسی (API Token):
+                  </label>
                   <Input
+                    size="sm"
                     type="password"
                     placeholder="••••••••••••••••"
                     value={apiToken}
                     onChange={(e) => setApiToken(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="font-mono"
                   />
                 </div>
               </>
             ) : (
               <>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">نام بانک:</label>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    نام بانک:
+                  </label>
                   <Input
+                    size="sm"
                     value={bankName}
                     onChange={(e) => setBankName(e.target.value)}
-                    className="h-8 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">شماره حساب شرکتی:</label>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    شماره حساب شرکتی:
+                  </label>
                   <Input
+                    size="sm"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="font-mono"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">کلید دسترسی وب‌سرویس استعلام:</label>
+                  <label className="text-xs font-bold text-foreground mb-1 block">
+                    کلید دسترسی وب‌سرویس استعلام:
+                  </label>
                   <Input
+                    size="sm"
                     type="password"
                     placeholder="••••••••••••••••"
                     value={apiToken}
                     onChange={(e) => setApiToken(e.target.value)}
-                    className="h-8 text-xs font-mono"
+                    className="font-mono"
                   />
                 </div>
               </>
@@ -570,10 +692,15 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
           </div>
 
           <DialogFooter>
-            <Button size="sm" variant="outline" onClick={() => setNewConnOpen(false)} className="text-xs">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setNewConnOpen(false)}
+              className=""
+            >
               انصراف
             </Button>
-            <Button size="sm" onClick={handleCreateConnection} className="text-xs font-bold">
+            <Button size="sm" onClick={handleCreateConnection} className="">
               ثبت و فعال‌سازی اتصال
             </Button>
           </DialogFooter>
@@ -589,60 +716,83 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
               کلاینت همگام‌ساز محلی (Local Sync Agent) — {selectedConn?.name}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              استفاده از اسکریپت سبک همگام‌ساز برای استخراج خودکار اسناد مالی از دیتابیس محلی SQL Server
+              استفاده از اسکریپت سبک همگام‌ساز برای استخراج خودکار اسناد مالی از
+              دیتابیس محلی SQL Server
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-              <div className="text-xs font-bold text-foreground">کلید اختصاصی احراز هویت کلاینت (Agent Key):</div>
+              <div className="text-xs font-bold text-foreground">
+                کلید اختصاصی احراز هویت کلاینت (Agent Key):
+              </div>
               <div className="flex items-center gap-2">
                 <Input
+                  size="sm"
                   readOnly
-                  value={agentKeyLoading ? "در حال دریافت کلید..." : agentKeyData?.agent_key || ""}
-                  className="font-mono text-xs h-9 bg-background"
+                  value={
+                    agentKeyLoading
+                      ? "در حال دریافت کلید..."
+                      : agentKeyData?.agent_key || ""
+                  }
+                  className="font-mono"
                 />
                 <Button
                   size="sm"
                   variant="outline"
-                  className="shrink-0 gap-1.5 text-xs h-9"
+                  className="shrink-0 gap-1.5"
                   disabled={!agentKeyData?.agent_key || agentKeyLoading}
                   onClick={copyAgentKey}
                 >
-                  {copiedKey ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedKey ? (
+                    <Check className="h-3.5 w-3.5 text-ds-success" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                   {copiedKey ? "کپی شد" : "کپی"}
                 </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                این کلید برای ارسال امن داده‌ها از سرور محلی به دیدبان استفاده می‌شود و نیازی به باز کردن پورت ورودی ندارد.
+                این کلید برای ارسال امن داده‌ها از سرور محلی به دیدبان استفاده
+                می‌شود و نیازی به باز کردن پورت ورودی ندارد.
               </p>
             </div>
 
             <div className="rounded-lg border bg-card p-3 space-y-2">
-              <div className="text-xs font-bold text-foreground">دستور اجرای تک‌نوبتی یا دوره‌ای در سرور محلی:</div>
+              <div className="text-xs font-bold text-foreground">
+                دستور اجرای تک‌نوبتی یا دوره‌ای در سرور محلی:
+              </div>
               <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
-                python scripts/didban_sync_agent.py --config didban-agent.json --once
+                python scripts/didban_sync_agent.py --config didban-agent.json
+                --once
               </pre>
-              <div className="text-xs font-bold text-foreground mt-2">نمونه پیکربندی didban-agent.json:</div>
+              <div className="text-xs font-bold text-foreground mt-2">
+                نمونه پیکربندی didban-agent.json:
+              </div>
               <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
-{JSON.stringify(
-  {
-    api_url: "http://localhost:8000",
-    company_id: company.id,
-    connection_id: selectedConn?.id || "...",
-    agent_key: agentKeyData?.agent_key || "dmb_live_...",
-    source_system: selectedConn?.provider || "sepidar",
-    sql_connection_string: "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=SepidarDB;UID=didban;PWD=***",
-  },
-  null,
-  2
-)}
+                {JSON.stringify(
+                  {
+                    api_url: "http://localhost:8000",
+                    company_id: company.id,
+                    connection_id: selectedConn?.id || "...",
+                    agent_key: agentKeyData?.agent_key || "dmb_live_...",
+                    source_system: selectedConn?.provider || "sepidar",
+                    sql_connection_string:
+                      "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=SepidarDB;UID=didban;PWD=***",
+                  },
+                  null,
+                  2,
+                )}
               </pre>
             </div>
           </div>
 
           <DialogFooter>
-            <Button size="sm" onClick={() => setAgentKeyOpen(false)} className="text-xs">
+            <Button
+              size="sm"
+              onClick={() => setAgentKeyOpen(false)}
+              className=""
+            >
               بستن
             </Button>
           </DialogFooter>

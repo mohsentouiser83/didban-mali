@@ -106,6 +106,25 @@ class FindingListItemResponse(BaseModel):
 class FindingDetailResponse(BaseModel):
     id: UUID
     fingerprint: str
+    analysis_run_id: UUID | None = None
+    generation_run_id: UUID | None = None
+    finding_code: str
+    kind: str
+    assertion_status: str
+    priority_band: str
+    priority_score: Decimal
+    priority_explanation: dict[str, Any]
+    priority_model_version: str
+    priority_config: dict[str, Any]
+    confidence_score: Decimal
+    confidence_basis: dict[str, Any]
+    affected_amount_irr: Decimal | None
+    affected_ratio: Decimal | None
+    reason_code: str
+    reason_parameters: dict[str, Any]
+    calculation: dict[str, Any]
+    rule_version: str
+    workflow_status: str
     rule_code: str
     category: str
     severity: str
@@ -137,7 +156,7 @@ class FindingDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer("financial_impact_irr")
+    @field_serializer("financial_impact_irr", "priority_score", "confidence_score", "affected_amount_irr", "affected_ratio")
     def serialize_decimal(self, value: Decimal | None) -> str | None:
         return format(value, "f") if value is not None else None
 

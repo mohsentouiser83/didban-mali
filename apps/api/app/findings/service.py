@@ -38,7 +38,6 @@ from app.findings.evidence import (
 )
 from app.findings.models import (
     EvidenceItem,
-    EvidenceType,
     Finding,
     FindingActivity,
     FindingEvidence,
@@ -47,7 +46,6 @@ from app.findings.models import (
     FindingStatus,
     FindingSuppression,
     FindingWorkflowStatus,
-    PriorityBand,
     ResolutionType,
 )
 from app.findings.priority import PriorityConfig, calculate_priority
@@ -255,7 +253,7 @@ async def list_findings(
             "workflow_status": f.workflow_status.value if hasattr(f.workflow_status, "value") else str(f.workflow_status),
             "status": f.status,
             "assigned_to_user_id": f.assigned_to_user_id,
-            "assigned_to_name": user_map.get(f.assigned_to_user_id),
+            "assigned_to_name": user_map.get(f.assigned_to_user_id) if f.assigned_to_user_id else None,
             "due_date": f.due_date,
             "resolution_type": f.resolution_type,
             "is_suppressed": f.is_suppressed,
@@ -707,22 +705,20 @@ async def get_control_overview(
 ) -> dict[str, Any]:
     """Get high-level financial control overview, KPI cards, and reconciliation status."""
     # Finding severity counts
-    counts_by_severity = dict(
-        (await session.execute(
-            select(Finding.severity, func.count(Finding.id))
-            .where(Finding.company_id == company_id, Finding.is_suppressed == False, Finding.status != FindingStatus.DISMISSED)
-            .group_by(Finding.severity)
-        )).all()
-    )
+    severity_rows = (await session.execute(
+        select(Finding.severity, func.count(Finding.id))
+        .where(Finding.company_id == company_id, Finding.is_suppressed.is_(False), Finding.status != FindingStatus.DISMISSED)
+        .group_by(Finding.severity)
+    )).all()
+    counts_by_severity: dict[str, int] = {str(row[0]): int(row[1]) for row in severity_rows}
 
     # Finding status counts
-    counts_by_status = dict(
-        (await session.execute(
-            select(Finding.status, func.count(Finding.id))
-            .where(Finding.company_id == company_id, Finding.is_suppressed == False)
-            .group_by(Finding.status)
-        )).all()
-    )
+    status_rows = (await session.execute(
+        select(Finding.status, func.count(Finding.id))
+        .where(Finding.company_id == company_id, Finding.is_suppressed.is_(False))
+        .group_by(Finding.status)
+    )).all()
+    counts_by_status: dict[str, int] = {str(row[0]): int(row[1]) for row in status_rows}
 
     # Latest reconciliation run
     latest_recon = await session.scalar(
@@ -816,7 +812,7 @@ async def _metric_contexts(
             id=item.id,
             analysis_run_id=item.analysis_run_id,
             metric_code=item.metric_code.value,
-            value_irr=Decimal(item.value_irr),
+            value_irr=Decimal(item.value_irr) if item.value_irr is not None else Decimal(0),
             calculation=item.calculation_json,
         )
         for item in rows

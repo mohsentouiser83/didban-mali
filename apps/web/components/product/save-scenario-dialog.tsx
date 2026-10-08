@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookmarkPlus, Loader2, Star } from "lucide-react";
+import { BookmarkPlus, Loader2, Star } from "@/components/ui/icons";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -58,10 +58,13 @@ export function SaveScenarioDialog({
         parameters,
       };
 
-      const saved = await api<SavedScenarioItem>(`/companies/${companyId}/simulation/scenarios`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const saved = await api<SavedScenarioItem>(
+        `/companies/${companyId}/simulation/scenarios`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+      );
 
       toast.success(`سناریوی «${saved.name}» با موفقیت ذخیره شد.`);
       onScenarioSaved(saved);
@@ -86,14 +89,17 @@ export function SaveScenarioDialog({
               ذخیره سناریوی شبیه‌سازی مالی
             </DialogTitle>
             <DialogDescription className="text-xs">
-              این سناریو به همراه تمام متغیرهای اهرم‌ها و نتایج کش‌شده در پرونده شرکت ذخیره خواهد شد.
+              فرض‌ها و نتایج سناریو ذخیره می‌شوند.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
-              <label htmlFor="scenario-name" className="block text-xs font-semibold mb-1.5">
-                نام سناریو <span className="text-red-500">*</span>
+              <label
+                htmlFor="scenario-name"
+                className="block text-xs font-semibold mb-1.5"
+              >
+                نام سناریو <span className="text-ds-danger">*</span>
               </label>
               <Input
                 id="scenario-name"
@@ -102,12 +108,14 @@ export function SaveScenarioDialog({
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
                 required
-                className="text-xs"
               />
             </div>
 
             <div>
-              <label htmlFor="scenario-desc" className="block text-xs font-semibold mb-1.5">
+              <label
+                htmlFor="scenario-desc"
+                className="block text-xs font-semibold mb-1.5"
+              >
                 توضیحات و اهداف استراتژیک (اختیاری)
               </label>
               <Input
@@ -115,27 +123,31 @@ export function SaveScenarioDialog({
                 placeholder="مثال: سنجش اثر افزایش ۲ نفر و تسریع وصول بر جریان نقد پاییز"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="text-xs"
               />
             </div>
 
             <div className="flex items-center gap-2 pt-1">
-              <button
+              <Button
+                variant="surface"
+                size="auto"
+                motion="none"
                 type="button"
                 onClick={() => setIsFavorite(!isFavorite)}
                 className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
                   isFavorite
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold"
+                    ? "bg-ds-warning/10 border-ds-warning/30 text-ds-warning font-semibold"
                     : "border-[var(--ds-border)] text-[var(--ds-muted-fg)] hover:bg-[var(--ds-muted-bg)]"
                 }`}
               >
                 <Star
                   className={`size-3.5 ${
-                    isFavorite ? "fill-amber-500 text-amber-500" : "text-muted-foreground"
+                    isFavorite
+                      ? "fill-amber-500 text-ds-warning"
+                      : "text-muted-foreground"
                   }`}
                 />
                 <span>افزودن به سناریوهای ستاره‌دار</span>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -146,11 +158,16 @@ export function SaveScenarioDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={saving}
-              className="text-xs"
+              className=""
             >
               انصراف
             </Button>
-            <Button type="submit" size="sm" disabled={saving} className="text-xs gap-1.5">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="gap-1.5"
+            >
               {saving ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { MoneyDisplay, toPersianDigits, toJalaliDate } from "@/components/ui/financial";
 import {
   Sheet,
   SheetContent,
@@ -30,7 +32,7 @@ import {
   Info,
   Layers,
   ShieldCheck,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { RecordLineageDialog } from "./record-lineage-dialog";
 
 export interface MetricEvidenceDrawerProps {
@@ -46,26 +48,26 @@ const STATUS_CONFIG: Record<
 > = {
   available: {
     label: "قطعی و قابل اتکا",
-    bg: "bg-emerald-500/10 border-emerald-500/30",
-    text: "text-emerald-500",
+    bg: "bg-ds-success/10 border-ds-success/30",
+    text: "text-ds-success",
     icon: CheckCircle2,
   },
   available_with_warning: {
     label: "دارای ملاحظات داده‌ای",
-    bg: "bg-amber-500/10 border-amber-500/30",
-    text: "text-amber-500",
+    bg: "bg-ds-warning/10 border-ds-warning/30",
+    text: "text-ds-warning",
     icon: AlertTriangle,
   },
   approximate: {
     label: "تقریبی بر مبنای مدل",
-    bg: "bg-blue-500/10 border-blue-500/30",
-    text: "text-blue-500",
+    bg: "bg-primary/10 border-primary/30",
+    text: "text-primary",
     icon: Info,
   },
   insufficient_data: {
     label: "عدم تکافوی داده اولیه",
-    bg: "bg-purple-500/10 border-purple-500/30",
-    text: "text-purple-400",
+    bg: "bg-primary/10 border-primary/30",
+    text: "text-primary",
     icon: HelpCircle,
   },
   not_applicable: {
@@ -104,7 +106,7 @@ export function MetricEvidenceDrawer({
     setTraceError("");
 
     api<MetricTraceResponse>(
-      `/companies/${companyId}/calculations/metrics/${metric.metric_key}/trace`
+      `/companies/${companyId}/calculations/metrics/${metric.metric_key}/trace`,
     )
       .then((res) => {
         if (!ignore) setTraceData(res);
@@ -112,7 +114,9 @@ export function MetricEvidenceDrawer({
       .catch((err) => {
         if (!ignore) {
           setTraceError(
-            err instanceof Error ? err.message : "خطا در دریافت مسیر داده‌های شاخص"
+            err instanceof Error
+              ? err.message
+              : "خطا در دریافت مسیر داده‌های شاخص",
           );
         }
       })
@@ -120,10 +124,10 @@ export function MetricEvidenceDrawer({
         if (!ignore) setLoadingTrace(false);
       });
 
-  return () => {
-    ignore = true;
-  };
-}, [open, companyId, metric]);
+    return () => {
+      ignore = true;
+    };
+  }, [open, companyId, metric]);
 
   if (!metric) return null;
 
@@ -131,16 +135,15 @@ export function MetricEvidenceDrawer({
   const StatusIcon = st.icon;
   const evidence = metric.evidence;
 
-  const formatValue = (val: number | null, unit: string) => {
-    if (val === null || val === undefined) return "—";
-    if (unit === "irr") {
-      const toman = val / 10;
-      return `${toman.toLocaleString("fa-IR")} تومان`;
+  const formatValue = (val: number | string | null, unit: string) => {
+    if (val == null || !Number.isFinite(Number(val))) return "—";
+    const normalizedUnit = unit.toLowerCase();
+    if (normalizedUnit === "irr" || normalizedUnit === "toman") {
+      return <MoneyDisplay amount={val} currency={normalizedUnit === "irr" ? "ریال" : "تومان"} executive direction="neutral" />;
     }
-    if (unit === "day") return `${val.toLocaleString("fa-IR")} روز`;
-    if (unit === "month") return `${val.toLocaleString("fa-IR")} ماه`;
-    if (unit === "percent" || unit === "ratio") return `${val.toLocaleString("fa-IR")}٪`;
-    return val.toLocaleString("fa-IR");
+    const value = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 }).format(Number(val));
+    const suffix = normalizedUnit === "day" ? "روز" : normalizedUnit === "month" ? "ماه" : normalizedUnit === "percent" ? "٪" : "";
+    return <span><bdi dir="ltr">{value}</bdi> {suffix}</span>;
   };
 
   return (
@@ -148,27 +151,25 @@ export function MetricEvidenceDrawer({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="left"
-          className="w-full sm:max-w-xl lg:max-w-2xl overflow-y-auto p-0 border-e border-border bg-background text-foreground"
+          className="metric-evidence-drawer w-full sm:max-w-xl lg:max-w-2xl overflow-y-auto p-0 border-e border-border bg-background text-foreground"
           dir="rtl"
         >
           {/* Header */}
-          <SheetHeader className="p-6 border-b border-border bg-card sticky top-0 z-10 text-start">
-            <div className="flex items-center justify-between gap-3">
+          <SheetHeader className="p-6 pe-16 border-b border-border bg-card sticky top-0 z-10 text-start">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${st.bg} ${st.text}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold border ${st.bg} ${st.text}`}
               >
                 <StatusIcon className="size-3.5" />
                 <span>{st.label}</span>
               </div>
-              <Badge variant="outline" className="font-mono text-xs">
-                نسخه فرمول: {metric.metric_version}
-              </Badge>
+
             </div>
 
             <SheetTitle className="text-xl font-bold mt-3 text-start">
               {evidence?.title_fa || metric.metric_key}
             </SheetTitle>
-            <SheetDescription className="text-start text-xs text-muted-foreground mt-1">
+            <SheetDescription className="text-start text-sm text-muted-foreground mt-1">
               {evidence?.definition_fa ||
                 "مبتنی بر تراکنش‌ها و اسناد استاندارد شده فاز ۱ بنیاد داده."}
             </SheetDescription>
@@ -176,9 +177,9 @@ export function MetricEvidenceDrawer({
 
           <div className="p-6 space-y-6">
             {/* Metric Value & Coverage Summary */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-2xl border border-border bg-card p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-4">
               <div>
-                <span className="block text-xs text-muted-foreground mb-1">
+                <span className="block text-sm text-muted-foreground mb-1">
                   مقدار محاسبه‌شده:
                 </span>
                 <span className="text-lg font-bold text-foreground">
@@ -186,21 +187,21 @@ export function MetricEvidenceDrawer({
                 </span>
               </div>
               <div>
-                <span className="block text-xs text-muted-foreground mb-1">
+                <span className="block text-sm text-muted-foreground mb-1">
                   پوشش داده‌های ورودی:
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-base font-bold">
-                    {metric.coverage_score}٪
+                    {toPersianDigits(metric.coverage_score)}٪
                   </span>
                   <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full ${
                         metric.coverage_score >= 80
-                          ? "bg-emerald-500"
+                          ? "bg-ds-success"
                           : metric.coverage_score >= 50
-                          ? "bg-amber-500"
-                          : "bg-rose-500"
+                            ? "bg-ds-warning"
+                            : "bg-ds-danger"
                       }`}
                       style={{ width: `${metric.coverage_score}%` }}
                     />
@@ -208,70 +209,82 @@ export function MetricEvidenceDrawer({
                 </div>
               </div>
               <div>
-                <span className="block text-xs text-muted-foreground mb-1">
+                <span className="block text-sm text-muted-foreground mb-1">
                   سطح اطمینان محاسباتی:
                 </span>
                 <Badge
                   variant="secondary"
-                  className="font-medium text-xs text-primary"
+                  className="font-medium text-sm text-primary"
                 >
                   {metric.confidence === "high"
                     ? "بسیار بالا"
                     : metric.confidence === "medium"
-                    ? "متوسط"
-                    : metric.confidence === "low"
-                    ? "پایین"
-                    : "نامشخص"}
+                      ? "متوسط"
+                      : metric.confidence === "low"
+                        ? "پایین"
+                        : "نامشخص"}
                 </Badge>
               </div>
             </div>
 
+            {(metric.unit.toLowerCase() === "irr" || metric.unit.toLowerCase() === "toman") && metric.value_numeric != null && (
+              <details className="text-sm"><summary className="cursor-pointer min-h-11 content-center">مبلغ دقیق به ریال</summary>
+                <MoneyDisplay amount={metric.unit.toLowerCase() === "toman" ? Number(metric.value_numeric) * 10 : metric.value_numeric} currency="ریال" direction="neutral" />
+              </details>
+            )}
+            <p className="text-sm text-muted-foreground">داده تا {toJalaliDate(metric.as_of_date)}</p>
             {/* Formula & Calculation Logic */}
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                 <Calculator className="size-4 text-primary" />
-                <span>فرمول و منطق محاسبه:</span>
+<span>فرمول و منطق محاسبه:</span><Badge variant="outline"><bdi dir="ltr">{metric.metric_version}</bdi></Badge>
               </div>
-              <div className="bg-muted/40 p-3 rounded-xl font-mono text-xs text-foreground dir-ltr text-end break-all">
-                {evidence?.formula_fa || "محاسبه قطعی بر اساس داده‌های مالی پذیرفته‌شده"}
+              <div className="bg-muted/40 p-3 rounded-[var(--ds-card-radius)] font-mono text-sm text-foreground dir-ltr text-end break-all">
+                {evidence?.formula_fa ||
+                  "محاسبه قطعی بر اساس داده‌های مالی پذیرفته‌شده"}
               </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                <span>تعداد اسناد ورودی: {metric.input_record_count}</span>
-                <span>تعداد اسناد مستثنی‌شده: {metric.excluded_record_count}</span>
+              <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
+                <span>تعداد اسناد ورودی: {toPersianDigits(metric.input_record_count)}</span>
+                <span>
+                  تعداد اسناد مستثنی‌شده: {toPersianDigits(metric.excluded_record_count)}
+                </span>
               </div>
             </div>
 
             {/* Warnings & Notes */}
             {metric.warnings && metric.warnings.length > 0 && (
-              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-amber-500">
+              <div className="rounded-[var(--ds-card-radius)] border border-ds-warning/30 bg-ds-warning/5 p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-ds-warning">
                   <AlertCircle className="size-4 shrink-0" />
                   <span>ملاحظات و هشدارهای کیفی:</span>
                 </div>
-                <ul className="space-y-1.5 text-xs text-muted-foreground pe-1">
+                <ul className="space-y-1.5 text-sm text-muted-foreground pe-1">
                   {metric.warnings.map((w, idx) => (
                     <li key={idx} className="flex items-start gap-1.5">
-                      <span className="text-amber-500 shrink-0 font-bold">•</span>
-                      <span>{w}</span>
+                      <span className="text-ds-warning shrink-0 font-bold">
+                        •
+                      </span>
+                      <span>{toPersianDigits(w)}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
+            {metric.warnings?.length > 0 && <Button asChild variant="outline"><Link href={`/companies/${companyId}/data`}>بررسی و تکمیل داده‌های ورودی</Link></Button>}
             {/* Reconciliation Notes */}
             {evidence?.reconciliation_notes &&
               evidence.reconciliation_notes.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                    <ShieldCheck className="size-4 text-emerald-500" />
+                <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <ShieldCheck className="size-4 text-ds-success" />
                     <span>تراز و انطباق‌های ریاضی:</span>
                   </div>
-                  <ul className="space-y-1 text-xs text-muted-foreground">
+                  <ul className="space-y-1 text-sm text-muted-foreground">
                     {evidence.reconciliation_notes.map((note, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-emerald-500 font-bold">✓</span>
-                        <span>{note}</span>
+                        <span className="text-ds-success font-bold">✓</span>
+                        <span>{toPersianDigits(note)}</span>
                       </li>
                     ))}
                   </ul>
@@ -279,27 +292,27 @@ export function MetricEvidenceDrawer({
               )}
 
             {/* Data Lineage & Trace to Phase 1 Canonical Records */}
-            <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+            <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                   <GitBranch className="size-4 text-primary" />
-                  <span>ردگیری رکوردهای منبع (فاز ۱):</span>
+                  <span>رکوردهای منبع:</span>
                 </div>
                 {traceData && (
-                  <span className="text-xs text-muted-foreground">
-                    {traceData.total_records} رکورد منبع
+                  <span className="text-sm text-muted-foreground">
+                    {toPersianDigits(traceData.total_records)} رکورد منبع
                   </span>
                 )}
               </div>
 
               {loadingTrace && (
-                <div className="py-6 text-center text-xs text-muted-foreground">
-                  در حال بارگذاری ردگیری داده‌ها...
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  در حال بارگذاری ردگیری داده‌ها…
                 </div>
               )}
 
               {traceError && (
-                <div className="py-3 text-center text-xs text-destructive">
+                <div className="py-3 text-center text-sm text-destructive">
                   {traceError}
                 </div>
               )}
@@ -309,7 +322,7 @@ export function MetricEvidenceDrawer({
                   {traceData.sample_records.map((rec: MetricTraceRecord) => (
                     <div
                       key={rec.record_id}
-                      className="p-3 rounded-xl border border-border/70 bg-muted/20 flex items-center justify-between gap-3 text-xs"
+                      className="p-3 rounded-[var(--ds-card-radius)] border border-border/70 bg-muted/20 flex items-center justify-between gap-3 text-sm"
                     >
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2">
@@ -319,21 +332,23 @@ export function MetricEvidenceDrawer({
                           {rec.source_file_name && (
                             <Badge
                               variant="secondary"
-                              className="text-[10px] flex items-center gap-1 font-mono"
+                              className="text-xs flex items-center gap-1 font-mono"
                             >
                               <FileSpreadsheet className="size-3" />
                               {rec.source_file_name}
                             </Badge>
                           )}
                         </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-3">
-                          <span>تاریخ: {rec.date}</span>
+                        <div className="text-sm text-muted-foreground flex items-center gap-3">
+                          <span>تاریخ: {toJalaliDate(rec.date)}</span>
                           {rec.source_row_number && (
                             <span>سطر: {rec.source_row_number}</span>
                           )}
                           {rec.amount_irr !== null && (
                             <span className="font-mono">
-                              مبلغ: {(rec.amount_irr / 10).toLocaleString("fa-IR")} تومان
+                              مبلغ:{" "}
+                              {(rec.amount_irr / 10).toLocaleString("fa-IR")}{" "}
+                              تومان
                             </span>
                           )}
                         </div>
@@ -342,7 +357,7 @@ export function MetricEvidenceDrawer({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-8 gap-1 text-[11px] text-primary shrink-0"
+                        className="gap-1 text-sm shrink-0"
                         onClick={() =>
                           setSelectedRecord({
                             entityType: rec.entity_type,
@@ -359,7 +374,7 @@ export function MetricEvidenceDrawer({
               )}
 
               {traceData && traceData.sample_records.length === 0 && (
-                <div className="py-4 text-center text-xs text-muted-foreground">
+                <div className="py-4 text-center text-sm text-muted-foreground">
                   رکوردی در تاریخ مبنا ثبت نشده است.
                 </div>
               )}

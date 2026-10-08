@@ -1,10 +1,22 @@
 import React from "react";
-import { TrendingUp, TrendingDown, Minus, HelpCircle } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  HelpCircle,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { MoneyDisplay, toPersianDigits } from "./money-display";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
-export interface KpiMetricCardProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface KpiMetricCardProps
+  extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   value: number | string | bigint | null | undefined;
   currency?: string;
@@ -24,7 +36,10 @@ export interface KpiMetricCardProps extends React.HTMLAttributes<HTMLDivElement>
   loading?: boolean;
 }
 
-export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps>(
+export const KpiMetricCard = React.forwardRef<
+  HTMLDivElement,
+  KpiMetricCardProps
+>(
   (
     {
       title,
@@ -42,15 +57,15 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
       className,
       ...props
     },
-    ref
+    ref,
   ) => {
     if (loading) {
       return (
         <div
           ref={ref}
           className={cn(
-            "relative flex flex-col justify-between rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] p-5 shadow-sm animate-pulse min-h-[148px]",
-            className
+            "relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-5 shadow-[var(--ds-shadow-sm)] animate-pulse min-h-[148px]",
+            className,
           )}
           {...props}
         >
@@ -70,29 +85,42 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
       <div
         ref={ref}
         className={cn(
-          "group relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-card-border)] bg-[var(--ds-card-bg)] p-5 shadow-[var(--ds-shadow-sm)] transition-all duration-200 hover:shadow-[var(--ds-shadow-md)] hover:border-[var(--ds-border-strong)] hover:-translate-y-0.5",
-          status === "critical" && "border-red-500/30 bg-red-500/[0.02] hover:border-red-500/60",
-          status === "warning" && "border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-500/60",
-          status === "limited" && "border-dashed border-slate-300 dark:border-slate-700 bg-slate-500/[0.02]",
-          className
+          "group relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-card-border)] bg-[var(--ds-card-bg)] p-5 shadow-[var(--ds-shadow-sm)] transition-all duration-300  hover:border-[var(--ds-primary)]/40  cursor-default select-none",
+          status === "critical" &&
+            "border-ds-danger/30 bg-ds-danger/[0.02] hover:border-ds-danger/60",
+          status === "warning" &&
+            "border-ds-warning/30 bg-ds-warning/[0.02] hover:border-ds-warning/60",
+          status === "limited" &&
+            "border-dashed border-slate-300 bg-slate-500/[0.02]",
+          className,
         )}
         {...props}
       >
         {/* Header: Title + Icon / Badge */}
-        <div className="flex items-center justify-between gap-2">
+        <div
+          data-slot="metric-header"
+          className="flex items-center justify-between gap-2"
+        >
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground/85 tracking-tight">{title}</span>
+            <span
+              data-slot="metric-label"
+              className="text-sm font-medium text-foreground/85 tracking-normal transition-colors group-hover:text-foreground"
+            >
+              {title}
+            </span>
             {isLimited && limitedReason && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       type="button"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="text-muted-foreground hover:text-foreground cursor-pointer"
                       aria-label="اطلاعات بیشتر درباره محدودیت شاخص"
                     >
-                      <HelpCircle className="size-3.5" />
-                    </button>
+                      <HelpCircle className="size-3.5 transition-transform duration-200 " />
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs text-xs p-2.5">
                     {limitedReason}
@@ -105,20 +133,26 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
             {badge}
             {Icon && (
               <div
+                data-slot="metric-icon"
                 className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-lg bg-muted/70 text-muted-foreground transition-colors group-hover:text-foreground group-hover:bg-muted",
-                  status === "critical" && "bg-red-500/10 text-red-600 dark:text-red-400",
-                  status === "warning" && "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  "grid size-9 shrink-0 place-items-center rounded-[var(--ds-card-radius)] bg-muted/70 text-muted-foreground transition-all duration-300 group-hover:bg-primary/15 group-hover:text-primary   shadow-2xs",
+                  status === "critical" &&
+                    "bg-ds-danger/10 text-ds-danger group-hover:bg-ds-danger/20 group-hover:text-ds-danger",
+                  status === "warning" &&
+                    "bg-ds-warning/10 text-ds-warning group-hover:bg-ds-warning/20 group-hover:text-ds-warning",
                 )}
               >
-                <Icon className="size-4" />
+                <Icon className="size-4.5 transition-transform duration-300 " />
               </div>
             )}
           </div>
         </div>
 
         {/* Body: Value */}
-        <div className="my-2.5 flex items-baseline gap-2">
+        <div
+          data-slot="metric-value"
+          className="my-2.5 flex items-baseline gap-2"
+        >
           {isLimited && !value ? (
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <span className="text-lg font-bold">غیرقابل‌محاسبه</span>
@@ -133,32 +167,50 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
                 currency={currency}
                 size="2xl"
                 direction="neutral"
-                className="tracking-tight"
+                className="tracking-normal"
               />
-              {unit && <span className="text-xs font-semibold text-muted-foreground">{unit}</span>}
+              {unit && (
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {unit}
+                </span>
+              )}
             </>
           )}
         </div>
 
         {/* Footer: Trend & Subtext & Coverage */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ds-border)]/60 pt-3 text-xs text-muted-foreground">
+        <div
+          data-slot="metric-footer"
+          className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--ds-border)]/60 pt-3 text-xs text-muted-foreground"
+        >
           {trend ? (
             <div
               className={cn(
                 "inline-flex items-center gap-1 font-mono font-bold rounded-md px-1.5 py-0.5 text-[11px] [font-variant-numeric:tabular-nums]",
-                trend.isPositive === true && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                trend.isPositive === false && "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-                trend.isPositive === undefined && "bg-muted text-muted-foreground"
+                trend.isPositive === true && "bg-ds-success/10 text-ds-success",
+                trend.isPositive === false && "bg-ds-danger/10 text-ds-danger",
+                trend.isPositive === undefined &&
+                  "bg-muted text-muted-foreground",
               )}
             >
               {trend.direction === "up" && <TrendingUp className="size-3" />}
-              {trend.direction === "down" && <TrendingDown className="size-3" />}
+              {trend.direction === "down" && (
+                <TrendingDown className="size-3" />
+              )}
               {trend.direction === "neutral" && <Minus className="size-3" />}
-              <span>{typeof trend.value === "number" ? toPersianDigits(trend.value) : trend.value}</span>
-              {trend.label && <span className="font-sans font-normal opacity-85 ms-0.5">{trend.label}</span>}
+              <span>
+                {typeof trend.value === "number"
+                  ? toPersianDigits(trend.value)
+                  : trend.value}
+              </span>
+              {trend.label && (
+                <span className="font-sans font-normal opacity-85 ms-0.5">
+                  {trend.label}
+                </span>
+              )}
             </div>
           ) : subtext ? (
-            <span className="truncate">{subtext}</span>
+            <span className="text-pretty">{subtext}</span>
           ) : (
             <span className="text-muted-foreground/60">—</span>
           )}
@@ -171,7 +223,7 @@ export const KpiMetricCard = React.forwardRef<HTMLDivElement, KpiMetricCardProps
         </div>
       </div>
     );
-  }
+  },
 );
 
 KpiMetricCard.displayName = "KpiMetricCard";

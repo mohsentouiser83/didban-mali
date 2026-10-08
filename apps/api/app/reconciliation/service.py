@@ -182,12 +182,12 @@ async def run_canonical_reconciliation(
     allocated_journal_ids = {a.journal_line_id for p in auto_matched_proposals for a in p.allocations if a.journal_line_id}
 
     unmatched_banks = [b for b in banks if b.id not in allocated_bank_ids]
-    unmatched_ledgers = [l for l in ledgers if l.line_id not in allocated_journal_ids]
+    unmatched_ledgers = [item for item in ledgers if item.line_id not in allocated_journal_ids]
 
     unmatched_bank_count = len(unmatched_banks)
     unmatched_journal_count = len(unmatched_ledgers)
     unmatched_bank_amount_irr = sum((abs(b.amount_irr) for b in unmatched_banks), Decimal(0))
-    unmatched_journal_amount_irr = sum((abs(l.amount_irr) for l in unmatched_ledgers), Decimal(0))
+    unmatched_journal_amount_irr = sum((abs(item.amount_irr) for item in unmatched_ledgers), Decimal(0))
 
     now = datetime.now(UTC)
     min_date = period_start or (min((b.booking_date for b in banks), default=now.date()) if banks else now.date())
@@ -362,7 +362,7 @@ async def manual_reconciliation_match(
         raise ValueError("یک یا چند سطر سند حسابداری انتخاب‌شده یافت نشد.")
 
     total_bank = sum((Decimal(b.amount_irr) for b in bank_txs), Decimal(0))
-    total_journal = sum((Decimal(l.debit_irr) - Decimal(l.credit_irr) for l, _ in journal_lines), Decimal(0))
+    total_journal = sum((Decimal(line.debit_irr) - Decimal(line.credit_irr) for line, _ in journal_lines), Decimal(0))
 
     if total_bank != total_journal:
         raise ValueError(
@@ -441,7 +441,7 @@ async def manual_reconciliation_match(
             )
         )
 
-    for l, _ in journal_lines:
+    for line, _ in journal_lines:
         session.add(
             ReconciliationAllocation(
                 id=uuid7(),
@@ -449,8 +449,8 @@ async def manual_reconciliation_match(
                 match_id=match_id,
                 side="journal",
                 bank_transaction_id=None,
-                journal_line_id=l.id,
-                allocated_amount_irr=Decimal(l.debit_irr) - Decimal(l.credit_irr),
+                journal_line_id=line.id,
+                allocated_amount_irr=Decimal(line.debit_irr) - Decimal(line.credit_irr),
                 created_at=now,
             )
         )

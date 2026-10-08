@@ -1,653 +1,603 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRightLeft,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  ChevronLeft,
-  Clock,
-  Layers,
-  RefreshCcw,
-  Search,
-  ShieldAlert,
-  SlidersHorizontal,
-  Truck,
-  Users,
-  Wallet,
-  X,
-} from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
-
-import { Badge } from "@/components/ui/badge";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Column,
   FinancialDataTable,
-  KpiMetricCard,
   MoneyDisplay,
+  PageHeader,
   RiskBadge,
   toPersianDigits,
 } from "@/components/ui/financial";
-
+import { toJalaliDate } from "@/lib/date-utils";
 import { api } from "@/lib/product-api";
 import type {
   Company,
+  VendorPayableItem,
+  VendorsPayablesResponse,
   PayablesBucketKey,
   PayablesRiskLevel,
   PayablesSummaryResponse,
-  VendorPayableItem,
-  VendorsPayablesResponse,
 } from "@/lib/product-types";
-
-const BUCKET_COLORS: Record<PayablesBucketKey, { bar: string; badge: string; border: string; activeBorder: string }> = {
-  not_due: {
-    bar: "bg-emerald-500",
-    badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
-    border: "border-s-emerald-500",
-    activeBorder: "ring-2 ring-emerald-500/50",
-  },
-  "1_30": {
-    bar: "bg-amber-400",
-    badge: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
-    border: "border-s-amber-400",
-    activeBorder: "ring-2 ring-amber-400/50",
-  },
-  "31_60": {
-    bar: "bg-orange-500",
-    badge: "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/25",
-    border: "border-s-orange-500",
-    activeBorder: "ring-2 ring-orange-500/50",
-  },
-  "61_90": {
-    bar: "bg-rose-500",
-    badge: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/25",
-    border: "border-s-rose-500",
-    activeBorder: "ring-2 ring-rose-500/50",
-  },
-  "90_plus": {
-    bar: "bg-red-600",
-    badge: "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/25",
-    border: "border-s-red-600",
-    activeBorder: "ring-2 ring-red-600/50",
-  },
-  due_date_missing: {
-    bar: "bg-slate-400 dark:bg-slate-500",
-    badge: "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/25",
-    border: "border-s-slate-400",
-    activeBorder: "ring-2 ring-slate-400/50",
-  },
-};
+import { SelectField, SelectOption } from "./select-field";
+import styles from "./receivables.module.css";
 
 const BUCKET_LABELS: Record<PayablesBucketKey, string> = {
-  not_due: "جاری (قبل از سررسید)",
-  "1_30": "۱ تا ۳۰ روز تاخیر پرداخت",
-  "31_60": "۳۱ تا ۶۰ روز تاخیر پرداخت",
-  "61_90": "۶۱ تا ۹۰ روز تاخیر پرداخت",
-  "90_plus": "بیش از ۹۰ روز تاخیر (ریسک توقف تامین)",
-  due_date_missing: "فاقد تاریخ سررسید صریح",
+  not_due: "هنوز سررسید نشده",
+  "1_30": "۱ تا ۳۰ روز",
+  "31_60": "۳۱ تا ۶۰ روز",
+  "61_90": "۶۱ تا ۹۰ روز",
+  "90_plus": "بیش از ۹۰ روز",
+  due_date_missing: "سررسید نامشخص",
 };
+const RISK_LABELS: Record<PayablesRiskLevel, string> = {
+  critical: "بحرانی",
+  high: "بالا",
+  medium: "متوسط",
+  low: "کم",
+};
+const RISK_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+const normalize = (value: string) =>
+  value
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .trim()
+    .toLocaleLowerCase();
+const percent = (value: number) =>
+  toPersianDigits(value.toFixed(1).replace(".", "٫")) + "٪";
 
 export function PayablesWorkspace({ company }: { company: Company }) {
   const [summary, setSummary] = useState<PayablesSummaryResponse | null>(null);
-  const [vendors, setVendors] = useState<VendorPayableItem[]>([]);
+  const [customers, setCustomers] = useState<VendorPayableItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Filters & Search
-  const [riskFilter, setRiskFilter] = useState<"all" | PayablesRiskLevel>("all");
-  const [bucketFilter, setBucketFilter] = useState<"all" | PayablesBucketKey>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Selected vendor for detail drawer
-  const [selectedVendor, setSelectedVendor] = useState<VendorPayableItem | null>(null);
-
-  const loadData = useCallback(
-    async (silent = false) => {
-      if (!silent) setLoading(true);
-      else setRefreshing(true);
-
-      try {
-        const [sumRes, venRes] = await Promise.allSettled([
-          api<PayablesSummaryResponse>(`/companies/${company.id}/payables/summary`),
-          api<VendorsPayablesResponse>(`/companies/${company.id}/payables/vendors`),
-        ]);
-
-        if (sumRes.status === "fulfilled" && sumRes.value && Number(sumRes.value.total_payables_irr) > 0) {
-          setSummary(sumRes.value);
-        } else {
-          setSummary(null);
-        }
-
-        if (venRes.status === "fulfilled" && venRes.value && venRes.value.items?.length > 0) {
-          setVendors(venRes.value.items);
-        } else {
-          setVendors([]);
-        }
-      } catch {
-        setSummary(null);
-        setVendors([]);
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [company.id]
+  const [errors, setErrors] = useState<string[]>([]);
+  const request = useRef(0);
+  const [bucketFilter, setBucketFilter] = useState<"all" | PayablesBucketKey>(
+    "all",
   );
-
+  const [riskFilter, setRiskFilter] = useState<"all" | PayablesRiskLevel>(
+    "all",
+  );
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<VendorPayableItem | null>(null);
+  const loadData = useCallback(
+    async (reset = false) => {
+      const id = ++request.current;
+      setLoading(true);
+      if (reset) {
+        setSummary(null);
+        setCustomers([]);
+        setErrors([]);
+      }
+      const results = await Promise.allSettled([
+        api<PayablesSummaryResponse>(
+          `/companies/${company.id}/payables/summary`,
+        ),
+        api<VendorsPayablesResponse>(
+          `/companies/${company.id}/payables/vendors`,
+        ),
+      ]);
+      if (id !== request.current) return;
+      const [sum, cust] = results;
+      setSummary(sum.status === "fulfilled" ? sum.value : null);
+      setCustomers(cust.status === "fulfilled" ? cust.value.items : []);
+      setErrors(
+        results.flatMap((result, index) =>
+          result.status === "rejected"
+            ? [["خلاصه بدهی‌ها", "فهرست تأمین‌کنندگان"][index]]
+            : [],
+        ),
+      );
+      setLoading(false);
+    },
+    [company.id],
+  );
   useEffect(() => {
-    loadData();
+    setBucketFilter("all");
+    setRiskFilter("all");
+    setSearch("");
+    setSelected(null);
+    void loadData(true);
+    return () => {
+      request.current++;
+    };
   }, [loadData]);
 
-  // Filtered vendors
-  const filteredVendors = useMemo(() => {
-    return vendors.filter((v) => {
-      const matchesRisk = riskFilter === "all" || v.risk_level === riskFilter;
-      const matchesBucket =
-        bucketFilter === "all" ||
-        (Number(v.buckets[bucketFilter]) > 0);
-      const matchesSearch =
-        !searchQuery.trim() ||
-        v.name.includes(searchQuery.trim()) ||
-        (v.national_id && v.national_id.includes(searchQuery.trim()));
-      return matchesRisk && matchesBucket && matchesSearch;
-    });
-  }, [vendors, riskFilter, bucketFilter, searchQuery]);
-
-  // Table Columns
-  const vendorColumns: Column<VendorPayableItem>[] = [
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter(
+        (c) =>
+          (riskFilter === "all" || c.risk_level === riskFilter) &&
+          (bucketFilter === "all" || Number(c.buckets[bucketFilter]) > 0) &&
+          (!normalize(search) ||
+            normalize(c.name + " " + (c.national_id ?? "")).includes(
+              normalize(search),
+            )),
+      ),
+    [customers, bucketFilter, riskFilter, search],
+  );
+  const priorities = useMemo(
+    () =>
+      [...customers]
+        .filter((c) => Number(c.overdue_amount_irr) > 0)
+        .sort(
+          (a, b) =>
+            RISK_ORDER[a.risk_level] - RISK_ORDER[b.risk_level] ||
+            Number(b.overdue_amount_irr) - Number(a.overdue_amount_irr),
+        )
+        .slice(0, 3),
+    [customers],
+  );
+  const resetFilters = () => {
+    setBucketFilter("all");
+    setRiskFilter("all");
+    setSearch("");
+  };
+  const hasFilters =
+    bucketFilter !== "all" || search !== "" || riskFilter !== "all";
+  const customerColumns: Column<VendorPayableItem>[] = [
     {
       key: "name",
-      header: "تامین‌کننده / بستانکار",
-      render: (row) => (
-        <button
-          type="button"
-          onClick={() => setSelectedVendor(row)}
-          className="flex flex-col gap-0.5 text-start hover:text-primary transition-colors focus-visible:outline-none"
+      header: "تأمین‌کننده",
+      render: (c) => (
+        <Button
+          variant="surface"
+          size="auto"
+          motion="none"
+          aria-label={`جزئیات بدهی‌ها ${c.name}`}
+          className={styles.customerName}
+          onClick={() => setSelected(c)}
         >
-          <span className="font-semibold text-xs text-[var(--ds-card-fg)]">{row.name}</span>
-          <span className="text-[11px] text-[var(--ds-muted-fg)]">
-            {row.national_id ? `شناسه: ${toPersianDigits(row.national_id)}` : "بدون شناسه ملی"}
+          <strong>{c.name}</strong>
+          <span>
+            {c.national_id
+              ? `شناسه ${toPersianDigits(c.national_id)}`
+              : "شناسه ثبت نشده"}
           </span>
-        </button>
+        </Button>
       ),
     },
     {
-      key: "risk_level",
-      header: "ریسک تامین",
-      align: "center",
-      render: (row) => <RiskBadge level={row.risk_level} score={row.risk_score} showIcon size="sm" />,
-    },
-    {
-      key: "total_payable_irr",
-      header: "کل مانده بدهی",
+      key: "total",
+      header: "مانده کل",
       numeric: true,
-      align: "left",
-      render: (row) => <MoneyDisplay amount={row.total_payable_irr} compact />,
-    },
-    {
-      key: "overdue_amount_irr",
-      header: "مبلغ سررسید گذشته",
-      numeric: true,
-      align: "left",
-      render: (row) => (
+      render: (c) => (
         <MoneyDisplay
-          amount={row.overdue_amount_irr}
+          direction="neutral"
+          amount={c.total_payable_irr}
           compact
-          direction={Number(row.overdue_amount_irr) > 0 ? "negative" : "neutral"}
+          size="sm"
         />
       ),
     },
     {
-      key: "overdue_ratio",
-      header: "نسبت معوق",
-      align: "center",
-      render: (row) => (
-        <span
-          className={`font-mono text-xs font-medium ${
-            row.overdue_ratio > 0.5 ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-[var(--ds-card-fg)]"
-          }`}
-        >
-          {toPersianDigits((row.overdue_ratio * 100).toFixed(0))}٪
-        </span>
-      ),
-    },
-    {
-      key: "avg_delay_days",
-      header: "میانگین تاخیر",
-      align: "center",
-      render: (row) => (
-        <span className="text-xs text-[var(--ds-muted-fg)]">
-          {row.avg_delay_days > 0 ? `${toPersianDigits(row.avg_delay_days)} روز` : "سررسید نشده"}
-        </span>
-      ),
-    },
-    {
-      key: "share_of_total_payables",
-      header: "سهم از کل",
-      align: "center",
-      render: (row) => (
-        <span className="font-mono text-xs text-[var(--ds-muted-fg)]">
-          {toPersianDigits(row.share_of_total_payables.toFixed(1))}٪
-        </span>
-      ),
-    },
-    {
-      key: "recommended_action",
-      header: "اقدام پیشنهادی مدیریت خرید و خزانه",
-      render: (row) => (
-        <span
-          className="text-xs text-[var(--ds-muted-fg)] line-clamp-1 max-w-[280px]"
-          title={row.recommended_action}
-        >
-          {row.recommended_action}
-        </span>
-      ),
-    },
-    {
-      key: "actions",
-      header: "",
-      align: "center",
-      render: (row) => (
-        <Button
-          variant="ghost"
+      key: "overdue",
+      header: "مانده معوق",
+      numeric: true,
+      render: (c) => (
+        <MoneyDisplay
+          direction="neutral"
+          amount={c.overdue_amount_irr}
+          compact
           size="sm"
-          onClick={() => setSelectedVendor(row)}
-          className="h-7 text-xs px-2 text-primary hover:text-primary"
-        >
-          جزئیات
+        />
+      ),
+    },
+    {
+      key: "delay",
+      header: "میانگین تأخیر",
+      render: (c) => `${toPersianDigits(c.avg_delay_days)} روز`,
+    },
+    {
+      key: "risk",
+      header: "ریسک تأمین",
+      render: (c) => <RiskBadge level={c.risk_level} size="sm" />,
+    },
+    {
+      key: "share",
+      header: "سهم از کل بدهی‌ها",
+      render: (c) => percent(c.share_of_total_payables),
+    },
+    {
+      key: "action",
+      header: "بررسی",
+      render: (c) => (
+        <Button variant="ghost" size="sm" onClick={() => setSelected(c)}>
+          جزئیات تعهد
         </Button>
       ),
     },
   ];
 
-  if (loading && !summary) {
-    return (
-      <div className="space-y-6 animate-pulse" dir="rtl">
-        <div className="h-10 bg-muted/60 rounded-xl w-64" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-          <div className="h-28 bg-muted/60 rounded-xl" />
-        </div>
-        <div className="h-64 bg-muted/60 rounded-xl" />
-      </div>
-    );
-  }
-
-  if (!summary) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--ds-border)] bg-[var(--ds-card)] p-12 text-center space-y-4 min-h-[360px]" dir="rtl">
-        <div className="grid size-14 place-items-center rounded-2xl bg-muted text-muted-foreground">
-          <Truck className="size-7 text-primary" />
-        </div>
-        <div className="max-w-md space-y-1">
-          <h3 className="text-base font-bold text-foreground">هنوز داده‌های بدهی‌های تجاری ثبت نشده است</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            برای ارزیابی سررسید تعهدات و ریسک تامین، ابتدا باید صورت‌های مالی یا تراز معین بستانکاران را بارگذاری نمایید.
-          </p>
-        </div>
-        <Link href={`/companies/${company.id}/imports`}>
-          <Button className="gap-2 text-xs">
-            بارگذاری اطلاعات مالی
-            <ChevronLeft className="size-4" />
-          </Button>
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 pb-12" dir="rtl">
-      {/* Sub-header Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1 border-b border-[var(--ds-border)]/60">
-        <div>
-          <h2 className="text-sm font-semibold text-[var(--ds-card-fg)]">
-            تحلیل سنی و مدیریت بدهی‌های تجاری
-          </h2>
-          <p className="text-xs text-[var(--ds-muted-fg)]">
-            پایش سررسید تعهدات، مدیریت ارتباط با تامین‌کنندگان و بهینه‌سازی دوره پرداخت (DPO)
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {summary?.as_of_date && (
-            <div className="flex items-center gap-1.5 text-xs text-[var(--ds-muted-fg)] bg-[var(--ds-muted-bg)] px-2.5 py-1 rounded-lg border border-[var(--ds-border)]">
-              <Calendar className="size-3 text-primary" />
-              <span>مبنای داده‌ها:</span>
-              <span className="font-medium text-[var(--ds-card-fg)]">{toPersianDigits(summary.as_of_date)}</span>
-            </div>
-          )}
-
+    <div className={styles.page} dir="rtl">
+      <PageHeader
+        title="بدهی‌ها، با دیدِ زمان پرداخت"
+        description="تعهدات سررسیدشده و آتی را ببینید و اولویت پرداخت به تأمین‌کنندگان را بررسی کنید."
+        statusMetadata={
+          summary ? (
+            <span>مبنای داده‌ها: {toJalaliDate(summary.as_of_date)}</span>
+          ) : undefined
+        }
+        secondaryActions={
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => loadData(true)}
-            disabled={refreshing}
-            className="h-8 text-xs gap-1.5"
+            disabled={loading}
+            onClick={() => loadData()}
           >
-            <RefreshCcw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span>بروزرسانی</span>
+            {loading ? "در حال دریافت…" : "به‌روزرسانی"}
+          </Button>
+        }
+        primaryAction={
+          <Button asChild>
+            <Link href={`/companies/${company.id}/data`}>بررسی داده‌ها</Link>
+          </Button>
+        }
+      />
+      {errors.length > 0 && (
+        <div role="alert" className={styles.error}>
+          <strong>دریافت بخشی از اطلاعات انجام نشد.</strong>
+          <p>{errors.join("، ")} در دسترس نیست. دوباره تلاش کنید.</p>
+          <Button
+            variant="outline"
+            disabled={loading}
+            onClick={() => loadData()}
+          >
+            تلاش مجدد
           </Button>
         </div>
-      </div>
-
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiMetricCard
-          title="کل بدهی‌های تجاری"
-          value={summary?.total_payables_irr ?? 0}
-          loading={loading}
-          subtext={`${toPersianDigits(summary?.vendor_count ?? 0)} تامین‌کننده و بستانکار فعال`}
-          icon={Truck}
-        />
-        <KpiMetricCard
-          title="بدهی‌های معوق سررسیدشده"
-          value={summary?.total_overdue_irr ?? 0}
-          loading={loading}
-          status={Number(summary?.total_overdue_irr ?? 0) > 0 ? "warning" : "normal"}
-          subtext={`${toPersianDigits(summary?.high_risk_vendor_count ?? 0)} تامین‌کننده در آستانه توقف خدمات`}
-          icon={ShieldAlert}
-        />
-        <KpiMetricCard
-          title="دوره پرداخت بدهی‌ها (DPO)"
-          value={`${toPersianDigits(summary?.dpo_days ?? 0)} روز`}
-          unit=""
-          currency=""
-          loading={loading}
-          subtext="میانگین زمان تسویه حساب با تامین‌کنندگان"
-          icon={Clock}
-        />
-        <KpiMetricCard
-          title="فاصله وصول تا پرداخت (شکاف نقد)"
-          value={`${toPersianDigits(summary?.ccc_days ?? 0)} روز`}
-          unit=""
-          currency=""
-          loading={loading}
-          status={(summary?.ccc_days ?? 0) > 30 ? "warning" : "normal"}
-          subtext={`DSO (${toPersianDigits(summary?.dso_days ?? 0)}) − DPO (${toPersianDigits(summary?.dpo_days ?? 0)}) | نیازمند DIO برای CCC قطعی`}
-          icon={ArrowRightLeft}
-        />
-      </div>
-
-      {/* Working Capital Insights Banner */}
-      <div className="rounded-xl border border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs border-s-4 border-s-primary p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <ArrowRightLeft className="size-5 text-primary shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-xs text-[var(--ds-card-fg)]">
-                  ارزیابی فاصله وصول تا پرداخت (تقریب بدون موجودی کالا):
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/25 font-medium">
-                  فاصله: {toPersianDigits(summary?.ccc_days ?? 0)} روز
-                </span>
-              </div>
-              <p className="text-xs text-[var(--ds-muted-fg)] leading-relaxed">
-                {(summary?.ccc_days ?? 0) > 0
-                  ? `شرکت به طور متوسط ${toPersianDigits(summary?.ccc_days ?? 0)} روز بین پرداخت به تامین‌کنندگان و وصول وجه از مشتریان، شکاف نقدینگی دارد و نیازمند نقدینگی در گردش است.`
-                  : "شرکت دوره پرداخت طولانی‌تری نسبت به دوره وصول دارد؛ یعنی بخشی از سرمایه در گردش شرکت عملاً توسط تامین‌کنندگان تامین مالی می‌شود."}
-              </p>
-            </div>
-          </div>
+      )}
+      {loading && !summary ? (
+        <div
+          role="status"
+          aria-label="در حال دریافت بدهی‌ها"
+          className={styles.loading}
+        >
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-80 w-full" />
         </div>
-      </div>
-
-      {/* Interactive Aging Schedule Card */}
-      <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] shadow-xs">
-        <CardHeader className="p-4 pb-3 border-b border-[var(--ds-border)]/70">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="size-4 text-primary" />
-                <span>ماتریس تحلیل سنی بدهی‌ها (Aging Breakdown)</span>
-              </CardTitle>
-              <p className="text-xs text-[var(--ds-muted-fg)] mt-0.5">
-                برای مشاهده و فیلتر تامین‌کنندگان هر طبقه، روی کارت مربوطه کلیک کنید
-              </p>
-            </div>
-            {bucketFilter !== "all" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setBucketFilter("all")}
-                className="h-7 text-xs text-primary gap-1"
-              >
-                <span>حذف فیلتر سنی</span>
-                <X className="size-3.5" />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 space-y-4">
-          {/* Proportion Bar */}
-          <div className="h-3 w-full rounded-full bg-[var(--ds-muted-bg)] overflow-hidden flex">
-            {summary?.buckets.map((b) => {
-              if (b.share_percentage <= 0) return null;
-              return (
-                <div
-                  key={b.bucket_key}
-                  style={{ width: `${b.share_percentage}%` }}
-                  className={`${BUCKET_COLORS[b.bucket_key].bar} transition-all duration-300 hover:opacity-80`}
-                  title={`${b.label_fa}: ${toPersianDigits(b.share_percentage.toFixed(1))}٪`}
+      ) : (
+        summary && (
+          <>
+            <section className={styles.metrics} aria-label="موقعیت بدهی‌ها">
+              <div>
+                <h2>کل بدهی‌ها</h2>
+                <MoneyDisplay
+                  direction="neutral"
+                  amount={summary.total_payables_irr}
+                  executive
+                  size="2xl"
                 />
-              );
-            })}
-          </div>
-
-          {/* 5 Clickable Bucket Metric Blocks */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {summary?.buckets.map((b) => {
-              const conf = BUCKET_COLORS[b.bucket_key];
-              const isSelected = bucketFilter === b.bucket_key;
-              return (
-                <button
-                  key={b.bucket_key}
-                  type="button"
-                  onClick={() => setBucketFilter(isSelected ? "all" : b.bucket_key)}
-                  className={`p-3 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card-bg)] border-s-4 ${conf.border} text-start flex flex-col justify-between gap-2 transition-all hover:shadow-xs focus-visible:outline-none ${
-                    isSelected ? conf.activeBorder : ""
-                  }`}
-                >
+                <p>
+                  {toPersianDigits(summary.vendor_count)} تأمین‌کننده دارای
+                  مانده
+                </p>
+              </div>
+              <div>
+                <h2>مانده سررسید گذشته</h2>
+                <MoneyDisplay
+                  direction="neutral"
+                  amount={summary.total_overdue_irr}
+                  executive
+                  size="2xl"
+                />
+                <p>{percent(summary.overdue_ratio * 100)} از کل بدهی‌ها</p>
+              </div>
+              <div>
+                <h2>دوره پرداخت بدهی‌ها</h2>
+                <strong>
+                  {toPersianDigits(summary.dpo_days)} <small>روز</small>
+                </strong>
+                <p>برآورد بر اساس خرید اعتباری</p>
+              </div>
+              <div>
+                <h2>تأمین‌کنندگان با ریسک بالا</h2>
+                <strong>
+                  {toPersianDigits(summary.high_risk_vendor_count)}{" "}
+                  <small>تأمین‌کننده</small>
+                </strong>
+              </div>
+            </section>
+            <div className={styles.recommendation}>
+              <strong>
+                فاصله وصول تا پرداخت: {toPersianDigits(summary.ccc_days)} روز
+              </strong>
+              <p>
+                دوره وصول {toPersianDigits(summary.dso_days)} روز و دوره پرداخت{" "}
+                {toPersianDigits(summary.dpo_days)} روز است. این فاصله بدون دوره
+                گردش موجودی کالا محاسبه شده و چرخه کامل تبدیل نقد نیست.
+              </p>
+            </div>
+            <section
+              className={styles.analysis}
+              aria-labelledby="payable-aging-title"
+            >
+              <div className={styles.aging}>
+                <div className={styles.sectionHeader}>
                   <div>
-                    <span className="text-xs font-medium text-[var(--ds-muted-fg)] block">
-                      {b.label_fa}
-                    </span>
-                    <div className="mt-1 font-semibold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                      <MoneyDisplay amount={b.amount_irr} compact />
-                    </div>
+                    <h2 id="payable-aging-title">زمان‌بندی تعهدات پرداخت</h2>
+                    <p>هر بازه را انتخاب کنید تا فهرست پایین صفحه محدود شود.</p>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[var(--ds-border)]/60 text-[var(--ds-muted-fg)]">
-                    <span>{toPersianDigits(b.vendor_count)} تامین‌کننده</span>
-                    <span className="font-semibold text-[var(--ds-card-fg)] tabular-nums">
-                      {toPersianDigits(b.share_percentage.toFixed(1))}٪
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Vendors Table Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Risk Filter Chips */}
-          <div className="flex items-center gap-1.5 flex-wrap text-xs">
-            <span className="text-[var(--ds-muted-fg)] ml-1 font-medium">ریسک تامین:</span>
-            <Button
-              variant={riskFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("all")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              همه ({toPersianDigits(vendors.length)})
-            </Button>
-            <Button
-              variant={riskFilter === "critical" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("critical")}
-              className={`h-6 text-xs px-2.5 rounded-full ${
-                riskFilter !== "critical" ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30" : ""
-              }`}
-            >
-              بحرانی ({toPersianDigits(vendors.filter((v) => v.risk_level === "critical").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "high" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("high")}
-              className={`h-6 text-xs px-2.5 rounded-full ${
-                riskFilter !== "high" ? "text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30" : ""
-              }`}
-            >
-              بالا ({toPersianDigits(vendors.filter((v) => v.risk_level === "high").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "medium" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("medium")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              متوسط ({toPersianDigits(vendors.filter((v) => v.risk_level === "medium").length)})
-            </Button>
-            <Button
-              variant={riskFilter === "low" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setRiskFilter("low")}
-              className="h-6 text-xs px-2.5 rounded-full"
-            >
-              کم‌ریسک ({toPersianDigits(vendors.filter((v) => v.risk_level === "low").length)})
-            </Button>
-          </div>
-
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[var(--ds-muted-fg)]" />
-            <Input
-              placeholder="جستجوی تامین‌کننده..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-8 text-xs h-8 bg-[var(--ds-card)]"
-            />
-          </div>
-        </div>
-
-        {/* Vendors Table */}
-        <Card className="border-[var(--ds-border)] bg-[var(--ds-card)] overflow-hidden shadow-xs">
-          <FinancialDataTable
-            data={filteredVendors}
-            columns={vendorColumns}
-            keyExtractor={(row) => row.counterparty_id}
-            density="compact"
-            emptyMessage="هیچ تامین‌کننده‌ای با معیارهای جستجو یافت نشد."
-          />
-        </Card>
-      </div>
-
-      {/* Vendor Aging Drawer / Detail Dialog */}
-      {selectedVendor && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl border-[var(--ds-border)] bg-[var(--ds-card)] shadow-2xl animate-in fade-in-50 zoom-in-95">
-            <CardHeader className="flex flex-row items-start justify-between pb-3 border-b border-[var(--ds-border)]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-base font-bold text-[var(--ds-card-fg)]">{selectedVendor.name}</CardTitle>
-                  <RiskBadge level={selectedVendor.risk_level} score={selectedVendor.risk_score} size="sm" />
+                  {bucketFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setBucketFilter("all")}
+                    >
+                      همه بازه‌ها
+                    </Button>
+                  )}
                 </div>
-                <CardDescription className="text-xs mt-1">
-                  شناسه ملی: {toPersianDigits(selectedVendor.national_id ?? "—")} | سهم از کل بستانکاران:{" "}
-                  {toPersianDigits(selectedVendor.share_of_total_payables.toFixed(1))}٪
-                </CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full"
-                onClick={() => setSelectedVendor(null)}
-              >
-                <X className="size-4" />
-              </Button>
-            </CardHeader>
-
-            <CardContent className="space-y-4 pt-4">
-              {/* Financial Balance Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)]">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">کل مانده بدهی به تامین‌کننده</span>
-                  <div className="mt-1 font-bold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                    <MoneyDisplay amount={selectedVendor.total_payable_irr} />
-                  </div>
+                <div className={styles.proportion} aria-hidden="true">
+                  {summary.buckets
+                    .filter((b) => b.share_percentage > 0)
+                    .map((b) => (
+                      <span
+                        key={b.bucket_key}
+                        data-bucket={b.bucket_key}
+                        style={{ flexGrow: Math.max(0, b.share_percentage) }}
+                      />
+                    ))}
                 </div>
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)]">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">مبلغ معوق سررسیدشده</span>
-                  <div className="mt-1 font-bold text-sm text-rose-600 dark:text-rose-400 tabular-nums">
-                    <MoneyDisplay amount={selectedVendor.overdue_amount_irr} />
-                  </div>
+                <div className={styles.buckets}>
+                  {summary.buckets.map((b) => (
+                    <Button
+                      variant="surface"
+                      size="auto"
+                      motion="none"
+                      key={b.bucket_key}
+                      className={styles.bucket}
+                      data-bucket={b.bucket_key}
+                      aria-pressed={bucketFilter === b.bucket_key}
+                      onClick={() =>
+                        setBucketFilter(
+                          bucketFilter === b.bucket_key ? "all" : b.bucket_key,
+                        )
+                      }
+                    >
+                      <span>{BUCKET_LABELS[b.bucket_key]}</span>
+                      <MoneyDisplay
+                        direction="neutral"
+                        amount={b.amount_irr}
+                        compact
+                        size="md"
+                      />
+                      <small>
+                        {toPersianDigits(b.vendor_count)} تأمین‌کننده{" "}
+                        <span>{percent(b.share_percentage)}</span>
+                      </small>
+                    </Button>
+                  ))}
                 </div>
-                <div className="p-3 rounded-lg bg-[var(--ds-muted-bg)]/50 border border-[var(--ds-border)] col-span-2 sm:col-span-1">
-                  <span className="text-xs text-[var(--ds-muted-fg)] block">میانگین تاخیر پرداخت</span>
-                  <div className="mt-1 font-bold text-sm text-[var(--ds-card-fg)] tabular-nums">
-                    {toPersianDigits(selectedVendor.avg_delay_days)} روز
-                  </div>
-                </div>
-              </div>
-
-              {/* Bucket Breakdown for this Vendor */}
-              <div>
-                <h4 className="text-xs font-semibold text-[var(--ds-card-fg)] mb-2 flex items-center gap-1.5">
-                  <Layers className="size-3.5 text-primary" />
-                  <span>سبد بازه سنی بدهی این تامین‌کننده</span>
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                  {(Object.keys(BUCKET_LABELS) as PayablesBucketKey[]).map((key) => {
-                    const amount = selectedVendor.buckets[key] ?? "0";
-                    const conf = BUCKET_COLORS[key];
-                    return (
-                      <div
-                        key={key}
-                        className={`p-2.5 rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card-bg)] border-s-2 ${conf.border}`}
-                      >
-                        <span className="text-[11px] text-[var(--ds-muted-fg)] block">{BUCKET_LABELS[key]}</span>
-                        <div className="mt-1 font-semibold text-xs tabular-nums">
-                          <MoneyDisplay amount={amount} compact />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Recommended Action Callout */}
-              <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
-                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-0.5 text-xs">
-                  <span className="font-semibold text-amber-800 dark:text-amber-300">
-                    اقدام پیشنهادی مدیریت خرید و خزانه‌داری:
-                  </span>
-                  <p className="text-amber-900/90 dark:text-amber-200/90 leading-relaxed">
-                    {selectedVendor.recommended_action}
+                {summary.buckets.some(
+                  (b) =>
+                    b.bucket_key === "due_date_missing" &&
+                    Number(b.amount_irr) > 0,
+                ) && (
+                  <p className={styles.footnote}>
+                    مانده‌های بدون تاریخ سررسید، معوق محسوب نشده‌اند؛ برای تحلیل
+                    دقیق‌تر، تاریخ آن‌ها را تکمیل کنید.
                   </p>
-                </div>
+                )}
               </div>
-
-              <div className="flex justify-end pt-2">
-                <Button variant="default" size="sm" onClick={() => setSelectedVendor(null)} className="text-xs h-8">
-                  بستن
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <aside
+                className={styles.priorities}
+                aria-labelledby="payable-priority-title"
+              >
+                <h2 id="payable-priority-title">اولویت بررسی پرداخت</h2>
+                <p>بر اساس ریسک و مانده معوق</p>
+                {errors.includes("فهرست تأمین‌کنندگان") ? (
+                  <p>فهرست تأمین‌کنندگان در دسترس نیست.</p>
+                ) : priorities.length === 0 ? (
+                  <p className={styles.priorityEmpty}>
+                    تأمین‌کننده با مانده معوق در داده‌های فعلی ثبت نشده است.
+                  </p>
+                ) : (
+                  <ol>
+                    {priorities.map((c) => (
+                      <li key={c.counterparty_id}>
+                        <Button
+                          variant="surface"
+                          size="auto"
+                          motion="none"
+                          onClick={() => setSelected(c)}
+                        >
+                          <strong>{c.name}</strong>
+                          <MoneyDisplay
+                            direction="neutral"
+                            amount={c.overdue_amount_irr}
+                            compact
+                            size="sm"
+                          />
+                        </Button>
+                        <div>
+                          <RiskBadge level={c.risk_level} size="sm" />
+                          <span>
+                            {toPersianDigits(c.avg_delay_days)} روز تأخیر
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </aside>
+            </section>
+          </>
+        )
+      )}
+      {!loading && !summary && errors.length === 0 && (
+        <div className={styles.empty}>
+          <h2>خلاصه بدهی‌ها در دسترس نیست</h2>
+          <p>داده‌های خرید و پرداخت‌ها را در مرکز داده بررسی کنید.</p>
+          <Button asChild>
+            <Link href={`/companies/${company.id}/data`}>بررسی داده‌ها</Link>
+          </Button>
         </div>
       )}
+      {(!loading || summary) && (
+        <section className={styles.records} aria-label="جزئیات بدهی‌ها">
+          <div className={styles.sectionHeader}>
+            <div>
+              <h2>تعهدات به تأمین‌کنندگان</h2>
+              <p>مانده، سررسید و سهم هر تأمین‌کننده از کل بدهی‌ها</p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href={`/companies/${company.id}/cashflow`}>
+                بررسی توان پرداخت
+              </Link>
+            </Button>
+          </div>
+          <div className={styles.filters}>
+            <label className={styles.search}>
+              <span>جستجوی تأمین‌کننده یا شناسه</span>
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="نام یا شناسه تأمین‌کننده"
+              />
+            </label>
+            <label className={styles.riskFilter}>
+              <span>ریسک تأمین</span>
+              <SelectField
+                value={riskFilter}
+                onValueChange={(v) => setRiskFilter(v as typeof riskFilter)}
+                aria-label="ریسک تأمین"
+              >
+                <SelectOption value="all">همه ریسک‌ها</SelectOption>
+                {Object.entries(RISK_LABELS).map(([key, label]) => (
+                  <SelectOption value={key} key={key}>
+                    {label}
+                  </SelectOption>
+                ))}
+              </SelectField>
+            </label>
+            <div className={styles.filterSummary}>
+              <span>
+                {toPersianDigits(filteredCustomers.length)} نتیجه
+                {bucketFilter !== "all"
+                  ? ` در بازه ${BUCKET_LABELS[bucketFilter]}`
+                  : ""}
+              </span>
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  پاک‌کردن فیلترها
+                </Button>
+              )}
+            </div>
+          </div>
+          {errors.includes("فهرست تأمین‌کنندگان") ? (
+            <p role="status">
+              فهرست تأمین‌کنندگان دریافت نشده است؛ دوباره تلاش کنید.
+            </p>
+          ) : (
+            <FinancialDataTable
+              tableAriaLabel="بدهی به تأمین‌کنندگان"
+              data={filteredCustomers}
+              columns={customerColumns}
+              keyExtractor={(c) => c.counterparty_id}
+              density="normal"
+              emptyMessage={
+                hasFilters
+                  ? "تأمین‌کننده مطابق این فیلترها پیدا نشد؛ فیلترها را پاک کنید."
+                  : "تأمین‌کننده دارای مانده در داده‌های فعلی ثبت نشده است."
+              }
+            />
+          )}
+        </section>
+      )}
+      <p className={styles.footnote}>
+        ارزیابی ریسک بر اساس سوابق ثبت‌شده است. پیش از پیگیری، پرداخت‌های جدید و
+        صحت مانده حساب را بررسی کنید.
+      </p>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(open) => !open && setSelected(null)}
+      >
+        <DialogContent className={styles.detailDialog} dir="rtl">
+          <DialogHeader>
+            <DialogTitle>{selected?.name}</DialogTitle>
+            <DialogDescription>
+              جزئیات مانده و پیشنهاد پیگیری بر اساس داده‌های فعلی
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <>
+              <div className={styles.detailStatus}>
+                <RiskBadge
+                  level={selected.risk_level}
+                  score={selected.risk_score}
+                  size="sm"
+                />
+                <span>
+                  {percent(selected.share_of_total_payables)} از کل بدهی‌ها
+                </span>
+                <span>
+                  {toPersianDigits(selected.avg_delay_days)} روز میانگین تأخیر
+                </span>
+              </div>
+              <dl className={styles.balances}>
+                <div>
+                  <dt>کل مانده</dt>
+                  <dd>
+                    <MoneyDisplay
+                      direction="neutral"
+                      amount={selected.total_payable_irr}
+                      executive
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt>مانده معوق</dt>
+                  <dd>
+                    <MoneyDisplay
+                      direction="neutral"
+                      amount={selected.overdue_amount_irr}
+                      executive
+                    />
+                  </dd>
+                </div>
+              </dl>
+              <dl className={styles.detailBuckets}>
+                {Object.entries(BUCKET_LABELS).map(([key, label]) => (
+                  <div key={key}>
+                    <dt>{label}</dt>
+                    <dd>
+                      <MoneyDisplay
+                        direction="neutral"
+                        amount={selected.buckets[key as PayablesBucketKey]}
+                        compact
+                        size="sm"
+                      />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <div className={styles.recommendation}>
+                <strong>پیشنهاد پیگیری</strong>
+                <p>{selected.recommended_action}</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelected(null)}>
+                  بستن
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

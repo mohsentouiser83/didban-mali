@@ -1,18 +1,14 @@
-from datetime import datetime, timezone
-import uuid
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, select
 
-from sqlalchemy import select, delete
-from app.core.database import async_session_factory
-from app.core.tenant import set_request_user, set_request_company
 from app.companies.models import Company, CompanyAccess
+from app.core.database import async_session_factory
+from app.core.tenant import set_request_company, set_request_user
 from app.identity.models import User
-from app.integrations.models import ConnectionStatus, IntegrationConnection, IntegrationSyncJob, SyncJobType
+from app.integrations.models import ConnectionStatus, IntegrationConnection
 from app.integrations.schemas import (
-    AgentSyncPushRequest,
     AgentRecordItem,
+    AgentSyncPushRequest,
     IntegrationConnectionCreate,
 )
 
