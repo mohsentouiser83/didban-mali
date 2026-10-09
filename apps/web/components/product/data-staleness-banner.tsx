@@ -43,7 +43,7 @@ export function DataStalenessBanner({
         variant="outline"
         className="gap-1.5 border-ds-warning/30 hover:bg-ds-warning/20 text-ds-warning"
       >
-        <Link href={`/companies/${companyId}/data`}>
+        <Link href={`/companies/${companyId}/data/connections`}>
           <RefreshCw className="h-3.5 w-3.5" />
           <span>به‌روزرسانی داده‌ها</span>
         </Link>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   AlertCircle,
   AlertTriangle,
@@ -12,7 +11,6 @@ import {
   Check,
   ExternalLink,
   FileCheck2,
-  FileSpreadsheet,
   HardDrive,
   Key,
   Landmark,
@@ -273,20 +271,12 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
             افزودن اتصال جدید
           </Button>
         }
-        secondaryActions={
-          <Button asChild size="sm" variant="outline" className="gap-1.5">
-            <Link href={`/companies/${company.id}/data`}>
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              بارگذاری دستی اکسل (پشتیبان)
-            </Link>
-          </Button>
-        }
       />
 
       {/* Observability Banner */}
       <div className="pp-metric-strip pp-metric-strip-three grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-ds-success/10 text-ds-success shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-ds-success shrink-0">
             <CheckCircle2 className="h-4 w-4" />
           </div>
           <div>
@@ -303,7 +293,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
         </div>
 
         <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-primary shrink-0">
             <RefreshCw className="h-4 w-4" />
           </div>
           <div>
@@ -323,7 +313,7 @@ export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
         </div>
 
         <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-primary shrink-0">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>

@@ -34,24 +34,14 @@ def main() -> None:
         expect(page).to_have_url(re.compile(r"/companies/.+/overview$"), timeout=15_000)
 
         routes = [
-            ("overview", "داشبورد مالی"),
-            ("imports", "ورود داده‌های مالی"),
-            ("analysis", "تحلیل مالی"),
-            ("reconciliation", "تطبیق حساب‌ها"),
-            ("findings", "یافته‌ها"),
-            ("reports", "گزارش‌های مالی"),
-            ("assistant", "دستیار کنترل‌شده"),
-            ("readiness", "آمادگی و پذیرش"),
+            ("overview", "داشبورد"),
+            ("reports/analysis", "صورت‌های مالی، با ردِ محاسبه"),
+            ("reconciliation", "بانک و دفاتر، در کنار هم"),
+            ("findings", "بررسی و پیگیری"),
+            ("reports", "گزارش‌ها"),
         ]
         for path, heading in routes:
             open_workspace(page, path, heading)
-
-        expect(page.get_by_text("مسیر دمو از ابتدا تا گزارش آماده است")).to_be_visible()
-        expect(page.get_by_text("۱۵/۱۵")).to_be_visible()
-        expect(page.get_by_text("زیرساخت پاسخ‌گو است")).to_be_visible()
-        for label in ("حسابداری", "بانک", "فروش"):
-            expect(page.get_by_text(label, exact=True).first).to_be_visible()
-        expect(page.get_by_text("admin / admin", exact=True)).to_be_visible()
 
         page.emulate_media(color_scheme="dark")
         page.evaluate("localStorage.setItem('theme', 'dark')")
@@ -60,11 +50,9 @@ def main() -> None:
         assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "light"
         expect(page.get_by_role("button", name="فعال‌کردن تم تاریک")).to_have_count(0)
         assert page.evaluate("localStorage.getItem('theme')") is None
-        expect(page.get_by_text("۱۵/۱۵")).to_be_visible()
 
         page.set_viewport_size({"width": 390, "height": 844})
         page.reload(wait_until="networkidle")
-        expect(page.get_by_text("مسیر دمو از ابتدا تا گزارش آماده است")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")
 
         browser.close()
@@ -73,7 +61,7 @@ def main() -> None:
     critical_console_errors = [item for item in console_errors if not any(token in item.lower() for token in ignored)]
     assert not page_errors, f"Page errors: {page_errors}"
     assert not critical_console_errors, f"Console errors: {critical_console_errors}"
-    print("MVP browser acceptance passed: 9 routes, light-only appearance with legacy preference cleanup, mobile layout, 0 critical errors")
+    print("MVP browser acceptance passed: 5 routes, light-only appearance with legacy preference cleanup, mobile layout, 0 critical errors")
 
 
 if __name__ == "__main__":

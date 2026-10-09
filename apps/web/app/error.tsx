@@ -26,7 +26,7 @@ export default function ErrorBoundary({
       dir="rtl"
       className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center text-foreground"
     >
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)] bg-ds-warning/10 text-ds-warning mb-6 shadow-[var(--ds-shadow-sm)]">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)]  text-ds-warning mb-6 ">
         <AlertTriangle className="h-8 w-8" />
       </div>
 

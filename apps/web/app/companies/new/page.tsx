@@ -60,7 +60,7 @@ export default function NewCompanyPage() {
       </header>
       <div className="flex-1 flex items-center justify-center p-6">
         <section className="new-company-card w-full max-w-xl p-6 sm:p-8 rounded-[var(--ds-card-radius)] border border-border/80 bg-card shadow-[var(--ds-shadow-sm)] space-y-4 text-center">
-          <span className="empty-icon mx-auto flex h-14 w-14 items-center justify-center rounded-[var(--ds-card-radius)] bg-primary/10 text-primary text-xl">
+          <span className="empty-icon mx-auto flex h-14 w-14 items-center justify-center rounded-[var(--ds-card-radius)]  text-primary text-xl">
             <Icon name="company" />
           </span>
           <span className="overline inline-block text-xs font-semibold text-primary">

@@ -108,27 +108,3 @@ class ProductFeedbackResponse(BaseModel):
     workaround: str | None
     requested_outcome: str | None
     created_at: datetime
-
-
-class CustomerHealthSummary(BaseModel):
-    company_id: UUID
-    company_name: str
-    is_live: bool
-    health_status: Literal["healthy", "needs_attention", "at_risk"]
-    last_data_refresh: datetime | None
-    last_user_activity: datetime | None
-    critical_findings_count: int
-    unreconciled_transactions_count: int
-    active_finance_users_count: int
-    implementation_hours_total: Decimal
-    primary_business_objective: str | None
-
-
-class ValueMetricsOverview(BaseModel):
-    total_companies: int
-    live_companies: int
-    activated_companies: int
-    mean_time_to_first_value_hours: float
-    total_reconciliation_hours_saved_monthly: float
-    total_critical_errors_prevented: int
-    average_implementation_hours_per_company: float

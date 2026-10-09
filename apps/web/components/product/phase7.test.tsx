@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { IntegrationsWorkspace } from "./integrations-workspace";
-import { AutomationsWorkspace } from "./automations-workspace";
 import { ScenariosWorkspace } from "./scenarios-workspace";
 import type { Company } from "@/lib/product-types";
 
@@ -53,7 +52,7 @@ describe("Phase 7 Frontend Workspaces", () => {
       },
     ];
 
-    it("renders connections and fallback manual import link", async () => {
+    it("renders connections without the removed manual import link", async () => {
       mockApi.mockImplementation((url: string) => {
         if (url.includes("/integrations")) {
           return Promise.resolve(mockConnections);
@@ -66,7 +65,7 @@ describe("Phase 7 Frontend Workspaces", () => {
       await waitFor(() => {
         expect(screen.getByText("اتصال‌ها و جریان داده")).toBeDefined();
         expect(screen.getByText("ارتباط مستقیم با سپیدار سیستم")).toBeDefined();
-        expect(screen.getByText(/بارگذاری دستی اکسل/)).toBeDefined();
+        expect(screen.queryByText(/بارگذاری دستی اکسل/)).not.toBeInTheDocument();
       });
     });
 
@@ -99,80 +98,6 @@ describe("Phase 7 Frontend Workspaces", () => {
       await waitFor(() => {
         expect(mockApi).toHaveBeenCalledWith(
           expect.stringContaining("/conn-1/test"),
-          expect.objectContaining({ method: "POST" }),
-        );
-      });
-    });
-  });
-
-  describe("AutomationsWorkspace", () => {
-    const mockRules = [
-      {
-        id: "rule-1",
-        company_id: mockCompany.id,
-        name: "چرخه پایش صبحگاهی خزانه‌داری (Daily Morning Cycle)",
-        action_type: "daily_morning_cycle",
-        is_enabled: true,
-        schedule_cron: "0 6 * * *",
-        config: {},
-        last_run_at: "2026-09-26T06:00:00Z",
-        next_run_at: "2026-09-27T06:00:00Z",
-        last_status: "success",
-        created_at: "2026-09-26T00:00:00Z",
-        updated_at: "2026-09-26T00:00:00Z",
-      },
-    ];
-
-    it("renders automated rules and trigger button", async () => {
-      mockApi.mockImplementation((url: string) => {
-        if (url.includes("/automations")) {
-          return Promise.resolve(mockRules);
-        }
-        return Promise.resolve([]);
-      });
-
-      render(<AutomationsWorkspace company={mockCompany} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("چرخه‌های خودکار مالی")).toBeDefined();
-        expect(
-          screen.getByText(
-            "چرخه پایش صبحگاهی خزانه‌داری (Daily Morning Cycle)",
-          ),
-        ).toBeDefined();
-        expect(screen.getByText("اجرای فوری چرخه")).toBeDefined();
-      });
-    });
-
-    it("executes rule when run button clicked", async () => {
-      mockApi.mockImplementation((url: string) => {
-        if (url.includes("/run")) {
-          return Promise.resolve({
-            id: "run-1",
-            company_id: mockCompany.id,
-            rule_id: "rule-1",
-            status: "succeeded",
-            steps_executed: [],
-          });
-        }
-        if (url.includes("/automations")) {
-          return Promise.resolve(mockRules);
-        }
-        return Promise.resolve([]);
-      });
-
-      render(<AutomationsWorkspace company={mockCompany} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("اجرای فوری چرخه")).toBeDefined();
-      });
-
-      const executeBtn = screen.getByText("اجرای فوری چرخه");
-      fireEvent.click(executeBtn);
-
-      await waitFor(() => {
-        expect(mockApi).toHaveBeenCalledWith(
-          expect.stringContaining("/rule-1/run"),
           expect.objectContaining({ method: "POST" }),
         );
       });

@@ -1,11 +1,51 @@
 from datetime import date
 from decimal import Decimal
 from typing import Any, Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 CashRunwayStatus = Literal["critical", "warning", "monitor", "healthy", "sustainable"]
 ScenarioType = Literal["base", "pessimistic", "optimistic"]
+
+
+OutflowMode = Literal["historical", "planned"]
+PaymentCategory = Literal["payroll", "vendor", "rent", "tax", "other"]
+
+
+class PlannedPaymentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=160)
+    category: PaymentCategory
+    payment_date: date
+    amount_irr: Decimal = Field(gt=0, max_digits=24, decimal_places=0)
+
+    @field_validator("title")
+    @classmethod
+    def clean_title(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("عنوان پرداخت الزامی است.")
+        return value.strip()
+
+
+class PlannedPaymentItem(PlannedPaymentCreate):
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
+    id: UUID
+
+    @field_serializer("amount_irr")
+    def serialize_amount(self, value: Decimal) -> str:
+        return format(value, "f")
+
+
+class CashMovement(BaseModel):
+    title: str
+    due_date: date
+    amount_irr: Decimal
+    source_id: UUID
+
+    @field_serializer("amount_irr")
+    def serialize_amount(self, value: Decimal) -> str:
+        return format(value, "f")
 
 
 class CashFlowWeekItem(BaseModel):
@@ -21,6 +61,8 @@ class CashFlowWeekItem(BaseModel):
     ending_cash_irr: Decimal
     is_deficit: bool
     deficit_amount_irr: Decimal
+    receipts: list[CashMovement] = Field(default_factory=list)
+    payments: list[CashMovement] = Field(default_factory=list)
 
     @field_serializer(
         "starting_cash_irr",
@@ -70,6 +112,8 @@ class CashFlowSummaryResponse(BaseModel):
     safety_buffer_irr: Decimal
     first_deficit_week: int | None
     cash_accounts: list[dict[str, Any]] = Field(default_factory=list)
+    cash_balance_date: date | None = None
+    cash_basis: Literal["reported", "estimated", "mixed"] = "reported"
     cash_warnings: list[str] = Field(default_factory=list)
     lowest_projected_cash_irr: Decimal
 
@@ -93,6 +137,10 @@ class CashFlowForecastResponse(BaseModel):
     total_projected_inflows_irr: Decimal
     total_projected_outflows_irr: Decimal
     net_period_movement_irr: Decimal
+    horizon_days: int = 91
+    outflow_mode: OutflowMode = "historical"
+    projected_inflows_30d_irr: Decimal = Decimal(0)
+    projected_outflows_30d_irr: Decimal = Decimal(0)
     weeks: list[CashFlowWeekItem]
     inflow_sources: list[CashInflowSourceDetail]
     outflow_sources: list[CashOutflowSourceDetail]
@@ -103,6 +151,8 @@ class CashFlowForecastResponse(BaseModel):
         "total_projected_inflows_irr",
         "total_projected_outflows_irr",
         "net_period_movement_irr",
+        "projected_inflows_30d_irr",
+        "projected_outflows_30d_irr",
     )
     def serialize_amounts(self, value: Decimal) -> str:
         return format(value, "f")

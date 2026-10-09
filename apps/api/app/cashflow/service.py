@@ -1,6 +1,8 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -9,13 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.calculations.base import CalculatedMetricResult, CalculationContext
 from app.calculations.cash_position import CashPositionCalculator
 from app.calculations.models import FinancialPolicy
+from app.cashflow.models import PlannedPayment
 from app.cashflow.schemas import (
     CashFlowForecastResponse,
     CashFlowSummaryResponse,
     CashFlowWeekItem,
     CashInflowSourceDetail,
+    CashMovement,
     CashOutflowSourceDetail,
     CashRunwayStatus,
+    OutflowMode,
     ScenarioType,
 )
 from app.financial.models import (
@@ -34,20 +39,8 @@ ZERO = Decimal(0)
 async def _resolve_as_of_date(
     session: AsyncSession, company_id: UUID, explicit_date: date | None
 ) -> date:
-    if explicit_date:
-        return explicit_date
-
-    max_bank_date = await session.scalar(
-        select(func.max(BankTransaction.booking_date)).where(
-            BankTransaction.company_id == company_id
-        )
-    )
-    max_inv_date = await session.scalar(
-        select(func.max(SalesInvoice.issue_date)).where(SalesInvoice.company_id == company_id)
-    )
-
-    dates = [d for d in (max_bank_date, max_inv_date) if d is not None]
-    return max(dates) if dates else date.today()
+    del session, company_id
+    return explicit_date or datetime.now(ZoneInfo("Asia/Tehran")).date()
 
 
 async def _cash_position(
@@ -184,6 +177,20 @@ async def get_cashflow_summary(
         if week.is_deficit and first_deficit_week is None:
             first_deficit_week = week.week_number
 
+    accounts = cash_evidence.evidence_json.get("breakdown", [])
+    balance_dates = [
+        date.fromisoformat(row["balance_date"])
+        for row in accounts
+        if row.get("balance_date") and row.get("method") == "running_balance"
+    ]
+    methods = {row.get("method") for row in accounts if row.get("balance_irr") is not None}
+    cash_basis: Literal["reported", "estimated", "mixed"] = (
+        "mixed"
+        if len(methods) > 1
+        else "estimated"
+        if "transaction_net_sum" in methods
+        else "reported"
+    )
     return CashFlowSummaryResponse(
         as_of_date=effective_date,
         current_cash_irr=current_cash,
@@ -194,7 +201,9 @@ async def get_cashflow_summary(
         safety_buffer_irr=safety_buffer,
         first_deficit_week=first_deficit_week,
         lowest_projected_cash_irr=lowest_cash,
-        cash_accounts=cash_evidence.evidence_json.get("breakdown", []),
+        cash_accounts=accounts,
+        cash_balance_date=min(balance_dates) if balance_dates else None,
+        cash_basis=cash_basis,
         cash_warnings=cash_evidence.warnings,
     )
 
@@ -205,6 +214,8 @@ async def get_cashflow_forecast(
     scenario: ScenarioType = "base",
     safety_buffer_irr: Decimal | None = None,
     as_of_date: date | None = None,
+    horizon_days: int = 91,
+    outflow_mode: OutflowMode = "historical",
 ) -> CashFlowForecastResponse:
     effective_date = await _resolve_as_of_date(session, company_id, as_of_date)
     current_cash = await _get_current_liquid_cash(session, company_id, effective_date)
@@ -224,6 +235,22 @@ async def get_cashflow_forecast(
         .where(SalesInvoice.company_id == company_id, SalesInvoice.issue_date <= effective_date)
     )
     inv_results = (await session.execute(inv_query)).all()
+
+    planned: list[PlannedPayment] = []
+    if outflow_mode == "planned":
+        planned = list(
+            (
+                await session.scalars(
+                    select(PlannedPayment)
+                    .where(
+                        PlannedPayment.company_id == company_id,
+                        PlannedPayment.payment_date >= effective_date,
+                        PlannedPayment.payment_date < effective_date + timedelta(days=horizon_days),
+                    )
+                    .order_by(PlannedPayment.payment_date, PlannedPayment.id)
+                )
+            ).all()
+        )
 
     # Scenario multipliers
     if scenario == "pessimistic":
@@ -253,13 +280,19 @@ async def get_cashflow_forecast(
     vendor_outflow_sum = ZERO
     overhead_outflow_sum = ZERO
 
-    for w in range(1, 14):
+    inflows_30d = ZERO
+    outflows_30d = ZERO
+    planned_sources: dict[str, Decimal] = {}
+    for w in range(1, (horizon_days + 6) // 7 + 1):
         w_start = effective_date + timedelta(days=(w - 1) * 7)
-        w_end = effective_date + timedelta(days=w * 7 - 1)
+        w_end = effective_date + timedelta(days=min(w * 7, horizon_days) - 1)
+        week_days = (w_end - w_start).days + 1
+        receipts: list[CashMovement] = []
+        payments: list[CashMovement] = []
 
         # Inflows for this week
         inflows = ZERO
-        for invoice, _ in inv_results:
+        for invoice, counterparty in inv_results:
             remaining = invoice.gross_amount_irr - (invoice.paid_amount_irr or ZERO)
             if remaining <= ZERO:
                 continue
@@ -283,26 +316,67 @@ async def get_cashflow_forecast(
                 weighted_inflow = (remaining * prob).quantize(Decimal("1"))
                 inflows += weighted_inflow
                 credit_sales_inflow_sum += weighted_inflow
+                collection_date = max(due, effective_date)
+                if collection_date < effective_date + timedelta(days=30):
+                    inflows_30d += weighted_inflow
+                receipts.append(
+                    CashMovement(
+                        title=f"{counterparty.name} · {invoice.invoice_no}",
+                        due_date=collection_date,
+                        amount_irr=weighted_inflow,
+                        source_id=invoice.id,
+                    )
+                )
 
         # Outflows for this week
         # If week contains end of calendar month (day 28-31), allocate higher payroll spike
-        has_month_end = any((w_start + timedelta(days=d)).day in (28, 29, 30, 31) for d in range(7))
+        has_month_end = any(
+            (w_start + timedelta(days=d)).day in (28, 29, 30, 31) for d in range(week_days)
+        )
 
+        w_payroll = ZERO
         if has_month_end and weekly_base_burn > ZERO:
             # Payroll spike: 45% of monthly burn
             w_payroll = (effective_monthly_burn * Decimal("0.45")).quantize(Decimal("1"))
             w_vendor = (weekly_base_burn * Decimal("0.40")).quantize(Decimal("1"))
             w_overhead = (weekly_base_burn * Decimal("0.15")).quantize(Decimal("1"))
             outflows = w_payroll + w_vendor + w_overhead
-            payroll_outflow_sum += w_payroll
-            vendor_outflow_sum += w_vendor
-            overhead_outflow_sum += w_overhead
         else:
             w_vendor = (weekly_base_burn * Decimal("0.65")).quantize(Decimal("1"))
             w_overhead = (weekly_base_burn * Decimal("0.35")).quantize(Decimal("1"))
             outflows = w_vendor + w_overhead
+
+        fraction = Decimal(week_days) / Decimal(7)
+        w_payroll = (w_payroll * fraction).quantize(Decimal("1"))
+        w_vendor = (w_vendor * fraction).quantize(Decimal("1"))
+        w_overhead = (w_overhead * fraction).quantize(Decimal("1"))
+        outflows = w_payroll + w_vendor + w_overhead
+        covered_days = max(0, min(week_days, (effective_date + timedelta(days=30) - w_start).days))
+        if outflow_mode == "planned":
+            outflows = ZERO
+            for payment in planned:
+                if w_start <= payment.payment_date <= w_end:
+                    outflows += payment.amount_irr
+                    planned_sources[payment.category] = (
+                        planned_sources.get(payment.category, ZERO) + payment.amount_irr
+                    )
+                    payments.append(
+                        CashMovement(
+                            title=payment.title,
+                            due_date=payment.payment_date,
+                            amount_irr=payment.amount_irr,
+                            source_id=payment.id,
+                        )
+                    )
+                    if payment.payment_date < effective_date + timedelta(days=30):
+                        outflows_30d += payment.amount_irr
+        else:
+            payroll_outflow_sum += w_payroll
             vendor_outflow_sum += w_vendor
             overhead_outflow_sum += w_overhead
+            outflows_30d += (outflows * Decimal(covered_days) / Decimal(week_days)).quantize(
+                Decimal("1")
+            )
 
         net_change = inflows - outflows
         ending_cash = running_balance + net_change
@@ -321,6 +395,8 @@ async def get_cashflow_forecast(
                 ending_cash_irr=ending_cash,
                 is_deficit=is_deficit,
                 deficit_amount_irr=deficit_amt,
+                receipts=receipts,
+                payments=payments,
             )
         )
 
@@ -353,7 +429,7 @@ async def get_cashflow_forecast(
         )
 
     outflow_sources: list[CashOutflowSourceDetail] = []
-    if total_outflows > ZERO:
+    if total_outflows > ZERO and outflow_mode == "historical":
         payroll_share = float((payroll_outflow_sum / total_outflows * 100).quantize(Decimal("0.1")))
         vendor_share = float((vendor_outflow_sum / total_outflows * 100).quantize(Decimal("0.1")))
         overhead_share = float(
@@ -380,6 +456,28 @@ async def get_cashflow_forecast(
                 share_percentage=overhead_share,
             )
         )
+    elif outflow_mode == "planned":
+        labels = {
+            "payroll": "حقوق و بیمه",
+            "vendor": "تامین‌کنندگان",
+            "rent": "اجاره",
+            "tax": "مالیات",
+            "other": "سایر پرداخت‌ها",
+        }
+        outflow_sources = (
+            [
+                CashOutflowSourceDetail(
+                    category=labels[key],
+                    amount_irr=amount,
+                    share_percentage=float(
+                        (amount / total_outflows * 100).quantize(Decimal("0.1"))
+                    ),
+                )
+                for key, amount in planned_sources.items()
+            ]
+            if total_outflows > ZERO
+            else []
+        )
     else:
         outflow_sources.append(
             CashOutflowSourceDetail(
@@ -398,6 +496,10 @@ async def get_cashflow_forecast(
         total_projected_outflows_irr=total_outflows,
         net_period_movement_irr=net_period,
         weeks=weeks,
+        horizon_days=horizon_days,
+        outflow_mode=outflow_mode,
+        projected_inflows_30d_irr=inflows_30d,
+        projected_outflows_30d_irr=outflows_30d,
         inflow_sources=inflow_sources,
         outflow_sources=outflow_sources,
     )

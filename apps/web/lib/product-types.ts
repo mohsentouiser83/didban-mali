@@ -140,82 +140,6 @@ export type SourceHealthStatus =
   | "no_data"
   | "processing";
 
-export type SourceCardHealth = {
-  source_kind: "accounting" | "bank" | "sales";
-  source_title: string;
-  status: SourceHealthStatus;
-  status_label: string;
-  last_successful_import: string | null;
-  accepted_records: number;
-  rejected_records: number;
-  warnings_count: number;
-  estimated_coverage_pct: number;
-  freshness_days: number | null;
-  freshness_label: string;
-  usable_for_calculations: boolean;
-  primary_cta_label: string;
-  primary_cta_action: "upload" | "quality" | "history" | "overview";
-  summary_notes: string[];
-};
-
-export type ActionableHealthIssue = {
-  id: string;
-  severity: "blocking" | "error" | "warning" | "info";
-  title: string;
-  description: string;
-  action_label: string;
-  action_tab: string;
-  batch_id: string | null;
-};
-
-export type DataOverviewResponse = {
-  company_id: string;
-  sources: SourceCardHealth[];
-  health_issues: ActionableHealthIssue[];
-  total_accepted_records: number;
-  total_rejected_records: number;
-  total_warnings: number;
-  overall_health_score: number;
-};
-
-export type QualityIssueGroup = {
-  code: string;
-  title: string;
-  severity: "blocking" | "error" | "warning";
-  count: number;
-  remedy: string | null;
-  sample_row_numbers: number[];
-  affected_batches_count: number;
-};
-
-export type QuarantinedRowItem = {
-  row_id: string;
-  batch_id: string;
-  source_filename: string;
-  source_kind: "accounting" | "bank" | "sales";
-  sheet: string;
-  row_number: number;
-  raw_data: Record<string, unknown>;
-  issues: {
-    code: string;
-    title: string;
-    message: string;
-    severity: string;
-    remedy: string | null;
-  }[];
-};
-
-export type DataQualityResponse = {
-  company_id: string;
-  total_records: number;
-  accepted_records: number;
-  warning_records: number;
-  rejected_records: number;
-  health_score_pct: number;
-  groups: QualityIssueGroup[];
-  quarantined_rows: QuarantinedRowItem[];
-};
-
 export type RecordLineageResponse = {
   company_id: string;
   record_id: string;
@@ -839,61 +763,6 @@ export type ReportSnapshot = {
   created_at: string;
 };
 
-export type AiPurpose = "finding_explanation" | "semantic_matching";
-export type AiInvocationStatus =
-  | "disabled"
-  | "succeeded"
-  | "failed"
-  | "invalid_output";
-export type AiSettings = {
-  enabled: boolean;
-  explanations_enabled: boolean;
-  semantic_matching_enabled: boolean;
-  global_enabled: boolean;
-  provider_configured: boolean;
-  data_region_configured: boolean;
-  explanations_effective: boolean;
-  semantic_matching_effective: boolean;
-  revision_id: string | null;
-  updated_at: string | null;
-};
-export type AiFindingExplanation = {
-  summary_fa: string;
-  why_it_matters_fa: string;
-  caveats_fa: string[];
-  referenced_evidence_ids: string[];
-  referenced_numbers: string[];
-  requires_human_review: true;
-};
-export type AiRankedCandidate = {
-  candidate_id: string;
-  confidence: string;
-  reason_fa: string;
-  referenced_numbers: string[];
-};
-export type AiSemanticMatching = {
-  ranked_candidates: AiRankedCandidate[];
-  requires_human_review: true;
-};
-export type AiInvocation = {
-  id: string;
-  company_id: string;
-  purpose: AiPurpose;
-  status: AiInvocationStatus;
-  source_finding_id: string | null;
-  source_reconciliation_run_id: string | null;
-  provider: string;
-  model: string;
-  prompt_version: string;
-  output: AiFindingExplanation | AiSemanticMatching | null;
-  latency_ms: number;
-  failure_code: string | null;
-  failure_message: string | null;
-  requires_human_review: true;
-  created_at: string;
-  completed_at: string;
-};
-
 export type ReadinessState = "ready" | "limited" | "missing";
 export type SourceReadiness = {
   kind: "accounting" | "bank" | "sales";
@@ -908,34 +777,6 @@ export type JourneyStep = {
   detail_fa: string;
   href: string;
 };
-export type CompanyReadiness = {
-  schema_version: "company-readiness-v1";
-  overall_state: ReadinessState;
-  completed_steps: number;
-  ready_steps: number;
-  total_steps: number;
-  sources: SourceReadiness[];
-  journey: JourneyStep[];
-  safeguards: {
-    tenant_scoped: boolean;
-    human_review_required: boolean;
-    ai_fail_safe: boolean;
-    immutable_report_snapshot: boolean;
-  };
-};
-export type DependencyStatus = {
-  status: "ready" | "not_ready";
-  database: boolean;
-  redis: boolean;
-};
-
-export const roleLabels: Record<Role, string> = {
-  owner: "مالک",
-  finance_manager: "مدیر مالی",
-  advisor: "مشاور",
-  viewer: "مشاهده‌گر",
-};
-
 export type ReceivablesRiskLevel = "low" | "medium" | "high" | "critical";
 export type ReceivablesBucketKey =
   | "not_due"
@@ -1015,6 +856,8 @@ export type CashRunwayStatus =
   | "sustainable";
 export type ScenarioType = "base" | "pessimistic" | "optimistic";
 
+export type PlannedCashPayment = { id: string; title: string; category: "payroll" | "vendor" | "rent" | "tax" | "other"; payment_date: string; amount_irr: string };
+export type CashMovement = { title: string; due_date: string; amount_irr: string; source_id: string };
 export type CashFlowWeekItem = {
   week_number: number;
   start_date: string;
@@ -1026,6 +869,8 @@ export type CashFlowWeekItem = {
   ending_cash_irr: string;
   is_deficit: boolean;
   deficit_amount_irr: string;
+  receipts?: CashMovement[];
+  payments?: CashMovement[];
 };
 
 export type CashInflowSourceDetail = {
@@ -1051,10 +896,16 @@ export type CashFlowSummaryResponse = {
   first_deficit_week: number | null;
   cash_accounts?: { bank_account_id: string; bank_name: string; label: string; account_last4: string | null; balance_irr: string | null; balance_date: string | null; method: string }[];
   cash_warnings?: string[];
+  cash_balance_date?: string | null;
+  cash_basis?: "reported" | "estimated" | "mixed";
   lowest_projected_cash_irr: string;
 };
 
 export type CashFlowForecastResponse = {
+  horizon_days?: number;
+  outflow_mode?: "historical" | "planned";
+  projected_inflows_30d_irr?: string;
+  projected_outflows_30d_irr?: string;
   as_of_date: string;
   scenario: ScenarioType;
   safety_buffer_irr: string;
@@ -1105,8 +956,8 @@ export type PayablesSummaryResponse = {
   total_overdue_irr: string;
   overdue_ratio: number;
   dpo_days: number;
-  dso_days: number;
-  ccc_days: number;
+  dso_days: number | null;
+  ccc_days: number | null;
   vendor_count: number;
   high_risk_vendor_count: number;
   buckets: PayableAgingBucketDetail[];
@@ -1115,95 +966,6 @@ export type PayablesSummaryResponse = {
 export type VendorsPayablesResponse = {
   as_of_date: string;
   items: VendorPayableItem[];
-};
-
-export type AlertSeverity = "critical" | "warning" | "info";
-export type AlertCategory =
-  | "liquidity"
-  | "credit_risk"
-  | "supply_chain"
-  | "compliance";
-export type AlertCode =
-  | "runway_critical"
-  | "runway_warning"
-  | "cash_gap_high"
-  | "debtor_concentration"
-  | "overdue_receivables_surge"
-  | "customer_credit_alert"
-  | "supplier_stoppage_risk"
-  | "payables_overdue_surge"
-  | "unmatched_bank_outflow";
-export type AlertStatus = "active" | "acknowledged" | "resolved" | "dismissed";
-
-export type EarlyWarningAlertItem = {
-  id: string;
-  company_id: string;
-  code: AlertCode;
-  category: AlertCategory;
-  severity: AlertSeverity;
-  title_fa: string;
-  summary_fa: string;
-  metric_key: string;
-  current_value: string | null;
-  threshold_value: string | null;
-  metric_unit: string;
-  suggested_action_fa: string;
-  target_route: string;
-  status: AlertStatus;
-  triggered_at: string;
-  acknowledged_at: string | null;
-  acknowledged_by_user_id: string | null;
-  resolved_at: string | null;
-  action_note: string | null;
-};
-
-export type AlertsListResponse = {
-  items: EarlyWarningAlertItem[];
-  total_count: number;
-};
-
-export type AlertsSummaryResponse = {
-  total_active: number;
-  critical_count: number;
-  warning_count: number;
-  info_count: number;
-  liquidity_count: number;
-  credit_risk_count: number;
-  supply_chain_count: number;
-  compliance_count: number;
-  active_alerts: EarlyWarningAlertItem[];
-};
-
-export type AlertWebhookCreateRequest = {
-  name: string;
-  url: string;
-  secret_token?: string;
-  min_severity: AlertSeverity;
-};
-
-export type AlertWebhookItem = {
-  id: string;
-  company_id: string;
-  name: string;
-  url: string;
-  min_severity: AlertSeverity;
-  is_active: boolean;
-  created_at: string;
-  last_triggered_at: string | null;
-  last_delivery_status: string | null;
-  last_delivery_code: number | null;
-};
-
-export type AlertWebhooksListResponse = {
-  items: AlertWebhookItem[];
-};
-
-export type AlertWebhookTestResult = {
-  webhook_id: string;
-  is_success: boolean;
-  status_code: number | null;
-  message: string;
-  duration_ms: number;
 };
 
 export type SimulationParametersRequest = {
@@ -1634,15 +1396,6 @@ export type FindingDetectionRun = {
   created_at: string;
 };
 
-export type FinancialControlPolicy = {
-  id: string;
-  rule_code: string;
-  is_enabled: boolean;
-  severity_override?: FindingSeverity | null;
-  thresholds: Record<string, any>;
-  updated_at: string;
-};
-
 export type InAppAlert = {
   id: string;
   company_id: string;
@@ -1793,117 +1546,6 @@ export type ConnectionTestResult = {
 };
 
 // Phase 7 Automation Types
-export type AutomationActionType =
-  | "daily_morning_cycle"
-  | "reconcile_and_findings"
-  | "assign_overdue_ar"
-  | "notify_staleness";
-
-export type AutomationRule = {
-  id: string;
-  company_id: string;
-  name: string;
-  action_type: AutomationActionType;
-  is_enabled: boolean;
-  schedule_cron: string;
-  config: Record<string, any>;
-  last_run_at: string | null;
-  next_run_at: string | null;
-  last_status: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AutomationRun = {
-  id: string;
-  company_id: string;
-  rule_id: string;
-  trigger_type: string;
-  status: "running" | "succeeded" | "failed";
-  started_at: string;
-  completed_at: string | null;
-  duration_ms: number;
-  steps_executed: Array<{
-    step: string;
-    title_fa: string;
-    status: string;
-    details: Record<string, any>;
-  }>;
-  error_message: string | null;
-  created_at: string;
-};
-
-// Phase 8 Product Health & Operational Metrics Types
-export type CustomerHealthSummary = {
-  company_id: string;
-  company_name: string;
-  is_live: boolean;
-  health_status: "healthy" | "needs_attention" | "at_risk";
-  last_data_refresh: string | null;
-  last_user_activity: string | null;
-  critical_findings_count: number;
-  unreconciled_transactions_count: number;
-  active_finance_users_count: number;
-  implementation_hours_total: number;
-  primary_business_objective?: string | null;
-};
-
-export type ValueMetricsOverview = {
-  total_companies: number;
-  live_companies: number;
-  activated_companies: number;
-  mean_time_to_first_value_hours: number;
-  total_reconciliation_hours_saved_monthly: number;
-  total_critical_errors_prevented: number;
-  average_implementation_hours_per_company: number;
-};
-
-// Holding Consolidated Overview Types
-export type HoldingCompanyItem = {
-  id: string;
-  legal_name: string;
-  national_id?: string | null;
-  currency: string;
-  cash_balance_irr: number;
-  receivables_irr: number;
-  payables_irr: number;
-  net_liquidity_irr: number;
-  critical_findings_count: number;
-  reconciliation_match_rate: number;
-  last_data_at?: string | null;
-  is_live: boolean;
-};
-
-export type HoldingForecastWeek = {
-  week_number: number;
-  projected_cash_irr: number;
-  inflow_irr: number;
-  outflow_irr: number;
-};
-
-export type HoldingIntercompanyItem = {
-  from_company_id: string;
-  from_company_name: string;
-  to_company_id: string;
-  to_company_name: string;
-  amount_irr: number;
-  status: string;
-  description: string;
-};
-
-export type HoldingSummaryResponse = {
-  companies_count: number;
-  total_cash_balance_irr: number;
-  total_receivables_irr: number;
-  total_payables_irr: number;
-  total_net_liquidity_irr: number;
-  total_critical_findings_count: number;
-  companies: HoldingCompanyItem[];
-  weekly_forecast: HoldingForecastWeek[];
-  intercompany_transactions: HoldingIntercompanyItem[];
-  generated_at: string;
-};
-
 export type AgentKeyResponse = {
   agent_key: string;
   connection_id: string;
@@ -1911,4 +1553,26 @@ export type AgentKeyResponse = {
   provider: string;
   created_at: string;
   instructions_fa: string;
+};
+
+
+export type PayableEntryItem = {
+  id: string;
+  entry_number: string;
+  entry_date: string;
+  description: string | null;
+  debit_irr: string;
+  credit_irr: string;
+  estimated_due_date: string | null;
+};
+export type PayableEntriesResponse = {
+  as_of_date: string;
+  items: PayableEntryItem[];
+};
+
+export const roleLabels: Record<Role, string> = {
+  owner: "مالک",
+  finance_manager: "مدیر مالی",
+  advisor: "مشاور",
+  viewer: "مشاهده‌گر",
 };

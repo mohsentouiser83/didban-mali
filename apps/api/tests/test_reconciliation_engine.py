@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -143,3 +144,18 @@ def test_duplicates_mismatches_and_unresolved_are_explicit() -> None:
 
     duplicate_bank = next(item for item in results if item.status == MatchStatus.DUPLICATE_HIGH)
     assert duplicate_bank.evidence["bank"]["amount_irr"] == "2500000"
+
+
+def test_amount_mismatch_ignores_opposite_side_of_the_same_voucher() -> None:
+    incoming = ledger(1, amount="20000000", reference="PAY-009")
+    outgoing = replace(incoming, line_id=uid(3099), source_row_id=uid(2099), amount_irr=Decimal("-20000000"))
+    results = reconcile(
+        [bank(1, amount="19500000", reference="PAY-009")],
+        [incoming, outgoing],
+        ReconciliationConfig(),
+    )
+    candidates = [item for item in results if item.bank_transaction_id and item.journal_entry_id]
+    assert len(candidates) == 1
+    assert candidates[0].status == MatchStatus.AMOUNT_MISMATCH
+    assert candidates[0].amount_difference_irr == Decimal("-500000")
+    assert candidates[0].allocations[1].journal_line_id == incoming.line_id

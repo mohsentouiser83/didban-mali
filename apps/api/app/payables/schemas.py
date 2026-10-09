@@ -52,8 +52,8 @@ class PayablesSummaryResponse(BaseModel):
     total_overdue_irr: Decimal
     overdue_ratio: float
     dpo_days: int
-    dso_days: float
-    ccc_days: float
+    dso_days: float | None
+    ccc_days: float | None
     vendor_count: int
     high_risk_vendor_count: int
     buckets: list[PayableAgingBucketDetail]
@@ -68,3 +68,26 @@ class VendorsPayablesResponse(BaseModel):
 
     as_of_date: date
     items: list[VendorPayableItem]
+
+
+class PayableEntryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    entry_number: str
+    entry_date: date
+    description: str | None
+    debit_irr: Decimal
+    credit_irr: Decimal
+    estimated_due_date: date | None
+
+    @field_serializer("debit_irr", "credit_irr")
+    def serialize_amounts(self, value: Decimal) -> str:
+        return format(value, "f")
+
+
+class PayableEntriesResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    as_of_date: date
+    items: list[PayableEntryItem]

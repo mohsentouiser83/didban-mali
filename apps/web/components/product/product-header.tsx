@@ -10,14 +10,10 @@ import {
 } from "react";
 
 import {
-  BellRing,
   Building2,
   Calendar,
   Check,
-  CheckCheck,
   ChevronDown,
-  Compass,
-  Layers,
   LifeBuoy,
   MoreHorizontal,
   PanelLeft,
@@ -38,10 +34,9 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-  PopoverTrigger,
 } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
-import type { Company, InAppAlert } from "@/lib/product-types";
+import type { Company } from "@/lib/product-types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -51,14 +46,11 @@ type IconMotion =
   | "chevron"
   | "search"
   | "settings"
-  | "bell"
-  | "tour"
   | "support"
   | "calendar"
   | "more"
   | "check"
-  | "plus"
-  | "layers";
+  | "plus";
 
 function HeaderIcon({
   icon: Icon,
@@ -80,9 +72,8 @@ const HeaderAction = forwardRef<
     label: string;
     icon: AppIcon;
     motion: IconMotion;
-    badge?: number;
   }
->(({ label, icon, motion, badge, className, ...props }, ref) => (
+>(({ label, icon, motion, className, ...props }, ref) => (
   <Button
     variant="surface"
     size="auto"
@@ -95,11 +86,7 @@ const HeaderAction = forwardRef<
     {...props}
   >
     <HeaderIcon icon={icon} motion={motion} />
-    {!!badge && badge > 0 && (
-      <span className="header-alert-count" aria-hidden="true">
-        {badge > 99 ? "۹۹+" : badge.toLocaleString("fa-IR")}
-      </span>
-    )}
+
   </Button>
 ));
 HeaderAction.displayName = "HeaderAction";
@@ -115,40 +102,25 @@ export type HeaderSettingsItem = {
 type ProductHeaderProps = {
   company: Company;
   companies: Company[];
-  base: string;
   pathname: string;
   settingsItems: HeaderSettingsItem[];
-  alerts: InAppAlert[];
-  unreadCount: number;
-  activeAlertCount: number;
   onSwitchCompany: (id: string) => void;
   onSearch: () => void;
-  onTour: () => void;
   onSupport: () => void;
-  onMarkAllRead: () => Promise<void>;
 };
 
 export function ProductHeader({
   company,
   companies,
-  base,
   pathname,
   settingsItems,
-  alerts,
-  unreadCount,
-  activeAlertCount,
   onSwitchCompany,
   onSearch,
-  onTour,
   onSupport,
-  onMarkAllRead,
 }: ProductHeaderProps) {
   const { toggleSidebar, open, openMobile, isMobile } = useSidebar();
   const [companyOpen, setCompanyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false);
-  const [reading, setReading] = useState(false);
-  const [readError, setReadError] = useState("");
   const [currentDate, setCurrentDate] = useState("");
   const settingsButton = useRef<HTMLButtonElement>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
@@ -169,18 +141,6 @@ export function ProductHeader({
     const timer = window.setInterval(update, 60_000);
     return () => window.clearInterval(timer);
   }, []);
-
-  async function markRead() {
-    setReading(true);
-    setReadError("");
-    try {
-      await onMarkAllRead();
-    } catch {
-      setReadError("ثبت وضعیت اعلان‌ها انجام نشد. دوباره تلاش کنید.");
-    } finally {
-      setReading(false);
-    }
-  }
 
   return (
     <header className="product-header product-chrome" dir="rtl">
@@ -262,15 +222,6 @@ export function ProductHeader({
                 تعریف شرکت جدید
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              asChild
-              className="header-menu-item header-control"
-            >
-              <Link href="/admin/holding">
-                <HeaderIcon icon={Layers} motion="layers" />
-                دیدبان هلدینگ
-              </Link>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -314,124 +265,6 @@ export function ProductHeader({
                 aria-haspopup="dialog"
                 aria-expanded={settingsOpen}
               />
-              <Popover
-                open={alertsOpen}
-                onOpenChange={(value) => {
-                  setAlertsOpen(value);
-                  if (value) setReadError("");
-                }}
-              >
-                <PopoverTrigger asChild>
-                  <HeaderAction
-                    label={`اعلان‌ها و هشدارهای مالی${unreadCount ? `، ${unreadCount.toLocaleString("fa-IR")} خوانده‌نشده` : ""}`}
-                    icon={BellRing}
-                    motion="bell"
-                    badge={unreadCount || activeAlertCount}
-                    className={
-                      unreadCount > 0 ? "header-has-alerts" : undefined
-                    }
-                  />
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  sideOffset={12}
-                  className="product-chrome header-alerts-menu"
-                  dir="rtl"
-                >
-                  <div className="header-panel-heading">
-                    <strong>اعلان‌ها و هشدارها</strong>
-                    {unreadCount > 0 && (
-                      <Button
-                        variant="surface"
-                        size="auto"
-                        motion="none"
-                        type="button"
-                        className="header-control header-read-all"
-                        onClick={() => void markRead()}
-                        disabled={reading}
-                        aria-busy={reading}
-                      >
-                        <HeaderIcon icon={CheckCheck} motion="check" />
-                        {reading ? "در حال ثبت…" : "خواندن همه"}
-                      </Button>
-                    )}
-                  </div>
-                  {readError && (
-                    <p role="alert" className="header-error">
-                      {readError}
-                    </p>
-                  )}
-                  <div className="header-alerts-list">
-                    {alerts.length ? (
-                      alerts.map((alert) => (
-                        <Link
-                          key={alert.id}
-                          href={
-                            alert.finding_id
-                              ? `${base}/findings/${alert.finding_id}`
-                              : `${base}/overview`
-                          }
-                          className={cn(
-                            "header-alert-row",
-                            !alert.is_read && "header-unread",
-                          )}
-                          onClick={() => setAlertsOpen(false)}
-                        >
-                          <span
-                            className="header-alert-dot"
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0">
-                            <strong>{alert.title_fa}</strong>
-                            <span className="header-alert-body">
-                              {alert.body_fa || alert.message_fa}
-                            </span>
-                            <time dateTime={alert.created_at}>
-                              {new Intl.DateTimeFormat("fa-IR", {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                                timeZone: "Asia/Tehran",
-                              }).format(new Date(alert.created_at))}
-                            </time>
-                          </span>
-                          {!alert.is_read && (
-                            <span className="sr-only">خوانده‌نشده</span>
-                          )}
-                        </Link>
-                      ))
-                    ) : (
-                      <div className="header-alert-empty">
-                        <HeaderIcon icon={BellRing} motion="bell" />
-                        <strong>اعلانی برای نمایش وجود ندارد</strong>
-                        <span>
-                          اعلان‌های مالی شما اینجا نمایش داده می‌شوند.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="header-panel-footer">
-                    <Link
-                      href={`${base}/findings?tab=alerts`}
-                      onClick={() => setAlertsOpen(false)}
-                    >
-                      همهٔ هشدارها
-                    </Link>
-                    <Link
-                      href={`${base}/actions`}
-                      onClick={() => setAlertsOpen(false)}
-                    >
-                      کارتابل من
-                    </Link>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <HeaderAction
-                label="تور آشنایی با سامانه"
-                icon={Compass}
-                motion="tour"
-                className="header-desktop-tool"
-                onClick={onTour}
-              />
               <HeaderAction
                 label="پشتیبانی و ثبت تیکت"
                 icon={LifeBuoy}
@@ -473,15 +306,6 @@ export function ProductHeader({
                   >
                     <HeaderIcon icon={Settings} motion="settings" />
                     تنظیمات و مدیریت سامانه
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="header-control header-menu-item"
-                    onSelect={() => {
-                      pendingMobileAction.current = onTour;
-                    }}
-                  >
-                    <HeaderIcon icon={Compass} motion="tour" />
-                    تور آشنایی با سامانه
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="header-control header-menu-item"
@@ -531,7 +355,7 @@ export function ProductHeader({
                   <span className="header-setting-icon">
                     <HeaderIcon
                       icon={item.icon}
-                      motion={item.href === "#tour" ? "tour" : "settings"}
+                      motion="settings"
                     />
                   </span>
                   <span className="min-w-0">

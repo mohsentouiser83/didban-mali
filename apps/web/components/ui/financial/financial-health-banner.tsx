@@ -72,7 +72,7 @@ export const FinancialHealthBanner = React.forwardRef<HTMLDivElement, FinancialH
       >
         {/* Left / Main Section: Financial Health */}
         <div className="flex items-start gap-3.5">
-          <div className="grid size-11 shrink-0 place-items-center rounded-[var(--ds-card-radius)] bg-background/90 shadow-2xs border border-current/15 transition-transform duration-300  ">
+          <div className="grid size-11 shrink-0 place-items-center rounded-[var(--ds-card-radius)]     transition-transform duration-300  ">
             <HealthIcon className="size-5.5 transition-transform duration-300 " />
           </div>
           <div>

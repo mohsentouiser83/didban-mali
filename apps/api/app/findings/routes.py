@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -15,7 +14,6 @@ from app.companies.models import CompanyRole
 from app.findings.engine import execute_finding_detection
 from app.findings.models import (
     EvidenceItem,
-    FinancialControlPolicy,
     Finding,
     FindingDetectionRun,
     FindingGenerationRun,
@@ -29,7 +27,6 @@ from app.findings.schemas import (
     DismissFindingsRequest,
     EvidenceItemResponse,
     EvidenceItemsResponse,
-    FinancialControlPolicyResponse,
     FindingActivityResponse,
     FindingDetailResponse,
     FindingDetectionRunResponse,
@@ -44,7 +41,6 @@ from app.findings.schemas import (
     ReopenFindingsRequest,
     ResolveFindingsRequest,
     SuppressFindingsRequest,
-    UpdateFinancialControlPolicyRequest,
     VerifyFindingsRequest,
 )
 from app.findings.service import (
@@ -394,6 +390,7 @@ async def get_findings_list(
     is_suppressed: bool | None = Query(default=False),
     search: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> FindingsResponse:
     if access.role not in VIEW_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="دسترسی مجاز نیست.")
@@ -411,6 +408,7 @@ async def get_findings_list(
         is_suppressed=is_suppressed,
         search=search,
         limit=limit,
+        offset=offset,
     )
     return FindingsResponse(
         items=[FindingResponse(**item) for item in items],
@@ -841,94 +839,6 @@ async def get_overview_route(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="دسترسی مجاز نیست.")
 
     return await get_control_overview(session, company_id=company_id)
-
-
-@router.get(
-    "/control/policies",
-    response_model=list[FinancialControlPolicyResponse],
-)
-async def list_policies_route(
-    company_id: UUID,
-    session: DbSession,
-    access: CurrentCompanyAccess,
-) -> list[FinancialControlPolicyResponse]:
-    if access.role not in VIEW_ROLES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="دسترسی مجاز نیست.")
-
-    policies = (
-        await session.scalars(
-            select(FinancialControlPolicy).where(FinancialControlPolicy.company_id == company_id)
-        )
-    ).all()
-
-    return [
-        FinancialControlPolicyResponse(
-            id=p.id,
-            rule_code=p.rule_code,
-            is_enabled=p.is_enabled,
-            severity_override=p.severity_override,
-            thresholds=p.thresholds_json,
-            updated_at=p.updated_at,
-        )
-        for p in policies
-    ]
-
-
-@router.put(
-    "/control/policies/{rule_code}",
-    response_model=FinancialControlPolicyResponse,
-)
-async def update_policy_route(
-    company_id: UUID,
-    rule_code: str,
-    payload: UpdateFinancialControlPolicyRequest,
-    session: DbSession,
-    current_user: CurrentUser,
-    access: CurrentCompanyAccess,
-    _csrf: CsrfProtected,
-) -> FinancialControlPolicyResponse:
-    if access.role not in RUN_ROLES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="اجازه تغییر خط‌مشی‌ها را ندارید.")
-
-    policy = await session.scalar(
-        select(FinancialControlPolicy).where(
-            FinancialControlPolicy.company_id == company_id,
-            FinancialControlPolicy.rule_code == rule_code,
-        )
-    )
-    now = datetime.now(UTC)
-    if not policy:
-        policy = FinancialControlPolicy(
-            id=uuid7(),
-            company_id=company_id,
-            rule_code=rule_code,
-            is_enabled=payload.is_enabled if payload.is_enabled is not None else True,
-            severity_override=payload.severity_override,
-            thresholds_json=payload.thresholds or {},
-            updated_by_user_id=current_user.id,
-            updated_at=now,
-        )
-        session.add(policy)
-    else:
-        if payload.is_enabled is not None:
-            policy.is_enabled = payload.is_enabled
-        if payload.severity_override is not None:
-            policy.severity_override = payload.severity_override
-        if payload.thresholds is not None:
-            policy.thresholds_json = payload.thresholds
-        policy.updated_by_user_id = current_user.id
-        policy.updated_at = now
-
-    await session.commit()
-    await session.refresh(policy)
-    return FinancialControlPolicyResponse(
-        id=policy.id,
-        rule_code=policy.rule_code,
-        is_enabled=policy.is_enabled,
-        severity_override=policy.severity_override,
-        thresholds=policy.thresholds_json,
-        updated_at=policy.updated_at,
-    )
 
 
 @router.get("/in-app-alerts", response_model=InAppAlertsListResponse)

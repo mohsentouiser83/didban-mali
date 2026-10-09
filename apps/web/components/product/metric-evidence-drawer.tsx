@@ -271,7 +271,7 @@ export function MetricEvidenceDrawer({
               </div>
             )}
 
-            {metric.warnings?.length > 0 && <Button asChild variant="outline"><Link href={`/companies/${companyId}/data`}>بررسی و تکمیل داده‌های ورودی</Link></Button>}
+            {metric.warnings?.length > 0 && <Button asChild variant="outline"><Link href={`/companies/${companyId}/data/connections`}>بررسی و تکمیل داده‌های ورودی</Link></Button>}
             {/* Reconciliation Notes */}
             {evidence?.reconciliation_notes &&
               evidence.reconciliation_notes.length > 0 && (

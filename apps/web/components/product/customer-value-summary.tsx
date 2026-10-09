@@ -35,7 +35,7 @@ export function CustomerValueSummary({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="group flex items-start gap-3 rounded-lg bg-muted/30 p-3 hover:bg-muted/50   transition-all duration-200 cursor-default">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-ds-success/10 text-ds-success shrink-0 transition-transform duration-200  ">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md  text-ds-success shrink-0 transition-transform duration-200  ">
             <CheckCircle2 className="h-4 w-4" />
           </div>
           <div>
@@ -47,7 +47,7 @@ export function CustomerValueSummary({
         </div>
 
         <div className="group flex items-start gap-3 rounded-lg bg-muted/30 p-3 hover:bg-muted/50   transition-all duration-200 cursor-default">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0 transition-transform duration-200  ">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md  text-primary shrink-0 transition-transform duration-200  ">
             <TrendingUp className="h-4 w-4" />
           </div>
           <div>
@@ -59,7 +59,7 @@ export function CustomerValueSummary({
         </div>
 
         <div className="group flex items-start gap-3 rounded-lg bg-muted/30 p-3 hover:bg-muted/50   transition-all duration-200 cursor-default">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-ds-warning/10 text-ds-warning shrink-0 transition-transform duration-200  ">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md  text-ds-warning shrink-0 transition-transform duration-200  ">
             <AlertTriangle className="h-4 w-4" />
           </div>
           <div>
@@ -71,7 +71,7 @@ export function CustomerValueSummary({
         </div>
 
         <div className="group flex items-start gap-3 rounded-lg bg-muted/30 p-3 hover:bg-muted/50   transition-all duration-200 cursor-default">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0 transition-transform duration-200  ">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md  text-primary shrink-0 transition-transform duration-200  ">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>

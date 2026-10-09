@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   CartesianGrid,
@@ -68,16 +69,18 @@ export function CashFlowForecastChart({
   onScenarioChange,
   loading = false,
   baseline,
+  companyBase,
 }: {
   forecast: CashFlowForecastResponse;
   scenario: ScenarioType;
   onScenarioChange: (value: ScenarioType) => void;
   loading?: boolean;
   baseline?: CashFlowForecastResponse | null;
+  companyBase?: string;
 }) {
   const [selectedNumber, setSelectedNumber] = useState(
     () =>
-      (forecast.weeks.find((week) => week.is_deficit) ?? forecast.weeks[0])
+      (forecast.weeks.find((week) => Number(week.ending_cash_irr) < 0) ?? forecast.weeks.find((week) => week.is_deficit) ?? forecast.weeks[0])
         ?.week_number,
   );
   const selected =
@@ -92,7 +95,8 @@ export function CashFlowForecastChart({
     balance: millions(week.ending_cash_irr),
   }));
   const buffer = millions(forecast.safety_buffer_irr);
-  const [fullScale, setFullScale] = useState(false);
+  const [fullScale, setFullScale] = useState(true);
+  const horizonLabel = forecast.horizon_days === 30 ? "یک ماه آینده" : "سه ماه آینده";
   const balances = data.map((week) => week.balance).filter((value): value is number => value != null);
   const minimum = Math.min(...balances);
   const maximum = Math.max(...balances);
@@ -101,7 +105,7 @@ export function CashFlowForecastChart({
   const upper = maximum + padding;
   const thresholdOutside = buffer != null && (buffer < lower || buffer > upper);
   const lowestWeek = forecast.weeks.reduce((lowest, week) => Number(week.ending_cash_irr) < Number(lowest.ending_cash_irr) ? week : lowest, forecast.weeks[0]);
-  const baseWeek = baseline?.as_of_date === forecast.as_of_date && baseline.safety_buffer_irr === forecast.safety_buffer_irr ? baseline.weeks.find((week) => week.week_number === selected?.week_number) : undefined;
+  const baseWeek = baseline?.as_of_date === forecast.as_of_date && baseline.safety_buffer_irr === forecast.safety_buffer_irr && baseline.horizon_days === forecast.horizon_days && baseline.outflow_mode === forecast.outflow_mode ? baseline.weeks.find((week) => week.week_number === selected?.week_number) : undefined;
   const assumptions = forecast.scenario === "pessimistic" ? "ضریب احتمال وصول: ۰٫۷۰ · ضریب مصرف: ۱٫۱۰" : forecast.scenario === "optimistic" ? "ضریب احتمال وصول: ۱٫۱۵ · ضریب مصرف: ۰٫۹۵" : "ضریب احتمال وصول: ۱٫۰۰ · ضریب مصرف: ۱٫۰۰";
   const calendarTick = (weekNumber: number) => {
     const week = forecast.weeks.find((item) => item.week_number === weekNumber);
@@ -116,8 +120,8 @@ export function CashFlowForecastChart({
     >
       <div className={styles.sectionHeading}>
         <div>
-          <h2 id="cash-forecast-title">مسیر نقدینگی در ۱۳ هفته آینده</h2>
-          <p>مانده پایان هفته در برابر حداقل ذخیره امن</p>
+          <h2 id="cash-forecast-title">پیش‌بینی {horizonLabel}</h2>
+          <p>مانده هفتگی در برابر صفر و ذخیره امن · {forecast.horizon_days === 30 ? "۳۰ روز" : "۱۳ هفته"}</p>
         </div>
         <div
           className={styles.scenarios}
@@ -142,7 +146,7 @@ export function CashFlowForecastChart({
         <p><strong>فرض سناریوی {CASH_SCENARIOS.find((item) => item.value === forecast.scenario)?.label}: </strong>{assumptions}؛ احتمال وصول حداکثر ۱۰۰٪.</p>
         <details><summary>روش برآورد و محدودیت‌ها</summary>
           <p>وصول: مانده فاکتور × احتمال وصول؛ در سررسید ۹۰٪، با تأخیر تا ۳۰ روز ۷۵٪، تا ۶۰ روز ۵۰٪ و بیشتر ۲۵٪. احتمال در ضریب سناریو ضرب می‌شود. بدون سررسید، تاریخ صدور + ۳۰ روز؛ مطالبات معوق در هفته اول قرار می‌گیرند.</p>
-          <p>مصرف: میانگین خروجی ۹۰ روز گذشته × ضریب سناریو. تقسیم هفتگی بر ۴٫۳۳۳؛ در هفته شامل روزهای ۲۸ تا ۳۱ ماه میلادی، حقوق ۴۵٪ مصرف ماهانه، خرید ۴۰٪ مصرف هفتگی و سربار ۱۵٪ آن است. در سایر هفته‌ها خرید ۶۵٪ و سربار ۳۵٪ مصرف هفتگی است. این سهم‌ها فرض مدل‌اند؛ موعد واقعی پرداخت نیستند.</p>
+          <p>{forecast.outflow_mode === "planned" ? "مصرف: فقط پرداخت‌های ثبت‌شده با مبلغ و تاریخ مشخص؛ تخمین تاریخی اضافه نمی‌شود و ضریب سناریو مبلغ تعهدات را تغییر نمی‌دهد. " : "مصرف: میانگین خروجی ۹۰ روز گذشته × ضریب سناریو. تقسیم هفتگی بر ۴٫۳۳۳؛ در هفته شامل روزهای ۲۸ تا ۳۱ ماه میلادی، حقوق ۴۵٪ مصرف ماهانه، خرید ۴۰٪ مصرف هفتگی و سربار ۱۵٪ آن است. در سایر هفته‌ها خرید ۶۵٪ و سربار ۳۵٪ مصرف هفتگی است. این سهم‌ها فرض مدل‌اند؛ موعد واقعی پرداخت نیستند."}</p>
         </details>
       </div>
       {loading && (
@@ -166,6 +170,7 @@ export function CashFlowForecastChart({
                 <i className={styles.bufferKey} />
                 ذخیره امن
               </span>
+              <span><i className={styles.zeroKey} />صفر · مرز کسری واقعی</span>
             </div>
             <span>میلیون تومان</span>
           </div>
@@ -173,7 +178,7 @@ export function CashFlowForecastChart({
             className={styles.chart}
             dir="ltr"
             role="img"
-            aria-label="روند مانده نقد در ۱۳ هفته؛ در نمای دامنه کامل خط نقطه‌چین آستانه ذخیره را نشان می‌دهد. جزئیات با انتخاب هفته و در جدول قابل خواندن است."
+            aria-label={`روند مانده نقد در ${horizonLabel}؛ خطوط صفر و ذخیره امن در دامنه کامل مشخص‌اند. جزئیات هر هفته در جدول قابل خواندن است.`}
           >
             <ResponsiveContainer
               width="100%"
@@ -215,6 +220,7 @@ export function CashFlowForecastChart({
                     ifOverflow="hidden"
                   />
                 )}
+                {fullScale && <ReferenceLine y={0} stroke="var(--ds-risk-high-fg)" strokeDasharray="2 3" />}
                 {selected && (
                   <ReferenceLine
                     x={selected.week_number}
@@ -247,7 +253,7 @@ export function CashFlowForecastChart({
                 variant="ghost"
                 size="auto"
                 disabled={loading}
-                aria-label={`انتخاب هفته ${toPersianDigits(week.week_number)}${week.is_deficit ? "، کسری ذخیره" : ""}`}
+                aria-label={`انتخاب هفته ${toPersianDigits(week.week_number)}${Number(week.ending_cash_irr) < 0 ? "، کسری واقعی" : week.is_deficit ? "، افت زیر ذخیره" : ""}`}
                 aria-pressed={selected?.week_number === week.week_number}
                 onClick={() => setSelectedNumber(week.week_number)}
                 className={week.is_deficit ? styles.deficitWeek : undefined}
@@ -264,7 +270,7 @@ export function CashFlowForecastChart({
             <span className={firstDeficit ? styles.danger : styles.secondary}>
               {firstDeficit
                 ? `اولین افت زیر ذخیره امن: هفته ${toPersianDigits(firstDeficit.week_number)}`
-                : "در افق ۱۳ هفته این سناریو، افت زیر ذخیره امن پیش‌بینی نشده است."}
+                : `در ${horizonLabel} این سناریو، افت زیر ذخیره امن پیش‌بینی نشده است.`}
             </span>
           </div>
         </div>
@@ -326,8 +332,10 @@ export function CashFlowForecastChart({
                     selected.is_deficit ? styles.danger : styles.success
                   }
                 >
-                  {selected.is_deficit
-                    ? "کمتر از حداقل ذخیره امن"
+                  {Number(selected.ending_cash_irr) < 0
+                    ? "کسری واقعی؛ مانده نقد منفی است"
+                    : selected.is_deficit
+                    ? "افت زیر ذخیره امن؛ مانده هنوز منفی نیست"
                     : "در محدوده ذخیره امن"}
                 </small>
               </div>
@@ -355,6 +363,7 @@ export function CashFlowForecastChart({
                   </div>
                 ))}
               </dl>
+              {Number(selected.ending_cash_irr) < 0 && <p className={styles.deficitNote}>کمبود نقد تا صفر: <MoneyDisplay amount={String(Math.abs(Number(selected.ending_cash_irr)))} executive direction="neutral" size="sm" /></p>}
               {selected.is_deficit && (
                 <p className={styles.deficitNote}>
                   فاصله تا ذخیره امن:{" "}
@@ -366,6 +375,13 @@ export function CashFlowForecastChart({
                   />
                 </p>
               )}
+              <div className={styles.weekMovements}>
+                <h4>وصول‌های مورد انتظار این هفته</h4>
+                {selected.receipts?.length ? <ul>{selected.receipts.map((item) => <li key={item.source_id}><span>{item.title}<small>{toJalaliDate(item.due_date)} · مبلغ با احتمال وصول تعدیل شده</small></span><MoneyDisplay amount={item.amount_irr} executive direction="neutral" size="sm" /></li>)}</ul> : <p>فاکتور قابل وصولی در این هفته ثبت نشده است.</p>}
+                <h4>پرداخت‌های این هفته</h4>
+                {forecast.outflow_mode === "planned" ? selected.payments?.length ? <ul>{selected.payments.map((item) => <li key={item.source_id}><span>{item.title}<small>{toJalaliDate(item.due_date)}</small></span><MoneyDisplay amount={item.amount_irr} executive direction="neutral" size="sm" /></li>)}</ul> : <p>پرداختی برای این هفته ثبت نشده؛ کامل‌بودن برنامه را بررسی کنید.</p> : <p>خروجی تخمینی از مصرف گذشته است؛ تاریخ واقعی پرداخت‌ها ثبت نشده است.</p>}
+              </div>
+              {companyBase && <div className={styles.weekActions}><Link href={`${companyBase}/receivables`}>پیگیری وصول مطالبات</Link><Link href={`${companyBase}/payables`}>بررسی بدهی‌ها</Link></div>}
             </>
           ) : (
             <p className={styles.empty}>جزئیات هفتگی در دسترس نیست.</p>

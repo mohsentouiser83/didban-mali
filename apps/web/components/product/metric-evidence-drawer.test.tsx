@@ -19,7 +19,7 @@ describe("Metric evidence money and units", () => {
     fireEvent.click(screen.getByText("مبلغ دقیق به ریال"));
     expect(screen.getByText("۱۷٬۲۹۷٬۴۰۰٬۰۰۰")).toBeVisible();
     expect(screen.getByText("۱۲۰ سند فاقد تاریخ سررسید هستند")).toBeVisible();
-    expect(screen.getByRole("link",{name:"بررسی و تکمیل داده‌های ورودی"})).toHaveAttribute("href","/companies/company/data");
+    expect(screen.getByRole("link",{name:"بررسی و تکمیل داده‌های ورودی"})).toHaveAttribute("href","/companies/company/data/connections");
   });
   it("keeps ratios distinct from percentage units", () => {
     render(<MetricEvidenceDrawer open onOpenChange={vi.fn()} companyId="company" metric={{...metric,unit:"ratio",value_numeric:1.5}} />);

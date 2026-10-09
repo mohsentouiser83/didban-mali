@@ -74,7 +74,7 @@ export function RecordLineageDialog({
       >
         <DialogHeader className="border-b border-border/70 pb-3 text-start">
           <div className="flex items-center gap-2.5">
-            <span className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <span className="size-8 rounded-lg  text-primary flex items-center justify-center shrink-0">
               <GitBranch className="size-4" />
             </span>
             <div>

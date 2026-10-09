@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Response, status
@@ -23,13 +22,6 @@ class DependencyStatus(BaseModel):
     database: bool
     redis: bool
     storage: bool
-
-
-class SystemMetricsResponse(BaseModel):
-    status: Literal["healthy", "degraded"]
-    timestamp: str
-    dependencies: DependencyStatus
-    queue_depth: int
 
 
 @router.get("/live", response_model=LiveResponse)
@@ -75,28 +67,4 @@ async def ready(response: Response) -> DependencyStatus:
         database=database_ok,
         redis=redis_ok,
         storage=storage_ok,
-    )
-
-
-@router.get("/metrics", response_model=SystemMetricsResponse)
-async def metrics(response: Response) -> SystemMetricsResponse:
-    dep_status = await ready(response)
-    queue_depth = 0
-
-    if not settings.celery_task_always_eager:
-        redis_broker = Redis.from_url(settings.celery_broker_url)
-        try:
-            queue_depth = int(await redis_broker.llen("celery") or 0)
-        except Exception:
-            queue_depth = -1
-        finally:
-            await redis_broker.aclose()
-
-    is_healthy = dep_status.status == "ready" and queue_depth >= 0
-
-    return SystemMetricsResponse(
-        status="healthy" if is_healthy else "degraded",
-        timestamp=datetime.now(UTC).isoformat(),
-        dependencies=dep_status,
-        queue_depth=queue_depth,
     )

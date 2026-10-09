@@ -97,9 +97,9 @@ export function MyActionsWorkspace({ company }: { company: Company }) {
         }
         secondaryActions={
           <Button variant="outline" size="sm" asChild className="gap-1.5">
-            <Link href={`${base}/control`}>
+            <Link href={`${base}/overview`}>
               <ShieldCheck className="size-3.5 text-primary" />
-              <span>داشبورد کنترل مالی</span>
+              <span>داشبورد</span>
             </Link>
           </Button>
         }

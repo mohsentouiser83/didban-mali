@@ -31,11 +31,6 @@ class EarlyWarningAlertItem(BaseModel):
     action_note: str | None = None
 
 
-class AlertsListResponse(BaseModel):
-    items: list[EarlyWarningAlertItem]
-    total_count: int
-
-
 class AlertsSummaryResponse(BaseModel):
     total_active: int
     critical_count: int
@@ -46,14 +41,6 @@ class AlertsSummaryResponse(BaseModel):
     supply_chain_count: int
     compliance_count: int
     active_alerts: list[EarlyWarningAlertItem]
-
-
-class AlertAcknowledgeRequest(BaseModel):
-    note: str | None = Field(default=None, max_length=500)
-
-
-class AlertResolveRequest(BaseModel):
-    action_note: str = Field(min_length=3, max_length=1000)
 
 
 class AlertWebhookCreateRequest(BaseModel):

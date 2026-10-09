@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LifeBuoy, Send, CheckCircle2, Compass } from "@/components/ui/icons";
+import { LifeBuoy, Send, CheckCircle2 } from "@/components/ui/icons";
 import { usePathname } from "next/navigation";
 
 import {
@@ -22,14 +22,12 @@ interface SupportModalProps {
   companyId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStartTour?: () => void;
 }
 
 export function SupportModal({
   companyId,
   open,
   onOpenChange,
-  onStartTour,
 }: SupportModalProps) {
   const pathname = usePathname();
   const [category, setCategory] = useState<
@@ -92,26 +90,6 @@ export function SupportModal({
             درخواست‌های شما با اولویت‌بندی عملیاتی در تیم پشتیبانی بررسی می‌شود.
             اطلاعات حساس مالی شرکت به‌صورت خودکار ارسال نمی‌گردد.
           </DialogDescription>
-          {onStartTour && (
-            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground text-[11px]">
-                نیاز به آموزش کار با بخش‌ها دارید؟
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  onStartTour();
-                }}
-                className="gap-1.5 cursor-pointer"
-              >
-                <Compass className="h-3.5 w-3.5" />
-                <span>مشاهده تور راهنما</span>
-              </Button>
-            </div>
-          )}
         </DialogHeader>
 
         {success ? (

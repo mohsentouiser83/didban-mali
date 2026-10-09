@@ -1,9 +1,6 @@
 import pytest
 from sqlalchemy import select
 
-from app.automations.models import AutomationActionType
-from app.automations.schemas import AutomationRuleCreate
-from app.automations.service import AutomationService
 from app.companies.models import Company, CompanyAccess
 from app.core.database import async_session_factory, engine
 from app.core.tenant import set_request_company, set_request_user
@@ -125,63 +122,3 @@ async def test_integrations_lifecycle_and_idempotency():
             connection_id=conn.id,
             actor_id=user.id,
         )
-
-
-@pytest.mark.asyncio
-async def test_automation_rules_and_daily_cycle():
-    """
-    Verify Automation platform:
-    1. Create daily morning cycle rule
-    2. Execute rule manually
-    3. Verify all cycle steps succeed (sync -> recalculation -> reconciliation -> findings)
-    4. Duration is recorded and status is success
-    """
-    async with async_session_factory() as session:
-        user = await session.scalar(select(User).where(User.email == "admin@didban.ir"))
-        assert user is not None
-        await set_request_user(session, user.id)
-
-        stmt = (
-            select(Company)
-            .join(CompanyAccess, CompanyAccess.company_id == Company.id)
-            .where(CompanyAccess.user_id == user.id)
-            .limit(1)
-        )
-        company = (await session.execute(stmt)).scalar_one_or_none()
-        assert company is not None
-        await set_request_company(session, company.id)
-
-        # 1. Create rule
-        rule_payload = AutomationRuleCreate(
-            name="چرخه خودکار بامداد (ساعت ۰۷:۰۰)",
-            action_type=AutomationActionType.DAILY_MORNING_CYCLE,
-            is_enabled=True,
-            schedule_cron="0 7 * * *",
-            config={"notify_on_completion": True},
-        )
-        rule = await AutomationService.create_rule(
-            session=session,
-            company_id=company.id,
-            payload=rule_payload,
-            actor_id=user.id,
-        )
-        assert rule.id is not None
-        assert rule.is_enabled is True
-
-        # 2. Execute rule
-        run = await AutomationService.execute_rule(
-            session=session,
-            company_id=company.id,
-            rule_id=rule.id,
-            trigger_type="manual",
-            actor_id=user.id,
-        )
-        assert run.status == "succeeded"
-        assert run.duration_ms >= 0
-        assert len(run.steps_executed_json) == 4
-
-        step_names = [s["step"] for s in run.steps_executed_json]
-        assert "sync_integrations" in step_names
-        assert "recalculate_metrics" in step_names
-        assert "reconciliation" in step_names
-        assert "findings_and_assignment" in step_names

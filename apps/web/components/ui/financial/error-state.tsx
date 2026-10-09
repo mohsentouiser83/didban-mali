@@ -52,7 +52,7 @@ export function ErrorState({
       )}
       {...props}
     >
-      <div className="size-14 rounded-[var(--ds-card-radius)] bg-destructive/10 text-destructive grid place-items-center border border-destructive/20 shadow-2xs">
+      <div className="size-14 rounded-[var(--ds-card-radius)]  text-destructive grid place-items-center   ">
         <AlertCircle className="size-7" />
       </div>
 

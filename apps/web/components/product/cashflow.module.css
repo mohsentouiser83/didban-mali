@@ -827,3 +827,29 @@
 @container product-page (max-width: 620px) { .modelNotes { padding-inline: 16px; } .metricNote { overflow-wrap: anywhere; } }
 
 .page :global(.page-header-description), .page :global(.page-header-status) { font-size: 14px; }
+
+.dataNotice { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; padding: 16px 20px; background: var(--ds-card-solid); border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); }
+.dataNotice p { margin: 0; flex-basis: 100%; }
+.dataNotice a, .actionLinks a, .weekActions a { color: var(--ds-primary); text-decoration: underline; text-underline-offset: 4px; }
+.actionLinks { display: flex; flex-wrap: wrap; gap: 12px; }
+.forecastControls { display: flex; flex-wrap: wrap; gap: 16px 24px; }
+.forecastControls > div { display: grid; gap: 8px; min-width: min(240px, 100%); }
+.paymentPlan { border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); background: var(--ds-card-solid); }
+.paymentPlan > summary { cursor: pointer; padding: 16px 20px; min-height: 44px; font-weight: 500; }
+.paymentPlan > summary > span { color: var(--ds-foreground-soft); font-weight: 400; margin-inline-start: 12px; }
+.paymentPlanBody { padding: 0 20px 20px; }
+.paymentForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-block-start: 20px; }
+.paymentForm > div { display: grid; gap: 8px; }
+.paymentForm > button { justify-self: start; }
+.paymentList { list-style: none; padding: 0; margin: 0; }
+.paymentList li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-block: 12px; border-bottom: 1px solid var(--ds-border); }
+.paymentList li > div { flex: 1; }
+.paymentList small { display: block; color: var(--ds-foreground-soft); }
+.weekMovements { margin-block-start: 16px; }
+.weekMovements h4 { font-size: 14px; margin-block: 12px 8px; }
+.weekMovements ul { padding: 0; list-style: none; }
+.weekMovements li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding-block: 8px; border-bottom: 1px solid var(--ds-border); }
+.weekMovements small { display: block; color: var(--ds-foreground-soft); }
+.weekActions { display: flex; flex-wrap: wrap; gap: 12px; margin-block-start: 20px; }
+.zeroKey { background: var(--ds-danger); }
+@container product-page (max-width: 620px) { .paymentForm { grid-template-columns: 1fr; } .paymentPlan > summary > span { display: block; margin-inline-start: 0; } .assessment { flex-wrap: wrap; } }

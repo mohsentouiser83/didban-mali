@@ -5,7 +5,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { WalletCards } from "@/components/ui/icons";
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 afterEach(() => vi.restoreAllMocks());
-it("moves the same indicator between navigation and company settings", () => {
+it("moves the same indicator between active pages", () => {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
       const href = this.getAttribute("href");
@@ -30,7 +30,6 @@ it("moves the same indicator between navigation and company settings", () => {
             ],
           },
         ]}
-        companyName="شرکت نمونه"
         userName="مدیر"
         base="/company"
         isItemActive={(href) => href === active}
@@ -49,7 +48,5 @@ it("moves the same indicator between navigation and company settings", () => {
     "aria-current",
     "page",
   );
-  rerender(view("/company/settings/profile"));
-  expect(container.querySelectorAll(".sidebar-selection")).toHaveLength(1);
-  expect(indicator).toHaveStyle({ transform: "translate3d(12px, 600px, 0)" });
+  expect(screen.queryByRole("link", { name: "تنظیمات شرکت" })).not.toBeInTheDocument();
 });

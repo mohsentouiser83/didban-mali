@@ -358,6 +358,10 @@ def reconcile(
         for ledger in eligible_ledgers:
             if ledger.entry_id in accepted_journals:
                 continue
+            # A shared voucher reference must never propose matching an inflow
+            # against an outflow, even when their amounts differ.
+            if (bank.amount_irr > 0) != (ledger.amount_irr > 0):
+                continue
             features = _features(bank, ledger)
             amount_equal = bool(features["amount_equal"])
             reference_equal = bool(features["reference_equal"])

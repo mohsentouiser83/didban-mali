@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -567,7 +568,7 @@ export function FindingCaseWorkspace({
       >
         <div className="flex items-center gap-2.5">
           <span
-            className={`size-7 rounded-lg flex items-center justify-center shrink-0 ${evidenceComplete ? "bg-ds-success/10 text-ds-success" : "bg-ds-warning/10 text-ds-warning"}`}
+            className={`size-7 rounded-lg flex items-center justify-center shrink-0 ${evidenceComplete ? " text-ds-success" : " text-ds-warning"}`}
           >
             <Icon
               name={evidenceComplete ? "check" : "alert"}
@@ -842,14 +843,15 @@ export function FindingCaseWorkspace({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground">
+              <label htmlFor="finding-action-due-date" className="text-xs font-bold text-foreground">
                 موعد اقدام (اختیاری):
               </label>
-              <Input
+              <PersianDatePicker
+                id="finding-action-due-date"
+                aria-label="موعد اقدام"
                 size="sm"
-                type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onValueChange={setDueDate}
                 className="font-mono"
               />
             </div>
@@ -1449,7 +1451,7 @@ function EvidenceCaseItem({
 
   return (
     <li className="flex items-start gap-3 p-4 rounded-[var(--ds-card-radius)] border border-border/60 bg-muted/20 text-xs">
-      <span className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+      <span className="size-8 rounded-lg  text-primary flex items-center justify-center shrink-0 mt-0.5">
         <Icon
           name={
             item.evidence_type === "source_record"

@@ -163,6 +163,7 @@ async def list_findings(
     is_suppressed: bool | None = False,
     search: str | None = None,
     limit: int = 50,
+    offset: int = 0,
 ) -> tuple[list[dict[str, Any]], int]:
     """Search and filter findings with user name resolution."""
     stmt = select(Finding).where(Finding.company_id == company_id)
@@ -204,10 +205,10 @@ async def list_findings(
 
     stmt = stmt.order_by(
         # Critical and High first, then newest
-        Finding.severity == "critical",
-        Finding.severity == "high",
+        (Finding.severity == "critical").desc(),
+        (Finding.severity == "high").desc(),
         Finding.created_at.desc(),
-    ).limit(limit)
+    ).limit(limit).offset(offset)
 
     findings = (await session.scalars(stmt)).all()
 
@@ -751,6 +752,9 @@ async def get_control_overview(
     ).all()
 
     return {
+        "total_count": sum(counts_by_status.values()),
+        "review_count": counts_by_status.get(FindingStatus.NEW, 0) + counts_by_status.get(FindingStatus.TRIAGED, 0),
+        "follow_up_count": counts_by_status.get(FindingStatus.IN_PROGRESS, 0) + counts_by_status.get(FindingStatus.REOPENED, 0),
         "critical_count": counts_by_severity.get("critical", 0),
         "high_count": counts_by_severity.get("high", 0),
         "medium_count": counts_by_severity.get("medium", 0),

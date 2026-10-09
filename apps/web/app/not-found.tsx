@@ -10,7 +10,7 @@ export default function NotFound(): React.ReactNode {
       dir="rtl"
       className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center text-foreground"
     >
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)] bg-destructive/10 text-destructive mb-6 shadow-[var(--ds-shadow-sm)]">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)]  text-destructive mb-6 ">
         <AlertCircle className="h-8 w-8" />
       </div>
 

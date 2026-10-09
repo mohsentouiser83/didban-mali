@@ -135,11 +135,11 @@ export const KpiMetricCard = React.forwardRef<
               <div
                 data-slot="metric-icon"
                 className={cn(
-                  "grid size-9 shrink-0 place-items-center rounded-[var(--ds-card-radius)] bg-muted/70 text-muted-foreground transition-all duration-300 group-hover:bg-primary/15 group-hover:text-primary   shadow-2xs",
+                  "grid size-9 shrink-0 place-items-center rounded-[var(--ds-card-radius)]  text-muted-foreground transition-all duration-300  group-hover:text-primary   ",
                   status === "critical" &&
-                    "bg-ds-danger/10 text-ds-danger group-hover:bg-ds-danger/20 group-hover:text-ds-danger",
+                    " text-ds-danger  group-hover:text-ds-danger",
                   status === "warning" &&
-                    "bg-ds-warning/10 text-ds-warning group-hover:bg-ds-warning/20 group-hover:text-ds-warning",
+                    " text-ds-warning  group-hover:text-ds-warning",
                 )}
               >
                 <Icon className="size-4.5 transition-transform duration-300 " />

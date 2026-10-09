@@ -437,10 +437,10 @@ export function FindingReviewPanel({
                   className={`relative pr-6 ${replacedNoteIds.has(item.id) ? "opacity-60" : ""}`}
                 >
                   <span
-                    className={`absolute -right-[9px] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-card ${
+                    className={`absolute -right-[9px] top-1 flex h-4 w-4 items-center justify-center rounded-full   ${
                       item.kind === "decision"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted-foreground text-card"
+                        ? " text-primary"
+                        : " text-muted-foreground"
                     }`}
                   >
                     <Icon

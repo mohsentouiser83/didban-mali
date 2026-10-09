@@ -1,0 +1,11 @@
+.form { display: flex; flex-direction: column; flex: 1; gap: 22px; }
+.form label { display: block; margin-block-end: 8px; font-size: 13px; font-weight: 400; }
+.details { display: grid; gap: 16px; font-size: 13px; }
+.details > div { display: flex; justify-content: space-between; gap: 20px; }
+.details dt { color: var(--ds-foreground-soft); flex-shrink: 0; }
+.details dd { text-align: end; }
+.subtitle { font-size: 14px; font-weight: 500; margin-block-end: 8px; }
+.caption, .note { font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
+.caption { color: var(--ds-foreground-soft); }
+.note { white-space: pre-wrap; }
+.error { font-size: 13px; line-height: 1.9; color: var(--ds-risk-high-fg); }

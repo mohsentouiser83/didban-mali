@@ -46,7 +46,7 @@ export function EmptyState({
       )}
       {...props}
     >
-      <div className="size-14 rounded-[var(--ds-card-radius)] bg-muted/60 text-muted-foreground grid place-items-center border border-border/60 shadow-2xs transition-transform duration-300   group-hover:text-primary group-hover:bg-primary/10">
+      <div className="size-14 rounded-[var(--ds-card-radius)]  text-muted-foreground grid place-items-center    transition-transform duration-300   group-hover:text-primary ">
         <IconComponent className="size-7" />
       </div>
 

@@ -178,23 +178,11 @@ class FindingDetectionRunResponse(BaseModel):
     created_at: datetime
 
 
-class FinancialControlPolicyResponse(BaseModel):
-    id: UUID
-    rule_code: str
-    is_enabled: bool
-    severity_override: str | None
-    thresholds: dict[str, Any]
-    updated_at: datetime
-
-
-class UpdateFinancialControlPolicyRequest(BaseModel):
-    is_enabled: bool | None = None
-    severity_override: str | None = None
-    thresholds: dict[str, Any] | None = None
-
-
 # Compatibility schemas for old tests / endpoints
 class FindingResponse(BaseModel):
+    status: str = "new"
+    assigned_to_name: str | None = None
+    due_date: date | None = None
     id: UUID
     analysis_run_id: UUID | None = None
     generation_run_id: UUID | None = None

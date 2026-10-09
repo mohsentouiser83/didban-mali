@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "./product-card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -332,7 +332,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
         aria-labelledby="period-title"
       >
         <div className="period-heading flex items-center gap-3 border-b border-border/60 pb-3">
-          <span className="size-9 rounded-[var(--ds-card-radius)] bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <span className="size-9 rounded-[var(--ds-card-radius)]  text-primary flex items-center justify-center shrink-0">
             <Icon name="calendar" className="size-4" />
           </span>
           <div>
@@ -350,14 +350,14 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
           className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto] items-end gap-3"
         >
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-foreground">
+            <label htmlFor="analysis-period-start" className="block text-xs font-semibold text-foreground">
               از تاریخ
             </label>
-            <Input
-              type="date"
-              dir="ltr"
+            <PersianDatePicker
+              id="analysis-period-start"
+              aria-label="از تاریخ"
               value={periodStart}
-              onChange={(event) => updateStart(event.target.value)}
+              onValueChange={updateStart}
               required
               disabled={submitting}
             />
@@ -366,14 +366,14 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
             تا
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-foreground">
+            <label htmlFor="analysis-period-end" className="block text-xs font-semibold text-foreground">
               تا تاریخ
             </label>
-            <Input
-              type="date"
-              dir="ltr"
+            <PersianDatePicker
+              id="analysis-period-end"
+              aria-label="تا تاریخ"
               value={periodEnd}
-              onChange={(event) => updateEnd(event.target.value)}
+              onValueChange={updateEnd}
               required
               disabled={submitting}
             />
@@ -599,7 +599,7 @@ export function AnalysisWorkspace({ company }: { company: Company }) {
         </div>
       ) : !isRunning ? (
         <section className="analysis-empty py-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center space-y-2">
-          <span className="size-12 rounded-[var(--ds-card-radius)] bg-muted flex items-center justify-center mb-1">
+          <span className="size-12 rounded-[var(--ds-card-radius)]  flex items-center justify-center mb-1">
             <Icon name="chart" className="size-6 text-muted-foreground/60" />
           </span>
           <h3 className="text-sm font-bold text-foreground">
@@ -690,8 +690,8 @@ function CoveragePanel({ coverage }: { coverage: AnalysisCoverage }) {
                 <span
                   className={`coverage-mark size-7 rounded-lg flex items-center justify-center shrink-0 ${
                     section?.available
-                      ? "bg-ds-success/10 text-ds-success"
-                      : "bg-ds-warning/10 text-ds-warning"
+                      ? " text-ds-success"
+                      : " text-ds-warning"
                   }`}
                 >
                   <Icon

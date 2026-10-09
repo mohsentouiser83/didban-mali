@@ -1,17 +1,15 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.companies.models import Company, CompanyAccess, CompanyRole
+from app.companies.models import CompanyAccess, CompanyRole
 from app.core.database import get_db
 from app.customer_success.models import (
-    ProductAnalyticsEvent,
     SupportTicket,
 )
 from app.customer_success.schemas import (
-    CustomerHealthSummary,
     GoLiveResponse,
     GoLiveValidationRequest,
     GoLiveValidationResponse,
@@ -20,13 +18,11 @@ from app.customer_success.schemas import (
     ProductFeedbackResponse,
     SupportTicketCreate,
     SupportTicketResponse,
-    ValueMetricsOverview,
 )
 from app.customer_success.service import (
     complete_go_live,
     create_support_ticket,
     get_company_onboarding_status,
-    get_customer_health_overview,
     record_go_live_validation,
     submit_product_feedback,
 )
@@ -210,48 +206,4 @@ async def submit_feedback(
         workaround=fb.workaround,
         requested_outcome=fb.requested_outcome,
         created_at=fb.created_at,
-    )
-
-
-@router.get(
-    "/admin/customer-success/health",
-    response_model=list[CustomerHealthSummary],
-)
-async def list_customer_health(
-    current_user: CurrentUser,
-    session: AsyncSession = Depends(get_db),
-) -> list[CustomerHealthSummary]:
-    # Internal operations view
-    return await get_customer_health_overview(session)
-
-
-@router.get(
-    "/admin/customer-success/metrics",
-    response_model=ValueMetricsOverview,
-)
-async def get_value_metrics(
-    current_user: CurrentUser,
-    session: AsyncSession = Depends(get_db),
-) -> ValueMetricsOverview:
-    total_companies = int(await session.scalar(select(func.count(Company.id))) or 0)
-    live_companies = int(
-        await session.scalar(select(func.count(Company.id)).where(Company.is_live.is_(True))) or 0
-    )
-    activated = int(
-        await session.scalar(
-            select(func.count(func.distinct(ProductAnalyticsEvent.company_id))).where(
-                ProductAnalyticsEvent.event_name == "company_activated"
-            )
-        )
-        or 0
-    )
-
-    return ValueMetricsOverview(
-        total_companies=total_companies,
-        live_companies=live_companies,
-        activated_companies=activated,
-        mean_time_to_first_value_hours=1.8,
-        total_reconciliation_hours_saved_monthly=68.5,
-        total_critical_errors_prevented=14,
-        average_implementation_hours_per_company=4.2,
     )

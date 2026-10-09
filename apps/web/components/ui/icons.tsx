@@ -1,5 +1,5 @@
 /** Shared Phosphor icon registry. SSR imports also render safely in client components.
- * Use the duotone default for product UI; pass weight="regular" for dense controls.
+ * Use regular line icons throughout the product UI.
  */
 import { forwardRef } from "react";
 import type { Icon as AppIcon, IconProps as AppIconProps } from "@phosphor-icons/react";
@@ -139,7 +139,7 @@ import { XCircleIcon } from "@phosphor-icons/react/dist/ssr/XCircle";
 export type { AppIcon, AppIconProps };
 
 function productIcon(Icon: AppIcon, name: string): AppIcon {
-  const Component = forwardRef<SVGSVGElement, AppIconProps>(({ weight = "duotone", size = 24, ...props }, ref) => (
+  const Component = forwardRef<SVGSVGElement, AppIconProps>(({ weight = "regular", size = 24, ...props }, ref) => (
     <Icon ref={ref} weight={weight} size={size} aria-hidden={props["aria-label"] || props.alt ? undefined : true} data-icon={name} {...props} />
   ));
   Component.displayName = name;

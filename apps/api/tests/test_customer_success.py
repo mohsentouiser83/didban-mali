@@ -125,14 +125,3 @@ def test_customer_onboarding_validation_and_go_live() -> None:
         json=feedback_payload,
     )
     assert fb_res.status_code == 201, fb_res.text
-
-    # 8. Check admin health and metrics
-    health_res = owner_client.get("/admin/customer-success/health")
-    assert health_res.status_code == 200
-    assert len(health_res.json()) >= 1
-
-    metrics_res = owner_client.get("/admin/customer-success/metrics")
-    assert metrics_res.status_code == 200
-    metrics_data = metrics_res.json()
-    assert metrics_data["total_companies"] >= 1
-    assert metrics_data["mean_time_to_first_value_hours"] > 0

@@ -1,5 +1,4 @@
-from datetime import UTC, datetime, timedelta
-from decimal import Decimal
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -10,14 +9,12 @@ from uuid6 import uuid7
 from app.audit.service import record_audit_event
 from app.companies.models import Company, CompanyAccess
 from app.customer_success.models import (
-    CustomerSuccessRecord,
     GoLiveValidation,
     ProductAnalyticsEvent,
     ProductFeedback,
     SupportTicket,
 )
 from app.customer_success.schemas import (
-    CustomerHealthSummary,
     GoLiveValidationRequest,
     OnboardingStatusResponse,
     OnboardingStep,
@@ -114,7 +111,7 @@ async def get_company_onboarding_status(
             status="completed" if has_accounting else ("in_progress" if step1_done else "pending"),
             blocker_message="اسناد حسابداری هنوز بارگذاری یا تایید نهایی نشده است." if not has_accounting else None,
             cta_label="بارگذاری اسناد حسابداری" if not has_accounting else None,
-            cta_route="/data" if not has_accounting else None,
+            cta_route="/data/connections" if not has_accounting else None,
             responsible_role="حسابدار ارشد",
         ),
         OnboardingStep(
@@ -123,7 +120,7 @@ async def get_company_onboarding_status(
             status="completed" if has_bank else ("in_progress" if has_accounting else "pending"),
             blocker_message="صورتحساب حداقل یک حساب بانکی اصلی وارد نشده است." if not has_bank and has_accounting else None,
             cta_label="بارگذاری گردش بانک" if not has_bank and has_accounting else None,
-            cta_route="/data" if not has_bank and has_accounting else None,
+            cta_route="/data/connections" if not has_bank and has_accounting else None,
             responsible_role="خزانه‌دار",
         ),
         OnboardingStep(
@@ -138,7 +135,7 @@ async def get_company_onboarding_status(
             status="completed" if step5_done else ("in_progress" if has_accounting and has_bank else "pending"),
             blocker_message="اعداد نقدینگی و مطالبات باید پیش از راه‌اندازی توسط مدیر مالی تأیید شوند." if not step5_done and has_accounting and has_bank else None,
             cta_label="تأیید اعداد مالی" if not step5_done and has_accounting and has_bank else None,
-            cta_route="/control" if not step5_done and has_accounting and has_bank else None,
+            cta_route="/findings" if not step5_done and has_accounting and has_bank else None,
             responsible_role="مدیر مالی",
         ),
         OnboardingStep(
@@ -153,7 +150,7 @@ async def get_company_onboarding_status(
             status="completed" if step7_done else ("in_progress" if step5_done else "pending"),
             blocker_message="حداقل دو کاربر مالی جهت تفکیک نقش‌ها و کنترل چند سطحی لازم است." if not step7_done and step5_done else None,
             cta_label="دعوت همکاران" if not step7_done and step5_done else None,
-            cta_route="/settings" if not step7_done and step5_done else None,
+            cta_route="/settings/members" if not step7_done and step5_done else None,
             responsible_role="مالک شرکت",
         ),
         OnboardingStep(
@@ -363,58 +360,3 @@ async def submit_product_feedback(
     )
     await session.commit()
     return feedback
-
-
-async def get_customer_health_overview(
-    session: AsyncSession,
-) -> list[CustomerHealthSummary]:
-    companies = (await session.scalars(select(Company).order_by(Company.created_at.desc()))).all()
-    summaries: list[CustomerHealthSummary] = []
-    now = datetime.now(UTC)
-
-    for c in companies:
-        cs_record = await session.scalar(
-            select(CustomerSuccessRecord).where(CustomerSuccessRecord.company_id == c.id)
-        )
-        last_refresh = await session.scalar(
-            select(func.max(ImportBatch.created_at)).where(
-                ImportBatch.company_id == c.id,
-                ImportBatch.status.in_([ImportStatus.COMPLETED, ImportStatus.COMPLETED_LIMITED]),
-            )
-        )
-
-        active_users = int(
-            await session.scalar(
-                select(func.count(CompanyAccess.id)).where(CompanyAccess.company_id == c.id)
-            )
-            or 0
-        )
-
-        # Health determination
-        health: str = "healthy"
-        if not last_refresh or (now - last_refresh.replace(tzinfo=UTC) > timedelta(days=14)):
-            health = "at_risk"
-        elif (now - last_refresh.replace(tzinfo=UTC) > timedelta(days=7)) or active_users < 2:
-            health = "needs_attention"
-
-        dev_hours = cs_record.implementation_hours_dev if cs_record else Decimal(0)
-        consultant_hours = cs_record.implementation_hours_consultant if cs_record else Decimal(0)
-        cs_hours = cs_record.implementation_hours_cs if cs_record else Decimal(0)
-        total_hours = dev_hours + consultant_hours + cs_hours
-
-        summaries.append(
-            CustomerHealthSummary(
-                company_id=c.id,
-                company_name=c.legal_name,
-                is_live=bool(c.is_live),
-                health_status=health,
-                last_data_refresh=last_refresh,
-                last_user_activity=now,
-                critical_findings_count=0,
-                unreconciled_transactions_count=0,
-                active_finance_users_count=active_users,
-                implementation_hours_total=total_hours,
-                primary_business_objective=c.primary_business_objective,
-            )
-        )
-    return summaries

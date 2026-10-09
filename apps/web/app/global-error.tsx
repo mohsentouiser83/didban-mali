@@ -21,7 +21,7 @@ export default function GlobalError({
   return (
     <html lang="fa" dir="rtl">
       <body className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-6 text-center font-sans antialiased text-slate-900">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)] bg-ds-danger/10 text-ds-danger mb-6 shadow-[var(--ds-shadow-sm)]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[var(--ds-card-radius)]  text-ds-danger mb-6 ">
           <AlertOctagon className="h-8 w-8" />
         </div>
 

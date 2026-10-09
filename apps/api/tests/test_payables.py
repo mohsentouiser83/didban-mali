@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+from app import main  # noqa: F401 — initialize the application model registry
 from app.payables.schemas import (
     PayableAgingBucketDetail,
     PayablesSummaryResponse,
@@ -127,3 +128,60 @@ def test_payables_summary_preserves_fractional_collection_and_cash_cycle_days() 
     )
     assert summary.model_dump(mode="json")["dso_days"] == 45.2
     assert summary.model_dump(mode="json")["ccc_days"] == -44.8
+
+
+async def test_payable_entries_company_scope_and_estimated_dates() -> None:
+    from datetime import timedelta
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.payables.service import get_payable_entries
+
+    company_id, counterparty_id = uuid4(), uuid4()
+    entry = SimpleNamespace(
+        source_entry_id="J-1",
+        source_entry_key="key",
+        entry_date=date(2026, 9, 1),
+        description="خرید مواد",
+    )
+    credit = SimpleNamespace(id=uuid4(), debit_irr=Decimal(0), credit_irr=Decimal("10000"))
+    debit = SimpleNamespace(id=uuid4(), debit_irr=Decimal("3000"), credit_irr=Decimal(0))
+    result = MagicMock()
+    result.all.return_value = [(credit, entry), (debit, entry)]
+    session = AsyncMock()
+    session.execute.return_value = result
+    response = await get_payable_entries(session, company_id, counterparty_id, date(2026, 10, 9))
+    assert response.items[0].estimated_due_date == entry.entry_date + timedelta(days=45)
+    assert response.items[1].estimated_due_date is None
+    assert response.model_dump()["items"][1]["debit_irr"] == "3000"
+    query = session.execute.call_args.args[0]
+    params = query.compile().params
+    assert company_id in params.values()
+    assert counterparty_id in params.values()
+    assert date(2026, 10, 9) in params.values()
+    assert "journal_lines.company_id" in str(query)
+    assert "journal_entries.company_id" in str(query)
+
+
+async def test_payables_summary_handles_missing_dso() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
+
+    from app.payables.service import get_payables_summary
+
+    session = AsyncMock()
+    session.scalar.return_value = None
+    with (
+        patch(
+            "app.payables.service.get_vendors_payables",
+            new=AsyncMock(return_value=SimpleNamespace(items=[])),
+        ),
+        patch(
+            "app.payables.service.get_receivables_summary",
+            new=AsyncMock(return_value=SimpleNamespace(dso_days=None)),
+        ),
+    ):
+        response = await get_payables_summary(session, uuid4(), date(2026, 10, 9))
+    assert response.dso_days is None
+    assert response.ccc_days is None
+    assert response.total_payables_irr == 0

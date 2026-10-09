@@ -1,0 +1,37 @@
+.section { min-width: 0; background: var(--ds-card); border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); overflow: hidden; }
+.heading { padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.heading h2 { font-size: 16px; font-weight: 500; }
+.heading p { margin-block-start: 4px; color: var(--ds-foreground-soft); font-size: 12px; }
+.controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search { position: relative; width: 210px; }
+.search > svg { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); color: var(--ds-foreground-soft); pointer-events: none; }
+.search input { padding-inline-start: 38px; font-size: 13px; }
+.filters { display: flex; gap: 4px; }
+.filters button { font-size: 12px; font-weight: 400; min-height: 44px; }
+.scroll { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th, .table td { padding: 14px 24px; text-align: start; border-block-start: 1px solid var(--ds-border); white-space: nowrap; }
+.table thead th { font-weight: 400; color: var(--ds-foreground-soft); background: var(--ds-muted-bg); }
+.table tbody th { font-weight: 400; }
+.table td span { font-weight: 400; font-size: 13px; }
+.customer.customer { font-size: 13px; font-weight: 400; padding-inline: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; width: 100%; text-align: start; cursor: pointer; border-radius: 4px; transition: color 160ms; }
+.customer:hover { color: var(--ds-primary); }
+.customer:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 4px; }
+.customer svg { color: var(--ds-foreground-soft); }
+.empty, .table .empty { padding: 32px 20px; text-align: center; font-size: 13px; color: var(--ds-foreground-soft); }
+.empty button { margin-block-start: 16px; }
+.balance { display: flex; flex-direction: column; gap: 8px; padding-block-end: 24px; border-block-end: 1px solid var(--ds-border); }
+.balance > span:first-child { font-size: 13px; color: var(--ds-foreground-soft); }
+.balance > span:last-child { font-size: 22px; font-weight: 500; }
+.invoices { display: flex; flex-direction: column; gap: 20px; }
+.invoice { border-block-end: 1px solid var(--ds-border); padding-block-end: 20px; }
+.invoiceHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.invoiceHeading h3 { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.invoiceHeading span { font-size: 11px; white-space: nowrap; color: var(--ds-foreground-soft); }
+.invoiceHeading .overdue { color: var(--ds-risk-high-fg); }
+.invoice dl { margin-block-start: 12px; display: grid; gap: 8px; font-size: 13px; }
+.invoice dl > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.invoice dt { color: var(--ds-foreground-soft); }
+.invoice dd span { font-size: 13px; font-weight: 400; }
+@media (max-width: 640px) { .heading { padding: 20px 16px; } .controls { width: 100%; } .search { flex: 1; min-width: 170px; } .table th, .table td { padding-inline: 16px; } }
+@media (prefers-reduced-motion: reduce) { .customer.customer { font-size: 13px; font-weight: 400; padding-inline: 0; transition: none; } }

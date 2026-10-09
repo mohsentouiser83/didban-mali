@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   Sparkles,
   Rocket,
-  Compass,
 } from "@/components/ui/icons";
 
 import { Button } from "@/components/ui/button";
@@ -21,13 +20,11 @@ import { FinancialValidationModal } from "./financial-validation-modal";
 interface OnboardingWizardBannerProps {
   companyId: string;
   onGoLiveCompleted?: () => void;
-  onStartTour?: () => void;
 }
 
 export function OnboardingWizardBanner({
   companyId,
   onGoLiveCompleted,
-  onStartTour,
 }: OnboardingWizardBannerProps) {
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,7 +85,7 @@ export function OnboardingWizardBanner({
       >
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/40 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg  text-primary">
               <Rocket className="h-5 w-5" />
             </div>
             <div>
@@ -108,17 +105,6 @@ export function OnboardingWizardBanner({
           </div>
 
           <div className="flex items-center gap-2">
-            {onStartTour && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onStartTour}
-                className="gap-1.5 text-muted-foreground hover:text-foreground border-border/80"
-              >
-                <Compass className="h-3.5 w-3.5 text-primary" />
-                <span>تور راهنما</span>
-              </Button>
-            )}
             {status.steps[4].status !== "completed" ? (
               <Button variant="default"
                 size="sm"
@@ -205,7 +191,7 @@ export function OnboardingWizardBanner({
                 <Link
                   href={
                     status.steps.find((s) => s.cta_route)?.cta_route ||
-                    `/companies/${companyId}/data`
+                    `/companies/${companyId}/data/connections`
                   }
                 >
                   <span>{status.next_action_fa}</span>

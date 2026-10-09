@@ -1,0 +1,27 @@
+.persian-calendar {
+  --rdp-accent-color: var(--ds-primary);
+  --rdp-accent-background-color: var(--ds-control-selected);
+  --rdp-day-width: 40px;
+  --rdp-day-height: 40px;
+  --rdp-day_button-width: 38px;
+  --rdp-day_button-height: 38px;
+  --rdp-day_button-border-radius: var(--ds-radius-control);
+  --rdp-selected-border: 2px solid var(--ds-primary);
+  --rdp-today-color: var(--ds-primary);
+  --rdp-nav_button-width: 36px;
+  --rdp-nav_button-height: 40px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.persian-calendar .rdp-dropdowns { gap: 8px; font-size: 14px; }
+.persian-calendar .rdp-dropdown_root {
+  padding: 6px 8px;
+  border: 1px solid var(--ds-input-border);
+  border-radius: var(--ds-radius-control);
+}
+.persian-calendar .rdp-dropdown { font: inherit; background: var(--ds-input-bg); color: var(--ds-control-ink); }
+.persian-calendar .rdp-day_button { font: inherit; }
+.persian-calendar .rdp-day_button:hover { background: var(--ds-control-muted); }
+.persian-calendar .rdp-day_button:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.persian-calendar .rdp-selected .rdp-day_button { background: var(--ds-control-selected); font-weight: 700; }
+.persian-calendar .rdp-weekday { color: var(--ds-control-caption); font-size: 12px; font-weight: 500; }

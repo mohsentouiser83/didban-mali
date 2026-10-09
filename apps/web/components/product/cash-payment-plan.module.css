@@ -1,0 +1,25 @@
+.section { min-width: 0; background: var(--ds-card); border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); overflow: hidden; }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; }
+.heading > div { display: flex; align-items: baseline; gap: 12px; }
+.heading h2 { color: var(--ds-foreground); font-size: 16px; font-weight: 500; }
+.heading span { color: var(--ds-foreground-soft); font-size: 12px; }
+.tableScroll { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: start; }
+.table th, .table td { padding: 16px 24px; text-align: start; border-block-start: 1px solid var(--ds-border); }
+.table thead th { font-weight: 400; color: var(--ds-foreground-soft); background: var(--ds-muted-bg); }
+.table tbody th { font-weight: 400; min-width: 140px; }
+.table td { white-space: nowrap; }
+.table small { display: block; color: var(--ds-foreground-soft); font-size: 11px; margin-block-start: 4px; }
+.table td:last-child:has(button) { width: 64px; padding-inline: 12px; }
+.empty, .table .empty { color: var(--ds-foreground-soft); text-align: center; padding: 36px 20px; font-size: 13px; }
+.error { padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 13px; }
+.form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 16px; }
+.form > div:first-child, .form > div:nth-child(4), .form > :last-child, .formError { grid-column: 1 / -1; }
+.form label { display: block; margin-block-end: 8px; font-size: 13px; font-weight: 400; }
+.formError { color: var(--ds-risk-high-fg); font-size: 13px; line-height: 1.8; }
+@media (max-width: 540px) { .heading { padding: 16px; align-items: flex-start; } .heading > div { flex-direction: column; gap: 4px; } .table th, .table td { padding: 14px 16px; } .form { grid-template-columns: minmax(0, 1fr); } }
+
+.drawerForm { display: flex; flex-direction: column; flex: 1; gap: 22px; }
+.drawerForm label { display: block; margin-block-end: 8px; font-size: 13px; font-weight: 400; }
+
+.notice { padding: 12px 24px; font-size: 13px; line-height: 1.8; color: var(--ds-foreground-soft); }

@@ -1,0 +1,11 @@
+.drawer.drawer { width: min(100%, 440px); max-width: 440px; display: flex; flex-direction: column; gap: 28px; padding: 48px 28px 24px; overflow-y: auto; }
+.header { text-align: start; }
+.header h2 { font-size: 18px; font-weight: 500; }
+.header p { font-size: 13px; line-height: 1.8; }
+.footer { margin-block-start: auto; padding-block-start: 20px; border-block-start: 1px solid var(--ds-border); gap: 8px; }
+.drawer[data-state="open"] { animation: drawer-in 240ms cubic-bezier(.2,0,0,1); }
+.drawer[data-state="closed"] { animation: drawer-out 180ms ease-in; }
+@keyframes drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawer-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@media (max-width: 540px) { .drawer.drawer { padding-inline: 20px; } }
+@media (prefers-reduced-motion: reduce) { .drawer[data-state] { animation: none; } }

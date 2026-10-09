@@ -1,38 +1,8 @@
-from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-from app.ai.models import AiInvocationStatus, AiPurpose
-
-
-class AiSettingsUpdate(BaseModel):
-    enabled: bool
-    explanations_enabled: bool
-    semantic_matching_enabled: bool
-
-
-class AiSettingsResponse(AiSettingsUpdate):
-    global_enabled: bool
-    provider_configured: bool
-    data_region_configured: bool
-    explanations_effective: bool
-    semantic_matching_effective: bool
-    revision_id: UUID | None
-    updated_at: datetime | None
-
-
-class SemanticCandidatesRequest(BaseModel):
-    candidate_ids: list[UUID] = Field(min_length=1, max_length=20)
-
-    @field_validator("candidate_ids")
-    @classmethod
-    def unique_candidates(cls, value: list[UUID]) -> list[UUID]:
-        if len(set(value)) != len(value):
-            raise ValueError("شناسه نامزدها نباید تکراری باشد.")
-        return value
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FindingExplanationOutput(BaseModel):
@@ -60,22 +30,3 @@ class SemanticMatchingOutput(BaseModel):
 
     ranked_candidates: list[RankedCandidate]
     requires_human_review: Literal[True]
-
-
-class AiInvocationResponse(BaseModel):
-    id: UUID
-    company_id: UUID
-    purpose: AiPurpose
-    status: AiInvocationStatus
-    source_finding_id: UUID | None
-    source_reconciliation_run_id: UUID | None
-    provider: str
-    model: str
-    prompt_version: str
-    output: dict[str, Any] | None
-    latency_ms: int
-    failure_code: str | None
-    failure_message: str | None
-    requires_human_review: bool = True
-    created_at: datetime
-    completed_at: datetime

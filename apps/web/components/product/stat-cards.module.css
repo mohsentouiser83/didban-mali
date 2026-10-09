@@ -1,0 +1,24 @@
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.card { min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 12px; background: var(--ds-card); border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); animation: card-enter 480ms cubic-bezier(.2,0,0,1) backwards; transition: transform 180ms cubic-bezier(.2,0,0,1), border-color 180ms ease; }
+.card:nth-child(2) { animation-delay: 80ms; }
+.card:nth-child(3) { animation-delay: 160ms; }
+.card:nth-child(4) { animation-delay: 240ms; }
+.card h3 { color: var(--ds-foreground-soft); font-size: 13px; font-weight: 400; line-height: 1.8; margin: 0; text-wrap: balance; }
+.value { display: flex; align-items: center; min-height: 44px; font-variant-numeric: tabular-nums; }
+.value > span { flex-wrap: wrap; column-gap: 6px; row-gap: 2px; }
+.value > span > span:first-child { font-size: 12px; font-weight: 400; }
+.value > span > span:last-child { font-size: clamp(20px, 1.8vw, 24px); font-weight: 500; }
+.negative, .negative > span { color: var(--ds-risk-high-fg); }
+.unavailable { color: var(--ds-foreground); font-size: 16px; font-weight: 400; line-height: 1.7; }
+.cardHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.icon { display: flex; align-items: center; justify-content: center; flex: 0 0 36px; height: 36px;  color: var(--ds-primary); }
+.icon svg { animation: icon-enter 480ms cubic-bezier(.2,0,0,1) backwards; animation-delay: 120ms; transition: transform 180ms cubic-bezier(.2,0,0,1); }
+.card:nth-child(2) .icon svg { animation-delay: 200ms; }
+.card:nth-child(3) .icon svg { animation-delay: 280ms; }
+.card:nth-child(4) .icon svg { animation-delay: 360ms; }
+@media (hover: hover) { .card:hover { transform: translateY(-3px); border-color: var(--ds-border-strong); } .card:hover .icon svg { transform: scale(1.08); } }
+@keyframes card-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes icon-enter { from { opacity: 0; transform: scale(.75) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .cards { grid-template-columns: minmax(0, 1fr); } .card { padding: 20px; gap: 10px; } .card h3 { min-height: auto; } }
+@media (prefers-reduced-motion: reduce) { .card, .icon svg { animation: none; transition: none; } .card:hover, .card:hover .icon svg { transform: none; } }

@@ -1,9 +1,9 @@
 "use client";
 
-import { RisksWorkspace } from "@/components/product/risks-workspace";
+import { ReviewWorkspace } from "@/components/product/review-workspace";
 import { useWorkspace } from "@/components/product/workspace-provider";
 
 export default function FindingsPage() {
   const { company } = useWorkspace();
-  return <RisksWorkspace company={company} defaultTab="findings" />;
+  return <ReviewWorkspace company={company} />;
 }

@@ -133,7 +133,8 @@ async def run_canonical_reconciliation(
         .outerjoin(Counterparty, Counterparty.id == JournalLine.counterparty_id)
         .where(
             JournalLine.company_id == company_id,
-            # Filter for cash and bank accounts (code starting with 101 or 102, or class ASSET)
+            # Match cash/bank ledger lines, not all asset accounts (receivables,
+            # inventory, etc.). Keep this scope consistent with analysis snapshots.
             or_(
                 Account.source_code.startswith("101"),
                 Account.source_code.startswith("102"),
@@ -679,6 +680,7 @@ async def _inputs(
                 JournalLine.invoice_ref,
             )
             .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalLine.account_id)
             .where(
                 JournalEntry.company_id == analysis.company_id,
                 JournalEntry.import_batch_id.in_(manifest_ids),
@@ -687,6 +689,10 @@ async def _inputs(
                     analysis.period_end + timedelta(days=31),
                 ),
                 classification == AccountClass.ASSET,
+                or_(
+                    Account.source_code.startswith("10"),
+                    Account.source_code.startswith("11"),
+                ),
             )
             .order_by(JournalEntry.entry_date, JournalEntry.id, JournalLine.id)
         )

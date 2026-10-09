@@ -17,6 +17,8 @@ from app.financial.models import (
 )
 from app.payables.schemas import (
     PayableAgingBucketDetail,
+    PayableEntriesResponse,
+    PayableEntryItem,
     PayablesBucketKey,
     PayablesRiskLevel,
     PayablesSummaryResponse,
@@ -71,9 +73,7 @@ async def _resolve_as_of_date(
         )
     )
     max_inv_date = await session.scalar(
-        select(func.max(SalesInvoice.issue_date)).where(
-            SalesInvoice.company_id == company_id
-        )
+        select(func.max(SalesInvoice.issue_date)).where(SalesInvoice.company_id == company_id)
     )
 
     dates = [d for d in (max_bank_date, max_inv_date) if d is not None]
@@ -152,7 +152,7 @@ async def get_payables_summary(
         dso_days = 45
 
     # Cash Conversion Cycle (CCC = DSO - DPO)
-    ccc_days = dso_days - dpo_days
+    ccc_days = dso_days - dpo_days if dso_days is not None else None
 
     return PayablesSummaryResponse(
         as_of_date=effective_date,
@@ -218,13 +218,17 @@ async def get_vendors_payables(
 
     # Also check counterparties marked as vendor/supplier that have no journal lines yet
     vendor_cparties = (
-        await session.execute(
-            select(Counterparty).where(
-                Counterparty.company_id == company_id,
-                Counterparty.kind.in_(["vendor", "supplier"]),
+        (
+            await session.execute(
+                select(Counterparty).where(
+                    Counterparty.company_id == company_id,
+                    Counterparty.kind.in_(["vendor", "supplier"]),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     for cp in vendor_cparties:
         if cp.id not in vendor_map:
@@ -308,3 +312,47 @@ async def get_vendors_payables(
     items.sort(key=lambda x: (x.risk_score, x.total_payable_irr), reverse=True)
 
     return VendorsPayablesResponse(as_of_date=effective_date, items=items)
+
+
+async def get_payable_entries(
+    session: AsyncSession,
+    company_id: UUID,
+    counterparty_id: UUID,
+    as_of_date: date | None = None,
+) -> PayableEntriesResponse:
+    effective_date = await _resolve_as_of_date(session, company_id, as_of_date)
+    query = (
+        select(JournalLine, JournalEntry)
+        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+        .join(
+            AccountClassification,
+            (AccountClassification.account_id == JournalLine.account_id)
+            & (AccountClassification.account_class == AccountClass.LIABILITY),
+        )
+        .where(
+            JournalLine.company_id == company_id,
+            JournalEntry.company_id == company_id,
+            JournalLine.counterparty_id == counterparty_id,
+            JournalEntry.entry_date <= effective_date,
+        )
+        .order_by(JournalEntry.entry_date.desc(), JournalLine.id)
+    )
+    results = (await session.execute(query)).all()
+    return PayableEntriesResponse(
+        as_of_date=effective_date,
+        items=[
+            PayableEntryItem(
+                id=line.id,
+                entry_number=entry.source_entry_id or entry.source_entry_key,
+                entry_date=entry.entry_date,
+                description=entry.description,
+                debit_irr=line.debit_irr,
+                credit_irr=line.credit_irr,
+                estimated_due_date=(entry.entry_date + timedelta(days=45))
+                if line.credit_irr > line.debit_irr
+                else None,
+            )
+            for line, entry in results
+            if line.credit_irr != ZERO or line.debit_irr != ZERO
+        ],
+    )
