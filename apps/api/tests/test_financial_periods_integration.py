@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.companies.models import Company, CompanyAccess, CompanyRole
-from app.core.database import get_db
+from app.core import database
 from app.core.tenant import reset_request_context, set_request_user
 from app.financial.models import (
     BankAccount,
@@ -163,23 +163,14 @@ async def seed_period_data(factory):
         )
 
 
-async def test_saved_periods_history_report_and_rls():
+async def test_saved_periods_history_report_and_rls(monkeypatch):
     admin = create_async_engine(os.environ["PERIODS_TEST_ADMIN_URL"])
     runtime = create_async_engine(os.environ["PERIODS_TEST_APP_URL"])
     admin_factory = async_sessionmaker(admin, expire_on_commit=False)
     factory = async_sessionmaker(runtime, expire_on_commit=False)
     seed = await seed_period_data(admin_factory)
 
-    async def db():
-        async with factory() as session:
-            try:
-                yield session
-            finally:
-                await session.rollback()
-                await reset_request_context(session)
-                await session.commit()
-
-    app.dependency_overrides[get_db] = db
+    monkeypatch.setattr(database, "async_session_factory", factory)
     try:
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -278,6 +269,5 @@ async def test_saved_periods_history_report_and_rls():
             assert len((await session.scalars(select(FinancialPeriod))).all()) == 1
             await reset_request_context(session)
     finally:
-        app.dependency_overrides.pop(get_db, None)
         await runtime.dispose()
         await admin.dispose()
