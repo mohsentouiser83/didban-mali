@@ -19,7 +19,7 @@ from app.financial.models import (
     JournalEntry,
     JournalLine,
 )
-from app.imports.models import SourceRow
+from app.imports.models import ImportBatch, ImportStatus, SourceRow
 from app.reconciliation.engine import (
     BankRecord,
     LedgerRecord,
@@ -33,6 +33,13 @@ from app.reconciliation.models import (
     ReconciliationMatch,
     ReconciliationRun,
     ReconciliationStatus,
+)
+
+# Chunked normalization commits intermediate rows. Reconciliation only sees an
+# upload after all chunks are normalized, or after it has fully completed.
+READY_IMPORT = or_(
+    ImportBatch.status.in_([ImportStatus.COMPLETED, ImportStatus.COMPLETED_LIMITED]),
+    ImportBatch.stage == "reconciliation",
 )
 
 
@@ -69,6 +76,7 @@ async def run_canonical_reconciliation(
     period_start: date | None = None,
     period_end: date | None = None,
     config_params: dict[str, Any] | None = None,
+    commit: bool = True,
 ) -> ReconciliationRun:
     """Execute reconciliation directly on Phase 1 canonical bank transactions and journal lines."""
     config_params = config_params or {}
@@ -82,9 +90,10 @@ async def run_canonical_reconciliation(
     matched_banks, matched_journals = await get_active_matched_ids(session, company_id)
 
     # 1. Fetch eligible Bank Transactions
-    bank_stmt = select(BankTransaction).where(
-        BankTransaction.company_id == company_id,
-    )
+    bank_stmt = (select(BankTransaction)
+        .join(SourceRow, SourceRow.id == BankTransaction.source_row_id)
+        .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
+        .where(BankTransaction.company_id == company_id, READY_IMPORT))
     if bank_account_id:
         bank_stmt = bank_stmt.where(BankTransaction.bank_account_id == bank_account_id)
     if period_start:
@@ -130,9 +139,12 @@ async def run_canonical_reconciliation(
         )
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
         .join(Account, Account.id == JournalLine.account_id)
+        .join(SourceRow, SourceRow.id == JournalLine.source_row_id)
+        .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
         .outerjoin(Counterparty, Counterparty.id == JournalLine.counterparty_id)
         .where(
             JournalLine.company_id == company_id,
+            READY_IMPORT,
             # Match cash/bank ledger lines, not all asset accounts (receivables,
             # inventory, etc.). Keep this scope consistent with analysis snapshots.
             or_(
@@ -172,7 +184,8 @@ async def run_canonical_reconciliation(
     ]
 
     # 3. Execute deterministic matching engine
-    proposals = reconcile(banks, ledgers, config)
+    inputs_available = bool(banks or matched_banks) and bool(ledgers or matched_journals)
+    proposals = reconcile(banks, ledgers, config) if inputs_available else []
 
     # 4. Compute Summary Statistics
     auto_matched_proposals = [p for p in proposals if p.status == MatchStatus.AUTO_MATCHED]
@@ -197,6 +210,7 @@ async def run_canonical_reconciliation(
     suggested_count = sum(1 for p in proposals if p.status == MatchStatus.SUGGESTED_MATCH)
     needs_review_count = sum(1 for p in proposals if p.status == MatchStatus.NEEDS_REVIEW)
     counts_payload = {
+        "inputs_available": inputs_available,
         "total_bank_transactions": len(banks),
         "total_journal_lines": len(ledgers),
         "matched_count": matched_count,
@@ -209,9 +223,9 @@ async def run_canonical_reconciliation(
         "accounting_entries": len(ledgers),
         "auto_matched": matched_count,
         "potential_matches": suggested_count,
-        "amount_mismatches": 0,
-        "date_mismatches": 0,
-        "duplicates": 0,
+        "amount_mismatches": sum(p.status == MatchStatus.AMOUNT_MISMATCH for p in proposals),
+        "date_mismatches": sum(p.status == MatchStatus.DATE_MISMATCH for p in proposals),
+        "duplicates": sum(p.match_level == MatchLevel.DUPLICATE for p in proposals),
         "unresolved": unmatched_bank_count,
     }
 
@@ -313,7 +327,8 @@ async def run_canonical_reconciliation(
         },
     )
 
-    await session.commit()
+    if commit:
+        await session.commit()
     return run
 
 
@@ -527,12 +542,16 @@ async def get_unmatched_records(
     bank_account_id: UUID | None = None,
     period_start: date | None = None,
     period_end: date | None = None,
+    limit: int | None = 200,
 ) -> dict[str, Any]:
     """Retrieve all unmatched bank transactions and journal lines for a company."""
     matched_banks, matched_journals = await get_active_matched_ids(session, company_id)
 
     # Bank transactions
-    b_stmt = select(BankTransaction).where(BankTransaction.company_id == company_id)
+    b_stmt = (select(BankTransaction)
+        .join(SourceRow, SourceRow.id == BankTransaction.source_row_id)
+        .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
+        .where(BankTransaction.company_id == company_id, READY_IMPORT))
     if bank_account_id:
         b_stmt = b_stmt.where(BankTransaction.bank_account_id == bank_account_id)
     if period_start:
@@ -541,7 +560,9 @@ async def get_unmatched_records(
         b_stmt = b_stmt.where(BankTransaction.booking_date <= period_end)
     if matched_banks:
         b_stmt = b_stmt.where(BankTransaction.id.not_in(matched_banks))
-    b_stmt = b_stmt.order_by(BankTransaction.booking_date.desc(), BankTransaction.id).limit(200)
+    b_stmt = b_stmt.order_by(BankTransaction.booking_date.desc(), BankTransaction.id)
+    if limit is not None:
+        b_stmt = b_stmt.limit(limit)
 
     unmatched_bank_txs = (await session.scalars(b_stmt)).all()
 
@@ -550,23 +571,29 @@ async def get_unmatched_records(
         select(
             JournalLine.id,
             JournalLine.entry_id,
+            JournalLine.source_row_id,
             JournalLine.account_id,
             JournalLine.debit_irr,
             JournalLine.credit_irr,
             JournalLine.invoice_ref,
             JournalEntry.entry_date,
+            JournalEntry.source_entry_id,
             JournalEntry.description,
             Counterparty.name.label("counterparty_name"),
         )
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
         .join(Account, Account.id == JournalLine.account_id)
+        .join(SourceRow, SourceRow.id == JournalLine.source_row_id)
+        .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
         .outerjoin(Counterparty, Counterparty.id == JournalLine.counterparty_id)
         .where(
             JournalLine.company_id == company_id,
+            READY_IMPORT,
             or_(
                 Account.source_code.startswith("101"),
                 Account.source_code.startswith("102"),
                 Account.source_code.startswith("10"),
+                Account.source_code.startswith("11"),
             ),
         )
     )
@@ -576,7 +603,9 @@ async def get_unmatched_records(
         j_stmt = j_stmt.where(JournalEntry.entry_date <= period_end + timedelta(days=15))
     if matched_journals:
         j_stmt = j_stmt.where(JournalLine.id.not_in(matched_journals))
-    j_stmt = j_stmt.order_by(JournalEntry.entry_date.desc(), JournalLine.id).limit(200)
+    j_stmt = j_stmt.order_by(JournalEntry.entry_date.desc(), JournalLine.id)
+    if limit is not None:
+        j_stmt = j_stmt.limit(limit)
 
     unmatched_j_lines = (await session.execute(j_stmt)).all()
 
@@ -587,6 +616,7 @@ async def get_unmatched_records(
         "bank_transactions": [
             {
                 "id": b.id,
+                "source_row_id": b.source_row_id,
                 "bank_account_id": b.bank_account_id,
                 "booking_date": b.booking_date,
                 "amount_irr": b.amount_irr,
@@ -599,6 +629,8 @@ async def get_unmatched_records(
         "journal_lines": [
             {
                 "id": j.id,
+                "source_row_id": j.source_row_id,
+                "document_number": j.source_entry_id,
                 "entry_id": j.entry_id,
                 "account_id": j.account_id,
                 "entry_date": j.entry_date,

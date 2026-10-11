@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { CashFlowWorkspace } from "./cashflow-workspace";
+import { CashFlowForecastWorkspace as CashFlowWorkspace } from "./cashflow-workspace";
 import { api } from "@/lib/product-api";
 vi.mock("./cash-payment-plan", () => ({ CashPaymentPlan: ({ onChanged }: { onChanged: () => void }) => <button onClick={onChanged}>تغییر برنامه پرداخت</button> }));
 vi.mock("@/lib/product-api", () => ({ api: vi.fn() }));

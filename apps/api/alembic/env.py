@@ -10,11 +10,13 @@ from app.alerts import models as alert_models  # noqa: F401
 from app.analysis import models as analysis_models  # noqa: F401
 from app.audit import models as audit_models  # noqa: F401
 from app.automations import models as automation_models  # noqa: F401
+from app.calculations import models as calculation_models  # noqa: F401
 from app.cashflow import models as cashflow_models  # noqa: F401
 from app.companies import models as company_models  # noqa: F401
 from app.core.config import settings
 from app.core.database import Base
 from app.financial import models as financial_models  # noqa: F401
+from app.financial_periods import models as financial_period_models  # noqa: F401
 from app.findings import models as finding_models  # noqa: F401
 from app.identity import models as identity_models  # noqa: F401
 from app.imports import models as import_models  # noqa: F401

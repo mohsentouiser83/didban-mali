@@ -1,793 +1,574 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  AlertCircle,
-  AlertTriangle,
-  ArrowRightLeft,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Check,
-  ExternalLink,
-  FileCheck2,
-  HardDrive,
-  Key,
-  Landmark,
-  Layers,
-  Network,
-  Play,
   Plus,
+  Search,
   RefreshCw,
-  ShieldCheck,
-  Trash2,
   Wifi,
-  WifiOff,
+  Key,
+  Copy,
 } from "@/components/ui/icons";
-
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  PageHeader,
-  StatusChip,
-  toPersianDigits,
-} from "@/components/ui/financial";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Drawer, DrawerFooter, DrawerDetails, DrawerForm } from "@/components/ui/drawer";
 import { api } from "@/lib/product-api";
 import type {
-  AgentKeyResponse,
   Company,
-  ConnectionStatus,
-  ConnectionTestResult,
   IntegrationConnection,
   IntegrationProvider,
   IntegrationSyncJob,
+  ConnectionTestResult,
+  AgentKeyResponse,
 } from "@/lib/product-types";
 import { SelectField, SelectOption } from "./select-field";
-
-interface IntegrationsWorkspaceProps {
-  company: Company;
-}
-
-const statusMap: Record<ConnectionStatus, { label: string; status: string }> = {
-  connected: { label: "متصل", status: "ready" },
-  syncing: { label: "در حال همگام‌سازی", status: "processing" },
-  reauth_required: { label: "نیازمند احراز هویت مجدد", status: "needs_review" },
-  error: { label: "دارای خطا", status: "failed" },
-  inactive: { label: "غیرفعال", status: "dismissed" },
-  disconnected: { label: "قطع‌شده", status: "dismissed" },
+import { SettingsConfirm } from "./settings-confirm";
+import { toJalaliDate } from "@/lib/date-utils";
+import page from "./cashflow-overview.module.css";
+import table from "./receivables-customers.module.css";
+import styles from "./reports-workspace.module.css";
+const providers: Record<IntegrationProvider, string> = {
+  sepidar: "سپیدار",
+  bank_direct: "حساب بانکی",
+  rahkaran: "راهکاران",
 };
-
-export function IntegrationsWorkspace({ company }: IntegrationsWorkspaceProps) {
-  const [connections, setConnections] = useState<IntegrationConnection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [selectedConn, setSelectedConn] =
-    useState<IntegrationConnection | null>(null);
-  const [syncJobs, setSyncJobs] = useState<IntegrationSyncJob[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [newConnOpen, setNewConnOpen] = useState(false);
-
-  // New connection form
+const statuses: Record<string, string> = {
+  connected: "متصل",
+  syncing: "در حال دریافت",
+  reauth_required: "نیازمند احراز هویت",
+  error: "خطای اتصال",
+  inactive: "غیرفعال",
+  disconnected: "قطع‌شده",
+};
+const jobLabels: Record<string, string> = {
+  queued: "در صف",
+  running: "در حال اجرا",
+  completed: "موفق",
+  failed: "ناموفق",
+  partial: "دریافت ناقص",
+};
+const number = new Intl.NumberFormat("fa-IR");
+export function IntegrationsWorkspace({ company }: { company: Company }) {
+  return <Connections key={company.id} company={company} />;
+}
+function Connections({ company }: { company: Company }) {
+  const [connections, setConnections] = useState<IntegrationConnection[]>([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState("");
+  const [search, setSearch] = useState(""),
+    [adding, setAdding] = useState(false),
+    [selected, setSelected] = useState<string | null>(null),
+    [busy, setBusy] = useState(false),
+    [formError, setFormError] = useState("");
   const [provider, setProvider] = useState<IntegrationProvider>("sepidar");
-  const [connName, setConnName] = useState("");
-  const [serverUrl, setServerUrl] = useState(
-    "http://sepidar.local:8080/api/v1",
+  const manage = company.role === "owner" || company.role === "finance_manager";
+  const load = useCallback(
+    async (initial = false) => {
+      if (initial) setLoading(true);
+      setError("");
+      try {
+        setConnections(
+          await api<IntegrationConnection[]>(
+            `/companies/${company.id}/integrations`,
+          ),
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "اتصال‌ها دریافت نشدند.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [company.id],
   );
-  const [apiToken, setApiToken] = useState("");
-  const [accountNumber, setAccountNumber] = useState("410088992211");
-  const [bankName, setBankName] = useState("بانک ملت");
-
-  // Local Sync Agent Modal
-  const [agentKeyOpen, setAgentKeyOpen] = useState(false);
-  const [agentKeyData, setAgentKeyData] = useState<AgentKeyResponse | null>(
-    null,
-  );
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [agentKeyLoading, setAgentKeyLoading] = useState(false);
-
-  const handleOpenAgentKey = async (conn: IntegrationConnection) => {
-    setSelectedConn(conn);
-    setAgentKeyOpen(true);
-    setAgentKeyLoading(true);
-    setCopiedKey(false);
-    try {
-      const res = await api<AgentKeyResponse>(
-        `/companies/${company.id}/integrations/${conn.id}/agent-key`,
-        { method: "POST" },
-      );
-      setAgentKeyData(res);
-    } catch (e) {
-      console.error("Failed to load agent key:", e);
-    } finally {
-      setAgentKeyLoading(false);
-    }
-  };
-
-  const copyAgentKey = () => {
-    if (agentKeyData?.agent_key) {
-      navigator.clipboard.writeText(agentKeyData.agent_key);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    }
-  };
-
-  const loadConnections = async () => {
-    try {
-      setLoading(true);
-      const data = await api<IntegrationConnection[]>(
-        `/companies/${company.id}/integrations`,
-      );
-      setConnections(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Failed to load connections:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadConnections();
-  }, [company.id]);
-
-  const handleTestConnection = async (connId: string) => {
-    setTestingId(connId);
+    void load(true);
+  }, [load]);
+  const pending = connections.some(
+    (connection) => connection.status === "syncing",
+  );
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => void load(), 4000);
+    return () => clearInterval(timer);
+  }, [pending, load]);
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setFormError("");
+    const data = new FormData(event.currentTarget),
+      token = String(data.get("token")).trim();
     try {
-      const res = await api<ConnectionTestResult>(
-        `/companies/${company.id}/integrations/${connId}/test`,
-        {
-          method: "POST",
-        },
-      );
-      await loadConnections();
-      alert(res.message_fa);
-    } catch (e: any) {
-      alert(e.message || "خطا در تست اتصال");
-    } finally {
-      setTestingId(null);
-    }
-  };
-
-  const handleTriggerSync = async (connId: string) => {
-    setSyncingId(connId);
-    try {
-      await api<IntegrationSyncJob>(
-        `/companies/${company.id}/integrations/${connId}/sync`,
-        {
-          method: "POST",
-          body: JSON.stringify({ sync_type: "manual" }),
-        },
-      );
-      await loadConnections();
-    } catch (e: any) {
-      alert(e.message || "خطا در تحریک همگام‌سازی");
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  const handleOpenHistory = async (conn: IntegrationConnection) => {
-    setSelectedConn(conn);
-    setHistoryOpen(true);
-    try {
-      const jobs = await api<IntegrationSyncJob[]>(
-        `/companies/${company.id}/integrations/${conn.id}/jobs`,
-      );
-      setSyncJobs(jobs);
-    } catch (e) {
-      console.error("Failed to load sync jobs:", e);
-    }
-  };
-
-  const handleCreateConnection = async () => {
-    try {
-      const config =
-        provider === "sepidar"
-          ? { server_url: serverUrl }
-          : { bank_name: bankName, account_number: accountNumber };
-      const credentials =
-        provider === "sepidar"
-          ? { api_token: apiToken }
-          : { api_key: apiToken };
       await api(`/companies/${company.id}/integrations`, {
         method: "POST",
         body: JSON.stringify({
           provider,
-          name:
-            connName ||
-            (provider === "sepidar"
-              ? "سپیدار سیستم مرکزی"
-              : `حساب شرکتی ${bankName}`),
-          config,
-          credentials,
+          name: String(data.get("name")).trim(),
+          config:
+            provider === "sepidar"
+              ? { server_url: String(data.get("server_url")).trim() }
+              : {
+                  bank_name: String(data.get("bank_name")).trim(),
+                  account_number: String(data.get("account_number")).trim(),
+                },
+          credentials:
+            provider === "sepidar" ? { api_token: token } : { api_key: token },
           sync_interval_minutes: 1440,
         }),
       });
-      setNewConnOpen(false);
-      setConnName("");
-      setApiToken("");
-      await loadConnections();
-    } catch (e: any) {
-      alert(e.message || "خطا در ثبت اتصال جدید");
+      setAdding(false);
+      await load();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "اتصال ثبت نشد.");
+    } finally {
+      setBusy(false);
     }
-  };
-
-  const handleDeleteConnection = async (connId: string) => {
-    if (!confirm("آیا از حذف این اتصال اطمینان دارید؟")) return;
-    try {
-      await api(`/companies/${company.id}/integrations/${connId}`, {
-        method: "DELETE",
-      });
-      await loadConnections();
-    } catch (e: any) {
-      alert(e.message || "خطا در حذف اتصال");
-    }
-  };
-
+  }
+  const visible = connections.filter((connection) =>
+    `${connection.name} ${providers[connection.provider]}`.includes(
+      search.trim(),
+    ),
+  );
+  const current = connections.find((connection) => connection.id === selected);
   return (
-    <div dir="rtl" className="pp-page pp-integrations space-y-6">
-      <PageHeader
-        title="اتصال‌ها و جریان داده"
-        description="وضعیت دریافت داده از حسابداری و بانک را بررسی و اتصال‌های شرکت را مدیریت کنید."
-        badge={
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
-            <Network className="h-3.5 w-3.5" />
-            اتصال کانونیکال
-          </span>
-        }
-        primaryAction={
-          <Button
-            size="sm"
-            onClick={() => setNewConnOpen(true)}
-            className="gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            افزودن اتصال جدید
-          </Button>
-        }
-      />
-
-      {/* Observability Banner */}
-      <div className="pp-metric-strip pp-metric-strip-three grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-ds-success shrink-0">
-            <CheckCircle2 className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-base font-bold font-mono text-foreground">
-              {toPersianDigits(
-                connections.filter((c) => c.status === "connected").length,
-              )}{" "}
-              اتصال
+    <div className={page.page} dir="rtl">
+      <h1>اتصال به سیستم‌های مالی و بانکی</h1>
+      <section className={table.section}>
+        <div className={table.heading}>
+          <h2>اتصال‌های شرکت</h2>
+          <div className={table.controls}>
+            <div className={table.search}>
+              <Search className="size-4" />
+              <Input
+                aria-label="جستجوی اتصال‌ها"
+                placeholder="نام اتصال یا سیستم"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              اتصال‌های فعال و پایدار
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-primary shrink-0">
-            <RefreshCw className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-base font-bold font-mono text-foreground">
-              {toPersianDigits(
-                connections.reduce(
-                  (acc, c) => acc + (c.last_sync_record_count || 0),
-                  0,
-                ),
-              )}{" "}
-              رکورد
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              رکوردهای آخرین همگام‌سازی
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 rounded-[var(--ds-card-radius)] border border-border bg-card p-3.5 shadow-xs">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg  text-primary shrink-0">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-base font-bold font-mono text-foreground">
-              داده با ردِ منبع
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              ردیابی دقیق شجره داده تا منبع
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Connections Grid */}
-      <div className="pp-connections space-y-4">
-        <h3 className="text-sm font-bold text-foreground">
-          سیستم‌های مالی و بانکی متصل
-        </h3>
-
-        {loading ? (
-          <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-8 text-center text-xs text-muted-foreground">
-            در حال بارگذاری وضعیت اتصال‌ها...
-          </div>
-        ) : connections.length === 0 ? (
-          <div className="rounded-[var(--ds-card-radius)] border border-border bg-card p-8 text-center space-y-3">
-            <HardDrive className="h-8 w-8 text-muted-foreground mx-auto" />
-            <div className="text-sm font-bold text-foreground">
-              هنوز اتصالی برقرار نشده است
-            </div>
-            <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              جهت حذف فرآیند بارگذاری دستی اکسل، اتصال به نرم‌افزار حسابداری
-              (سپیدار) یا گردش حساب‌های بانکی را فعال نمایید.
-            </p>
-            <Button
-              size="sm"
-              onClick={() => setNewConnOpen(true)}
-              className="gap-1.5"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              ایجاد اولین اتصال
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {connections.map((conn) => {
-              const statusCfg = statusMap[conn.status as ConnectionStatus] || {
-                label: conn.status,
-                tone: "neutral",
-              };
-              const isSepidar = conn.provider === "sepidar";
-
-              return (
-                <Card
-                  key={conn.id}
-                  className="border-border bg-card shadow-xs flex flex-col justify-between"
-                >
-                  <CardHeader className="pb-3 border-b border-border/50">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground shrink-0">
-                          {isSepidar ? (
-                            <FileCheck2 className="h-4 w-4" />
-                          ) : (
-                            <Landmark className="h-4 w-4" />
-                          )}
-                        </div>
-                        <div>
-                          <CardTitle className="text-sm font-bold text-foreground">
-                            {conn.name}
-                          </CardTitle>
-                          <CardDescription className="text-xs text-muted-foreground">
-                            {isSepidar
-                              ? "نرم‌افزار حسابداری سپیدار سیستم"
-                              : "گردش حساب بانکی شرکتی"}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <StatusChip
-                        status={statusCfg.status}
-                        label={statusCfg.label}
-                      />
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="pt-3 pb-3 space-y-2.5 text-xs text-muted-foreground">
-                    {conn.last_error_message && (
-                      <Alert variant="destructive" className="py-2 text-[11px]">
-                        <AlertTriangle className="h-3.5 w-3.5 ml-1" />
-                        <span>{conn.last_error_message}</span>
-                      </Alert>
-                    )}
-
-                    <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                      <span>آخرین همگام‌سازی:</span>
-                      <strong className="text-foreground font-mono">
-                        {conn.last_sync_at
-                          ? new Date(conn.last_sync_at).toLocaleTimeString(
-                              "fa-IR",
-                            )
-                          : "—"}
-                      </strong>
-                    </div>
-
-                    <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                      <span>رکوردهای همگام‌شده دوره اخیر:</span>
-                      <strong className="text-foreground font-mono">
-                        {toPersianDigits(conn.last_sync_record_count)} سطر
-                      </strong>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span>دوره تکرار زمان‌بندی:</span>
-                      <strong className="text-foreground">
-                        هر {toPersianDigits(conn.sync_interval_minutes / 60)}{" "}
-                        ساعت
-                      </strong>
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="gap-1.5"
-                        disabled={testingId === conn.id}
-                        onClick={() => handleTestConnection(conn.id)}
-                      >
-                        <Wifi className="h-3 w-3" />
-                        {testingId === conn.id ? "در حال تست..." : "تست اتصال"}
-                      </Button>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        disabled={syncingId === conn.id}
-                        onClick={() => handleTriggerSync(conn.id)}
-                      >
-                        <RefreshCw
-                          className={`h-3 w-3 ${syncingId === conn.id ? "animate-spin" : ""}`}
-                        />
-                        {syncingId === conn.id
-                          ? "در حال سینک..."
-                          : "همگام‌سازی فوری"}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => handleOpenAgentKey(conn)}
-                      >
-                        <Key className="h-3 w-3" />
-                        کلاینت محلی
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-muted-foreground hover:text-foreground"
-                        onClick={() => handleOpenHistory(conn)}
-                      >
-                        تاریخچه Sync
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="w-7 text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteConnection(conn.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Sync History Dialog */}
-      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="max-w-2xl font-sans" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-foreground">
-              تاریخچه همگام‌سازی — {selectedConn?.name}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              سوابق اجرای چرخه‌های دریافت خودکار داده و گزارش موارد
-              نادیده‌گرفته‌شده تکراری
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="max-h-[360px] overflow-y-auto">
-            {syncJobs.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
-                هیچ سابقه‌ای برای این اتصال ثبت نشده است.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">زمان شروع</TableHead>
-                    <TableHead className="text-xs">نوع اجرا</TableHead>
-                    <TableHead className="text-xs">وضعیت</TableHead>
-                    <TableHead className="text-xs text-left">
-                      دریافتی / واردشده
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {syncJobs.map((job) => (
-                    <TableRow key={job.id}>
-                      <TableCell className="text-xs font-mono">
-                        {job.started_at
-                          ? new Date(job.started_at).toLocaleTimeString("fa-IR")
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {job.sync_type === "scheduled"
-                          ? "خودکار شبانه"
-                          : "دستی"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            job.status === "completed" ? "success" : "danger"
-                          }
-                          className="text-[10px]"
-                        >
-                          {job.status === "completed" ? "موفق" : "ناموفق"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-left">
-                        {toPersianDigits(job.records_imported)} از{" "}
-                        {toPersianDigits(job.records_received)} سطر
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {manage && (
+              <Button
+                onClick={() => {
+                  setFormError("");
+                  setProvider("sepidar");
+                  setAdding(true);
+                }}
+              >
+                <Plus className="size-4" />
+                افزودن اتصال
+              </Button>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* New Connection Dialog */}
-      <Dialog open={newConnOpen} onOpenChange={setNewConnOpen}>
-        <DialogContent className="max-w-md font-sans" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-foreground">
-              افزودن اتصال مالی جدید
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              انتخاب سامانه مبدا جهت همگام‌سازی پایدار با پایپ‌لاین کانونیکال
-              دیدبان
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3.5 py-2">
+        </div>
+        {error ? (
+          <div className={table.empty} role="alert">
+            <p>{error}</p>
+            <Button variant="outline" onClick={() => void load(true)}>
+              تلاش دوباره
+            </Button>
+          </div>
+        ) : loading ? (
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          <div className={table.scroll}>
+            <table className={table.table}>
+              <thead>
+                <tr>
+                  <th scope="col">نام اتصال</th>
+                  <th scope="col">سیستم</th>
+                  <th scope="col">وضعیت</th>
+                  <th scope="col">آخرین دریافت</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((connection) => (
+                  <tr key={connection.id}>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        className={table.customer}
+                        onClick={() => setSelected(connection.id)}
+                      >
+                        {connection.name}
+                      </Button>
+                    </td>
+                    <td>{providers[connection.provider]}</td>
+                    <td>{statuses[connection.status] ?? "نامشخص"}</td>
+                    <td>
+                      {connection.last_sync_at
+                        ? toJalaliDate(connection.last_sync_at)
+                        : "هنوز دریافت نشده"}
+                    </td>
+                  </tr>
+                ))}
+                {!visible.length && (
+                  <tr>
+                    <td colSpan={4} className={table.empty}>
+                      {search
+                        ? "اتصالی پیدا نشد."
+                        : "هنوز اتصالی ثبت نشده است."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <Drawer
+        open={adding}
+        onOpenChange={(open) => {
+          if (!busy) setAdding(open);
+        }}
+        title="افزودن اتصال"
+        description="اطلاعات اتصال را از مسئول نرم‌افزار حسابداری یا سرویس بانکی دریافت کنید."
+      >
+        {adding && (
+          <DrawerForm onSubmit={create}>
             <div>
-              <label className="text-xs font-bold text-foreground mb-1 block">
-                نوع ارائه‌دهنده:
-              </label>
+              <label htmlFor="connection-provider">سیستم</label>
               <SelectField
-                size="sm"
+                id="connection-provider"
                 value={provider}
+                disabled={busy}
                 onChange={(e) =>
                   setProvider(e.target.value as IntegrationProvider)
                 }
-                className="w-full"
               >
-                <SelectOption value="sepidar">
-                  سپیدار سیستم (Sepidar V1)
-                </SelectOption>
-                <SelectOption value="bank_direct">
-                  صورتحساب مستقیم بانکی (Bank Feed V1)
-                </SelectOption>
+                <SelectOption value="sepidar">سپیدار</SelectOption>
+                <SelectOption value="bank_direct">حساب بانکی</SelectOption>
               </SelectField>
             </div>
-
             <div>
-              <label className="text-xs font-bold text-foreground mb-1 block">
-                نام نمایشی اتصال:
-              </label>
+              <label htmlFor="connection-name">نام اتصال</label>
               <Input
-                size="sm"
-                placeholder={
-                  provider === "sepidar"
-                    ? "سپیدار سیستم دفتر مرکزی"
-                    : "حساب جاری بانک ملت"
-                }
-                value={connName}
-                onChange={(e) => setConnName(e.target.value)}
+                id="connection-name"
+                name="name"
+                required
+                disabled={busy}
               />
             </div>
-
             {provider === "sepidar" ? (
-              <>
-                <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    آدرس وب‌سرویس / سرور سپیدار:
-                  </label>
-                  <Input
-                    size="sm"
-                    value={serverUrl}
-                    onChange={(e) => setServerUrl(e.target.value)}
-                    className="font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    توکن دسترسی (API Token):
-                  </label>
-                  <Input
-                    size="sm"
-                    type="password"
-                    placeholder="••••••••••••••••"
-                    value={apiToken}
-                    onChange={(e) => setApiToken(e.target.value)}
-                    className="font-mono"
-                  />
-                </div>
-              </>
+              <div>
+                <label htmlFor="server-url">آدرس سرویس سپیدار</label>
+                <Input
+                  id="server-url"
+                  name="server_url"
+                  type="url"
+                  dir="ltr"
+                  required
+                  disabled={busy}
+                />
+              </div>
             ) : (
               <>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    نام بانک:
-                  </label>
+                  <label htmlFor="bank-name">نام بانک</label>
                   <Input
-                    size="sm"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
+                    id="bank-name"
+                    name="bank_name"
+                    required
+                    disabled={busy}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    شماره حساب شرکتی:
-                  </label>
+                  <label htmlFor="account-number">شماره حساب</label>
                   <Input
-                    size="sm"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-foreground mb-1 block">
-                    کلید دسترسی وب‌سرویس استعلام:
-                  </label>
-                  <Input
-                    size="sm"
-                    type="password"
-                    placeholder="••••••••••••••••"
-                    value={apiToken}
-                    onChange={(e) => setApiToken(e.target.value)}
-                    className="font-mono"
+                    id="account-number"
+                    name="account_number"
+                    dir="ltr"
+                    required
+                    disabled={busy}
                   />
                 </div>
               </>
             )}
+            <div>
+              <label htmlFor="connection-token">کلید دسترسی</label>
+              <Input
+                id="connection-token"
+                name="token"
+                type="password"
+                autoComplete="off"
+                required
+                disabled={busy}
+              />
+            </div>
+            <p className={styles.caption}>
+              پس از ثبت، اتصال را آزمایش کنید و دریافت اطلاعات را شروع کنید.
+            </p>
+            {formError && (
+              <p className={styles.error} role="alert">
+                {formError}
+              </p>
+            )}
+            <DrawerFooter>
+              <Button type="submit" disabled={busy}>
+                {busy ? "در حال ثبت…" : "ثبت اتصال"}
+              </Button>
+            </DrawerFooter>
+          </DrawerForm>
+        )}
+      </Drawer>
+      {current && (
+        <ConnectionDetail
+          key={current.id}
+          companyId={company.id}
+          connection={current}
+          manage={manage}
+          onClose={() => setSelected(null)}
+          onReload={load}
+        />
+      )}
+    </div>
+  );
+}
+function ConnectionDetail({
+  companyId,
+  connection,
+  manage,
+  onClose,
+  onReload,
+}: {
+  companyId: string;
+  connection: IntegrationConnection;
+  manage: boolean;
+  onClose: () => void;
+  onReload: () => Promise<void>;
+}) {
+  const [jobs, setJobs] = useState<IntegrationSyncJob[]>([]),
+    [loading, setLoading] = useState(true),
+    [historyError, setHistoryError] = useState(false),
+    [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [error, setError] = useState(""),
+    [removing, setRemoving] = useState(false),
+    [key, setKey] = useState<AgentKeyResponse | null>(null);
+  const path = `/companies/${companyId}/integrations/${connection.id}`;
+  const history = useCallback(async () => {
+    setLoading(true);
+    setHistoryError(false);
+    try {
+      setJobs(await api<IntegrationSyncJob[]>(`${path}/jobs`));
+    } catch {
+      setHistoryError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [path]);
+  useEffect(() => {
+    void history();
+  }, [history, connection.last_sync_at]);
+  const jobsPending = jobs.some(
+    (job) => job.status === "queued" || job.status === "running",
+  );
+  useEffect(() => {
+    if (!jobsPending) return;
+    const timer = setInterval(() => {
+      void history();
+      void onReload();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [jobsPending, history, onReload]);
+  async function action(kind: "test" | "sync" | "agent-key" | "delete") {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (kind === "delete") {
+        await api(path, { method: "DELETE" });
+        setRemoving(false);
+        onClose();
+      } else if (kind === "test") {
+        const result = await api<ConnectionTestResult>(`${path}/test`, {
+          method: "POST",
+        });
+        if (result.success) setMessage(result.message_fa);
+        else setError(result.message_fa);
+      } else if (kind === "agent-key")
+        setKey(
+          await api<AgentKeyResponse>(`${path}/agent-key`, { method: "POST" }),
+        );
+      else {
+        await api(`${path}/sync`, {
+          method: "POST",
+          body: JSON.stringify({ sync_type: "manual" }),
+        });
+        setMessage("درخواست دریافت اطلاعات ثبت شد.");
+      }
+      await onReload();
+      if (kind !== "delete") await history();
+    } catch (e) {
+      setRemoving(false);
+      setError(e instanceof Error ? e.message : "عملیات انجام نشد.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <Drawer
+        open
+        onOpenChange={(open) => {
+          if (!open && !busy) onClose();
+        }}
+        title={connection.name}
+        description={`${providers[connection.provider]} · ${statuses[connection.status] ?? "نامشخص"}`}
+      >
+        <DrawerDetails>
+          <div>
+            <dt>آخرین دریافت</dt>
+            <dd>
+              {connection.last_sync_at
+                ? toJalaliDate(connection.last_sync_at)
+                : "هنوز دریافت نشده"}
+            </dd>
           </div>
-
-          <DialogFooter>
+          <div>
+            <dt>رکوردهای آخرین دریافت</dt>
+            <dd>{number.format(connection.last_sync_record_count)}</dd>
+          </div>
+          <div>
+            <dt>فاصله دریافت خودکار</dt>
+            <dd>{number.format(connection.sync_interval_minutes)} دقیقه</dd>
+          </div>
+        </DrawerDetails>
+        {connection.last_error_message && (
+          <p className={styles.error}>{connection.last_error_message}</p>
+        )}
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p className={styles.note} role="status">
+            {message}
+          </p>
+        )}
+        {manage && (
+          <div className="flex flex-wrap gap-2">
             <Button
-              size="sm"
               variant="outline"
-              onClick={() => setNewConnOpen(false)}
-              className=""
+              disabled={busy}
+              onClick={() => void action("test")}
             >
-              انصراف
+              <Wifi className="size-4" />
+              آزمایش اتصال
             </Button>
-            <Button size="sm" onClick={handleCreateConnection} className="">
-              ثبت و فعال‌سازی اتصال
+            <Button
+              disabled={busy || connection.status === "syncing" || jobsPending}
+              onClick={() => void action("sync")}
+            >
+              <RefreshCw className="size-4" />
+              دریافت اطلاعات
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Local Sync Agent Dialog */}
-      <Dialog open={agentKeyOpen} onOpenChange={setAgentKeyOpen}>
-        <DialogContent className="max-w-2xl font-sans" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-              <Key className="h-4 w-4 text-primary" />
-              کلاینت همگام‌ساز محلی (Local Sync Agent) — {selectedConn?.name}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              استفاده از اسکریپت سبک همگام‌ساز برای استخراج خودکار اسناد مالی از
-              دیتابیس محلی SQL Server
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-              <div className="text-xs font-bold text-foreground">
-                کلید اختصاصی احراز هویت کلاینت (Agent Key):
-              </div>
-              <div className="flex items-center gap-2">
+          </div>
+        )}
+        <section>
+          <h3 className={styles.subtitle}>تاریخچه دریافت</h3>
+          {historyError ? (
+            <div role="alert">
+              <p className={styles.error}>تاریخچه دریافت نشد.</p>
+              <Button variant="outline" onClick={() => void history()}>
+                تلاش دوباره
+              </Button>
+            </div>
+          ) : loading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : jobs.length ? (
+            jobs.map((job) => (
+              <article key={job.id} className={`${table.invoice} mb-4`}>
+                <div className={table.invoiceHeading}>
+                  <h4>{jobLabels[job.status]}</h4>
+                  <span>{toJalaliDate(job.started_at ?? job.created_at)}</span>
+                </div>
+                <p className={styles.caption}>
+                  {number.format(job.records_imported)} رکورد دریافت‌شده ·{" "}
+                  {number.format(job.records_rejected)} رکورد ردشده
+                </p>
+                {job.error_message && (
+                  <p className={styles.error}>{job.error_message}</p>
+                )}
+              </article>
+            ))
+          ) : (
+            <p className={styles.caption}>هنوز اطلاعاتی دریافت نشده است.</p>
+          )}
+        </section>
+        {manage && connection.provider !== "bank_direct" && (
+          <section>
+            <h3 className={styles.subtitle}>همگام‌ساز محلی</h3>
+            <p className={styles.caption}>
+              برای اتصال نرم‌افزار نصب‌شده در شرکت، این کلید را در اختیار مسئول
+              راه‌اندازی قرار دهید.
+            </p>
+            {key ? (
+              <>
                 <Input
-                  size="sm"
+                  aria-label="کلید همگام‌ساز"
+                  type="password"
                   readOnly
-                  value={
-                    agentKeyLoading
-                      ? "در حال دریافت کلید..."
-                      : agentKeyData?.agent_key || ""
-                  }
-                  className="font-mono"
+                  dir="ltr"
+                  value={key.agent_key}
                 />
                 <Button
-                  size="sm"
                   variant="outline"
-                  className="shrink-0 gap-1.5"
-                  disabled={!agentKeyData?.agent_key || agentKeyLoading}
-                  onClick={copyAgentKey}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(key.agent_key);
+                      setMessage("کلید کپی شد.");
+                    } catch {
+                      setError("کپی کلید انجام نشد.");
+                    }
+                  }}
                 >
-                  {copiedKey ? (
-                    <Check className="h-3.5 w-3.5 text-ds-success" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {copiedKey ? "کپی شد" : "کپی"}
+                  <Copy className="size-4" />
+                  کپی کلید
                 </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                این کلید برای ارسال امن داده‌ها از سرور محلی به دیدبان استفاده
-                می‌شود و نیازی به باز کردن پورت ورودی ندارد.
-              </p>
-            </div>
-
-            <div className="rounded-lg border bg-card p-3 space-y-2">
-              <div className="text-xs font-bold text-foreground">
-                دستور اجرای تک‌نوبتی یا دوره‌ای در سرور محلی:
-              </div>
-              <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
-                python scripts/didban_sync_agent.py --config didban-agent.json
-                --once
-              </pre>
-              <div className="text-xs font-bold text-foreground mt-2">
-                نمونه پیکربندی didban-agent.json:
-              </div>
-              <pre className="rounded bg-muted p-2 text-[11px] font-mono text-left ltr overflow-x-auto text-foreground">
-                {JSON.stringify(
-                  {
-                    api_url: "http://localhost:8000",
-                    company_id: company.id,
-                    connection_id: selectedConn?.id || "...",
-                    agent_key: agentKeyData?.agent_key || "dmb_live_...",
-                    source_system: selectedConn?.provider || "sepidar",
-                    sql_connection_string:
-                      "DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=SepidarDB;UID=didban;PWD=***",
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </div>
-          </div>
-
-          <DialogFooter>
+                <p className={styles.caption}>{key.instructions_fa}</p>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => void action("agent-key")}
+              >
+                <Key className="size-4" />
+                دریافت کلید همگام‌ساز
+              </Button>
+            )}
+          </section>
+        )}
+        <DrawerFooter>
+          {busy && (
+            <p className={styles.caption} role="status">
+              در حال انجام…
+            </p>
+          )}
+          {manage && (
             <Button
-              size="sm"
-              onClick={() => setAgentKeyOpen(false)}
-              className=""
+              variant="outline"
+              disabled={busy}
+              onClick={() => setRemoving(true)}
             >
-              بستن
+              حذف اتصال
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          )}
+        </DrawerFooter>
+      </Drawer>
+      <SettingsConfirm
+        open={removing}
+        onOpenChange={setRemoving}
+        title="حذف اتصال"
+        description="دریافت بعدی اطلاعات از این اتصال متوقف می‌شود."
+        busy={busy}
+        onConfirm={() => void action("delete")}
+      />
+    </>
   );
 }

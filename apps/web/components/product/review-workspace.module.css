@@ -1,0 +1,14 @@
+/* Only the evidence layout is specific to review; the page, table and drawer
+   use the same components and styles as reports and document uploads. */
+.evidenceItem { min-width: 0; }
+.evidenceItem + .evidenceItem { padding-block-start: 20px; border-block-start: 1px solid var(--ds-border); }
+.sources { display: grid; gap: 20px; margin-block-start: 20px; }
+.source { display: grid; gap: 16px; min-width: 0; padding-block-start: 20px; border-block-start: 1px solid var(--ds-border); }
+.source h5 { margin-block-end: 0; }
+.source dd { min-width: 0; overflow-wrap: anywhere; }
+.source button, .source > a { justify-self: start; }
+.rawValues { font-size: 13px; line-height: 1.9; }
+.rawValues summary { display: list-item; min-height: 44px; padding-block: 10px; cursor: pointer; color: var(--ds-foreground-soft); }
+.rawValues summary:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 4px; }
+.rawValues dl { margin-block-start: 12px; }
+.rawValues dt { flex-shrink: 1; overflow-wrap: anywhere; }

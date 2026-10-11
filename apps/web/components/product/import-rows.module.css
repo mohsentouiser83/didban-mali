@@ -1,0 +1,9 @@
+.filename { min-width: 0; overflow-wrap: anywhere; }
+.cell { display: block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.count { font-size: 13px; color: var(--ds-foreground-soft); }
+.issue { padding-block-start: 16px; }
+
+.scroll { max-height: clamp(240px, calc(100dvh - 400px), 680px); overflow-y: auto; }
+.scroll:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: -2px; }
+.table thead th { position: sticky; top: 0; z-index: 1; }
+.table tbody th, .table tbody td { padding-block: 6px; }

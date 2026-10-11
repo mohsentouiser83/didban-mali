@@ -7,6 +7,14 @@ from pydantic import BaseModel, Field, field_validator
 from app.imports.models import FileScanStatus, ImportStatus, IssueSeverity, SourceKind
 
 
+class BankAccountResponse(BaseModel):
+    id: UUID
+    label: str
+    bank_name: str
+    account_last4: str | None
+    iban_masked: str | None
+
+
 class ImportBatchResponse(BaseModel):
     id: UUID
     company_id: UUID

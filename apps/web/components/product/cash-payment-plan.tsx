@@ -9,7 +9,7 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Drawer, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerFooter, DrawerForm } from "@/components/ui/drawer";
 import { Plus, Trash2 } from "@/components/ui/icons";
 import styles from "./cash-payment-plan.module.css";
 const categories = { payroll: "حقوق و بیمه", vendor: "تامین‌کنندگان", rent: "اجاره", tax: "مالیات", other: "سایر پرداخت‌ها" };
@@ -64,7 +64,7 @@ export function CashPaymentPlan({ company, asOfDate, onChanged }: { company: Com
   }
   return <section className={styles.section} aria-labelledby="payment-plan-title">
     <div className={styles.heading}>
-      <div><h2 id="payment-plan-title">پرداخت‌های پیش رو</h2><span>۳۰ روز آینده</span></div>
+      <div><h2 id="payment-plan-title">پرداخت‌های پیش رو</h2></div>
       {writable && <Button variant="outline" onClick={() => { setFormError(""); setNotice(""); setAdding(true); }}><Plus size={16} weight="regular" aria-hidden="true" />افزودن پرداخت</Button>}
     </div>
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
@@ -81,14 +81,14 @@ export function CashPaymentPlan({ company, asOfDate, onChanged }: { company: Com
       </table>
     </div>}
     <Drawer open={adding} onOpenChange={(open) => { if (!saving) setAdding(open); }} title="افزودن پرداخت" description="مبلغ و موعد پرداخت را وارد کنید. هر تاریخ آینده قابل ثبت است.">
-        <form onSubmit={(event) => void save(event)} className={styles.drawerForm}>
+        <DrawerForm onSubmit={(event) => void save(event)}>
           <div><label htmlFor="cash-payment-title">عنوان پرداخت</label><Input id="cash-payment-title" required maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="مثلاً حقوق مهر" /></div>
           <div><label htmlFor="cash-payment-category">نوع پرداخت</label><Select dir="rtl" value={category} onValueChange={(value) => setCategory(value as PlannedCashPayment["category"])} disabled={saving}><SelectTrigger id="cash-payment-category"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(categories).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
           <div><label htmlFor="cash-payment-date">موعد پرداخت</label><PersianDatePicker id="cash-payment-date" value={paymentDate} onValueChange={setPaymentDate} min={asOfDate} required disabled={saving} /></div>
           <div><label htmlFor="cash-payment-amount">مبلغ به تومان</label><Input id="cash-payment-amount" dir="ltr" inputMode="numeric" required value={amount} onChange={(event) => setAmount(event.target.value)} disabled={saving} /></div>
           {formError && <p role="alert" className={styles.formError}>{formError}</p>}
           <DrawerFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setAdding(false)}>انصراف</Button><Button type="submit" disabled={saving}>{saving ? "در حال ثبت…" : "ثبت پرداخت"}</Button></DrawerFooter>
-        </form>
+        </DrawerForm>
     </Drawer>
     <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open && !saving) setPendingDelete(null); }}>
       <DialogContent dir="rtl"><DialogHeader><DialogTitle>حذف از برنامه پرداخت؟</DialogTitle><DialogDescription>«{pendingDelete?.title}» از برنامه و پیش‌بینی حذف می‌شود.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={saving} onClick={() => setPendingDelete(null)}>انصراف</Button><Button disabled={saving} onClick={() => void remove()}>حذف پرداخت</Button></DialogFooter></DialogContent>

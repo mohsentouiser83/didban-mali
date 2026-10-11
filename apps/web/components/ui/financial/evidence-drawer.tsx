@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Drawer, DrawerSection, DrawerDetails, DrawerFooter } from "@/components/ui/drawer";
 import { RiskBadge, RiskLevel } from "./risk-badge";
 import { StatusChip, FinancialStatus } from "./status-chip";
 import { EvidenceSourceTag, EvidenceSourceType } from "./evidence-source-tag";
 import { MoneyDisplay, toPersianDigits } from "./money-display";
 import {
-  ShieldCheck,
-  Calculator,
-  FileText,
   CheckCircle2,
   Clock,
   Ban,
@@ -78,176 +69,49 @@ export function EvidenceDrawer({
   if (!finding) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="left"
-        className="w-full sm:max-w-xl lg:max-w-2xl overflow-y-auto p-0 border-e border-[var(--ds-border)] bg-[var(--ds-background)] text-foreground"
-      >
-        {/* Header */}
-        <SheetHeader className="p-6 border-b border-[var(--ds-border)] bg-[var(--ds-card)] sticky top-0 z-10">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <RiskBadge
-                level={finding.riskLevel}
-                score={finding.priorityScore}
-              />
-              <StatusChip status={finding.status} />
-            </div>
-            <span className="font-mono text-xs text-muted-foreground">
-              کد: {finding.ruleCode}
-            </span>
-          </div>
-          <SheetTitle className="text-lg font-bold text-start mt-2 leading-snug">
-            {finding.title}
-          </SheetTitle>
-          <SheetDescription className="text-start text-xs text-muted-foreground mt-1">
-            {finding.ruleDescription}
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="p-6 space-y-6">
+    <Drawer open={open} onOpenChange={onOpenChange} title={finding.title} description={finding.ruleDescription}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2"><RiskBadge level={finding.riskLevel} score={finding.priorityScore} /><StatusChip status={finding.status} /></div>
+        <bdi dir="ltr" className="text-xs text-muted-foreground">{finding.ruleCode}</bdi>
+      </div>
           {/* Financial Impact Box */}
-          <div className="grid grid-cols-2 gap-3 rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-4">
-            <div>
-              <span className="block text-xs text-muted-foreground mb-1">
-                مبلغ درگیر / اثر مالی:
-              </span>
-              <MoneyDisplay amount={finding.amount} currency="ریال" size="xl" />
-            </div>
-            {finding.ratioToRevenue !== undefined && (
-              <div className="border-s border-[var(--ds-border)] ps-4">
-                <span className="block text-xs text-muted-foreground mb-1">
-                  نسبت به درآمد دوره:
-                </span>
-                <span className="font-mono text-lg font-bold text-foreground">
-                  {toPersianDigits((finding.ratioToRevenue * 100).toFixed(1))}٪
-                </span>
-              </div>
-            )}
-          </div>
+      <DrawerDetails>
+        <div><dt>مبلغ مرتبط</dt><dd><MoneyDisplay amount={finding.amount} currency="ریال" /></dd></div>
+        {finding.ratioToRevenue !== undefined && <div><dt>نسبت به درآمد دوره</dt><dd>{toPersianDigits((finding.ratioToRevenue * 100).toFixed(1))}٪</dd></div>}
+      </DrawerDetails>
 
-          {/* 4-Factor Scoring Breakdown */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-              <Calculator className="size-3.5" />
-              دفتر محاسبه امتیاز اولویت (۴ عامل قطعی)
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card)] p-3">
-                <div className="flex justify-between font-bold text-foreground mb-1">
-                  <span>اثر مالی (۴۰٪)</span>
-                  <span className="font-mono">
-                    {toPersianDigits(finding.factors.impact.score)}/۱۰۰
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {finding.factors.impact.reason}
-                </p>
-              </div>
+      <DrawerSection title="محاسبه امتیاز اولویت">
+        {([['impact', 'اثر مالی', 40], ['materiality', 'اهمیت نسبی', 25], ['confidence', 'اطمینان', 20], ['urgency', 'فوریت', 15]] as const).map(([key, label, weight]) => <DrawerSection key={key}>
+          <DrawerDetails><div><dt>{label} ({toPersianDigits(weight)}٪)</dt><dd>{toPersianDigits(finding.factors[key].score)}/۱۰۰</dd></div></DrawerDetails>
+          <p className="text-sm text-muted-foreground leading-7">{finding.factors[key].reason}</p>
+        </DrawerSection>)}
+      </DrawerSection>
 
-              <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card)] p-3">
-                <div className="flex justify-between font-bold text-foreground mb-1">
-                  <span>اهمیت نسبی (۲۵٪)</span>
-                  <span className="font-mono">
-                    {toPersianDigits(finding.factors.materiality.score)}/۱۰۰
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {finding.factors.materiality.reason}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card)] p-3">
-                <div className="flex justify-between font-bold text-foreground mb-1">
-                  <span>سطح اطمینان (۲۰٪)</span>
-                  <span className="font-mono">
-                    {toPersianDigits(finding.factors.confidence.score)}/۱۰۰
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {finding.factors.confidence.reason}
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-card)] p-3">
-                <div className="flex justify-between font-bold text-foreground mb-1">
-                  <span>فوریت پیگیری (۱۵٪)</span>
-                  <span className="font-mono">
-                    {toPersianDigits(finding.factors.urgency.score)}/۱۰۰
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {finding.factors.urgency.reason}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Traceable Lineage (Evidence Items) */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5" />
-              زنجیره شواهد و ردیابی تا فایل منبع (Data Lineage)
-            </h4>
-            <div className="space-y-2.5">
-              {finding.evidenceItems.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-2 transition-colors hover:border-[var(--ds-border-strong)]"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-mono font-bold text-muted-foreground">
-                        {toPersianDigits(index + 1)}
-                      </span>
-                      <EvidenceSourceTag source={item.sourceType} size="sm" />
-                      <strong className="text-xs font-bold text-foreground">
-                        {item.title}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground leading-relaxed ps-7">
-                    {item.description}
-                  </p>
-
-                  {(item.fileName || item.rowNumber) && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 p-2 text-[11px] text-muted-foreground ps-3 font-mono">
-                      <FileText className="size-3 text-muted-foreground" />
-                      {item.fileName && <span>فایل: {item.fileName}</span>}
-                      {item.sheetName && <span>شیت: {item.sheetName}</span>}
-                      {item.rowNumber && (
-                        <span>ردیف: {toPersianDigits(item.rowNumber)}</span>
-                      )}
-                      {item.sha256 && (
-                        <span
-                          className="truncate max-w-[140px] opacity-70"
-                          title={item.sha256}
-                        >
-                          هش: {item.sha256}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+      <DrawerSection title="شواهد و فایل منبع">
+        {finding.evidenceItems.map((item, index) => <DrawerSection key={item.id} title={item.title}>
+          <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{toPersianDigits(index + 1)}</span><EvidenceSourceTag source={item.sourceType} size="sm" /></div>
+          <p className="text-sm text-muted-foreground leading-7">{item.description}</p>
+          <DrawerDetails>
+            {item.fileName && <div><dt>فایل</dt><dd><bdi>{item.fileName}</bdi></dd></div>}
+            {item.sheetName && <div><dt>شیت</dt><dd><bdi>{item.sheetName}</bdi></dd></div>}
+            {item.rowNumber != null && <div><dt>ردیف منبع</dt><dd>{toPersianDigits(item.rowNumber)}</dd></div>}
+            {item.sha256 && <div><dt>هش فایل</dt><dd><bdi dir="ltr">{item.sha256}</bdi></dd></div>}
+          </DrawerDetails>
+        </DrawerSection>)}
+      </DrawerSection>
 
           {/* Quick Review Action Bar */}
           {onAction && (
-            <div className="rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-4 space-y-3 sticky bottom-0 z-10 shadow-lg">
-              <span className="block text-xs font-bold text-foreground">
-                اقدام مشاور / تصمیم‌گیری:
-              </span>
+            <DrawerSection title="نتیجه بررسی">
               <Input
                 size="sm"
+                aria-label="یادداشت توضیحی مشاور"
                 placeholder="یادداشت توضیحی مشاور (اختیاری)..."
                 value={actionNote}
                 onChange={(e) => setActionNote(e.target.value)}
                 dir="rtl"
               />
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <DrawerFooter>
                 <Button
                   size="sm"
                   variant="outline"
@@ -292,11 +156,9 @@ export function EvidenceDrawer({
                   <Ban className="size-3.5" />
                   رد / بی‌اثر
                 </Button>
-              </div>
-            </div>
+              </DrawerFooter>
+            </DrawerSection>
           )}
-        </div>
-      </SheetContent>
-    </Sheet>
+    </Drawer>
   );
 }

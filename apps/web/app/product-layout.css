@@ -46,3 +46,14 @@
   ::view-transition-group(.sidebar-selection),
   ::view-transition-group(.finding-title) { animation: none; }
 }
+
+/* Reserve space for the non-modal financial assistant. */
+.product-shell { --financial-assistant-width: clamp(320px, 30vw, 420px); --financial-assistant-mobile-height: 55svh; transition: padding-inline-end 280ms cubic-bezier(.22, 1, .36, 1); }
+.product-shell[data-assistant-open="true"] { padding-inline-end: var(--financial-assistant-width); }
+@media (max-width: 767px) {
+  .product-shell[data-assistant-open="true"] { padding-inline-end: 0; height: 100svh; min-height: 0; overflow: hidden; }
+  .product-shell[data-assistant-open="true"] .product-workspace { height: calc(100svh - var(--financial-assistant-mobile-height)); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+}
+@media print { .product-shell[data-assistant-open="true"] { padding-inline-end: 0; height: auto; overflow: visible; } }
+
+@media (prefers-reduced-motion: reduce) { .product-shell { transition: none; } }

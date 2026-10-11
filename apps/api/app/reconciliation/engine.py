@@ -452,7 +452,8 @@ def reconcile(
                 allocations = [ProposedAllocation("bank", bank.id, None, bank.amount_irr)]
                 for ledger in matched_combo:
                     allocations.append(ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr))
-                    accepted_journals.add(ledger.entry_id)
+                    # Suggestions do not reserve ledger lines: later bank rows
+                    # must still be checked for reference/date discrepancies.
                 accepted_banks.add(bank.id)
                 results.append(
                     ProposedMatch(

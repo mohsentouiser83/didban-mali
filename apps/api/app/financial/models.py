@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     String,
     Text,
@@ -250,6 +252,7 @@ class SalesInvoice(UUIDPrimaryKeyMixin, Base):
             "paid_amount_irr IS NULL OR paid_amount_irr >= 0",
             name="ck_sales_invoice_paid_nonnegative",
         ),
+        UniqueConstraint("id", "company_id", name="uq_sales_invoice_company"),
         UniqueConstraint("source_row_id", name="uq_sales_invoice_source_row"),
         UniqueConstraint("company_id", "invoice_no", "issue_date", name="uq_sales_invoice_logical"),
         Index("ix_sales_invoices_company_issue_date", "company_id", "issue_date"),
@@ -267,4 +270,29 @@ class SalesInvoice(UUIDPrimaryKeyMixin, Base):
     gross_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), nullable=False)
     tax_amount_irr: Mapped[Decimal | None] = mapped_column(Numeric(20, 0))
     paid_amount_irr: Mapped[Decimal | None] = mapped_column(Numeric(20, 0))
+    receipt_history_version: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    receipt_history_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     status: Mapped[str | None] = mapped_column(String(80))
+
+
+class InvoiceReceipt(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "invoice_receipts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["invoice_id", "company_id"],
+            ["sales_invoices.id", "sales_invoices.company_id"],
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_invoice_receipt_positive"),
+        Index("ix_invoice_receipts_company_date", "company_id", "received_on"),
+        Index("ix_invoice_receipts_invoice", "invoice_id"),
+    )
+    company_id: Mapped[UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    invoice_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    received_on: Mapped[date] = mapped_column(Date)
+    amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0))
+    reference: Mapped[str | None] = mapped_column(String(200))

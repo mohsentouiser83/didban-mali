@@ -27,7 +27,9 @@ def test_removed_features_are_absent_from_api_contract() -> None:
     assert not any("/ai/" in path or "/alerts" in path for path in paths)
     assert "patch" not in paths["/api/v1/companies/{company_id}"]
     imports = [path for path in paths if "/imports" in path]
-    assert imports == ["/api/v1/companies/{company_id}/imports/source-files/{source_file_id}/download"]
+    assert "/api/v1/companies/{company_id}/imports/source-files/{source_file_id}/download" in imports
+    for suffix in ("/uploads", "/{batch_id}/mapping", "/{batch_id}/validate", "/{batch_id}/commit"):
+        assert f"/api/v1/companies/{{company_id}}/imports{suffix}" in imports
     for suffix in ("/control/overview", "/cashflow/summary", "/data/lineage/{entity_type}/{record_id}"):
         assert f"/api/v1/companies/{{company_id}}{suffix}" in paths
     assert "/api/v1/health/live" in paths

@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid6 import uuid7
@@ -372,6 +372,12 @@ async def _normalize_bank_chunk(
     )
     if bank_account_id is None:
         raise ValueError("Bank account could not be resolved")
+    if iban_masked:
+        await session.execute(
+            update(BankAccount)
+            .where(BankAccount.id == bank_account_id, BankAccount.iban_masked.is_(None))
+            .values(iban_masked=iban_masked, account_last4=account_last4)
+        )
     tx_records: list[dict[str, object]] = []
     for row, item in values:
         raw_desc = _text(item["description"])
@@ -535,6 +541,8 @@ async def normalize_import(
     if source is None or version is None:
         raise ValueError("Import lineage is incomplete")
     if batch.status in {ImportStatus.COMPLETED, ImportStatus.COMPLETED_LIMITED}:
+        if "reconciliation" not in batch.coverage_json:
+            await _post_import_controls(session, batch, company_id, actor_id)
         return {"status": batch.status.value, "normalized": batch.accepted_count}
     if batch.status not in {ImportStatus.QUEUED, ImportStatus.PROCESSING}:
         raise ValueError("Import batch is not ready for normalization")
@@ -643,9 +651,10 @@ async def normalize_import(
         }
         limited = limited or not entry_id_mapped or unbalanced > 0
     batch.coverage_json = coverage
-    batch.status = ImportStatus.COMPLETED_LIMITED if limited else ImportStatus.COMPLETED
-    batch.stage = "normalized"
-    batch.progress = 100
+    final_status = ImportStatus.COMPLETED_LIMITED if limited else ImportStatus.COMPLETED
+    batch.status = ImportStatus.PROCESSING
+    batch.stage = "reconciliation"
+    batch.progress = 95
     batch.failure_code = None
     batch.failure_message = None
     batch.retryable = False
@@ -670,6 +679,22 @@ async def normalize_import(
             triggered_by=actor_id,
         )
     except Exception:
-        pass
+        await session.rollback()
+        await session.refresh(batch)
 
-    return {"status": batch.status.value, "normalized": normalized, "coverage": coverage}
+    await _post_import_controls(session, batch, company_id, actor_id, final_status)
+    return {"status": batch.status.value, "normalized": normalized, "coverage": batch.coverage_json}
+
+
+async def _post_import_controls(
+    session: AsyncSession, batch: ImportBatch, company_id: UUID, actor_id: UUID,
+    final_status: ImportStatus | None = None,
+) -> None:
+    from app.reconciliation.pipeline import reconcile_and_detect
+
+    result = await reconcile_and_detect(session, company_id=company_id, actor_id=actor_id)
+    batch.coverage_json = {**batch.coverage_json, "reconciliation": result}
+    batch.stage = "normalized"
+    batch.status = final_status or batch.status
+    batch.progress = 100
+    await session.commit()

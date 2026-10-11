@@ -1,0 +1,25 @@
+/* Shared row feedback for native tables and the Table components. */
+table > tbody > tr,
+table > tbody > tr > :is(th, td) {
+  transition: background-color 150ms ease;
+}
+
+/* Keyboard focus follows the same row treatment as the pointer. */
+table > tbody > tr:not(:has(> td[colspan])):not([aria-selected="true"]):not([data-selected="true"]):has(:focus-visible),
+table > tbody > tr:not(:has(> td[colspan])):not([aria-selected="true"]):not([data-selected="true"]):has(:focus-visible) > :is(th, td) {
+  background-color: var(--ds-table-hover);
+}
+
+@media (hover: hover) {
+  table > tbody > tr:not(:has(> td[colspan])):not([aria-selected="true"]):not([data-selected="true"]):hover,
+  table > tbody > tr:not(:has(> td[colspan])):not([aria-selected="true"]):not([data-selected="true"]):hover > :is(th, td) {
+    background-color: var(--ds-table-hover);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  table > tbody > tr,
+  table > tbody > tr > :is(th, td) {
+    transition: none;
+  }
+}

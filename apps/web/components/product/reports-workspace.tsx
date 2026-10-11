@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Drawer, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerFooter, DrawerDetails, DrawerForm } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
-import { Search, ChevronLeft, Plus, Download } from "@/components/ui/icons";
+import { Search, Plus, Download } from "@/components/ui/icons";
 import pageStyles from "./cashflow-overview.module.css";
 import styles from "./receivables-customers.module.css";
 import reportStyles from "./reports-workspace.module.css";
@@ -65,20 +65,20 @@ function ReportsContent({ company }: { company: Company }) {
     <PageHeader title="گزارش‌ها" primaryAction={writable ? <Button variant="outline" onClick={() => setCreating(true)}><Plus size={16} aria-hidden="true" />گزارش جدید</Button> : undefined} />
     {pollFailed && <div role="alert" className={pageStyles.error}><p>وضعیت تولید گزارش به‌روز نشد.</p><Button variant="outline" onClick={() => setPollRetry((value) => value + 1)}>تلاش دوباره</Button></div>}
     <section className={styles.section} aria-labelledby="reports-list-title" aria-busy={loading}>
-      <div className={styles.heading}><div><h2 id="reports-list-title">گزارش‌های ثبت‌شده</h2><p>{reports.length === 100 ? "۱۰۰ گزارش اخیر، از جدیدترین به قدیمی‌ترین" : "از جدیدترین به قدیمی‌ترین"}</p></div><div className={styles.controls}>
+      <div className={styles.heading}><div><h2 id="reports-list-title">گزارش‌های ثبت‌شده</h2></div><div className={styles.controls}>
         <div className={styles.search}><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی گزارش" placeholder="جستجوی گزارش" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <Select dir="rtl" value={status} onValueChange={setStatus}><SelectTrigger aria-label="وضعیت گزارش" className="w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">همه وضعیت‌ها</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
       </div></div>
       {failed ? <div role="alert" className={styles.empty}><p>گزارش‌ها دریافت نشدند.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <div className={styles.scroll}><table className={styles.table}>
         <thead><tr><th scope="col">عنوان گزارش</th><th scope="col">دوره گزارش</th><th scope="col">وضعیت</th><th scope="col">تاریخ ایجاد</th></tr></thead>
         <tbody>{loading ? [0, 1, 2].map((row) => <tr key={row}>{[0, 1, 2, 3].map((cell) => <td key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : filtered.length ? filtered.map((report) => <tr key={report.id}>
-          <th scope="row"><Button variant="ghost" className={styles.customer} onClick={() => setSelectedId(report.id)}>{report.title_fa}<ChevronLeft size={16} aria-hidden="true" /></Button></th>
+          <th scope="row"><Button variant="ghost" className={styles.customer} onClick={() => setSelectedId(report.id)}>{report.title_fa}</Button></th>
           <td>{toJalaliDate(report.period_start)} تا {toJalaliDate(report.period_end)}</td><td>{statusLabels[report.status]}</td><td>{toJalaliDate(report.created_at.slice(0, 10))}</td>
         </tr>) : <tr><td colSpan={4} className={styles.empty}>{search || status !== "all" ? "گزارشی با این جستجو و فیلتر پیدا نشد." : "هنوز گزارشی ساخته نشده است."}</td></tr>}</tbody>
       </table></div>}
     </section>
     <Drawer open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null); }} title={selected?.title_fa ?? "جزئیات گزارش"} description="دوره، وضعیت تولید و دریافت PDF">
-      {selected && <><dl className={reportStyles.details}><div><dt>دوره گزارش</dt><dd>{toJalaliDate(selected.period_start)} تا {toJalaliDate(selected.period_end)}</dd></div><div><dt>وضعیت</dt><dd>{statusLabels[selected.status]}</dd></div><div><dt>تاریخ ایجاد</dt><dd>{toJalaliDate(selected.created_at.slice(0, 10))}</dd></div></dl>
+      {selected && <><DrawerDetails><div><dt>دوره گزارش</dt><dd>{toJalaliDate(selected.period_start)} تا {toJalaliDate(selected.period_end)}</dd></div><div><dt>وضعیت</dt><dd>{statusLabels[selected.status]}</dd></div><div><dt>تاریخ ایجاد</dt><dd>{toJalaliDate(selected.created_at.slice(0, 10))}</dd></div></DrawerDetails>
         {selected.status === "processing" && <p role="status" className={reportStyles.caption}>در حال تولید گزارش؛ {toPersianDigits(selected.progress)}٪</p>}
         {selected.status === "queued" && <p role="status" className={reportStyles.caption}>گزارش در صف تولید است. وضعیت به‌صورت خودکار به‌روز می‌شود.</p>}
         {selected.status === "failed" && <p role="alert" className={reportStyles.error}>{selected.failure_message ?? "تولید گزارش ناموفق بود. می‌توانید گزارش جدیدی بسازید."}</p>}
@@ -127,11 +127,11 @@ function ReportForm({ companyId, onCancel, onCreated, onSaving }: { companyId: s
   if (loading) return <Skeleton className="h-32 w-full" />;
   if (failed) return <div role="alert" className={reportStyles.caption}><p>تحلیل‌های مبنا دریافت نشدند.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div>;
   if (!analyses.length) return <p className={reportStyles.caption}>برای ساخت گزارش، ابتدا باید یک تحلیل تکمیل‌شده داشته باشید.</p>;
-  return <form className={reportStyles.form} onSubmit={(event) => void save(event)}>
+  return <DrawerForm onSubmit={(event) => void save(event)}>
     <div><label htmlFor="report-title">عنوان گزارش</label><Input id="report-title" required maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} /></div>
     <div><label htmlFor="report-analysis">دوره تحلیل</label><Select dir="rtl" value={analysisId} onValueChange={setAnalysisId} disabled={saving}><SelectTrigger id="report-analysis"><SelectValue /></SelectTrigger><SelectContent>{analyses.map((analysis) => <SelectItem key={analysis.id} value={analysis.id}>{toJalaliDate(analysis.period_start)} تا {toJalaliDate(analysis.period_end)}{analysis.status === "completed_limited" ? " (پوشش محدود)" : ""}</SelectItem>)}</SelectContent></Select></div>
     <div><label htmlFor="report-note">یادداشت (اختیاری)</label><Textarea id="report-note" maxLength={4000} rows={5} value={note} onChange={(event) => setNote(event.target.value)} disabled={saving} /></div>
     {error && <p role="alert" className={reportStyles.error}>{error}</p>}
     <DrawerFooter><Button type="button" variant="outline" onClick={onCancel} disabled={saving}>انصراف</Button><Button type="submit" disabled={saving || !title.trim()}>{saving ? "در حال ثبت…" : "ساخت گزارش"}</Button></DrawerFooter>
-  </form>;
+  </DrawerForm>;
 }

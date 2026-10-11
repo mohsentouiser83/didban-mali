@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid6 import uuid7
 
@@ -13,6 +13,7 @@ from app.analysis.models import MetricCode
 from app.audit.service import record_audit_event
 from app.calculations.models import CalculationRun, CalculationRunStatus, MetricResult
 from app.financial.models import BankTransaction, Counterparty, SalesInvoice
+from app.findings.lineage import attach_source_locations
 from app.findings.models import (
     AssertionStatus,
     FinancialControlPolicy,
@@ -30,7 +31,12 @@ from app.findings.models import (
 )
 from app.findings.rules.base import FindingCandidate as RuleFindingCandidate
 from app.findings.rules.registry import ALL_RULES
-from app.reconciliation.models import MatchLevel, MatchStatus, ReconciliationMatch
+from app.reconciliation.models import (
+    MatchLevel,
+    MatchStatus,
+    ReconciliationMatch,
+    ReconciliationRun,
+)
 from app.reconciliation.service import get_unmatched_records
 
 
@@ -43,6 +49,8 @@ class FindingEvaluationContext:
     unmatched_bank_transactions: list[Any] = field(default_factory=list)
     unmatched_journal_lines: list[Any] = field(default_factory=list)
     duplicate_matches: list[Any] = field(default_factory=list)
+    reconciliation_matches: list[Any] = field(default_factory=list)
+    reconciliation_available: bool = False
     overdue_invoices: list[Any] = field(default_factory=list)
     customer_overdue_concentrations: list[dict[str, Any]] = field(default_factory=list)
     latest_calculation_run: CalculationRun | None = None
@@ -93,7 +101,7 @@ async def build_evaluation_context(
     }
 
     # 3. Fetch unmatched records
-    unmatched_data = await get_unmatched_records(session, company_id=company_id)
+    unmatched_data = await get_unmatched_records(session, company_id=company_id, limit=None)
     unmatched_banks = (
         await session.scalars(
             select(BankTransaction).where(
@@ -103,15 +111,15 @@ async def build_evaluation_context(
         )
     ).all() if unmatched_data["bank_transactions"] else []
 
-    # 4. Fetch duplicate reconciliation matches
-    dup_matches = (
-        await session.scalars(
-            select(ReconciliationMatch).where(
-                ReconciliationMatch.company_id == company_id,
-                ReconciliationMatch.match_level == MatchLevel.DUPLICATE,
-            )
-        )
-    ).all()
+    latest_recon = await session.scalar(select(ReconciliationRun).where(
+        ReconciliationRun.company_id == company_id,
+        *([ReconciliationRun.id == reconciliation_run_id] if reconciliation_run_id else []),
+    ).order_by(ReconciliationRun.created_at.desc()).limit(1))
+    reconciliation_available = bool(latest_recon and latest_recon.counts_json.get("inputs_available"))
+    reconciliation_matches = (await session.scalars(select(ReconciliationMatch).where(
+        ReconciliationMatch.company_id == company_id, ReconciliationMatch.run_id == latest_recon.id,
+    ))).all() if latest_recon and reconciliation_available else []
+    dup_matches = [m for m in reconciliation_matches if m.match_level == MatchLevel.DUPLICATE]
 
     # 5. Fetch overdue sales invoices
     invoices_db = (
@@ -198,6 +206,8 @@ async def build_evaluation_context(
         unmatched_bank_transactions=list(unmatched_banks),
         unmatched_journal_lines=unmatched_data["journal_lines"],
         duplicate_matches=list(dup_matches),
+        reconciliation_matches=list(reconciliation_matches),
+        reconciliation_available=reconciliation_available,
         overdue_invoices=list(invoices_db),
         customer_overdue_concentrations=concentrations,
         latest_calculation_run=calc_run,
@@ -215,6 +225,7 @@ async def execute_finding_detection(
     period_end: date | None = None,
     calculation_run_id: UUID | None = None,
     reconciliation_run_id: UUID | None = None,
+    commit: bool = True,
 ) -> FindingDetectionRun:
     """Execute all deterministic finding rules, updating existing findings or creating new ones."""
     now = datetime.now(UTC)
@@ -227,17 +238,26 @@ async def execute_finding_detection(
     )
 
     all_candidates: list[RuleFindingCandidate] = []
+    evaluated_reconciliation_rules: set[str] = set()
     for rule in ALL_RULES:
         policy = context.policies.get(rule.rule_code, {})
+        if rule.category == "cash_and_bank" and not context.reconciliation_available:
+            continue
         # Skip if explicitly disabled in policy
         if policy.get("is_enabled") is False:
             continue
         try:
             candidates = await rule.evaluate(context)
             all_candidates.extend(candidates)
+            if rule.category == "cash_and_bank":
+                evaluated_reconciliation_rules.add(rule.rule_code)
         except Exception:
-            # Keep evaluation resilient across rules
+            if rule.category == "cash_and_bank":
+                raise
+            # Keep unrelated metric evaluation resilient.
             continue
+
+    await attach_source_locations(session, company_id, all_candidates)
 
     created_count = 0
     updated_count = 0
@@ -268,9 +288,24 @@ async def execute_finding_detection(
             f.title_fa = c.title_fa
             f.summary_fa = c.summary_fa
             f.financial_impact_irr = c.financial_impact_irr
+            f.affected_amount_irr = c.financial_impact_irr
+            f.reconciliation_match_id = c.reconciliation_match_id
             f.is_suppressed = is_supp
+            if f.status == FindingStatus.RESOLVED and f.resolution_note == "در تطبیق مجدد داده‌های بارگذاری‌شده، این مغایرت دیگر مشاهده نشد.":
+                f.status = FindingStatus.REOPENED
+                f.resolution_type = None
+                f.resolution_note = None
+                f.resolved_at = None
             f.updated_at = now
             updated_count += 1
+            await session.execute(delete(FindingEvidence).where(
+                FindingEvidence.company_id == company_id, FindingEvidence.finding_id == f.id))
+            for ev in c.evidence_items:
+                session.add(FindingEvidence(
+                    id=uuid7(), company_id=company_id, finding_id=f.id, ordinal=ev.ordinal,
+                    evidence_type=ev.evidence_type, title_fa=ev.title_fa,
+                    description_fa=ev.description_fa, payload_json=ev.payload, created_at=now,
+                ))
         else:
             # Create new finding
             new_id = uuid7()
@@ -284,6 +319,7 @@ async def execute_finding_detection(
                 title_fa=c.title_fa,
                 summary_fa=c.summary_fa,
                 financial_impact_irr=c.financial_impact_irr,
+                affected_amount_irr=c.financial_impact_irr,
                 status=FindingStatus.NEW,
                 source_entity_type=c.source_entity_type,
                 source_entity_id=c.source_entity_id,
@@ -346,6 +382,27 @@ async def execute_finding_detection(
                     )
                 )
 
+    # Retain the audit trail, but close discrepancies that a later upload matched.
+    if evaluated_reconciliation_rules:
+        stale = (await session.scalars(select(Finding).where(
+            Finding.company_id == company_id, Finding.rule_code.in_(evaluated_reconciliation_rules),
+            Finding.fingerprint.not_in(fps),
+            Finding.status.in_(["new", "triaged", "in_progress", "reopened"]),
+        ))).all()
+        for finding in stale:
+            previous = finding.status
+            finding.status = FindingStatus.RESOLVED
+            finding.resolution_type = "reconciled"
+            finding.resolution_note = "در تطبیق مجدد داده‌های بارگذاری‌شده، این مغایرت دیگر مشاهده نشد."
+            finding.resolved_at = now
+            finding.updated_at = now
+            session.add(FindingActivity(
+                id=uuid7(), company_id=company_id, finding_id=finding.id, user_id=None,
+                action_type="auto_reconciled", old_state=previous, new_state="resolved",
+                note=finding.resolution_note, metadata_json={"reconciliation_run_id": str(reconciliation_run_id)},
+                created_at=now,
+            ))
+
     run = FindingDetectionRun(
         id=uuid7(),
         company_id=company_id,
@@ -387,8 +444,11 @@ async def execute_finding_detection(
         },
     )
 
-    await session.commit()
-    await session.refresh(run)
+    await session.flush()
+    if commit:
+        # The session retains attributes after commit; a refresh would start a
+        # new transaction without the tenant context required by row security.
+        await session.commit()
     return run
 
 

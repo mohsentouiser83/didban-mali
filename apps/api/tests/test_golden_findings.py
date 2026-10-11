@@ -40,6 +40,7 @@ from app.imports.models import (
     SourceKind,
     SourceRow,
 )
+from app.reconciliation.service import run_canonical_reconciliation
 
 ADMIN_URL = (
     "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
@@ -229,7 +230,8 @@ async def test_reconciliation_finding_rules_detection() -> None:
         session.add(jl_old)
         await session.commit()
 
-        # Run Detection
+        # Findings are evaluated only after bank and ledger reconciliation.
+        await run_canonical_reconciliation(session, company_id=company.id, actor_id=user.id)
         det_run = await execute_finding_detection(
             session,
             company_id=company.id,

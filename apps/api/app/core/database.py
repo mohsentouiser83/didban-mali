@@ -26,10 +26,13 @@ async def get_db() -> AsyncIterator[AsyncSession]:
         try:
             yield session
         finally:
+            # Roll back pending work before clearing session-level tenant settings.
+            # The reset must commit: rolling it back would restore the previous user's context.
+            await session.rollback()
             try:
                 from app.core.tenant import reset_request_context
 
                 await reset_request_context(session)
+                await session.commit()
             except Exception:
-                pass
-            await session.rollback()
+                await session.invalidate()

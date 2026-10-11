@@ -40,7 +40,6 @@ export type ProductNavGroup = {
 type ProductSidebarProps = {
   groups: ProductNavGroup[];
   secondaryGroups?: ProductNavGroup[];
-  userName: string;
   base: string;
   isItemActive: (href: string) => boolean;
   onLogout: () => Promise<void>;
@@ -50,7 +49,6 @@ type ProductSidebarProps = {
 export function ProductSidebar({
   groups,
   secondaryGroups = [],
-  userName,
   base,
   isItemActive,
   onLogout,
@@ -135,7 +133,7 @@ export function ProductSidebar({
               asChild
               isActive={active}
               tooltip={{ children: item.label, side: "left" }}
-              className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] font-medium group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-3"
+              className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] font-medium group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-3"
             >
               <Link
                 href={item.href}
@@ -240,12 +238,6 @@ export function ProductSidebar({
         </SidebarContent>
 
         <SidebarFooter className="sidebar-footer gap-2 px-3 pb-4 pt-3">
-          {!collapsed && (
-            <div className="sidebar-company-copy px-3 pb-2">
-              <strong>{userName}</strong>
-              <small>حساب کاربری</small>
-            </div>
-          )}
           <SidebarMenu className="gap-1">
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -255,7 +247,7 @@ export function ProductSidebar({
                 }}
                 aria-label="راهنما و پشتیبانی"
                 tooltip={{ children: "راهنما و پشتیبانی", side: "left" }}
-                className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-3"
+                className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-3"
               >
                 <LifeBuoy className="!size-4" />
                 <span className="group-data-[collapsible=icon]:hidden">
@@ -271,7 +263,7 @@ export function ProductSidebar({
                 }}
                 aria-label="خروج از حساب کاربری"
                 tooltip={{ children: "خروج از حساب کاربری", side: "left" }}
-                className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!p-3"
+                className="sidebar-nav-item h-11 md:h-9 gap-2.5 rounded-[10px] px-3 text-[13px] group-data-[collapsible=icon]:!size-11 group-data-[collapsible=icon]:!p-3"
               >
                 <LogOut className="!size-4" />
                 <span className="group-data-[collapsible=icon]:hidden">

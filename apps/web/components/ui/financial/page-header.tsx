@@ -44,7 +44,7 @@ export function PageHeader({
             {badge && <div className="page-header-badge shrink-0">{badge}</div>}
           </div>
           {description && (
-            <p className="page-header-description text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-3xl">
+            <p className="sr-only">
               {description}
             </p>
           )}

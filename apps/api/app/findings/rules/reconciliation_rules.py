@@ -18,7 +18,7 @@ class UnmatchedBankTransactionRule(BaseFindingRule):
         unmatched_banks = context.unmatched_bank_transactions
         policy = context.policies.get(self.rule_code, {})
         thresholds = policy.get("thresholds", {})
-        min_days = int(thresholds.get("min_days_unmatched", 7))
+        min_days = int(thresholds.get("min_days_unmatched", 0))
         large_threshold = Decimal(str(thresholds.get("large_threshold_irr", 2_000_000_000)))
 
         for b in unmatched_banks:
@@ -31,7 +31,7 @@ class UnmatchedBankTransactionRule(BaseFindingRule):
             severity = policy.get("severity_override") or severity
 
             fp = f"{company_id}:{self.rule_code}:{b.id}"
-            amt_str = f"{abs(b.amount_irr):,}"
+            amt_str = f"{abs(b.amount_irr):,.0f}"
             direction_str = "واریز" if b.amount_irr > 0 else "برداشت"
 
             candidates.append(
@@ -58,6 +58,7 @@ class UnmatchedBankTransactionRule(BaseFindingRule):
                             description_fa="مشخصات تراکنش ثبت‌شده در صورت‌حساب بانک",
                             payload={
                                 "transaction_id": str(b.id),
+                                "source_row_id": str(b.source_row_id),
                                 "amount_irr": str(b.amount_irr),
                                 "booking_date": b.booking_date.isoformat(),
                                 "description": b.description,
@@ -83,7 +84,7 @@ class UnmatchedAccountingEntryRule(BaseFindingRule):
         unmatched_journals = context.unmatched_journal_lines
         policy = context.policies.get(self.rule_code, {})
         thresholds = policy.get("thresholds", {})
-        min_days = int(thresholds.get("min_days_unmatched", 7))
+        min_days = int(thresholds.get("min_days_unmatched", 0))
         large_threshold = Decimal(str(thresholds.get("large_threshold_irr", 2_000_000_000)))
 
         for j in unmatched_journals:
@@ -94,7 +95,7 @@ class UnmatchedAccountingEntryRule(BaseFindingRule):
 
             severity = policy.get("severity_override") or self.default_severity
             fp = f"{company_id}:{self.rule_code}:{j['id']}"
-            amt_str = f"{net_amt:,}"
+            amt_str = f"{net_amt:,.0f}"
 
             candidates.append(
                 FindingCandidate(
@@ -120,6 +121,8 @@ class UnmatchedAccountingEntryRule(BaseFindingRule):
                             description_fa="اطلاعات سطر معین حسابداری نقد و بانک",
                             payload={
                                 "journal_line_id": str(j["id"]),
+                                "source_row_id": str(j["source_row_id"]),
+                                "document_number": j.get("document_number"),
                                 "entry_id": str(j["entry_id"]),
                                 "debit_irr": str(j["debit_irr"]),
                                 "credit_irr": str(j["credit_irr"]),
@@ -152,7 +155,7 @@ class PotentialDuplicateTransactionRule(BaseFindingRule):
             if not target_id:
                 continue
             fp = f"{company_id}:{self.rule_code}:{target_id}"
-            amt = abs(m.evidence_json.get("bank", {}).get("amount_irr", "0"))
+            amt = abs(Decimal(str(m.evidence_json.get("bank", m.evidence_json.get("accounting", {})).get("amount_irr", "0"))))
 
             candidates.append(
                 FindingCandidate(
@@ -198,7 +201,7 @@ class PotentialDuplicateTransactionRule(BaseFindingRule):
                         severity=severity,
                         title_fa="تراکنش مشکوک به تکرار در صورت‌حساب بانکی",
                         summary_fa=(
-                            f"تراکنش به مبلغ {abs(b.amount_irr):,} ریال در تاریخ {b.booking_date} "
+                            f"تراکنش به مبلغ {abs(b.amount_irr):,.0f} ریال در تاریخ {b.booking_date} "
                             f"با تراکنش دیگری با مشخصات مشابه تکرار شده است."
                         ),
                         financial_impact_irr=abs(b.amount_irr),
@@ -214,6 +217,7 @@ class PotentialDuplicateTransactionRule(BaseFindingRule):
                                 description_fa="تراکنش‌های بانکی با مبلغ و تاریخ یکسان در صورت‌حساب",
                                 payload={
                                     "bank_transaction_id": str(b.id),
+                                    "source_row_id": str(b.source_row_id),
                                     "duplicate_of_id": str(other.id),
                                     "amount_irr": str(b.amount_irr),
                                     "date": b.booking_date.isoformat(),
@@ -256,9 +260,9 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                         rule_code=self.rule_code,
                         category=self.category,
                         severity=severity,
-                        title_fa=f"تراکنش تطبیق‌نشده بااهمیت بانکی به مبلغ {amt:,} ریال",
+                        title_fa=f"تراکنش تطبیق‌نشده بااهمیت بانکی به مبلغ {amt:,.0f} ریال",
                         summary_fa=(
-                            f"تراکنش بانکی به مبلغ بااهمیت {amt:,} ریال در تاریخ {b.booking_date} "
+                            f"تراکنش بانکی به مبلغ بااهمیت {amt:,.0f} ریال در تاریخ {b.booking_date} "
                             f"با شرح «{b.description}» بیش از حد مجاز بدون سند معادل در دفاتر بلاتکلیف مانده است."
                         ),
                         financial_impact_irr=amt,
@@ -274,6 +278,7 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                                 description_fa="تراکنش منبع با مبلغ بالاتر از آستانه اهمیت شرکت",
                                 payload={
                                     "transaction_id": str(b.id),
+                                "source_row_id": str(b.source_row_id),
                                     "amount_irr": str(amt),
                                     "threshold_irr": str(large_threshold),
                                     "days_open": days_open,
@@ -296,9 +301,9 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                         rule_code=self.rule_code,
                         category=self.category,
                         severity=severity,
-                        title_fa=f"سطر سند حسابداری تطبیق‌نشده بااهمیت به مبلغ {amt:,} ریال",
+                        title_fa=f"سطر سند حسابداری تطبیق‌نشده بااهمیت به مبلغ {amt:,.0f} ریال",
                         summary_fa=(
-                            f"سند حسابداری نقد و بانک به مبلغ بااهمیت {amt:,} ریال در تاریخ {j['entry_date']} "
+                            f"سند حسابداری نقد و بانک به مبلغ بااهمیت {amt:,.0f} ریال در تاریخ {j['entry_date']} "
                             f"فاقد گردش متناظر در صورت‌حساب بانک است."
                         ),
                         financial_impact_irr=amt,
@@ -314,6 +319,8 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                                 description_fa="سطر سند حسابداری با مبلغ بالاتر از آستانه اهمیت",
                                 payload={
                                     "journal_line_id": str(j["id"]),
+                                "source_row_id": str(j["source_row_id"]),
+                                "document_number": j.get("document_number"),
                                     "amount_irr": str(amt),
                                     "threshold_irr": str(large_threshold),
                                     "days_open": days_open,
@@ -324,4 +331,50 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                     )
                 )
 
+        return candidates
+
+
+class ReconciliationMismatchRule(BaseFindingRule):
+    rule_code = ""
+    default_severity = "medium"
+    category = "cash_and_bank"
+
+    def __init__(self, rule_code: str, match_status: str, label: str) -> None:
+        self.rule_code = rule_code
+        self.match_status = match_status
+        self.label = label
+
+    async def evaluate(self, context: Any) -> list[FindingCandidate]:
+        candidates = []
+        policy = context.policies.get(self.rule_code, {})
+        for match in context.reconciliation_matches:
+            if match.status != self.match_status:
+                continue
+            bank = match.evidence_json.get("bank", {})
+            ledger = match.evidence_json.get("accounting", {})
+            identity = bank.get("transaction_id") or ledger.get("journal_line_id")
+            counterpart = ledger.get("journal_line_id", "")
+            if not identity:
+                continue
+            difference = abs(Decimal(str(match.amount_difference_irr or 0)))
+            summary = (
+                f"اختلاف مبلغ بانک و دفتر {difference:,.0f} ریال است."
+                if self.rule_code == "amount_mismatch"
+                else f"تاریخ ثبت بانک و دفتر {match.date_difference_days or 0} روز فاصله دارد."
+            )
+            candidates.append(FindingCandidate(
+                fingerprint=f"{context.company_id}:{self.rule_code}:{identity}:{counterpart}",
+                rule_code=self.rule_code, category=self.category,
+                severity=policy.get("severity_override") or self.default_severity,
+                title_fa=self.label, summary_fa=summary,
+                financial_impact_irr=difference if self.rule_code == "amount_mismatch" else abs(Decimal(str(bank.get("amount_irr", 0)))),
+                source_entity_type="bank_transaction" if bank else "journal_line",
+                source_entity_id=UUID(str(identity)),
+                period_start=context.as_of_date, period_end=context.as_of_date,
+                reconciliation_match_id=match.id,
+                evidence_items=[FindingEvidenceSpec(
+                    ordinal=1, evidence_type="reconciliation_detail", title_fa="مقایسه بانک و دفتر",
+                    description_fa=summary, payload=match.evidence_json,
+                )],
+            ))
         return candidates

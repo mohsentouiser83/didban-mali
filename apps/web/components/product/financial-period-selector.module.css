@@ -1,0 +1,16 @@
+.panel { border: 1px solid var(--ds-border); border-radius: var(--ds-card-radius); padding: 20px; display: grid; gap: 16px; }
+.form { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.field { display: grid; gap: 8px; min-width: 160px; flex: 1; }
+.field label { font-size: 13px; color: var(--ds-foreground-soft); }
+.presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.caption { font-size: 13px; color: var(--ds-foreground-soft); line-height: 1.8; }
+.error { color: var(--ds-danger); font-size: 14px; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table td, .table th { padding: 12px; border-block-end: 1px solid var(--ds-border); text-align: start; }
+.scroll { overflow-x: auto; }
+.chart { height: 260px; min-width: 0; direction: ltr; }
+.history { display: grid; gap: 16px; }
+.receipt { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-block-end: 1px solid var(--ds-border); padding-block-end: 16px; }
+@media (max-width: 640px) { .form { align-items: stretch; } .field { min-width: 100%; } .receipt { grid-template-columns: 1fr; } }
+.cashTable { min-width: 620px; }
+.cashTable td { white-space: nowrap; }

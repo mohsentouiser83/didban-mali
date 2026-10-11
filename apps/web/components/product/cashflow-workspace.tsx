@@ -10,9 +10,10 @@ import type { CashFlowForecastResponse, CashFlowSummaryResponse } from "@/lib/pr
 import { StatCards } from "./stat-cards";
 import { CashPaymentPlan } from "./cash-payment-plan";
 import { useWorkspace } from "./workspace-provider";
+import { CashPeriodReport } from "./cash-period-report";
 import styles from "./cashflow-overview.module.css";
 
-export function CashFlowWorkspace() {
+export function CashFlowForecastWorkspace() {
   const { company } = useWorkspace();
   const [data, setData] = useState<{ companyId: string; summary: CashFlowSummaryResponse; forecast: CashFlowForecastResponse } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -51,13 +52,24 @@ export function CashFlowWorkspace() {
 
   return (
     <div dir="rtl" className={styles.page}>
-      <PageHeader title="نقدینگی" />
       <section aria-label="خلاصه نقدینگی در ۳۰ روز آینده" aria-busy={loading}>
-        <div className={styles.period}>۳۰ روز آینده</div>
         {failed ? <div role="alert" className={styles.error}><p>اطلاعات نقدینگی دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> :
           <StatCards key={company.id} items={cards} loading={loading} /> }
       </section>
       <CashPaymentPlan key={`payments:${company.id}`} company={company} asOfDate={current?.forecast.as_of_date ?? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())} onChanged={() => setRetry((value) => value + 1)} />
     </div>
   );
+}
+
+export function CashFlowWorkspace() {
+  const { company } = useWorkspace();
+  const [view, setView] = useState<"history" | "forecast">("history");
+  return <div dir="rtl" className={styles.page}>
+    <PageHeader title="نقدینگی" />
+    <div role="group" aria-label="نوع گزارش نقدینگی" className="flex flex-wrap gap-2">
+      <Button variant={view === "history" ? "secondary" : "ghost"} aria-pressed={view === "history"} onClick={() => setView("history")}>گزارش دوره</Button>
+      <Button variant={view === "forecast" ? "secondary" : "ghost"} aria-pressed={view === "forecast"} onClick={() => setView("forecast")}>۳۰ روز آینده</Button>
+    </div>
+    {view === "history" ? <CashPeriodReport company={company} /> : <CashFlowForecastWorkspace />}
+  </div>;
 }

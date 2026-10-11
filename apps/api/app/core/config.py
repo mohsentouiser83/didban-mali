@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     ai_model: str = "unconfigured"
     ai_data_region: str | None = None
     ai_request_timeout_seconds: int = 15
+    assistant_provider: str = "disabled"
+    assistant_api_url: str = ""
+    assistant_api_key: SecretStr | None = None
+    assistant_model: str = ""
+    assistant_company_ids: str = ""
 
     @model_validator(mode="after")
     def validate_production_invariants(self) -> "Settings":

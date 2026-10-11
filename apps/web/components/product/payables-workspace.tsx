@@ -37,7 +37,7 @@ export function PayablesWorkspace({ company }: { company: Company }) {
     { title: "تأمین‌کنندگان طلبکار", value: summary ? String(summary.vendor_count) : null, currency: "تأمین‌کننده", icon: Users },
   ];
   return <div dir="rtl" className={styles.page}>
-    <div><PageHeader title="بدهی‌ها" /><p className={styles.period}>سررسیدها برآوردی‌اند؛ ۴۵ روز پس از تاریخ سند حسابداری.</p></div>
+    <PageHeader title="بدهی‌ها" />
     <section aria-label="آمار بدهی‌ها" aria-busy={loading}>
       {failed ? <div className={styles.error} role="alert"><p>اطلاعات بدهی‌ها دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <StatCards key={company.id} items={cards} loading={loading} />}
     </section>

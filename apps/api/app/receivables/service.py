@@ -189,12 +189,19 @@ async def get_customer_receivables(
 
 
 def _customer_items(
-    results: Sequence[Row[tuple[SalesInvoice, Counterparty]]], effective_date: date
+    results: Sequence[Row[tuple[SalesInvoice, Counterparty]] | tuple[SalesInvoice, Counterparty]],
+    effective_date: date,
+    paid_by_invoice: dict[UUID, Decimal] | None = None,
 ) -> list[CustomerReceivableItem]:
     customer_map: dict[UUID, _CustomerAccumulator] = {}
 
     for invoice, counterparty in results:
-        remaining = invoice.gross_amount_irr - (invoice.paid_amount_irr or ZERO)
+        paid = (
+            paid_by_invoice.get(invoice.id, ZERO)
+            if paid_by_invoice is not None
+            else (invoice.paid_amount_irr or ZERO)
+        )
+        remaining = invoice.gross_amount_irr - paid
         if remaining <= ZERO:
             continue
 

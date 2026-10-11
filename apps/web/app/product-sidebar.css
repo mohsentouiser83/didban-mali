@@ -10,11 +10,8 @@
 .product-sidebar .sidebar-brand-mark .mark > i:nth-child(2) { height: 18px; }
 .product-sidebar .sidebar-brand-mark .mark > i:nth-child(3) { height: 12px; }
 .product-sidebar .sidebar-brand { border-radius: 4px; }
-.product-sidebar .sidebar-nav-item { min-height: 44px; gap: 8px; border-radius: 4px; color: var(--ds-foreground-soft); font-size: 12px; line-height: 1.8; font-weight: 400; transition: background-color 140ms ease, color 140ms ease; }
-@media (min-width: 768px) and (pointer: fine) {
-  .product-sidebar .sidebar-nav-item { min-height: 32px; height: 32px; }
-}
-.product-sidebar .sidebar-nav-item > svg { width: 16px !important; height: 16px !important; }
+.product-sidebar .sidebar-nav-item { min-height: 44px; height: auto; padding: 10px 16px; gap: 10px; border-radius: 4px; color: var(--ds-foreground-soft); font-size: 13px; line-height: 1.8; font-weight: 400; transition: background-color 140ms ease, color 140ms ease; }
+.product-sidebar .sidebar-nav-item > svg { width: 18px !important; height: 18px !important; }
 .product-sidebar .sidebar-nav-item:hover:not([data-active="true"]) { background: var(--ds-p-selected); color: var(--ds-foreground); }
 .product-sidebar .sidebar-icon-button:hover { background: var(--ds-p-selected); color: var(--ds-foreground); }
 .product-sidebar .sidebar-nav-item[data-active="true"] { background: transparent; color: var(--ds-primary); font-weight: 700; box-shadow: none; }

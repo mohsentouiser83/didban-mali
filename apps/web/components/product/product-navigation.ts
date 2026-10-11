@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, WalletCards, ArrowDownLeft, ArrowUpRight,
-  ClipboardCheck, FileText,
+  ClipboardCheck, FileText, UploadCloud,
 } from "@/components/ui/icons";
 import type { ProductNavGroup } from "./product-sidebar";
 
@@ -20,6 +20,7 @@ export function productNavigation(base: string, actionCount = 0, criticalCount =
     },
   ] }];
   const secondary: ProductNavGroup[] = [{ items: [
+    { href: `${base}/imports`, label: "بارگذاری اسناد", icon: UploadCloud },
     { href: `${base}/reports`, label: "گزارش‌ها", icon: FileText },
   ] }];
   return { primary, secondary };
@@ -27,20 +28,9 @@ export function productNavigation(base: string, actionCount = 0, criticalCount =
 
 export function isProductItemActive(pathname: string, href: string, base: string) {
   const target = href.split("?")[0];
-  const relatedRoutes: Record<string, string[]> = {
-    [`${base}/cashflow`]: ["cashflow", "scenarios"],
-    [`${base}/findings`]: ["findings", "actions", "reconciliation"],
-  };
-  return relatedRoutes[target]?.some((route) => containsRoute(pathname, `${base}/${route}`))
-    ?? containsRoute(pathname, target);
+  return containsRoute(pathname, target);
 }
 
-export function productSectionNavigation(pathname: string, base: string) {
-  if (containsRoute(pathname, `${base}/scenarios`)) {
-    return { label: "نقدینگی", items: [
-      { href: `${base}/cashflow`, label: "وضعیت و پیش‌بینی" },
-      { href: `${base}/scenarios`, label: "سناریوها" },
-    ] };
-  }
+export function productSectionNavigation(_pathname: string, _base: string): { label: string; items: { href: string; label: string }[] } | null {
   return null;
 }

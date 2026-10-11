@@ -9,12 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from uuid6 import uuid7
 
-from app.analysis.models import AnalysisRun, AnalysisStatus, MetricObservation
+from app.analysis.models import AnalysisRun, AnalysisStatus
 from app.analysis.schemas import (
     AnalysisRunRequest,
     AnalysisRunResponse,
-    MetricObservationResponse,
-    MetricsResponse,
 )
 from app.analysis.tasks import calculate_financial_metrics_task
 from app.audit.service import record_audit_event
@@ -44,19 +42,6 @@ def _run_response(run: AnalysisRun) -> AnalysisRunResponse:
         failure_message=run.failure_message,
         created_at=run.created_at,
         updated_at=run.updated_at,
-    )
-
-
-def _metric_response(metric: MetricObservation) -> MetricObservationResponse:
-    return MetricObservationResponse(
-        analysis_run_id=metric.analysis_run_id,
-        metric_code=metric.metric_code,
-        period_start=metric.period_start,
-        period_end=metric.period_end,
-        value_irr=metric.value_irr,
-        value_ratio=metric.value_ratio,
-        calculation=metric.calculation_json,
-        calculated_at=metric.calculated_at,
     )
 
 
@@ -167,38 +152,6 @@ async def list_analysis_runs(
     return [_run_response(run) for run in runs]
 
 
-@router.get("/analysis-runs/{run_id}", response_model=AnalysisRunResponse)
-async def get_analysis_run(
-    company_id: UUID,
-    run_id: UUID,
-    session: DbSession,
-    access: CurrentCompanyAccess,
-) -> AnalysisRunResponse:
-    del access
-    run = await session.scalar(
-        select(AnalysisRun).where(AnalysisRun.id == run_id, AnalysisRun.company_id == company_id)
-    )
-    if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="اجرای تحلیل پیدا نشد.")
-    return _run_response(run)
-
-
-@router.get("/analysis-runs/{run_id}/coverage", response_model=dict[str, object])
-async def get_analysis_coverage(
-    company_id: UUID,
-    run_id: UUID,
-    session: DbSession,
-    access: CurrentCompanyAccess,
-) -> dict[str, object]:
-    del access
-    run = await session.scalar(
-        select(AnalysisRun).where(AnalysisRun.id == run_id, AnalysisRun.company_id == company_id)
-    )
-    if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="اجرای تحلیل پیدا نشد.")
-    return {"analysis_run_id": str(run.id), "status": run.status.value, **run.coverage_json}
-
-
 def _month_period(value: str) -> tuple[date, date]:
     try:
         year_text, month_text = value.split("-", maxsplit=1)
@@ -210,44 +163,3 @@ def _month_period(value: str) -> tuple[date, date]:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="دوره باید به شکل YYYY-MM و بر پایه تقویم میلادی باشد.",
         ) from exc
-
-
-@router.get("/metrics", response_model=MetricsResponse)
-async def list_metrics(
-    company_id: UUID,
-    session: DbSession,
-    access: CurrentCompanyAccess,
-    period: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
-    analysis_run_id: UUID | None = None,
-) -> MetricsResponse:
-    del access
-    statement = select(AnalysisRun).where(
-        AnalysisRun.company_id == company_id,
-        AnalysisRun.status.in_(FINAL_STATUSES),
-    )
-    if analysis_run_id is not None:
-        statement = statement.where(AnalysisRun.id == analysis_run_id)
-    elif period is not None:
-        period_start, period_end = _month_period(period)
-        statement = statement.where(
-            AnalysisRun.period_start == period_start,
-            AnalysisRun.period_end == period_end,
-        )
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="شناسه اجرای تحلیل یا دوره الزامی است.",
-        )
-    run = await session.scalar(statement.order_by(AnalysisRun.completed_at.desc()).limit(1))
-    if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="شاخصی پیدا نشد.")
-    metrics = list(
-        await session.scalars(
-            select(MetricObservation)
-            .where(MetricObservation.analysis_run_id == run.id)
-            .order_by(MetricObservation.metric_code)
-        )
-    )
-    return MetricsResponse(
-        analysis_run=_run_response(run), metrics=[_metric_response(item) for item in metrics]
-    )

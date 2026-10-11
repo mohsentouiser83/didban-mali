@@ -77,7 +77,7 @@ function ForecastTooltip({
   );
 }
 
-export function DashboardForecast({ outlook, asOfDate }: { outlook: ForecastOutlook; asOfDate?: string }) {
+export function DashboardForecast({ outlook }: { outlook: ForecastOutlook; asOfDate?: string }) {
   const weeks = outlook.weeks ?? [];
   const data = weeks.map((week) => ({
     ...week,
@@ -99,7 +99,6 @@ export function DashboardForecast({ outlook, asOfDate }: { outlook: ForecastOutl
       <div className="dashboard-panel-heading">
         <div>
           <h2 id="dashboard-forecast-title">دورنمای نقدینگی</h2>
-          <p>پیش‌بینی ۱۳ هفته‌ای{asOfDate ? ` از ${toJalaliDate(asOfDate)}` : ""}</p>
         </div>
         {outlook.first_deficit_week != null && (
           <span className="dashboard-metric-note dashboard-state-warning">

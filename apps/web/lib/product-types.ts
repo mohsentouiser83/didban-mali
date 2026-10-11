@@ -33,6 +33,14 @@ export type ImportStatus =
   | "failed"
   | "cancelled";
 
+export type BankAccount = {
+  id: string;
+  label: string;
+  bank_name: string;
+  account_last4: string | null;
+  iban_masked: string | null;
+};
+
 export type ImportBatch = {
   id: string;
   source_kind: "accounting" | "bank" | "sales";

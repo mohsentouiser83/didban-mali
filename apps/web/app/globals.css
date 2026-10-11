@@ -6,6 +6,7 @@
 @import "./product-dashboard.css";
 @import "./product-controls.css";
 @import "./product-pages.css";
+@import "./product-tables.css";
 
 :root { color-scheme: light; }
 

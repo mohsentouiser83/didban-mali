@@ -27,6 +27,7 @@ import { api } from "@/lib/product-api";
 import type { ControlOverview } from "@/lib/product-types";
 
 import { useWorkspace } from "./workspace-provider";
+import { FinancialAssistant } from "./financial-assistant";
 import { SupportModal } from "./support-modal";
 
 export function ProductShell({ children }: { children: React.ReactNode }) {
@@ -35,8 +36,9 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const base = `/companies/${company.id}`;
   const [controlOverview, setControlOverview] = useState<ControlOverview | null>(null);
-  const [myActionsCount, setMyActionsCount] = useState<number>(0);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
+  const [assistantState, setAssistantState] = useState({ companyId: company.id, open: false });
+  const assistantOpen = assistantState.companyId === company.id && assistantState.open;
   const [commandOpen, setCommandOpen] = useState(false);
 
 
@@ -57,19 +59,11 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
       .then((res) => { if (!ignore) setControlOverview(res); })
       .catch(() => { /* silent */ });
 
-    api<{ assigned_findings: unknown[]; verification_queue: unknown[] }>(`/companies/${company.id}/actions/my-queue`)
-      .then((res) => {
-        if (!ignore) {
-          const count = (res.assigned_findings?.length ?? 0) + (res.verification_queue?.length ?? 0);
-          setMyActionsCount(count);
-        }
-      })
-      .catch(() => { /* silent */ });
 
     return () => { ignore = true; };
   }, [company.id, pathname]);
 
-  const navigation = productNavigation(base, myActionsCount, controlOverview?.critical_count ?? 0);
+  const navigation = productNavigation(base, 0, controlOverview?.critical_count ?? 0);
   const sectionNavigation = productSectionNavigation(pathname, base);
 
   const gearMenuItems = [
@@ -106,12 +100,11 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const isItemActive = (href: string) => isProductItemActive(pathname, href, base);
 
   return (
-    <SidebarProvider style={{ "--sidebar-width": "14rem", "--sidebar-width-icon": "4.5rem" } as React.CSSProperties} className="ds-root app-shell product-shell min-h-screen bg-background text-foreground" dir="rtl">
+    <SidebarProvider data-assistant-open={assistantOpen} style={{ "--sidebar-width": "14rem", "--sidebar-width-icon": "4.5rem" } as React.CSSProperties} className="ds-root app-shell product-shell min-h-screen bg-background text-foreground" dir="rtl">
       <a className="product-skip-link" href="#workspace-content">پرش به محتوای صفحه</a>
       <ProductSidebar
         groups={navigation.primary}
         secondaryGroups={navigation.secondary}
-        userName={user.full_name}
         base={base}
         isItemActive={isItemActive}
         onLogout={logout}
@@ -156,29 +149,13 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
                 <ArrowUpRight className="size-4 me-2 text-primary" />
                 <span>بدهی‌ها و تعهدات سررسیدشده</span>
               </CommandItem>
-              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/scenarios`); }}>
-                <Sparkles className="size-4 me-2 text-primary" />
-                <span>شبیه‌ساز سناریوهای مالی</span>
-              </CommandItem>
-              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reconciliation`); }}>
-                <ArrowLeftRight className="size-4 me-2 text-primary" />
-                <span>تطبیق هوشمند بانکی و دفاتر</span>
-              </CommandItem>
               <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/findings`); }}>
                 <ScanSearch className="size-4 me-2 text-primary" />
                 <span>یافته‌ها و مغایرت‌های مالی</span>
               </CommandItem>
-              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/actions`); }}>
-                <ClipboardCheck className="size-4 me-2 text-primary" />
-                <span>کارتابل کارهای من</span>
-              </CommandItem>
               <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/data/connections`); }}>
                 <HardDrive className="size-4 me-2 text-primary" />
                 <span>اتصال به نرم‌افزارها و بانک‌ها</span>
-              </CommandItem>
-              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reports/analysis`); }}>
-                <BarChart3 className="size-4 me-2 text-primary" />
-                <span>محاسبه و تحلیل صورت‌های مالی</span>
               </CommandItem>
               <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/reports`); }}>
                 <FileText className="size-4 me-2 text-primary" />
@@ -237,6 +214,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
         />
 
       </SidebarInset>
+      <FinancialAssistant companyId={company.id} companyName={company.legal_name} onOpenChange={(open) => setAssistantState({ companyId: company.id, open })} />
     </SidebarProvider>
   );
 }

@@ -1,230 +1,294 @@
 "use client";
-
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { ProductCard } from "./product-card";
-import { SelectField, SelectOption } from "./select-field";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Plus, Search } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-import { FormEvent, useCallback, useEffect, useState } from "react";
-
+import { Skeleton } from "@/components/ui/skeleton";
+import { Drawer, DrawerFooter, DrawerForm } from "@/components/ui/drawer";
 import { api } from "@/lib/product-api";
 import {
+  roleLabels,
   type Company,
   type Member,
   type Role,
-  roleLabels,
 } from "@/lib/product-types";
-
-import { Icon } from "./icons";
-
-const roleBadgeVariants: Record<Role, string> = {
-  owner: "bg-ds-success/10 text-ds-success border-ds-success/20",
-  finance_manager: "bg-ds-warning/10 text-ds-warning border-ds-warning/20",
-  advisor: "bg-primary/10 text-primary border-primary/20",
-  viewer: "bg-muted text-muted-foreground border-border",
+import { SelectField, SelectOption } from "./select-field";
+import { SettingsConfirm } from "./settings-confirm";
+import page from "./cashflow-overview.module.css";
+import table from "./receivables-customers.module.css";
+import styles from "./reports-workspace.module.css";
+const roles = Object.keys(roleLabels) as Role[];
+const descriptions: Record<Role, string> = {
+  owner: "مدیریت اعضا، اتصال‌ها و اطلاعات مالی شرکت",
+  finance_manager: "مدیریت اطلاعات مالی و اتصال‌ها؛ بدون تغییر اعضا",
+  advisor: "بررسی و تحلیل اطلاعات مالی؛ بدون مدیریت اعضا و اتصال‌ها",
+  viewer: "مشاهده اطلاعات شرکت؛ بدون مدیریت اعضا و اتصال‌ها",
 };
-
-export function MembersPanel({
+export function MembersPanel(props: {
+  company: Company;
+  currentUserId: string;
+}) {
+  return <MembersContent key={props.company.id} {...props} />;
+}
+function MembersContent({
   company,
   currentUserId,
 }: {
   company: Company;
   currentUserId: string;
 }) {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [error, setError] = useState("");
-  const load = useCallback(
-    () =>
-      api<Member[]>(`/companies/${company.id}/members`)
-        .then(setMembers)
-        .catch((e: Error) => setError(e.message)),
-    [company.id],
-  );
+  const [members, setMembers] = useState<Member[]>([]),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState("");
+  const [search, setSearch] = useState(""),
+    [adding, setAdding] = useState(false),
+    [selected, setSelected] = useState<Member | null>(null),
+    [role, setRole] = useState<Role>("viewer"),
+    [busy, setBusy] = useState(false),
+    [removing, setRemoving] = useState(false),
+    [formError, setFormError] = useState("");
+  const owner = company.role === "owner";
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setMembers(await api<Member[]>(`/companies/${company.id}/members`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "اعضا دریافت نشدند.");
+    } finally {
+      setLoading(false);
+    }
+  }, [company.id]);
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function add(event: FormEvent<HTMLFormElement>) {
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    const form = event.currentTarget;
-    const data = new FormData(form);
+    if (busy) return;
+    setBusy(true);
+    setFormError("");
+    const data = new FormData(event.currentTarget);
     try {
-      await api(`/companies/${company.id}/members`, {
-        method: "POST",
-        body: JSON.stringify({
-          email: data.get("email"),
-          role: data.get("role"),
-        }),
-      });
-      form.reset();
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "عضو افزوده نشد.");
-    }
-  }
-
-  async function updateRole(member: Member, role: Role) {
-    setError("");
-    try {
-      await api(`/companies/${company.id}/members/${member.user_id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ role }),
-      });
-      await load();
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "نقش عضو تغییر نکرد.",
+      await api(
+        `/companies/${company.id}/members${selected ? `/${selected.user_id}` : ""}`,
+        {
+          method: selected ? "PATCH" : "POST",
+          body: JSON.stringify(
+            selected
+              ? { role }
+              : { email: String(data.get("email")).trim(), role },
+          ),
+        },
       );
+      setAdding(false);
+      setSelected(null);
+      await load();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تغییرات ذخیره نشد.");
+    } finally {
+      setBusy(false);
     }
   }
-
-  async function remove(member: Member) {
-    setError("");
+  async function remove() {
+    if (!selected || busy) return;
+    setBusy(true);
+    setFormError("");
     try {
-      await api(`/companies/${company.id}/members/${member.user_id}`, {
+      await api(`/companies/${company.id}/members/${selected.user_id}`, {
         method: "DELETE",
       });
+      setRemoving(false);
+      setSelected(null);
       await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "عضو حذف نشد.");
+    } catch (e) {
+      setRemoving(false);
+      setFormError(e instanceof Error ? e.message : "عضو حذف نشد.");
+    } finally {
+      setBusy(false);
     }
   }
-
+  const visible = members.filter((member) =>
+    `${member.full_name} ${member.email}`
+      .toLocaleLowerCase()
+      .includes(search.trim().toLocaleLowerCase()),
+  );
   return (
-    <ProductCard
-      className="pp-member-settings members-card p-6 rounded-[var(--ds-card-radius)] border border-border bg-card shadow-[var(--ds-shadow-sm)] space-y-5"
-      aria-labelledby="members-title"
-    >
-      <div className="card-heading flex items-center justify-between border-b border-border/60 pb-4">
-        <div>
-          <span className="overline block text-[11px] font-bold text-primary mb-0.5">
-            کنترل دسترسی
-          </span>
-          <h3
-            id="members-title"
-            className="text-base sm:text-lg font-bold text-foreground"
-          >
-            مدیریت اعضای شرکت
-          </h3>
-        </div>
-        <Badge variant="secondary" className="count-pill text-xs font-mono">
-          {new Intl.NumberFormat("fa-IR").format(members.length)} نفر
-        </Badge>
-      </div>
-
-      {company.role === "owner" && (
-        <form
-          className="member-form grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2.5"
-          onSubmit={add}
-        >
-          <label className="sr-only" htmlFor="new-member-email">
-            ایمیل عضو جدید
-          </label>
-          <Input
-            id="new-member-email"
-            name="email"
-            type="email"
-            dir="ltr"
-            required
-            placeholder="ایمیل عضو جدید"
-            className="text-end"
-          />
-          <label className="sr-only" htmlFor="new-member-role">
-            نقش عضو جدید
-          </label>
-          <SelectField id="new-member-role" name="role" defaultValue="viewer">
-            <SelectOption value="finance_manager">مدیر مالی</SelectOption>
-            <SelectOption value="advisor">مشاور</SelectOption>
-            <SelectOption value="viewer">مشاهده‌گر</SelectOption>
-          </SelectField>
-          <Button
-            type="submit"
-            variant="secondary"
-            className="gap-1.5 cursor-pointer"
-          >
-            <Icon name="plus" className="size-3.5" />
-            افزودن
-          </Button>
-        </form>
-      )}
-
-      {error && (
-        <Alert
-          variant="destructive"
-          className="form-error text-xs p-3"
-          role="alert"
-        >
-          {error}
-        </Alert>
-      )}
-
-      <div className="member-list divide-y divide-border/60">
-        {members.map((member) => (
-          <div
-            className="member-row flex items-center justify-between gap-3 py-3"
-            key={member.user_id}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar className="avatar size-8 shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                  {member.full_name.slice(0, 1)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <strong className="block truncate text-xs font-bold text-foreground">
-                  {member.full_name}
-                </strong>
-                <small
-                  dir="ltr"
-                  className="block truncate text-[11px] text-muted-foreground text-start"
-                >
-                  {member.email}
-                </small>
-              </div>
+    <div className={page.page} dir="rtl">
+      <h1>اعضا و سطوح دسترسی</h1>
+      <section className={table.section}>
+        <div className={table.heading}>
+          <h2>اعضای شرکت</h2>
+          <div className={table.controls}>
+            <div className={table.search}>
+              <Search className="size-4" />
+              <Input
+                aria-label="جستجوی اعضا"
+                placeholder="نام یا ایمیل"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
-
-            {company.role === "owner" ? (
-              <div className="member-actions flex items-center gap-2 shrink-0">
-                <label className="sr-only">نقش {member.full_name}</label>
-                <SelectField
-                  size="sm"
-                  className="min-w-[100px]"
-                  value={member.role}
-                  onChange={(event) =>
-                    void updateRole(member, event.target.value as Role)
-                  }
-                >
-                  <SelectOption value="owner">مالک</SelectOption>
-                  <SelectOption value="finance_manager">مدیر مالی</SelectOption>
-                  <SelectOption value="advisor">مشاور</SelectOption>
-                  <SelectOption value="viewer">مشاهده‌گر</SelectOption>
-                </SelectField>
-                {member.user_id !== currentUserId && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="remove-button text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
-                    onClick={() => void remove(member)}
-                  >
-                    حذف
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <Badge
-                variant="outline"
-                className={`role text-xs ${roleBadgeVariants[member.role]}`}
+            {owner && (
+              <Button
+                onClick={() => {
+                  setRole("viewer");
+                  setFormError("");
+                  setAdding(true);
+                }}
               >
-                {roleLabels[member.role]}
-              </Badge>
+                <Plus className="size-4" />
+                افزودن عضو
+              </Button>
             )}
           </div>
-        ))}
-      </div>
-    </ProductCard>
+        </div>
+        {error ? (
+          <div className={table.empty} role="alert">
+            <p>{error}</p>
+            <Button variant="outline" onClick={() => void load()}>
+              تلاش دوباره
+            </Button>
+          </div>
+        ) : loading ? (
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          <div className={table.scroll}>
+            <table className={table.table}>
+              <thead>
+                <tr>
+                  <th scope="col">نام</th>
+                  <th scope="col">ایمیل</th>
+                  <th scope="col">سطح دسترسی</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((member) => (
+                  <tr key={member.user_id}>
+                    <td>
+                      <Button
+                        variant="ghost"
+                        className={table.customer}
+                        onClick={() => {
+                          setSelected(member);
+                          setRole(member.role);
+                          setFormError("");
+                        }}
+                      >
+                        {member.full_name}
+                        {member.user_id === currentUserId ? " (شما)" : ""}
+                      </Button>
+                    </td>
+                    <td>
+                      <bdi dir="ltr">{member.email}</bdi>
+                    </td>
+                    <td>{roleLabels[member.role]}</td>
+                  </tr>
+                ))}
+                {!visible.length && (
+                  <tr>
+                    <td colSpan={3} className={table.empty}>
+                      {search
+                        ? "عضوی با این نام یا ایمیل پیدا نشد."
+                        : "عضوی ثبت نشده است."}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+      <Drawer
+        open={adding || !!selected}
+        onOpenChange={(open) => {
+          if (!open && !busy) {
+            setAdding(false);
+            setSelected(null);
+            setRemoving(false);
+          }
+        }}
+        title={selected ? selected.full_name : "افزودن عضو"}
+        description={
+          selected
+            ? selected.email
+            : "عضو باید قبلاً در دیدبان حساب کاربری ساخته باشد."
+        }
+      >
+        <DrawerForm onSubmit={save}>
+          {adding && (
+            <div>
+              <label htmlFor="member-email">ایمیل</label>
+              <Input
+                id="member-email"
+                name="email"
+                type="email"
+                dir="ltr"
+                required
+                autoComplete="email"
+                disabled={busy}
+              />
+            </div>
+          )}
+          <div>
+            <label htmlFor="member-role">سطح دسترسی</label>
+            <SelectField
+              id="member-role"
+              value={role}
+              disabled={busy || !owner || selected?.user_id === currentUserId}
+              onChange={(e) => setRole(e.target.value as Role)}
+            >
+              {roles.map((value) => (
+                <SelectOption key={value} value={value}>
+                  {roleLabels[value]}
+                </SelectOption>
+              ))}
+            </SelectField>
+            <p className={`${styles.caption} mt-3`}>{descriptions[role]}</p>
+          </div>
+          {selected?.user_id === currentUserId && (
+            <p className={styles.caption}>
+              برای تغییر دسترسی شما، مالک دیگری باید اقدام کند.
+            </p>
+          )}
+          {formError && (
+            <p role="alert" className={styles.error}>
+              {formError}
+            </p>
+          )}
+          <DrawerFooter>
+            {owner && selected?.user_id !== currentUserId && (
+              <Button type="submit" disabled={busy}>
+                {busy
+                  ? "در حال ذخیره…"
+                  : adding
+                    ? "افزودن عضو"
+                    : "ذخیره دسترسی"}
+              </Button>
+            )}
+            {owner && selected && selected.user_id !== currentUserId && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => setRemoving(true)}
+              >
+                حذف عضو
+              </Button>
+            )}
+          </DrawerFooter>
+        </DrawerForm>
+      </Drawer>
+      <SettingsConfirm
+        open={removing}
+        onOpenChange={setRemoving}
+        title="حذف عضو"
+        description="دسترسی این عضو به شرکت قطع می‌شود."
+        busy={busy}
+        onConfirm={() => void remove()}
+      />
+    </div>
   );
 }

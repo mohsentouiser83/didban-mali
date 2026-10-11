@@ -19,7 +19,5 @@
 .formError { color: var(--ds-risk-high-fg); font-size: 13px; line-height: 1.8; }
 @media (max-width: 540px) { .heading { padding: 16px; align-items: flex-start; } .heading > div { flex-direction: column; gap: 4px; } .table th, .table td { padding: 14px 16px; } .form { grid-template-columns: minmax(0, 1fr); } }
 
-.drawerForm { display: flex; flex-direction: column; flex: 1; gap: 22px; }
-.drawerForm label { display: block; margin-block-end: 8px; font-size: 13px; font-weight: 400; }
 
 .notice { padding: 12px 24px; font-size: 13px; line-height: 1.8; color: var(--ds-foreground-soft); }

@@ -121,7 +121,6 @@ export function CashFlowForecastChart({
       <div className={styles.sectionHeading}>
         <div>
           <h2 id="cash-forecast-title">پیش‌بینی {horizonLabel}</h2>
-          <p>مانده هفتگی در برابر صفر و ذخیره امن · {forecast.horizon_days === 30 ? "۳۰ روز" : "۱۳ هفته"}</p>
         </div>
         <div
           className={styles.scenarios}

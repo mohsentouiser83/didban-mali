@@ -232,52 +232,14 @@
 .pp-lever-grid > [data-slot="card"]:nth-child(odd) {
   border-inline-end: 1px solid var(--ds-border);
 }
-.pp-simulation > div:first-child,
 .pp-reports > div:first-child {
   border: 0;
   padding: 0 0 8px;
 }
-.pp-simulation > div:first-child h1 + span,
 .pp-reports > div:first-child h1 + span {
   display: none;
 }
 /* A continuous queue conveys progression; individual items are separated by rules. */
-.pp-actions [role="tabpanel"] > .space-y-3 {
-  border: 1px solid var(--ds-border);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--ds-card-solid);
-}
-.pp-actions [role="tabpanel"] > .space-y-3 > div {
-  margin: 0;
-  padding: 24px;
-  border: 0;
-  border-block-end: 1px solid var(--ds-border);
-  border-radius: 0;
-  box-shadow: none;
-  background: transparent;
-}
-.pp-actions [role="tabpanel"] h3 {
-  font-family: var(--font-display);
-  font-size: 19px;
-  white-space: normal;
-  line-height: 1.7;
-}
-.pp-actions [role="tabpanel"] p {
-  font-size: 13px;
-  line-height: 1.9;
-}
-.pp-actions [role="tablist"] {
-  width: 100%;
-  gap: 16px;
-}
-.pp-actions [role="tab"] {
-  white-space: normal;
-  text-align: start;
-}
-.pp-actions [role="tab"] > svg {
-  display: none;
-}
 .pp-rule-list {
   background: var(--ds-card-solid);
   border: 1px solid var(--ds-border);
@@ -308,28 +270,6 @@
   min-height: 44px;
 }
 /* Bank and ledger remain two distinct evidence columns. */
-.pp-reconciliation-ledger {
-  border: 1px solid var(--ds-border);
-  border-radius: 8px;
-  background: var(--ds-card-solid);
-  overflow: hidden;
-}
-.pp-reconciliation-ledger > div:first-child {
-  background: var(--ds-muted-bg);
-}
-.pp-reconciliation-ledger > div:first-child > div {
-  background: transparent;
-  color: var(--ds-foreground-soft);
-  padding: 20px 16px;
-  font-weight: 500;
-}
-.pp-reconciliation-ledger > div:not(:first-child) {
-  background: transparent;
-}
-.pp-reconciliation-ledger [dir="ltr"] {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
 .pp-control-layout {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 32px;
@@ -422,16 +362,6 @@
   font-size: 13px;
 }
 .pp-automations > [role="alert"] strong {
-  font-weight: 500;
-}
-.pp-integrations .pp-metric-strip > div > div:first-child {
-  display: none;
-}
-.pp-integrations .pp-metric-strip > div > div:last-child {
-  min-width: 0;
-}
-.pp-integrations .pp-metric-strip > div > div:last-child > div:first-child {
-  font-size: 24px;
   font-weight: 500;
 }
 /* Source coverage is a single working ledger, followed by history and mapping tools. */
@@ -541,64 +471,6 @@
   padding: 24px;
 }
 /* Statement results use accounting rows; setup is deliberately quieter than the result. */
-.pp-analysis .analysis-intro {
-  border: 0;
-  padding: 0 0 8px;
-}
-.pp-analysis .analysis-intro .model-kicker {
-  display: none;
-}
-.pp-analysis .analysis-intro h2 {
-  font-family: var(--font-display);
-  font-size: 30px;
-}
-.pp-analysis .analysis-intro .run-state {
-  background: transparent;
-  border: 0;
-}
-.pp-analysis .analysis-intro .run-state > span {
-  animation: none;
-}
-.pp-analysis .period-panel {
-  padding: 24px;
-  background: transparent;
-  border: 0;
-  border-block: 1px solid var(--ds-border);
-  border-radius: 0;
-}
-.pp-analysis .period-heading > span {
-  display: none;
-}
-.pp-analysis .analysis-results-grid {
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 32px;
-}
-.pp-analysis :is(.profit-statement, .balance-panel, .optional-metrics) h3 {
-  font-family: var(--font-display);
-  font-size: 21px;
-}
-.pp-analysis .analysis-result-header {
-  border: 0;
-  padding: 0;
-  background: transparent;
-}
-.pp-analysis .balance-values {
-  gap: 0;
-}
-.pp-analysis .balance-values > div {
-  border: 0;
-  border-inline-end: 1px solid var(--ds-border);
-  border-radius: 0;
-  background: transparent;
-  padding: 16px 24px;
-}
-.pp-analysis .analysis-manifest {
-  border: 0;
-  border-top: 1px solid var(--ds-border);
-  border-radius: 0;
-  background: transparent;
-  padding-inline: 0;
-}
 .pp-report-composer {
   grid-column: span 8;
   padding-block: 8px;
@@ -648,27 +520,6 @@
   border-block-end: 1px solid var(--ds-border);
   border-radius: 0;
   padding: 16px 0;
-}
-.pp-member-settings {
-  border: 0;
-  border-block-start: 1px solid var(--ds-border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 24px 0;
-}
-.pp-member-settings .overline {
-  display: none;
-}
-.pp-member-settings h3 {
-  font-family: var(--font-display);
-  font-size: 22px;
-}
-.pp-member-settings .member-form {
-  padding: 24px;
-  background: var(--ds-card-solid);
-  border: 1px solid var(--ds-border);
-  border-radius: 8px;
 }
 .pp-assistant .ai-intro {
   background: transparent;
@@ -807,8 +658,7 @@
     border-inline-end: 0;
   }
   .pp-scenario-layout,
-  .pp-control-layout,
-  .pp-analysis .analysis-results-grid {
+  .pp-control-layout {
     grid-template-columns: 1fr;
   }
   .pp-scenario-controls,
@@ -847,7 +697,6 @@
     margin-top: 24px;
   }
   .pp-page h1,
-  .pp-analysis .analysis-intro h2,
   .pp-assistant .ai-intro h2 {
     font-size: 27px;
   }
@@ -910,17 +759,6 @@
   .pp-data [role="tab"] {
     font-size: 12px;
   }
-  .pp-analysis .balance-values {
-    grid-template-columns: 1fr;
-  }
-  .pp-analysis .balance-values > div {
-    border-inline-end: 0;
-    border-bottom: 1px solid var(--ds-border);
-    padding-inline: 0;
-  }
-  .pp-member-settings .member-form {
-    padding: 20px 16px;
-  }
   .pp-assistant .ai-readiness ol {
     grid-template-columns: 1fr 1fr;
   }
@@ -930,15 +768,6 @@
   }
   .pp-import .step-item {
     padding: 16px 12px;
-  }
-  .pp-reconciliation-ledger > div:first-child {
-    display: none;
-  }
-  .pp-reconciliation-ledger > div:not(:first-child) {
-    padding-block: 16px;
-  }
-  .pp-actions [role="tabpanel"] > .space-y-3 > div {
-    padding: 20px 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -996,55 +825,6 @@
 .pp-alert-list p {
   font-size: 13px;
   max-width: 70ch;
-}
-.pp-case .finding-case-hero {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 32px;
-}
-.pp-case .finding-case-hero h2 {
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.7;
-}
-.pp-case .case-score {
-  background: transparent;
-  border: 0;
-  border-inline-start: 1px solid var(--ds-border);
-  border-radius: 0;
-  padding: 20px;
-}
-.pp-case .claim-boundary {
-  background: transparent;
-  border: 0;
-  border-inline-start: 2px solid var(--ds-primary);
-  border-radius: 0;
-  padding: 4px 16px;
-  font-size: 13px;
-}
-.pp-case .case-integrity {
-  border: 0;
-  border-block: 1px solid var(--ds-border);
-  border-radius: 0;
-  background: transparent;
-  padding: 20px 0;
-}
-.pp-case .case-integrity > div > :is(svg, span) {
-  display: none;
-}
-.pp-case #governance-center-title {
-  font-family: var(--font-display);
-  font-size: 22px;
-}
-.pp-case .evidence-section h3,
-.pp-case .case-section h3 {
-  font-family: var(--font-display);
-  font-size: 21px;
 }
 .pp-settings .pp-settings-groups {
   gap: 0;
@@ -1214,24 +994,10 @@
   font-weight: 700;
 }
 @media (max-width: 900px) {
-  .pp-case .finding-case-hero {
-    grid-template-columns: 1fr;
-  }
-  .pp-case .case-score {
-    align-items: flex-start;
-    text-align: start;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 24px;
-    padding: 12px 0;
-    border-inline-start: 0;
-    border-top: 1px solid var(--ds-border);
-  }
   .pp-settings .pp-settings-groups > [data-slot="card"] {
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  .pp-case .finding-case-hero h2,
   .pp-readiness .readiness-hero h2 {
     font-size: 27px;
   }
@@ -1254,9 +1020,6 @@
   }
   .pp-readiness .source-readiness {
     padding: 0;
-  }
-  .pp-case .case-score {
-    flex-wrap: wrap;
   }
   .pp-alert-list > [data-slot="card"] > div {
     padding: 20px 16px;
@@ -1304,21 +1067,9 @@
   background: transparent;
   padding: 16px 0;
 }
-.pp-integrations .pp-metric-strip-three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
 @media (max-width: 600px) {
   .pp-risks > [data-orientation="horizontal"] > [role="tablist"] {
     gap: 16px;
-  }
-  .pp-integrations .pp-metric-strip-three {
-    grid-template-columns: 1fr;
-    row-gap: 0;
-  }
-  .pp-integrations .pp-metric-strip-three > div {
-    border-inline-end: 0;
-    border-bottom: 1px solid var(--ds-border);
-    padding: 20px;
   }
   .pp-control .pp-metric-strip > div > div:nth-child(2) {
     font-size: 24px;
@@ -1347,22 +1098,9 @@
     margin-inline-start: 0;
     flex-wrap: wrap;
   }
-  .pp-simulation > div.flex {
-    flex-wrap: wrap;
-  }
   .pp-control-layout :is(.flex, .audit-row) {
     min-width: 0;
     flex-wrap: wrap;
-  }
-  .pp-analysis .panel-heading {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .pp-analysis .metric-line {
-    flex-wrap: wrap;
-  }
-  .pp-analysis .profit-statement {
-    padding: 20px 16px;
   }
   .pp-page .pp-metric-strip [data-slot="skeleton"] {
     max-width: 100%;
@@ -1377,26 +1115,10 @@
     min-width: 0;
   }
 }
-.pp-case :is(dd, code) {
-  overflow-wrap: anywhere;
-  min-width: 0;
-  max-width: 100%;
-}
 @media (max-width: 600px) {
   .pp-page .page-header-action-group {
     min-width: 0;
     max-width: 100%;
     flex-shrink: 1;
-  }
-  .pp-case .evidence-section article > header {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .pp-case dl > div {
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-  .pp-case dd {
-    word-break: break-word;
   }
 }

@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.companies.dependencies import CurrentCompanyAccess
+from app.companies.models import CompanyAccess, CompanyRole
 from app.core.database import get_db
-from app.identity.dependencies import get_current_user
+from app.identity.dependencies import CsrfProtected, get_current_user
 from app.identity.models import User
 from app.integrations.models import IntegrationConnection, IntegrationSyncJob
 from app.integrations.schemas import (
@@ -22,6 +23,14 @@ from app.integrations.schemas import (
 from app.integrations.service import IntegrationService
 
 router = APIRouter(prefix="/companies/{company_id}/integrations", tags=["integrations"])
+
+
+def _require_manage(access: CompanyAccess) -> None:
+    if access.role not in {CompanyRole.OWNER, CompanyRole.FINANCE_MANAGER}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="مدیریت اتصال‌ها فقط برای مالک و مدیر مالی مجاز است.",
+        )
 
 
 def _to_conn_response(conn: IntegrationConnection) -> IntegrationConnectionResponse:
@@ -76,9 +85,11 @@ async def create_connection(
     company_id: UUID,
     payload: IntegrationConnectionCreate,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> IntegrationConnectionResponse:
+    _require_manage(access)
     conn = await IntegrationService.create_connection(
         session=session,
         company_id=company_id,
@@ -107,9 +118,11 @@ async def update_connection(
     connection_id: UUID,
     payload: IntegrationConnectionUpdate,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> IntegrationConnectionResponse:
+    _require_manage(access)
     try:
         conn = await IntegrationService.update_connection(
             session=session,
@@ -128,9 +141,11 @@ async def delete_connection(
     company_id: UUID,
     connection_id: UUID,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> None:
+    _require_manage(access)
     try:
         await IntegrationService.delete_connection(
             session=session,
@@ -147,8 +162,10 @@ async def test_connection(
     company_id: UUID,
     connection_id: UUID,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     session: AsyncSession = Depends(get_db),
 ) -> ConnectionTestResult:
+    _require_manage(access)
     return await IntegrationService.test_connection(session, company_id, connection_id)
 
 
@@ -158,9 +175,11 @@ async def trigger_sync(
     connection_id: UUID,
     payload: TriggerSyncRequest,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> IntegrationSyncJobResponse:
+    _require_manage(access)
     try:
         job = await IntegrationService.trigger_sync(
             session=session,
@@ -185,15 +204,16 @@ async def list_sync_jobs(
     return [_to_job_response(j) for j in jobs]
 
 
-@router.get("/{connection_id}/agent-key", response_model=AgentKeyResponse)
 @router.post("/{connection_id}/agent-key", response_model=AgentKeyResponse)
 async def get_or_generate_agent_key(
     company_id: UUID,
     connection_id: UUID,
     access: CurrentCompanyAccess,
+    _csrf: CsrfProtected,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> AgentKeyResponse:
+    _require_manage(access)
     try:
         return await IntegrationService.get_or_create_agent_key(
             session=session,

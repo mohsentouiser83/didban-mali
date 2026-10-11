@@ -67,16 +67,16 @@ function DashboardContent({ company }: { company: Company }) {
   const vendor = data?.vendors?.items.filter((item) => rial(item.overdue_amount_irr) > BigInt(0)).sort((a, b) => compareAmounts(b.overdue_amount_irr, a.overdue_amount_irr))[0];
   if (vendor) attention.push({ id: `vendor:${vendor.counterparty_id}`, title: vendor.name, detail: "بیشترین بدهی سررسیدگذشته · سررسید برآوردی", amount: toman(vendor.overdue_amount_irr), href: `${base}/payables` });
   const finding = data?.findings?.find((item) => item.severity === "critical" || item.severity === "high");
-  if (finding) attention.unshift({ id: finding.id, title: finding.title_fa, detail: finding.due_date ? `موعد بررسی ${toJalaliDate(finding.due_date)}` : "نیازمند بررسی", amount: finding.affected_amount_irr !== null ? toman(finding.affected_amount_irr) : null, href: `${base}/findings/${finding.id}` });
+  if (finding) attention.unshift({ id: finding.id, title: finding.title_fa, detail: finding.due_date ? `موعد بررسی ${toJalaliDate(finding.due_date)}` : "نیازمند بررسی", amount: finding.affected_amount_irr !== null ? toman(finding.affected_amount_irr) : null, href: `${base}/findings` });
   return <div dir="rtl" className={pageStyles.page}>
-    <PageHeader title="داشبورد" secondaryActions={<Button variant="outline" disabled={loading} onClick={() => setRetry((value) => value + 1)}><RefreshCcw size={16} aria-hidden="true" />به‌روزرسانی</Button>} />
+    <PageHeader title="داشبورد" secondaryActions={<><Button variant="outline" disabled={loading} onClick={() => setRetry((value) => value + 1)}><RefreshCcw size={16} aria-hidden="true" />به‌روزرسانی</Button></>} />
     {!!data?.errors.length && <div role="alert" className={pageStyles.error}><p>اطلاعات {data.errors.join("، ")} دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div>}
     <section aria-label="خلاصه وضعیت مالی"><StatCards items={cards} loading={loading} /></section>
     <section className={styles.section} aria-labelledby="dashboard-chart-title">
-      <div className={styles.heading}><div><h2 id="dashboard-chart-title">پیش‌بینی مانده حساب</h2><p>۳۰ روز آینده · مانده پایان هر روز</p></div><Button asChild variant="ghost"><Link href={`${base}/cashflow`}>نقدینگی<ChevronLeft size={16} aria-hidden="true" /></Link></Button></div>
+      <div className={styles.heading}><div><h2 id="dashboard-chart-title">پیش‌بینی مانده حساب</h2></div><Button asChild variant="ghost"><Link href={`${base}/cashflow`}>نقدینگی<ChevronLeft size={16} aria-hidden="true" /></Link></Button></div>
       {loading ? <Skeleton className="h-80 w-full" /> : points.length ? <DashboardCashChart key={`${forecast?.as_of_date}:${retry}`} points={points} hasPayments={hasPayments} /> : <div className={styles.empty}><p>{!forecast ? "پیش‌بینی دریافت نشد." : "برای نمایش نمودار، مانده ثبت‌شده یک حساب بانکی لازم است."}</p><Button asChild variant="outline"><Link href={`${base}/cashflow`}>بررسی نقدینگی</Link></Button></div>}
     </section>
-    <section className={styles.section} aria-labelledby="dashboard-attention-title"><div className={styles.heading}><div><h2 id="dashboard-attention-title">موارد نیازمند توجه</h2><p>پرداخت‌های نزدیک و موارد مهم برای پیگیری</p></div></div>
+    <section className={styles.section} aria-labelledby="dashboard-attention-title"><div className={styles.heading}><div><h2 id="dashboard-attention-title">موارد نیازمند توجه</h2></div></div>
       {loading ? <Skeleton className="h-40 w-full" /> : attention.length ? <ul className={styles.attention}>{attention.slice(0, 5).map((item) => <li key={item.id}><Link href={item.href}><div><strong>{item.title}</strong><span>{item.detail}</span></div><div>{item.amount !== null && <MoneyDisplay amount={item.amount} currency="تومان" size="sm" direction={isNegative(item.amount) ? "negative" : "neutral"} />}<ChevronLeft size={16} aria-hidden="true" /></div></Link></li>)}</ul> : <p className={styles.empty}>{data?.errors.length ? "برای بررسی موارد نیازمند توجه، دریافت اطلاعات را دوباره امتحان کنید." : "در داده‌های ثبت‌شده، موردی برای این فهرست پیدا نشد."}</p>}
     </section>
   </div>;

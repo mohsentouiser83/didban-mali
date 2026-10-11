@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from app.findings.models import FindingWorkflowStatus
 from app.reviews.models import ReviewDecisionType
-from app.reviews.routes import validate_transition
+from app.reviews.transitions import validate_transition
 from app.reviews.schemas import FindingNoteRequest, ReviewDecisionRequest
 
 

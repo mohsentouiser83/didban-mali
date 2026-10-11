@@ -30,7 +30,6 @@ it("moves the same indicator between active pages", () => {
             ],
           },
         ]}
-        userName="مدیر"
         base="/company"
         isItemActive={(href) => href === active}
         onLogout={vi.fn()}
