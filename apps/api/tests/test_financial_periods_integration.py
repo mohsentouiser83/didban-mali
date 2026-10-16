@@ -383,3 +383,95 @@ async def test_saved_periods_history_report_and_rls(monkeypatch):
     finally:
         await runtime.dispose()
         await admin.dispose()
+
+
+async def test_automatic_account_classification_updates_preserve_permissions():
+    from uuid import UUID
+
+    from sqlalchemy import update
+    from sqlalchemy.exc import DBAPIError
+
+    from app.financial.models import AccountClass, AccountClassification
+
+    admin = create_async_engine(os.environ["PERIODS_TEST_ADMIN_URL"])
+    runtime = create_async_engine(os.environ["PERIODS_TEST_APP_URL"])
+    admin_factory = async_sessionmaker(admin, expire_on_commit=False)
+    try:
+        seed = await seed_period_data(admin_factory)
+        company_id, owner_id = UUID(seed["company_id"]), UUID(seed["owner_id"])
+        async with admin_factory() as session:
+            account = Account(
+                company_id=company_id, source_code="legacy", name="بانک", normalized_name="بانک"
+            )
+            session.add(account)
+            await session.flush()
+            legacy = AccountClassification(
+                company_id=company_id,
+                account_id=account.id,
+                account_class=AccountClass.OTHER,
+                effective_from=date(2026, 1, 1),
+                confirmed_by=owner_id,
+                rule_version="auto-v1",
+                confirmed_at=datetime.now(UTC),
+            )
+            manual = AccountClassification(
+                company_id=company_id,
+                account_id=account.id,
+                account_class=AccountClass.LIABILITY,
+                effective_from=date(2026, 1, 2),
+                confirmed_by=owner_id,
+                rule_version="manual",
+                confirmed_at=datetime.now(UTC),
+            )
+            session.add_all([legacy, manual])
+            await session.commit()
+            legacy_id, manual_id = legacy.id, manual.id
+
+        async with async_sessionmaker(runtime, expire_on_commit=False)() as session:
+            upgrade = (
+                update(AccountClassification)
+                .where(AccountClassification.id == legacy_id)
+                .values(account_class=AccountClass.ASSET, rule_version="semantic-v2")
+            )
+            for unauthorized in (UUID(seed["viewer_id"]), uuid4()):
+                await set_request_user(session, unauthorized)
+                assert (await session.execute(upgrade)).rowcount == 0
+                await session.rollback()
+
+            await set_request_user(session, owner_id)
+            assert (
+                await session.execute(
+                    update(AccountClassification)
+                    .where(AccountClassification.id == manual_id)
+                    .values(account_class=AccountClass.ASSET, rule_version="semantic-v2")
+                )
+            ).rowcount == 0
+            with pytest.raises(DBAPIError, match="row-level security"):
+                await session.execute(
+                    update(AccountClassification)
+                    .where(AccountClassification.id == legacy_id)
+                    .values(rule_version="manual")
+                )
+            await session.rollback()
+
+            await set_request_user(session, owner_id)
+            assert (await session.execute(upgrade)).rowcount == 1
+            await session.commit()
+            # An automatic upgrade cannot subsequently rewrite semantic or manual classifications.
+            assert (await session.execute(upgrade)).rowcount == 0
+
+        async with admin_factory() as session:
+            upgraded = await session.get(AccountClassification, legacy_id)
+            preserved = await session.get(AccountClassification, manual_id)
+            assert (upgraded.account_class, upgraded.rule_version, upgraded.confirmed_by) == (
+                AccountClass.ASSET,
+                "semantic-v2",
+                owner_id,
+            )
+            assert (preserved.account_class, preserved.rule_version) == (
+                AccountClass.LIABILITY,
+                "manual",
+            )
+    finally:
+        await runtime.dispose()
+        await admin.dispose()

@@ -9,7 +9,7 @@ test:
 	.venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests
 
 test-integration:
-	RUN_INTEGRATION_TESTS=1 .venv/bin/pytest -c apps/api/pyproject.toml apps/api/tests/test_tenant_isolation.py
+	.venv/bin/python scripts/test_integration.py
 
 test-isolation: test-integration
 

@@ -21,7 +21,9 @@ pytestmark = [
 
 
 def test_moadian_xlsx_sales_and_purchases_end_to_end() -> None:
-    with httpx.Client(base_url="http://localhost:8000/api/v1", timeout=45) as client:
+    with httpx.Client(
+        base_url=os.getenv("INTEGRATION_API_URL", "http://localhost:8000/api/v1"), timeout=45
+    ) as client:
         email = f"moadian-{uuid4().hex}@example.com"
         password = "Moadian-Test-1234"
         response = client.post(
