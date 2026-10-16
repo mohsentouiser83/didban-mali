@@ -1,10 +1,18 @@
+import os
 import time
 
 import httpx
+import pytest
 
 from app.identity.totp import generate_totp_code
 
-API_URL = "http://localhost:8000/api/v1"
+API_URL = os.getenv("INTEGRATION_API_URL", "http://localhost:8000/api/v1")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_INTEGRATION_TESTS") != "1", reason="Requires a running integration API"
+    ),
+]
 
 
 def test_mfa_flow_setup_enable_enforce_and_disable() -> None:

@@ -37,10 +37,12 @@ from app.reconciliation.service import (
     run_canonical_reconciliation,
 )
 
-ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL",
-    "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL")
+requires_database = pytest.mark.skipif(
+    not ADMIN_URL, reason="Requires ACCOUNTING_TEST_DATABASE_URL pointing to an isolated migrated database"
 )
-test_engine = create_async_engine(ADMIN_URL, pool_pre_ping=True)
+
+test_engine = create_async_engine(ADMIN_URL or "postgresql+asyncpg://localhost/unused", pool_pre_ping=True)
 db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
@@ -156,6 +158,8 @@ async def test_reconciliation_engine_logic() -> None:
     assert sum(a.allocated_amount_irr for a in batch.allocations if a.side == "journal") == Decimal("-25000000")
 
 
+@pytest.mark.integration
+@requires_database
 @pytest.mark.asyncio
 async def test_canonical_reconciliation_service_flow(golden_session: AsyncSession) -> None:
     """Test full database lifecycle of reconciliation, manual match, and reversal."""

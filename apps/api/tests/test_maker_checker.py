@@ -1,3 +1,4 @@
+import os
 from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
@@ -24,13 +25,17 @@ from app.findings.service import (
 )
 from app.identity.models import User, Workspace
 
-ADMIN_URL = (
-    "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL")
+requires_database = pytest.mark.skipif(
+    not ADMIN_URL, reason="Requires ACCOUNTING_TEST_DATABASE_URL pointing to an isolated migrated database"
 )
-test_engine = create_async_engine(ADMIN_URL, poolclass=NullPool)
+
+test_engine = create_async_engine(ADMIN_URL or "postgresql+asyncpg://localhost/unused", poolclass=NullPool)
 db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
+@pytest.mark.integration
+@requires_database
 @pytest.mark.asyncio
 async def test_maker_checker_workflow_and_separation_of_duties() -> None:
     """Test assigning, resolving, maker-checker rejection on self-verification, and successful manager verification."""

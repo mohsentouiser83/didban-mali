@@ -43,13 +43,17 @@ from app.imports.models import (
 )
 from app.reconciliation.service import run_canonical_reconciliation
 
-ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL",
-    "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL")
+requires_database = pytest.mark.skipif(
+    not ADMIN_URL, reason="Requires ACCOUNTING_TEST_DATABASE_URL pointing to an isolated migrated database"
 )
-test_engine = create_async_engine(ADMIN_URL, poolclass=NullPool)
+
+test_engine = create_async_engine(ADMIN_URL or "postgresql+asyncpg://localhost/unused", poolclass=NullPool)
 db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
+@pytest.mark.integration
+@requires_database
 @pytest.mark.asyncio
 async def test_reconciliation_finding_rules_detection() -> None:
     """Test detection of reconciliation findings: unmatched bank tx, unmatched entry, duplicate tx, large unreconciled."""
@@ -267,6 +271,8 @@ async def test_reconciliation_finding_rules_detection() -> None:
         assert det_run_2.findings_updated >= 4
 
 
+@pytest.mark.integration
+@requires_database
 @pytest.mark.asyncio
 async def test_receivables_and_liquidity_finding_rules() -> None:
     """Test overdue receivables, concentration, and Phase 2 guardrails for runway and cash deficit."""

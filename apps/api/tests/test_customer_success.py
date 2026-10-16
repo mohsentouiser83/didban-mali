@@ -1,10 +1,17 @@
+import os
 import time
 from typing import Any
 
 import httpx
 import pytest
 
-API_URL = "http://localhost:8000/api/v1"
+API_URL = os.getenv("INTEGRATION_API_URL", "http://localhost:8000/api/v1")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        os.getenv("RUN_INTEGRATION_TESTS") != "1", reason="Requires a running integration API"
+    ),
+]
 
 
 @pytest.fixture

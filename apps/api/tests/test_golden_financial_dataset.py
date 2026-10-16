@@ -1,3 +1,4 @@
+import os
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -44,10 +45,12 @@ from app.imports.models import (
 
 ZERO = Decimal(0)
 
-ADMIN_URL = (
-    "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL")
+requires_database = pytest.mark.skipif(
+    not ADMIN_URL, reason="Requires ACCOUNTING_TEST_DATABASE_URL pointing to an isolated migrated database"
 )
-test_engine = create_async_engine(ADMIN_URL, pool_pre_ping=True)
+
+test_engine = create_async_engine(ADMIN_URL or "postgresql+asyncpg://localhost/unused", pool_pre_ping=True)
 db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 
@@ -61,6 +64,8 @@ async def golden_session():
         await test_engine.dispose()
 
 
+@pytest.mark.integration
+@requires_database
 @pytest.mark.asyncio
 async def test_golden_dataset_financial_engine(golden_session: AsyncSession) -> None:
     session = golden_session

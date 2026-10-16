@@ -7,7 +7,9 @@ import { FinancialValidationModal } from "./financial-validation-modal";
 vi.mock("@/lib/product-api", () => ({ api: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/test" }));
 afterEach(cleanup);
-beforeEach(() => vi.mocked(api).mockReset());
+beforeEach(() => {
+  vi.mocked(api).mockReset();
+});
 
 it("keeps support values and shows the returned operation error", async () => {
   vi.mocked(api).mockRejectedValue(new Error("درخواست ثبت نشد؛ دوباره تلاش کنید."));

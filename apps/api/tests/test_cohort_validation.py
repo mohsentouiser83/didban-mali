@@ -1,21 +1,31 @@
 """Validate a disposable five-company cohort without relying on seeded admin data."""
 
+import os
 from collections.abc import AsyncIterator
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.companies.models import Company, CompanyAccess, CompanyRole
-from app.core.database import async_session_factory, engine
 from app.core.tenant import set_request_company, set_request_user
 from app.customer_success.models import CustomerSuccessRecord, GoLiveValidation
 from app.customer_success.schemas import GoLiveValidationRequest
 from app.customer_success.service import complete_go_live, record_go_live_validation
 from app.identity.models import Membership, User, Workspace, WorkspaceRole
 
-pytestmark = pytest.mark.integration
+TEST_DATABASE_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL")
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(not TEST_DATABASE_URL, reason="Requires an isolated migrated test database"),
+]
+engine = create_async_engine(
+    TEST_DATABASE_URL or "postgresql+asyncpg://localhost/unused", poolclass=NullPool
+)
+async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
 
 @pytest.fixture(autouse=True)
