@@ -21,7 +21,7 @@ it("sorts by overdue amount and calculates maximum delay from unpaid invoices", 
   const rows = screen.getAllByRole("row");
   expect(rows[1]).toHaveTextContent("شرکت بهار");
   expect(rows[2]).toHaveTextContent("۱۹ روز");
-  expect(screen.getByTitle("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
+  expect(screen.getByLabelText("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
   expect(vi.mocked(api).mock.calls.every(([path]) => String(path).endsWith("as_of_date=2026-10-09"))).toBe(true);
 });
 it("searches Persian variants and filters overdue customers", async () => {

@@ -280,3 +280,13 @@ async def test_invalid_history_is_rejected_before_mutation(kind):
     assert error.value.status_code == (409 if kind == "stale" else 422)
     session.execute.assert_not_awaited()
     session.commit.assert_not_awaited()
+
+
+def test_missing_cumulative_paid_is_unknown_until_full_history_is_confirmed():
+    inv = invoice(complete=False)
+    inv.paid_amount_irr = None
+    result = receivables_report([(inv, customer())], [], period())
+    assert not result.history_complete and result.closing_balance_irr is None
+    inv.receipt_history_complete = True
+    result = receivables_report([(inv, customer())], [], period())
+    assert result.history_complete and result.closing_balance_irr == "100"

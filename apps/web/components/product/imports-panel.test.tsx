@@ -125,6 +125,7 @@ describe("ImportsPanel", () => {
         if (uploads === 1) throw new Error("اتصال برقرار نشد.");
         return created as never;
       }
+      if (path.endsWith("/bank-accounts")) return [] as never;
       return mockBatches as never;
     });
     render(<ImportsPanel company={mockCompanyOwner} />);
@@ -132,8 +133,8 @@ describe("ImportsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "بارگذاری فایل" }));
     // The common select uses a hidden native select to participate in forms.
     fireEvent.change(screen.getByRole("combobox", { name: "نوع سند" }).closest("div")!.querySelector("select")!, { target: { value: "bank" } });
-    fireEvent.change(screen.getByLabelText("عنوان منبع (اختیاری)"), { target: { value: "بانک مهر" } });
-    fireEvent.change(screen.getByLabelText("فایل سند"), { target: { files: [new File(["date,amount\n1405/01/01,100"], "bank.csv", { type: "text/csv" })] } });
+    fireEvent.change(await screen.findByLabelText("نام حساب جدید"), { target: { value: "بانک مهر" } });
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["date,amount\n1405/01/01,100"], "bank.csv", { type: "text/csv" })] } });
     fireEvent.click(screen.getByRole("button", { name: "ادامه" }));
     await screen.findByText("اتصال برقرار نشد.");
     fireEvent.click(screen.getByRole("button", { name: "ادامه" }));
@@ -152,8 +153,8 @@ describe("ImportsPanel", () => {
     vi.mocked(api).mockImplementation(async (path) => (path.endsWith("/summary") ? summary : []) as never);
     render(<ImportsPanel company={mockCompanyOwner} />);
     fireEvent.click(screen.getByRole("button", { name: "بارگذاری فایل" }));
-    fireEvent.change(screen.getByLabelText("فایل سند"), { target: { files: [new File(["invalid"], "document.pdf")] } });
-    expect(screen.getByText("فایل باید با قالب CSV یا XLSX باشد.")).toBeInTheDocument();
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["invalid"], "document.exe")] } });
+    expect(screen.getByText("فایل باید CSV، XLS، XLSX یا PDF بانک باشد.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ادامه" })).toBeDisabled();
     expect(vi.mocked(api).mock.calls.some(([path]) => path.endsWith("/uploads"))).toBe(false);
   });
@@ -161,12 +162,12 @@ describe("ImportsPanel", () => {
   it("keeps total document statistics when searching the recent files", async () => {
     vi.mocked(api).mockImplementation(async (path) => (path.endsWith("/summary") ? summary : mockBatches) as never);
     render(<ImportsPanel company={mockCompanyOwner} />);
-    await screen.findByTitle("۵۲ فایل");
+    await screen.findByLabelText("۵۲ فایل");
     fireEvent.change(screen.getByRole("textbox", { name: "جستجوی سند" }), { target: { value: "ناموجود" } });
-    expect(screen.getByTitle("۵۲ فایل")).toBeInTheDocument();
-    expect(screen.getByTitle("۱۰ فایل")).toBeInTheDocument();
-    expect(screen.getByTitle("۴۰ فایل")).toBeInTheDocument();
-    expect(screen.getByTitle("۲ فایل")).toBeInTheDocument();
+    expect(screen.getByLabelText("۵۲ فایل")).toBeInTheDocument();
+    expect(screen.getByLabelText("۱۰ فایل")).toBeInTheDocument();
+    expect(screen.getByLabelText("۴۰ فایل")).toBeInTheDocument();
+    expect(screen.getByLabelText("۲ فایل")).toBeInTheDocument();
     expect(screen.getByText("سندی با این جستجو و فیلتر پیدا نشد.")).toBeInTheDocument();
   });
 

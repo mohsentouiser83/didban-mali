@@ -1,24 +1,24 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { FinancialPeriodSelector } from "./financial-period-selector";
-import { useFinancialRange } from "@/lib/financial-periods";
+import { currentRange, useFinancialRange } from "@/lib/financial-periods";
 import { api } from "@/lib/product-api";
 vi.mock("@/lib/product-api", () => ({ api: vi.fn() }));
 const initial = { start_date: "2026-03-21", end_date: "2026-04-20" };
 beforeEach(() => { vi.mocked(api).mockReset(); vi.mocked(api).mockResolvedValue([]); localStorage.clear(); window.history.replaceState(null, "", "/"); });
-it("converts Persian input to ISO and saves a company-scoped named period", async () => {
+it("applies Persian dates and delegates period management to its own page", async () => {
   const changed = vi.fn();
-  vi.mocked(api).mockImplementation(async (_path, options) => options?.method === "POST" ? { ...initial, name: "فروردین", id: "saved" } : []);
   render(<FinancialPeriodSelector companyId="company" range={initial} onChange={changed} canWrite />);
+  fireEvent.click(screen.getByRole("button", { name: "تغییر دوره" }));
   fireEvent.change(screen.getByLabelText("از تاریخ"), { target: { value: "۱۴۰۵/۰۱/۰۲" } });
+  expect(screen.getByRole("link", { name: "مدیریت دوره‌ها" })).toHaveAttribute("href", "/companies/company/financial-periods");
   fireEvent.click(screen.getByRole("button", { name: "نمایش گزارش" }));
   expect(changed).toHaveBeenCalledWith({ ...initial, start_date: "2026-03-22" });
-  fireEvent.change(screen.getByLabelText("نام دوره"), { target: { value: "فروردین" } });
-  fireEvent.click(screen.getByRole("button", { name: "ذخیره دوره برای این شرکت" }));
-  await waitFor(() => expect(vi.mocked(api).mock.calls.some(([path, options]) => path === "/companies/company/financial-periods" && options?.method === "POST" && JSON.parse(String(options.body)).start_date === "2026-03-22")).toBe(true));
+  expect(screen.queryByLabelText("نام دوره")).not.toBeInTheDocument();
 });
 it("rejects reversed ranges and hides write controls for viewers", () => {
   render(<FinancialPeriodSelector companyId="company" range={initial} onChange={vi.fn()} canWrite={false} />);
+  fireEvent.click(screen.getByRole("button", { name: "تغییر دوره" }));
   fireEvent.change(screen.getByLabelText("از تاریخ"), { target: { value: "۱۴۰۵/۰۲/۰۲" } });
   expect(screen.getByRole("button", { name: "نمایش گزارش" })).toBeDisabled();
   expect(screen.queryByLabelText("نام دوره")).not.toBeInTheDocument();
@@ -41,4 +41,17 @@ it("persists selection across pages, scopes it per company, and restores URL dat
   window.history.replaceState(null, "", "/companies/other/receivables");
   render(<Selection companyId="other" />);
   expect(screen.getByRole("status")).not.toHaveTextContent("2026-03-21:2026-04-20");
+});
+
+it("offers the upcoming Persian month for cashflow and applies it only on confirmation", async () => {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+  const changed = vi.fn();
+  render(<FinancialPeriodSelector companyId="company" range={initial} onChange={changed} canWrite includeUpcomingMonth />);
+  fireEvent.click(screen.getByRole("button", { name: "تغییر دوره" }));
+  fireEvent.click(screen.getByRole("combobox"));
+  fireEvent.click(await screen.findByRole("option", { name: "یک ماه آینده" }));
+  expect(changed).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "نمایش گزارش" }));
+  expect(changed).toHaveBeenCalledWith(currentRange("upcomingMonth"));
+
 });

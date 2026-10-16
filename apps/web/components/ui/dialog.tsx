@@ -6,6 +6,8 @@ import { X } from "@/components/ui/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
+import { Button } from "./button";
+import { useOverlayFocus } from "./use-overlay-focus";
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -29,11 +31,14 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  ComponentProps<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  ComponentProps<typeof DialogPrimitive.Content> & { closeDisabled?: boolean }
+>(({ className, children, closeDisabled, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  const focus = useOverlayFocus(onOpenAutoFocus, onCloseAutoFocus);
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
+      data-slot="dialog-content"
       ref={ref}
       dir="rtl"
       className={cn(
@@ -41,21 +46,23 @@ const DialogContent = React.forwardRef<
         className
       )}
       {...props}
+      {...focus}
     >
       {children}
-      <DialogPrimitive.Close
-        className="ds-focus group absolute end-4 top-4 grid size-8 place-items-center rounded-lg text-[var(--ds-foreground-soft)] transition-all duration-200 hover:bg-[var(--ds-surface-subtle)] hover:text-[var(--ds-foreground)]  cursor-pointer"
-        aria-label="بستن پنجره"
-      >
-        <X className="size-4 transition-transform duration-200  " />
+      <DialogPrimitive.Close asChild>
+        <Button type="button" variant="ghost" size="icon" disabled={closeDisabled}
+          className="absolute end-3 top-3" aria-label="بستن پنجره">
+          <X aria-hidden="true" />
+        </Button>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-));
+  );
+});
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("space-y-1.5 pe-8 text-start", className)} {...props} />;
+  return <div className={cn("space-y-1.5 pe-10 text-start", className)} {...props} />;
 }
 
 function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

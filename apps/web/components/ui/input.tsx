@@ -1,6 +1,8 @@
+"use client";
 import { forwardRef, type InputHTMLAttributes } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
+import { useFormFieldFeedback, FormFieldFeedback } from "./form";
 import { cn } from "@/lib/utils";
 
 const inputVariants = cva(
@@ -33,12 +35,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       isInvalid || ariaInvalid === true || ariaInvalid === "true",
     );
 
-    return (
+    const feedback = useFormFieldFeedback(props.id, props.value, hasError);
+    const describedBy = [props["aria-describedby"], feedback.error ? feedback.messageId : ""].filter(Boolean).join(" ") || undefined;
+    return (<>
       <input
         ref={ref}
         data-slot="input"
         type={type}
-        aria-invalid={hasError ? "true" : undefined}
         className={cn(
           type === "hidden"
             ? undefined
@@ -52,7 +55,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           className,
         )}
         {...props}
-      />
+        id={feedback.id}
+        aria-invalid={hasError || feedback.error ? "true" : undefined}
+        aria-describedby={describedBy}
+      /><FormFieldFeedback id={feedback.messageId} message={feedback.error} /></>
     );
   },
 );

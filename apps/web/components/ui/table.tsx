@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
+import { EmptyState } from "@/components/ui/financial/empty-state";
 import { cn } from "@/lib/utils";
 
 export type TableDensity = "compact" | "normal" | "spacious" | "default";
@@ -18,17 +19,20 @@ const TableContext = React.createContext<TableContextValue>({
 export interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
   density?: TableDensity;
   containerClassName?: string;
+  containerRef?: React.Ref<HTMLDivElement>;
+  containerProps?: React.HTMLAttributes<HTMLDivElement>;
 }
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
-  ({ className, containerClassName, density = "normal", ...props }, ref) => {
+  ({ className, containerClassName, containerRef, containerProps, density = "normal", ...props }, ref) => {
     const normalizedDensity = density === "default" ? "normal" : density;
 
     return (
       <TableContext.Provider value={{ density: normalizedDensity }}>
-        <div className={cn("relative w-full overflow-x-auto rounded-none border border-[var(--ds-border)] bg-[var(--ds-card)] ", containerClassName)}>
+        <div ref={containerRef} data-slot="table-container" tabIndex={0} role="region" aria-label={props["aria-label"] ?? "جدول داده‌ها"} {...containerProps} className={cn("@container/table relative min-w-0 max-w-full w-full focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 overflow-x-auto rounded-none border border-[var(--ds-border)] bg-[var(--ds-card)] ", containerClassName)}>
           <table
             ref={ref}
+            data-slot="table"
             className={cn("w-full min-w-[720px] border-collapse text-start", className)}
             {...props}
           />
@@ -138,6 +142,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
 
     return (
       <th
+        scope="col"
         ref={ref}
         className={cn(
           tableHeadVariants({ density }),
@@ -162,7 +167,7 @@ const tableCellVariants = cva(
         spacious: "py-4 px-5 text-sm",
       },
       numeric: {
-        true: "text-left font-mono font-bold ds-persian-numerals [font-feature-settings:'tnum']",
+        true: "text-end font-bold ds-persian-numerals tabular-nums",
         false: "text-start",
       },
     },
@@ -193,6 +198,22 @@ const TableCell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
 );
 TableCell.displayName = "TableCell";
 
+/** Keeps empty-result copy visible even when the column headers need horizontal scrolling. */
+const TableEmptyCell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
+  ({ children, className, ...props }, ref) => <TableCell ref={ref} className={cn("p-0 text-center text-muted-foreground", className)} {...props}>
+    <EmptyState variant="compact" className="sticky start-0 w-[100cqw] max-w-full whitespace-normal">{children}</EmptyState>
+  </TableCell>,
+);
+TableEmptyCell.displayName = "TableEmptyCell";
+
+const TableRowHeader = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement> & { density?: TableDensity }>(
+  ({ className, density: propDensity, ...props }, ref) => {
+    const { density } = React.useContext(TableContext);
+    return <th ref={ref} scope="row" className={cn(tableCellVariants({ density: propDensity ?? density }), "text-start font-normal", className)} {...props} />;
+  },
+);
+TableRowHeader.displayName = "TableRowHeader";
+
 const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
@@ -213,5 +234,7 @@ export {
   TableHead,
   TableRow,
   TableCell,
+  TableRowHeader,
+  TableEmptyCell,
   TableCaption,
 };

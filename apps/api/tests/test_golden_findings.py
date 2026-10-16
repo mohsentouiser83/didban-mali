@@ -1,3 +1,4 @@
+import os
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -42,7 +43,7 @@ from app.imports.models import (
 )
 from app.reconciliation.service import run_canonical_reconciliation
 
-ADMIN_URL = (
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL",
     "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
 )
 test_engine = create_async_engine(ADMIN_URL, poolclass=NullPool)

@@ -15,10 +15,10 @@ it("shows company statistics and pages beyond the initial results", async () => 
   render(<ReviewWorkspace company={company} />);
   await screen.findByRole("button", { name: "مغایرت پرداخت" });
   const stats = within(screen.getByRole("region", { name: "آمار بررسی و پیگیری" }));
-  expect(await stats.findByTitle("۲۸ مورد")).toBeInTheDocument();
-  expect(stats.getByTitle("۱۰ مورد")).toBeInTheDocument();
-  expect(stats.getByTitle("۱۲ مورد")).toBeInTheDocument();
-  expect(stats.getByTitle("۵ مورد")).toBeInTheDocument();
+  expect(await stats.findByLabelText("۲۸ مورد")).toBeInTheDocument();
+  expect(stats.getByLabelText("۱۰ مورد")).toBeInTheDocument();
+  expect(stats.getByLabelText("۱۲ مورد")).toBeInTheDocument();
+  expect(stats.getByLabelText("۵ مورد")).toBeInTheDocument();
   expect(screen.getAllByRole("table")).toHaveLength(1);
   expect(vi.mocked(api).mock.calls.some(([path]) => String(path).includes("/control/overview"))).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "بعدی" }));
@@ -36,7 +36,7 @@ it("opens evidence in the shared drawer without a deleted case destination", asy
   fireEvent.click(await screen.findByRole("button", { name: "مغایرت پرداخت" }));
   const drawer = within(screen.getByRole("dialog", { name: "مغایرت پرداخت" }));
   expect(await drawer.findByText("صورت حساب بانک")).toBeInTheDocument();
-  expect(drawer.getByTitle("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
+  expect(drawer.getByLabelText("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
   expect(drawer.queryByRole("link")).not.toBeInTheDocument();
   fireEvent.click(drawer.getByRole("button", { name: "بستن" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

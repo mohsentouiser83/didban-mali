@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_serializer
 
 PayablesRiskLevel = Literal["low", "medium", "high", "critical"]
-PayablesBucketKey = Literal["not_due", "1_30", "31_60", "61_90", "90_plus"]
+PayablesBucketKey = Literal["not_due", "1_30", "31_60", "61_90", "90_plus", "due_date_missing"]
 
 
 class PayableAgingBucketDetail(BaseModel):
@@ -35,6 +35,7 @@ class VendorPayableItem(BaseModel):
     avg_delay_days: int
     risk_level: PayablesRiskLevel
     risk_score: int
+    risk_assessment_incomplete: bool = False
     recommended_action: str
     buckets: dict[PayablesBucketKey, str]
     share_of_total_payables: float
@@ -51,7 +52,7 @@ class PayablesSummaryResponse(BaseModel):
     total_payables_irr: Decimal
     total_overdue_irr: Decimal
     overdue_ratio: float
-    dpo_days: int
+    dpo_days: int | None
     dso_days: float | None
     ccc_days: float | None
     vendor_count: int

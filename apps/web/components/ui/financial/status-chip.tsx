@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import React from "react";
 import { CheckCircle2, Clock, HelpCircle, XCircle, AlertCircle, RefreshCcw, CheckCheck, Ban, Sparkles } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
@@ -145,12 +146,6 @@ const statusDefinitions: Record<
   },
 };
 
-const sizeClasses: Record<NonNullable<StatusChipProps["size"]>, string> = {
-  xs: "text-[10.5px] px-1.5 py-0 gap-1 rounded",
-  sm: "text-xs px-2 py-0.5 gap-1 rounded-md",
-  md: "text-xs px-2.5 py-1 gap-1.5 rounded-md",
-  lg: "text-sm px-3.5 py-1.5 gap-2 rounded-lg",
-};
 
 const iconSizes: Record<NonNullable<StatusChipProps["size"]>, string> = {
   xs: "size-2.5 shrink-0",
@@ -161,40 +156,38 @@ const iconSizes: Record<NonNullable<StatusChipProps["size"]>, string> = {
 
 export const StatusChip = React.forwardRef<HTMLSpanElement, StatusChipProps>(
   ({ status, label, size = "md", showIcon = true, pulse = false, className, ...props }, ref) => {
-    const def = statusDefinitions[status] ?? {
-      label: status,
+    const def = Object.hasOwn(statusDefinitions, status) ? statusDefinitions[status] : {
+      label: "نامشخص",
       icon: InfoIconFallback,
-      className: "bg-slate-500/10 text-slate-600 border-slate-500/20",
+      className: "bg-muted text-muted-foreground border-border",
     };
     const Icon = def.icon;
     const text = label ?? def.label;
     const isPulsing = pulse || status === "processing";
 
     return (
-      <span
+      <Badge
+        variant="outline"
+        dot={isPulsing}
+        pulse={isPulsing}
+        size={size === "md" ? "default" : size}
         ref={ref}
         className={cn(
-          "inline-flex items-center border font-bold select-none whitespace-nowrap transition-colors",
           props.onClick && "cursor-pointer",
-          sizeClasses[size],
           def.className,
           className
         )}
         {...props}
       >
-        {isPulsing ? (
-          <span className="size-1.5 rounded-full bg-current shrink-0" aria-hidden="true" />
-        ) : (
-          showIcon && <Icon className={iconSizes[size]} aria-hidden="true" />
-        )}
+        {showIcon && !isPulsing && <Icon className={iconSizes[size]} aria-hidden="true" />}
         <span>{text}</span>
-      </span>
+      </Badge>
     );
   }
 );
 
 function InfoIconFallback({ className }: { className?: string }) {
-  return <HelpCircle className={className} />;
+  return <HelpCircle aria-hidden="true" className={className} />;
 }
 
 StatusChip.displayName = "StatusChip";

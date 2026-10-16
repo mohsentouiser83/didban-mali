@@ -1,4 +1,7 @@
 import React from "react";
+import { Hint } from "@/components/ui/tooltip";
+import { formatFinancialNumber, formatMoneyTooltip } from "@/lib/financial-format";
+export { formatFinancialNumber } from "@/lib/financial-format";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "@/lib/date-utils";
 
@@ -33,45 +36,10 @@ export interface MoneyDisplayProps
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   subdued?: boolean;
   highlightZero?: boolean;
+  wrap?: boolean;
+  interactiveHint?: boolean;
 }
 
-export function formatFinancialNumber(num: number | string | bigint): string {
-  if (num === null || num === undefined || num === "") return "—";
-
-  if (typeof num === "string") {
-    const trimmed = num.trim();
-    if (!trimmed || isNaN(Number(trimmed))) return trimmed;
-    const n = Number(trimmed);
-    if (!Number.isFinite(n)) return trimmed;
-    if (trimmed.toLowerCase().includes("e")) {
-      const isNeg = n < 0;
-      const abs = Math.abs(n);
-      const formatted = abs.toLocaleString("en-US", {
-        maximumFractionDigits: 2,
-      });
-      const persianFormatted = toPersianDigits(
-        formatted.replace(/,/g, "٬").replace(/\./g, "٫"),
-      );
-      return isNeg ? `${persianFormatted}−` : persianFormatted;
-    }
-    const parts = trimmed.split(".");
-    const integerPart = parts[0]?.replace(/\B(?=(\d{3})+(?!\d))/g, "٬") ?? "0";
-    const fraction = parts[1]?.replace(/0+$/, "");
-    if (fraction) {
-      return toPersianDigits(`${integerPart}٫${fraction}`);
-    }
-    return toPersianDigits(integerPart);
-  }
-
-  const n = typeof num === "bigint" ? Number(num) : num;
-  const isNegative = n < 0;
-  const abs = Math.abs(n);
-  const formatted = abs.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  const persianFormatted = toPersianDigits(
-    formatted.replace(/,/g, "٬").replace(/\./g, "٫"),
-  );
-  return isNegative ? `${persianFormatted}−` : persianFormatted;
-}
 
 const sizeClasses: Record<NonNullable<MoneyDisplayProps["size"]>, string> = {
   xs: "text-xs font-semibold",
@@ -97,6 +65,8 @@ export const MoneyDisplay = React.forwardRef<
       size = "md",
       subdued = false,
       highlightZero = false,
+      wrap = false,
+      interactiveHint = true,
       className,
       title,
       ...props
@@ -106,18 +76,17 @@ export const MoneyDisplay = React.forwardRef<
     // 1. Handle No Data State (Dash with proper explanation)
     if (amount === null || amount === undefined || amount === "") {
       return (
-        <span
+        <Hint interactive={interactiveHint} content={title ?? "داده‌ای در دسترس نیست"}><span
           ref={ref}
           className={cn(
             "inline-flex items-center font-mono text-muted-foreground select-none",
             sizeClasses[size],
             className,
           )}
-          title={title ?? "داده‌ای در دسترس نیست"}
           {...props}
         >
           —
-        </span>
+        </span></Hint>
       );
     }
 
@@ -202,20 +171,16 @@ export const MoneyDisplay = React.forwardRef<
     const signPrefix = showSign && numericVal > 0 ? "+" : "";
 
     // 3. Computed legal full precision for tooltip
-    const computedTooltip =
-      title ??
-      (currency === "ریال" || currency === "IRR"
-        ? `${formatFinancialNumber(amount)} ریال (${formatFinancialNumber(Math.round(numericVal / 10))} تومان)`
-        : `${formatFinancialNumber(amount)} ${currency}`);
+    const computedTooltip = title ?? formatMoneyTooltip(amount, currency);
 
     return (
-      <span
+      <Hint interactive={interactiveHint} content={computedTooltip}><span
         ref={ref}
         dir="ltr"
-        title={computedTooltip}
         className={cn(
           "inline-flex items-baseline gap-1.5 font-mono cursor-default [font-variant-numeric:tabular-nums_lining-nums]",
           sizeClasses[size],
+          wrap && "min-w-0 max-w-full flex-wrap [&>span:last-child]:min-w-0",
           colorClass,
           className,
         )}
@@ -228,9 +193,9 @@ export const MoneyDisplay = React.forwardRef<
         )}
         <span className="inline-block font-bold">
           {signPrefix}
-          {rawDisplay}
+          {wrap ? rawDisplay.split("٬").map((group, index, groups) => <React.Fragment key={index}>{group}{index < groups.length - 1 && <>٬<wbr /></>}</React.Fragment>) : rawDisplay}
         </span>
-      </span>
+      </span></Hint>
     );
   },
 );

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/ui/financial/loading-state";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,7 @@ export default function Home() {
     <main className="ds-root min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
       <Mark className="h-10 w-10 text-primary" />
       <strong className="text-lg font-bold">دیدبان مالی</strong>
-      <span className="loading-ring" />
+      <LoadingState variant="inline" label="در حال آماده‌سازی سامانه…" />
     </main>
   );
 }

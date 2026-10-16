@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -69,7 +69,7 @@ class GoLiveValidation(UUIDPrimaryKeyMixin, Base):
     reconciliation_difference_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), nullable=False)
     opening_balance_confirmed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     user_statement: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
 
 class SupportTicket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -106,7 +106,7 @@ class ProductFeedback(UUIDPrimaryKeyMixin, Base):
     impact: Mapped[str] = mapped_column(String(64), default="medium", nullable=False)
     workaround: Mapped[str | None] = mapped_column(Text, nullable=True)
     requested_outcome: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
 
 
 class ProductAnalyticsEvent(UUIDPrimaryKeyMixin, Base):
@@ -124,4 +124,4 @@ class ProductAnalyticsEvent(UUIDPrimaryKeyMixin, Base):
     )
     event_name: Mapped[str] = mapped_column(String(100), nullable=False)
     properties_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
-    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)

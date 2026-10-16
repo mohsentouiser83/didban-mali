@@ -1,3 +1,4 @@
+import { ActionTooltip } from "@/components/ui/tooltip";
 import React from "react";
 import {
   CheckCircle2,
@@ -56,15 +57,15 @@ export function ReviewActionBar({
             مورد انتخاب‌شده
           </span>
           {onClear && (
-            <Button
+            <ActionTooltip content="لغو انتخاب‌ها"><Button
               size="icon"
               variant="ghost"
               className="size-6 text-muted-foreground hover:text-foreground ms-1"
               onClick={onClear}
-              title="لغو انتخاب‌ها"
+
             >
               <X className="size-3.5" />
-            </Button>
+            </Button></ActionTooltip>
           )}
         </div>
       )}

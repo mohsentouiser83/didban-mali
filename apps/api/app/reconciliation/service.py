@@ -19,6 +19,7 @@ from app.financial.models import (
     JournalEntry,
     JournalLine,
 )
+from app.financial.queries import cash_account_scope
 from app.imports.models import ImportBatch, ImportStatus, SourceRow
 from app.reconciliation.engine import (
     BankRecord,
@@ -116,6 +117,7 @@ async def run_canonical_reconciliation(
             bank_account_id=row.bank_account_id,
             reference=row.reference,
             source_transaction_id=row.source_transaction_id,
+            running_balance_irr=row.running_balance_irr,
         )
         for row in bank_records_db
     ]
@@ -147,12 +149,8 @@ async def run_canonical_reconciliation(
             READY_IMPORT,
             # Match cash/bank ledger lines, not all asset accounts (receivables,
             # inventory, etc.). Keep this scope consistent with analysis snapshots.
-            or_(
-                Account.source_code.startswith("101"),
-                Account.source_code.startswith("102"),
-                Account.source_code.startswith("10"),
-                Account.source_code.startswith("11"),
-            ),
+            cash_account_scope(),
+            JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
         )
     )
     if period_start:
@@ -589,12 +587,8 @@ async def get_unmatched_records(
         .where(
             JournalLine.company_id == company_id,
             READY_IMPORT,
-            or_(
-                Account.source_code.startswith("101"),
-                Account.source_code.startswith("102"),
-                Account.source_code.startswith("10"),
-                Account.source_code.startswith("11"),
-            ),
+            cash_account_scope(),
+            JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
         )
     )
     if period_start:
@@ -681,6 +675,7 @@ async def _inputs(
             description=row.description,
             reference=row.reference,
             source_transaction_id=row.source_transaction_id,
+            running_balance_irr=row.running_balance_irr,
         )
         for row, _ in bank_rows
     ]
@@ -721,10 +716,8 @@ async def _inputs(
                     analysis.period_end + timedelta(days=31),
                 ),
                 classification == AccountClass.ASSET,
-                or_(
-                    Account.source_code.startswith("10"),
-                    Account.source_code.startswith("11"),
-                ),
+                cash_account_scope(),
+                JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
             )
             .order_by(JournalEntry.entry_date, JournalEntry.id, JournalLine.id)
         )

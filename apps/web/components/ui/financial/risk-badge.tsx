@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import React from "react";
 import { AlertCircle, AlertTriangle, Info, ShieldAlert } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
@@ -6,7 +7,7 @@ import { toPersianDigits } from "./money-display";
 export type RiskLevel = "critical" | "high" | "medium" | "low";
 
 export interface RiskBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  level: RiskLevel;
+  level: RiskLevel | string;
   score?: number | null;
   label?: string;
   showIcon?: boolean;
@@ -16,14 +17,13 @@ export interface RiskBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const riskConfig: Record<
-  RiskLevel,
+  string,
   {
     label: string;
     icon: React.ComponentType<{ className?: string }>;
     bgClass: string;
     textClass: string;
     borderClass: string;
-    dotClass: string;
   }
 > = {
   critical: {
@@ -32,7 +32,6 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-critical-bg)]",
     textClass: "text-[var(--ds-risk-critical-fg)]",
     borderClass: "border-[var(--ds-risk-critical-border)]",
-    dotClass: "bg-ds-danger",
   },
   high: {
     label: "ریسک بالا",
@@ -40,7 +39,6 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-high-bg)]",
     textClass: "text-[var(--ds-risk-high-fg)]",
     borderClass: "border-[var(--ds-risk-high-border)]",
-    dotClass: "bg-ds-warning",
   },
   medium: {
     label: "ریسک متوسط",
@@ -48,7 +46,6 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-medium-bg)]",
     textClass: "text-[var(--ds-risk-medium-fg)]",
     borderClass: "border-[var(--ds-risk-medium-border)]",
-    dotClass: "bg-yellow-500",
   },
   low: {
     label: "ریسک پایین",
@@ -56,16 +53,9 @@ const riskConfig: Record<
     bgClass: "bg-[var(--ds-risk-low-bg)]",
     textClass: "text-[var(--ds-risk-low-fg)]",
     borderClass: "border-[var(--ds-risk-low-border)]",
-    dotClass: "bg-slate-400",
   },
 };
 
-const sizeClasses: Record<NonNullable<RiskBadgeProps["size"]>, string> = {
-  xs: "text-[10.5px] px-1.5 py-0 gap-1 font-bold rounded",
-  sm: "text-xs px-2 py-0.5 gap-1.5 font-medium rounded-md",
-  md: "text-xs px-2.5 py-1 gap-1.5 font-bold rounded-lg",
-  lg: "text-sm px-3 py-1.5 gap-2 font-bold rounded-lg",
-};
 
 const iconSizes: Record<NonNullable<RiskBadgeProps["size"]>, string> = {
   xs: "size-2.5 shrink-0",
@@ -76,33 +66,25 @@ const iconSizes: Record<NonNullable<RiskBadgeProps["size"]>, string> = {
 
 export const RiskBadge = React.forwardRef<HTMLSpanElement, RiskBadgeProps>(
   ({ level, score, label, showIcon = true, showDot = false, pulse = false, size = "md", className, ...props }, ref) => {
-    const config = riskConfig[level] ?? riskConfig.low;
+    const config = Object.hasOwn(riskConfig, level) ? riskConfig[level] : { ...riskConfig.low, label: "نامشخص", bgClass: "bg-muted", textClass: "text-muted-foreground", borderClass: "border-border" };
     const Icon = config.icon;
     const displayLabel = label ?? config.label;
 
     return (
-      <span
+      <Badge
+        variant="outline"
+        dot={showDot}
+        pulse={pulse}
+        size={size === "md" ? "default" : size}
         ref={ref}
         className={cn(
-          "group inline-flex items-center border select-none transition-all duration-200   cursor-default",
           config.bgClass,
           config.textClass,
           config.borderClass,
-          sizeClasses[size],
           className
         )}
         {...props}
       >
-        {showDot && (
-          <span
-            className={cn(
-              "size-1.5 rounded-full shrink-0 transition-transform duration-200 ",
-              config.dotClass,
-              pulse && "animate-pulse"
-            )}
-            aria-hidden="true"
-          />
-        )}
         {showIcon && !showDot && (
           <Icon className={cn(iconSizes[size], "transition-transform duration-200 ")} aria-hidden="true" />
         )}
@@ -112,7 +94,7 @@ export const RiskBadge = React.forwardRef<HTMLSpanElement, RiskBadgeProps>(
             {toPersianDigits(Math.round(score))}
           </span>
         )}
-      </span>
+      </Badge>
     );
   }
 );

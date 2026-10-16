@@ -53,9 +53,12 @@ db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 @pytest.fixture
 async def golden_session():
-    async with db_session_factory() as session:
-        yield session
-        await session.rollback()
+    try:
+        async with db_session_factory() as session:
+            yield session
+            await session.rollback()
+    finally:
+        await test_engine.dispose()
 
 
 @pytest.mark.asyncio

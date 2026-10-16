@@ -52,7 +52,7 @@ function selectValue(label: string, value: string) {
 function renderNewUpload() {
   render(<UploadWizard company={company} onSaving={vi.fn()} onCancel={vi.fn()} onUpdated={vi.fn()} onDone={vi.fn()} />);
   selectValue("نوع سند", "bank");
-  fireEvent.change(screen.getByLabelText("فایل سند"), { target: { files: [new File(["date,amount\n2026-10-01,100"], "bank.csv", { type: "text/csv" })] } });
+  fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["date,amount\n2026-10-01,100"], "bank.csv", { type: "text/csv" })] } });
 }
 
 it("requires an account choice and sends the existing account for later statements", async () => {

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/ui/financial/loading-state";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -41,7 +42,7 @@ export default function NewCompanyPage() {
       <main className="ds-root min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
         <Mark className="h-10 w-10 text-primary" />
         <strong className="text-lg font-bold">دیدبان مالی</strong>
-        <span className="loading-ring" />
+        <LoadingState variant="inline" label="در حال آماده‌سازی سامانه…" />
       </main>
     );
   }

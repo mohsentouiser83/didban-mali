@@ -3,8 +3,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { DayPicker, getDateLib } from "@daypicker/persian";
 import { CalendarBlank } from "@phosphor-icons/react";
+import { FieldError } from "./field";
 import { Input, type InputProps } from "./input";
 import { Button } from "./button";
+import { CalendarDropdown } from "./calendar-dropdown";
+import { CalendarDayButton, CalendarNavigationButton } from "./calendar-buttons";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
 import { dateFromISO, dateToISO, formatPersianDate, parsePersianDate } from "@/lib/persian-date";
 import "react-day-picker/style.css";
@@ -90,6 +93,9 @@ export function PersianDatePicker({ value, onValueChange, min, max, id, name,
           <DayPicker key={open ? value : "closed"} className="persian-calendar"
             mode="single" selected={selected} onSelect={select}
             defaultMonth={selected} autoFocus captionLayout="dropdown" navLayout="after"
+            components={{ Dropdown: CalendarDropdown, DayButton: CalendarDayButton,
+              PreviousMonthButton: CalendarNavigationButton, NextMonthButton: CalendarNavigationButton }}
+            classNames={{ dropdowns: "flex items-center gap-2 text-sm" }}
             startMonth={min ? dateFromISO(min) : calendar.newDate(1300, 0, 1)}
             endMonth={max ? dateFromISO(max) : calendar.newDate(1500, 11, 29)}
             disabled={[
@@ -106,7 +112,7 @@ export function PersianDatePicker({ value, onValueChange, min, max, id, name,
         </PopoverContent>
       </Popover>
       {name && <Input type="hidden" name={name} value={value} disabled={disabled} />}
-      {error && <p id={errorId} role="alert" className="mt-1 text-xs text-ds-danger">{error}</p>}
+      {error && <FieldError id={errorId} dir="rtl" className="mt-1">{error}</FieldError>}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
+import "@/components/ui/workspace-motion.css";
 
 export const metadata: Metadata = {
   title: "دیدبان مالی",
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <DirectionProvider dir="rtl">
           <TooltipProvider delayDuration={250}>
             {children}
-            <Toaster position="top-center" richColors closeButton />
+            <Toaster position="top-center" closeButton />
           </TooltipProvider>
         </DirectionProvider>
       </body>

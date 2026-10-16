@@ -39,7 +39,7 @@ describe("Button Component", () => {
     expect(btn.getAttribute("aria-busy")).toBe("true");
     expect(btn.hasAttribute("disabled")).toBe(true);
     expect(screen.getByText("در حال ذخیره...")).toBeDefined();
-    expect(screen.getByLabelText("Loading")).toBeDefined();
+    expect(screen.getByLabelText("در حال بارگذاری")).toBeDefined();
   });
 
   it("renders disabled state properly", () => {

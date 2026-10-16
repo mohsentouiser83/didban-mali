@@ -28,6 +28,9 @@ class SourceKind(enum.StrEnum):
     ACCOUNTING = "accounting"
     BANK = "bank"
     SALES = "sales"
+    PURCHASES = "purchases"
+    MOADIAN_SALES = "moadian_sales"
+    MOADIAN_PURCHASES = "moadian_purchases"
 
 
 class FileScanStatus(enum.StrEnum):

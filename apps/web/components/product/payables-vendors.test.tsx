@@ -17,7 +17,7 @@ it("sorts by overdue amount without losing monetary precision", async () => {
   render(<PayablesVendors companyId="company" asOfDate="2026-10-09" />);
   await screen.findByRole("button", { name: "شرکت کیان" });
   expect(screen.getAllByRole("row")[1]).toHaveTextContent("شرکت بهار");
-  expect(screen.getByTitle("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
+  expect(screen.getByLabelText("۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳ تومان")).toBeInTheDocument();
 });
 it("searches Persian names and filters overdue vendors", async () => {
   render(<PayablesVendors companyId="company" asOfDate="2026-10-09" />);

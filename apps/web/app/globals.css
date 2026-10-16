@@ -500,6 +500,23 @@ body { font-size: 14px; line-height: 1.8; }
   animation: sheet-slide-out-right 220ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
+/* Horizontal sheets use logical edges; match motion to the resolved RTL edge. */
+.sheet-content-animated-left:dir(rtl)[data-state="open"] {
+  animation-name: sheet-slide-in-right;
+}
+
+.sheet-content-animated-left:dir(rtl)[data-state="closed"] {
+  animation-name: sheet-slide-out-right;
+}
+
+.sheet-content-animated-right:dir(rtl)[data-state="open"] {
+  animation-name: sheet-slide-in-left;
+}
+
+.sheet-content-animated-right:dir(rtl)[data-state="closed"] {
+  animation-name: sheet-slide-out-left;
+}
+
 .sheet-content-animated-top[data-state="open"] {
   animation: sheet-slide-in-top 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

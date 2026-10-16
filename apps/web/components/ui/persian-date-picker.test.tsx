@@ -51,6 +51,8 @@ describe("PersianDatePicker", () => {
     const { container } = render(<Example />);
     fireEvent.click(screen.getByRole("button", { name: "انتخاب تاریخ" }));
     expect(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+    expect([...document.querySelectorAll("select")].every((select) => select.getAttribute("aria-hidden") === "true")).toBe(true);
     expect(screen.getAllByText(/فروردین/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "پاک کردن" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

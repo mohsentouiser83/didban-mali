@@ -1,4 +1,6 @@
 "use client";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -93,9 +95,9 @@ export function OnboardingWizardBanner({
                 <h3 className="font-bold text-base sm:text-lg">
                   راه‌اندازی رسمی سامانه دیدبان مالی
                 </h3>
-                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                <Badge variant="info" size="sm">
                   {status.progress_percentage}٪ تکمیل شده
-                </span>
+                </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 مراحل ۸ گانه راه‌اندازی و اعتبارسنجی اولیه جهت شروع بهره‌برداری
@@ -153,7 +155,7 @@ export function OnboardingWizardBanner({
                   {isCompleted ? (
                     <CheckCircle2 className="h-4 w-4 text-ds-success" />
                   ) : isInProgress ? (
-                    <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    <span className="flex h-2 w-2 rounded-full bg-primary" />
                   ) : (
                     <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
                   )}
@@ -168,16 +170,16 @@ export function OnboardingWizardBanner({
 
         {/* Current Blocker & Action Alert */}
         {status.active_blocker && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ds-warning/20 bg-ds-warning/10 p-3 text-xs text-ds-warning">
+          <Alert variant="warning" role="status" className="mt-4 flex flex-wrap items-center justify-between gap-3 p-3 text-xs">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-ds-warning shrink-0" />
               <span>
                 <strong>اقدام لازم:</strong> {status.active_blocker}
               </span>
               {status.responsible_party_fa && (
-                <span className="rounded bg-ds-warning/20 px-2 py-0.5 text-[11px] font-medium text-ds-warning">
+                <Badge variant="warning" size="xs">
                   مسئول: {status.responsible_party_fa}
-                </span>
+                </Badge>
               )}
             </div>
 
@@ -199,7 +201,7 @@ export function OnboardingWizardBanner({
                 </Link>
               </Button>
             )}
-          </div>
+          </Alert>
         )}
       </div>
 

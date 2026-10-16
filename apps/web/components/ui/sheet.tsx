@@ -6,6 +6,8 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "@/components/ui/icons"
 
 import { cn } from "@/lib/utils"
+import { Button } from "./button"
+import { useOverlayFocus } from "./use-overlay-focus"
 
 const Sheet = SheetPrimitive.Root
 
@@ -21,7 +23,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
     className={cn(
-      "fixed inset-0 z-50 bg-[rgb(24_45_59_/_32%)]  sheet-overlay-animated",
+      "fixed inset-0 z-50 bg-[rgb(24_45_59_/_32%)] sheet-overlay-animated motion-reduce:!animate-none",
       className
     )}
     {...props}
@@ -31,7 +33,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-[var(--ds-shadow-xl)] transition ease-in-out",
+  "fixed z-50 gap-4 bg-background p-6 shadow-[var(--ds-shadow-xl)] transition ease-in-out motion-reduce:!animate-none motion-reduce:transition-none",
   {
     variants: {
       side: {
@@ -49,27 +51,36 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-    VariantProps<typeof sheetVariants> {}
+    VariantProps<typeof sheetVariants> {
+  closeDisabled?: boolean
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", className, children, closeDisabled, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
+  const focus = useOverlayFocus(onOpenAutoFocus, onCloseAutoFocus)
+  return (
   <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content
+      data-slot="sheet-content"
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
+      {...focus}
     >
-      <SheetPrimitive.Close className="absolute end-3 top-3 z-20 grid size-10 place-items-center rounded opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary cursor-pointer">
-        <X className="h-4 w-4" />
-        <span className="sr-only">بستن</span>
+      <SheetPrimitive.Close asChild>
+        <Button type="button" variant="ghost" size="icon" className="absolute end-3 top-3 z-20"
+          aria-label="بستن" disabled={closeDisabled}>
+          <X aria-hidden="true" />
+        </Button>
       </SheetPrimitive.Close>
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>
-))
+  )
+})
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
 const SheetHeader = ({

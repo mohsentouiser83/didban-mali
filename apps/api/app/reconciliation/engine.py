@@ -1,9 +1,9 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from difflib import SequenceMatcher
-from itertools import combinations
+from itertools import combinations, islice
 from typing import Any, cast
 from uuid import UUID
 
@@ -29,6 +29,7 @@ class BankRecord:
     bank_account_id: UUID | None = None
     reference: str | None = None
     source_transaction_id: str | None = None
+    running_balance_irr: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -83,13 +84,8 @@ def _business_days(left: date, right: date) -> int:
     if left == right:
         return 0
     start, end = sorted((left, right))
-    cursor = start + timedelta(days=1)
-    result = 0
-    while cursor <= end:
-        if cursor.weekday() < 5:
-            result += 1
-        cursor += timedelta(days=1)
-    return result
+    weeks, remainder = divmod((end - start).days, 7)
+    return weeks * 5 + sum((start.weekday() + offset) % 7 < 5 for offset in range(1, remainder + 1))
 
 
 def _similarity(left: str, right: str) -> Decimal:
@@ -204,8 +200,12 @@ def _pair(
 
 
 def _bank_duplicate_keys(record: BankRecord) -> tuple[str | None, tuple[object, ...]]:
-    strong = _normalized(record.source_transaction_id) or None
+    identifier = _normalized(record.source_transaction_id)
+    strong = str((record.bank_account_id, identifier, record.booking_date, record.amount_irr, record.running_balance_irr)) if identifier else None
     weak = (
+        record.bank_account_id,
+        record.running_balance_irr,
+        identifier,
         record.booking_date,
         record.amount_irr,
         _normalized(record.description),
@@ -304,6 +304,8 @@ def reconcile(
     exact_by_bank: dict[UUID, list[LedgerRecord]] = defaultdict(list)
     for bank in eligible_banks:
         for ledger in eligible_ledgers:
+            if bank.amount_irr != ledger.amount_irr or bank.booking_date != ledger.entry_date:
+                continue
             features = _features(bank, ledger)
             if (
                 features["amount_equal"]
@@ -362,6 +364,9 @@ def reconcile(
             # against an outflow, even when their amounts differ.
             if (bank.amount_irr > 0) != (ledger.amount_irr > 0):
                 continue
+            distance = _calendar_days(bank.booking_date, ledger.entry_date)
+            if distance > config.review_calendar_days and _business_days(bank.booking_date, ledger.entry_date) > config.rule_business_days:
+                continue
             features = _features(bank, ledger)
             amount_equal = bool(features["amount_equal"])
             reference_equal = bool(features["reference_equal"])
@@ -418,13 +423,18 @@ def reconcile(
             ]
             matched_combo: list[LedgerRecord] | None = None
 
+            # Bound exploratory suggestions: a dense real statement must never
+            # spend millions of subset checks on one ambiguous bank movement.
+            nearby_ledgers.sort(key=lambda item: (_calendar_days(bank.booking_date, item.entry_date), str(item.line_id)))
+            remaining_checks = 5_000
             # 1. Exact subset sum matching up to 5 items
             for k in range(2, min(6, len(nearby_ledgers) + 1)):
-                for combo in combinations(nearby_ledgers, k):
+                for combo in islice(combinations(nearby_ledgers, k), remaining_checks):
+                    remaining_checks -= 1
                     if sum(combo_item.amount_irr for combo_item in combo) == bank.amount_irr:
                         matched_combo = list(combo)
                         break
-                if matched_combo:
+                if matched_combo or remaining_checks == 0:
                     break
 
             # 2. Counterparty-guided FIFO matching

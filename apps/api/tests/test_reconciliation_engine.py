@@ -148,7 +148,9 @@ def test_duplicates_mismatches_and_unresolved_are_explicit() -> None:
 
 def test_amount_mismatch_ignores_opposite_side_of_the_same_voucher() -> None:
     incoming = ledger(1, amount="20000000", reference="PAY-009")
-    outgoing = replace(incoming, line_id=uid(3099), source_row_id=uid(2099), amount_irr=Decimal("-20000000"))
+    outgoing = replace(
+        incoming, line_id=uid(3099), source_row_id=uid(2099), amount_irr=Decimal("-20000000")
+    )
     results = reconcile(
         [bank(1, amount="19500000", reference="PAY-009")],
         [incoming, outgoing],
@@ -159,3 +161,47 @@ def test_amount_mismatch_ignores_opposite_side_of_the_same_voucher() -> None:
     assert candidates[0].status == MatchStatus.AMOUNT_MISMATCH
     assert candidates[0].amount_difference_irr == Decimal("-500000")
     assert candidates[0].allocations[1].journal_line_id == incoming.line_id
+
+
+def test_real_bank_fees_with_distinct_documents_and_balances_are_not_duplicates():
+    a = replace(
+        bank(1, amount="-1200", description="کارمزد", transaction_id="77"),
+        bank_account_id=uid(90),
+        running_balance_irr=Decimal(10000),
+    )
+    b = replace(
+        bank(2, amount="-1200", description="کارمزد", transaction_id="78"),
+        bank_account_id=uid(90),
+        running_balance_irr=Decimal(8800),
+    )
+    c = replace(
+        bank(3, amount="350000", transaction_id="77"),
+        bank_account_id=uid(90),
+        running_balance_irr=Decimal(360000),
+    )
+    result = reconcile([a, b, c], [], ReconciliationConfig())
+    assert all(
+        p.status not in {MatchStatus.DUPLICATE_HIGH, MatchStatus.DUPLICATE_POSSIBLE} for p in result
+    )
+
+
+def test_dense_subset_suggestions_have_a_bounded_search(monkeypatch):
+    from itertools import combinations as original
+
+    visited = 0
+
+    def bounded(items, k):
+        nonlocal visited
+        for combo in original(items, k):
+            visited += 1
+            assert visited <= 5000
+            yield combo
+
+    monkeypatch.setattr("app.reconciliation.engine.combinations", bounded)
+    result = reconcile(
+        [bank(1, amount="999999")],
+        [ledger(n, amount="1000", description=f"item {n}") for n in range(100)],
+        ReconciliationConfig(),
+    )
+    assert visited == 5000
+    assert any(p.status == MatchStatus.UNRESOLVED for p in result)

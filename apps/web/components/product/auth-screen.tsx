@@ -1,10 +1,12 @@
 "use client";
+import { FieldError, FieldDescription } from "@/components/ui/field";
+import { Form, FormMessage } from "@/components/ui/form";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsList } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import {
   Building2,
@@ -15,125 +17,18 @@ import {
   ShieldCheck,
   User as UserIcon,
 } from "@/components/ui/icons";
-import { useRouter } from "next/navigation";
-import { FormEvent, useRef, useState } from "react";
 
-import { api } from "@/lib/product-api";
-import type { User } from "@/lib/product-types";
 
-import { Icon, Mark } from "./icons";
+import { Mark } from "./icons";
 
-export type AuthMode = "login" | "register";
-type FieldName = "full_name" | "workspace_name" | "email" | "password";
-type FieldErrors = Partial<Record<FieldName, string>>;
-
+import { useAuthScreen, type AuthMode } from "./use-auth-screen";
+export type { AuthMode } from "./use-auth-screen";
 export interface AuthScreenProps {
   initialMode?: AuthMode;
 }
 
-const initialValues = {
-  full_name: "",
-  workspace_name: "",
-  email: "",
-  password: "",
-};
-
 export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
-  const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [values, setValues] = useState(initialValues);
-  const [showPassword, setShowPassword] = useState(false);
-  const [capsLock, setCapsLock] = useState(false);
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
-  const errorRef = useRef<HTMLParagraphElement>(null);
-  const recoveryRef = useRef<HTMLDivElement>(null);
-
-  function changeMode(nextMode: AuthMode) {
-    setMode(nextMode);
-    setError("");
-    setFieldErrors({});
-    setRecoveryOpen(false);
-    setCapsLock(false);
-    if (
-      typeof window !== "undefined" &&
-      (window.location.pathname.startsWith("/login") ||
-        window.location.pathname.startsWith("/register"))
-    ) {
-      window.history.replaceState(
-        null,
-        "",
-        nextMode === "login" ? "/login" : "/register",
-      );
-    }
-  }
-
-  function updateField(name: FieldName, value: string) {
-    setValues((current) => ({ ...current, [name]: value }));
-    setFieldErrors((current) => ({ ...current, [name]: undefined }));
-    setError("");
-  }
-
-  function validate(): FieldErrors {
-    const next: FieldErrors = {};
-    if (mode === "register" && values.full_name.trim().length < 2)
-      next.full_name = "نام و نام خانوادگی را کامل وارد کنید.";
-    if (
-      mode === "register" &&
-      values.workspace_name.trim() &&
-      values.workspace_name.trim().length < 2
-    )
-      next.workspace_name = "نام فضای کاری باید حداقل ۲ نویسه باشد.";
-    if (!values.email.trim()) next.email = "ایمیل یا نام کاربری را وارد کنید.";
-    else if (
-      !(mode === "login" && values.email.trim() === "admin") &&
-      !/^\S+@\S+\.\S+$/.test(values.email.trim())
-    )
-      next.email = "یک ایمیل معتبر وارد کنید.";
-    if (!values.password) next.password = "رمز عبور را وارد کنید.";
-    else if (mode === "register" && values.password.length < 12)
-      next.password = "رمز عبور باید حداقل ۱۲ نویسه باشد.";
-    return next;
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const nextErrors = validate();
-    const firstInvalid = Object.keys(nextErrors)[0] as FieldName | undefined;
-    if (firstInvalid) {
-      setFieldErrors(nextErrors);
-      requestAnimationFrame(() =>
-        document.getElementById(`auth-${firstInvalid}`)?.focus(),
-      );
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const payload =
-      mode === "login"
-        ? { email: values.email.trim(), password: values.password }
-        : {
-            full_name: values.full_name.trim(),
-            workspace_name: values.workspace_name.trim() || undefined,
-            email: values.email.trim(),
-            password: values.password,
-          };
-    try {
-      await api<{ user: User }>(`/auth/${mode}`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      router.replace("/");
-      router.refresh();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "ورود انجام نشد.");
-      requestAnimationFrame(() => errorRef.current?.focus());
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { mode, busy, error, fieldErrors, values, showPassword, setShowPassword, capsLock, setCapsLock, recoveryOpen, setRecoveryOpen, errorRef, recoveryRef, changeMode, updateField, submit } = useAuthScreen(initialMode);
 
   return (
     <main className="pp-auth ds-root auth-shell auth-shell-centered relative min-h-screen flex flex-col items-center justify-center p-4 bg-background ds-grid-bg">
@@ -158,51 +53,23 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
 
           {/* Mode Switcher */}
           <Tabs
+            variant="segmented"
             value={mode}
             onValueChange={(value) => changeMode(value as AuthMode)}
             className="w-full"
           >
             <TabsList
-              className="tabs grid grid-cols-2 h-11 p-1 bg-muted rounded-[var(--ds-card-radius)] border border-border/70 mb-6 w-full"
+              className="grid grid-cols-2 min-h-13 p-1 bg-muted rounded-[var(--ds-card-radius)] border border-border/70 mb-6 w-full"
               aria-label="انتخاب نوع ورود"
             >
-              <Button
-                variant="surface"
-                size="auto"
-                motion="none"
-                type="button"
-                role="tab"
-                aria-selected={mode === "login"}
-                onClick={() => changeMode("login")}
-                className={`tab-trigger flex items-center justify-center h-full rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  mode === "login"
-                    ? "bg-card text-foreground shadow-[var(--ds-shadow-sm)]"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                ورود
-              </Button>
-              <Button
-                variant="surface"
-                size="auto"
-                motion="none"
-                type="button"
-                role="tab"
-                aria-selected={mode === "register"}
-                onClick={() => changeMode("register")}
-                className={`tab-trigger flex items-center justify-center h-full rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  mode === "register"
-                    ? "bg-card text-foreground shadow-[var(--ds-shadow-sm)]"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                ساخت حساب
-              </Button>
+              <TabsTrigger value="login" className="h-full min-h-11 text-xs sm:text-sm">ورود</TabsTrigger>
+              <TabsTrigger value="register" className="h-full min-h-11 text-xs sm:text-sm">ساخت حساب</TabsTrigger>
             </TabsList>
 
-            <div
+            <TabsContent
               key={mode}
-              className="auth-mode-content animate-[auth-mode-in_200ms_ease-out]"
+              value={mode}
+              className="mt-0"
             >
               <div className="form-title text-center mb-6 space-y-1">
                 <span className="text-xs font-semibold text-primary">
@@ -213,7 +80,7 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 </h2>
               </div>
 
-              <form
+              <Form
                 onSubmit={submit}
                 className="auth-form space-y-4"
                 noValidate
@@ -248,13 +115,11 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                         />
                       </div>
                       {fieldErrors.full_name && (
-                        <small
+                        <FieldError
                           id="auth-full_name-error"
-                          className="field-error flex items-center gap-1 text-xs text-destructive font-medium mt-1"
                         >
-                          <Icon name="alert" className="size-3.5" />
                           {fieldErrors.full_name}
-                        </small>
+                        </FieldError>
                       )}
                     </div>
 
@@ -286,20 +151,17 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                           className="ps-10 pe-3"
                         />
                       </div>
-                      <small
+                      <FieldDescription
                         id="auth-workspace_name-hint"
-                        className="field-hint block text-[11px] text-muted-foreground"
                       >
                         فضای مشترک شرکت، اعضا و گزارش‌ها
-                      </small>
+                      </FieldDescription>
                       {fieldErrors.workspace_name && (
-                        <small
+                        <FieldError
                           id="auth-workspace_name-error"
-                          className="field-error flex items-center gap-1 text-xs text-destructive font-medium mt-1"
                         >
-                          <Icon name="alert" className="size-3.5" />
                           {fieldErrors.workspace_name}
-                        </small>
+                        </FieldError>
                       )}
                     </div>
                   </>
@@ -334,13 +196,11 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                     />
                   </div>
                   {fieldErrors.email && (
-                    <small
+                    <FieldError
                       id="auth-email-error"
-                      className="field-error flex items-center gap-1 text-xs text-destructive font-medium mt-1"
                     >
-                      <Icon name="alert" className="size-3.5" />
                       {fieldErrors.email}
-                    </small>
+                    </FieldError>
                   )}
                 </div>
 
@@ -421,38 +281,29 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                     </Button>
                   </div>
                   {mode === "register" && (
-                    <small
+                    <FieldDescription
                       id="auth-password-hint"
-                      className="field-hint block text-[11px] text-muted-foreground"
                     >
                       حداقل ۱۲ نویسه؛ بهتر است از عبارت طولانی و منحصربه‌فرد
                       استفاده کنید.
-                    </small>
+                    </FieldDescription>
                   )}
                   {capsLock && (
-                    <small
-                      id="auth-caps-lock"
-                      className="caps-lock-note flex items-center gap-1 text-xs text-ds-warning font-medium"
-                    >
-                      <Icon name="alert" className="size-3.5" />
-                      Caps Lock روشن است.
-                    </small>
+                    <FormMessage variant="warning" id="auth-caps-lock">Caps Lock روشن است.</FormMessage>
                   )}
                   {fieldErrors.password && (
-                    <small
+                    <FieldError
                       id="auth-password-error"
-                      className="field-error flex items-center gap-1 text-xs text-destructive font-medium mt-1"
                     >
-                      <Icon name="alert" className="size-3.5" />
                       {fieldErrors.password}
-                    </small>
+                    </FieldError>
                   )}
                 </div>
 
                 {mode === "login" && recoveryOpen && (
-                  <Alert
+                  <FormMessage
                     ref={recoveryRef}
-                    className="recovery-note p-3.5 rounded-[var(--ds-card-radius)] border border-border bg-muted/60 text-xs flex items-start gap-3"
+                    variant="info" className="flex items-start gap-3"
                     id="password-recovery"
                     tabIndex={-1}
                   >
@@ -477,22 +328,18 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                     >
                       بستن
                     </Button>
-                  </Alert>
+                  </FormMessage>
                 )}
 
                 {error && (
-                  <Alert
+                  <FormMessage
                     ref={errorRef}
                     variant="destructive"
-                    className="form-error p-3.5 rounded-[var(--ds-card-radius)] text-xs"
+                    className=""
                     tabIndex={-1}
                   >
                     <AlertTitle className="font-bold">{error}</AlertTitle>
-                    <AlertDescription className="text-xs opacity-90 mt-0.5">
-                      اطلاعات را دوباره بررسی کنید یا از راهنمای بازیابی استفاده
-                      کنید.
-                    </AlertDescription>
-                  </Alert>
+                  </FormMessage>
                 )}
 
                 <Button
@@ -507,19 +354,10 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                       ? "ورود به دیدبان"
                       : "ساخت حساب امن"}
                 </Button>
-              </form>
-            </div>
+              </Form>
+            </TabsContent>
           </Tabs>
 
-          <div className="mobile-trust auth-trust-badge mt-6 flex items-center gap-2 p-3 rounded-[var(--ds-card-radius)] bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
-            <ShieldCheck className="size-4 text-primary shrink-0" />
-            <span>
-              <strong className="font-semibold text-foreground">
-                داده‌های هر شرکت مجزا می‌ماند.
-              </strong>{" "}
-              رویدادهای حساس برای پیگیری ثبت می‌شوند.
-            </span>
-          </div>
 
           <details className="auth-assurance mt-4 text-xs text-muted-foreground border-t border-border/60 pt-4">
             <summary className="cursor-pointer font-medium hover:text-foreground transition-colors text-center py-1">

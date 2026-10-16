@@ -1,20 +1,14 @@
 "use client";
+import { Form, FormMessage } from "@/components/ui/form";
 
-import { useState } from "react";
+import { useId } from "react";
+import { useFinancialValidation } from "./use-financial-validation";
 import { ShieldCheck, Check } from "@/components/ui/icons";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { api } from "@/lib/product-api";
 import { Textarea } from "@/components/ui/textarea";
 
 interface FinancialValidationModalProps {
@@ -30,45 +24,8 @@ export function FinancialValidationModal({
   onOpenChange,
   onValidated,
 }: FinancialValidationModalProps) {
-  const [cash, setCash] = useState("15000000000");
-  const [receivables, setReceivables] = useState("32000000000");
-  const [payables, setPayables] = useState("18000000000");
-  const [reconciliationDiff, setReconciliationDiff] = useState("0");
-  const [confirmed, setConfirmed] = useState(false);
-  const [statement, setStatement] = useState(
-    "تمامی ارقام نقدینگی، مطالبات و بدهی‌ها با تراز آزمایشی و دفاتر رسمی شرکت تطبیق داده شد و مورد تأیید است.",
-  );
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!confirmed) {
-      setError("تأیید انطباق ارقام با دفاتر مالی الزامی است.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      await api(`/companies/${companyId}/onboarding/validate`, {
-        method: "POST",
-        body: JSON.stringify({
-          cash_position_irr: cash,
-          receivables_irr: receivables,
-          payables_irr: payables,
-          reconciliation_difference_irr: reconciliationDiff,
-          opening_balance_confirmed: true,
-          user_statement: statement,
-        }),
-      });
-      onValidated();
-    } catch (err: any) {
-      setError(err.detail || "ثبت اعتبارسنجی با خطا مواجه شد.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const id = useId();
+  const { cash, setCash, receivables, setReceivables, payables, setPayables, reconciliationDiff, setReconciliationDiff, confirmed, setConfirmed, statement, setStatement, submitting, error, handleSubmit } = useFinancialValidation(companyId, onValidated);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,61 +43,59 @@ export function FinancialValidationModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <Form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {error && (
-            <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive font-medium">
-              {error}
-            </div>
+            <FormMessage>{error}</FormMessage>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
+              <label htmlFor={`${id}-cash`} className="text-xs font-semibold">
                 موجودی نقد پایه (ریال)
               </label>
               <Input
-                value={cash}
+                id={`${id}-cash`} value={cash}
                 onChange={(e) => setCash(e.target.value)}
-                className="font-mono text-left"
+                dir="ltr" className="font-mono text-start"
                 placeholder="15000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
+              <label htmlFor={`${id}-receivables`} className="text-xs font-semibold">
                 مجموع مطالبات پایه (ریال)
               </label>
               <Input
-                value={receivables}
+                id={`${id}-receivables`} value={receivables}
                 onChange={(e) => setReceivables(e.target.value)}
-                className="font-mono text-left"
+                dir="ltr" className="font-mono text-start"
                 placeholder="32000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
+              <label htmlFor={`${id}-payables`} className="text-xs font-semibold">
                 مجموع بدهی‌های پایه (ریال)
               </label>
               <Input
-                value={payables}
+                id={`${id}-payables`} value={payables}
                 onChange={(e) => setPayables(e.target.value)}
-                className="font-mono text-left"
+                dir="ltr" className="font-mono text-start"
                 placeholder="18000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
+              <label htmlFor={`${id}-reconciliationDiff`} className="text-xs font-semibold">
                 اختلاف مغایرت اولیه (ریال)
               </label>
               <Input
-                value={reconciliationDiff}
+                id={`${id}-reconciliationDiff`} value={reconciliationDiff}
                 onChange={(e) => setReconciliationDiff(e.target.value)}
-                className="font-mono text-left"
+                dir="ltr" className="font-mono text-start"
                 placeholder="0"
                 required
               />
@@ -148,11 +103,11 @@ export function FinancialValidationModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold">
+            <label htmlFor={`${id}-statement`} className="text-xs font-semibold">
               شرح تأییدیه مدیر مالی
             </label>
             <Textarea
-              value={statement}
+              id={`${id}-statement`} value={statement}
               onChange={(e) => setStatement(e.target.value)}
               rows={3}
               className="w-full"
@@ -196,7 +151,7 @@ export function FinancialValidationModal({
               <span>{submitting ? "در حال ثبت..." : "تأیید و ثبت نهایی"}</span>
             </Button>
           </DialogFooter>
-        </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

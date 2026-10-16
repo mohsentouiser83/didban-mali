@@ -187,9 +187,10 @@ class PotentialDuplicateTransactionRule(BaseFindingRule):
             )
 
         # 2. Check unmatched bank transactions with same amount and date
-        seen_banks: dict[tuple[UUID | None, Decimal, date], Any] = {}
+        seen_banks: dict[tuple[object, ...], Any] = {}
         for b in context.unmatched_bank_transactions:
-            key = (b.bank_account_id, b.amount_irr, b.booking_date)
+            key = (b.bank_account_id, b.amount_irr, b.booking_date,
+                   getattr(b, "source_transaction_id", None), getattr(b, "running_balance_irr", None))
             if key in seen_banks:
                 other = seen_banks[key]
                 fp = f"{company_id}:{self.rule_code}:{b.id}"

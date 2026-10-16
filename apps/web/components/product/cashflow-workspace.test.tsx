@@ -11,9 +11,9 @@ beforeEach(() => { vi.mocked(api).mockReset(); vi.mocked(api).mockImplementation
 it("shows a negative closing balance in toman using only planned payments", async () => {
   render(<CashFlowWorkspace />);
   const end = await screen.findByRole("article", { name: "مانده پس از دریافت و پرداخت" });
-  await waitFor(() => expect(within(end).getByTitle("-۳۰۰٬۰۰۰ تومان")).toBeInTheDocument());
+  await waitFor(() => expect(within(end).getByLabelText("-۳۰۰٬۰۰۰ تومان")).toBeInTheDocument());
   expect(vi.mocked(api).mock.calls[1][0]).toContain("horizon_days=30&outflow_mode=planned");
-  expect(within(screen.getByRole("article", { name: "مانده حساب" })).getByTitle("۱٬۰۰۰٬۰۰۰ تومان")).toBeInTheDocument();
+  expect(within(screen.getByRole("article", { name: "مانده حساب" })).getByLabelText("۱٬۰۰۰٬۰۰۰ تومان")).toBeInTheDocument();
 });
 it("does not treat missing payment plans as zero obligations", async () => {
   vi.mocked(api).mockImplementation(async (path) => path.endsWith("/summary") ? summary : { ...forecast, projected_outflows_30d_irr: "0", weeks: [{ payments: [] }] });
@@ -28,13 +28,13 @@ it("recovers from a failed request through retry", async () => {
   vi.mocked(api).mockImplementation(async (path) => path.endsWith("/summary") ? summary : forecast);
   fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
   await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
-  await waitFor(() => expect(screen.getByTitle("-۳۰۰٬۰۰۰ تومان")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByLabelText("-۳۰۰٬۰۰۰ تومان")).toBeInTheDocument());
 });
 
 it("refreshes the overview after the payment plan changes", async () => {
   render(<CashFlowWorkspace />);
-  await screen.findByTitle("-۳۰۰٬۰۰۰ تومان");
+  await screen.findByLabelText("-۳۰۰٬۰۰۰ تومان");
   vi.mocked(api).mockImplementation(async (path) => path.endsWith("/summary") ? summary : { ...forecast, projected_outflows_30d_irr: "20000000" });
   fireEvent.click(screen.getByRole("button", { name: "تغییر برنامه پرداخت" }));
-  expect(await screen.findByTitle("-۸۰۰٬۰۰۰ تومان")).toBeInTheDocument();
+  expect(await screen.findByLabelText("-۸۰۰٬۰۰۰ تومان")).toBeInTheDocument();
 });

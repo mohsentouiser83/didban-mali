@@ -145,7 +145,8 @@ def receivables_report(
     incomplete = [
         inv
         for inv, _ in relevant
-        if not inv.receipt_history_complete and (inv.paid_amount_irr or ZERO) > ZERO
+        if not inv.receipt_history_complete
+        and (inv.paid_amount_irr is None or inv.paid_amount_irr > ZERO)
     ]
     if incomplete:
         return ReceivablesPeriodReport(

@@ -14,10 +14,13 @@ from app.companies.models import Company, CompanyAccess, CompanyRole
 from app.core import database
 from app.core.tenant import reset_request_context, set_request_user
 from app.financial.models import (
+    Account,
     BankAccount,
     BankTransaction,
     Counterparty,
     InvoiceReceipt,
+    JournalEntry,
+    JournalLine,
     SalesInvoice,
 )
 from app.financial_periods.models import FinancialPeriod
@@ -163,6 +166,80 @@ async def seed_period_data(factory):
         )
 
 
+async def test_journal_semantics_updates_respect_writer_roles():
+    from uuid import UUID
+
+    from sqlalchemy import update
+
+    from app.financial.journal_types import update_import_entry_types
+
+    admin = create_async_engine(os.environ["PERIODS_TEST_ADMIN_URL"])
+    runtime = create_async_engine(os.environ["PERIODS_TEST_APP_URL"])
+    admin_factory = async_sessionmaker(admin, expire_on_commit=False)
+    seed = await seed_period_data(admin_factory)
+    company_id = UUID(seed["company_id"])
+    try:
+        async with admin_factory() as session:
+            row = await session.scalar(select(SourceRow).where(SourceRow.company_id == company_id))
+            account = Account(
+                company_id=company_id,
+                source_code="opening",
+                name="تراز افتتاحیه",
+                normalized_name="تراز افتتاحیه",
+            )
+            entry = JournalEntry(
+                company_id=company_id,
+                import_batch_id=row.import_batch_id,
+                source_row_id=row.id,
+                source_entry_key="opening",
+                entry_date=date(2026, 3, 21),
+                description="افتتاحیه",
+                description_normalized="افتتاحیه",
+                fiscal_period="1405-01",
+                entry_type_source="inferred",
+            )
+            session.add_all([account, entry])
+            await session.flush()
+            session.add(
+                JournalLine(
+                    company_id=company_id,
+                    entry_id=entry.id,
+                    account_id=account.id,
+                    source_row_id=row.id,
+                    debit_irr=Decimal(0),
+                    credit_irr=Decimal(0),
+                )
+            )
+            await session.commit()
+            entry_id, batch_id = entry.id, row.import_batch_id
+
+        async with async_sessionmaker(runtime, expire_on_commit=False)() as session:
+            await set_request_user(session, UUID(seed["owner_id"]))
+            await update_import_entry_types(session, company_id, batch_id)
+            await session.commit()
+            assert (
+                await session.scalar(
+                    select(JournalEntry.entry_type).where(JournalEntry.id == entry_id)
+                )
+                == "opening"
+            )
+            await set_request_user(session, UUID(seed["viewer_id"]))
+            result = await session.execute(
+                update(JournalEntry).where(JournalEntry.id == entry_id).values(entry_type="normal")
+            )
+            assert result.rowcount == 0
+            await session.rollback()
+            await set_request_user(session, uuid4())
+            result = await session.execute(
+                update(JournalEntry).where(JournalEntry.id == entry_id).values(entry_type="normal")
+            )
+            assert result.rowcount == 0
+            await session.rollback()
+    finally:
+        await runtime.dispose()
+        await admin.dispose()
+
+
 async def test_saved_periods_history_report_and_rls(monkeypatch):
     admin = create_async_engine(os.environ["PERIODS_TEST_ADMIN_URL"])
     runtime = create_async_engine(os.environ["PERIODS_TEST_APP_URL"])
@@ -195,6 +272,31 @@ async def test_saved_periods_history_report_and_rls(monkeypatch):
             assert (
                 await client.post(base + "/financial-periods", json={**period, "name": "بدون توکن"})
             ).status_code == 403
+            period_url = base + f"/financial-periods/{created.json()['id']}"
+            assert (await client.get(period_url)).json()["name"] == period["name"]
+            revised = {**period, "name": "فروردین ویرایش‌شده", "start_date": "2026-03-31"}
+            updated = await client.put(period_url, json=revised, headers=headers)
+            assert updated.status_code == 200, updated.text
+            assert updated.json()["start_date"] == revised["start_date"]
+            assert (await client.get(period_url)).json()["name"] == revised["name"]
+            assert (
+                await client.put(
+                    period_url, json={**revised, "end_date": "2026-03-01"}, headers=headers
+                )
+            ).status_code == 422
+            assert (await client.put(period_url, json=revised)).status_code == 403
+            assert (
+                await client.put(
+                    base + f"/financial-periods/{uuid4()}", json=revised, headers=headers
+                )
+            ).status_code == 404
+            another = await client.post(
+                base + "/financial-periods", json={**period, "name": "دوره دوم"}, headers=headers
+            )
+            another_url = base + f"/financial-periods/{another.json()['id']}"
+            assert (await client.put(another_url, json=revised, headers=headers)).status_code == 409
+            assert (await client.delete(another_url, headers=headers)).status_code == 204
+            assert (await client.get(another_url)).status_code == 404
             report_path = (
                 base + "/financial-periods/report?start_date=2026-04-01&end_date=2026-04-30"
             )
@@ -243,7 +345,17 @@ async def test_saved_periods_history_report_and_rls(monkeypatch):
                     headers=headers,
                 )
             ).status_code == 404
+            assert (
+                await client.put(
+                    period_url.replace(seed["company_id"], seed["foreign_id"]),
+                    json=revised,
+                    headers=headers,
+                )
+            ).status_code == 404
             client.cookies.set("didban_access", seed["viewer_token"])
+            assert (await client.get(period_url)).status_code == 200
+            assert (await client.put(period_url, json=revised, headers=headers)).status_code == 403
+            assert (await client.delete(period_url, headers=headers)).status_code == 403
             assert (await client.get(report_path)).status_code == 200
             assert (
                 await client.post(

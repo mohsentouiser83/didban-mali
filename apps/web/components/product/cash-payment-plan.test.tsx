@@ -11,7 +11,7 @@ it.each(["2026-10-31", "2026-12-31"])("saves payment on %s with an exact rial am
   const changed = vi.fn();
   render(<CashPaymentPlan company={company} asOfDate="2026-10-09" onChanged={changed} />);
   fireEvent.click(screen.getByRole("button", { name: "افزودن پرداخت" }));
-  await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+  await screen.findByText("پرداختی برای ۳۰ روز آینده ثبت نشده است.");
   fireEvent.change(screen.getByLabelText("عنوان پرداخت"), { target: { value: "حقوق" } });
   fireEvent.change(screen.getByLabelText("موعد پرداخت"), { target: { value: paymentDate } });
   fireEvent.change(screen.getByLabelText("مبلغ به تومان"), { target: { value: "۹۰۰٬۷۱۹٬۹۲۵٬۴۷۴٬۰۹۹٬۳" } });
@@ -22,14 +22,14 @@ it.each(["2026-10-31", "2026-12-31"])("saves payment on %s with an exact rial am
 });
 it("keeps payment planning read-only for viewers", async () => {
   render(<CashPaymentPlan company={{ ...company, role: "viewer" }} asOfDate="2026-10-09" onChanged={vi.fn()} />);
-  await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+  await screen.findByText("پرداختی برای ۳۰ روز آینده ثبت نشده است.");
   expect(screen.queryByRole("button", { name: "افزودن پرداخت" })).not.toBeInTheDocument();
 });
 it("keeps the entered payment when saving fails", async () => {
   vi.mocked(api).mockImplementation(async (_path, options) => { if (options?.method === "POST") throw Error("offline"); return []; });
   render(<CashPaymentPlan company={company} asOfDate="2026-10-09" onChanged={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "افزودن پرداخت" }));
-  await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+  await screen.findByText("پرداختی برای ۳۰ روز آینده ثبت نشده است.");
   fireEvent.change(screen.getByLabelText("عنوان پرداخت"), { target: { value: "اجاره" } });
   fireEvent.change(screen.getByLabelText("موعد پرداخت"), { target: { value: "2026-10-31" } });
   fireEvent.change(screen.getByLabelText("مبلغ به تومان"), { target: { value: "100" } });

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, WalletCards, ArrowDownLeft, ArrowUpRight,
-  ClipboardCheck, FileText, UploadCloud,
+  ClipboardCheck, FileText, UploadCloud, Calendar,
 } from "@/components/ui/icons";
 import type { ProductNavGroup } from "./product-sidebar";
 
@@ -20,7 +20,10 @@ export function productNavigation(base: string, actionCount = 0, criticalCount =
     },
   ] }];
   const secondary: ProductNavGroup[] = [{ items: [
+    { href: `${base}/financial-periods`, label: "دوره‌های مالی", icon: Calendar },
     { href: `${base}/imports`, label: "بارگذاری اسناد", icon: UploadCloud },
+    { href: `${base}/settlements`, label: "دریافت و پرداخت", icon: WalletCards },
+    { href: `${base}/moadian`, label: "تطبیق مؤدیان", icon: ClipboardCheck },
     { href: `${base}/reports`, label: "گزارش‌ها", icon: FileText },
   ] }];
   return { primary, secondary };
@@ -31,6 +34,4 @@ export function isProductItemActive(pathname: string, href: string, base: string
   return containsRoute(pathname, target);
 }
 
-export function productSectionNavigation(_pathname: string, _base: string): { label: string; items: { href: string; label: string }[] } | null {
-  return null;
-}
+export function productSectionNavigation(_pathname: string, _base: string): { label: string; items: { href: string; label: string }[] } | null { return null; }

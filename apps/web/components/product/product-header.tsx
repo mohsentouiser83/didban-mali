@@ -30,11 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { ActionTooltip } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/ui/sidebar";
 import type { Company } from "@/lib/product-types";
 import { cn } from "@/lib/utils";
@@ -74,20 +70,19 @@ const HeaderAction = forwardRef<
     motion: IconMotion;
   }
 >(({ label, icon, motion, className, ...props }, ref) => (
-  <Button
+  <ActionTooltip content={label}><Button
     variant="surface"
     size="auto"
     motion="none"
     ref={ref}
     type="button"
     className={cn("header-control header-action", className)}
-    title={label}
     aria-label={label}
     {...props}
   >
     <HeaderIcon icon={icon} motion={motion} />
 
-  </Button>
+  </Button></ActionTooltip>
 ));
 HeaderAction.displayName = "HeaderAction";
 
@@ -124,7 +119,6 @@ export function ProductHeader({
   const [currentDate, setCurrentDate] = useState("");
   const settingsButton = useRef<HTMLButtonElement>(null);
   const moreButton = useRef<HTMLButtonElement>(null);
-  const settingsReturnFocus = useRef<HTMLButtonElement | null>(null);
   const pendingMobileAction = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -170,7 +164,7 @@ export function ProductHeader({
               <span className="header-company-mark">
                 <HeaderIcon icon={Building2} motion="company" />
               </span>
-              <span className="header-company-name" title={company.legal_name}>
+              <span className="header-company-name">
                 {company.legal_name}
               </span>
               <HeaderIcon icon={ChevronDown} motion="chevron" />
@@ -198,8 +192,7 @@ export function ProductHeader({
                 >
                   <HeaderIcon icon={Building2} motion="company" />
                   <span
-                    className="min-w-0 flex-1 truncate"
-                    title={item.legal_name}
+                    className="min-w-0 flex-1 whitespace-normal break-words"
                   >
                     {item.legal_name}
                   </span>
@@ -249,125 +242,43 @@ export function ProductHeader({
             <span>{currentDate}</span>
           </div>
         )}
-        <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <PopoverAnchor asChild>
-            <div className="header-actions">
-              <HeaderAction
-                ref={settingsButton}
-                label="تنظیمات و مدیریت سامانه"
-                icon={Settings}
-                motion="settings"
-                className="header-desktop-tool"
-                onClick={() => {
-                  settingsReturnFocus.current = settingsButton.current;
-                  setSettingsOpen(!settingsOpen);
-                }}
-                aria-haspopup="dialog"
-                aria-expanded={settingsOpen}
-              />
-              <HeaderAction
-                label="پشتیبانی و ثبت تیکت"
-                icon={LifeBuoy}
-                motion="support"
-                className="header-desktop-tool"
-                onClick={onSupport}
-              />
-              <DropdownMenu dir="rtl">
-                <DropdownMenuTrigger asChild>
-                  <HeaderAction
-                    ref={moreButton}
-                    label="ابزارهای بیشتر"
-                    icon={MoreHorizontal}
-                    motion="more"
-                    className="header-mobile-tool"
-                  />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={12}
-                  className="product-chrome header-mobile-menu"
-                  onCloseAutoFocus={(event) => {
-                    const action = pendingMobileAction.current;
-                    if (action) {
-                      event.preventDefault();
-                      pendingMobileAction.current = null;
-                      requestAnimationFrame(action);
-                    }
-                  }}
-                >
-                  <DropdownMenuItem
-                    className="header-control header-menu-item"
-                    onSelect={() => {
-                      pendingMobileAction.current = () => {
-                        settingsReturnFocus.current = moreButton.current;
-                        setSettingsOpen(true);
-                      };
-                    }}
-                  >
-                    <HeaderIcon icon={Settings} motion="settings" />
-                    تنظیمات و مدیریت سامانه
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="header-control header-menu-item"
-                    onSelect={() => {
-                      pendingMobileAction.current = onSupport;
-                    }}
-                  >
-                    <HeaderIcon icon={LifeBuoy} motion="support" />
-                    پشتیبانی و ثبت تیکت
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </PopoverAnchor>
-          <PopoverContent
-            align="end"
-            sideOffset={12}
-            className="product-chrome header-settings-menu"
-            dir="rtl"
-            onCloseAutoFocus={(event) => {
-              event.preventDefault();
-              settingsReturnFocus.current?.focus();
-            }}
-          >
-            <div className="header-panel-heading">
-              <strong>تنظیمات و مدیریت</strong>
-              <span>{company.legal_name}</span>
-            </div>
-            <div className="header-settings-list">
-              {settingsItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-current={pathname === item.href ? "page" : undefined}
-                  className={cn(
-                    "header-control header-settings-item",
-                    pathname === item.href && "header-selected",
-                  )}
-                  onClick={(event) => {
-                    setSettingsOpen(false);
-                    if (item.onClick) {
-                      event.preventDefault();
-                      item.onClick();
-                    }
-                  }}
-                >
-                  <span className="header-setting-icon">
-                    <HeaderIcon
-                      icon={item.icon}
-                      motion="settings"
-                    />
-                  </span>
-                  <span className="min-w-0">
-                    <strong>{item.title}</strong>
-                    <span>{item.description}</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+        <div className="header-actions">
+          <DropdownMenu dir="rtl" open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <DropdownMenuTrigger asChild>
+              <HeaderAction ref={settingsButton} label="تنظیمات و مدیریت سامانه" icon={Settings} motion="settings" className="header-desktop-tool" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={12} className="product-chrome w-72 max-w-[calc(100vw-2rem)]" onCloseAutoFocus={(event) => {
+              const action = pendingMobileAction.current;
+              if (action) { event.preventDefault(); pendingMobileAction.current = null; requestAnimationFrame(() => { settingsButton.current?.focus({ preventScroll: true }); action(); }); }
+            }}>
+              <DropdownMenuLabel>تنظیمات و مدیریت</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <SettingsMenuItems items={settingsItems} pathname={pathname} onAction={(action) => { pendingMobileAction.current = action; }} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <HeaderAction label="پشتیبانی و ثبت تیکت" icon={LifeBuoy} motion="support" className="header-desktop-tool" onClick={onSupport} />
+          <DropdownMenu dir="rtl">
+            <DropdownMenuTrigger asChild><HeaderAction ref={moreButton} label="ابزارهای بیشتر" icon={MoreHorizontal} motion="more" className="header-mobile-tool" /></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={12} className="product-chrome header-mobile-menu" onCloseAutoFocus={(event) => {
+              const action = pendingMobileAction.current;
+              if (action) { event.preventDefault(); pendingMobileAction.current = null; requestAnimationFrame(() => { moreButton.current?.focus({ preventScroll: true }); action(); }); }
+            }}>
+              <DropdownMenuLabel>تنظیمات و مدیریت</DropdownMenuLabel>
+              <SettingsMenuItems items={settingsItems} pathname={pathname} onAction={(action) => { pendingMobileAction.current = action; }} />
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="header-control header-menu-item" onSelect={() => { pendingMobileAction.current = onSupport; }}><HeaderIcon icon={LifeBuoy} motion="support" />پشتیبانی و ثبت تیکت</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );
+}
+
+function SettingsMenuItems({ items, pathname, onAction }: { items: HeaderSettingsItem[]; pathname: string; onAction: (action: () => void) => void }) {
+  return items.map((item) => <DropdownMenuItem key={item.href} asChild className="min-h-11 gap-3" onSelect={() => { if (item.onClick) onAction(item.onClick); }}>
+    <Link href={item.href} aria-current={pathname === item.href ? "page" : undefined} className={cn("whitespace-normal", pathname === item.href && "bg-muted font-bold")} onClick={(event) => { if (item.onClick) event.preventDefault(); }}>
+      <HeaderIcon icon={item.icon} motion="settings" />{item.title}
+    </Link>
+  </DropdownMenuItem>);
 }

@@ -8,13 +8,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-export function SettingsConfirm({
+export function ConfirmDialog({
   open,
   onOpenChange,
   title,
   description,
   busy,
   onConfirm,
+  confirmLabel = "حذف",
+  busyLabel = "در حال حذف…",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -22,6 +24,8 @@ export function SettingsConfirm({
   description: string;
   busy: boolean;
   onConfirm: () => void;
+  confirmLabel?: string;
+  busyLabel?: string;
 }) {
   return (
     <Dialog
@@ -30,21 +34,22 @@ export function SettingsConfirm({
         if (!busy) onOpenChange(value);
       }}
     >
-      <DialogContent dir="rtl">
+      <DialogContent dir="rtl" closeDisabled={busy}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             disabled={busy}
             onClick={() => onOpenChange(false)}
           >
             انصراف
           </Button>
-          <Button variant="destructive" disabled={busy} onClick={onConfirm}>
-            {busy ? "در حال حذف…" : "حذف"}
+          <Button type="button" variant="destructive" loading={busy} loadingText={busyLabel} onClick={onConfirm}>
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

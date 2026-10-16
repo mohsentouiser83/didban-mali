@@ -24,7 +24,7 @@ export type PeriodReport = DateRange & {
 };
 export type InvoiceHistory = {
   invoice_id: string; invoice_no: string; customer_name: string; issue_date: string;
-  gross_amount_irr: string; paid_amount_irr: string; complete: boolean; version: number;
+  gross_amount_irr: string; paid_amount_irr: string | null; complete: boolean; version: number;
   receipts: { id: string; received_on: string; amount_irr: string; reference: string | null }[];
 };
 
@@ -32,10 +32,11 @@ export function validRange(range: DateRange): boolean {
   const start = dateFromISO(range.start_date), end = dateFromISO(range.end_date);
   return !!start && !!end && start <= end && (Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / 86400000 <= 732;
 }
-export function currentRange(kind: "month" | "quarter" | "year" = "month"): DateRange {
+export function currentRange(kind: "month" | "quarter" | "year" | "upcomingMonth" = "month"): DateRange {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const date = dateFromISO(today)!;
   const calendar = getDateLib();
+  if (kind === "upcomingMonth") return { start_date: today, end_date: dateToISO(calendar.addMonths(date, 1)) };
   let start = calendar.startOfMonth(date);
   if (kind === "year") start = calendar.startOfYear(date);
   if (kind === "quarter") start = calendar.setMonth(calendar.startOfYear(date), Math.floor(calendar.getMonth(date) / 3) * 3);

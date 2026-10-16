@@ -48,6 +48,13 @@ class Account(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     source_code: Mapped[str] = mapped_column(String(160), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_name: Mapped[str] = mapped_column(Text, nullable=False)
+    general_code: Mapped[str | None] = mapped_column(String(160))
+    general_name: Mapped[str | None] = mapped_column(Text)
+    subsidiary_code: Mapped[str | None] = mapped_column(String(160))
+    subsidiary_name: Mapped[str | None] = mapped_column(Text)
+    detail_code: Mapped[str | None] = mapped_column(String(160))
+    detail_name: Mapped[str | None] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(String(40), default="other", server_default="other")
 
 
 class AccountClassification(UUIDPrimaryKeyMixin, Base):
@@ -111,6 +118,12 @@ class JournalEntry(UUIDPrimaryKeyMixin, Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     description_normalized: Mapped[str] = mapped_column(Text, nullable=False)
     fiscal_period: Mapped[str] = mapped_column(String(7), nullable=False)
+    entry_type: Mapped[str] = mapped_column(
+        String(24), default="normal", server_default="normal", nullable=False
+    )
+    entry_type_source: Mapped[str] = mapped_column(
+        String(24), default="legacy", server_default="legacy", nullable=False
+    )
 
 
 class JournalLine(UUIDPrimaryKeyMixin, Base):
@@ -140,6 +153,7 @@ class JournalLine(UUIDPrimaryKeyMixin, Base):
         CheckConstraint("credit_irr >= 0", name="ck_journal_line_credit_nonnegative"),
         CheckConstraint("NOT (debit_irr > 0 AND credit_irr > 0)", name="ck_journal_line_one_side"),
         UniqueConstraint("source_row_id", name="uq_journal_line_source_row"),
+        UniqueConstraint("id", "company_id", name="uq_journal_line_company"),
         Index("ix_journal_lines_company_entry", "company_id", "entry_id"),
         Index("ix_journal_lines_account", "account_id"),
     )
@@ -154,6 +168,7 @@ class JournalLine(UUIDPrimaryKeyMixin, Base):
     credit_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), nullable=False)
     counterparty_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     invoice_ref: Mapped[str | None] = mapped_column(String(300))
+    description: Mapped[str | None] = mapped_column(Text)
 
 
 class BankAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -174,6 +189,8 @@ class BankAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     data_source_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     bank_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    account_number_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    iban_fingerprint: Mapped[str | None] = mapped_column(String(64))
     iban_masked: Mapped[str | None] = mapped_column(String(34))
     account_last4: Mapped[str | None] = mapped_column(String(4))
     label: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -194,6 +211,7 @@ class BankTransaction(UUIDPrimaryKeyMixin, Base):
         ),
         UniqueConstraint("id", "company_id", name="uq_bank_transaction_company"),
         UniqueConstraint("source_row_id", name="uq_bank_transaction_source_row"),
+        UniqueConstraint("company_id", "fingerprint", name="uq_bank_transaction_fingerprint"),
         Index("ix_bank_transactions_company_date", "company_id", "booking_date"),
         Index("ix_bank_transactions_bank_account", "bank_account_id"),
     )
@@ -203,6 +221,7 @@ class BankTransaction(UUIDPrimaryKeyMixin, Base):
     )
     bank_account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     source_row_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    fingerprint: Mapped[str | None] = mapped_column(String(64))
     source_transaction_id: Mapped[str | None] = mapped_column(String(300))
     booking_date: Mapped[date] = mapped_column(Date, nullable=False)
     value_date: Mapped[date | None] = mapped_column(Date)
@@ -287,12 +306,56 @@ class InvoiceReceipt(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ["sales_invoices.id", "sales_invoices.company_id"],
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["allocation_id", "company_id"],
+            ["invoice_allocations.id", "invoice_allocations.company_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("allocation_id", name="uq_receipt_allocation"),
         CheckConstraint("amount_irr > 0", name="ck_invoice_receipt_positive"),
         Index("ix_invoice_receipts_company_date", "company_id", "received_on"),
         Index("ix_invoice_receipts_invoice", "invoice_id"),
     )
     company_id: Mapped[UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
     invoice_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    allocation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     received_on: Mapped[date] = mapped_column(Date)
     amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0))
     reference: Mapped[str | None] = mapped_column(String(200))
+
+
+class InvoiceAllocation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Confirmed attribution of existing bank cash; never creates a second payment."""
+
+    __tablename__ = "invoice_allocations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["invoice_source_row_id", "company_id"],
+            ["source_rows.id", "source_rows.company_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["bank_transaction_id", "company_id"],
+            ["bank_transactions.id", "bank_transactions.company_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("id", "company_id", name="uq_invoice_allocation_company"),
+        CheckConstraint("amount_irr > 0", name="ck_invoice_allocation_positive"),
+        CheckConstraint(
+            "direction IN ('sales', 'purchases')", name="ck_invoice_allocation_direction"
+        ),
+        UniqueConstraint("company_id", "request_key", name="uq_invoice_allocation_request"),
+        Index("ix_invoice_allocations_invoice", "company_id", "invoice_key"),
+        Index("ix_invoice_allocations_bank", "bank_transaction_id"),
+    )
+    company_id: Mapped[UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    invoice_source_row_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    invoice_key: Mapped[str] = mapped_column(String(64))
+    bank_transaction_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    direction: Mapped[str] = mapped_column(String(12))
+    amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0))
+    history_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    request_key: Mapped[str] = mapped_column(String(128))
+    confirmed_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reversed_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))

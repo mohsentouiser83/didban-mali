@@ -3,8 +3,6 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
-
 from app.calculations.base import (
     CalculatedMetricResult,
     CalculationContext,
@@ -12,9 +10,6 @@ from app.calculations.base import (
 )
 from app.calculations.models import ConfidenceLevel, MetricStatus, MetricUnit
 from app.financial.models import (
-    AccountClass,
-    AccountClassification,
-    Counterparty,
     JournalEntry,
     JournalLine,
 )
@@ -38,7 +33,7 @@ class PayablesCalculator(MetricCalculatorInterface):
 
     @property
     def metric_version(self) -> str:
-        return "payables-v1"
+        return "payables-net-balances-v2"
 
     @property
     def title_fa(self) -> str:
@@ -46,20 +41,11 @@ class PayablesCalculator(MetricCalculatorInterface):
 
     async def calculate(self, ctx: CalculationContext) -> CalculatedMetricResult:
         # Fetch liability journal lines with linked counterparty (supplier)
-        query = (
-            select(JournalLine, JournalEntry, Counterparty)
-            .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
-            .join(Counterparty, JournalLine.counterparty_id == Counterparty.id)
-            .join(
-                AccountClassification,
-                (AccountClassification.account_id == JournalLine.account_id)
-                & (AccountClassification.account_class == AccountClass.LIABILITY),
-            )
-            .where(
-                JournalLine.company_id == ctx.company_id,
-                JournalEntry.entry_date <= ctx.as_of_date,
-            )
-            .order_by(JournalEntry.entry_date.desc(), JournalLine.id)
+        from app.financial.queries import trade_payable_scope
+
+        query = trade_payable_scope(ctx.as_of_date).where(
+            JournalLine.company_id == ctx.company_id,
+            JournalEntry.entry_date <= ctx.as_of_date,
         )
         results = (await ctx.session.execute(query)).all()
 
@@ -102,65 +88,32 @@ class PayablesCalculator(MetricCalculatorInterface):
         total_overdue = ZERO
         missing_due_date_count = 0
 
-        for line, entry, cp in results:
-            net_amt = Decimal(line.credit_irr) - Decimal(line.debit_irr)
-            if net_amt <= ZERO:
-                continue
+        from app.financial.payable_balances import supplier_balances
 
+        for balance in supplier_balances(list(results)):
+            cp, net_amt = balance["party"], balance["amount"]
             total_open += net_amt
-            input_record_ids.append(str(line.id))
-
-            # Check if there is explicit due date (e.g. from invoice_ref or note)
-            # Never fabricate 45 days! If not explicit, assign to due_date_missing
+            input_record_ids.extend(balance["line_ids"])
             bucket = "due_date_missing"
             missing_due_date_count += 1
-
             bucket_sums[bucket] += net_amt
             bucket_counts[bucket] += 1
+            supplier_totals[cp.id] = {
+                "supplier_id": str(cp.id), "name": cp.name,
+                "total_outstanding": net_amt, "overdue_amount": ZERO, "item_count": 1,
+            }
+            items_list.append({
+                "supplier_name": cp.name, "amount_irr": str(net_amt),
+                "reference": None, "bucket": bucket,
+            })
 
-            cid = cp.id
-            if cid not in supplier_totals:
-                supplier_totals[cid] = {
-                    "supplier_id": str(cid),
-                    "name": cp.name,
-                    "total_outstanding": ZERO,
-                    "overdue_amount": ZERO,
-                    "item_count": 0,
-                }
-            supplier_totals[cid]["total_outstanding"] += net_amt
-            supplier_totals[cid]["item_count"] += 1
-
-            items_list.append(
-                {
-                    "line_id": str(line.id),
-                    "supplier_name": cp.name,
-                    "entry_date": str(entry.entry_date),
-                    "amount_irr": str(net_amt),
-                    "reference": line.invoice_ref or entry.reference,
-                    "bucket": bucket,
-                }
-            )
-
-        sum_of_buckets = sum(bucket_sums.values(), ZERO)
-        reconciled = sum_of_buckets == total_open
-
-        aging_breakdown = []
-        for k, label in AGING_BUCKET_KEYS:
-            amt = bucket_sums[k]
-            pct = (
-                float((amt / total_open * 100).quantize(Decimal("0.1")))
-                if total_open > ZERO
-                else 0.0
-            )
-            aging_breakdown.append(
-                {
-                    "bucket_key": k,
-                    "label_fa": label,
-                    "amount_irr": str(amt),
-                    "count": bucket_counts[k],
-                    "percentage": pct,
-                }
-            )
+        aging_breakdown = [
+            {"bucket_key": key, "label_fa": label, "amount_irr": str(bucket_sums[key]),
+             "item_count": bucket_counts[key],
+             "share_percentage": float(bucket_sums[key] / total_open * 100) if total_open else 0.0}
+            for key, label in AGING_BUCKET_KEYS
+        ]
+        reconciled = sum(bucket_sums.values(), ZERO) == total_open
 
         # Supplier concentration: Top 5
         sorted_suppliers = sorted(

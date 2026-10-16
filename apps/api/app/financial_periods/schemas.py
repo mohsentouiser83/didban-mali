@@ -61,7 +61,7 @@ class InvoiceHistory(BaseModel):
     customer_name: str
     issue_date: date
     gross_amount_irr: str
-    paid_amount_irr: str
+    paid_amount_irr: str | None
     complete: bool
     version: int
     receipts: list[ReceiptItem]

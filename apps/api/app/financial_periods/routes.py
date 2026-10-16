@@ -5,13 +5,12 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
 
 from app.audit.service import record_audit_event
 from app.companies.dependencies import CurrentCompanyAccess
 from app.companies.models import CompanyRole
 from app.financial.models import Counterparty, InvoiceReceipt, SalesInvoice
-from app.financial_periods.models import FinancialPeriod
+from app.financial_periods import period_repository, period_service
 from app.financial_periods.schemas import (
     DateRange,
     InvoiceHistory,
@@ -36,14 +35,20 @@ def require_writer(access: CurrentCompanyAccess) -> None:
 async def list_periods(
     company_id: UUID, session: DbSession, access: CurrentCompanyAccess
 ) -> list[PeriodItem]:
-    rows = (
-        await session.scalars(
-            select(FinancialPeriod)
-            .where(FinancialPeriod.company_id == company_id)
-            .order_by(FinancialPeriod.start_date.desc())
-        )
-    ).all()
-    return [PeriodItem.model_validate(row) for row in rows]
+    return [
+        PeriodItem.model_validate(row)
+        for row in await period_repository.list_for_company(session, company_id)
+    ]
+
+
+@router.get("/financial-periods/{period_id:uuid}", response_model=PeriodItem)
+async def get_period(
+    company_id: UUID, period_id: UUID, session: DbSession, access: CurrentCompanyAccess
+) -> PeriodItem:
+    period = await period_repository.find_for_company(session, company_id, period_id)
+    if period is None:
+        raise HTTPException(404, "دوره پیدا نشد.")
+    return PeriodItem.model_validate(period)
 
 
 @router.post("/financial-periods", response_model=PeriodItem, status_code=201)
@@ -55,23 +60,31 @@ async def create_period(
     csrf: CsrfProtected,
 ) -> PeriodItem:
     require_writer(access)
-    period = FinancialPeriod(company_id=company_id, **payload.model_dump())
-    session.add(period)
     try:
-        await session.flush()
-        record_audit_event(
-            session,
-            action="financial_period.created",
-            entity_type="financial_period",
-            entity_id=period.id,
-            company_id=company_id,
-            actor_id=access.user_id,
-            metadata=payload.model_dump(mode="json"),
+        period = await period_service.save_period(session, company_id, access.user_id, payload)
+    except period_service.PeriodNameConflict as exc:
+        raise HTTPException(409, "نام دوره تکراری است.") from exc
+    return PeriodItem.model_validate(period)
+
+
+@router.put("/financial-periods/{period_id}", response_model=PeriodItem)
+async def update_period(
+    company_id: UUID,
+    period_id: UUID,
+    payload: PeriodCreate,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    csrf: CsrfProtected,
+) -> PeriodItem:
+    require_writer(access)
+    try:
+        period = await period_service.save_period(
+            session, company_id, access.user_id, payload, period_id
         )
-        await session.commit()
-    except IntegrityError as exc:
-        await session.rollback()
-        raise HTTPException(409, "دوره‌ای با این نام قبلاً ذخیره شده است.") from exc
+    except period_service.PeriodNotFound as exc:
+        raise HTTPException(404, "دوره پیدا نشد.") from exc
+    except period_service.PeriodNameConflict as exc:
+        raise HTTPException(409, "نام دوره تکراری است.") from exc
     return PeriodItem.model_validate(period)
 
 
@@ -84,23 +97,10 @@ async def delete_period(
     csrf: CsrfProtected,
 ) -> Response:
     require_writer(access)
-    period = await session.scalar(
-        select(FinancialPeriod).where(
-            FinancialPeriod.company_id == company_id, FinancialPeriod.id == period_id
-        )
-    )
-    if period is None:
-        raise HTTPException(404, "دوره پیدا نشد.")
-    await session.delete(period)
-    record_audit_event(
-        session,
-        action="financial_period.deleted",
-        entity_type="financial_period",
-        entity_id=period_id,
-        company_id=company_id,
-        actor_id=access.user_id,
-    )
-    await session.commit()
+    try:
+        await period_service.remove_period(session, company_id, access.user_id, period_id)
+    except period_service.PeriodNotFound as exc:
+        raise HTTPException(404, "دوره پیدا نشد.") from exc
     return Response(status_code=204)
 
 
@@ -150,9 +150,11 @@ async def histories(
             customer_name=cp.name,
             issue_date=invoice.issue_date,
             gross_amount_irr=str(invoice.gross_amount_irr),
-            paid_amount_irr=str(invoice.paid_amount_irr or ZERO),
+            paid_amount_irr=str(invoice.paid_amount_irr)
+            if invoice.paid_amount_irr is not None
+            else None,
             version=invoice.receipt_history_version,
-            complete=invoice.receipt_history_complete or not invoice.paid_amount_irr,
+            complete=invoice.receipt_history_complete or invoice.paid_amount_irr == ZERO,
             receipts=by_invoice.get(invoice.id, []),
         )
         for invoice, cp in rows
@@ -195,8 +197,10 @@ async def save_history(
             )
         )
     ).all()
+    if any(row.allocation_id for row in previous):
+        raise HTTPException(409, "وصول متصل به بانک را از دریافت و پرداخت اصلاح کنید.")
     before = [ReceiptItem.model_validate(row).model_dump(mode="json") for row in previous]
-    old_paid = str(invoice.paid_amount_irr or ZERO)
+    old_paid = str(invoice.paid_amount_irr) if invoice.paid_amount_irr is not None else None
     await session.execute(
         delete(InvoiceReceipt).where(
             InvoiceReceipt.company_id == company_id, InvoiceReceipt.invoice_id == invoice_id

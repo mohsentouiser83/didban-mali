@@ -34,7 +34,7 @@ it("does not send financial requests until the panel opens and a question is cho
   fireEvent.click(screen.getByRole("button", { name: suggestion }));
   await screen.findByText("پیگیری را از مشتری زیر شروع کنید.");
   expect(api).toHaveBeenLastCalledWith("/companies/company/assistant/ask", expect.objectContaining({ method: "POST", body: JSON.stringify({ question: suggestion }) }));
-  expect(screen.getAllByTitle("۹۰٬۰۷۱٬۹۹۲٬۵۴۷٬۴۰۹٬۹۳۱ ریال").length).toBeGreaterThan(0);
+  expect(screen.getAllByLabelText("۹۰٬۰۷۱٬۹۹۲٬۵۴۷٬۴۰۹٬۹۳۱ ریال").length).toBeGreaterThan(0);
   fireEvent.click(screen.getByText("جزئیات و منابع پاسخ"));
   fireEvent.click(screen.getByText("مشاهده فاکتورها و شواهد"));
   expect(screen.getByRole("link", { name: /sales.xlsx/ })).toHaveAttribute("href", "/companies/company/imports/batch");

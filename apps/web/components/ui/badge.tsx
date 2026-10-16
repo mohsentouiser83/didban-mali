@@ -1,12 +1,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { HTMLAttributes, MouseEvent } from "react";
+import { forwardRef, type HTMLAttributes, type MouseEvent } from "react";
 import { X } from "@/components/ui/icons";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const badgeVariants = cva(
-  "inline-flex shrink-0 items-center select-none font-medium whitespace-nowrap transition-colors duration-150",
+  "inline-flex shrink-0 items-center select-none font-medium max-w-full whitespace-normal [overflow-wrap:anywhere] transition-colors duration-150 motion-reduce:transition-none",
   {
     variants: {
       variant: {
@@ -49,7 +49,7 @@ export interface BadgeProps
   onRemove?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
-function Badge({
+const Badge = forwardRef<HTMLSpanElement, BadgeProps>(({
   className,
   variant,
   size,
@@ -58,9 +58,11 @@ function Badge({
   onRemove,
   children,
   ...props
-}: BadgeProps) {
+}, ref) => {
   return (
     <span
+      ref={ref}
+      data-slot="badge"
       className={cn(
         badgeVariants({ variant, size }),
         props.onClick && "cursor-pointer",
@@ -72,7 +74,7 @@ function Badge({
         <span
           className={cn(
             "size-1.5 rounded-full bg-current shrink-0",
-            pulse && "animate-pulse",
+            pulse && "motion-safe:animate-pulse",
           )}
           aria-hidden="true"
         />
@@ -96,6 +98,7 @@ function Badge({
       )}
     </span>
   );
-}
+});
+Badge.displayName = "Badge";
 
 export { Badge, badgeVariants };

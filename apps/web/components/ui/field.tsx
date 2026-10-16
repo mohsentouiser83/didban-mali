@@ -197,22 +197,11 @@ function FieldError({
       return children
     }
 
-    if (!errors) {
-      return null
-    }
+    const messages = [...new Set(errors?.map((error) => error?.message).filter((message): message is string => Boolean(message)))];
+    if (!messages.length) return null;
+    if (messages.length === 1) return messages[0];
+    return <ul className="ms-4 flex list-disc flex-col gap-1">{messages.map((message) => <li key={message}>{message}</li>)}</ul>;
 
-    if (errors?.length === 1 && errors[0]?.message) {
-      return errors[0].message
-    }
-
-    return (
-      <ul className="ms-4 flex list-disc flex-col gap-1">
-        {errors.map(
-          (error, index) =>
-            error?.message && <li key={index}>{error.message}</li>
-        )}
-      </ul>
-    )
   }, [children, errors])
 
   if (!content) {
@@ -223,11 +212,11 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn("flex items-center gap-1.5 text-xs font-bold text-[var(--ds-danger)]", className)}
+      className={cn("flex min-w-0 items-start gap-1.5 text-xs font-medium leading-relaxed text-[var(--ds-danger)] [overflow-wrap:anywhere]", className)}
       {...props}
     >
       <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
-      <span>{content}</span>
+      <div className="min-w-0">{content}</div>
     </div>
   )
 }

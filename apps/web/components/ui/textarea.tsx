@@ -1,5 +1,7 @@
+"use client";
 import { forwardRef, type TextareaHTMLAttributes } from "react";
 
+import { useFormFieldFeedback, FormFieldFeedback } from "./form";
 import { cn } from "@/lib/utils";
 import { inputVariants } from "@/components/ui/input";
 
@@ -13,18 +15,22 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       isInvalid || ariaInvalid === true || ariaInvalid === "true",
     );
 
-    return (
+    const feedback = useFormFieldFeedback(props.id, props.value, hasError);
+    const describedBy = [props["aria-describedby"], feedback.error ? feedback.messageId : ""].filter(Boolean).join(" ") || undefined;
+    return (<>
       <textarea
         ref={ref}
         data-slot="textarea"
-        aria-invalid={hasError ? "true" : undefined}
         className={cn(
           inputVariants({ size: null }),
           "flex min-h-[88px] p-3 text-sm leading-relaxed",
           className,
         )}
         {...props}
-      />
+        id={feedback.id}
+        aria-invalid={hasError || feedback.error ? "true" : undefined}
+        aria-describedby={describedBy}
+      /><FormFieldFeedback id={feedback.messageId} message={feedback.error} /></>
     );
   },
 );

@@ -1,4 +1,7 @@
+"use client";
 import React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MetricCardFrame } from "./stat-card";
 import {
   TrendingUp,
   TrendingDown,
@@ -7,12 +10,7 @@ import {
 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { MoneyDisplay, toPersianDigits } from "./money-display";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Hint } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
 export interface KpiMetricCardProps
@@ -61,29 +59,33 @@ export const KpiMetricCard = React.forwardRef<
   ) => {
     if (loading) {
       return (
-        <div
+        <MetricCardFrame
           ref={ref}
+          aria-label={title}
+          aria-busy="true"
           className={cn(
-            "relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-5 shadow-[var(--ds-shadow-sm)] animate-pulse min-h-[148px]",
+            "relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-border)] bg-[var(--ds-card)] p-5 shadow-[var(--ds-shadow-sm)] min-h-[148px]",
             className,
           )}
           {...props}
         >
           <div className="flex items-center justify-between">
-            <div className="h-4 w-28 rounded bg-muted" />
-            <div className="size-8 rounded-lg bg-muted" />
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="size-8" />
           </div>
-          <div className="my-3 h-8 w-40 rounded bg-muted" />
-          <div className="h-3 w-32 rounded bg-muted" />
-        </div>
+          <Skeleton className="my-3 h-8 w-40" />
+          <Skeleton className="h-3 w-32" />
+        </MetricCardFrame>
       );
     }
 
-    const isLimited = status === "limited" || limitedReason !== undefined;
+    const isLimited = status === "limited" || limitedReason != null;
 
     return (
-      <div
+      <MetricCardFrame
         ref={ref}
+        aria-label={title}
+        aria-busy="false"
         className={cn(
           "group relative flex flex-col justify-between rounded-[var(--ds-card-radius)] border border-[var(--ds-card-border)] bg-[var(--ds-card-bg)] p-5 shadow-[var(--ds-shadow-sm)] transition-all duration-300  hover:border-[var(--ds-primary)]/40  cursor-default select-none",
           status === "critical" &&
@@ -91,7 +93,7 @@ export const KpiMetricCard = React.forwardRef<
           status === "warning" &&
             "border-ds-warning/30 bg-ds-warning/[0.02] hover:border-ds-warning/60",
           status === "limited" &&
-            "border-dashed border-slate-300 bg-slate-500/[0.02]",
+            "border-dashed border-border bg-muted/20",
           className,
         )}
         {...props}
@@ -109,24 +111,11 @@ export const KpiMetricCard = React.forwardRef<
               {title}
             </span>
             {isLimited && limitedReason && (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground cursor-pointer"
-                      aria-label="اطلاعات بیشتر درباره محدودیت شاخص"
-                    >
-                      <HelpCircle className="size-3.5 transition-transform duration-200 " />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs text-xs p-2.5">
-                    {limitedReason}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Hint content={limitedReason}>
+                <Button variant="ghost" size="icon" type="button" aria-label="اطلاعات بیشتر درباره محدودیت شاخص" className="text-muted-foreground hover:text-foreground">
+                  <HelpCircle className="size-3.5" aria-hidden="true" />
+                </Button>
+              </Hint>
             )}
           </div>
           <div className="flex items-center gap-1.5">
@@ -151,9 +140,10 @@ export const KpiMetricCard = React.forwardRef<
         {/* Body: Value */}
         <div
           data-slot="metric-value"
-          className="my-2.5 flex items-baseline gap-2"
+          key={`${value}:${status}`}
+          className="my-2.5 flex min-w-0 flex-wrap items-baseline gap-2 motion-safe:animate-[metric-update_320ms_ease-out_both] [&>span]:flex-wrap"
         >
-          {isLimited && !value ? (
+          {isLimited && value == null ? (
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <span className="text-lg font-bold">غیرقابل‌محاسبه</span>
               <span className="text-xs text-muted-foreground/80 font-normal">
@@ -163,6 +153,7 @@ export const KpiMetricCard = React.forwardRef<
           ) : (
             <>
               <MoneyDisplay
+                wrap
                 amount={value}
                 currency={currency}
                 size="2xl"
@@ -186,7 +177,7 @@ export const KpiMetricCard = React.forwardRef<
           {trend ? (
             <div
               className={cn(
-                "inline-flex items-center gap-1 font-mono font-bold rounded-md px-1.5 py-0.5 text-[11px] [font-variant-numeric:tabular-nums]",
+                "inline-flex items-center gap-1 tabular-nums font-bold rounded-md px-1.5 py-0.5 text-[11px] [font-variant-numeric:tabular-nums]",
                 trend.isPositive === true && "bg-ds-success/10 text-ds-success",
                 trend.isPositive === false && "bg-ds-danger/10 text-ds-danger",
                 trend.isPositive === undefined &&
@@ -216,12 +207,12 @@ export const KpiMetricCard = React.forwardRef<
           )}
 
           {coveragePercent !== undefined && coveragePercent !== null && (
-            <span className="font-mono text-[11px] text-muted-foreground/80 font-medium">
+            <span className="tabular-nums text-[11px] text-muted-foreground/80 font-medium">
               پوشش: {toPersianDigits(Math.round(coveragePercent))}٪
             </span>
           )}
         </div>
-      </div>
+      </MetricCardFrame>
     );
   },
 );

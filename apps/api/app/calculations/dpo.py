@@ -11,7 +11,6 @@ from app.calculations.base import (
 from app.calculations.models import ConfidenceLevel, MetricStatus, MetricUnit
 from app.financial.models import (
     AccountClass,
-    AccountClassification,
     BankTransaction,
     JournalEntry,
     JournalLine,
@@ -41,17 +40,16 @@ class DPOCalculator(MetricCalculatorInterface):
         if open_ap is None:
             open_ap = ZERO
 
+        from app.financial.queries import effective_account_class
+
         # Try to find COGS / purchases from expense ledger
         expense_sum = await ctx.session.scalar(
             select(func.sum(JournalLine.debit_irr - JournalLine.credit_irr))
             .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
-            .join(
-                AccountClassification,
-                (AccountClassification.account_id == JournalLine.account_id)
-                & (AccountClassification.account_class == AccountClass.EXPENSE),
-            )
             .where(
                 JournalLine.company_id == ctx.company_id,
+                effective_account_class() == AccountClass.EXPENSE,
+                JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
                 JournalEntry.entry_date >= window_start,
                 JournalEntry.entry_date <= ctx.as_of_date,
             )

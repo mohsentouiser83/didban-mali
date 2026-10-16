@@ -1,20 +1,13 @@
 "use client";
+import { Form, FormMessage } from "@/components/ui/form";
 
-import { useState } from "react";
-import { LifeBuoy, Send, CheckCircle2 } from "@/components/ui/icons";
-import { usePathname } from "next/navigation";
+import { useId } from "react";
+import { LifeBuoy, Send } from "@/components/ui/icons";
+import { useSupportTicket } from "./use-support-ticket";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/product-api";
 import { Textarea } from "@/components/ui/textarea";
 import { SelectField, SelectOption } from "./select-field";
 
@@ -29,55 +22,11 @@ export function SupportModal({
   open,
   onOpenChange,
 }: SupportModalProps) {
-  const pathname = usePathname();
-  const [category, setCategory] = useState<
-    "P1_CRITICAL" | "P2_HIGH" | "P3_NORMAL" | "P4_QUESTION"
-  >("P3_NORMAL");
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
-    try {
-      await api(`/companies/${companyId}/support/tickets`, {
-        method: "POST",
-        body: JSON.stringify({
-          category,
-          subject,
-          description,
-          current_route: pathname,
-          safe_diagnostic_json: {
-            url: pathname,
-            viewport:
-              typeof window !== "undefined"
-                ? `${window.innerWidth}x${window.innerHeight}`
-                : "unknown",
-            client_time: new Date().toISOString(),
-          },
-        }),
-      });
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setSubject("");
-        setDescription("");
-        onOpenChange(false);
-      }, 2000);
-    } catch (err: any) {
-      setError(err.detail || "ارسال تیکت با خطا مواجه شد.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const id = useId();
+  const { category, setCategory, subject, setSubject, description, setDescription, submitting, success, error, handleSubmit, close, pathname } = useSupportTicket(companyId, onOpenChange);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent dir="rtl" className="max-w-lg text-foreground font-sans">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary mb-1">
@@ -93,28 +42,19 @@ export function SupportModal({
         </DialogHeader>
 
         {success ? (
-          <div className="py-8 flex flex-col items-center justify-center text-center space-y-2">
-            <CheckCircle2 className="h-12 w-12 text-ds-success " />
-            <h4 className="font-bold text-base text-foreground">
-              تیکت شما با موفقیت ثبت شد
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              همکاران ما در اسرع وقت پاسخ را ارسال خواهند کرد.
-            </p>
-          </div>
+          <div className="space-y-4 py-4"><FormMessage variant="success">درخواست شما ثبت شد.</FormMessage><Button onClick={() => close(false)}>بستن</Button></div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <Form onSubmit={handleSubmit} className="space-y-4 pt-2">
             {error && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive font-medium">
-                {error}
-              </div>
+              <FormMessage>{error}</FormMessage>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">
+              <label htmlFor={`${id}-priority`} className="text-xs font-semibold">
                 سطح اولویت درخواست
               </label>
               <SelectField
+                id={`${id}-priority`}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as any)}
                 className="w-full"
@@ -135,8 +75,9 @@ export function SupportModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">موضوع درخواست</label>
+              <label htmlFor={`${id}-subject`} className="text-xs font-semibold">موضوع درخواست</label>
               <Input
+                id={`${id}-subject`}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="خلاصه مشکل یا سوال خود را بنویسید"
@@ -145,8 +86,9 @@ export function SupportModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold">شرح کامل مشکل</label>
+              <label htmlFor={`${id}-description`} className="text-xs font-semibold">شرح کامل مشکل</label>
               <Textarea
+                id={`${id}-description`}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
@@ -165,7 +107,7 @@ export function SupportModal({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => onOpenChange(false)}
+                onClick={() => close(false)}
               >
                 انصراف
               </Button>
@@ -179,7 +121,7 @@ export function SupportModal({
                 <span>{submitting ? "در حال ارسال..." : "ارسال درخواست"}</span>
               </Button>
             </DialogFooter>
-          </form>
+          </Form>
         )}
       </DialogContent>
     </Dialog>

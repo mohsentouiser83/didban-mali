@@ -119,9 +119,7 @@ async def test_payment_deletion_scopes_company_and_does_not_delete_foreign_row()
     assert "company_id" in str(session.scalar.call_args.args[0])
 
 
-def test_forecast_http_query_parses_both_supported_horizons(monkeypatch):
-    from fastapi.testclient import TestClient
-
+async def test_forecast_http_query_parses_both_supported_horizons(monkeypatch, asgi_client):
     from app.cashflow import routes
     from app.cashflow.schemas import CashFlowForecastResponse
     from app.companies.dependencies import get_company_access
@@ -146,15 +144,15 @@ def test_forecast_http_query_parses_both_supported_horizons(monkeypatch):
     )
     main.app.dependency_overrides[get_db] = lambda: AsyncMock()
     try:
-        client = TestClient(main.app)
+        client = asgi_client
         for horizon in (30, 91):
-            result = client.get(
+            result = await client.get(
                 f"/api/v1/companies/{uuid4()}/cashflow/forecast?scenario=base&horizon_days={horizon}&outflow_mode=planned"
             )
             assert result.status_code == 200
             assert forecast.call_args.kwargs["horizon_days"] == horizon
         assert (
-            client.get(f"/api/v1/companies/{uuid4()}/cashflow/forecast?horizon_days=31").status_code
+            (await client.get(f"/api/v1/companies/{uuid4()}/cashflow/forecast?horizon_days=31")).status_code
             == 422
         )
     finally:

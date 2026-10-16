@@ -1,18 +1,14 @@
 "use client";
+import { LoadingState, ErrorState } from "@/components/ui/financial";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 
 import { useEffect, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { api } from "@/lib/product-api";
 import type { RecordLineageResponse } from "@/lib/product-types";
-import { FileText, GitBranch, Hash, Layers, ShieldCheck } from "@/components/ui/icons";
+import { FileText, GitBranch, Hash, ShieldCheck } from "@/components/ui/icons";
 
 interface RecordLineageDialogProps {
   open: boolean;
@@ -89,14 +85,9 @@ export function RecordLineageDialog({
         </DialogHeader>
 
         {loading ? (
-          <div className="py-12 flex flex-col items-center justify-center space-y-3 text-center">
-            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-xs text-muted-foreground">در حال استعلام اصل منبع داده…</p>
-          </div>
+          <LoadingState variant="details" label="در حال استعلام اصل منبع داده…" rows={2} />
         ) : error ? (
-          <div className="p-4 rounded-[var(--ds-card-radius)] bg-destructive/10 text-destructive text-xs border border-destructive/20 my-4">
-            {error}
-          </div>
+          <ErrorState variant="compact" error={error} />
         ) : data ? (
           <div className="space-y-4 py-2 text-xs">
             {/* Source Origin Card */}
@@ -145,23 +136,23 @@ export function RecordLineageDialog({
                 <Hash className="size-3.5 text-muted-foreground" />
                 <span>مقادیر خام استخراج‌شده از اکسل / CSV:</span>
               </strong>
-              <div className="p-3 rounded-[var(--ds-card-radius)] bg-card border border-border/80 font-mono text-[11px] overflow-x-auto" dir="ltr">
-                <table className="w-full text-start">
-                  <thead>
-                    <tr className="border-b border-border/60 text-muted-foreground">
-                      <th className="pb-1.5 text-start font-medium">Original Column</th>
-                      <th className="pb-1.5 text-start font-medium">Raw Value</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
+              <div className="min-w-0" dir="ltr">
+                <Table className="min-w-[640px]" containerClassName="border-0">
+                  <TableHeader>
+                    <TableRow className="border-b border-border/60 text-muted-foreground">
+                      <TableHead className="pb-1.5 text-start font-medium">Original Column</TableHead>
+                      <TableHead className="pb-1.5 text-start font-medium">Raw Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-border/40">
                     {Object.entries(data.raw_values).map(([k, v]) => (
-                      <tr key={k} className="hover:bg-muted/30">
-                        <td className="py-1 text-primary pe-3 font-semibold">{k}</td>
-                        <td className="py-1 text-foreground truncate max-w-xs">{String(v ?? "—")}</td>
-                      </tr>
+                      <TableRow key={k} className="hover:bg-muted/30">
+                        <TableCell className="py-1 text-primary pe-3 font-semibold">{k}</TableCell>
+                        <TableCell className="py-1 text-foreground truncate max-w-xs">{String(v ?? "—")}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 

@@ -20,9 +20,11 @@ from app.findings.routes import router as findings_router
 from app.identity.routes import router as identity_router
 from app.imports.routes import router as imports_router
 from app.integrations.routes import router as integrations_router
+from app.moadian.routes import router as moadian_router
 from app.payables.routes import router as payables_router
 from app.receivables.routes import router as receivables_router
 from app.reports.routes import router as reports_router
+from app.settlements.routes import router as settlements_router
 
 install_log_redaction()
 
@@ -42,6 +44,8 @@ app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(identity_router, prefix=settings.api_prefix)
 app.include_router(companies_router, prefix=settings.api_prefix)
 app.include_router(imports_router, prefix=settings.api_prefix)
+app.include_router(moadian_router, prefix=settings.api_prefix)
+app.include_router(settlements_router, prefix=settings.api_prefix)
 app.include_router(data_router, prefix=settings.api_prefix)
 app.include_router(calculations_router, prefix=settings.api_prefix)
 app.include_router(analysis_router, prefix=settings.api_prefix)

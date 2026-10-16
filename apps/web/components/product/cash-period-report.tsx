@@ -1,58 +1,57 @@
 "use client";
-import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Wallet, ArrowDownLeft, ArrowUpRight, Calculator } from "@/components/ui/icons";
+import { LoadingState } from "@/components/ui/financial/loading-state";
+import { FinancialChart, ChartGrid, ChartXAxis, ChartYAxis, ChartTooltip, ChartValueTooltip } from "@/components/ui/financial/financial-chart";
+import { ErrorState, EmptyState, StatusMessage, MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
+
+import { useId, useState } from "react";
+import { useCashPeriodReport } from "./use-cash-period-report";
+import { Line, LineChart, ReferenceLine } from "recharts";
 import { Button } from "@/components/ui/button";
-import { MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
-import { toman } from "@/lib/cashflow-amounts";
-import { useFinancialRange } from "@/lib/financial-periods";
+
+import { Drawer } from "@/components/ui/drawer";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { ChevronLeft, ChevronRight, Calendar } from "@/components/ui/icons";
 import type { Company } from "@/lib/product-types";
 import { FinancialPeriodSelector } from "./financial-period-selector";
-import { StatCards } from "./stat-cards";
-import { usePeriodReport } from "./use-period-report";
-import styles from "./financial-period-selector.module.css";
-
+import { StatCards } from "@/components/ui/financial/stat-cards";
+type Controller = ReturnType<typeof useCashPeriodReport>;
 export function CashPeriodReport({ company }: { company: Company }) {
-  const { range, setRange } = useFinancialRange(company.id);
-  const { report, error, loading, refresh } = usePeriodReport(company.id, range);
-  const cash = report?.cash;
-  const [pageSelection, setPageSelection] = useState({ key: "", page: 0 });
-  const rangeKey = `${range.start_date}:${range.end_date}`;
-  const page = pageSelection.key === rangeKey ? pageSelection.page : 0;
-  const pageCount = Math.ceil((cash?.days.length ?? 0) / 20);
-  const money = (value: string | null | undefined) => value == null ? null : toman(value);
-  const cards = [
-    { title: "مانده ابتدای دوره", value: money(cash?.opening_balance_irr), icon: Wallet },
-    { title: "دریافت‌های دوره", value: money(cash?.inflows_irr), icon: ArrowDownLeft },
-    { title: "پرداخت‌های دوره", value: money(cash?.outflows_irr), icon: ArrowUpRight },
-    { title: "مانده پایان دوره", value: money(cash?.closing_balance_irr), icon: Calculator },
-  ].map((card) => ({ ...card, currency: "تومان", empty: "اطلاعات کافی نیست" }));
-  const points = cash?.days.map((day) => ({ ...day, plot: day.balance_irr === null ? null : Number(day.balance_irr) / 10000000 })) ?? [];
+  const controller = useCashPeriodReport(company);
+  return <CashPeriodView company={company} controller={controller} />;
+}
+function CashPeriodView({ company, controller: c }: { company: Company; controller: Controller }) {
   return <>
-    <FinancialPeriodSelector key={company.id} companyId={company.id} range={range} onChange={setRange} canWrite={!!company.role && company.role !== "viewer"} />
-    {error ? <div role="alert" className={styles.panel}><p>اطلاعات نقدینگی دریافت نشد. {error}</p><Button variant="outline" onClick={refresh}>تلاش دوباره</Button></div> : <StatCards items={cards} loading={loading} />}
-    {cash && <>
-      <div className={styles.caption}>{cash.warnings.map((warning) => <p key={warning}>{warning}</p>)}</div>
-      <section className={styles.panel} aria-label="گردش روزانه نقدینگی">
-        <h2>مانده و گردش روزانه</h2>
-        {points.some((point) => point.plot !== null) && <div className={styles.chart} aria-label="نمودار مانده روزانه به میلیون تومان">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}><LineChart data={points} accessibilityLayer>
-            <CartesianGrid stroke="var(--ds-border)" vertical={false} />
-            <XAxis dataKey="date" tickFormatter={(value) => toJalaliDate(String(value))} minTickGap={60} />
-            <YAxis tickFormatter={(value: number) => new Intl.NumberFormat("fa-IR").format(value)} width={65} />
-            <Tooltip labelFormatter={(value) => toJalaliDate(String(value))} formatter={(value) => [`${new Intl.NumberFormat("fa-IR").format(Number(value))} میلیون تومان`, "مانده"]} />
-            <Line dataKey="plot" stroke="var(--ds-primary)" dot={false} connectNulls={false} isAnimationActive={false} />
-          </LineChart></ResponsiveContainer>
-        </div>}
-        <div className={styles.scroll}><table className={`${styles.table} ${styles.cashTable}`}><thead><tr><th>تاریخ</th><th>دریافت</th><th>پرداخت</th><th>مانده پایان روز</th></tr></thead><tbody>
-          {cash.days.slice(page * 20, (page + 1) * 20).map((day) => <tr key={day.date}><th scope="row">{toJalaliDate(day.date)}</th>{[day.inflows_irr, day.outflows_irr, day.balance_irr].map((amount, index) => <td key={index}>{amount === null || (index < 2 && cash.inflows_irr === null) ? "اطلاعات کافی نیست" : <MoneyDisplay amount={toman(amount)} currency="تومان" size="sm" direction="neutral" />}</td>)}</tr>)}
-        </tbody></table></div>
-        {pageCount > 1 && <div className={styles.presets} aria-label="صفحه‌بندی گردش روزانه">
-          <Button variant="outline" disabled={page === 0} onClick={() => setPageSelection({ key: rangeKey, page: page - 1 })}>روزهای قبل</Button>
-          <span className={styles.caption}>صفحه {new Intl.NumberFormat("fa-IR").format(page + 1)} از {new Intl.NumberFormat("fa-IR").format(pageCount)}</span>
-          <Button variant="outline" disabled={page >= pageCount - 1} onClick={() => setPageSelection({ key: rangeKey, page: page + 1 })}>روزهای بعد</Button>
-        </div>}
-      </section>
-    </>}
+    <FinancialPeriodSelector key={company.id} companyId={company.id} includeUpcomingMonth range={c.range} onChange={c.setRange} canWrite={!!company.role && company.role !== "viewer"} />
+    {c.error ? <ErrorState onRetry={c.refresh} variant="compact" ><p>گزارش نقدینگی دریافت نشد.</p></ErrorState> : <StatCards items={c.cards} loading={c.loading} />}
+    {c.loading ? <LoadingState variant="chart" label="در حال دریافت نمودار" /> : c.cash && <CashBalanceOverview key={c.rangeKey} controller={c} companyId={company.id} />}
   </>;
+}
+function CashBalanceOverview({ controller: c, companyId }: { controller: Controller; companyId: string }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  return <section className="grid min-w-0 gap-5 rounded-[var(--ds-card-radius)] border border-border bg-card p-4 motion-safe:animate-[workspace-enter_280ms_ease-out_both] sm:p-6" aria-label="روند مانده حساب">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">روند مانده حساب <span className="text-xs font-normal text-muted-foreground">(میلیون تومان)</span></h2>{c.selectedDay && <Button variant="outline" onClick={() => setDetailsOpen(true)}><Calendar size={18} aria-hidden="true" />جزئیات روز</Button>}</div>
+    {c.hasBalance ? <CashBalanceChart controller={c} onInspect={() => setDetailsOpen(true)} /> : <EmptyState variant="compact" title="مانده بانکی برای این دوره ثبت نشده است." action={{ label: "بارگذاری گردش بانک", href: `/companies/${companyId}/imports` }} />}
+    {c.discrepancy && <StatusMessage tone="warning" >گردش با مانده بانک تطبیق ندارد.</StatusMessage>}
+    <CashDayDetails controller={c} open={detailsOpen} onOpenChange={setDetailsOpen} />
+  </section>;
+}
+function CashBalanceChart({ controller: c, onInspect }: { controller: Controller; onInspect: () => void }) {
+  return <FinancialChart label="نمودار مانده به میلیون تومان">
+    <LineChart data={c.points} accessibilityLayer onClick={(state) => { if (state.activeLabel) { c.chooseDate(String(state.activeLabel)); onInspect(); } }}>
+      <ChartGrid stroke="var(--ds-border)" vertical={false} strokeDasharray="3 5" />
+      <ChartXAxis dataKey="date" tickFormatter={(value) => toJalaliDate(String(value))} minTickGap={70} tickLine={false} axisLine={false} />
+      <ChartYAxis tickFormatter={(value: number) => new Intl.NumberFormat("fa-IR").format(value)} width={60} tickLine={false} axisLine={false} />
+      <ReferenceLine y={0} stroke="var(--ds-border-strong)" />
+      <ChartTooltip content={<ChartValueTooltip unit="میلیون تومان" labelFormatter={(value) => toJalaliDate(String(value))} />} />
+      <Line name="مانده" dataKey="plot" stroke="var(--ds-primary)" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+    </LineChart>
+  </FinancialChart>;
+}
+function CashDayDetails({ controller: c, open, onOpenChange }: { controller: Controller; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const id = useId();
+  return <Drawer open={open} onOpenChange={onOpenChange} title="جزئیات گردش روز">
+    <div className="space-y-2"><label htmlFor={id} className="text-sm">تاریخ روز</label><PersianDatePicker id={id} value={c.selectedDay?.date ?? ""} min={c.range.start_date} max={c.range.end_date} onValueChange={c.chooseDate} /></div>
+    <div className="flex items-center justify-between gap-3"><Button variant="outline" disabled={!c.canPrevious} onClick={c.previous}><ChevronRight size={16} aria-hidden="true" />روز قبل</Button><Button variant="outline" disabled={!c.canNext} onClick={c.next}>روز بعد<ChevronLeft size={16} aria-hidden="true" /></Button></div>
+    <dl key={c.selectedDay?.date} className="grid gap-4 motion-safe:animate-[metric-update_240ms_ease-out_both]">{c.dayAmounts.map(({ label, amount }) => <div key={label} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"><dt className="text-sm text-muted-foreground">{label}</dt><dd>{amount === null ? <span className="text-sm">ثبت نشده</span> : <MoneyDisplay amount={amount} currency="تومان" direction="neutral" size="lg" />}</dd></div>)}</dl>
+  </Drawer>;
 }

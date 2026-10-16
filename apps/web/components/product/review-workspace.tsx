@@ -1,4 +1,10 @@
 "use client";
+import { FormMessage } from "@/components/ui/form";
+import { StatusBadge } from "@/components/ui/financial/status-badge";
+import { RiskBadge } from "@/components/ui/financial/risk-badge";
+import { StatusMessage, ErrorState, LoadingState, EmptyState, MoneyDisplay, PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
+
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableRowHeader } from "@/components/ui/table";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -10,9 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerDetails, DrawerSection } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MoneyDisplay, PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
 import { Search, RefreshCcw, FileUp, Download, ClipboardCheck, Clock, CheckCircle, FileText } from "@/components/ui/icons";
-import { StatCards } from "./stat-cards";
+import { StatCards } from "@/components/ui/financial/stat-cards";
 import pageStyles from "./cashflow-overview.module.css";
 import styles from "./receivables-customers.module.css";
 import detailStyles from "./reports-workspace.module.css";
@@ -84,22 +89,22 @@ function ReviewContent({ company }: { company: Company }) {
   return <div dir="rtl" className={pageStyles.page}>
     <PageHeader title="بررسی و پیگیری" secondaryActions={<Button variant="outline" asChild><Link href={`/companies/${company.id}/imports`}><FileUp size={16} aria-hidden="true" />بارگذاری اسناد</Link></Button>} primaryAction={company.role && ["owner", "finance_manager", "advisor"].includes(company.role) ? <Button variant="outline" disabled={running} onClick={() => void detect()}><RefreshCcw size={16} aria-hidden="true" />{running ? "در حال بررسی…" : "بررسی دوباره"}</Button> : undefined} />
     <section aria-label="آمار بررسی و پیگیری" aria-busy={summaryLoading}>
-      {summaryFailed ? <div role="alert" className={pageStyles.error}><p>آمار بررسی و پیگیری دریافت نشد.</p><Button variant="outline" onClick={() => setSummaryRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <StatCards items={cards} loading={summaryLoading} />}
+      {summaryFailed ? <ErrorState onRetry={() => setSummaryRetry((value) => value + 1)} variant="compact" ><p>آمار بررسی و پیگیری دریافت نشد.</p></ErrorState> : <StatCards items={cards} loading={summaryLoading} />}
     </section>
-    {runMessage && <p className={runFailed ? detailStyles.error : detailStyles.caption} role={runFailed ? "alert" : "status"}>{runMessage}</p>}
+    {runMessage && (runFailed ? <FormMessage>{runMessage}</FormMessage> : <StatusMessage>{runMessage}</StatusMessage>)}
     <section className={styles.section} aria-labelledby="review-list-title" aria-busy={loading}>
       <div className={styles.heading}><div><h2 id="review-list-title">موارد قابل بررسی</h2></div><div className={styles.controls}>
         <div className={styles.search}><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی مورد" placeholder="جستجوی مورد" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <Select dir="rtl" value={status} onValueChange={(value) => { setStatus(value); setPage(0); }}><SelectTrigger aria-label="وضعیت بررسی" className="w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">همه وضعیت‌ها</SelectItem>{Object.entries(reviewStatusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
       </div></div>
-      {listFailed ? <div role="alert" className={styles.empty}><p>فهرست موارد دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <><div className={styles.scroll}><table className={styles.table}>
-        <thead><tr><th scope="col">موضوع</th><th scope="col">اهمیت</th><th scope="col">وضعیت</th><th scope="col">مسئول پیگیری</th><th scope="col">موعد پیگیری</th></tr></thead>
-        <tbody>{loading ? [0, 1, 2].map((row) => <tr key={row}>{[0, 1, 2, 3, 4].map((cell) => <td key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : list?.items.length ? list.items.map((item) => <tr key={item.id}>
-          <th scope="row"><Button variant="ghost" className={styles.customer} onClick={() => setSelected(item)}>{toPersianDigits(item.title_fa)}</Button></th><td>{severityLabels[item.severity] ?? item.severity}</td><td>{reviewStatusLabels[item.status] ?? "نامشخص"}</td><td>{item.assigned_to_name ?? "تعیین نشده"}</td><td>{item.due_date ? toJalaliDate(item.due_date) : "تعیین نشده"}</td>
-        </tr>) : <tr><td colSpan={5} className={styles.empty}>{query || status !== "all" ? "موردی با این جستجو و فیلتر پیدا نشد." : "هنوز موردی برای بررسی ثبت نشده است."}</td></tr>}</tbody>
-      </table></div>{list && list.total_count > pageSize && <div className={styles.heading}><Button variant="outline" disabled={page === 0 || loading} onClick={() => setPage((value) => value - 1)}>قبلی</Button><span className="text-xs text-muted-foreground">صفحه {toPersianDigits(page + 1)} از {toPersianDigits(Math.ceil(list.total_count / pageSize))}</span><Button variant="outline" disabled={(page + 1) * pageSize >= list.total_count || loading} onClick={() => setPage((value) => value + 1)}>بعدی</Button></div>}</>}
+      {listFailed ? <ErrorState onRetry={() => setRetry((value) => value + 1)} variant="compact" ><p>فهرست موارد دریافت نشد.</p></ErrorState> : <><div className="min-w-0"><Table className="min-w-[640px]" containerClassName="border-0">
+        <TableHeader><TableRow><TableHead scope="col">موضوع</TableHead><TableHead scope="col">اهمیت</TableHead><TableHead scope="col">وضعیت</TableHead><TableHead scope="col">مسئول پیگیری</TableHead><TableHead scope="col">موعد پیگیری</TableHead></TableRow></TableHeader>
+        <TableBody>{loading ? [0, 1, 2].map((row) => <TableRow key={row}>{[0, 1, 2, 3, 4].map((cell) => <TableCell key={cell}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>) : list?.items.length ? list.items.map((item) => <TableRow key={item.id}>
+          <TableRowHeader scope="row"><Button variant="ghost" className="h-auto min-h-11 max-w-80 justify-start whitespace-normal px-0 text-start font-normal" onClick={() => setSelected(item)}>{toPersianDigits(item.title_fa)}</Button></TableRowHeader><TableCell><RiskBadge level={item.severity} label={severityLabels[item.severity] ?? "نامشخص"} size="sm" /></TableCell><TableCell><StatusBadge status={item.status} label={reviewStatusLabels[item.status] ?? "نامشخص"} /></TableCell><TableCell>{item.assigned_to_name ?? "تعیین نشده"}</TableCell><TableCell>{item.due_date ? toJalaliDate(item.due_date) : "تعیین نشده"}</TableCell>
+        </TableRow>) : <TableRow><TableEmptyCell colSpan={5} className="h-40 p-0 text-center text-muted-foreground">{query || status !== "all" ? "موردی با این جستجو و فیلتر پیدا نشد." : <div className="grid justify-items-center gap-3"><span>موردی ثبت نشده است.</span><Button asChild variant="outline"><Link href={`/companies/${company.id}/imports`}>بارگذاری اسناد</Link></Button></div>}</TableEmptyCell></TableRow>}</TableBody>
+      </Table></div>{list && list.total_count > pageSize && <div className={styles.heading}><Button variant="outline" disabled={page === 0 || loading} onClick={() => setPage((value) => value - 1)}>قبلی</Button><span className="text-xs text-muted-foreground">صفحه {toPersianDigits(page + 1)} از {toPersianDigits(Math.ceil(list.total_count / pageSize))}</span><Button variant="outline" disabled={(page + 1) * pageSize >= list.total_count || loading} onClick={() => setPage((value) => value + 1)}>بعدی</Button></div>}</>}
     </section>
-    <Drawer open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }} title={selected ? toPersianDigits(selected.title_fa) : "جزئیات مورد"} description="خلاصه، وضعیت و شواهد بررسی">
+    <Drawer open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }} title={selected ? toPersianDigits(selected.title_fa) : "جزئیات مورد"}>
       {selected && <ReviewPreview key={selected.id} companyId={company.id} item={selected} />}
     </Drawer>
   </div>;
@@ -116,11 +121,11 @@ function ReviewPreview({ companyId, item }: { companyId: string; item: ReviewIte
     return () => { active = false; };
   }, [companyId, item.id, retry]);
   return <>
-    {failed ? <div role="alert" className={detailStyles.caption}><p>جزئیات دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : !detail ? <Skeleton className="h-32 w-full" /> : <>
+    {failed ? <ErrorState onRetry={() => setRetry((value) => value + 1)} variant="compact" ><p>جزئیات دریافت نشد.</p></ErrorState> : !detail ? <LoadingState variant="details" rows={1} /> : <>
       <DrawerSection title="خلاصه بررسی"><p className={detailStyles.note}>{toPersianDigits(detail.summary_fa)}</p></DrawerSection>
       <DrawerDetails>
-        <div><dt>اهمیت</dt><dd>{severityLabels[item.severity] ?? item.severity}</dd></div>
-        <div><dt>وضعیت</dt><dd>{reviewStatusLabels[detail.status] ?? "نامشخص"}</dd></div>
+        <div><dt>اهمیت</dt><dd><RiskBadge level={item.severity} label={severityLabels[item.severity] ?? "نامشخص"} size="sm" /></dd></div>
+        <div><dt>وضعیت</dt><dd><StatusBadge status={detail.status} label={reviewStatusLabels[detail.status] ?? "نامشخص"} /></dd></div>
         <div><dt>مسئول پیگیری</dt><dd>{detail.assigned_to_name ?? "تعیین نشده"}</dd></div>
         <div><dt>موعد پیگیری</dt><dd>{detail.due_date ? toJalaliDate(detail.due_date) : "تعیین نشده"}</dd></div>
         <div><dt>مبلغ مرتبط</dt><dd>{detail.financial_impact_irr !== null ? <MoneyDisplay amount={toman(detail.financial_impact_irr)} currency="تومان" size="sm" direction="neutral" /> : "مشخص نیست"}</dd></div>
@@ -130,12 +135,11 @@ function ReviewPreview({ companyId, item }: { companyId: string; item: ReviewIte
           <h4 className={detailStyles.subtitle}>{evidence.title_fa}</h4>
           <p className={detailStyles.caption}>{toPersianDigits(evidence.description_fa)}</p>
           <EvidenceSources payload={evidence.payload} companyId={companyId} />
-        </article>) : <p className={detailStyles.caption}>شاهدی برای این مورد ثبت نشده است.</p>}
+        </article>) : <EmptyState variant="inline">شاهدی برای این مورد ثبت نشده است.</EmptyState>}
       </DrawerSection>
     </>}
   </>;
 }
-
 
 type SourceLocation = { source_file_id: string; source_filename: string; sheet_name: string; row_number: number; raw_values?: Record<string, unknown> };
 type EvidenceRecord = { source?: SourceLocation; document_number?: string; source_entry_id?: string; reference?: string; amount_irr?: string; date?: string };

@@ -1,16 +1,15 @@
 "use client";
+import { Form, FormMessage } from "@/components/ui/form";
 
-import { Alert } from "@/components/ui/alert";
 
 import { SelectField, SelectOption } from "./select-field";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useId } from "react";
+import { useCreateCompany } from "./use-create-company";
 
-import { api } from "@/lib/product-api";
 import type { Company } from "@/lib/product-types";
 
 import { Icon } from "./icons";
@@ -22,49 +21,27 @@ export function CreateCompany({
   onCreated?: (company: Company) => void;
   compact?: boolean;
 }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    const data = new FormData(event.currentTarget);
-    try {
-      const company = await api<Company>("/companies", {
-        method: "POST",
-        body: JSON.stringify({
-          legal_name: data.get("legal_name"),
-          national_id: data.get("national_id") || null,
-          fiscal_year_start_month: Number(data.get("fiscal_year_start_month")),
-        }),
-      });
-      onCreated?.(company);
-      router.replace(`/companies/${company.id}/overview`);
-      router.refresh();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "شرکت ساخته نشد.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  const controller = useCreateCompany(onCreated);
+  return <CreateCompanyView controller={controller} compact={compact} />;
+}
+function CreateCompanyView({ controller: { busy, error, submit }, compact }: { controller: ReturnType<typeof useCreateCompany>; compact: boolean }) {
+  const id = useId();
   return (
-    <form
+    <Form
       className={
         "pp-company-form " +
         (compact
           ? "company-form grid grid-cols-1 sm:grid-cols-3 gap-4 items-end"
           : "company-form grid grid-cols-1 gap-4")
       }
-      onSubmit={submit}
+      onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }}
     >
       <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-foreground">
+        <label htmlFor={`${id}-name`} className="block text-sm font-semibold text-foreground">
           نام حقوقی شرکت
         </label>
         <Input
+          id={`${id}-name`}
           name="legal_name"
           required
           minLength={2}
@@ -74,12 +51,13 @@ export function CreateCompany({
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-          <label>شناسه ملی</label>
+          <label htmlFor={`${id}-national`}>شناسه ملی</label>
           <span className="text-[11px] font-normal text-muted-foreground">
             اختیاری
           </span>
         </div>
         <Input
+          id={`${id}-national`}
           name="national_id"
           inputMode="numeric"
           dir="ltr"
@@ -90,10 +68,10 @@ export function CreateCompany({
       </div>
 
       <div className="space-y-1.5">
-        <label className="block text-xs font-semibold text-foreground">
+        <label htmlFor={`${id}-month`} className="block text-sm font-semibold text-foreground">
           ماه شروع سال مالی
         </label>
-        <SelectField name="fiscal_year_start_month" defaultValue="1">
+        <SelectField id={`${id}-month`} name="fiscal_year_start_month" defaultValue="1">
           {Array.from({ length: 12 }, (_, index) => (
             <SelectOption value={String(index + 1)} key={index + 1}>
               ماه {new Intl.NumberFormat("fa-IR").format(index + 1)}
@@ -103,13 +81,13 @@ export function CreateCompany({
       </div>
 
       {error && (
-        <Alert
+        <FormMessage
           variant="destructive"
           className="sm:col-span-full text-xs p-3"
           role="alert"
         >
           {error}
-        </Alert>
+        </FormMessage>
       )}
 
       <Button
@@ -124,6 +102,6 @@ export function CreateCompany({
         <Icon name="plus" className="size-4" />
         {busy ? "در حال ساخت…" : "ایجاد شرکت"}
       </Button>
-    </form>
+    </Form>
   );
 }

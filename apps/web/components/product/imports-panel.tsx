@@ -1,7 +1,13 @@
 "use client";
+import { FormMessage } from "@/components/ui/form";
+import { StatusBadge } from "@/components/ui/financial/status-badge";
+import { ErrorState, StatusMessage, LoadingState, PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
+
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableRowHeader } from "@/components/ui/table";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { sourceLabels } from "@/lib/import-mapping";
 import { API_URL, api } from "@/lib/product-api";
 import type { Company, ImportBatch, ImportStatus } from "@/lib/product-types";
 import { Button } from "@/components/ui/button";
@@ -9,11 +15,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerFooter, DrawerDetails } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
 import { Search, FileUp, Download, Trash2, FileText, Clock, CheckCircle, AlertTriangle } from "@/components/ui/icons";
 import { UploadWizard } from "./upload-wizard";
-import { SettingsConfirm } from "./settings-confirm";
-import { StatCards } from "./stat-cards";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { StatCards } from "@/components/ui/financial/stat-cards";
 import pageStyles from "./cashflow-overview.module.css";
 import styles from "./receivables-customers.module.css";
 import formStyles from "./reports-workspace.module.css";
@@ -25,7 +30,7 @@ const statusLabels: Record<ImportStatus, string> = {
   validating: "در حال اعتبارسنجی", queued: "در صف پردازش", processing: "در حال پردازش",
   completed: "تکمیل‌شده", completed_limited: "تکمیل محدود", failed: "ناموفق", cancelled: "لغوشده",
 };
-const sourceLabels = { accounting: "دفتر حسابداری", bank: "گردش بانک", sales: "فاکتور فروش" };
+
 const pendingStatuses: ImportStatus[] = ["uploaded", "inspecting", "validating", "queued", "processing"];
 const normalize = (value: string) => value.replace(/ي/g, "ی").replace(/ك/g, "ک").trim().toLocaleLowerCase();
 const formatBytes = (bytes: number) => {
@@ -121,38 +126,37 @@ function ImportsContent({ company }: { company: Company }) {
   return <div dir="rtl" className={pageStyles.page}>
     <PageHeader title="بارگذاری اسناد" primaryAction={writable ? <Button variant="outline" onClick={() => { setWizardBatch(null); setCreating(true); }}><FileUp size={16} aria-hidden="true" />بارگذاری فایل</Button> : undefined} />
     <section aria-label="آمار بارگذاری اسناد" aria-busy={summaryLoading}>
-      {summaryFailed ? <div role="alert" className={pageStyles.error}><p>آمار اسناد دریافت نشد.</p><Button variant="outline" onClick={() => setSummaryRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <StatCards items={cards} loading={summaryLoading} />}
+      {summaryFailed ? <ErrorState onRetry={() => setSummaryRetry((value) => value + 1)} variant="compact" ><p>آمار اسناد دریافت نشد.</p></ErrorState> : <StatCards items={cards} loading={summaryLoading} />}
     </section>
-    {notice && <p role="status" className={formStyles.caption}>{notice}</p>}
-    {error && <p role="alert" className={formStyles.error}>{error}</p>}
-    {pollFailed && <div role="alert" className={pageStyles.error}><p>وضعیت پردازش اسناد به‌روز نشد.</p><Button variant="outline" onClick={() => setPollRetry((value) => value + 1)}>تلاش دوباره</Button></div>}
+    {notice && <StatusMessage  >{notice}</StatusMessage>}
+    {error && <FormMessage>{error}</FormMessage>}
+    {pollFailed && <ErrorState onRetry={() => setPollRetry((value) => value + 1)} variant="compact" ><p>وضعیت پردازش اسناد به‌روز نشد.</p></ErrorState>}
     <section className={styles.section} aria-labelledby="imports-list-title" aria-busy={loading}>
       <div className={styles.heading}><div><h2 id="imports-list-title">اسناد بارگذاری‌شده</h2></div><div className={styles.controls}>
         <div className={styles.search}><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی سند" placeholder="جستجوی سند" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
         <Select dir="rtl" value={status} onValueChange={setStatus}><SelectTrigger aria-label="وضعیت سند" className="w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">همه وضعیت‌ها</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
       </div></div>
-      {failed ? <div role="alert" className={styles.empty}><p>فهرست اسناد دریافت نشد.</p><Button variant="outline" onClick={() => { setLoading(true); setRetry((value) => value + 1); }}>تلاش دوباره</Button></div> : <div className={styles.scroll}><table className={styles.table}>
-        <thead><tr><th scope="col">نام فایل</th><th scope="col">نوع سند</th><th scope="col">وضعیت</th><th scope="col">حجم فایل</th><th scope="col">تاریخ بارگذاری</th></tr></thead>
-        <tbody>{loading ? [0, 1, 2].map((row) => <tr key={row}>{[0, 1, 2, 3, 4].map((cell) => <td key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : filtered.length ? filtered.map((item) => <tr key={item.id}>
-          <th scope="row"><Button variant="ghost" className={styles.customer} onClick={() => { setError(""); setSelectedId(item.id); }}><bdi>{item.original_name}</bdi></Button></th>
-          <td>{sourceLabels[item.source_kind]}</td><td>{statusLabels[item.status]}</td><td>{formatBytes(item.size_bytes)}</td><td>{toJalaliDate(item.created_at.slice(0, 10))}</td>
-        </tr>) : <tr><td colSpan={5} className={styles.empty}>{search || status !== "all" ? "سندی با این جستجو و فیلتر پیدا نشد." : "هنوز سندی بارگذاری نشده است."}</td></tr>}</tbody>
-      </table></div>}
+      {failed ? <ErrorState onRetry={() => { setLoading(true); setRetry((value) => value + 1); }} variant="compact" ><p>فهرست اسناد دریافت نشد.</p></ErrorState> : <div className="min-w-0"><Table className="min-w-[640px]" containerClassName="border-0">
+        <TableHeader><TableRow><TableHead scope="col">نام فایل</TableHead><TableHead scope="col">نوع سند</TableHead><TableHead scope="col">وضعیت</TableHead><TableHead scope="col">حجم فایل</TableHead><TableHead scope="col">تاریخ بارگذاری</TableHead></TableRow></TableHeader>
+        <TableBody>{loading ? [0, 1, 2].map((row) => <TableRow key={row}>{[0, 1, 2, 3, 4].map((cell) => <TableCell key={cell}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>) : filtered.length ? filtered.map((item) => <TableRow key={item.id}>
+          <TableRowHeader scope="row"><Button variant="ghost" className="h-auto min-h-11 max-w-80 justify-start whitespace-normal px-0 text-start font-normal" onClick={() => { setError(""); setSelectedId(item.id); }}><bdi>{item.original_name}</bdi></Button></TableRowHeader>
+          <TableCell>{sourceLabels[item.source_kind]}</TableCell><TableCell><StatusBadge status={item.status} label={statusLabels[item.status]} /></TableCell><TableCell>{formatBytes(item.size_bytes)}</TableCell><TableCell>{toJalaliDate(item.created_at.slice(0, 10))}</TableCell>
+        </TableRow>) : <TableRow><TableEmptyCell colSpan={5} className="h-40 p-0 text-center text-muted-foreground">{search || status !== "all" ? "سندی با این جستجو و فیلتر پیدا نشد." : "هنوز سندی بارگذاری نشده است."}</TableEmptyCell></TableRow>}</TableBody>
+      </Table></div>}
     </section>
-    <Drawer open={!!selected} onOpenChange={(open) => { if (!open && !deleting) setSelectedId(null); }} title={selected?.original_name ?? "جزئیات سند"} description="اطلاعات فایل و وضعیت آماده‌سازی و پردازش">
+    <Drawer open={!!selected} onOpenChange={(open) => { if (!open && !deleting) setSelectedId(null); }} title={selected?.original_name ?? "جزئیات سند"}>
       {selected && <><DrawerDetails>
         <div><dt>نوع سند</dt><dd>{sourceLabels[selected.source_kind]}</dd></div>
         <div><dt>عنوان منبع</dt><dd>{selected.source_label}</dd></div>
-        <div><dt>وضعیت</dt><dd>{statusLabels[selected.status]}</dd></div>
+        <div><dt>وضعیت</dt><dd><StatusBadge status={selected.status} label={statusLabels[selected.status]} /></dd></div>
         <div><dt>حجم فایل</dt><dd>{formatBytes(selected.size_bytes)}</dd></div>
         <div><dt>تاریخ بارگذاری</dt><dd>{toJalaliDate(selected.created_at.slice(0, 10))}</dd></div>
         {selected.row_count != null && <div><dt>تعداد ردیف‌ها</dt><dd>{toPersianDigits(selected.row_count)}</dd></div>}
       </DrawerDetails>
-        {pendingStatuses.includes(selected.status) && <p role="status" className={formStyles.caption}>فایل در حال بررسی و پردازش است؛ {toPersianDigits(selected.progress)}٪. وضعیت به‌صورت خودکار به‌روز می‌شود.</p>}
-        {selected.duplicate_detected && <p className={formStyles.caption}>این فایل قبلاً بارگذاری شده است. پیش از ثبت نهایی، منبع آن را بررسی کنید.</p>}
-        {selected.failure_message && <p role="alert" className={formStyles.error}>{selected.failure_message}</p>}
-        {selected.scan_status === "clean" && <p className={formStyles.caption}>{selected.status === "completed" || selected.status === "completed_limited" ? "نتیجه تطبیق و مغایرت‌ها در بخش بررسی و پیگیری در دسترس است." : "ستون‌ها را تأیید و فایل را ثبت نهایی کنید تا تطبیق بانک و دفاتر انجام شود."}</p>}
-        {error && <p role="alert" className={formStyles.error}>{error}</p>}
+        {pendingStatuses.includes(selected.status) && <LoadingState variant="inline" >در حال پردازش؛ {toPersianDigits(selected.progress)}٪.</LoadingState>}
+        {selected.duplicate_detected && <p className={formStyles.caption}>فایل تکراری است.</p>}
+        {selected.failure_message && <FormMessage>{selected.failure_message}</FormMessage>}
+        {error && <FormMessage>{error}</FormMessage>}
         <DrawerFooter>
           {writable && <Button variant="outline" aria-label={`حذف ${selected.original_name}`} disabled={deleting} onClick={() => setDeleteTarget(selected)}><Trash2 size={16} aria-hidden="true" />حذف فایل</Button>}
           {selected.scan_status === "clean" && <Button variant="outline" asChild><a href={`${API_URL}/companies/${company.id}/imports/${selected.id}/download`}><Download size={16} aria-hidden="true" />دریافت فایل</a></Button>}
@@ -162,13 +166,13 @@ function ImportsContent({ company }: { company: Company }) {
         </DrawerFooter>
       </>}
     </Drawer>
-    <Drawer open={creating} onOpenChange={(open) => { if (!uploadBusy) setCreating(open); }} title="بارگذاری فایل" description="بارگذاری مرحله‌ای سند">
+    <Drawer open={creating} onOpenChange={(open) => { if (!uploadBusy) setCreating(open); }} title="بارگذاری فایل">
       {creating && <UploadWizard key={wizardBatch?.id ?? "new"} company={company} initialBatch={wizardBatch} onSaving={setUploadBusy} onCancel={() => setCreating(false)} onUpdated={(batch) => {
         setItems((current) => [batch, ...current.filter((item) => item.id !== batch.id)]);
         setSearch(""); setStatus("all"); setFailed(false); setError("");
       }} onDone={(batch) => { setCreating(false); setUploadBusy(false); setSelectedId(batch.id); setNotice("سند ثبت شد و در صف پردازش و تطبیق قرار گرفت."); }} />}
     </Drawer>
-    <SettingsConfirm open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }} title="حذف سند مالی" description={`آیا از حذف فایل «${deleteTarget?.original_name ?? ""}» مطمئن هستید؟ داده‌های وابسته به آن نیز حذف می‌شوند.`} busy={deleting} onConfirm={() => void deleteBatch()} />
+    <ConfirmDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }} title="حذف سند مالی" description={`آیا از حذف فایل «${deleteTarget?.original_name ?? ""}» مطمئن هستید؟ داده‌های وابسته به آن نیز حذف می‌شوند.`} busy={deleting} onConfirm={() => void deleteBatch()} />
   </div>;
 }
 

@@ -7,13 +7,17 @@ from dataclasses import dataclass
 from pathlib import PurePath
 from typing import BinaryIO, cast
 
+import olefile
+import xlrd
 from fastapi import HTTPException, UploadFile, status
 
 from app.core.config import settings
 
 CHUNK_SIZE = 1024 * 1024
 ALLOWED_MIME_TYPES = {
+    ".pdf": {"application/pdf", "application/octet-stream"},
     ".csv": {"text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"},
+    ".xls": {"application/vnd.ms-excel", "application/octet-stream"},
     ".xlsx": {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/octet-stream",
@@ -107,6 +111,59 @@ def _inspect_xlsx(stream: BinaryIO) -> dict[str, object]:
     }
 
 
+def _inspect_xls(stream: BinaryIO) -> dict[str, object]:
+    try:
+        stream.seek(0)
+        with olefile.OleFileIO(stream) as compound:
+            names = ["/".join(path).casefold() for path in compound.listdir()]
+            if any("vba" in name or "macros" in name or "encrypt" in name for name in names):
+                raise ValueError("macros or encryption")
+        stream.seek(0)
+        workbook = xlrd.open_workbook(file_contents=stream.read(), on_demand=True)
+        workbook.release_resources()
+    except (OSError, ValueError, xlrd.XLRDError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="فایل XLS معتبر نیست یا دارای ماکرو/رمزگذاری است.",
+        ) from exc
+    finally:
+        stream.seek(0)
+    return {"detected_format": "xls", "macros_present": False}
+
+
+def _inspect_pdf(stream: BinaryIO) -> dict[str, object]:
+    from pypdf import PdfReader
+    from pypdf.generic import DictionaryObject
+
+    try:
+        stream.seek(0)
+        if stream.read(5) != b"%PDF-":
+            raise ValueError("signature")
+        stream.seek(0)
+        reader = PdfReader(stream, strict=True)
+        if reader.is_encrypted or not 1 <= len(reader.pages) <= 200:
+            raise ValueError("encrypted or too many pages")
+        # Reject active/attached content without interpreting it.
+        root = cast(DictionaryObject, reader.trailer["/Root"])
+        if any(key in root for key in ("/OpenAction", "/AA", "/AcroForm")):
+            raise ValueError("active content")
+        names = root.get("/Names", {})
+        if any(key in names for key in ("/JavaScript", "/EmbeddedFiles")):
+            raise ValueError("embedded content")
+        for page in reader.pages:
+            if "/AA" in page:
+                raise ValueError("page actions")
+            for annotation in page.get("/Annots", []):
+                obj = cast(DictionaryObject, annotation.get_object())
+                if "/A" in obj or "/AA" in obj or obj.get("/Subtype") == "/FileAttachment":
+                    raise ValueError("annotation action")
+        return {"detected_format": "pdf", "pages": len(reader.pages)}
+    except Exception as exc:
+        raise HTTPException(415, "PDF معتبر نیست یا محتوای فعال/رمزگذاری‌شده دارد.") from exc
+    finally:
+        stream.seek(0)
+
+
 async def receive_and_validate(file: UploadFile) -> ValidatedUpload:
     original_name = safe_original_name(file.filename)
     extension = PurePath(original_name).suffix.casefold()
@@ -114,7 +171,7 @@ async def receive_and_validate(file: UploadFile) -> ValidatedUpload:
     if extension not in ALLOWED_MIME_TYPES or declared_mime not in ALLOWED_MIME_TYPES[extension]:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="فقط فایل‌های CSV و XLSX معتبر پذیرفته می‌شوند.",
+            detail="فقط CSV، XLS، XLSX و PDF بانک پذیرفته می‌شوند.",
         )
 
     stream = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b")
@@ -136,9 +193,13 @@ async def receive_and_validate(file: UploadFile) -> ValidatedUpload:
                 detail="فایل خالی قابل پردازش نیست.",
             )
         binary_stream = cast(BinaryIO, stream)
-        metadata = (
-            _inspect_csv(binary_stream) if extension == ".csv" else _inspect_xlsx(binary_stream)
-        )
+        inspector = {
+            ".pdf": _inspect_pdf,
+            ".csv": _inspect_csv,
+            ".xls": _inspect_xls,
+            ".xlsx": _inspect_xlsx,
+        }[extension]
+        metadata = inspector(binary_stream)
         stream.seek(0)
         return ValidatedUpload(
             stream=binary_stream,

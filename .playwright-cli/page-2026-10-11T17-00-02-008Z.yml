@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: دیدبان مالی
+        - generic [ref=e12]: سامانه عملیات و کنترل مالی
+      - generic [ref=e13]:
+        - tablist "انتخاب نوع ورود" [ref=e14]:
+          - tab "ورود" [selected] [ref=e15] [cursor=pointer]
+          - tab "ساخت حساب" [ref=e16] [cursor=pointer]
+        - generic [ref=e17]:
+          - heading "خوش آمدید" [level=2] [ref=e19]
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - generic [ref=e22] [cursor=pointer]: ایمیل یا نام کاربری
+              - textbox "ایمیل یا نام کاربری" [ref=e24]
+            - generic [ref=e25]:
+              - generic [ref=e26]:
+                - generic [ref=e27] [cursor=pointer]: رمز عبور
+                - button "رمز را فراموش کرده‌اید؟" [ref=e28] [cursor=pointer]
+              - generic [ref=e29]:
+                - textbox "رمز عبور" [ref=e30]
+                - button "نمایش رمز عبور" [ref=e31] [cursor=pointer]
+            - button "ورود به دیدبان" [ref=e32] [cursor=pointer]
+      - group [ref=e33]:
+        - generic "حریم خصوصی، امنیت و پشتیبانی" [ref=e34] [cursor=pointer]
+  - region "Notifications alt+T"

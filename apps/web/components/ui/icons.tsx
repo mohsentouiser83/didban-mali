@@ -64,6 +64,7 @@ import { FileArrowDownIcon } from "@phosphor-icons/react/dist/ssr/FileArrowDown"
 import { FileArrowUpIcon } from "@phosphor-icons/react/dist/ssr/FileArrowUp";
 import { FileCodeIcon } from "@phosphor-icons/react/dist/ssr/FileCode";
 import { FileMagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr/FileMagnifyingGlass";
+import { PencilSimpleIcon } from "@phosphor-icons/react/dist/ssr/PencilSimple";
 import { FileTextIcon } from "@phosphor-icons/react/dist/ssr/FileText";
 import { FileXIcon } from "@phosphor-icons/react/dist/ssr/FileX";
 import { FileXlsIcon } from "@phosphor-icons/react/dist/ssr/FileXls";
@@ -208,6 +209,7 @@ export const FileCode2 = /* @__PURE__ */ productIcon(FileCodeIcon, "FileCode2");
 export const FileDown = /* @__PURE__ */ productIcon(FileArrowDownIcon, "FileDown");
 export const FileQuestion = /* @__PURE__ */ productIcon(FileMagnifyingGlassIcon, "FileQuestion");
 export const FileSpreadsheet = /* @__PURE__ */ productIcon(FileXlsIcon, "FileSpreadsheet");
+export const Pencil = /* @__PURE__ */ productIcon(PencilSimpleIcon, "Pencil");
 export const FileText = /* @__PURE__ */ productIcon(FileTextIcon, "FileText");
 export const FileUp = /* @__PURE__ */ productIcon(FileArrowUpIcon, "FileUp");
 export const FileX2 = /* @__PURE__ */ productIcon(FileXIcon, "FileX2");

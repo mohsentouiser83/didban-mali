@@ -13,13 +13,6 @@
   font-family: inherit;
   font-size: 14px;
 }
-.persian-calendar .rdp-dropdowns { gap: 8px; font-size: 14px; }
-.persian-calendar .rdp-dropdown_root {
-  padding: 6px 8px;
-  border: 1px solid var(--ds-input-border);
-  border-radius: var(--ds-radius-control);
-}
-.persian-calendar .rdp-dropdown { font: inherit; background: var(--ds-input-bg); color: var(--ds-control-ink); }
 .persian-calendar .rdp-day_button { font: inherit; }
 .persian-calendar .rdp-day_button:hover { background: var(--ds-control-muted); }
 .persian-calendar .rdp-day_button:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }

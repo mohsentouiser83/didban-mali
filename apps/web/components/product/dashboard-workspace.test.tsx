@@ -21,9 +21,9 @@ beforeEach(() => { vi.mocked(api).mockReset(); vi.mocked(api).mockImplementation
 it("shows four shared statistics and a daily forecast based on the reported bank balance", async () => {
   render(<DashboardWorkspace company={company} />);
   expect(await screen.findByTestId("forecast")).toHaveTextContent("30 روز؛ مانده آخر -20");
-  expect(within(screen.getByRole("article", { name: "مانده حساب" })).getByTitle("۱۰۰ تومان")).toBeInTheDocument();
-  expect(within(screen.getByRole("article", { name: "پرداخت‌های ۳۰ روز آینده" })).getByTitle("۱۵۰ تومان")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /اجاره/ })).toHaveAttribute("href", "/companies/company/cashflow");
+  expect(within(screen.getByRole("article", { name: "مانده حساب" })).getByLabelText("۱۰۰ تومان")).toBeInTheDocument();
+  expect(within(screen.getByRole("article", { name: "پرداخت‌های ۳۰ روز آینده" })).getByLabelText("۱۵۰ تومان")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /اجاره/ })).toHaveAttribute("href", "/companies/company/cashflow/forecast");
   expect(screen.getByRole("link", { name: /کیان/ })).toHaveAttribute("href", "/companies/company/receivables");
   expect(vi.mocked(api).mock.calls.filter(([path]) => !String(path).includes("/findings?")).every(([path]) => String(path).includes("as_of_date="))).toBe(true);
 });
@@ -34,11 +34,17 @@ it("does not present an absent payment plan as zero obligations", async () => {
   expect(within(screen.getByRole("article", { name: "پرداخت‌های ۳۰ روز آینده" })).getByText("ثبت نشده")).toBeInTheDocument();
   expect(screen.getByTestId("forecast")).toHaveTextContent("برنامه false");
 });
+it("does not present missing supplier due dates as zero overdue debt", async () => {
+  vi.mocked(api).mockImplementation(async (path) => String(path).includes("payables/summary") ? { total_overdue_irr: "0", buckets: [{ bucket_key: "due_date_missing", amount_irr: "3000" }] } : respond(String(path)));
+  render(<DashboardWorkspace company={company} />);
+  await screen.findByTestId("forecast");
+  expect(within(screen.getByRole("article", { name: "بدهی‌های سررسیدگذشته" })).getByText("سررسید نامشخص")).toBeInTheDocument();
+});
 it("retains available summaries when the forecast request fails and allows retry", async () => {
   vi.mocked(api).mockImplementation(async (path) => { if (String(path).includes("cashflow/forecast")) throw Error("offline"); return respond(String(path)); });
   render(<DashboardWorkspace company={company} />);
   expect(await screen.findByRole("alert")).toHaveTextContent("پیش‌بینی");
-  expect(within(screen.getByRole("article", { name: "مطالبات سررسیدگذشته" })).getByTitle("۵۰۰ تومان")).toBeInTheDocument();
+  expect(within(screen.getByRole("article", { name: "مطالبات سررسیدگذشته" })).getByLabelText("۵۰۰ تومان")).toBeInTheDocument();
   vi.mocked(api).mockImplementation(async (path) => respond(String(path)));
   fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
   await screen.findByTestId("forecast");
@@ -46,7 +52,7 @@ it("retains available summaries when the forecast request fails and allows retry
 it("requires a single reported account and clears company-specific data on navigation", async () => {
   vi.mocked(api).mockImplementation(async (path) => String(path).includes("cashflow/summary") ? { cash_accounts: [{ method: "transaction_sum", balance_irr: "1000" }] } : respond(String(path)));
   const view = render(<DashboardWorkspace company={company} />);
-  expect(await screen.findByText("برای نمایش نمودار، مانده ثبت‌شده یک حساب بانکی لازم است.")).toBeInTheDocument();
+  expect(await screen.findByText("مانده حساب بانکی موجود نیست.")).toBeInTheDocument();
   expect(screen.queryByTestId("forecast")).not.toBeInTheDocument();
   vi.mocked(api).mockImplementation(() => new Promise(() => {}));
   view.rerender(<DashboardWorkspace company={{ ...company, id: "other" }} />);

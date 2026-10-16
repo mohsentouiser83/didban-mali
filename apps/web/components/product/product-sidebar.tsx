@@ -1,4 +1,5 @@
 "use client";
+import { Badge } from "@/components/ui/badge";
 
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -32,6 +33,7 @@ export type ProductNavGroup = {
     href: string;
     label: string;
     icon: AppIcon;
+    children?: { href: string; label: string }[];
     badge?: number | null;
     badgeVariant?: "critical" | "warning";
   }[];
@@ -78,7 +80,7 @@ export function ProductSidebar({
     if (!surface) return;
     const measure = () => {
       const active = surface.querySelector<HTMLElement>(
-        '.sidebar-nav-item[aria-current="page"]',
+        '.sidebar-nav-item[aria-current]' ,
       );
       if (!active) {
         setSelection(null);
@@ -127,6 +129,7 @@ export function ProductSidebar({
       {items.flatMap((group) => group.items).map((item) => {
         const active = isItemActive(item.href);
         const Icon = item.icon;
+        const activeChild = item.children?.filter((child) => isItemActive(child.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
         return (
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
@@ -143,14 +146,16 @@ export function ProductSidebar({
                     ? `${item.label}، ${item.badge.toLocaleString("fa-IR")} مورد`
                     : item.label
                 }
-                aria-current={active ? "page" : undefined}
+                aria-current={active ? (item.children ? true : "page") : undefined}
               >
                 <Icon className="!size-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
                   {item.label}
                 </span>
                 {!!item.badge && item.badge > 0 && (
-                  <span
+                  <Badge
+                    variant={item.badgeVariant === "critical" ? "danger" : "warning"}
+                    size="xs"
                     aria-hidden="true"
                     className={cn(
                       "sidebar-count ms-auto inline-flex min-w-6 items-center justify-center rounded-md px-1.5 py-0.5 text-xs tabular-nums group-data-[collapsible=icon]:hidden",
@@ -160,10 +165,11 @@ export function ProductSidebar({
                     )}
                   >
                     {item.badge.toLocaleString("fa-IR")}
-                  </span>
+                  </Badge>
                 )}
               </Link>
             </SidebarMenuButton>
+            {active && !collapsed && item.children && <nav aria-label={`بخش‌های ${item.label}`} className="ms-5 my-2 grid gap-1 border-s border-border ps-3 motion-safe:animate-[workspace-enter_220ms_ease-out_both]">{item.children.map((child) => <Link key={child.href} href={child.href} onClick={closeMobile} aria-current={child.href === activeChild ? "page" : undefined} className={cn("flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none", child.href === activeChild ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted")}>{child.label}</Link>)}</nav>}
           </SidebarMenuItem>
         );
       })}
@@ -217,7 +223,7 @@ export function ProductSidebar({
                     : "جمع‌کردن سایدبار"
               }
               aria-expanded={isMobile ? true : !collapsed}
-              className="sidebar-icon-button grid size-7 shrink-0 place-items-center rounded-lg"
+              className={cn("sidebar-icon-button grid shrink-0 place-items-center rounded-lg", isMobile ? "size-11" : "size-7")}
             >
               {isMobile ? (
                 <X className="size-4" />

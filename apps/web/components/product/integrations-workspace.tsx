@@ -1,28 +1,19 @@
 "use client";
+import { FormMessage } from "@/components/ui/form";
+import { StatusBadge } from "@/components/ui/financial/status-badge";
+import { ErrorState, EmptyState, StatusMessage, LoadingState } from "@/components/ui/financial";
+
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import {
-  Plus,
-  Search,
-  RefreshCw,
-  Wifi,
-  Key,
-  Copy,
-} from "@/components/ui/icons";
+import { Plus, Search, RefreshCw, Wifi, Key, Copy } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer, DrawerFooter, DrawerDetails, DrawerForm } from "@/components/ui/drawer";
 import { api } from "@/lib/product-api";
-import type {
-  Company,
-  IntegrationConnection,
-  IntegrationProvider,
-  IntegrationSyncJob,
-  ConnectionTestResult,
-  AgentKeyResponse,
-} from "@/lib/product-types";
+import type { Company, IntegrationConnection, IntegrationProvider, IntegrationSyncJob, ConnectionTestResult, AgentKeyResponse } from "@/lib/product-types";
 import { SelectField, SelectOption } from "./select-field";
-import { SettingsConfirm } from "./settings-confirm";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toJalaliDate } from "@/lib/date-utils";
 import page from "./cashflow-overview.module.css";
 import table from "./receivables-customers.module.css";
@@ -161,60 +152,58 @@ function Connections({ company }: { company: Company }) {
           </div>
         </div>
         {error ? (
-          <div className={table.empty} role="alert">
+          <ErrorState onRetry={() => void load(true)}  variant="compact">
             <p>{error}</p>
-            <Button variant="outline" onClick={() => void load(true)}>
-              تلاش دوباره
-            </Button>
-          </div>
+
+          </ErrorState>
         ) : loading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <div className={table.scroll}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">نام اتصال</th>
-                  <th scope="col">سیستم</th>
-                  <th scope="col">وضعیت</th>
-                  <th scope="col">آخرین دریافت</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="min-w-0">
+            <Table className="min-w-[640px]" containerClassName="border-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">نام اتصال</TableHead>
+                  <TableHead scope="col">سیستم</TableHead>
+                  <TableHead scope="col">وضعیت</TableHead>
+                  <TableHead scope="col">آخرین دریافت</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {visible.map((connection) => (
-                  <tr key={connection.id}>
-                    <td>
+                  <TableRow key={connection.id}>
+                    <TableCell>
                       <Button
                         variant="ghost"
-                        className={table.customer}
+                        className="h-auto min-h-11 max-w-80 justify-start whitespace-normal px-0 text-start font-normal"
                         onClick={() => setSelected(connection.id)}
                       >
                         {connection.name}
                       </Button>
-                    </td>
-                    <td>{providers[connection.provider]}</td>
-                    <td>{statuses[connection.status] ?? "نامشخص"}</td>
-                    <td>
+                    </TableCell>
+                    <TableCell>{providers[connection.provider]}</TableCell>
+                    <TableCell><StatusBadge status={connection.status} label={statuses[connection.status] ?? "نامشخص"} /></TableCell>
+                    <TableCell>
                       {connection.last_sync_at
                         ? toJalaliDate(connection.last_sync_at)
                         : "هنوز دریافت نشده"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {!visible.length && (
-                  <tr>
-                    <td colSpan={4} className={table.empty}>
+                  <TableRow>
+                    <TableEmptyCell colSpan={4} className="h-40 p-0 text-center text-muted-foreground">
                       {search
                         ? "اتصالی پیدا نشد."
                         : "هنوز اتصالی ثبت نشده است."}
-                    </td>
-                  </tr>
+                    </TableEmptyCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
@@ -224,7 +213,7 @@ function Connections({ company }: { company: Company }) {
           if (!busy) setAdding(open);
         }}
         title="افزودن اتصال"
-        description="اطلاعات اتصال را از مسئول نرم‌افزار حسابداری یا سرویس بانکی دریافت کنید."
+
       >
         {adding && (
           <DrawerForm onSubmit={create}>
@@ -297,13 +286,8 @@ function Connections({ company }: { company: Company }) {
                 disabled={busy}
               />
             </div>
-            <p className={styles.caption}>
-              پس از ثبت، اتصال را آزمایش کنید و دریافت اطلاعات را شروع کنید.
-            </p>
             {formError && (
-              <p className={styles.error} role="alert">
-                {formError}
-              </p>
+              <FormMessage>{formError}</FormMessage>
             )}
             <DrawerFooter>
               <Button type="submit" disabled={busy}>
@@ -438,17 +422,15 @@ function ConnectionDetail({
           </div>
         </DrawerDetails>
         {connection.last_error_message && (
-          <p className={styles.error}>{connection.last_error_message}</p>
+          <ErrorState variant="inline" role="note">{connection.last_error_message}</ErrorState>
         )}
         {error && (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
+          <FormMessage>{error}</FormMessage>
         )}
         {message && (
-          <p className={styles.note} role="status">
+          <FormMessage variant="success">
             {message}
-          </p>
+          </FormMessage>
         )}
         {manage && (
           <div className="flex flex-wrap gap-2">
@@ -472,19 +454,17 @@ function ConnectionDetail({
         <section>
           <h3 className={styles.subtitle}>تاریخچه دریافت</h3>
           {historyError ? (
-            <div role="alert">
-              <p className={styles.error}>تاریخچه دریافت نشد.</p>
-              <Button variant="outline" onClick={() => void history()}>
-                تلاش دوباره
-              </Button>
-            </div>
+            <ErrorState onRetry={() => void history()} variant="compact">
+              <ErrorState variant="inline">تاریخچه دریافت نشد.</ErrorState>
+
+            </ErrorState>
           ) : loading ? (
             <Skeleton className="h-24 w-full" />
           ) : jobs.length ? (
             jobs.map((job) => (
               <article key={job.id} className={`${table.invoice} mb-4`}>
                 <div className={table.invoiceHeading}>
-                  <h4>{jobLabels[job.status]}</h4>
+                  <StatusBadge status={job.status} label={jobLabels[job.status]} />
                   <span>{toJalaliDate(job.started_at ?? job.created_at)}</span>
                 </div>
                 <p className={styles.caption}>
@@ -492,12 +472,12 @@ function ConnectionDetail({
                   {number.format(job.records_rejected)} رکورد ردشده
                 </p>
                 {job.error_message && (
-                  <p className={styles.error}>{job.error_message}</p>
+                  <ErrorState variant="inline" role="note">{job.error_message}</ErrorState>
                 )}
               </article>
             ))
           ) : (
-            <p className={styles.caption}>هنوز اطلاعاتی دریافت نشده است.</p>
+            <EmptyState variant="inline">هنوز اطلاعاتی دریافت نشده است.</EmptyState>
           )}
         </section>
         {manage && connection.provider !== "bank_direct" && (
@@ -546,9 +526,9 @@ function ConnectionDetail({
         )}
         <DrawerFooter>
           {busy && (
-            <p className={styles.caption} role="status">
+            <LoadingState  variant="inline">
               در حال انجام…
-            </p>
+            </LoadingState>
           )}
           {manage && (
             <Button
@@ -561,7 +541,7 @@ function ConnectionDetail({
           )}
         </DrawerFooter>
       </Drawer>
-      <SettingsConfirm
+      <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}
         title="حذف اتصال"

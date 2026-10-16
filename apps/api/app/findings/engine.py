@@ -257,6 +257,8 @@ async def execute_finding_detection(
             # Keep unrelated metric evaluation resilient.
             continue
 
+    # Different evidence paths can identify the same transaction in one run.
+    all_candidates = list({c.fingerprint: c for c in reversed(all_candidates)}.values())
     await attach_source_locations(session, company_id, all_candidates)
 
     created_count = 0

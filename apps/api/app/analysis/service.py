@@ -11,7 +11,7 @@ from app.analysis.calculations import CalculatedMetric, LedgerLine, calculate_le
 from app.analysis.models import AnalysisRun, AnalysisStatus, MetricCode, MetricObservation
 from app.audit.service import record_audit_event
 from app.financial.models import (
-    AccountClassification,
+    Account,
     BankTransaction,
     JournalEntry,
     JournalLine,
@@ -23,18 +23,9 @@ from app.imports.models import ImportBatch, ImportStatus
 async def _ledger_lines(
     session: AsyncSession, company_id: UUID, period_end: date
 ) -> list[LedgerLine]:
-    classification = (
-        select(AccountClassification.account_class)
-        .where(
-            AccountClassification.company_id == company_id,
-            AccountClassification.account_id == JournalLine.account_id,
-            AccountClassification.effective_from <= JournalEntry.entry_date,
-        )
-        .order_by(AccountClassification.effective_from.desc())
-        .limit(1)
-        .correlate(JournalLine, JournalEntry)
-        .scalar_subquery()
-    )
+    from app.financial.queries import effective_account_class
+
+    classification = effective_account_class()
     rows = (
         await session.execute(
             select(
@@ -42,8 +33,12 @@ async def _ledger_lines(
                 JournalLine.debit_irr,
                 JournalLine.credit_irr,
                 classification.label("account_class"),
+                JournalEntry.entry_type,
+                Account.role.label("account_role"),
+                Account.id.label("account_id"),
             )
             .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalLine.account_id)
             .where(
                 JournalEntry.company_id == company_id,
                 JournalEntry.entry_date <= period_end,
@@ -57,6 +52,9 @@ async def _ledger_lines(
             debit_irr=Decimal(row.debit_irr),
             credit_irr=Decimal(row.credit_irr),
             account_class=row.account_class,
+            entry_type=row.entry_type,
+            account_role=row.account_role,
+            account_key=str(row.account_id),
         )
         for row in rows
     ]

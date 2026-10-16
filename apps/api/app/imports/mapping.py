@@ -7,11 +7,13 @@ import tempfile
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from typing import Any, BinaryIO, cast
 
 import jdatetime
+import xlrd
 from openpyxl import load_workbook
 
 from app.imports.models import IssueSeverity, SourceKind
@@ -21,6 +23,12 @@ HEADER_CLEANUP = re.compile(r"[^0-9a-zA-Z\u0600-\u06ff]+")
 THOUSANDS = re.compile(r"[,٬،\s]")
 
 FIELD_LABELS = {
+    "entry_type": "نوع سند",
+    **{f"{level}_{field}": label for level, field, label in (
+        ("general", "code", "کد کل"), ("general", "name", "نام کل"),
+        ("subsidiary", "code", "کد معین"), ("subsidiary", "name", "نام معین"),
+        ("detail", "code", "کد تفصیلی"), ("detail", "name", "نام تفصیلی"),
+    )},
     "entry_id": "شماره سند",
     "entry_date": "تاریخ سند",
     "account_code": "کد حساب",
@@ -54,10 +62,17 @@ FIELD_LABELS = {
 }
 
 ALIASES: dict[str, tuple[str, ...]] = {
+    "general_code": ("کد کل", "شماره دفتر کل"),
+    "general_name": ("نام کل",),
+    "subsidiary_code": ("کد معین",),
+    "subsidiary_name": ("نام معین",),
+    "detail_code": ("کد تفصیلی", "کد تفضیلی"),
+    "detail_name": ("نام تفصیلی", "نام تفضیلی"),
+    "entry_type": ("نوع سند", "entry type"),
     "entry_id": ("شماره سند", "شماره", "سند", "entry id", "document no", "voucher no"),
     "entry_date": ("تاریخ سند", "تاریخ", "entry date", "document date", "date"),
     "account_code": ("کد حساب", "کد", "account code", "ledger code"),
-    "account_name": ("نام حساب", "حساب", "account name", "ledger name"),
+    "account_name": ("نام حساب", "نام سرفصل", "حساب", "account name", "ledger name"),
     "description": (
         "شرح",
         "شرح سند",
@@ -148,9 +163,6 @@ ALIASES: dict[str, tuple[str, ...]] = {
 REQUIRED_FIELDS: dict[SourceKind, tuple[str, ...]] = {
     SourceKind.ACCOUNTING: (
         "entry_date",
-        "account_code",
-        "account_name",
-        "description",
         "debit",
         "credit",
     ),
@@ -159,7 +171,7 @@ REQUIRED_FIELDS: dict[SourceKind, tuple[str, ...]] = {
 }
 
 ALTERNATIVE_REQUIRED_FIELDS: dict[SourceKind, tuple[tuple[str, ...], ...]] = {
-    SourceKind.ACCOUNTING: (),
+    SourceKind.ACCOUNTING: (("account_code", "account_name"), ("general_code", "general_name")),
     SourceKind.BANK: (("amount_signed",), ("deposit_amount", "withdrawal_amount")),
     SourceKind.SALES: (),
 }
@@ -177,6 +189,8 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "reference",
         "counterparty_name",
         "invoice_ref",
+        "general_code", "general_name", "subsidiary_code", "subsidiary_name",
+        "detail_code", "detail_name", "entry_type",
     ),
     SourceKind.BANK: (
         "booking_date",
@@ -207,6 +221,92 @@ TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
         "description",
     ),
 }
+
+# Imported invoice snapshots remain separate from operational balances.
+INVOICE_SNAPSHOT_KINDS = {
+    SourceKind.PURCHASES,
+    SourceKind.MOADIAN_SALES,
+    SourceKind.MOADIAN_PURCHASES,
+}
+PORTAL_KINDS = {SourceKind.MOADIAN_SALES, SourceKind.MOADIAN_PURCHASES}
+INVOICE_FIELDS = (
+    "invoice_no",
+    "tax_id",
+    "issue_date",
+    "party_name",
+    "party_id",
+    "gross_amount",
+    "tax_amount",
+    "subject",
+    "reference_tax_id",
+    "status",
+)
+FIELD_LABELS.update(
+    {
+        "tax_id": "شماره مالیاتی صورتحساب",
+        "party_name": "طرف معامله",
+        "party_id": "شناسه اقتصادی / ملی طرف معامله",
+        "subject": "موضوع صورتحساب",
+        "reference_tax_id": "شماره مالیاتی مرجع",
+    }
+)
+ALIASES.update(
+    {
+        "tax_id": (
+            "شماره منحصر به فرد مالیاتی",
+            "شماره منحصر به فرد مالیاتی صورتحساب",
+            "شماره مالیاتی صورتحساب",
+            "شماره منحصر به فرد مالیاتی صورت حساب",
+            "taxid",
+            "tax id",
+        ),
+        "party_name": (
+            "نام فروشنده",
+            "نام خریدار",
+            "نام تامین کننده",
+            "طرف معامله",
+            "نام طرف حساب",
+            "طرف حساب",
+            "نام مشتری",
+            "party name",
+        ),
+        "party_id": (
+            "شماره اقتصادی فروشنده",
+            "شماره اقتصادی خریدار",
+            "شناسه ملی فروشنده",
+            "شناسه ملی خریدار",
+            "شناسه اقتصادی / ملی طرف معامله",
+            "کد اقتصادی طرف حساب",
+            "party id",
+        ),
+        "subject": ("موضوع صورتحساب", "موضوع صورت حساب", "subject", "ins"),
+        "reference_tax_id": (
+            "شماره مالیاتی مرجع",
+            "شماره منحصر به فرد مالیاتی صورتحساب مرجع",
+            "irtaxid",
+        ),
+    }
+)
+ALIASES["gross_amount"] += (
+    "مجموع صورتحساب",
+    "مجموع صورت حساب",
+    "مبلغ کل صورتحساب",
+    "مبلغ فاکتور (ریال)",
+    "مجموع صورتحساب (ریال)",
+    "tbill",
+)
+ALIASES["tax_amount"] += ("مجموع مالیات بر ارزش افزوده", "مجموع مالیات و عوارض", "tvam")
+ALIASES["invoice_no"] += ("شماره صورتحساب", "شماره صورت حساب", "شماره صورتحساب داخلی", "inno")
+ALIASES["issue_date"] += ("تاریخ صدور صورتحساب", "تاریخ صدور صورت حساب")
+for kind in INVOICE_SNAPSHOT_KINDS:
+    TARGET_FIELDS[kind] = INVOICE_FIELDS
+    REQUIRED_FIELDS[kind] = (
+        ("tax_id", "issue_date", "gross_amount", "subject", "status")
+        if kind in PORTAL_KINDS
+        else ("invoice_no", "issue_date", "party_name", "gross_amount")
+    )
+    ALTERNATIVE_REQUIRED_FIELDS[kind] = ()
+TARGET_FIELDS[SourceKind.SALES] += ("tax_id", "subject", "reference_tax_id")
 
 DATE_FIELDS = {
     "entry_date",
@@ -240,6 +340,7 @@ class ParsedTable:
     columns: list[str]
     rows: list[tuple[int, dict[str, object]]]
     header_row: int = 1
+    control_rows: list[tuple[int, dict[str, object]]] = dataclass_field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -290,9 +391,7 @@ def _evaluate_header_candidate(
 ) -> tuple[list[str] | None, list[int] | None, int]:
     raw_strings = [str(_cell_value(v)).strip() for v in values]
     all_known_headers = {
-        normalize_header(alias)
-        for aliases in ALIASES.values()
-        for alias in aliases
+        normalize_header(alias) for aliases in ALIASES.values() for alias in aliases
     } | {normalize_header(label) for label in FIELD_LABELS.values()}
 
     # Option A: Dense row (all columns from start to end are non-empty)
@@ -359,8 +458,14 @@ def parse_table(
     limit: int | None = None,
 ) -> ParsedTable:
     stream.seek(0)
+    if extension == ".pdf":
+        from app.imports.bank_pdf import parse_bank_pdf
+
+        return parse_bank_pdf(stream, limit=limit)
     if extension == ".csv":
         return _parse_csv(stream, header_row=header_row, limit=limit)
+    if extension == ".xls":
+        return _parse_xls(stream, sheet_name=sheet_name, header_row=header_row, limit=limit)
     if extension == ".xlsx":
         return _parse_xlsx(stream, sheet_name=sheet_name, header_row=header_row, limit=limit)
     raise TableParseError("قالب فایل برای پیش‌نمایش پشتیبانی نمی‌شود.")
@@ -427,8 +532,7 @@ def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> Parse
         if any(p in row_text for p in footer_patterns) and not any(
             str(values[i]).strip()
             for i in indices
-            if i < len(values)
-            and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
+            if i < len(values) and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
         ):
             continue
         row_dict: dict[str, object] = {
@@ -475,77 +579,131 @@ def _parse_xlsx(
             ]
             all_raw_rows.append((row_number, values))
 
-        if not all_raw_rows:
-            raise TableParseError("شیت انتخاب‌شده خالی است.")
+        return _parse_workbook_rows(all_raw_rows, sheets, selected, header_row, limit)
 
-        effective_header_row = header_row
-        chosen_cols: list[str] | None = None
-        chosen_indices: list[int] | None = None
-
-        if header_row == 1 and len(all_raw_rows) > 1:
-            cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_raw_rows[0][1])
-            if cand_cols is None or cand_score < 2:
-                best_row = 1
-                best_score = cand_score if cand_cols is not None else 0
-                best_cols = cand_cols
-                best_indices = cand_indices
-                for row_num, line in all_raw_rows[:25]:
-                    cols, indices, score = _evaluate_header_candidate(line)
-                    if cols is not None and score > best_score:
-                        best_score = score
-                        best_row = row_num
-                        best_cols = cols
-                        best_indices = indices
-                if best_score >= 2 and best_cols is not None and best_indices is not None:
-                    effective_header_row = best_row
-                    chosen_cols = best_cols
-                    chosen_indices = best_indices
-
-        header_entry = next(
-            (item for item in all_raw_rows if item[0] == effective_header_row), None
-        )
-        if header_entry is None:
-            raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
-
-        if chosen_cols is None or chosen_indices is None:
-            chosen_cols, chosen_indices = _columns(header_entry[1])
-
-        columns = chosen_cols
-        indices = chosen_indices
-
-        footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
-        rows: list[tuple[int, dict[str, object]]] = []
-        for row_number, values in all_raw_rows:
-            if row_number <= effective_header_row:
-                continue
-            if not any(str(value).strip() for value in values):
-                continue
-            row_text = " ".join(str(v) for v in values if v)
-            if any(p in row_text for p in footer_patterns) and not any(
-                str(values[i]).strip()
-                for i in indices
-                if i < len(values)
-                and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
-            ):
-                continue
-            row_dict = {
-                columns[i]: values[col_idx] if col_idx < len(values) else ""
-                for i, col_idx in enumerate(indices)
-            }
-            if not any(str(v).strip() for v in row_dict.values()):
-                continue
-            rows.append((row_number, row_dict))
-            if limit is not None and len(rows) >= limit:
-                break
-        return ParsedTable(
-            sheets=sheets,
-            selected_sheet=selected,
-            columns=columns,
-            rows=rows,
-            header_row=effective_header_row,
-        )
     finally:
         workbook.close()
+
+
+def _parse_xls(stream: BinaryIO, *, sheet_name: str | None, header_row: int, limit: int | None) -> ParsedTable:
+    try:
+        workbook = xlrd.open_workbook(file_contents=stream.read(), on_demand=True)
+    except xlrd.XLRDError as exc:
+        raise TableParseError("ساختار فایل XLS قابل خواندن نیست.") from exc
+    try:
+        sheets = workbook.sheet_names()
+        selected = sheet_name or sheets[0]
+        if selected not in sheets:
+            raise TableParseError("شیت انتخاب شده در فایل وجود ندارد.")
+        sheet = workbook.sheet_by_name(selected)
+        rows = [(i + 1, [_cell_value(v) for v in sheet.row_values(i)]) for i in range(sheet.nrows)]
+        return _parse_workbook_rows(rows, sheets, selected, header_row, limit)
+    finally:
+        workbook.release_resources()
+
+
+def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: list[str], selected: str, header_row: int, limit: int | None) -> ParsedTable:
+    if not all_raw_rows:
+        raise TableParseError("شیت انتخاب‌شده خالی است.")
+
+    effective_header_row = header_row
+    chosen_cols: list[str] | None = None
+    chosen_indices: list[int] | None = None
+
+    if header_row == 1 and len(all_raw_rows) > 1:
+        cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_raw_rows[0][1])
+        if cand_cols is None or cand_score < 2:
+            best_row = 1
+            best_score = cand_score if cand_cols is not None else 0
+            best_cols = cand_cols
+            best_indices = cand_indices
+            for row_num, line in all_raw_rows[:25]:
+                cols, indices, score = _evaluate_header_candidate(line)
+                if cols is not None and score > best_score:
+                    best_score = score
+                    best_row = row_num
+                    best_cols = cols
+                    best_indices = indices
+            if best_score >= 2 and best_cols is not None and best_indices is not None:
+                effective_header_row = best_row
+                chosen_cols = best_cols
+                chosen_indices = best_indices
+
+    header_entry = next(
+        (item for item in all_raw_rows if item[0] == effective_header_row), None
+    )
+    if header_entry is None:
+        raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
+
+    if chosen_cols is None or chosen_indices is None:
+        chosen_cols, chosen_indices = _columns(header_entry[1])
+
+    columns = chosen_cols
+    indices = chosen_indices
+
+    footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
+    rows: list[tuple[int, dict[str, object]]] = []
+    for row_number, values in all_raw_rows:
+        if row_number <= effective_header_row:
+            continue
+        if not any(str(value).strip() for value in values):
+            continue
+        row_text = " ".join(str(v) for v in values if v)
+        if any(p in row_text for p in footer_patterns) and not any(
+            str(values[i]).strip()
+            for i in indices
+            if i < len(values)
+            and normalize_header(columns[indices.index(i)]) in ("تاریخ", "date")
+        ):
+            continue
+        row_dict = {
+            columns[i]: values[col_idx] if col_idx < len(values) else ""
+            for i, col_idx in enumerate(indices)
+        }
+        if not any(str(v).strip() for v in row_dict.values()):
+            continue
+        rows.append((row_number, row_dict))
+        if limit is not None and len(rows) >= limit:
+            break
+    rows, controls = separate_ledger_controls(columns, rows)
+    return ParsedTable(
+        sheets=sheets,
+        selected_sheet=selected,
+        columns=columns,
+        rows=rows,
+        header_row=effective_header_row,
+        control_rows=controls,
+    )
+
+
+def separate_ledger_controls(
+    columns: list[str], rows: list[tuple[int, dict[str, object]]]
+) -> tuple[list[tuple[int, dict[str, object]]], list[tuple[int, dict[str, object]]]]:
+    """Retain printed carry rows and verified totals separately from postings."""
+    headers = {normalize_header(column): column for column in columns}
+    debit, credit = headers.get("بدهکار"), headers.get("بستانکار")
+    code = next((headers[key] for key in ("کد حساب", "کد کل", "شماره دفتر کل") if key in headers), None)
+    if not debit or not credit or not code:
+        return rows, []
+    financial, controls = [], []
+    total_debit = total_credit = Decimal(0)
+    for number, raw in rows:
+        other = [value for key, value in raw.items() if key not in {debit, credit}
+                 and str(value if value is not None else "").strip()]
+        carry = len(other) == 1 and normalize_header(other[0]) in {"منقول از قبل", "منقول از صفحه قبل"}
+        try:
+            dr, cr = Decimal(_parse_money(raw[debit], toman=False)), Decimal(_parse_money(raw[credit], toman=False))
+        except ValueError:
+            financial.append((number, raw))
+            continue
+        verified_total = not other and dr == total_debit and cr == total_credit and dr > 0
+        if carry or verified_total:
+            controls.append((number, raw))
+        else:
+            financial.append((number, raw))
+            total_debit += dr
+            total_credit += cr
+    return financial, controls
 
 
 def download_to_seekable(body: Any) -> BinaryIO:
@@ -569,6 +727,11 @@ def suggest_mapping(columns: list[str], source_kind: SourceKind) -> list[dict[st
     used: set[str] = set()
     for target in targets:
         aliases = (FIELD_LABELS.get(target, target), *ALIASES.get(target, ()))
+        if target in {"party_name", "party_id"} and source_kind in INVOICE_SNAPSHOT_KINDS:
+            # The other party is the buyer for sales and the seller for purchases.
+            unwanted = "فروشنده" if source_kind == SourceKind.MOADIAN_SALES else "خریدار"
+            aliases = tuple(alias for alias in aliases if unwanted not in alias)
+
         for alias in aliases:
             source = normalized_columns.get(normalize_header(alias))
             if source is not None and source not in used:
@@ -584,6 +747,29 @@ def suggest_mapping(columns: list[str], source_kind: SourceKind) -> list[dict[st
                 )
                 used.add(source)
                 break
+    if source_kind in PORTAL_KINDS:
+        side = "خریدار" if source_kind == SourceKind.MOADIAN_SALES else "فروشنده"
+        prefixes = {
+            "party_name": f"نام {side}/",
+            "party_id": f"شناسه هویتی {side}/",
+        }
+        existing = {str(item["target_field"]) for item in suggestions}
+        exact = {
+            "tax_id": "شماره مالیاتی صورت حساب",
+            "reference_tax_id": "شماره مالیاتی صورت حساب مرجع",
+            "status": "وضعیت صورت حساب",
+            "tax_amount": "مالیات بر ارزش افزوده",
+        }
+        for target in (*exact, *prefixes):
+            if target in existing:
+                continue
+            for column in columns:
+                match = (normalize_header(column) == normalize_header(exact[target])) if target in exact else column.startswith(prefixes[target])
+                if match and column not in used:
+                    suggestions.append({"target_field": target, "source_column": column,
+                                        "confidence": 100, "reason": "قالب کارپوشه مؤدیان"})
+                    used.add(column)
+                    break
     return suggestions
 
 
@@ -750,6 +936,13 @@ def transform_and_validate_row(
             )
 
     if source_kind == SourceKind.ACCOUNTING:
+        from app.financial.accounting import prepare_accounting_row
+
+        try:
+            transformed = prepare_accounting_row(transformed)
+        except ValueError as exc:
+            issues.append(RowIssue(row_number, "account_code", IssueSeverity.ERROR,
+                                   "INVALID_ACCOUNTING_STRUCTURE", str(exc)))
         debit = Decimal(str(transformed.get("debit", "0")))
         credit = Decimal(str(transformed.get("credit", "0")))
         if debit < 0 or credit < 0:
@@ -818,6 +1011,44 @@ def transform_and_validate_row(
                 remedy="در صورت وجود، ستون سررسید را نگاشت کنید.",
             )
         )
+    if source_kind in INVOICE_SNAPSHOT_KINDS or source_kind == SourceKind.SALES:
+        for field in ("gross_amount", "tax_amount", "paid_amount"):
+            if field in transformed and Decimal(str(transformed[field])) < 0:
+                issues.append(
+                    RowIssue(
+                        row_number,
+                        field,
+                        IssueSeverity.ERROR,
+                        "NEGATIVE_INVOICE_AMOUNT",
+                        "مبلغ صورتحساب نمی‌تواند منفی باشد.",
+                    )
+                )
+        # Blank totals must never become zero-value invoices through money parsing.
+        if "gross_amount" in mapping and str(
+            raw.get(mapping["gross_amount"]) if raw.get(mapping["gross_amount"]) is not None else ""
+        ).strip() in {"", "-", "–", "—", "null", "None"}:
+            issues.append(
+                RowIssue(
+                    row_number,
+                    "gross_amount",
+                    IssueSeverity.ERROR,
+                    "REQUIRED_VALUE_MISSING",
+                    "مبلغ کل صورتحساب خالی است.",
+                )
+            )
+        if transformed.get("tax_id"):
+            tax_id = normalize_digits(transformed["tax_id"]).strip().upper()
+            transformed["tax_id"] = tax_id
+            if not re.fullmatch(r"[A-Z0-9]{22}", tax_id):
+                issues.append(
+                    RowIssue(
+                        row_number,
+                        "tax_id",
+                        IssueSeverity.ERROR,
+                        "INVALID_TAX_ID",
+                        "شماره مالیاتی باید ۲۲ نویسه انگلیسی باشد.",
+                    )
+                )
     return transformed, issues
 
 
@@ -849,6 +1080,8 @@ def coverage_for(
             "score": overall,
             "reasons": [] if accepted_count else ["تراکنش معتبر وجود ندارد"],
         }
+    elif source_kind in INVOICE_SNAPSHOT_KINDS:
+        coverage["invoice_comparison"] = {"available": accepted_count > 0, "score": overall}
     else:
         coverage["receivables"] = {
             "available": "due_date" in mapping and accepted_count > 0,

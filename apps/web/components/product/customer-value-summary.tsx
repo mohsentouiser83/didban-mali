@@ -1,4 +1,5 @@
 "use client";
+import { Badge } from "@/components/ui/badge";
 
 import { CheckCircle2, ShieldCheck, TrendingUp, AlertTriangle } from "@/components/ui/icons";
 import { toPersianDigits } from "@/components/ui/financial";
@@ -28,9 +29,9 @@ export function CustomerValueSummary({
             ارزش عملیاتی و کنترل مالی این دوره
           </h4>
         </div>
-        <span className="text-[11px] font-medium text-ds-success bg-ds-success/10 px-2 py-0.5 rounded-full">
+        <Badge variant="success" size="xs">
           چرخه فعال
-        </span>
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

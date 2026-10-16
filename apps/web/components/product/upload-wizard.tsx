@@ -1,21 +1,23 @@
 "use client";
+import { FieldDescription } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form";
+import { ErrorState, LoadingState, toPersianDigits } from "@/components/ui/financial";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/product-api";
-import { buildTransforms, fieldLabels, targetFields } from "@/lib/import-mapping";
+import { buildTransforms, fieldLabels, targetFields, sourceLabels } from "@/lib/import-mapping";
 import type { BankAccount, Company, ImportBatch, ImportPreview, IssuesPage, MappingResponse, ValidationResponse } from "@/lib/product-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DrawerFooter, DrawerDetails, DrawerForm } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toPersianDigits } from "@/components/ui/financial";
 import { Download } from "@/components/ui/icons";
 import formStyles from "./reports-workspace.module.css";
 import styles from "./upload-wizard.module.css";
 
-const sourceLabels = { accounting: "دفتر حسابداری", bank: "گردش بانک", sales: "فاکتور فروش" };
-function downloadTemplate(type: "accounting" | "bank" | "sales") {
+function downloadTemplate(type: ImportBatch["source_kind"]) {
   let headers = "";
   let sampleRow = "";
   let filename = "";
@@ -32,6 +34,10 @@ function downloadTemplate(type: "accounting" | "bank" | "sales") {
     sampleRow =
       "1405/01/15,14:32:10,98234120,انتقال پایا از شرکت الف,50000000,0,245000000";
     filename = "template_bank_statement.csv";
+  } else if (type !== "sales") {
+    headers = "شماره فاکتور,شماره مالیاتی صورتحساب,تاریخ صدور,طرف معامله,شناسه اقتصادی / ملی طرف معامله,مبلغ کل,مالیات,موضوع صورتحساب,شماره مالیاتی مرجع,وضعیت";
+    sampleRow = "INV-1,A111DW04E8300004349008,1405/01/10,شرکت نمونه,14000000001,110000000,10000000,اصلی,,تایید شده";
+    filename = `template_${type}.csv`;
   } else {
     headers =
       "شماره فاکتور,تاریخ صدور,کد مشتری,نام مشتری,مبلغ فاکتور (ریال),مهلت تسویه (روز),وضعیت";
@@ -52,14 +58,13 @@ function downloadTemplate(type: "accounting" | "bank" | "sales") {
   URL.revokeObjectURL(url);
 }
 
-
-export function UploadWizard({ company, initialBatch = null, onSaving, onCancel, onUpdated, onDone }: {
-  company: Company; initialBatch?: ImportBatch | null; onSaving: (busy: boolean) => void;
+export function UploadWizard({ company, initialBatch = null, initialSourceKind = "accounting", onSaving, onCancel, onUpdated, onDone }: {
+  company: Company; initialBatch?: ImportBatch | null; initialSourceKind?: ImportBatch["source_kind"]; onSaving: (busy: boolean) => void;
   onCancel: () => void; onUpdated: (batch: ImportBatch) => void; onDone: (batch: ImportBatch) => void;
 }) {
   const [batch, setBatch] = useState<ImportBatch | null>(initialBatch);
   const [step, setStep] = useState(initialBatch?.scan_status === "clean" ? 2 : 1);
-  const [sourceKind, setSourceKind] = useState<ImportBatch["source_kind"]>(initialBatch?.source_kind ?? "accounting");
+  const [sourceKind, setSourceKind] = useState<ImportBatch["source_kind"]>(initialBatch?.source_kind ?? initialSourceKind);
   const [sourceLabel, setSourceLabel] = useState("");
   const [bankAccounts, setBankAccounts] = useState<BankAccount[] | null>(null);
   const [bankAccountId, setBankAccountId] = useState("");
@@ -146,7 +151,8 @@ export function UploadWizard({ company, initialBatch = null, onSaving, onCancel,
   function selectFile(selected: File | undefined) {
     setError(""); setFile(null);
     if (!selected) return;
-    if (!/\.(csv|xlsx)$/i.test(selected.name)) { setError("فایل باید با قالب CSV یا XLSX باشد."); return; }
+    if (!/\.(csv|xls|xlsx|pdf)$/i.test(selected.name)) { setError("فایل باید CSV، XLS، XLSX یا PDF بانک باشد."); return; }
+    if (/\.pdf$/i.test(selected.name) && sourceKind !== "bank") { setError("PDF فقط برای صورتحساب بانک قابل ورود است."); return; }
     if (!selected.size || selected.size > 50 * 1024 * 1024) { setError("فایل باید غیرخالی و حداکثر ۵۰ مگابایت باشد."); return; }
     setFile(selected);
   }
@@ -213,25 +219,25 @@ export function UploadWizard({ company, initialBatch = null, onSaving, onCancel,
   return <div className={styles.content}>
     <ol className={styles.steps} aria-label="مراحل بارگذاری">{["انتخاب فایل", "تأیید اطلاعات", "ثبت سند"].map((label, index) => <li key={label} aria-current={step === index + 1 ? "step" : undefined} data-active={step === index + 1}><span>{toPersianDigits(index + 1)}</span>{label}</li>)}</ol>
     {step === 1 && !batch && <DrawerForm onSubmit={(event) => void upload(event)}>
-      <div><label htmlFor="import-kind">نوع سند</label><Select dir="rtl" value={sourceKind} disabled={busy} onValueChange={(value) => setSourceKind(value as ImportBatch["source_kind"])}><SelectTrigger id="import-kind"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(sourceLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+      <div><label htmlFor="import-kind" className="mb-2 block text-sm">نوع سند</label><Select dir="rtl" value={sourceKind} disabled={busy} onValueChange={(value) => setSourceKind(value as ImportBatch["source_kind"])}><SelectTrigger id="import-kind"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(sourceLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
       {sourceKind === "bank" && <div>
         <label htmlFor="import-bank-account">حساب بانکی</label>
-        {accountsError ? <div role="alert" className={formStyles.error}><p>{accountsError}</p><Button type="button" variant="outline" onClick={() => setAccountsRetry((value) => value + 1)}>تلاش دوباره</Button></div> : bankAccounts === null ? <p role="status" className={formStyles.caption}>در حال دریافت حساب‌ها…</p> : <>
+        {accountsError ? <ErrorState onRetry={() => setAccountsRetry((value) => value + 1)} variant="compact" ><p>{accountsError}</p></ErrorState> : bankAccounts === null ? <LoadingState variant="inline" >در حال دریافت حساب‌ها…</LoadingState> : <>
           <Select dir="rtl" value={bankAccountId} disabled={busy} onValueChange={setBankAccountId}>
-            <SelectTrigger id="import-bank-account" aria-describedby="import-bank-hint"><SelectValue placeholder="انتخاب حساب بانکی" /></SelectTrigger>
+            <SelectTrigger id="import-bank-account"><SelectValue placeholder="انتخاب حساب بانکی" /></SelectTrigger>
             <SelectContent>{bankAccounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.label}{account.account_last4 ? ` — ${account.account_last4}` : ""}</SelectItem>)}<SelectItem value="new">افزودن حساب جدید</SelectItem></SelectContent>
           </Select>
-          <p id="import-bank-hint" className={formStyles.caption}>{bankAccountId === "new" ? "حساب جدید همراه این بارگذاری ساخته می‌شود." : "برای فایل‌های ماه‌های بعد، همان حساب قبلی را انتخاب کنید."}</p>
+
         </>}
       </div>}
       {(sourceKind !== "bank" || bankAccountId === "new") && <div><label htmlFor="import-label">{sourceKind === "bank" ? "نام حساب جدید" : "عنوان منبع (اختیاری)"}</label><Input id="import-label" maxLength={160} minLength={sourceKind === "bank" ? 2 : undefined} required={sourceKind === "bank"} placeholder={sourceKind === "bank" ? "مثلاً بانک ملت — حساب جاری شرکت" : "مثلاً دفتر حسابداری مهر"} value={sourceLabel} onChange={(event) => setSourceLabel(event.target.value)} disabled={busy} /></div>}
-      <div><label htmlFor="import-file">فایل سند</label><Input id="import-file" type="file" accept=".csv,.xlsx" disabled={busy} onChange={(event) => selectFile(event.target.files?.[0])} aria-describedby="import-file-hint" /><p id="import-file-hint" className={formStyles.caption}>CSV یا XLSX، حداکثر ۵۰ مگابایت</p></div>
+      <div className="grid min-w-0 gap-2"><label htmlFor="import-file">فایل سند</label><FileInput id="import-file" fileName={file?.name} accept=".csv,.xls,.xlsx,.pdf" disabled={busy} onChange={(event) => selectFile(event.target.files?.[0])} aria-invalid={error ? true : undefined} aria-describedby={["import-file-hint", error ? "import-file-error" : ""].filter(Boolean).join(" ")} /><FieldDescription id="import-file-hint">CSV، XLS، XLSX یا PDF بانک، حداکثر ۵۰ مگابایت</FieldDescription></div>
       <Button type="button" variant="outline" onClick={() => downloadTemplate(sourceKind)} disabled={busy}><Download size={16} aria-hidden="true" />دریافت فایل نمونه</Button>
-      {error && <p role="alert" className={formStyles.error}>{error}</p>}
+      {error && <FormMessage id="import-file-error">{error}</FormMessage>}
       <DrawerFooter><Button type="button" variant="outline" onClick={onCancel} disabled={busy}>انصراف</Button><Button type="submit" disabled={busy || !file || !bankReady}>{busy ? "در حال بارگذاری…" : "ادامه"}</Button></DrawerFooter>
     </DrawerForm>}
-    {step === 1 && batch && <><p className={formStyles.note}><bdi>{batch.original_name}</bdi></p><p role="status" className={formStyles.caption}>در حال بررسی فایل…</p>{(scanError || batch.failure_message) && <div role="alert" className={formStyles.error}><p>{scanError || batch.failure_message}</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div>}<DrawerFooter><Button variant="outline" onClick={onCancel}>بستن</Button></DrawerFooter></>}
-    {step === 2 && <>{previewError ? <div role="alert" className={formStyles.error}><p>{previewError}</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : !preview ? <Skeleton className="h-48 w-full" /> : <DrawerForm onSubmit={(event) => void confirm(event)}>
+    {step === 1 && batch && <><p className={formStyles.note}><bdi>{batch.original_name}</bdi></p><LoadingState variant="inline" >در حال بررسی فایل…</LoadingState>{(scanError || batch.failure_message) && <ErrorState onRetry={() => setRetry((value) => value + 1)} variant="compact" ><p>{scanError || batch.failure_message}</p></ErrorState>}<DrawerFooter><Button variant="outline" onClick={onCancel}>بستن</Button></DrawerFooter></>}
+    {step === 2 && <>{previewError ? <ErrorState onRetry={() => setRetry((value) => value + 1)} variant="compact" ><p>{previewError}</p></ErrorState> : !preview ? <Skeleton className="h-48 w-full" /> : <DrawerForm onSubmit={(event) => void confirm(event)}>
       <p className={formStyles.note}><bdi>{batch?.original_name}</bdi></p>
       <div className={styles.fields}>
         <div><label htmlFor="import-currency">واحد مبلغ</label><Select dir="rtl" value={currency} onValueChange={(value) => setCurrency(value as "rial" | "toman")} disabled={busy || !!preview.mapping}><SelectTrigger id="import-currency"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="rial">ریال</SelectItem><SelectItem value="toman">تومان</SelectItem></SelectContent></Select></div>
@@ -248,7 +254,7 @@ export function UploadWizard({ company, initialBatch = null, onSaving, onCancel,
         {optional.map(fieldSelect)}
       </div></details>
       {batch?.duplicate_detected && <p className={formStyles.caption}>این فایل قبلاً بارگذاری شده است.</p>}
-      {error && <p role="alert" className={formStyles.error}>{error}</p>}
+      {error && <FormMessage>{error}</FormMessage>}
       <DrawerFooter><Button type="button" variant="outline" onClick={onCancel} disabled={busy}>بستن</Button><Button type="submit" disabled={busy || !mappingComplete}>{busy ? "در حال بررسی…" : "ادامه"}</Button></DrawerFooter>
     </DrawerForm>}</>}
     {step === 3 && batch && <>
@@ -256,9 +262,9 @@ export function UploadWizard({ company, initialBatch = null, onSaving, onCancel,
       <DrawerDetails><div><dt>کل ردیف‌ها</dt><dd>{toPersianDigits(batch.row_count ?? 0)}</dd></div><div><dt>قابل ثبت</dt><dd>{toPersianDigits(batch.accepted_count ?? 0)}</dd></div><div><dt>ردیف‌های دارای خطا</dt><dd>{toPersianDigits(batch.rejected_count ?? 0)}</dd></div></DrawerDetails>
       {(batch.rejected_count ?? 0) > 0 && <p className={formStyles.caption}>ردیف‌های دارای خطا ثبت نمی‌شوند. پس از ثبت، جزئیات آن‌ها در صفحه ردیف‌ها در دسترس است.</p>}
       {issues?.items.length ? <details className={styles.options}><summary>مشاهده ایرادها ({toPersianDigits(issues.total)})</summary><ul className={styles.issues}>{issues.items.map((issue) => <li key={issue.id}>ردیف {toPersianDigits(issue.row_number ?? "—")} · {issue.message}{issue.remedy && <p className={formStyles.caption}>{issue.remedy}</p>}</li>)}</ul></details> : null}
-      {issuesError && <p role="alert" className={formStyles.error}>جزئیات ایرادها دریافت نشد. برای بررسی آن‌ها صفحه ردیف‌های سند را باز کنید.</p>}
-      {batch.failure_message && <p role="alert" className={formStyles.error}>{batch.failure_message}</p>}
-      {error && <p role="alert" className={formStyles.error}>{error}</p>}
+      {issuesError && <FormMessage>جزئیات ایرادها دریافت نشد. برای بررسی آن‌ها صفحه ردیف‌های سند را باز کنید.</FormMessage>}
+      {batch.failure_message && <FormMessage>{batch.failure_message}</FormMessage>}
+      {error && <FormMessage>{error}</FormMessage>}
       <DrawerFooter><Button variant="outline" onClick={() => setStep(2)} disabled={busy}>قبلی</Button><Button variant="outline" onClick={onCancel} disabled={busy}>بستن</Button><Button onClick={() => void commit()} disabled={busy || !validation || (batch.accepted_count ?? 0) < 1 || !!validation.issue_counts.blocking}>{busy ? "در حال ثبت…" : "ثبت سند"}</Button></DrawerFooter>
     </>}
   </div>;

@@ -12,7 +12,7 @@ it("preserves rial precision when displaying Persian toman and requires full-his
   const changed = vi.fn();
   render(<ReceiptHistoryEditor companyId="company" canWrite onChanged={changed} />);
   fireEvent.click(screen.getByRole("button", { name: "مشاهده و ثبت وصول‌ها" }));
-  fireEvent.click(await screen.findByRole("button", { name: "جزئیات وصول" }));
+  fireEvent.click(await screen.findByRole("button", { name: "INV مشتری" }));
   expect(screen.getByLabelText("مبلغ به تومان")).toHaveValue("۱۰۰٫۱");
   expect(screen.getByRole("button", { name: "ذخیره تاریخچه کامل" })).toBeDisabled();
   fireEvent.click(screen.getByRole("checkbox", { name: "تأیید تاریخچه کامل" }));
@@ -25,7 +25,7 @@ it("preserves rial precision when displaying Persian toman and requires full-his
 it("lets a viewer inspect settled invoices without edit controls", async () => {
   render(<ReceiptHistoryEditor companyId="company" canWrite={false} onChanged={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "مشاهده و ثبت وصول‌ها" }));
-  fireEvent.click(await screen.findByRole("button", { name: "جزئیات وصول" }));
+  fireEvent.click(await screen.findByRole("button", { name: "INV مشتری" }));
   expect(screen.getByLabelText("مبلغ به تومان")).toBeDisabled();
   expect(screen.queryByRole("button", { name: "ذخیره تاریخچه کامل" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "افزودن وصول" })).not.toBeInTheDocument();
@@ -33,9 +33,16 @@ it("lets a viewer inspect settled invoices without edit controls", async () => {
 it("prevents overpayment before submitting", async () => {
   render(<ReceiptHistoryEditor companyId="company" canWrite onChanged={vi.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "مشاهده و ثبت وصول‌ها" }));
-  fireEvent.click(await screen.findByRole("button", { name: "جزئیات وصول" }));
+  fireEvent.click(await screen.findByRole("button", { name: "INV مشتری" }));
   fireEvent.change(screen.getByLabelText("مبلغ به تومان"), { target: { value: "1001" } });
   fireEvent.click(screen.getByRole("checkbox", { name: "تأیید تاریخچه کامل" }));
   expect(screen.getByRole("button", { name: "ذخیره تاریخچه کامل" })).toBeDisabled();
-  expect(screen.getByRole("alert")).toHaveTextContent("جمع وصول نباید از مبلغ فاکتور بیشتر باشد");
+  expect(screen.getByRole("alert")).toHaveTextContent("تاریخ یا مبلغ وصول نامعتبر است.");
+});
+it("shows a missing imported paid total as unknown", async () => {
+  vi.mocked(api).mockResolvedValue([{ ...history, paid_amount_irr: null, complete: false, receipts: [] }]);
+  render(<ReceiptHistoryEditor companyId="company" canWrite onChanged={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "مشاهده و ثبت وصول‌ها" }));
+  expect(await screen.findByText("نامشخص")).toBeInTheDocument();
+  expect(screen.getByText("ناقص")).toBeInTheDocument();
 });

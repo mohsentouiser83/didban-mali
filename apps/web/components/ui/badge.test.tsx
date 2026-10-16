@@ -21,8 +21,8 @@ describe("Badge, Status & Indicator Components", () => {
 
     it("renders dot with pulse animation when enabled", () => {
       const { container } = render(<Badge dot pulse>در حال پردازش</Badge>);
-      const dot = container.querySelector(".animate-pulse");
-      expect(dot).toBeDefined();
+      const dot = container.querySelector("span[aria-hidden=true]");
+      expect(dot).toHaveClass("motion-safe:animate-pulse");
     });
 
     it("invokes onRemove callback when remove button is clicked", () => {
@@ -43,7 +43,7 @@ describe("Badge, Status & Indicator Components", () => {
     it("renders processing status with pulse dot", () => {
       const { container } = render(<StatusChip status="processing" />);
       expect(screen.getByText("در حال پردازش")).toBeDefined();
-      expect(container.querySelector(".animate-pulse")).toBeDefined();
+      expect(container.querySelector("span[aria-hidden=true]")).toHaveClass("motion-safe:animate-pulse");
     });
 
     it("supports xs size for financial tables", () => {

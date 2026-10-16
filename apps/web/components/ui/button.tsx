@@ -126,7 +126,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isBusy ? (
           <>
-            <Spinner className="size-4 animate-spin shrink-0" />
+            <Spinner aria-hidden="true" className="size-4 animate-spin shrink-0" />
             <span>{loadingText ?? children}</span>
           </>
         ) : (

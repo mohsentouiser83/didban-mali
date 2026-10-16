@@ -32,7 +32,7 @@ it("does not offer download before the PDF is ready", async () => {
   render(<ReportsWorkspace company={company} />);
   fireEvent.click(await screen.findByRole("button", { name: "گزارش کیان" }));
   expect(screen.queryByRole("link", { name: "دریافت PDF" })).not.toBeInTheDocument();
-  expect(screen.getByRole("status")).toHaveTextContent("گزارش در صف تولید است");
+  expect(screen.getByRole("status")).toHaveTextContent("در صف تولید");
 });
 it("creates a report from a completed analysis and preserves input on failure", async () => {
   const post = vi.fn().mockRejectedValueOnce(Error("offline")).mockResolvedValue({ ...report, id: "new", title_fa: "گزارش جدید مهر", status: "queued", download_ready: false });

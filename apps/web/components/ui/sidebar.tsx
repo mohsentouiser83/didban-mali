@@ -224,8 +224,8 @@ const Sidebar = React.forwardRef<
             side={side}
           >
             <SheetHeader className="sr-only">
-              <SheetTitle>Sidebar</SheetTitle>
-              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+              <SheetTitle>ناوبری اصلی</SheetTitle>
+              <SheetDescription>انتخاب صفحه</SheetDescription>
             </SheetHeader>
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -300,7 +300,7 @@ const SidebarTrigger = React.forwardRef<
       {...props}
     >
       <PanelLeft />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">باز و بسته‌کردن منو</span>
     </Button>
   );
 });
@@ -319,10 +319,9 @@ const SidebarRail = React.forwardRef<
       motion="none"
       ref={ref}
       data-sidebar="rail"
-      aria-label="Toggle Sidebar"
+      aria-label="باز و بسته‌کردن منو"
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 rtl:translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border group-data-[side=left]:-right-4 group-data-[side=right]:left-0 sm:flex",
         "[[data-side=left]_&]:cursor-w-resize rtl:[[data-side=left]_&]:cursor-e-resize [[data-side=right]_&]:cursor-e-resize rtl:[[data-side=right]_&]:cursor-w-resize",

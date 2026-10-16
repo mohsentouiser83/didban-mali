@@ -43,7 +43,7 @@ export type BankAccount = {
 
 export type ImportBatch = {
   id: string;
-  source_kind: "accounting" | "bank" | "sales";
+  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
   source_label: string;
   status: ImportStatus;
   stage: string;
@@ -102,7 +102,7 @@ export type MappingResponse = {
 export type MappingTemplateResponse = {
   id: string;
   company_id: string;
-  source_kind: "accounting" | "bank" | "sales";
+  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
   name: string;
   column_fingerprint: string;
   mapping: Record<string, string>;
@@ -773,7 +773,7 @@ export type ReportSnapshot = {
 
 export type ReadinessState = "ready" | "limited" | "missing";
 export type SourceReadiness = {
-  kind: "accounting" | "bank" | "sales";
+  kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
   state: ReadinessState;
   completed_batches: number;
   last_activity_at: string | null;
@@ -953,6 +953,7 @@ export type VendorPayableItem = {
   avg_delay_days: number;
   risk_level: PayablesRiskLevel;
   risk_score: number;
+  risk_assessment_incomplete?: boolean;
   recommended_action: string;
   buckets: Record<PayablesBucketKey, string>;
   share_of_total_payables: number;
@@ -963,7 +964,7 @@ export type PayablesSummaryResponse = {
   total_payables_irr: string;
   total_overdue_irr: string;
   overdue_ratio: number;
-  dpo_days: number;
+  dpo_days: number | null;
   dso_days: number | null;
   ccc_days: number | null;
   vendor_count: number;

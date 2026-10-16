@@ -9,6 +9,7 @@ import {
   TableHead,
   TableCell,
   TableFooter,
+  TableRowHeader,
 } from "./table";
 
 describe("Table Component & High-Density Styles", () => {
@@ -96,7 +97,7 @@ describe("Table Component & High-Density Styles", () => {
     expect(tr?.getAttribute("data-risk")).toBe("critical");
   });
 
-  it("applies numeric left-aligned tabular styling to cells", () => {
+  it("applies numeric tabular styling with the project font to cells", () => {
     render(
       <Table>
         <TableBody>
@@ -108,7 +109,16 @@ describe("Table Component & High-Density Styles", () => {
     );
 
     const td = screen.getByText("۱,۲۰۰,۰۰۰");
-    expect(td.className).toContain("text-left");
-    expect(td.className).toContain("font-mono");
+    expect(td.className).toContain("text-end");
+    expect(td.className).toContain("tabular-nums");
+    expect(td.className).not.toContain("font-mono");
   });
+  it("retains row-header semantics and exposes the shared scroll container", () => {
+    const containerRef = React.createRef<HTMLDivElement>();
+    render(<Table aria-label="مانده مشتریان" containerRef={containerRef}><TableBody><TableRow><TableRowHeader>مشتری نمونه</TableRowHeader><TableCell>۱۲۳</TableCell></TableRow></TableBody></Table>);
+    expect(screen.getByRole("rowheader", { name: "مشتری نمونه" }).getAttribute("scope")).toBe("row");
+    expect(containerRef.current).toBe(screen.getByRole("region", { name: "مانده مشتریان" }));
+    expect(containerRef.current?.tabIndex).toBe(0);
+  });
+
 });

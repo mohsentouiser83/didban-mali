@@ -1,4 +1,9 @@
 "use client";
+import { FieldDescription } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/form";
+import { ErrorState } from "@/components/ui/financial";
+
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Plus, Search } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
@@ -6,14 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Drawer, DrawerFooter, DrawerForm } from "@/components/ui/drawer";
 import { api } from "@/lib/product-api";
-import {
-  roleLabels,
-  type Company,
-  type Member,
-  type Role,
-} from "@/lib/product-types";
+import { roleLabels, type Company, type Member, type Role } from "@/lib/product-types";
 import { SelectField, SelectOption } from "./select-field";
-import { SettingsConfirm } from "./settings-confirm";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import page from "./cashflow-overview.module.css";
 import table from "./receivables-customers.module.css";
 import styles from "./reports-workspace.module.css";
@@ -143,34 +143,32 @@ function MembersContent({
           </div>
         </div>
         {error ? (
-          <div className={table.empty} role="alert">
+          <ErrorState onRetry={() => void load()}  variant="compact">
             <p>{error}</p>
-            <Button variant="outline" onClick={() => void load()}>
-              تلاش دوباره
-            </Button>
-          </div>
+
+          </ErrorState>
         ) : loading ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <div className={table.scroll}>
-            <table className={table.table}>
-              <thead>
-                <tr>
-                  <th scope="col">نام</th>
-                  <th scope="col">ایمیل</th>
-                  <th scope="col">سطح دسترسی</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="min-w-0">
+            <Table className="min-w-[640px]" containerClassName="border-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">نام</TableHead>
+                  <TableHead scope="col">ایمیل</TableHead>
+                  <TableHead scope="col">سطح دسترسی</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {visible.map((member) => (
-                  <tr key={member.user_id}>
-                    <td>
+                  <TableRow key={member.user_id}>
+                    <TableCell>
                       <Button
                         variant="ghost"
-                        className={table.customer}
+                        className="h-auto min-h-11 max-w-80 justify-start whitespace-normal px-0 text-start font-normal"
                         onClick={() => {
                           setSelected(member);
                           setRole(member.role);
@@ -180,24 +178,24 @@ function MembersContent({
                         {member.full_name}
                         {member.user_id === currentUserId ? " (شما)" : ""}
                       </Button>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell>
                       <bdi dir="ltr">{member.email}</bdi>
-                    </td>
-                    <td>{roleLabels[member.role]}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>{roleLabels[member.role]}</TableCell>
+                  </TableRow>
                 ))}
                 {!visible.length && (
-                  <tr>
-                    <td colSpan={3} className={table.empty}>
+                  <TableRow>
+                    <TableEmptyCell colSpan={3} className="h-40 p-0 text-center text-muted-foreground">
                       {search
                         ? "عضوی با این نام یا ایمیل پیدا نشد."
                         : "عضوی ثبت نشده است."}
-                    </td>
-                  </tr>
+                    </TableEmptyCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
@@ -214,7 +212,7 @@ function MembersContent({
         description={
           selected
             ? selected.email
-            : "عضو باید قبلاً در دیدبان حساب کاربری ساخته باشد."
+            : undefined
         }
       >
         <DrawerForm onSubmit={save}>
@@ -236,6 +234,7 @@ function MembersContent({
             <label htmlFor="member-role">سطح دسترسی</label>
             <SelectField
               id="member-role"
+              aria-describedby="member-role-hint"
               value={role}
               disabled={busy || !owner || selected?.user_id === currentUserId}
               onChange={(e) => setRole(e.target.value as Role)}
@@ -246,7 +245,7 @@ function MembersContent({
                 </SelectOption>
               ))}
             </SelectField>
-            <p className={`${styles.caption} mt-3`}>{descriptions[role]}</p>
+            <FieldDescription id="member-role-hint" className="mt-3">{descriptions[role]}</FieldDescription>
           </div>
           {selected?.user_id === currentUserId && (
             <p className={styles.caption}>
@@ -254,9 +253,7 @@ function MembersContent({
             </p>
           )}
           {formError && (
-            <p role="alert" className={styles.error}>
-              {formError}
-            </p>
+            <FormMessage>{formError}</FormMessage>
           )}
           <DrawerFooter>
             {owner && selected?.user_id !== currentUserId && (
@@ -281,7 +278,7 @@ function MembersContent({
           </DrawerFooter>
         </DrawerForm>
       </Drawer>
-      <SettingsConfirm
+      <ConfirmDialog
         open={removing}
         onOpenChange={setRemoving}
         title="حذف عضو"

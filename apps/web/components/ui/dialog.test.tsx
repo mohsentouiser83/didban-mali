@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
+import { Button } from "./button";
 import {
   Dialog,
   DialogTrigger,
@@ -15,7 +16,7 @@ describe("Dialog Component", () => {
   it("renders trigger and dialog content elements", () => {
     render(
       <Dialog defaultOpen>
-        <DialogTrigger>باز کردن پنجره</DialogTrigger>
+        <DialogTrigger asChild><Button>باز کردن پنجره</Button></DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>صدور سند تعدیل</DialogTitle>
@@ -23,7 +24,7 @@ describe("Dialog Component", () => {
           </DialogHeader>
           <div>محتوای فرم</div>
           <DialogFooter>
-            <button>ثبت</button>
+            <Button>ثبت</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>,

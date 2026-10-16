@@ -11,12 +11,13 @@ const summary = {
   buckets: [{ bucket_key: "not_due", amount_irr: "10000000" }, { bucket_key: "due_date_missing", amount_irr: "3000000" }],
 };
 beforeEach(() => { vi.mocked(api).mockReset(); vi.mocked(api).mockResolvedValue(summary); });
-it("keeps the three amount cards reconciled after debit entries", async () => {
+it("keeps unknown due dates out of confirmed not-due and overdue totals", async () => {
   render(<PayablesWorkspace company={company} />);
-  await screen.findByTitle("۱٬۵۰۰٬۰۰۰ تومان");
+  await screen.findByLabelText("۱٬۵۰۰٬۰۰۰ تومان");
   const notDue = within(screen.getByRole("article", { name: "بدهی‌های سررسیدنرسیده" }));
-  expect(notDue.getByTitle("۱٬۰۰۰٬۰۰۰ تومان")).toBeInTheDocument();
-  expect(screen.getByTitle("۳ تأمین‌کننده")).toBeInTheDocument();
+  expect(notDue.getByLabelText("۷۰۰٬۰۰۰ تومان")).toBeInTheDocument();
+  expect(within(screen.getByRole("article", { name: "بدهی‌های سررسیدگذشته" })).getByText("سررسید نامشخص")).toBeInTheDocument();
+  expect(screen.getByLabelText("۳ تأمین‌کننده")).toBeInTheDocument();
   expect(vi.mocked(api).mock.calls[0][0]).toMatch(/payables\/summary\?as_of_date=\d{4}-\d{2}-\d{2}$/);
 });
 it("retries failed summary requests", async () => {
@@ -25,13 +26,13 @@ it("retries failed summary requests", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("اطلاعات بدهی‌ها دریافت نشد");
   vi.mocked(api).mockResolvedValue(summary);
   fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
-  expect(await screen.findByTitle("۱٬۵۰۰٬۰۰۰ تومان")).toBeInTheDocument();
+  expect(await screen.findByLabelText("۱٬۵۰۰٬۰۰۰ تومان")).toBeInTheDocument();
 });
 it("removes the previous company's statistics when switching companies", async () => {
   const view = render(<PayablesWorkspace company={company} />);
-  await screen.findByTitle("۱٬۵۰۰٬۰۰۰ تومان");
+  await screen.findByLabelText("۱٬۵۰۰٬۰۰۰ تومان");
   vi.mocked(api).mockResolvedValue({ ...summary, total_payables_irr: "25000000" });
   view.rerender(<PayablesWorkspace company={{ ...company, id: "other" }} />);
-  await waitFor(() => expect(screen.queryByTitle("۱٬۵۰۰٬۰۰۰ تومان")).not.toBeInTheDocument());
-  expect(await screen.findByTitle("۲٬۵۰۰٬۰۰۰ تومان")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByLabelText("۱٬۵۰۰٬۰۰۰ تومان")).not.toBeInTheDocument());
+  expect(await screen.findByLabelText("۲٬۵۰۰٬۰۰۰ تومان")).toBeInTheDocument();
 });

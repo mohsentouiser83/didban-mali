@@ -48,7 +48,7 @@ const Tabs = React.forwardRef<
 Tabs.displayName = TabsPrimitive.Root.displayName
 
 const tabsListVariants = cva(
-  "inline-flex items-center text-[var(--ds-muted-fg)] transition-all",
+  "inline-flex max-w-full items-center overflow-x-auto text-[var(--ds-muted-fg)] motion-reduce:transition-none",
   {
     variants: {
       variant: {
@@ -142,7 +142,10 @@ export interface TabsListProps
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   TabsListProps
->(({ className, variant = "line", size = "default", children, ...props }, ref) => {
+>(({ className, variant: listVariant, size: listSize, children, ...props }, ref) => {
+  const parent = React.useContext(TabsContext)
+  const variant = listVariant ?? parent.variant
+  const size = listSize ?? parent.size
   const contextValue = React.useMemo(
     () => ({
       variant: variant ?? "line",
@@ -154,6 +157,7 @@ const TabsList = React.forwardRef<
   return (
     <TabsContext.Provider value={contextValue}>
       <TabsPrimitive.List
+        data-slot="tabs-list"
         ref={ref}
         className={cn(tabsListVariants({ variant, size }), className)}
         {...props}
@@ -166,7 +170,7 @@ const TabsList = React.forwardRef<
 TabsList.displayName = TabsPrimitive.List.displayName
 
 const tabsTriggerVariants = cva(
-  "group inline-flex items-center justify-center whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer  [&_svg]:transition-transform [&_svg]:duration-200 ",
+  "group inline-flex items-center justify-center whitespace-nowrap font-medium transition-all duration-200 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40 select-none cursor-pointer  [&_svg]:transition-transform [&_svg]:duration-200 ",
   {
     variants: {
       variant: {
@@ -289,6 +293,7 @@ const TabsTrigger = React.forwardRef<
 
   return (
     <TabsPrimitive.Trigger
+      data-slot="tabs-trigger"
       ref={ref}
       className={cn(tabsTriggerVariants({ variant, size }), className)}
       {...props}
@@ -302,9 +307,10 @@ const TabsContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
+    data-slot="tabs-content"
     ref={ref}
     className={cn(
-      "mt-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2",
+      "motion-safe:animate-[workspace-enter_180ms_ease-out_both] mt-3 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-ring)] focus-visible:ring-offset-2",
       className
     )}
     {...props}

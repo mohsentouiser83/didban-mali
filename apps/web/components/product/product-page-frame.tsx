@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusMessage } from "@/components/ui/financial/status-message";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
@@ -44,7 +45,7 @@ export function ProductPageFrame({
 
   return (
     <div id="workspace-content" className="product-page-frame" tabIndex={-1}>
-      {notice && <div className="product-page-notice">{notice}</div>}
+      {notice && <StatusMessage className="mb-4 rounded-lg border border-border bg-muted p-3">{notice}</StatusMessage>}
       <div ref={bodyRef} className="product-page-body">
         {children}
       </div>

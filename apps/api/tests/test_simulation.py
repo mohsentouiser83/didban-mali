@@ -1,13 +1,14 @@
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
+from sqlalchemy.engine import ScalarResult
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cashflow.schemas import CashFlowForecastResponse, CashFlowSummaryResponse, CashFlowWeekItem
-from app.main import app
 from app.payables.schemas import PayablesSummaryResponse
 from app.receivables.schemas import ReceivablesSummaryResponse
 from app.simulation.schemas import (
@@ -36,16 +37,17 @@ def test_get_preset_scenarios_service() -> None:
     assert "recession_stress" in ids
 
 
-def test_simulation_openapi_paths() -> None:
-    client = TestClient(app)
-    response = client.get("/openapi.json")
+@pytest.mark.parametrize("suffix", ["presets", "run", "scenarios", "matrix", "memo/pdf"])
+async def test_retired_simulation_routes_are_not_exposed(suffix: str, asgi_client: httpx.AsyncClient) -> None:
+    client = asgi_client
+    response = await client.get("/openapi.json")
     assert response.status_code == 200
     paths = response.json()["paths"]
-    assert "/api/v1/companies/{company_id}/simulation/presets" in paths
-    assert "/api/v1/companies/{company_id}/simulation/run" in paths
-    assert "/api/v1/companies/{company_id}/simulation/scenarios" in paths
-    assert "/api/v1/companies/{company_id}/simulation/matrix" in paths
-    assert "/api/v1/companies/{company_id}/simulation/memo/pdf" in paths
+    # The former public scenario workflow was deliberately retired; service tests remain.
+    assert not any("/simulation/" in path for path in paths)
+    url = f"/api/v1/companies/00000000-0000-0000-0000-000000000000/simulation/{suffix}"
+    method = "GET" if suffix in {"presets", "scenarios"} else "POST"
+    assert (await client.request(method, url)).status_code == 404
 
 
 def _mock_baseline_data():
@@ -118,7 +120,7 @@ def _mock_baseline_data():
 async def test_simulation_baseline_zero_delta() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -157,7 +159,7 @@ async def test_simulation_baseline_zero_delta() -> None:
 async def test_simulation_dso_reduction_and_discount() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -203,7 +205,7 @@ async def test_simulation_dso_reduction_and_discount() -> None:
 async def test_simulation_hiring_and_fixed_costs() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -247,7 +249,7 @@ async def test_simulation_hiring_and_fixed_costs() -> None:
 async def test_simulation_dpo_extension_buffers_cash() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -285,7 +287,7 @@ async def test_simulation_dpo_extension_buffers_cash() -> None:
 async def test_simulation_customer_default_shock() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -323,7 +325,10 @@ async def test_simulation_customer_default_shock() -> None:
 async def test_saved_scenario_crud_and_matrix() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    result = MagicMock(spec=ScalarResult)
+    result.all.return_value = []
+    mock_session.scalars.return_value = result
 
     with (
         patch(
@@ -390,7 +395,7 @@ async def test_saved_scenario_crud_and_matrix() -> None:
 async def test_decision_memo_pdf_generation() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     company_id = uuid4()
-    mock_session = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
 
     with (
         patch(
@@ -447,15 +452,28 @@ async def test_decision_memo_pdf_generation() -> None:
 async def test_fractional_negative_cash_cycle_survives_simulation_and_comparison() -> None:
     cash_sum, cash_forecast, rec_sum, pay_sum = _mock_baseline_data()
     rec_sum = rec_sum.model_copy(update={"dso_days": 45.2})
-    pay_sum = PayablesSummaryResponse.model_validate({
-        **pay_sum.model_dump(), "dso_days": 45.2, "dpo_days": 90, "ccc_days": -44.8,
-    })
-    session = AsyncMock()
+    pay_sum = PayablesSummaryResponse.model_validate(
+        {
+            **pay_sum.model_dump(),
+            "dso_days": 45.2,
+            "dpo_days": 90,
+            "ccc_days": -44.8,
+        }
+    )
+    session = AsyncMock(spec=AsyncSession)
+    result = MagicMock(spec=ScalarResult)
+    result.all.return_value = []
+    session.scalars.return_value = result
     company_id = uuid4()
     with (
         patch("app.simulation.service.get_cashflow_summary", new=AsyncMock(return_value=cash_sum)),
-        patch("app.simulation.service.get_cashflow_forecast", new=AsyncMock(return_value=cash_forecast)),
-        patch("app.simulation.service.get_receivables_summary", new=AsyncMock(return_value=rec_sum)),
+        patch(
+            "app.simulation.service.get_cashflow_forecast",
+            new=AsyncMock(return_value=cash_forecast),
+        ),
+        patch(
+            "app.simulation.service.get_receivables_summary", new=AsyncMock(return_value=rec_sum)
+        ),
         patch("app.simulation.service.get_payables_summary", new=AsyncMock(return_value=pay_sum)),
     ):
         result = await run_simulation(session, company_id, SimulationParametersRequest())

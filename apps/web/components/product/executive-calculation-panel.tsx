@@ -1,7 +1,9 @@
 "use client";
+import { Hint } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 import { useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { notify } from "@/components/ui/sonner";
 import {
   Activity,
   ChevronLeft,
@@ -13,6 +15,8 @@ import {
   WalletCards,
   type AppIcon,
 } from "@/components/ui/icons";
+import { Spinner } from "@/components/ui/spinner";
+import { StatCard } from "@/components/ui/financial/stat-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,19 +36,19 @@ import { DashboardForecast } from "./dashboard-forecast";
 
 const STATUS_TAGS: Record<MetricStatus, { label: string; className: string }> =
   {
-    available: { label: "قابل اتکا", className: "dashboard-state-neutral" },
+    available: { label: "قابل اتکا", className: "bg-muted text-muted-foreground" },
     available_with_warning: {
       label: "دارای ملاحظات",
-      className: "dashboard-state-warning",
+      className: "bg-[var(--ds-warning-subtle)] text-[var(--ds-warning)]",
     },
-    approximate: { label: "برآورد مدلی", className: "dashboard-state-info" },
+    approximate: { label: "برآورد مدلی", className: "bg-muted text-primary" },
     insufficient_data: {
       label: "دادهٔ ناکافی",
-      className: "dashboard-state-warning",
+      className: "bg-[var(--ds-warning-subtle)] text-[var(--ds-warning)]",
     },
     not_applicable: {
       label: "غیرقابل‌اعمال",
-      className: "dashboard-state-neutral",
+      className: "bg-muted text-muted-foreground",
     },
   };
 
@@ -70,11 +74,11 @@ export function ExecutiveCalculationPanel({
     try {
       await api(`/companies/${companyId}/calculations/run`, { method: "POST" });
       await onRefresh();
-      toast.success(
+      notify.success(
         "محاسبات مالی بر اساس آخرین داده‌های تأییدشده به‌روزرسانی شد.",
       );
     } catch (error) {
-      toast.error(
+      notify.error(
         error instanceof Error
           ? error.message
           : "محاسبات به‌روزرسانی نشد. دوباره تلاش کنید.",
@@ -120,11 +124,7 @@ export function ExecutiveCalculationPanel({
             aria-busy={recalculating}
             className="dashboard-button"
           >
-            <RefreshCw
-              className={
-                recalculating || loading ? "size-4 animate-spin" : "size-4"
-              }
-            />
+            {recalculating || loading ? <Spinner aria-hidden="true" role="presentation" /> : <RefreshCw className="size-4" aria-hidden="true" />}
             {recalculating
               ? "در حال محاسبه…"
               : dashboard
@@ -133,13 +133,13 @@ export function ExecutiveCalculationPanel({
           </Button>
         </div>
         {loading && !dashboard ? (
-          <div className="dashboard-kpis">
+          <div className="grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-4">
             {definitions.map((item) => (
               <Skeleton key={item.key} className="h-40 rounded-[var(--ds-card-radius)]" />
             ))}
           </div>
         ) : (
-          <div className="dashboard-kpis">
+          <div className="grid min-w-0 grid-cols-2 gap-3 xl:grid-cols-4">
             {definitions.map(({ key, title, icon: Icon }, index) => (
               <CalculationKpiCard
                 key={key}
@@ -155,21 +155,11 @@ export function ExecutiveCalculationPanel({
         {dashboard?.freshness?.sources?.some((source) => source.is_stale) ? (
           <div className="dashboard-freshness">
             {dashboard.freshness.sources.filter((source) => source.is_stale).map((source) => (
-              <span
-                key={source.source_kind}
-                className={`dashboard-source ${source.is_stale ? "dashboard-source-stale" : ""}`}
-                title={
-                  source.last_record_date
-                    ? `آخرین داده: ${toJalaliDate(source.last_record_date)}`
-                    : "داده‌ای ثبت نشده است"
-                }
-              >
-                <span aria-hidden="true" />
-                {source.title_fa} ·{" "}
-                {source.is_stale
-                  ? `${source.days_stale == null ? "—" : toPersianDigits(source.days_stale)} روز قدیمی`
-                  : "به‌روز"}
-              </span>
+              <Hint key={source.source_kind} content={source.last_record_date ? `آخرین داده: ${toJalaliDate(source.last_record_date)}` : "داده‌ای ثبت نشده است"}>
+                <Badge variant={source.is_stale ? "warning" : "success"} size="sm" dot>
+                  {source.title_fa} · {source.is_stale ? `${source.days_stale == null ? "—" : toPersianDigits(source.days_stale)} روز قدیمی` : "به‌روز"}
+                </Badge>
+              </Hint>
             ))}
           </div>
         ) : null}
@@ -220,7 +210,7 @@ export function ExecutiveCalculationPanel({
                   <div
                     key={`${change.metric_key}-${index}`}
                     className="dashboard-change"
-                    title={toPersianDigits(change.change_statement)}
+                    aria-label={toPersianDigits(change.change_statement)}
                   >
                     <span
                       className={`dashboard-change-icon ${change.severity === "positive" ? "is-positive" : change.severity === "warning" || change.severity === "critical" ? "is-warning" : ""}`}
@@ -285,7 +275,7 @@ function CalculationKpiCard({
 }) {
   const tag = metric
     ? STATUS_TAGS[metric.status]
-    : { label: "محاسبه نشده", className: "dashboard-state-neutral" };
+    : { label: "محاسبه نشده", className: "bg-muted text-muted-foreground" };
   const unit = metric?.unit.toLowerCase();
   const available =
     metric &&
@@ -293,11 +283,7 @@ function CalculationKpiCard({
     metric.status !== "not_applicable" &&
     metric.value_numeric != null;
   return (
-    <article
-      className={`dashboard-kpi ${featured ? "dashboard-kpi-featured" : ""}`}
-    >
-      <h3>{title}</h3>
-      <div className="dashboard-kpi-value">
+    <StatCard title={title} icon={<Icon size={18} className="shrink-0 text-primary" aria-hidden="true" />} valueKey={`${metric?.status}:${metric?.value_numeric}`} className={featured ? "border-primary/30" : undefined} value={<>
         {available ? (
           unit === "irr" || unit === "toman" ? (
             <MoneyDisplay
@@ -306,7 +292,7 @@ function CalculationKpiCard({
               currency={unit === "toman" ? "تومان" : "ریال"}
               executive
               size="lg"
-              className="dashboard-kpi-money"
+              className="min-w-0 flex-wrap"
             />
           ) : (
             <>
@@ -323,7 +309,7 @@ function CalculationKpiCard({
             </>
           )
         ) : (
-          <span className="dashboard-kpi-unavailable">
+          <span className="text-sm text-muted-foreground">
             {metric?.status === "not_applicable"
               ? "غیرقابل‌اعمال"
               : metric?.status === "insufficient_data"
@@ -331,14 +317,13 @@ function CalculationKpiCard({
                 : "—"}
           </span>
         )}
-      </div>
-      <div className="dashboard-kpi-footer">
+      </>} footer={<>
       <Button
         variant="surface"
         size="auto"
         motion="none"
         type="button"
-        className="dashboard-evidence-link"
+        className="min-h-11 gap-2 text-xs"
         onClick={onOpenEvidence}
         disabled={!metric}
         aria-label={`مشاهدهٔ شواهد ${title}`}
@@ -346,9 +331,8 @@ function CalculationKpiCard({
         شواهد
         <ChevronLeft size={16} />
       </Button>
-        {metric && metric.status !== "available" && <span className={`dashboard-metric-note ${tag.className}`}>{tag.label}</span>}
-      </div>
-    </article>
+        {metric && metric.status !== "available" && <Badge variant="outline" size="xs" className={tag.className}>{tag.label}</Badge>}
+      </>} />
   );
 }
 

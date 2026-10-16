@@ -1,3 +1,4 @@
+import os
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -36,7 +37,7 @@ from app.reconciliation.service import (
     run_canonical_reconciliation,
 )
 
-ADMIN_URL = (
+ADMIN_URL = os.getenv("ACCOUNTING_TEST_DATABASE_URL",
     "postgresql+asyncpg://didban_admin:change-me-in-real-environments@localhost:55432/didban_mali"
 )
 test_engine = create_async_engine(ADMIN_URL, pool_pre_ping=True)
@@ -45,9 +46,12 @@ db_session_factory = async_sessionmaker(test_engine, expire_on_commit=False)
 
 @pytest.fixture
 async def golden_session():
-    async with db_session_factory() as session:
-        yield session
-        await session.rollback()
+    try:
+        async with db_session_factory() as session:
+            yield session
+            await session.rollback()
+    finally:
+        await test_engine.dispose()
 
 
 @pytest.mark.asyncio

@@ -27,7 +27,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors",
+      "flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none transition-colors motion-reduce:transition-none",
       "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] data-[state=open]:bg-[var(--ds-surface-subtle)]",
       "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       inset && "ps-8",
@@ -49,7 +49,7 @@ const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[9rem] overflow-hidden rounded-[var(--ds-card-radius)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-1.5 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-lg)]",
+      "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw-1rem)] min-w-[9rem] overflow-y-auto overflow-x-hidden rounded-[var(--ds-card-radius)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-1.5 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-lg)]",
       "menu-animated-content",
       className
     )}
@@ -68,7 +68,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[9rem] overflow-y-auto overflow-x-hidden rounded-[var(--ds-card-radius)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-1.5 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-lg)]",
+        "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw-1rem)] min-w-[9rem] overflow-y-auto overflow-x-hidden rounded-[var(--ds-card-radius)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-1.5 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-lg)]",
         "menu-animated-content",
         className
       )}
@@ -91,7 +91,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none transition-all duration-150 ",
+      "relative flex min-h-11 cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm outline-none transition-all duration-150 motion-reduce:transition-none ",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-40 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-transform hover:[&>svg]:scale-115 data-[highlighted]:[&>svg]:scale-115",
       variant === "destructive"
         ? "text-[var(--ds-danger)] focus:bg-[var(--ds-danger-subtle)] focus:text-[var(--ds-danger)] hover:bg-[var(--ds-danger-subtle)] data-[highlighted]:bg-[var(--ds-danger-subtle)] data-[highlighted]:text-[var(--ds-danger)]"
@@ -111,7 +111,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-2.5 text-sm outline-none transition-colors",
+      "relative flex min-h-11 cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-2.5 text-sm outline-none transition-colors motion-reduce:transition-none",
       "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] focus:text-[var(--ds-foreground)] hover:bg-[var(--ds-surface-subtle)] data-[highlighted]:bg-[var(--ds-surface-subtle)] data-[highlighted]:text-[var(--ds-foreground)]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className
@@ -137,7 +137,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-2.5 text-sm outline-none transition-colors",
+      "relative flex min-h-11 cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-2.5 text-sm outline-none transition-colors motion-reduce:transition-none",
       "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] focus:text-[var(--ds-foreground)] hover:bg-[var(--ds-surface-subtle)] data-[highlighted]:bg-[var(--ds-surface-subtle)] data-[highlighted]:text-[var(--ds-foreground)]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
       className

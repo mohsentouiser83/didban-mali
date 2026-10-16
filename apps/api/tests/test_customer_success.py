@@ -2,12 +2,18 @@ import time
 from typing import Any
 
 import httpx
+import pytest
 
 API_URL = "http://localhost:8000/api/v1"
 
 
-def register(label: str) -> tuple[httpx.Client, dict[str, Any], str]:
-    client = httpx.Client(base_url=API_URL)
+@pytest.fixture
+def owner_client():
+    with httpx.Client(base_url=API_URL) as client:
+        yield client
+
+
+def register(client: httpx.Client, label: str) -> tuple[httpx.Client, dict[str, Any], str]:
     email = f"cs-{time.time_ns()}@example.com"
     res = client.post(
         "/auth/register",
@@ -36,8 +42,8 @@ def create_company(client: httpx.Client, name: str) -> dict[str, Any]:
     return res.json()
 
 
-def test_customer_onboarding_validation_and_go_live() -> None:
-    owner_client, _, _ = register("فاز۶")
+def test_customer_onboarding_validation_and_go_live(owner_client: httpx.Client) -> None:
+    owner_client, _, _ = register(owner_client, "فاز۶")
     company = create_company(owner_client, "شرکت پیشرو آزمایشی فاز شش")
     company_id = company["id"]
     csrf = owner_client.cookies["didban_csrf"]

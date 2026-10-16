@@ -14,6 +14,9 @@ class LedgerLine:
     debit_irr: Decimal
     credit_irr: Decimal
     account_class: AccountClass | None
+    entry_type: str = "normal"
+    account_role: str = "other"
+    account_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -34,9 +37,17 @@ def _money(value: Decimal, formula: str, line_count: int) -> CalculatedMetric:
 def calculate_ledger_metrics(
     lines: list[LedgerLine], period_start: date, period_end: date
 ) -> tuple[dict[MetricCode, CalculatedMetric], dict[str, object]]:
-    period_lines = [line for line in lines if period_start <= line.entry_date <= period_end]
-    classified_period = [line for line in period_lines if line.account_class is not None]
-    classified_closing = [line for line in lines if line.account_class is not None]
+    period_lines = [line for line in lines if period_start <= line.entry_date <= period_end
+                    and line.entry_type not in {"opening", "closing", "income_closing"}]
+    classified_period = [line for line in period_lines if line.account_class not in (None, AccountClass.OTHER)]
+    opening_dates: dict[str | None, date] = {}
+    for line in lines:
+        if line.entry_type == "opening" and line.entry_date <= period_end:
+            opening_dates[line.account_key] = max(opening_dates.get(line.account_key, date.min), line.entry_date)
+    classified_closing = [line for line in lines if line.account_class not in (None, AccountClass.OTHER)
+                          and opening_dates.get(line.account_key, date.min) <= line.entry_date <= period_end and line.entry_type != "closing"
+                          and not (line.entry_type == "income_closing" and line.account_class in
+                                   {AccountClass.REVENUE, AccountClass.EXPENSE})]
 
     revenue_lines = [
         line for line in classified_period if line.account_class == AccountClass.REVENUE
@@ -46,6 +57,14 @@ def calculate_ledger_metrics(
     ]
     revenue = sum((line.credit_irr - line.debit_irr for line in revenue_lines), ZERO)
     expenses = sum((line.debit_irr - line.credit_irr for line in expense_lines), ZERO)
+    # Periodic inventory closing carries opening-stock consumption and ending stock.
+    inventory_adjustment = sum((line.credit_irr - line.debit_irr for line in lines
+        if period_start <= line.entry_date <= period_end
+        and line.entry_type == "income_closing" and line.account_role == "inventory"), ZERO)
+    tax_allocation = sum((line.credit_irr - line.debit_irr for line in lines
+        if period_start <= line.entry_date <= period_end
+        and line.entry_type == "profit_allocation" and line.account_role == "income_tax_payable"), ZERO)
+    expenses += inventory_adjustment + tax_allocation
     net_profit = revenue - expenses
 
     def closing_balance(account_class: AccountClass) -> tuple[Decimal, int]:
@@ -64,7 +83,7 @@ def calculate_ledger_metrics(
             revenue, "sum(revenue.credit_irr - revenue.debit_irr)", len(revenue_lines)
         ),
         MetricCode.EXPENSES_IRR: _money(
-            expenses, "sum(expense.debit_irr - expense.credit_irr)", len(expense_lines)
+            expenses, "sum(expense.debit_irr - expense.credit_irr) + inventory_consumption_adjustment + allocated_income_tax", len(expense_lines)
         ),
         MetricCode.NET_PROFIT_IRR: _money(
             net_profit, "revenue_irr - expenses_irr", len(classified_period)
@@ -81,6 +100,11 @@ def calculate_ledger_metrics(
             equity, "sum(equity.credit_irr - equity.debit_irr) through period_end", equity_count
         ),
     }
+    metrics[MetricCode.NET_PROFIT_IRR].calculation.update({
+        "inventory_adjustment_irr": str(inventory_adjustment),
+        "allocated_income_tax_irr": str(tax_allocation),
+        "profit_before_allocated_tax_irr": str(net_profit + tax_allocation),
+    })
     if revenue > 0:
         metrics[MetricCode.NET_MARGIN_RATIO] = CalculatedMetric(
             value_irr=None,
@@ -110,4 +134,8 @@ def calculate_ledger_metrics(
             )
         ),
     }
+    if total and not classified:
+        # A ledger with unknown account semantics is not evidence of zero activity.
+        metrics = {key: CalculatedMetric(None, None, {**value.calculation, "unavailable": "account_classification"})
+                   for key, value in metrics.items()}
     return metrics, coverage

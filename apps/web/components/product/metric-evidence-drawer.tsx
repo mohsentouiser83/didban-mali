@@ -1,27 +1,15 @@
 "use client";
-
+import { FormMessage } from "@/components/ui/form";
+import { LoadingState, ErrorState, EmptyState, MoneyDisplay, toPersianDigits, toJalaliDate } from "@/components/ui/financial";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { MoneyDisplay, toPersianDigits, toJalaliDate } from "@/components/ui/financial";
 import { Drawer, DrawerSection, DrawerDetails } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/product-api";
-import type {
-  MetricResultDTO,
-  MetricStatus,
-  MetricTraceRecord,
-  MetricTraceResponse,
-} from "@/lib/product-types";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
-  FileSpreadsheet,
-  HelpCircle,
-  Info,
-} from "@/components/ui/icons";
+import type { MetricResultDTO, MetricStatus, MetricTraceRecord, MetricTraceResponse } from "@/lib/product-types";
+import { AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, HelpCircle, Info } from "@/components/ui/icons";
 import { RecordLineageDialog } from "./record-lineage-dialog";
 
 export interface MetricEvidenceDrawerProps {
@@ -212,15 +200,13 @@ export function MetricEvidenceDrawer({
               </div>
 
               {loadingTrace && (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+                <LoadingState variant="inline">
                   در حال بارگذاری ردگیری داده‌ها…
-                </div>
+                </LoadingState>
               )}
 
               {traceError && (
-                <div className="py-3 text-center text-sm text-destructive">
-                  {traceError}
-                </div>
+                <FormMessage>{traceError}</FormMessage>
               )}
 
               {traceData && traceData.sample_records.length > 0 && (
@@ -280,9 +266,7 @@ export function MetricEvidenceDrawer({
               )}
 
               {traceData && traceData.sample_records.length === 0 && (
-                <div className="py-4 text-center text-sm text-muted-foreground">
-                  رکوردی در تاریخ مبنا ثبت نشده است.
-                </div>
+                <EmptyState variant="compact">رکوردی در تاریخ مبنا ثبت نشده است.</EmptyState>
               )}
             </DrawerSection>
       </Drawer>

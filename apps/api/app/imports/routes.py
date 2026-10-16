@@ -29,6 +29,8 @@ from app.core.tenant import set_request_company
 from app.financial.models import (
     BankAccount,
     BankTransaction,
+    InvoiceAllocation,
+    InvoiceReceipt,
     JournalEntry,
     JournalLine,
     SalesInvoice,
@@ -230,7 +232,7 @@ async def upload_policy(
 ) -> UploadPolicyResponse:
     await _access(session, company_id, current_user.id)
     return UploadPolicyResponse(
-        allowed_extensions=[".csv", ".xlsx"],
+        allowed_extensions=[".csv", ".xls", ".xlsx", ".pdf"],
         maximum_size_bytes=settings.upload_max_bytes,
         malware_scan_required=True,
         macro_enabled_files_allowed=False,
@@ -268,6 +270,9 @@ async def list_imports(
     company_id: UUID,
     session: DbSession,
     current_user: CurrentUser,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    source_kind: SourceKind | None = None,
 ) -> list[ImportBatchResponse]:
     await _access(session, company_id, current_user.id)
     rows = (
@@ -276,8 +281,10 @@ async def list_imports(
             .join(SourceFile, SourceFile.id == ImportBatch.file_id)
             .join(DataSource, DataSource.id == ImportBatch.source_id)
             .where(ImportBatch.company_id == company_id)
-            .order_by(ImportBatch.created_at.desc())
-            .limit(50)
+            .where(DataSource.kind == source_kind if source_kind is not None else True)
+            .order_by(ImportBatch.created_at.desc(), ImportBatch.id.desc())
+            .offset(offset)
+            .limit(limit)
         )
     ).all()
     return [_response(batch, source_file, source) for batch, source_file, source in rows]
@@ -378,6 +385,9 @@ async def upload_file(
         session, company_id, current_user.id, source_kind, normalized_label, bank_account_id,
     )
     validated = await receive_and_validate(file)
+    if validated.extension == ".pdf" and source_kind != SourceKind.BANK:
+        validated.stream.close()
+        raise HTTPException(422, "PDF فقط برای صورتحساب بانک قابل ورود است.")
     source_file = SourceFile(
         id=uuid7(),
         company_id=company_id,
@@ -1199,6 +1209,18 @@ async def delete_import_batch(
             BankTransaction.source_row_id.in_(source_row_ids_subq),
         )
     ).scalar_subquery()
+
+    has_allocations = await session.scalar(select(InvoiceAllocation.id).where(
+        InvoiceAllocation.company_id == company_id,
+        (InvoiceAllocation.invoice_source_row_id.in_(source_row_ids_subq)) |
+        (InvoiceAllocation.bank_transaction_id.in_(bank_tx_ids_subq)),
+    ).limit(1))
+    has_linked_receipts = await session.scalar(select(InvoiceReceipt.id).join(
+        SalesInvoice, (SalesInvoice.id == InvoiceReceipt.invoice_id) & (SalesInvoice.company_id == company_id)
+    ).where(InvoiceReceipt.company_id == company_id, InvoiceReceipt.allocation_id.is_not(None),
+        SalesInvoice.source_row_id.in_(source_row_ids_subq)).limit(1))
+    if has_allocations or has_linked_receipts:
+        raise HTTPException(409, "فایل دارای سابقه تخصیص فاکتور است و قابل حذف نیست.")
 
     # Completed reconciliation evidence is an audit record; do not sever its
     # source file or delete matches referenced by findings.

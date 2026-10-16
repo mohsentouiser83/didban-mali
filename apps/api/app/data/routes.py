@@ -50,6 +50,8 @@ async def get_record_lineage(
             "entry_date": entry.entry_date.isoformat(),
             "description": entry.description,
             "fiscal_period": entry.fiscal_period,
+            "entry_type": entry.entry_type,
+            "entry_type_source": entry.entry_type_source,
             "reference": entry.reference,
         }
     elif entity_type == "journal_line":

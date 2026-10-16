@@ -20,7 +20,7 @@ describe("RegisterPage", () => {
   it("can switch from register to login mode", () => {
     render(<RegisterPage />);
     expect(screen.getByRole("heading", { name: "شروع با دیدبان مالی" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: "ورود" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "ورود" }));
     expect(screen.getByRole("heading", { name: "خوش آمدید" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ورود به دیدبان" })).toBeInTheDocument();
   });

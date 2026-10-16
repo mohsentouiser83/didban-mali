@@ -1,3 +1,4 @@
+import hashlib
 import re
 import unicodedata
 from collections.abc import Sequence
@@ -23,7 +24,7 @@ from app.financial.models import (
     JournalLine,
     SalesInvoice,
 )
-from app.imports.mapping import normalize_digits, transform_and_validate_row
+from app.imports.mapping import INVOICE_SNAPSHOT_KINDS, normalize_digits, transform_and_validate_row
 from app.imports.models import (
     DataSource,
     ImportBatch,
@@ -75,41 +76,9 @@ def mask_iban(value: object | None) -> tuple[str | None, str | None]:
 
 
 def infer_account_class(code: str, name: str) -> AccountClass:
-    code_digits = "".join(ch for ch in code if ch.isdigit())
-    first_digit = code_digits[0] if code_digits else ""
-    if first_digit == "1":
-        return AccountClass.ASSET
-    if first_digit == "2":
-        return AccountClass.LIABILITY
-    if first_digit == "3":
-        return AccountClass.EQUITY
-    if first_digit in ("4", "7"):
-        return AccountClass.REVENUE
-    if first_digit in ("5", "6", "8", "9"):
-        return AccountClass.EXPENSE
+    from app.financial.accounting import classify_account
 
-    name_norm = normalize_text(name)
-    asset_keywords = (
-        "بانک", "صندوق", "تنخواه", "دریافتنی", "مشتریان", "موجودی", "دارایی", "پیش پرداخت"
-    )
-    if any(k in name_norm for k in asset_keywords):
-        return AccountClass.ASSET
-    liability_keywords = (
-        "پرداختنی", "تامین کنندگان", "بستانکاران", "بدهی", "پیش دریافت", "تسهیلات", "وام"
-    )
-    if any(k in name_norm for k in liability_keywords):
-        return AccountClass.LIABILITY
-    if any(k in name_norm for k in ["سرمایه", "اندوخته", "سود انباشته", "حقوق مالکانه"]):
-        return AccountClass.EQUITY
-    if any(k in name_norm for k in ["درآمد", "فروش", "کارمزد دریافتی"]):
-        return AccountClass.REVENUE
-    expense_keywords = (
-        "هزینه", "بهای تمام شده", "حقوق و دستمزد", "اجاره", "استهلاک", "مالیات"
-    )
-    if any(k in name_norm for k in expense_keywords):
-        return AccountClass.EXPENSE
-
-    return AccountClass.OTHER
+    return classify_account(name)
 
 
 async def _accepted_rows(
@@ -164,10 +133,23 @@ async def _normalize_accounting_chunk(
 ) -> None:
     values = [(row, _transform(row, source, version)) for row in rows]
     accounts: dict[str, tuple[str, str]] = {}
+    account_metadata: dict[str, dict[str, object]] = {}
     for _, item in values:
         code = _text(item["account_code"])
         name = _text(item["account_name"])
         accounts.setdefault(code, (name, normalize_text(name)))
+        account_metadata[code] = {
+            key: item.get(key)
+            for key in (
+                "general_code",
+                "general_name",
+                "subsidiary_code",
+                "subsidiary_name",
+                "detail_code",
+                "detail_name",
+            )
+        }
+        account_metadata[code]["role"] = item.get("account_role", "other")
     if accounts:
         await session.execute(
             insert(Account)
@@ -179,6 +161,7 @@ async def _normalize_accounting_chunk(
                         "source_code": code,
                         "name": name,
                         "normalized_name": normalized,
+                        **account_metadata[code],
                     }
                     for code, (name, normalized) in accounts.items()
                 ]
@@ -204,6 +187,7 @@ async def _normalize_accounting_chunk(
                     select(AccountClassification.account_id).where(
                         AccountClassification.company_id == batch.company_id,
                         AccountClassification.account_id.in_(all_account_ids),
+                        AccountClassification.rule_version != "auto-v1",
                     )
                 )
             ).all()
@@ -216,10 +200,12 @@ async def _normalize_accounting_chunk(
                 "id": uuid7(),
                 "company_id": batch.company_id,
                 "account_id": acc_id,
-                "account_class": infer_account_class(code, acc_name),
+                "account_class": infer_account_class(
+                    code, str(account_metadata[code].get("general_name") or acc_name)
+                ),
                 "effective_from": earliest_date,
                 "confirmed_by": source.created_by,
-                "rule_version": "auto-v1",
+                "rule_version": "semantic-v2",
                 "confirmed_at": datetime.now(UTC),
             }
             for code, acc_id, acc_name, _ in account_rows
@@ -229,7 +215,14 @@ async def _normalize_accounting_chunk(
             await session.execute(
                 insert(AccountClassification)
                 .values(new_classifications)
-                .on_conflict_do_nothing(constraint="uq_account_classification_effective")
+                .on_conflict_do_update(
+                    constraint="uq_account_classification_effective",
+                    set_={
+                        "account_class": insert(AccountClassification).excluded.account_class,
+                        "rule_version": "semantic-v2",
+                    },
+                    where=AccountClassification.rule_version == "auto-v1",
+                )
             )
     for row, item in values:
         code = _text(item["account_code"])
@@ -303,6 +296,8 @@ async def _normalize_accounting_chunk(
                     "description": _text(item["description"]),
                     "description_normalized": normalize_text(item["description"]),
                     "fiscal_period": _as_date(item["entry_date"]).strftime("%Y-%m"),
+                    "entry_type": item.get("entry_type") or "normal",
+                    "entry_type_source": "source" if item.get("entry_type") else "inferred",
                 }
                 for key, (row, item) in entries.items()
             ]
@@ -336,6 +331,7 @@ async def _normalize_accounting_chunk(
                     if item.get("counterparty_name")
                     else None,
                     "invoice_ref": _optional_text(item.get("invoice_ref")),
+                    "description": _text(item["description"]),
                 }
                 for row, item in values
             ]
@@ -378,6 +374,23 @@ async def _normalize_bank_chunk(
             .where(BankAccount.id == bank_account_id, BankAccount.iban_masked.is_(None))
             .values(iban_masked=iban_masked, account_last4=account_last4)
         )
+    account = await session.scalar(
+        select(BankAccount).where(BankAccount.id == bank_account_id).with_for_update()
+    )
+    assert account is not None
+    iban = re.sub(r"[^A-Z0-9]", "", str(iban_value or "").upper())
+    identity = hashlib.sha256(iban.encode()).hexdigest() if iban else None
+    if identity and account.iban_fingerprint and account.iban_fingerprint != identity:
+        raise ValueError("صورتحساب متعلق به حساب بانکی انتخاب‌شده نیست.")
+    account_number = str(values[0][0].raw_json.get("شماره سپرده") or "").strip()
+    if re.fullmatch(r"\d{2,4}\.\d{1,4}\.\d{3,12}\.\d{1,4}", account_number):
+        number_key = hashlib.sha256(account_number.encode()).hexdigest()
+        if account.account_number_fingerprint and account.account_number_fingerprint != number_key:
+            raise ValueError("شماره سپرده با حساب بانکی انتخاب‌شده سازگار نیست.")
+        account.account_number_fingerprint = number_key
+    if identity:
+        account.iban_fingerprint = identity
+        await session.flush()
     tx_records: list[dict[str, object]] = []
     for row, item in values:
         raw_desc = _text(item["description"])
@@ -389,6 +402,25 @@ async def _normalize_bank_chunk(
                 "company_id": batch.company_id,
                 "bank_account_id": bank_account_id,
                 "source_row_id": row.id,
+                "fingerprint": hashlib.sha256(
+                    "|".join(
+                        [
+                            identity or str(bank_account_id),
+                            str(item["booking_date"]),
+                            str(item["amount_signed"]),
+                            str(item.get("running_balance")),
+                            (
+                                str(item.get("transaction_id") or "").rsplit(":", 1)[0]
+                                if "شماره سپرده" in row.raw_json
+                                else str(item.get("transaction_id") or "")
+                            ),
+                        ]
+                    ).encode()
+                ).hexdigest()
+                if identity
+                and item.get("transaction_id")
+                and item.get("running_balance") is not None
+                else None,
                 "source_transaction_id": _optional_text(item.get("transaction_id")),
                 "booking_date": _as_date(item["booking_date"]),
                 "value_date": _as_date(item["value_date"]) if item.get("value_date") else None,
@@ -399,11 +431,7 @@ async def _normalize_bank_chunk(
                 "running_balance_irr": _as_decimal(item.get("running_balance")),
             }
         )
-    await session.execute(
-        insert(BankTransaction)
-        .values(tx_records)
-        .on_conflict_do_nothing(constraint="uq_bank_transaction_source_row")
-    )
+    await session.execute(insert(BankTransaction).values(tx_records).on_conflict_do_nothing())
 
 
 async def _normalize_sales_chunk(
@@ -509,6 +537,8 @@ async def _normalize_sales_chunk(
 
 
 async def _normalized_count(session: AsyncSession, batch: ImportBatch, kind: SourceKind) -> int:
+    if kind in INVOICE_SNAPSHOT_KINDS:
+        return batch.accepted_count
     if kind == SourceKind.ACCOUNTING:
         statement = select(func.count(JournalLine.id)).join(
             SourceRow, SourceRow.id == JournalLine.source_row_id
@@ -541,7 +571,10 @@ async def normalize_import(
     if source is None or version is None:
         raise ValueError("Import lineage is incomplete")
     if batch.status in {ImportStatus.COMPLETED, ImportStatus.COMPLETED_LIMITED}:
-        if "reconciliation" not in batch.coverage_json:
+        if (
+            source.kind not in INVOICE_SNAPSHOT_KINDS
+            and "reconciliation" not in batch.coverage_json
+        ):
             await _post_import_controls(session, batch, company_id, actor_id)
         return {"status": batch.status.value, "normalized": batch.accepted_count}
     if batch.status not in {ImportStatus.QUEUED, ImportStatus.PROCESSING}:
@@ -559,6 +592,9 @@ async def normalize_import(
             await _normalize_accounting_chunk(session, batch, source, version, rows)
         elif source.kind == SourceKind.BANK:
             await _normalize_bank_chunk(session, batch, source, version, rows)
+        elif source.kind in INVOICE_SNAPSHOT_KINDS:
+            for row in rows:
+                _transform(row, source, version)
         else:
             await _normalize_sales_chunk(session, batch, source, version, rows)
         after_row = rows[-1].row_number
@@ -566,6 +602,10 @@ async def normalize_import(
         await set_request_user(session, actor_id)
         await set_request_company(session, company_id)
 
+    if source.kind == SourceKind.ACCOUNTING:
+        from app.financial.journal_types import update_import_entry_types
+
+        await update_import_entry_types(session, batch.company_id, batch.id)
     normalized = await _normalized_count(session, batch, source.kind)
     coverage = dict(batch.coverage_json)
     coverage["canonical_model"] = {
@@ -582,11 +622,15 @@ async def normalize_import(
                 await session.scalar(
                     select(func.count(func.distinct(JournalLine.account_id)))
                     .join(SourceRow, SourceRow.id == JournalLine.source_row_id)
+                    .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
                     .where(
                         SourceRow.import_batch_id == batch.id,
+                        JournalEntry.entry_type.not_in(["opening", "closing"]),
                         ~exists(
                             select(AccountClassification.id).where(
-                                AccountClassification.account_id == JournalLine.account_id
+                                AccountClassification.account_id == JournalLine.account_id,
+                                AccountClassification.account_class != AccountClass.OTHER,
+                                AccountClassification.rule_version != "auto-v1",
                             )
                         ),
                     )
@@ -669,9 +713,19 @@ async def normalize_import(
     )
     await session.commit()
 
+    if source.kind in INVOICE_SNAPSHOT_KINDS:
+        # Validated snapshots are stored in SourceRow with their immutable mapping version.
+        # They must not create receivables, liabilities or duplicate financial totals.
+        batch.status = final_status
+        batch.stage = "normalized"
+        batch.progress = 100
+        await session.commit()
+        return {"status": batch.status.value, "normalized": normalized, "coverage": coverage}
+
     # Trigger calculation recalculation for newly ingested canonical data
     try:
         from app.calculations.service import execute_calculation_run
+
         await execute_calculation_run(
             session=session,
             company_id=company_id,
@@ -687,7 +741,10 @@ async def normalize_import(
 
 
 async def _post_import_controls(
-    session: AsyncSession, batch: ImportBatch, company_id: UUID, actor_id: UUID,
+    session: AsyncSession,
+    batch: ImportBatch,
+    company_id: UUID,
+    actor_id: UUID,
     final_status: ImportStatus | None = None,
 ) -> None:
     from app.reconciliation.pipeline import reconcile_and_detect

@@ -36,7 +36,7 @@ describe("Financial Base Components", () => {
       );
       expect(cBillion.textContent).toContain("میلیارد تومان");
       expect(cBillion.textContent).toContain("۱۲٫۴");
-      expect(cBillion.firstElementChild?.getAttribute("title")).toContain("ریال");
+      expect(cBillion.firstElementChild?.getAttribute("aria-label")).toContain("ریال");
 
       // 485,000,000 Rials = 48.5 million Toman
       const { container: cMillion } = render(

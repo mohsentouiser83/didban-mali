@@ -1,79 +1,46 @@
 "use client";
+import { EmptyState, ErrorState, MoneyDisplay, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
 
-import { useEffect, useState } from "react";
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableRowHeader } from "@/components/ui/table";
+
+import Link from "next/link";
+import { useReceivableCustomers } from "./use-receivable-customers";
 import type { PeriodReport } from "@/lib/financial-periods";
-import { api } from "@/lib/product-api";
-import { rial, toman } from "@/lib/cashflow-amounts";
-import type { CustomersReceivablesResponse, InvoicesReceivablesResponse } from "@/lib/product-types";
+import { toman } from "@/lib/cashflow-amounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerSection, DrawerDetails } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MoneyDisplay, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
+import { OverdueFilter } from "@/components/ui/financial/overdue-filter";
 import { Search } from "@/components/ui/icons";
-import styles from "./receivables-customers.module.css";
 
-const normalize = (text: string) => text.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").trim().toLocaleLowerCase();
-export function ReceivablesCustomers({ companyId, asOfDate, periodReport }: { companyId: string; asOfDate: string; periodReport?: PeriodReport["receivables"] }) {
-  const [data, setData] = useState<{ customers: CustomersReceivablesResponse; invoices: InvoicesReceivablesResponse } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [retry, setRetry] = useState(0);
-  const [search, setSearch] = useState("");
-  const [overdueOnly, setOverdueOnly] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  useEffect(() => {
-    let active = true;
-    if (periodReport) {
-      setData({ customers: { as_of_date: asOfDate, items: periodReport.customers }, invoices: { as_of_date: asOfDate, items: periodReport.invoices } });
-      setLoading(false); setFailed(false); setSelectedId(null);
-      return;
-    }
-    setLoading(true); setFailed(false); setData(null); setSelectedId(null);
-    const base = `/companies/${companyId}/receivables`;
-    void Promise.all([
-      api<CustomersReceivablesResponse>(`${base}/customers?as_of_date=${asOfDate}`),
-      api<InvoicesReceivablesResponse>(`${base}/invoices?as_of_date=${asOfDate}`),
-    ]).then(([customers, invoices]) => { if (active) setData({ customers, invoices }); })
-      .catch(() => { if (active) setFailed(true); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [companyId, asOfDate, retry, periodReport]);
-  const invoices = data?.invoices.items.filter((invoice) => rial(invoice.remaining_amount_irr) > BigInt(0)) ?? [];
-  const maxDelays = new Map<string, number>();
-  for (const invoice of invoices) {
-    maxDelays.set(invoice.counterparty_id, Math.max(maxDelays.get(invoice.counterparty_id) ?? 0, invoice.delay_days));
-  }
-  const customers = (data?.customers.items ?? []).filter((customer) => rial(customer.total_outstanding_irr) > BigInt(0))
-    .filter((customer) => normalize(customer.name).includes(normalize(search)) && (!overdueOnly || rial(customer.overdue_amount_irr) > BigInt(0)))
-    .sort((a, b) => {
-      const difference = rial(b.overdue_amount_irr) - rial(a.overdue_amount_irr);
-      return difference > BigInt(0) ? 1 : difference < BigInt(0) ? -1 : a.name.localeCompare(b.name, "fa");
-    });
-  const selected = data?.customers.items.find((customer) => customer.counterparty_id === selectedId);
-  const selectedInvoices = invoices.filter((invoice) => invoice.counterparty_id === selectedId)
-    .sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"));
-  return <section className={styles.section} aria-labelledby="receivables-customers-title" aria-busy={loading}>
-    <div className={styles.heading}><div><h2 id="receivables-customers-title">مشتریان بدهکار</h2></div>
-      <div className={styles.controls}><div className={styles.search}><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی مشتری" placeholder="جستجوی مشتری" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
-        <div className={styles.filters} role="group" aria-label="فیلتر مشتریان"><Button variant={overdueOnly ? "ghost" : "secondary"} aria-pressed={!overdueOnly} onClick={() => setOverdueOnly(false)}>همه</Button><Button variant={overdueOnly ? "secondary" : "ghost"} aria-pressed={overdueOnly} onClick={() => setOverdueOnly(true)}>سررسیدگذشته</Button></div>
+export function ReceivablesCustomers({ companyId, asOfDate, periodReport, title = "مشتریان بدهکار" }: { companyId: string; asOfDate: string; periodReport?: PeriodReport["receivables"]; title?: string }) {
+  const controller = useReceivableCustomers(companyId, asOfDate, periodReport);
+  return <ReceivableCustomersView controller={controller} companyId={companyId} title={title} />;
+}
+function ReceivableCustomersView({ controller, companyId, title }: { controller: ReturnType<typeof useReceivableCustomers>; companyId: string; title: string }) {
+  const { loading, failed, search, setSearch, overdueOnly, setOverdueOnly, selected, setSelectedId, customers, maxDelays, selectedInvoices, retry } = controller;
+  return <section className="min-w-0 overflow-hidden rounded-[var(--ds-card-radius)] border border-border bg-card" aria-labelledby="receivables-customers-title" aria-busy={loading}>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4 [&_h2]:text-lg [&_h2]:font-bold"><div><h2 id="receivables-customers-title">{title}</h2></div>
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto"><div className="relative w-full sm:w-52 [&>svg]:absolute [&>svg]:start-3 [&>svg]:top-3 [&_input]:ps-9"><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی مشتری" placeholder="جستجوی مشتری" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+        <OverdueFilter value={overdueOnly} onChange={setOverdueOnly} label="فیلتر مشتریان" />
       </div>
     </div>
-    {failed ? <div className={styles.empty} role="alert"><p>فهرست مشتریان دریافت نشد.</p><Button variant="outline" onClick={() => setRetry((value) => value + 1)}>تلاش دوباره</Button></div> : <div className={styles.scroll}><table className={styles.table}>
-      <thead><tr><th scope="col">مشتری</th><th scope="col">مانده مطالبات</th><th scope="col">مبلغ سررسیدگذشته</th><th scope="col">بیشترین تأخیر</th></tr></thead>
-      <tbody>{loading ? [0, 1, 2].map((row) => <tr key={row}>{[0, 1, 2, 3].map((cell) => <td key={cell}><Skeleton className="h-5 w-full" /></td>)}</tr>) : customers.length ? customers.map((customer) => <tr key={customer.counterparty_id}>
-        <th scope="row"><Button variant="ghost" className={styles.customer} onClick={() => setSelectedId(customer.counterparty_id)}>{customer.name}</Button></th>
-        <td><MoneyDisplay amount={toman(customer.total_outstanding_irr)} currency="تومان" direction="neutral" size="sm" /></td>
-        <td><MoneyDisplay amount={toman(customer.overdue_amount_irr)} currency="تومان" direction="neutral" size="sm" /></td>
-        <td>{(maxDelays.get(customer.counterparty_id) ?? 0) > 0 ? `${toPersianDigits(maxDelays.get(customer.counterparty_id)!)} روز` : "—"}</td>
-      </tr>) : <tr><td colSpan={4} className={styles.empty}>{search || overdueOnly ? "مشتری‌ای با این جستجو و فیلتر پیدا نشد." : "مطالبه بازی از مشتریان ثبت نشده است."}</td></tr>}</tbody>
-    </table></div>}
-    <Drawer open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null); }} title={selected?.name ?? "جزئیات مشتری"} description="فاکتورهای تسویه‌نشده این مشتری">
+    {failed ? <ErrorState onRetry={retry}  variant="compact"><p>فهرست مشتریان دریافت نشد.</p></ErrorState> : <div className="min-w-0"><Table className="min-w-[580px]" containerClassName="border-0">
+      <TableHeader><TableRow><TableHead scope="col">مشتری</TableHead><TableHead scope="col">مانده مطالبات</TableHead><TableHead scope="col">مبلغ سررسیدگذشته</TableHead><TableHead scope="col">بیشترین تأخیر</TableHead></TableRow></TableHeader>
+      <TableBody key={`${loading}:${search}:${overdueOnly}`} className="motion-safe:animate-[metric-update_200ms_ease-out_both]">{loading ? [0, 1, 2].map((row) => <TableRow key={row}>{[0, 1, 2, 3].map((cell) => <TableCell key={cell}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>) : customers.length ? customers.map((customer) => <TableRow key={customer.counterparty_id}>
+        <TableRowHeader scope="row"><Button variant="ghost" className="min-h-11 h-auto justify-start whitespace-normal px-0 text-start font-normal" onClick={() => setSelectedId(customer.counterparty_id)}>{customer.name}</Button></TableRowHeader>
+        <TableCell><MoneyDisplay amount={toman(customer.total_outstanding_irr)} currency="تومان" direction="neutral" size="sm" /></TableCell>
+        <TableCell><MoneyDisplay amount={toman(customer.overdue_amount_irr)} currency="تومان" direction="neutral" size="sm" /></TableCell>
+        <TableCell>{(maxDelays.get(customer.counterparty_id) ?? 0) > 0 ? `${toPersianDigits(maxDelays.get(customer.counterparty_id)!)} روز` : "—"}</TableCell>
+      </TableRow>) : <TableRow><TableEmptyCell colSpan={4} className="h-40 p-0 text-center text-muted-foreground">{search || overdueOnly ? "مشتری‌ای با این جستجو و فیلتر پیدا نشد." : <div className="grid justify-items-center gap-3"><span>مطالبه‌ای ثبت نشده است.</span><Button asChild variant="outline"><Link href={`/companies/${companyId}/imports`}>بارگذاری اسناد</Link></Button></div>}</TableEmptyCell></TableRow>}</TableBody>
+    </Table></div>}
+    <Drawer open={!!selected} onOpenChange={(open) => { if (!open) setSelectedId(null); }} title={selected?.name ?? "جزئیات مشتری"}>
       {selected && <><DrawerSection title="مانده مطالبات"><MoneyDisplay amount={toman(selected.total_outstanding_irr)} currency="تومان" direction="neutral" size="lg" /></DrawerSection>
-        <div className={styles.invoices}>{selectedInvoices.length ? selectedInvoices.map((invoice) => <DrawerSection key={invoice.id}>
-          <div className={styles.invoiceHeading}><h3>فاکتور {toPersianDigits(invoice.invoice_no)}</h3><span className={invoice.delay_days > 0 ? styles.overdue : undefined}>{!invoice.due_date ? "سررسید نامشخص" : invoice.delay_days > 0 ? `${toPersianDigits(invoice.delay_days)} روز تأخیر` : "سررسیدنرسیده"}</span></div>
+        <div className="grid gap-4">{selectedInvoices.length ? selectedInvoices.map((invoice) => <DrawerSection key={invoice.id}>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><h3>فاکتور {toPersianDigits(invoice.invoice_no)}</h3><span className={invoice.delay_days > 0 ? "text-[var(--ds-risk-high-fg)]" : undefined}>{!invoice.due_date ? "سررسید نامشخص" : invoice.delay_days > 0 ? `${toPersianDigits(invoice.delay_days)} روز تأخیر` : "سررسیدنرسیده"}</span></div>
           <DrawerDetails><div><dt>مانده</dt><dd><MoneyDisplay amount={toman(invoice.remaining_amount_irr)} currency="تومان" direction="neutral" size="sm" /></dd></div><div><dt>سررسید</dt><dd>{invoice.due_date ? toJalaliDate(invoice.due_date) : "ثبت نشده"}</dd></div></DrawerDetails>
-        </DrawerSection>) : <p className={styles.empty}>فاکتور تسویه‌نشده‌ای پیدا نشد.</p>}</div></>}
+        </DrawerSection>) : <EmptyState variant="inline">فاکتور تسویه‌نشده‌ای پیدا نشد.</EmptyState>}</div></>}
     </Drawer>
   </section>;
 }

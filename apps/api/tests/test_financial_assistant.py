@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.ai.assistant import (
@@ -183,11 +182,10 @@ async def test_configured_provider_is_allowlisted_and_rejects_extra_fields(monke
     assert "financial" not in payload
 
 
-def test_http_requires_login_and_csrf_and_records_metadata_only():
+async def test_http_requires_login_and_csrf_and_records_metadata_only(asgi_client):
     company_id = uuid4()
     path = f"/api/v1/companies/{company_id}/assistant"
-    client = TestClient(app)
-    assert client.get(f"{path}/capabilities").status_code == 401
+    client = asgi_client
     session = session_with([])
 
     async def db():
@@ -198,14 +196,16 @@ def test_http_requires_login_and_csrf_and_records_metadata_only():
 
     previous = app.dependency_overrides.copy()
     app.dependency_overrides[get_db] = db
-    app.dependency_overrides[get_company_access] = access
     try:
+        assert (await client.get(f"{path}/capabilities")).status_code == 401
+        session.execute.assert_not_awaited()
+        app.dependency_overrides[get_company_access] = access
         assert (
-            client.post(f"{path}/ask", json={"question": "خلاصه مطالبات شرکت چیست؟"}).status_code
+            (await client.post(f"{path}/ask", json={"question": "خلاصه مطالبات شرکت چیست؟"})).status_code
             == 403
         )
         client.cookies.set("didban_csrf", "test-csrf")
-        response = client.post(
+        response = await client.post(
             f"{path}/ask",
             headers={"X-CSRF-Token": "test-csrf"},
             json={"question": "خلاصه مطالبات شرکت چیست؟"},
@@ -221,7 +221,7 @@ def test_http_requires_login_and_csrf_and_records_metadata_only():
         app.dependency_overrides.update(previous)
 
 
-def test_http_denies_non_member_company_before_planner_or_data_access():
+async def test_http_denies_non_member_company_before_planner_or_data_access(asgi_client):
     session = session_with([])
     session.scalar.return_value = None
 
@@ -236,7 +236,7 @@ def test_http_denies_non_member_company_before_planner_or_data_access():
     app.dependency_overrides[get_current_user] = user
     try:
         with patch("app.ai.assistant_routes.get_assistant_planner") as planner:
-            response = TestClient(app).get(f"/api/v1/companies/{uuid4()}/assistant/capabilities")
+            response = await asgi_client.get(f"/api/v1/companies/{uuid4()}/assistant/capabilities")
         assert response.status_code == 404
         planner.assert_not_called()
         session.execute.assert_not_awaited()

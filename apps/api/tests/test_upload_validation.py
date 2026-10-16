@@ -57,3 +57,23 @@ async def test_macro_enabled_workbook_is_rejected() -> None:
 
 def test_control_characters_are_removed_from_original_name() -> None:
     assert safe_original_name("folder\\صورت\nحساب.csv") == "صورت‌حساب.csv".replace("‌", "")
+
+
+async def test_invalid_legacy_excel_returns_a_validation_error() -> None:
+    with pytest.raises(HTTPException) as caught:
+        await receive_and_validate(upload("ledger.xls", b"not an OLE workbook", "application/vnd.ms-excel"))
+    assert caught.value.status_code == 415
+
+
+@pytest.mark.parametrize("stream_name", ["VBA/dir", "EncryptionInfo", "Macros/project"])
+def test_legacy_excel_macros_and_encryption_are_rejected(stream_name, monkeypatch) -> None:
+    from unittest.mock import MagicMock
+
+    from app.imports.validation import _inspect_xls
+
+    compound = MagicMock()
+    compound.__enter__.return_value.listdir.return_value = [stream_name.split("/")]
+    monkeypatch.setattr("app.imports.validation.olefile.OleFileIO", lambda stream: compound)
+    with pytest.raises(HTTPException) as caught:
+        _inspect_xls(io.BytesIO(b"legacy"))
+    assert caught.value.status_code == 415

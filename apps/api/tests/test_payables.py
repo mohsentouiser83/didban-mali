@@ -130,8 +130,7 @@ def test_payables_summary_preserves_fractional_collection_and_cash_cycle_days() 
     assert summary.model_dump(mode="json")["ccc_days"] == -44.8
 
 
-async def test_payable_entries_company_scope_and_estimated_dates() -> None:
-    from datetime import timedelta
+async def test_payable_entries_company_scope_and_unknown_dates() -> None:
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, MagicMock
 
@@ -144,14 +143,14 @@ async def test_payable_entries_company_scope_and_estimated_dates() -> None:
         entry_date=date(2026, 9, 1),
         description="خرید مواد",
     )
-    credit = SimpleNamespace(id=uuid4(), debit_irr=Decimal(0), credit_irr=Decimal("10000"))
-    debit = SimpleNamespace(id=uuid4(), debit_irr=Decimal("3000"), credit_irr=Decimal(0))
+    credit = SimpleNamespace(id=uuid4(), description="خرید", debit_irr=Decimal(0), credit_irr=Decimal("10000"))
+    debit = SimpleNamespace(id=uuid4(), description="پرداخت", debit_irr=Decimal("3000"), credit_irr=Decimal(0))
     result = MagicMock()
-    result.all.return_value = [(credit, entry), (debit, entry)]
+    result.all.return_value = [(credit, entry, None), (debit, entry, None)]
     session = AsyncMock()
     session.execute.return_value = result
     response = await get_payable_entries(session, company_id, counterparty_id, date(2026, 10, 9))
-    assert response.items[0].estimated_due_date == entry.entry_date + timedelta(days=45)
+    assert response.items[0].estimated_due_date is None
     assert response.items[1].estimated_due_date is None
     assert response.model_dump()["items"][1]["debit_irr"] == "3000"
     query = session.execute.call_args.args[0]

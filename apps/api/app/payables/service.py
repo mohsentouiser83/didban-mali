@@ -7,8 +7,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.financial.models import (
-    AccountClass,
-    AccountClassification,
     BankTransaction,
     Counterparty,
     JournalEntry,
@@ -35,6 +33,7 @@ BUCKET_CONFIG: list[tuple[PayablesBucketKey, str]] = [
     ("31_60", "۳۱ تا ۶۰ روز تاخیر پرداخت"),
     ("61_90", "۶۱ تا ۹۰ روز تاخیر پرداخت"),
     ("90_plus", "بیش از ۹۰ روز تاخیر (خطر توقف تامین)"),
+    ("due_date_missing", "سررسید نامشخص"),
 ]
 
 
@@ -138,21 +137,22 @@ async def get_payables_summary(
         )
     )
 
+    dpo_days: int | None
     if outflows_90 and outflows_90 > ZERO and total_payables > ZERO:
         annualized_cogs = outflows_90 * Decimal(4)
         dpo_days = int((total_payables / annualized_cogs * Decimal(365)).quantize(Decimal("1")))
     else:
-        dpo_days = 45 if total_payables > ZERO else 0
+        dpo_days = None if total_payables > ZERO else 0
 
     # Fetch DSO from receivables
     try:
         rec_summary = await get_receivables_summary(session, company_id, effective_date)
         dso_days = rec_summary.dso_days
     except Exception:
-        dso_days = 45
+        dso_days = None
 
     # Cash Conversion Cycle (CCC = DSO - DPO)
-    ccc_days = dso_days - dpo_days if dso_days is not None else None
+    ccc_days = dso_days - dpo_days if dso_days is not None and dpo_days is not None else None
 
     return PayablesSummaryResponse(
         as_of_date=effective_date,
@@ -174,47 +174,21 @@ async def get_vendors_payables(
     effective_date = await _resolve_as_of_date(session, company_id, as_of_date)
 
     # 1. Fetch liability journal lines with counterparty
-    query = (
-        select(JournalLine, JournalEntry, Counterparty)
-        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
-        .join(Counterparty, JournalLine.counterparty_id == Counterparty.id)
-        .join(
-            AccountClassification,
-            (AccountClassification.account_id == JournalLine.account_id)
-            & (AccountClassification.account_class == AccountClass.LIABILITY),
-        )
-        .where(
-            JournalLine.company_id == company_id,
-            JournalEntry.entry_date <= effective_date,
-        )
+    from app.financial.payable_balances import supplier_balances
+    from app.financial.queries import trade_payable_scope
+
+    query = trade_payable_scope(effective_date).where(
+        JournalLine.company_id == company_id,
+        JournalEntry.entry_date <= effective_date,
     )
     results = (await session.execute(query)).all()
-
     vendor_map: dict[UUID, _VendorAccumulator] = {}
-
-    for line, entry, counterparty in results:
-        # For liability: net balance is credit - debit
-        net_amount = line.credit_irr - line.debit_irr
-        if net_amount == ZERO:
-            continue
-
-        cid = counterparty.id
-        if cid not in vendor_map:
-            vendor_map[cid] = _VendorAccumulator(counterparty=counterparty)
-
-        data = vendor_map[cid]
-        data.total_payable += net_amount
-
-        # Delay relative to entry date + standard 45-day vendor credit term
-        due_date = entry.entry_date + timedelta(days=45)
-        delay = (effective_date - due_date).days
-        bucket = _classify_delay(delay)
-
-        if net_amount > ZERO:
-            data.buckets[bucket] += net_amount
-            if delay > 0:
-                data.overdue_amount += net_amount
-                data.delays.append(delay)
+    for balance in supplier_balances(list(results)):
+        party = balance["party"]
+        data = _VendorAccumulator(counterparty=party)
+        data.total_payable = balance["amount"]
+        data.buckets["due_date_missing"] = balance["amount"]
+        vendor_map[party.id] = data
 
     # Also check counterparties marked as vendor/supplier that have no journal lines yet
     vendor_cparties = (
@@ -263,9 +237,9 @@ async def get_vendors_payables(
 
         # Risk scoring
         if overdue_amt == ZERO:
-            risk_score = 10
+            risk_score = 0
             risk_level: PayablesRiskLevel = "low"
-            action = "حفظ اعتبار تجاری و پرداخت در موعد سررسید توافقی"
+            action = "ثبت سررسید بدهی"
         else:
             share_pts = overdue_ratio * 40
             stale_pts = (
@@ -304,6 +278,7 @@ async def get_vendors_payables(
                 risk_score=risk_score,
                 recommended_action=action,
                 buckets=formatted_buckets,
+                risk_assessment_incomplete=True,
                 share_of_total_payables=share_total,
             )
         )
@@ -321,22 +296,14 @@ async def get_payable_entries(
     as_of_date: date | None = None,
 ) -> PayableEntriesResponse:
     effective_date = await _resolve_as_of_date(session, company_id, as_of_date)
-    query = (
-        select(JournalLine, JournalEntry)
-        .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
-        .join(
-            AccountClassification,
-            (AccountClassification.account_id == JournalLine.account_id)
-            & (AccountClassification.account_class == AccountClass.LIABILITY),
-        )
-        .where(
-            JournalLine.company_id == company_id,
-            JournalEntry.company_id == company_id,
-            JournalLine.counterparty_id == counterparty_id,
-            JournalEntry.entry_date <= effective_date,
-        )
-        .order_by(JournalEntry.entry_date.desc(), JournalLine.id)
-    )
+    from app.financial.queries import trade_payable_scope
+
+    query = trade_payable_scope(effective_date).where(
+        JournalLine.company_id == company_id,
+        JournalEntry.company_id == company_id,
+        JournalLine.counterparty_id == counterparty_id,
+        JournalEntry.entry_date <= effective_date,
+    ).order_by(JournalEntry.entry_date.desc(), JournalLine.id)
     results = (await session.execute(query)).all()
     return PayableEntriesResponse(
         as_of_date=effective_date,
@@ -345,14 +312,12 @@ async def get_payable_entries(
                 id=line.id,
                 entry_number=entry.source_entry_id or entry.source_entry_key,
                 entry_date=entry.entry_date,
-                description=entry.description,
+                    description=line.description or entry.description,
                 debit_irr=line.debit_irr,
                 credit_irr=line.credit_irr,
-                estimated_due_date=(entry.entry_date + timedelta(days=45))
-                if line.credit_irr > line.debit_irr
-                else None,
+                estimated_due_date=None,
             )
-            for line, entry in results
+            for line, entry, _ in results
             if line.credit_irr != ZERO or line.debit_irr != ZERO
         ],
     )

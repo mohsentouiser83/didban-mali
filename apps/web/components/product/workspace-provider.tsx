@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/ui/financial/loading-state";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   }, [checking, companies, company, router]);
 
   const value = useMemo(() => user && company ? { user, companies, company } : null, [user, companies, company]);
-  if (checking || !value) return <main className="ds-root splash"><strong>دیدبان مالی</strong><span className="loading-ring" /></main>;
+  if (checking || !value) return <main className="ds-root flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-6 text-foreground"><strong>دیدبان مالی</strong><LoadingState variant="inline" label="در حال آماده‌سازی سامانه…" /></main>;
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 

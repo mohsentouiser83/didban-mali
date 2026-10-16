@@ -1,4 +1,8 @@
 "use client";
+import { FormMessage } from "@/components/ui/form";
+import { StatusMessage, ErrorState, LoadingState, MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
+
+import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableRowHeader, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { toman } from "@/lib/cashflow-amounts";
 import { api } from "@/lib/product-api";
@@ -6,9 +10,8 @@ import type { Company, PlannedCashPayment } from "@/lib/product-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Drawer, DrawerFooter, DrawerForm } from "@/components/ui/drawer";
 import { Plus, Trash2 } from "@/components/ui/icons";
 import styles from "./cash-payment-plan.module.css";
@@ -67,18 +70,18 @@ export function CashPaymentPlan({ company, asOfDate, onChanged }: { company: Com
       <div><h2 id="payment-plan-title">پرداخت‌های پیش رو</h2></div>
       {writable && <Button variant="outline" onClick={() => { setFormError(""); setNotice(""); setAdding(true); }}><Plus size={16} weight="regular" aria-hidden="true" />افزودن پرداخت</Button>}
     </div>
-    {notice && <p role="status" className={styles.notice}>{notice}</p>}
-    {error && <div role="alert" className={styles.error}><p>{error}</p><Button variant="outline" onClick={() => void load()} disabled={loading}>تلاش دوباره</Button></div>}
-    {loading ? <p role="status" className={styles.empty}>در حال دریافت پرداخت‌ها…</p> : !error && <div className={styles.tableScroll}>
-      <table className={styles.table}>
-        <thead><tr><th scope="col">عنوان پرداخت</th><th scope="col">مبلغ</th><th scope="col">موعد پرداخت</th>{writable && <th scope="col"><span className="sr-only">عملیات</span></th>}</tr></thead>
-        <tbody>{upcoming.length ? upcoming.map((item) => <tr key={item.id}>
-          <th scope="row">{item.title}<small>{categories[item.category]}</small></th>
-          <td><MoneyDisplay amount={toman(item.amount_irr)} currency="تومان" direction="neutral" size="sm" /></td>
-          <td>{toJalaliDate(item.payment_date)}</td>
-          {writable && <td><Button variant="ghost" size="icon" onClick={() => setPendingDelete(item)} disabled={saving} aria-label={`حذف ${item.title}`}><Trash2 size={16} aria-hidden="true" /></Button></td>}
-        </tr>) : <tr><td className={styles.empty} colSpan={writable ? 4 : 3}>پرداختی برای ۳۰ روز آینده ثبت نشده است.</td></tr>}</tbody>
-      </table>
+    {notice && <StatusMessage  >{notice}</StatusMessage>}
+    {error && <ErrorState onRetry={() => void load()} retrying={loading} variant="compact" ><p>{error}</p></ErrorState>}
+    {loading ? <LoadingState variant="list" rows={3} label="در حال دریافت پرداخت‌ها…" /> : !error && <div className="min-w-0">
+      <Table className="min-w-[640px]" containerClassName="border-0">
+        <TableHeader><TableRow><TableHead scope="col">عنوان پرداخت</TableHead><TableHead scope="col">مبلغ</TableHead><TableHead scope="col">موعد پرداخت</TableHead>{writable && <TableHead scope="col"><span className="sr-only">عملیات</span></TableHead>}</TableRow></TableHeader>
+        <TableBody>{upcoming.length ? upcoming.map((item) => <TableRow key={item.id}>
+          <TableRowHeader scope="row">{item.title}<small className="mt-1 block text-xs text-muted-foreground">{categories[item.category]}</small></TableRowHeader>
+          <TableCell><MoneyDisplay amount={toman(item.amount_irr)} currency="تومان" direction="neutral" size="sm" /></TableCell>
+          <TableCell>{toJalaliDate(item.payment_date)}</TableCell>
+          {writable && <TableCell><Button variant="ghost" size="icon" onClick={() => setPendingDelete(item)} disabled={saving} aria-label={`حذف ${item.title}`}><Trash2 size={16} aria-hidden="true" /></Button></TableCell>}
+        </TableRow>) : <TableRow><TableEmptyCell className="h-40 p-0 text-center text-muted-foreground" colSpan={writable ? 4 : 3}>پرداختی برای ۳۰ روز آینده ثبت نشده است.</TableEmptyCell></TableRow>}</TableBody>
+      </Table>
     </div>}
     <Drawer open={adding} onOpenChange={(open) => { if (!saving) setAdding(open); }} title="افزودن پرداخت" description="مبلغ و موعد پرداخت را وارد کنید. هر تاریخ آینده قابل ثبت است.">
         <DrawerForm onSubmit={(event) => void save(event)}>
@@ -86,12 +89,10 @@ export function CashPaymentPlan({ company, asOfDate, onChanged }: { company: Com
           <div><label htmlFor="cash-payment-category">نوع پرداخت</label><Select dir="rtl" value={category} onValueChange={(value) => setCategory(value as PlannedCashPayment["category"])} disabled={saving}><SelectTrigger id="cash-payment-category"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(categories).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
           <div><label htmlFor="cash-payment-date">موعد پرداخت</label><PersianDatePicker id="cash-payment-date" value={paymentDate} onValueChange={setPaymentDate} min={asOfDate} required disabled={saving} /></div>
           <div><label htmlFor="cash-payment-amount">مبلغ به تومان</label><Input id="cash-payment-amount" dir="ltr" inputMode="numeric" required value={amount} onChange={(event) => setAmount(event.target.value)} disabled={saving} /></div>
-          {formError && <p role="alert" className={styles.formError}>{formError}</p>}
+          {formError && <FormMessage>{formError}</FormMessage>}
           <DrawerFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setAdding(false)}>انصراف</Button><Button type="submit" disabled={saving}>{saving ? "در حال ثبت…" : "ثبت پرداخت"}</Button></DrawerFooter>
         </DrawerForm>
     </Drawer>
-    <Dialog open={!!pendingDelete} onOpenChange={(open) => { if (!open && !saving) setPendingDelete(null); }}>
-      <DialogContent dir="rtl"><DialogHeader><DialogTitle>حذف از برنامه پرداخت؟</DialogTitle><DialogDescription>«{pendingDelete?.title}» از برنامه و پیش‌بینی حذف می‌شود.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={saving} onClick={() => setPendingDelete(null)}>انصراف</Button><Button disabled={saving} onClick={() => void remove()}>حذف پرداخت</Button></DialogFooter></DialogContent>
-    </Dialog>
+    <ConfirmDialog open={!!pendingDelete} onOpenChange={(open) => { if (!open && !saving) setPendingDelete(null); }} title="حذف از برنامه پرداخت؟" description={`«${pendingDelete?.title ?? ""}» از برنامه و پیش‌بینی حذف می‌شود.`} busy={saving} confirmLabel="حذف پرداخت" onConfirm={() => void remove()} />
   </section>;
 }

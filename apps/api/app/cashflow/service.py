@@ -25,13 +25,13 @@ from app.cashflow.schemas import (
 )
 from app.financial.models import (
     AccountClass,
-    AccountClassification,
     BankTransaction,
     Counterparty,
     JournalEntry,
     JournalLine,
     SalesInvoice,
 )
+from app.financial.queries import effective_account_class
 
 ZERO = Decimal(0)
 
@@ -94,13 +94,10 @@ async def _get_monthly_burn_rate(
     expense_outflows = await session.scalar(
         select(func.sum(JournalLine.debit_irr - JournalLine.credit_irr))
         .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
-        .join(
-            AccountClassification,
-            (AccountClassification.account_id == JournalLine.account_id)
-            & (AccountClassification.account_class == AccountClass.EXPENSE),
-        )
         .where(
             JournalLine.company_id == company_id,
+            effective_account_class() == AccountClass.EXPENSE,
+            JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
             JournalEntry.entry_date >= start_90_days,
             JournalEntry.entry_date <= as_of_date,
         )

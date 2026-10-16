@@ -1,4 +1,5 @@
 "use client";
+import { Badge } from "@/components/ui/badge";
 
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -100,7 +101,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
   const isItemActive = (href: string) => isProductItemActive(pathname, href, base);
 
   return (
-    <SidebarProvider data-assistant-open={assistantOpen} style={{ "--sidebar-width": "14rem", "--sidebar-width-icon": "4.5rem" } as React.CSSProperties} className="ds-root app-shell product-shell min-h-screen bg-background text-foreground" dir="rtl">
+    <SidebarProvider data-assistant-open={assistantOpen} className="ds-root app-shell product-shell min-h-screen bg-background text-foreground [--sidebar-width:14rem] [--sidebar-width-icon:4.5rem] [--financial-assistant-width:clamp(320px,30vw,420px)] [--financial-assistant-mobile-height:55svh] transition-[padding] duration-300 motion-reduce:transition-none min-[1280px]:data-[assistant-open=true]:pe-[var(--financial-assistant-width)]" dir="rtl">
       <a className="product-skip-link" href="#workspace-content">پرش به محتوای صفحه</a>
       <ProductSidebar
         groups={navigation.primary}
@@ -137,7 +138,7 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
                 <WalletCards className="size-4 me-2 text-primary" />
                 <span>جریان و وضعیت نقدینگی</span>
               </CommandItem>
-              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/cashflow?view=forecast`); }}>
+              <CommandItem onSelect={() => { setCommandOpen(false); router.push(`${base}/cashflow/forecast`); }}>
                 <BarChart3 className="size-4 me-2 text-primary" />
                 <span>پیش‌بینی نقدینگی و کسری‌ها</span>
               </CommandItem>
@@ -175,9 +176,9 @@ export function ProductShell({ children }: { children: React.ReactNode }) {
                   }}
                 >
                   <Building2 className="size-4 me-2 text-primary" />
-                  <span>{c.legal_name}</span>
+                  <span className="min-w-0 flex-1 break-words">{c.legal_name}</span>
                   {c.id === company.id && (
-                    <span className="ms-auto text-[11px] font-bold text-primary">فعال</span>
+                    <Badge variant="info" size="xs" className="ms-auto">فعال</Badge>
                   )}
                 </CommandItem>
               ))}

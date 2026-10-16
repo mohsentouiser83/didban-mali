@@ -18,6 +18,10 @@ dependencies = [
   "email-validator==2.3.0",
   "jdatetime==6.1.0",
   "openpyxl==3.1.5",
+  "xlrd==2.0.2",
+  "olefile==0.47",
+  "pdfplumber==0.11.9",
+  "pypdf==6.10.0",
   "polars==1.44.2",
   "psycopg[binary]==3.3.5",
   "pydantic-settings==2.15.0",
@@ -36,7 +40,6 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "mypy==2.3.1",
-  "pypdf==6.10.0",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "ruff==0.16.7"
@@ -72,5 +75,5 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["arabic_reshaper", "bidi", "bidi.*", "boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*", "jdatetime", "jdatetime.*", "openpyxl", "openpyxl.*", "reportlab", "reportlab.*"]
+module = ["arabic_reshaper", "bidi", "bidi.*", "boto3", "boto3.*", "botocore", "botocore.*", "celery", "celery.*", "jdatetime", "jdatetime.*", "openpyxl", "openpyxl.*", "xlrd", "olefile", "reportlab", "reportlab.*"]
 ignore_missing_imports = true

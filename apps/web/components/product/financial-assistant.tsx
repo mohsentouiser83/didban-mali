@@ -1,11 +1,13 @@
 "use client";
+import { Form } from "@/components/ui/form";
+import { ActionTooltip } from "@/components/ui/tooltip";
+import { EmptyState, LoadingState, ErrorState, MoneyDisplay, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { DrawerDetails, DrawerSection } from "@/components/ui/drawer";
 import { Textarea } from "@/components/ui/textarea";
-import { MoneyDisplay, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
 import { formatFinancialNumber } from "@/components/ui/financial/money-display";
 import { Sparkles, X, ArrowUp, RefreshCcw } from "@/components/ui/icons";
 import { api } from "@/lib/product-api";
@@ -120,18 +122,17 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
   }
 
   return <>
-    <Button ref={launcher} className={styles.launcher} aria-label="دستیار مالی" title="دستیار مالی" aria-expanded={open} aria-controls={`financial-assistant-${companyId}`} onClick={() => changeOpen(!open)} hidden={open}><Sparkles size={24} aria-hidden="true" /></Button>
+    <ActionTooltip content="دستیار مالی"><Button ref={launcher} className={styles.launcher} aria-label="دستیار مالی" aria-expanded={open} aria-controls={`financial-assistant-${companyId}`} onClick={() => changeOpen(!open)} hidden={open}><Sparkles size={24} aria-hidden="true" /></Button></ActionTooltip>
     <aside data-state={open ? "open" : "closed"} inert={!open} aria-hidden={!open} id={`financial-assistant-${companyId}`} className={styles.panel} aria-labelledby={`assistant-title-${companyId}`} dir="rtl" onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); changeOpen(false); } }}>
       <header className={styles.header}>
         <div><h2 id={`assistant-title-${companyId}`}>دستیار مالی</h2><p className={styles.caption}>{companyName}</p></div>
-        <div className={styles.headerActions}><Button variant="ghost" size="icon" aria-label="گفتگوی جدید" title="گفتگوی جدید" onClick={() => { requestVersion.current += 1; pending.current?.abort(); pending.current = null; conversationId.current = null; setBusy(false); setTurns([]); setQuestion(""); input.current?.focus({ preventScroll: true }); }}><RefreshCcw size={18} aria-hidden="true" /></Button>
+        <div className={styles.headerActions}><ActionTooltip content="گفتگوی جدید"><Button variant="ghost" size="icon" aria-label="گفتگوی جدید" onClick={() => { requestVersion.current += 1; pending.current?.abort(); pending.current = null; conversationId.current = null; setBusy(false); setTurns([]); setQuestion(""); input.current?.focus({ preventScroll: true }); }}><RefreshCcw size={18} aria-hidden="true" /></Button></ActionTooltip>
         <Button variant="ghost" size="icon" aria-label="بستن دستیار مالی" onClick={() => changeOpen(false)}><X size={20} aria-hidden="true" /></Button></div>
       </header>
       <div ref={transcript} className={styles.body} role="log" aria-label="گفتگو با دستیار مالی" aria-live="polite" aria-relevant="additions text">
         {turns.length === 0 && <div className={styles.welcome}>
           <span className={styles.welcomeIcon}><Sparkles size={28} aria-hidden="true" /></span>
           <h3>از کجا شروع کنیم؟</h3>
-          <p>درباره نقدینگی، بدهی‌ها و مطالبات گفتگو کنیم.</p>
           <div className={styles.suggestions} role="group" aria-label="پرسش‌های پیشنهادی">{suggestions.map((text) => <Button key={text} variant="outline" onClick={() => void ask(text)}>{text}</Button>)}</div>
         </div>}
         {turns.map((turn) => {
@@ -140,8 +141,8 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
             <div className={styles.userMessage}><span className={styles.messageLabel}>شما</span><p className={styles.question}>{turn.question}</p></div>
             <div className={styles.assistantMessage}>
               <span className={styles.messageLabel}><Sparkles size={14} aria-hidden="true" />دستیار مالی</span>
-              {turn.status === "pending" && <div className={styles.typing} role="status" aria-label="در حال بررسی پرسش"><span /><span /><span /><span className="sr-only">در حال بررسی…</span></div>}
-              {(turn.status === "error" || turn.status === "cancelled") && <div role="alert" className={styles.error}><p>{turn.status === "error" ? (turn.errorMessage ?? "پاسخ دریافت نشد. دوباره تلاش کنید.") : "بررسی این پیام متوقف شد."}</p><Button variant="ghost" disabled={busy} onClick={() => void ask(turn.question, turn.id)}>تلاش دوباره</Button></div>}
+              {turn.status === "pending" && <LoadingState  variant="inline" aria-label="در حال بررسی پرسش">در حال بررسی پرسش…</LoadingState>}
+              {(turn.status === "error" || turn.status === "cancelled") && <ErrorState onRetry={() => void ask(turn.question, turn.id)} retrying={busy} variant="compact" ><p>{turn.status === "error" ? (turn.errorMessage ?? "پاسخ دریافت نشد. دوباره تلاش کنید.") : "بررسی این پیام متوقف شد."}</p></ErrorState>}
         {answer && <div className={styles.answer} aria-label="پاسخ دستیار">
           <p>{answer.answer_fa}</p>
           <details className={styles.responseDetails}><summary>جزئیات و منابع پاسخ</summary>
@@ -162,7 +163,7 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
                 <strong>فاکتور <bdi>{toPersianDigits(item.invoice_no)}</bdi></strong>
                 <AssistantMoney amount={item.remaining_amount_irr} />
                 <p className={styles.caption}>سررسید: {item.due_date ? toJalaliDate(item.due_date) : "نامشخص"} · {toPersianDigits(item.delay_days)} روز تأخیر</p>
-                {item.import_batch_id ? <Link className={styles.sourceLink} href={`/companies/${companyId}/imports/${item.import_batch_id}`} onClick={() => changeOpen(false)}><bdi>{item.filename}</bdi> · شیت <bdi>{item.sheet}</bdi> · ردیف {toPersianDigits(item.row_number ?? 0)}</Link> : <p className={styles.caption}>نشانی ردیف منبع در دسترس نیست.</p>}
+                {item.import_batch_id ? <Link className={styles.sourceLink} href={`/companies/${companyId}/imports/${item.import_batch_id}`} onClick={() => changeOpen(false)}><bdi>{item.filename}</bdi> · شیت <bdi>{item.sheet}</bdi> · ردیف {toPersianDigits(item.row_number ?? 0)}</Link> : <EmptyState variant="inline">نشانی ردیف منبع در دسترس نیست.</EmptyState>}
               </div>)}
               {customer.omitted_evidence_count > 0 && <p className={styles.caption}>{toPersianDigits(customer.omitted_evidence_count)} فاکتور دیگر در مبلغ این مشتری لحاظ شده است.</p>}
             </details>
@@ -175,7 +176,7 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
           </div>;
         })}
       </div>
-      <form className={styles.form} onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
+      <Form className={styles.form} onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
         <label className="sr-only" htmlFor={`assistant-question-${companyId}`}>پرسش شما</label>
         <div className={styles.composer}>
           <Textarea ref={input} id={`assistant-question-${companyId}`} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => {
@@ -184,7 +185,7 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
           <Button type="submit" size="icon" aria-label={busy ? "در حال بررسی…" : "ارسال پیام"} disabled={busy || question.trim().length < 1}><ArrowUp size={20} aria-hidden="true" /></Button>
         </div>
         <p className={styles.composerHint}>Enter برای ارسال · Shift + Enter برای خط جدید</p>
-      </form>
+      </Form>
     </aside>
   </>;
 }
