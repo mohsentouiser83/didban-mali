@@ -1,15 +1,17 @@
 "use client";
+import { SearchInput } from "@/components/ui/search-input";
+import { DetailGroup, ControlLabel, fieldIcon, DetailField } from "@/components/ui/field-layout";
 import { FormMessage } from "@/components/ui/form";
 import { StatusBadge } from "@/components/ui/financial/status-badge";
 import { ErrorState, EmptyState, StatusMessage, LoadingState } from "@/components/ui/financial";
 
 import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus, Search, RefreshCw, Wifi, Key, Copy } from "@/components/ui/icons";
+import { Plus, RefreshCw, Wifi, Key, Copy } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Drawer, DrawerFooter, DrawerDetails, DrawerForm } from "@/components/ui/drawer";
+import { Drawer, DrawerFooter, DrawerForm } from "@/components/ui/drawer";
 import { api } from "@/lib/product-api";
 import type { Company, IntegrationConnection, IntegrationProvider, IntegrationSyncJob, ConnectionTestResult, AgentKeyResponse } from "@/lib/product-types";
 import { SelectField, SelectOption } from "./select-field";
@@ -17,7 +19,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toJalaliDate } from "@/lib/date-utils";
 import page from "./cashflow-overview.module.css";
 import table from "./receivables-customers.module.css";
-import styles from "./reports-workspace.module.css";
 const providers: Record<IntegrationProvider, string> = {
   sepidar: "سپیدار",
   bank_direct: "حساب بانکی",
@@ -128,15 +129,11 @@ function Connections({ company }: { company: Company }) {
         <div className={table.heading}>
           <h2>اتصال‌های شرکت</h2>
           <div className={table.controls}>
-            <div className={table.search}>
-              <Search className="size-4" />
-              <Input
-                aria-label="جستجوی اتصال‌ها"
+            <SearchInput label="جستجوی اتصال‌ها" className="w-full sm:w-56"
                 placeholder="نام اتصال یا سیستم"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+               />
             {manage && (
               <Button
                 onClick={() => {
@@ -174,7 +171,7 @@ function Connections({ company }: { company: Company }) {
               </TableHeader>
               <TableBody>
                 {visible.map((connection) => (
-                  <TableRow key={connection.id}>
+                  <TableRow key={connection.id} onActivate={() => setSelected(connection.id)}>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -218,7 +215,7 @@ function Connections({ company }: { company: Company }) {
         {adding && (
           <DrawerForm onSubmit={create}>
             <div>
-              <label htmlFor="connection-provider">سیستم</label>
+              <ControlLabel htmlFor="connection-provider" icon={fieldIcon("سیستم")}>سیستم</ControlLabel>
               <SelectField
                 id="connection-provider"
                 value={provider}
@@ -232,7 +229,7 @@ function Connections({ company }: { company: Company }) {
               </SelectField>
             </div>
             <div>
-              <label htmlFor="connection-name">نام اتصال</label>
+              <ControlLabel htmlFor="connection-name" icon={fieldIcon("نام اتصال")}>نام اتصال</ControlLabel>
               <Input
                 id="connection-name"
                 name="name"
@@ -242,7 +239,7 @@ function Connections({ company }: { company: Company }) {
             </div>
             {provider === "sepidar" ? (
               <div>
-                <label htmlFor="server-url">آدرس سرویس سپیدار</label>
+                <ControlLabel htmlFor="server-url" icon={fieldIcon("آدرس سرویس سپیدار")}>آدرس سرویس سپیدار</ControlLabel>
                 <Input
                   id="server-url"
                   name="server_url"
@@ -255,7 +252,7 @@ function Connections({ company }: { company: Company }) {
             ) : (
               <>
                 <div>
-                  <label htmlFor="bank-name">نام بانک</label>
+                  <ControlLabel htmlFor="bank-name" icon={fieldIcon("نام بانک")}>نام بانک</ControlLabel>
                   <Input
                     id="bank-name"
                     name="bank_name"
@@ -264,7 +261,7 @@ function Connections({ company }: { company: Company }) {
                   />
                 </div>
                 <div>
-                  <label htmlFor="account-number">شماره حساب</label>
+                  <ControlLabel htmlFor="account-number" icon={fieldIcon("شماره حساب")}>شماره حساب</ControlLabel>
                   <Input
                     id="account-number"
                     name="account_number"
@@ -276,7 +273,7 @@ function Connections({ company }: { company: Company }) {
               </>
             )}
             <div>
-              <label htmlFor="connection-token">کلید دسترسی</label>
+              <ControlLabel htmlFor="connection-token" icon={fieldIcon("کلید دسترسی")}>کلید دسترسی</ControlLabel>
               <Input
                 id="connection-token"
                 name="token"
@@ -310,13 +307,15 @@ function Connections({ company }: { company: Company }) {
     </div>
   );
 }
-function ConnectionDetail({
+export function ConnectionDetail({
   companyId,
   connection,
   manage,
   onClose,
   onReload,
+  request = api,
 }: {
+  request?: typeof api;
   companyId: string;
   connection: IntegrationConnection;
   manage: boolean;
@@ -336,13 +335,13 @@ function ConnectionDetail({
     setLoading(true);
     setHistoryError(false);
     try {
-      setJobs(await api<IntegrationSyncJob[]>(`${path}/jobs`));
+      setJobs(await request<IntegrationSyncJob[]>(`${path}/jobs`));
     } catch {
       setHistoryError(true);
     } finally {
       setLoading(false);
     }
-  }, [path]);
+  }, [path, request]);
   useEffect(() => {
     void history();
   }, [history, connection.last_sync_at]);
@@ -364,21 +363,21 @@ function ConnectionDetail({
     setMessage("");
     try {
       if (kind === "delete") {
-        await api(path, { method: "DELETE" });
+        await request(path, { method: "DELETE" });
         setRemoving(false);
         onClose();
       } else if (kind === "test") {
-        const result = await api<ConnectionTestResult>(`${path}/test`, {
+        const result = await request<ConnectionTestResult>(`${path}/test`, {
           method: "POST",
         });
         if (result.success) setMessage(result.message_fa);
         else setError(result.message_fa);
       } else if (kind === "agent-key")
         setKey(
-          await api<AgentKeyResponse>(`${path}/agent-key`, { method: "POST" }),
+          await request<AgentKeyResponse>(`${path}/agent-key`, { method: "POST" }),
         );
       else {
-        await api(`${path}/sync`, {
+        await request(`${path}/sync`, {
           method: "POST",
           body: JSON.stringify({ sync_type: "manual" }),
         });
@@ -403,24 +402,15 @@ function ConnectionDetail({
         title={connection.name}
         description={`${providers[connection.provider]} · ${statuses[connection.status] ?? "نامشخص"}`}
       >
-        <DrawerDetails>
-          <div>
-            <dt>آخرین دریافت</dt>
-            <dd>
+        <DetailGroup>
+          <DetailField icon={fieldIcon("آخرین دریافت")} label="آخرین دریافت">
               {connection.last_sync_at
                 ? toJalaliDate(connection.last_sync_at)
                 : "هنوز دریافت نشده"}
-            </dd>
-          </div>
-          <div>
-            <dt>رکوردهای آخرین دریافت</dt>
-            <dd>{number.format(connection.last_sync_record_count)}</dd>
-          </div>
-          <div>
-            <dt>فاصله دریافت خودکار</dt>
-            <dd>{number.format(connection.sync_interval_minutes)} دقیقه</dd>
-          </div>
-        </DrawerDetails>
+            </DetailField>
+          <DetailField icon={fieldIcon("رکوردهای آخرین دریافت")} label="رکوردهای آخرین دریافت">{number.format(connection.last_sync_record_count)}</DetailField>
+          <DetailField icon={fieldIcon("فاصله دریافت خودکار")} label="فاصله دریافت خودکار">{number.format(connection.sync_interval_minutes)} دقیقه</DetailField>
+        </DetailGroup>
         {connection.last_error_message && (
           <ErrorState variant="inline" role="note">{connection.last_error_message}</ErrorState>
         )}
@@ -452,7 +442,7 @@ function ConnectionDetail({
           </div>
         )}
         <section>
-          <h3 className={styles.subtitle}>تاریخچه دریافت</h3>
+          <h3 className="mb-4 text-sm font-medium">تاریخچه دریافت</h3>
           {historyError ? (
             <ErrorState onRetry={() => void history()} variant="compact">
               <ErrorState variant="inline">تاریخچه دریافت نشد.</ErrorState>
@@ -462,15 +452,13 @@ function ConnectionDetail({
             <Skeleton className="h-24 w-full" />
           ) : jobs.length ? (
             jobs.map((job) => (
-              <article key={job.id} className={`${table.invoice} mb-4`}>
-                <div className={table.invoiceHeading}>
-                  <StatusBadge status={job.status} label={jobLabels[job.status]} />
-                  <span>{toJalaliDate(job.started_at ?? job.created_at)}</span>
-                </div>
-                <p className={styles.caption}>
-                  {number.format(job.records_imported)} رکورد دریافت‌شده ·{" "}
-                  {number.format(job.records_rejected)} رکورد ردشده
-                </p>
+              <article key={job.id} className="mb-5 grid min-w-0 gap-4 border-b border-border/70 pb-5 last:border-0">
+                <DetailGroup>
+                  <DetailField icon={fieldIcon("وضعیت")} label="وضعیت"><StatusBadge status={job.status} label={jobLabels[job.status]} /></DetailField>
+                  <DetailField icon={fieldIcon("تاریخ دریافت")} label="تاریخ دریافت">{toJalaliDate(job.started_at ?? job.created_at)}</DetailField>
+                  <DetailField icon={fieldIcon("رکورد دریافت‌شده")} label="رکورد دریافت‌شده">{number.format(job.records_imported)}</DetailField>
+                  <DetailField icon={fieldIcon("رکورد ردشده")} label="رکورد ردشده">{number.format(job.records_rejected)}</DetailField>
+                </DetailGroup>
                 {job.error_message && (
                   <ErrorState variant="inline" role="note">{job.error_message}</ErrorState>
                 )}
@@ -482,14 +470,16 @@ function ConnectionDetail({
         </section>
         {manage && connection.provider !== "bank_direct" && (
           <section>
-            <h3 className={styles.subtitle}>همگام‌ساز محلی</h3>
-            <p className={styles.caption}>
+            <h3 className="mb-4 text-sm font-medium">همگام‌ساز محلی</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               برای اتصال نرم‌افزار نصب‌شده در شرکت، این کلید را در اختیار مسئول
               راه‌اندازی قرار دهید.
             </p>
             {key ? (
               <>
+                <ControlLabel htmlFor="sync-agent-key" icon={fieldIcon("کلید همگام‌ساز")}>کلید همگام‌ساز</ControlLabel>
                 <Input
+                  id="sync-agent-key"
                   aria-label="کلید همگام‌ساز"
                   type="password"
                   readOnly
@@ -510,7 +500,7 @@ function ConnectionDetail({
                   <Copy className="size-4" />
                   کپی کلید
                 </Button>
-                <p className={styles.caption}>{key.instructions_fa}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{key.instructions_fa}</p>
               </>
             ) : (
               <Button

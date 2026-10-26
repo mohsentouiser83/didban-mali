@@ -139,7 +139,7 @@ def test_mapping_rejects_cross_source_fields_and_implicit_toman_conversion() -> 
         "description": "شرح",
         "debit": "بد",
         "credit": "بس",
-        "invoice_no": "فاکتور",
+        "settlement_amount": "مبلغ تسویه",
     }
     columns = list(mapping.values())
     errors = validate_mapping_fields(SourceKind.ACCOUNTING, mapping, columns)

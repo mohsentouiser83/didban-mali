@@ -1,0 +1,28 @@
+{
+  "id": "F05",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "anchor": {
+      "date": "2026-09-01",
+      "cutoff": "end_of_day",
+      "balance": "100"
+    },
+    "movements": [
+      {
+        "date": "2026-09-01",
+        "amount": "20"
+      },
+      {
+        "date": "2026-09-02",
+        "amount": "10"
+      }
+    ],
+    "as_of": "2026-09-02"
+  },
+  "expected": {
+    "balance": "110"
+  },
+  "application_execution": "not_run"
+}

@@ -33,7 +33,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
           <table
             ref={ref}
             data-slot="table"
-            className={cn("w-full min-w-[720px] border-collapse text-start", className)}
+            className={cn("w-full min-w-[720px] border-collapse text-start [&_[data-slot=badge]]:max-w-none [&_[data-slot=badge]]:whitespace-nowrap", className)}
             {...props}
           />
         </div>
@@ -61,11 +61,14 @@ TableHeader.displayName = "TableHeader";
 
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLTableSectionElement> & { loading?: boolean; transitionKey?: string | number }
+>(({ className, loading = false, transitionKey = "", ...props }, ref) => (
   <tbody
+    key={`${loading}:${transitionKey}`}
+    aria-busy={loading}
+    aria-label={loading ? "در حال دریافت ردیف‌ها" : undefined}
     ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
+    className={cn("[&_tr:last-child]:border-0 motion-safe:animate-[workspace-enter_180ms_ease-out_both]", className)}
     {...props}
   />
 ));
@@ -87,20 +90,33 @@ const TableFooter = React.forwardRef<
 TableFooter.displayName = "TableFooter";
 
 export interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  /** Opens the row detail; nested controls retain their own actions and keyboard focus. */
+  onActivate?: () => void;
   selected?: boolean;
   risk?: "critical" | "high" | "medium" | "low";
 }
 
 const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
-  ({ className, selected, risk, ...props }, ref) => (
+  ({ className, selected, risk, onActivate, onClick, ...props }, ref) => (
     <tr
       ref={ref}
       aria-selected={selected ? "true" : undefined}
       data-selected={selected ? "true" : undefined}
       data-risk={risk}
+      data-interactive={onActivate || onClick ? "true" : undefined}
+      tabIndex={onActivate ? -1 : undefined}
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented || !onActivate) return;
+        const target = event.target as HTMLElement;
+        if (target.closest("button, a, input, select, textarea, [role=button], [role=checkbox], [role=switch], [data-row-action-ignore]")) return;
+        if (window.getSelection()?.type === "Range") return;
+        event.currentTarget.focus({ preventScroll: true });
+        onActivate();
+      }}
       className={cn(
         "group/row border-b border-[var(--ds-border)] transition-colors duration-150",
-        props.onClick && "cursor-pointer active:bg-[var(--ds-table-selected)]/50",
+        (onActivate || onClick) && "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary hover:bg-muted/40 focus-within:bg-muted/40 active:bg-muted/60 motion-reduce:transition-none",
         selected && "bg-[var(--ds-table-selected)] shadow-[inset_3px_0_0_var(--ds-primary)]",
         risk === "critical" && "shadow-[inset_3px_0_0_var(--ds-danger)]",
         risk === "high" && "shadow-[inset_3px_0_0_var(--ds-warning)]",

@@ -1,7 +1,7 @@
 import os
 from datetime import date
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import select
@@ -25,6 +25,7 @@ from app.imports.models import (
     SourceKind,
     SourceRow,
 )
+from app.reconciliation.account_links import set_account_link
 from app.reconciliation.engine import BankRecord, LedgerRecord, ReconciliationConfig, reconcile
 from app.reconciliation.models import (
     MatchStatus,
@@ -70,6 +71,7 @@ async def test_reconciliation_engine_logic() -> None:
     banks = [
         # Exact match candidate
         BankRecord(
+            bank_account_id=UUID(int=90),
             id=b_id1,
             source_row_id=uuid4(),
             booking_date=date(2026, 9, 10),
@@ -77,16 +79,18 @@ async def test_reconciliation_engine_logic() -> None:
             description="واریز حق‌العمل شرکت آلفا",
             reference="REF-1001",
         ),
-        # Suggested match candidate (date diff 4 days, no exact ref)
+        # Suggested match candidate within three Iranian working days, no exact ref
         BankRecord(
+            bank_account_id=UUID(int=90),
             id=b_id2,
             source_row_id=uuid4(),
-            booking_date=date(2026, 9, 15),
+            booking_date=date(2026, 9, 14),
             amount_irr=Decimal("8200000"),
             description="واریز فروش نقدی",
         ),
         # 1:N batch outflow: 25,000,000 IRR equals 10,000,000 + 15,000,000
         BankRecord(
+            bank_account_id=UUID(int=90),
             id=b_id3,
             source_row_id=uuid4(),
             booking_date=date(2026, 9, 20),
@@ -98,6 +102,7 @@ async def test_reconciliation_engine_logic() -> None:
     ledgers = [
         # Exactly matches b_id1
         LedgerRecord(
+            bank_account_id=UUID(int=90),
             entry_id=uuid4(),
             line_id=l_id1,
             source_row_id=uuid4(),
@@ -108,6 +113,7 @@ async def test_reconciliation_engine_logic() -> None:
         ),
         # Suggested match for b_id2
         LedgerRecord(
+            bank_account_id=UUID(int=90),
             entry_id=uuid4(),
             line_id=l_id2,
             source_row_id=uuid4(),
@@ -117,6 +123,7 @@ async def test_reconciliation_engine_logic() -> None:
         ),
         # Batch outflow parts
         LedgerRecord(
+            bank_account_id=UUID(int=90),
             entry_id=uuid4(),
             line_id=l_id3,
             source_row_id=uuid4(),
@@ -125,6 +132,7 @@ async def test_reconciliation_engine_logic() -> None:
             description="پرداخت مساعده پرسنل الف",
         ),
         LedgerRecord(
+            bank_account_id=UUID(int=90),
             entry_id=uuid4(),
             line_id=l_id4,
             source_row_id=uuid4(),
@@ -381,6 +389,8 @@ async def test_canonical_reconciliation_service_flow(golden_session: AsyncSessio
     session.add_all([jl1_debit, jl1_credit, jl2_debit])
     await session.commit()
 
+    await set_account_link(session, company_id=company_id, account_id=acc_bank.id,
+                           bank_account_id=bank_acc.id, actor_id=user.id)
     # 1. Run Canonical Auto-Reconciliation
     run = await run_canonical_reconciliation(
         session,
@@ -441,6 +451,7 @@ async def test_smart_many_to_one_and_fifo_allocation() -> None:
     """Test Q4 Roadmap: 1:N subset matching (3+ items) and counterparty-guided FIFO matching."""
     bank_tx_id = uuid4()
     bank_tx = BankRecord(
+            bank_account_id=UUID(int=90),
         id=bank_tx_id,
         source_row_id=uuid4(),
         booking_date=date(2026, 9, 25),
@@ -450,6 +461,7 @@ async def test_smart_many_to_one_and_fifo_allocation() -> None:
 
     # 3 invoices summing to 60,000,000 IRR (10M + 20M + 30M)
     l1 = LedgerRecord(
+            bank_account_id=UUID(int=90),
         entry_id=uuid4(),
         line_id=uuid4(),
         source_row_id=uuid4(),
@@ -459,6 +471,7 @@ async def test_smart_many_to_one_and_fifo_allocation() -> None:
         counterparty_name="شرکت بازرگانی کاسپین",
     )
     l2 = LedgerRecord(
+            bank_account_id=UUID(int=90),
         entry_id=uuid4(),
         line_id=uuid4(),
         source_row_id=uuid4(),
@@ -468,6 +481,7 @@ async def test_smart_many_to_one_and_fifo_allocation() -> None:
         counterparty_name="شرکت بازرگانی کاسپین",
     )
     l3 = LedgerRecord(
+            bank_account_id=UUID(int=90),
         entry_id=uuid4(),
         line_id=uuid4(),
         source_row_id=uuid4(),
@@ -478,6 +492,7 @@ async def test_smart_many_to_one_and_fifo_allocation() -> None:
     )
     # Extra unrelated ledger item
     l_other = LedgerRecord(
+            bank_account_id=UUID(int=90),
         entry_id=uuid4(),
         line_id=uuid4(),
         source_row_id=uuid4(),

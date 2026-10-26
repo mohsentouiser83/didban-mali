@@ -1,11 +1,13 @@
 "use client";
+import { SearchInput } from "@/components/ui/search-input";
+import { ControlLabel, fieldIcon } from "@/components/ui/field-layout";
 import { FieldDescription } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/form";
 import { ErrorState } from "@/components/ui/financial";
 
 import { TableEmptyCell, Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Plus, Search } from "@/components/ui/icons";
+import { Plus } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +18,6 @@ import { SelectField, SelectOption } from "./select-field";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import page from "./cashflow-overview.module.css";
 import table from "./receivables-customers.module.css";
-import styles from "./reports-workspace.module.css";
 const roles = Object.keys(roleLabels) as Role[];
 const descriptions: Record<Role, string> = {
   owner: "مدیریت اعضا، اتصال‌ها و اطلاعات مالی شرکت",
@@ -119,15 +120,11 @@ function MembersContent({
         <div className={table.heading}>
           <h2>اعضای شرکت</h2>
           <div className={table.controls}>
-            <div className={table.search}>
-              <Search className="size-4" />
-              <Input
-                aria-label="جستجوی اعضا"
+            <SearchInput label="جستجوی اعضا" className="w-full sm:w-56"
                 placeholder="نام یا ایمیل"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+               />
             {owner && (
               <Button
                 onClick={() => {
@@ -164,7 +161,7 @@ function MembersContent({
               </TableHeader>
               <TableBody>
                 {visible.map((member) => (
-                  <TableRow key={member.user_id}>
+                  <TableRow key={member.user_id} onActivate={() => { setSelected(member); setRole(member.role); setFormError(""); }}>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -218,7 +215,7 @@ function MembersContent({
         <DrawerForm onSubmit={save}>
           {adding && (
             <div>
-              <label htmlFor="member-email">ایمیل</label>
+              <ControlLabel htmlFor="member-email" icon={fieldIcon("ایمیل")}>ایمیل</ControlLabel>
               <Input
                 id="member-email"
                 name="email"
@@ -231,7 +228,7 @@ function MembersContent({
             </div>
           )}
           <div>
-            <label htmlFor="member-role">سطح دسترسی</label>
+            <ControlLabel htmlFor="member-role" icon={fieldIcon("سطح دسترسی")}>سطح دسترسی</ControlLabel>
             <SelectField
               id="member-role"
               aria-describedby="member-role-hint"
@@ -248,7 +245,7 @@ function MembersContent({
             <FieldDescription id="member-role-hint" className="mt-3">{descriptions[role]}</FieldDescription>
           </div>
           {selected?.user_id === currentUserId && (
-            <p className={styles.caption}>
+            <p className="text-sm leading-relaxed text-muted-foreground">
               برای تغییر دسترسی شما، مالک دیگری باید اقدام کند.
             </p>
           )}

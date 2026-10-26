@@ -27,6 +27,7 @@ def bank(
 ) -> BankRecord:
     return BankRecord(
         id=uid(value),
+        bank_account_id=uid(90),
         source_row_id=uid(1000 + value),
         booking_date=date(2026, 9, day),
         amount_irr=Decimal(amount),
@@ -47,6 +48,7 @@ def ledger(
 ) -> LedgerRecord:
     return LedgerRecord(
         entry_id=uid(100 + value),
+        bank_account_id=uid(90),
         source_row_id=uid(2000 + value),
         line_id=uid(3000 + value),
         entry_date=date(2026, 9, day),
@@ -205,3 +207,119 @@ def test_dense_subset_suggestions_have_a_bounded_search(monkeypatch):
     )
     assert visited == 5000
     assert any(p.status == MatchStatus.UNRESOLVED for p in result)
+
+
+def test_multiple_bank_lines_in_one_voucher_match_independently():
+    first = replace(ledger(1, amount="100", description="A"), bank_account_id=uid(90))
+    second = replace(
+        ledger(2, amount="200", description="B"),
+        entry_id=first.entry_id,
+        source_entry_id="42",
+        bank_account_id=uid(90),
+    )
+    first = replace(first, source_entry_id="42")
+    banks = [
+        replace(bank(1, amount="100", description="A"), bank_account_id=uid(90)),
+        replace(bank(2, amount="200", description="B"), bank_account_id=uid(90)),
+    ]
+    result = reconcile(banks, [first, second], ReconciliationConfig())
+    assert len([p for p in result if p.status == MatchStatus.AUTO_MATCHED]) == 2
+    assert not any(p.match_level.value == "duplicate" for p in result)
+
+
+def test_unrelated_line_in_matched_voucher_remains_visible():
+    first = replace(ledger(1, amount="100", description="A"), bank_account_id=uid(90))
+    other = replace(ledger(2, amount="300", description="C"), entry_id=first.entry_id)
+    result = reconcile(
+        [replace(bank(1, amount="100", description="A"), bank_account_id=uid(90))],
+        [first, other],
+        ReconciliationConfig(),
+    )
+    assert any(
+        p.rule_code == "ACCOUNTING_WITHOUT_BANK_MATCH"
+        and p.allocations[0].journal_line_id == other.line_id
+        for p in result
+    )
+
+
+def test_same_voucher_number_with_different_postings_is_not_duplicate():
+    records = [ledger(1, amount="100", entry_id="42"), ledger(2, amount="200", entry_id="42")]
+    result = reconcile([], records, ReconciliationConfig())
+    assert len(result) == 2
+    assert all(p.status == MatchStatus.UNRESOLVED for p in result)
+
+
+def test_different_accounts_are_not_weak_duplicates():
+    records = [replace(ledger(1), account_id=uid(80)), replace(ledger(2), account_id=uid(81))]
+    result = reconcile([], records, ReconciliationConfig())
+    assert all(p.status == MatchStatus.UNRESOLVED for p in result)
+
+
+def test_unknown_bank_correspondence_is_never_automatically_matched():
+    result = reconcile(
+        [bank(1)], [replace(ledger(1), bank_account_id=None)], ReconciliationConfig()
+    )
+    assert len(result) == 1
+    assert result[0].rule_code == "ACCOUNT_MAPPING_REQUIRED"
+    assert result[0].status == MatchStatus.POTENTIAL_MATCH
+
+
+def test_confirmed_other_bank_is_excluded_from_every_candidate_path():
+    record = replace(ledger(1), bank_account_id=uid(91))
+    result = reconcile(
+        [replace(bank(1), bank_account_id=uid(90))], [record], ReconciliationConfig()
+    )
+    assert {p.rule_code for p in result} == {
+        "BANK_WITHOUT_ACCOUNTING_MATCH",
+        "ACCOUNTING_WITHOUT_BANK_MATCH",
+    }
+
+
+def test_batch_cannot_include_postings_of_another_bank():
+    b = replace(bank(1, amount="300", description="group"), bank_account_id=uid(90))
+    records = [
+        replace(ledger(1, amount="100", description="A"), bank_account_id=uid(90)),
+        replace(ledger(2, amount="200", description="B"), bank_account_id=uid(91)),
+    ]
+    result = reconcile([b], records, ReconciliationConfig())
+    assert not any(p.match_type == "one_to_many" for p in result)
+
+
+def test_identical_postings_within_a_voucher_remain_ambiguous_not_duplicates():
+    first = ledger(1)
+    second = replace(first, line_id=uid(3999), source_row_id=uid(2999))
+    result = reconcile([bank(1)], [first, second], ReconciliationConfig())
+    assert len(result) == 2
+    assert all(p.status == MatchStatus.POTENTIAL_MATCH for p in result)
+    assert {p.allocations[1].journal_line_id for p in result} == {first.line_id, second.line_id}
+
+
+def test_multiple_bank_movements_to_one_ledger_remain_suggestions_with_full_allocations():
+    results = reconcile(
+        [bank(1, amount="40"), bank(2, amount="60")],
+        [ledger(1, amount="100")],
+        ReconciliationConfig(),
+    )
+    grouped = [item for item in results if item.match_type == "many_to_one"]
+    assert len(grouped) == 1
+    assert grouped[0].status == MatchStatus.POTENTIAL_MATCH
+    assert len(grouped[0].allocations) == 3
+    assert len(grouped[0].evidence["bank_items"]) == 2
+    assert not any(item.status == MatchStatus.AUTO_MATCHED for item in results)
+
+
+def test_grouped_bank_movements_never_cross_bank_accounts():
+    results = reconcile(
+        [bank(1, amount="40"), replace(bank(2, amount="60"), bank_account_id=uid(91))],
+        [ledger(1, amount="100")],
+        ReconciliationConfig(),
+    )
+    assert not any(item.match_type == "many_to_one" for item in results)
+
+
+def test_iranian_working_days_and_explicit_holidays_are_used():
+    from app.reconciliation.engine import _business_days
+
+    assert _business_days(date(2026, 9, 10), date(2026, 9, 12), ReconciliationConfig()) == 1
+    config = ReconciliationConfig(holiday_dates=frozenset({date(2026, 9, 12)}))
+    assert _business_days(date(2026, 9, 10), date(2026, 9, 12), config) == 0

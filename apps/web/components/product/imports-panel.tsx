@@ -1,4 +1,6 @@
 "use client";
+import { SearchInput } from "@/components/ui/search-input";
+import { DetailGroup, DetailField, fieldIcon } from "@/components/ui/field-layout";
 import { FormMessage } from "@/components/ui/form";
 import { StatusBadge } from "@/components/ui/financial/status-badge";
 import { ErrorState, StatusMessage, LoadingState, PageHeader, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
@@ -13,9 +15,9 @@ import type { Company, ImportBatch, ImportStatus } from "@/lib/product-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Drawer, DrawerFooter, DrawerDetails } from "@/components/ui/drawer";
+import { Drawer, DrawerFooter } from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, FileUp, Download, Trash2, FileText, Clock, CheckCircle, AlertTriangle } from "@/components/ui/icons";
+import { FileUp, Download, Trash2, FileText, Clock, CheckCircle, AlertTriangle } from "@/components/ui/icons";
 import { UploadWizard } from "./upload-wizard";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatCards } from "@/components/ui/financial/stat-cards";
@@ -133,26 +135,26 @@ function ImportsContent({ company }: { company: Company }) {
     {pollFailed && <ErrorState onRetry={() => setPollRetry((value) => value + 1)} variant="compact" ><p>وضعیت پردازش اسناد به‌روز نشد.</p></ErrorState>}
     <section className={styles.section} aria-labelledby="imports-list-title" aria-busy={loading}>
       <div className={styles.heading}><div><h2 id="imports-list-title">اسناد بارگذاری‌شده</h2></div><div className={styles.controls}>
-        <div className={styles.search}><Search size={17} aria-hidden="true" /><Input aria-label="جستجوی سند" placeholder="جستجوی سند" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
-        <Select dir="rtl" value={status} onValueChange={setStatus}><SelectTrigger aria-label="وضعیت سند" className="w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">همه وضعیت‌ها</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+        <SearchInput label="جستجوی سند" className="w-full sm:w-56" placeholder="جستجوی سند" value={search} onChange={(event) => setSearch(event.target.value)}  />
+        <Select dir="rtl" value={status} onValueChange={setStatus}><SelectTrigger aria-label="وضعیت سند" icon={fieldIcon("وضعیت سند")} className="w-full sm:w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">همه وضعیت‌ها</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
       </div></div>
       {failed ? <ErrorState onRetry={() => { setLoading(true); setRetry((value) => value + 1); }} variant="compact" ><p>فهرست اسناد دریافت نشد.</p></ErrorState> : <div className="min-w-0"><Table className="min-w-[640px]" containerClassName="border-0">
         <TableHeader><TableRow><TableHead scope="col">نام فایل</TableHead><TableHead scope="col">نوع سند</TableHead><TableHead scope="col">وضعیت</TableHead><TableHead scope="col">حجم فایل</TableHead><TableHead scope="col">تاریخ بارگذاری</TableHead></TableRow></TableHeader>
-        <TableBody>{loading ? [0, 1, 2].map((row) => <TableRow key={row}>{[0, 1, 2, 3, 4].map((cell) => <TableCell key={cell}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>) : filtered.length ? filtered.map((item) => <TableRow key={item.id}>
+        <TableBody loading={loading}>{loading ? [0, 1, 2].map((row) => <TableRow key={row}>{[0, 1, 2, 3, 4].map((cell) => <TableCell key={cell}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>) : filtered.length ? filtered.map((item) => <TableRow key={item.id} onActivate={() => setSelectedId(item.id)}>
           <TableRowHeader scope="row"><Button variant="ghost" className="h-auto min-h-11 max-w-80 justify-start whitespace-normal px-0 text-start font-normal" onClick={() => { setError(""); setSelectedId(item.id); }}><bdi>{item.original_name}</bdi></Button></TableRowHeader>
           <TableCell>{sourceLabels[item.source_kind]}</TableCell><TableCell><StatusBadge status={item.status} label={statusLabels[item.status]} /></TableCell><TableCell>{formatBytes(item.size_bytes)}</TableCell><TableCell>{toJalaliDate(item.created_at.slice(0, 10))}</TableCell>
         </TableRow>) : <TableRow><TableEmptyCell colSpan={5} className="h-40 p-0 text-center text-muted-foreground">{search || status !== "all" ? "سندی با این جستجو و فیلتر پیدا نشد." : "هنوز سندی بارگذاری نشده است."}</TableEmptyCell></TableRow>}</TableBody>
       </Table></div>}
     </section>
-    <Drawer open={!!selected} onOpenChange={(open) => { if (!open && !deleting) setSelectedId(null); }} title={selected?.original_name ?? "جزئیات سند"}>
-      {selected && <><DrawerDetails>
-        <div><dt>نوع سند</dt><dd>{sourceLabels[selected.source_kind]}</dd></div>
-        <div><dt>عنوان منبع</dt><dd>{selected.source_label}</dd></div>
-        <div><dt>وضعیت</dt><dd><StatusBadge status={selected.status} label={statusLabels[selected.status]} /></dd></div>
-        <div><dt>حجم فایل</dt><dd>{formatBytes(selected.size_bytes)}</dd></div>
-        <div><dt>تاریخ بارگذاری</dt><dd>{toJalaliDate(selected.created_at.slice(0, 10))}</dd></div>
-        {selected.row_count != null && <div><dt>تعداد ردیف‌ها</dt><dd>{toPersianDigits(selected.row_count)}</dd></div>}
-      </DrawerDetails>
+    <Drawer size="wide" open={!!selected} onOpenChange={(open) => { if (!open && !deleting) setSelectedId(null); }} title={selected?.original_name ?? "جزئیات سند"}>
+      {selected && <><DetailGroup>
+        <DetailField icon={fieldIcon("نوع سند")} label="نوع سند">{sourceLabels[selected.source_kind]}</DetailField>
+        <DetailField icon={fieldIcon("عنوان منبع")} label="عنوان منبع">{selected.source_label}</DetailField>
+        <DetailField icon={fieldIcon("وضعیت")} label="وضعیت"><StatusBadge status={selected.status} label={statusLabels[selected.status]} /></DetailField>
+        <DetailField icon={fieldIcon("حجم فایل")} label="حجم فایل">{formatBytes(selected.size_bytes)}</DetailField>
+        <DetailField icon={fieldIcon("تاریخ بارگذاری")} label="تاریخ بارگذاری">{toJalaliDate(selected.created_at.slice(0, 10))}</DetailField>
+        {selected.row_count != null && <DetailField icon={fieldIcon("تعداد ردیف‌ها")} label="تعداد ردیف‌ها">{toPersianDigits(selected.row_count)}</DetailField>}
+      </DetailGroup>
         {pendingStatuses.includes(selected.status) && <LoadingState variant="inline" >در حال پردازش؛ {toPersianDigits(selected.progress)}٪.</LoadingState>}
         {selected.duplicate_detected && <p className={formStyles.caption}>فایل تکراری است.</p>}
         {selected.failure_message && <FormMessage>{selected.failure_message}</FormMessage>}
@@ -166,7 +168,7 @@ function ImportsContent({ company }: { company: Company }) {
         </DrawerFooter>
       </>}
     </Drawer>
-    <Drawer open={creating} onOpenChange={(open) => { if (!uploadBusy) setCreating(open); }} title="بارگذاری فایل">
+    <Drawer size="wide" open={creating} onOpenChange={(open) => { if (!uploadBusy) setCreating(open); }} title="بارگذاری فایل">
       {creating && <UploadWizard key={wizardBatch?.id ?? "new"} company={company} initialBatch={wizardBatch} onSaving={setUploadBusy} onCancel={() => setCreating(false)} onUpdated={(batch) => {
         setItems((current) => [batch, ...current.filter((item) => item.id !== batch.id)]);
         setSearch(""); setStatus("all"); setFailed(false); setError("");

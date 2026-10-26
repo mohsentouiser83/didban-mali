@@ -129,6 +129,11 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
             ["journal_entries.id", "journal_entries.company_id"],
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["journal_line_id", "company_id"],
+            ["journal_lines.id", "journal_lines.company_id"],
+            ondelete="RESTRICT",
+        ),
         CheckConstraint(
             "bank_transaction_id IS NOT NULL OR journal_entry_id IS NOT NULL",
             name="ck_reconciliation_match_has_record",
@@ -137,7 +142,7 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
         UniqueConstraint(
             "run_id",
             "bank_transaction_id",
-            "journal_entry_id",
+            "journal_line_id",
             "rule_code",
             name="uq_reconciliation_candidate",
         ),
@@ -155,9 +160,9 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
         Index(
             "uq_reconciliation_auto_journal",
             "run_id",
-            "journal_entry_id",
+            "journal_line_id",
             unique=True,
-            postgresql_where=text("status = 'AUTO_MATCHED' AND journal_entry_id IS NOT NULL"),
+            postgresql_where=text("status = 'AUTO_MATCHED' AND journal_line_id IS NOT NULL"),
         ),
     )
 
@@ -167,6 +172,7 @@ class ReconciliationMatch(UUIDPrimaryKeyMixin, Base):
     run_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     bank_transaction_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     journal_entry_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    journal_line_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     match_type: Mapped[str] = mapped_column(String(40), default="one_to_one", nullable=False)
     match_level: Mapped[MatchLevel] = mapped_column(
         Enum(MatchLevel, name="match_level", native_enum=False), nullable=False
@@ -226,3 +232,28 @@ class ReconciliationAllocation(UUIDPrimaryKeyMixin, Base):
     journal_line_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     allocated_amount_irr: Mapped[Decimal] = mapped_column(Numeric(20, 0), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class BankLedgerLink(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """User-confirmed correspondence; account codes and names are not identities."""
+
+    __tablename__ = "bank_ledger_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["account_id", "company_id"], ["accounts.id", "accounts.company_id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("company_id", "account_id", name="uq_bank_ledger_link_account"),
+        Index("ix_bank_ledger_link_bank", "company_id", "bank_account_id"),
+    )
+
+    company_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    bank_account_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    confirmed_by: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )

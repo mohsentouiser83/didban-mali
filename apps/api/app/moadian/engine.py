@@ -19,6 +19,12 @@ def party_key(item: InvoiceSnapshot) -> str:
 def comparison_fields(a: InvoiceSnapshot, b: InvoiceSnapshot) -> tuple[list[str], list[str]]:
     differences: list[str] = []
     limitations: list[str] = []
+    for label, left, right in (
+        ("موضوع صورتحساب", a.subject, b.subject),
+        ("وضعیت صورتحساب", a.status, b.status),
+    ):
+        if not left or not right:
+            limitations.append(f"{label} یکی از فایل‌ها موجود نیست.")
     if Decimal(a.gross_amount) != Decimal(b.gross_amount):
         differences.append("مبلغ کل")
     if a.tax_amount is None or b.tax_amount is None:
@@ -65,7 +71,9 @@ def compare_invoices(
             subject = normalize_text(normalize_digits(item.subject))
             state = normalize_text(item.status)
             reason = ""
-            if (item.tax_id and ids[identifier(item.tax_id)] > 1) or (
+            if item.import_limitations:
+                reason = "؛ ".join(item.import_limitations)
+            elif (item.tax_id and ids[identifier(item.tax_id)] > 1) or (
                 item.invoice_no and party_key(item) and keys[business_key(item)] > 1
             ):
                 reason = "شناسه یا کلید فاکتور در فایل تکراری است."

@@ -1,9 +1,11 @@
 "use client";
+import { ControlLabel, fieldIcon } from "@/components/ui/field-layout";
+import type { api } from "@/lib/product-api";
 import { Form, FormMessage } from "@/components/ui/form";
 
 import { useId } from "react";
 import { useFinancialValidation } from "./use-financial-validation";
-import { ShieldCheck, Check } from "@/components/ui/icons";
+import { Check } from "@/components/ui/icons";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 interface FinancialValidationModalProps {
   companyId: string;
+  request?: typeof api;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onValidated: () => void;
@@ -20,27 +23,20 @@ interface FinancialValidationModalProps {
 
 export function FinancialValidationModal({
   companyId,
+  request,
   open,
   onOpenChange,
   onValidated,
 }: FinancialValidationModalProps) {
   const id = useId();
-  const { cash, setCash, receivables, setReceivables, payables, setPayables, reconciliationDiff, setReconciliationDiff, confirmed, setConfirmed, statement, setStatement, submitting, error, handleSubmit } = useFinancialValidation(companyId, onValidated);
+  const { cash, setCash, receivables, setReceivables, payables, setPayables, reconciliationDiff, setReconciliationDiff, confirmed, setConfirmed, statement, setStatement, submitting, error, handleSubmit } = useFinancialValidation(companyId, onValidated, request);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-xl text-foreground font-sans">
+    <Dialog open={open} onOpenChange={value => { if (!submitting) onOpenChange(value); }}>
+      <DialogContent closeDisabled={submitting} dir="rtl" className="max-w-xl text-foreground font-sans">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-primary mb-1">
-            <ShieldCheck className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold">
-              تأیید رسمی ارقام پایه مالی (Go-Live Validation)
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            مطابق اصول کنترل داخلی دیدبان مالی، پیش از شروع بهره‌برداری عملیاتی،
-            مقادیر پایه نقدینگی و مطالبات باید رسماً توسط مدیر مالی تأیید شوند.
-          </DialogDescription>
+          <DialogTitle>تأیید ارقام پایه مالی</DialogTitle>
+          <DialogDescription>ارقام پایه را با منبع مالی شرکت تطبیق دهید.</DialogDescription>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit} className="space-y-4 pt-2">
@@ -48,54 +44,46 @@ export function FinancialValidationModal({
             <FormMessage>{error}</FormMessage>
           )}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-cash`} className="text-xs font-semibold">
-                موجودی نقد پایه (ریال)
-              </label>
+              <ControlLabel htmlFor={`${id}-cash`} icon={fieldIcon("موجودی نقد پایه (ریال)")}>موجودی نقد پایه (ریال)</ControlLabel>
               <Input
                 id={`${id}-cash`} value={cash}
                 onChange={(e) => setCash(e.target.value)}
-                dir="ltr" className="font-mono text-start"
+                dir="ltr" className="text-start"
                 placeholder="15000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-receivables`} className="text-xs font-semibold">
-                مجموع مطالبات پایه (ریال)
-              </label>
+              <ControlLabel htmlFor={`${id}-receivables`} icon={fieldIcon("مجموع مطالبات پایه (ریال)")}>مجموع مطالبات پایه (ریال)</ControlLabel>
               <Input
                 id={`${id}-receivables`} value={receivables}
                 onChange={(e) => setReceivables(e.target.value)}
-                dir="ltr" className="font-mono text-start"
+                dir="ltr" className="text-start"
                 placeholder="32000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-payables`} className="text-xs font-semibold">
-                مجموع بدهی‌های پایه (ریال)
-              </label>
+              <ControlLabel htmlFor={`${id}-payables`} icon={fieldIcon("مجموع بدهی‌های پایه (ریال)")}>مجموع بدهی‌های پایه (ریال)</ControlLabel>
               <Input
                 id={`${id}-payables`} value={payables}
                 onChange={(e) => setPayables(e.target.value)}
-                dir="ltr" className="font-mono text-start"
+                dir="ltr" className="text-start"
                 placeholder="18000000000"
                 required
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-reconciliationDiff`} className="text-xs font-semibold">
-                اختلاف مغایرت اولیه (ریال)
-              </label>
+              <ControlLabel htmlFor={`${id}-reconciliationDiff`} icon={fieldIcon("اختلاف مغایرت اولیه (ریال)")}>اختلاف مغایرت اولیه (ریال)</ControlLabel>
               <Input
                 id={`${id}-reconciliationDiff`} value={reconciliationDiff}
                 onChange={(e) => setReconciliationDiff(e.target.value)}
-                dir="ltr" className="font-mono text-start"
+                dir="ltr" className="text-start"
                 placeholder="0"
                 required
               />
@@ -103,9 +91,7 @@ export function FinancialValidationModal({
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor={`${id}-statement`} className="text-xs font-semibold">
-              شرح تأییدیه مدیر مالی
-            </label>
+            <ControlLabel htmlFor={`${id}-statement`} icon={fieldIcon("شرح تأییدیه مدیر مالی")}>شرح تأییدیه مدیر مالی</ControlLabel>
             <Textarea
               id={`${id}-statement`} value={statement}
               onChange={(e) => setStatement(e.target.value)}
@@ -116,14 +102,15 @@ export function FinancialValidationModal({
           </div>
 
           <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <Check className="mt-0.5 size-[18px] shrink-0 text-primary" aria-hidden="true" />
             <Checkbox
-              id="confirm-terms"
+              id={`${id}-confirm-terms`}
               checked={confirmed}
               onCheckedChange={(c) => setConfirmed(Boolean(c))}
               className="mt-0.5"
             />
             <label
-              htmlFor="confirm-terms"
+              htmlFor={`${id}-confirm-terms`}
               className="text-xs leading-relaxed text-muted-foreground cursor-pointer"
             >
               اینجانب به عنوان مسئول مالی شرکت تأیید می‌نمایم که ارقام فوق با
@@ -132,18 +119,17 @@ export function FinancialValidationModal({
             </label>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              disabled={submitting}
               onClick={() => onOpenChange(false)}
             >
               انصراف
             </Button>
             <Button variant="success"
               type="submit"
-              size="sm"
               disabled={submitting || !confirmed}
               className="gap-1.5"
             >

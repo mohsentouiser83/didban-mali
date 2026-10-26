@@ -1,4 +1,5 @@
 "use client";
+import { ControlLabel, fieldIcon } from "@/components/ui/field-layout";
 import { FormMessage } from "@/components/ui/form";
 import { StatusMessage, ErrorState, LoadingState, MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
 
@@ -85,10 +86,10 @@ export function CashPaymentPlan({ company, asOfDate, onChanged }: { company: Com
     </div>}
     <Drawer open={adding} onOpenChange={(open) => { if (!saving) setAdding(open); }} title="افزودن پرداخت" description="مبلغ و موعد پرداخت را وارد کنید. هر تاریخ آینده قابل ثبت است.">
         <DrawerForm onSubmit={(event) => void save(event)}>
-          <div><label htmlFor="cash-payment-title">عنوان پرداخت</label><Input id="cash-payment-title" required maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="مثلاً حقوق مهر" /></div>
-          <div><label htmlFor="cash-payment-category">نوع پرداخت</label><Select dir="rtl" value={category} onValueChange={(value) => setCategory(value as PlannedCashPayment["category"])} disabled={saving}><SelectTrigger id="cash-payment-category"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(categories).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-          <div><label htmlFor="cash-payment-date">موعد پرداخت</label><PersianDatePicker id="cash-payment-date" value={paymentDate} onValueChange={setPaymentDate} min={asOfDate} required disabled={saving} /></div>
-          <div><label htmlFor="cash-payment-amount">مبلغ به تومان</label><Input id="cash-payment-amount" dir="ltr" inputMode="numeric" required value={amount} onChange={(event) => setAmount(event.target.value)} disabled={saving} /></div>
+          <div><ControlLabel htmlFor="cash-payment-title" icon={fieldIcon("عنوان پرداخت")}>عنوان پرداخت</ControlLabel><Input id="cash-payment-title" required maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} disabled={saving} placeholder="مثلاً حقوق مهر" /></div>
+          <div><ControlLabel htmlFor="cash-payment-category" icon={fieldIcon("نوع پرداخت")}>نوع پرداخت</ControlLabel><Select dir="rtl" value={category} onValueChange={(value) => setCategory(value as PlannedCashPayment["category"])} disabled={saving}><SelectTrigger id="cash-payment-category"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(categories).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+          <div><ControlLabel htmlFor="cash-payment-date" icon={fieldIcon("موعد پرداخت")}>موعد پرداخت</ControlLabel><PersianDatePicker id="cash-payment-date" value={paymentDate} onValueChange={setPaymentDate} min={asOfDate} required disabled={saving} /></div>
+          <div><ControlLabel htmlFor="cash-payment-amount" icon={fieldIcon("مبلغ به تومان")}>مبلغ به تومان</ControlLabel><Input id="cash-payment-amount" dir="ltr" inputMode="numeric" required value={amount} onChange={(event) => setAmount(event.target.value)} disabled={saving} /></div>
           {formError && <FormMessage>{formError}</FormMessage>}
           <DrawerFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setAdding(false)}>انصراف</Button><Button type="submit" disabled={saving}>{saving ? "در حال ثبت…" : "ثبت پرداخت"}</Button></DrawerFooter>
         </DrawerForm>

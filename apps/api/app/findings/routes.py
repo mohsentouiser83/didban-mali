@@ -2,23 +2,26 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
 
 from app.companies.dependencies import CurrentCompanyAccess
-from app.companies.models import Company, CompanyRole
+from app.companies.models import CompanyRole
 from app.findings.engine import execute_finding_detection
 from app.findings.models import (
     Finding,
     FindingDetectionRun,
 )
+from app.findings.reconciliation_scope import ReconciliationFilter
 from app.findings.schemas import (
     DetectFindingsRequest,
     FindingActivityResponse,
     FindingDetailResponse,
     FindingDetectionRunResponse,
+    FindingDirectionCounts,
     FindingEvidenceResponse,
     FindingResponse,
     FindingsResponse,
+    ProposalDecisionRequest,
+    ProposalDecisionResponse,
 )
 from app.findings.service import (
     get_control_overview,
@@ -26,6 +29,7 @@ from app.findings.service import (
     list_findings,
 )
 from app.identity.dependencies import CsrfProtected, CurrentUser, DbSession
+from app.reconciliation.decisions import ProposalConflict, ProposalNotFound, decide_proposal
 from app.reconciliation.service import run_canonical_reconciliation
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["findings"])
@@ -58,10 +62,16 @@ async def trigger_finding_detection(
         )
 
     if payload.reconciliation_run_id is None:
-        await session.execute(select(Company.id).where(Company.id == company_id).with_for_update())
-        reconciliation = await run_canonical_reconciliation(
-            session, company_id=company_id, actor_id=current_user.id, commit=False,
-        )
+        try:
+            reconciliation = await run_canonical_reconciliation(
+                session, company_id=company_id, actor_id=current_user.id, commit=False,
+                bank_account_id=payload.bank_account_id, period_start=payload.period_start,
+                period_end=payload.period_end, config_params={
+                    "accounting_complete": payload.accounting_complete, "bank_complete": payload.bank_complete,
+                },
+            )
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
         payload.reconciliation_run_id = reconciliation.id
 
     run = await execute_finding_detection(
@@ -114,13 +124,14 @@ async def get_findings_list(
     assigned_to_user_id: UUID | None = Query(default=None),
     is_suppressed: bool | None = Query(default=False),
     search: str | None = Query(default=None),
+    reconciliation_filter: ReconciliationFilter | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> FindingsResponse:
     if access.role not in VIEW_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="دسترسی مجاز نیست.")
 
-    items, total_count = await list_findings(
+    items, total_count, direction_counts = await list_findings(
         session,
         company_id=company_id,
         analysis_run_id=analysis_run_id,
@@ -132,12 +143,14 @@ async def get_findings_list(
         assigned_to_user_id=assigned_to_user_id,
         is_suppressed=is_suppressed,
         search=search,
+        reconciliation_filter=reconciliation_filter,
         limit=limit,
         offset=offset,
     )
     return FindingsResponse(
         items=[FindingResponse(**item) for item in items],
         total_count=total_count,
+        direction_counts=FindingDirectionCounts(**direction_counts),
     )
 
 
@@ -161,6 +174,7 @@ async def get_finding(
 
     f: Finding = data["finding"]
     return FindingDetailResponse(
+        can_review_proposals=access.role in RUN_ROLES,
         id=f.id,
         fingerprint=f.fingerprint,
         analysis_run_id=f.analysis_run_id,
@@ -192,8 +206,10 @@ async def get_finding(
         category=f.category,
         severity=f.severity,
         status=f.status,
-        title_fa=f.title_fa,
-        summary_fa=f.summary_fa,
+        title_fa=data["title_fa"],
+        summary_fa=data["summary_fa"],
+        reconciliation_state=data["reconciliation_state"],
+        proposals=data["proposals"],
         financial_impact_irr=f.financial_impact_irr,
         due_date=f.due_date,
         assigned_to_user_id=f.assigned_to_user_id,
@@ -233,3 +249,23 @@ async def get_overview_route(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="دسترسی مجاز نیست.")
 
     return await get_control_overview(session, company_id=company_id)
+
+
+@router.post("/findings/{finding_id}/proposals/{proposal_id}/decision", response_model=ProposalDecisionResponse)
+async def decide_finding_proposal(
+    company_id: UUID, finding_id: UUID, proposal_id: UUID, payload: ProposalDecisionRequest,
+    session: DbSession, current_user: CurrentUser, access: CurrentCompanyAccess, _csrf: CsrfProtected,
+) -> ProposalDecisionResponse:
+    if access.role not in RUN_ROLES:
+        raise HTTPException(status_code=403, detail="اجازه تأیید یا رد پیشنهاد تطبیق را ندارید.")
+    try:
+        proposal = await decide_proposal(session, company_id=company_id, finding_id=finding_id,
+                                         proposal_id=proposal_id, actor_id=current_user.id, decision=payload.decision)
+        await session.commit()
+    except ProposalNotFound as exc:
+        await session.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ProposalConflict as exc:
+        await session.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ProposalDecisionResponse(proposal_id=proposal.id, status="confirmed" if payload.decision == "confirm" else "rejected")

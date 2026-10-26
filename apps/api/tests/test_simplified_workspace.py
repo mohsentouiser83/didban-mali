@@ -20,8 +20,14 @@ def test_removed_pages_have_no_standalone_api():
     )
     for path in paths:
         if "/findings/{finding_id}" in path:
-            assert path.endswith("/findings/{finding_id}")
-            assert set(paths[path]) == {"get"}
+            if path.endswith("/findings/{finding_id}"):
+                assert set(paths[path]) == {"get"}
+            else:
+                assert path == (
+                    "/api/v1/companies/{company_id}/findings/{finding_id}"
+                    "/proposals/{proposal_id}/decision"
+                )
+                assert set(paths[path]) == {"post"}
     assert set(paths["/api/v1/companies/{company_id}/analysis-runs"]) == {"get", "post"}
     assert "/api/v1/companies/{company_id}/metrics" not in paths
     for suffix in ("/integrations", "/members", "/reports", "/findings", "/cashflow/summary"):

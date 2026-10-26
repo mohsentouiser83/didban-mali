@@ -19,17 +19,19 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api).mockImplementation(async (path) => {
     const params = new URLSearchParams(path.split("?")[1]);
-    return (path.includes("/imports?") ? batches.filter((b) => b.source_kind === params.get("source_kind")) : { items: [], counts: { matched: 2, difference: 1 }, total: 0, limit: 25, offset: 0, start_date: "2026-10-01", end_date: "2026-10-11", rejected_rows: 0 }) as never;
+    return (path.includes("/comparisons?limit=25") ? [] : path.includes("/imports?") ? batches.filter((b) => b.source_kind === params.get("source_kind")) : { run_id: "saved-run", items: [], counts: { matched: 2, difference: 1 }, total: 0, limit: 25, offset: 0, start_date: "2026-10-01", end_date: "2026-10-11", rejected_rows: 0 }) as never;
   });
 });
 
 it("guides source selection into dates, then results, filters and editing", async () => {
-  const { container } = render(<MoadianWorkspace company={company} />);
+  render(<MoadianWorkspace company={company} />);
+  await screen.findByRole("heading", { name: "هنوز تطبیقی انجام نشده است" });
+  expect(screen.queryByRole("heading", { name: "انتخاب فایل‌های تطبیق" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "تطبیق جدید" }));
   await screen.findByRole("heading", { name: "انتخاب فایل‌های تطبیق" });
   expect(screen.getByRole("button", { name: "انتخاب بازه" })).toBeDisabled();
-  const selectors = container.querySelectorAll("select");
-  fireEvent.change(selectors[0], { target: { value: "internal" } });
-  fireEvent.change(selectors[1], { target: { value: "portal" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /حسابداری.xlsx/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: /کارپوشه.xlsx/ }));
   fireEvent.click(screen.getByRole("button", { name: "انتخاب بازه" }));
   expect(screen.getByRole("heading", { name: "بازه تطبیق" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "اجرای تطبیق" })).toBeDisabled();
@@ -43,4 +45,32 @@ it("guides source selection into dates, then results, filters and editing", asyn
   expect(screen.getByRole("button", { name: /اختلاف اطلاعات/ })).toHaveAttribute("aria-pressed", "true");
   fireEvent.click(screen.getByRole("button", { name: "ویرایش تطبیق" }));
   expect(screen.getByRole("heading", { name: "انتخاب فایل‌های تطبیق" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("checkbox", { name: /حسابداری.xlsx/ }));
+  fireEvent.click(screen.getByRole("button", { name: "بستن" }));
+  await screen.findByRole("heading", { name: "نتایج تطبیق" });
+  expect(vi.mocked(api).mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
+});
+
+
+it("shows the specific missing accounting input without an upload wizard or financial zero metrics", async () => {
+  vi.mocked(api).mockImplementation(async (path) => path.includes("/imports?") ? batches.filter((b) => b.source_kind === "moadian_sales" && path.includes("source_kind=moadian_sales")) as never : [] as never);
+  render(<MoadianWorkspace company={company} />);
+  await screen.findByText("فاکتورهای حسابداری برای مقایسه با مؤدیان موجود نیست.");
+  expect(screen.getByRole("link", { name: "تکمیل اسناد حسابداری" })).toHaveAttribute("href", "/companies/company/imports");
+  expect(screen.getByRole("button", { name: "تطبیق جدید" })).toBeDisabled();
+  expect(screen.queryByRole("heading", { name: "انتخاب فایل‌های تطبیق" })).not.toBeInTheDocument();
+  expect(screen.queryByText("تطبیق با شماره مالیاتی")).not.toBeInTheDocument();
+});
+
+it("opens saved results even when the current import list fails to load", async () => {
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.includes("/imports?")) throw Error("source list unavailable");
+    if (path.endsWith("/comparisons?limit=25")) return [{ id: "saved", direction: "sales", start_date: "2026-10-01", end_date: "2026-10-11", created_at: "2026-10-11" }] as never;
+    return { run_id: "saved", direction: "sales", internal_batch_ids: ["internal"], portal_batch_ids: ["portal"], start_date: "2026-10-01", end_date: "2026-10-11", items: [], counts: { matched: 2 }, total: 0, limit: 25, offset: 0, rejected_rows: 0 } as never;
+  });
+  render(<MoadianWorkspace company={company} />);
+  fireEvent.click(await screen.findByRole("button", { name: "مشاهده نتیجه" }));
+  await screen.findByRole("heading", { name: "نتایج تطبیق" });
+  expect(screen.getByText("فاکتوری در این بازه و فیلتر نیست.")).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "انتخاب فایل‌های تطبیق" })).not.toBeInTheDocument();
 });

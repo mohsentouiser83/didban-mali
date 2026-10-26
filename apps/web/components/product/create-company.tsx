@@ -1,4 +1,5 @@
 "use client";
+import { ControlLabel, fieldIcon } from "@/components/ui/field-layout";
 import { Form, FormMessage } from "@/components/ui/form";
 
 
@@ -24,22 +25,19 @@ export function CreateCompany({
   const controller = useCreateCompany(onCreated);
   return <CreateCompanyView controller={controller} compact={compact} />;
 }
-function CreateCompanyView({ controller: { busy, error, submit }, compact }: { controller: ReturnType<typeof useCreateCompany>; compact: boolean }) {
+export function CreateCompanyView({ controller: { busy, error, submit }, compact }: { controller: Pick<ReturnType<typeof useCreateCompany>, "busy" | "error" | "submit">; compact: boolean }) {
   const id = useId();
   return (
     <Form
       className={
-        "pp-company-form " +
-        (compact
-          ? "company-form grid grid-cols-1 sm:grid-cols-3 gap-4 items-end"
-          : "company-form grid grid-cols-1 gap-4")
+        compact
+          ? "grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-3 sm:items-start"
+          : "grid grid-cols-1 gap-5"
       }
       onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }}
     >
       <div className="space-y-1.5">
-        <label htmlFor={`${id}-name`} className="block text-sm font-semibold text-foreground">
-          نام حقوقی شرکت
-        </label>
+        <ControlLabel htmlFor={`${id}-name`} icon={fieldIcon("نام حقوقی شرکت")}>نام حقوقی شرکت</ControlLabel>
         <Input
           id={`${id}-name`}
           name="legal_name"
@@ -50,9 +48,9 @@ function CreateCompanyView({ controller: { busy, error, submit }, compact }: { c
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-          <label htmlFor={`${id}-national`}>شناسه ملی</label>
-          <span className="text-[11px] font-normal text-muted-foreground">
+        <div className="flex h-6 min-w-0 items-center justify-between gap-2">
+          <ControlLabel htmlFor={`${id}-national`} icon={fieldIcon("شناسه ملی")}>شناسه ملی</ControlLabel>
+          <span className="shrink-0 text-xs text-muted-foreground">
             اختیاری
           </span>
         </div>
@@ -63,14 +61,12 @@ function CreateCompanyView({ controller: { busy, error, submit }, compact }: { c
           dir="ltr"
           minLength={8}
           placeholder="۱۴۰۰۱۲۳۴۵۶۷"
-          className="text-end"
+          className="text-start"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor={`${id}-month`} className="block text-sm font-semibold text-foreground">
-          ماه شروع سال مالی
-        </label>
+        <ControlLabel htmlFor={`${id}-month`} icon={fieldIcon("ماه شروع سال مالی")}>ماه شروع سال مالی</ControlLabel>
         <SelectField id={`${id}-month`} name="fiscal_year_start_month" defaultValue="1">
           {Array.from({ length: 12 }, (_, index) => (
             <SelectOption value={String(index + 1)} key={index + 1}>
@@ -94,7 +90,7 @@ function CreateCompanyView({ controller: { busy, error, submit }, compact }: { c
         type="submit"
         className={
           compact
-            ? "h-10 text-xs font-bold gap-2"
+            ? "gap-2 sm:col-span-full sm:justify-self-end"
             : "h-11 text-sm font-bold gap-2 w-full mt-2"
         }
         disabled={busy}

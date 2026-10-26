@@ -1,6 +1,6 @@
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -181,8 +181,8 @@ def build_demo_scenario() -> DemoScenario:
             )
 
     return DemoScenario(
-        bank_records=tuple(banks),
-        ledger_records=tuple(ledgers),
+        bank_records=tuple(replace(item, bank_account_id=_uid(90)) for item in banks),
+        ledger_records=tuple(replace(item, bank_account_id=_uid(90)) for item in ledgers),
         exact_truth=frozenset(exact_truth),
         finding_signals=tuple(signals),
         current_metrics={

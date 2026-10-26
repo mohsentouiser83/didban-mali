@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from app.findings.rules.base import BaseFindingRule, FindingCandidate, FindingEvidenceSpec
+from app.findings.titles import unmatched_title
 
 
 class UnmatchedBankTransactionRule(BaseFindingRule):
@@ -32,7 +33,6 @@ class UnmatchedBankTransactionRule(BaseFindingRule):
 
             fp = f"{company_id}:{self.rule_code}:{b.id}"
             amt_str = f"{abs(b.amount_irr):,.0f}"
-            direction_str = "واریز" if b.amount_irr > 0 else "برداشت"
 
             candidates.append(
                 FindingCandidate(
@@ -40,10 +40,10 @@ class UnmatchedBankTransactionRule(BaseFindingRule):
                     rule_code=self.rule_code,
                     category=self.category,
                     severity=severity,
-                    title_fa=f"تراکنش بانکی تطبیق‌نشده ({direction_str}) به مبلغ {amt_str} ریال",
+                    title_fa=unmatched_title("bank_transaction", b.amount_irr),
                     summary_fa=(
                         f"تراکنش بانکی به مبلغ {amt_str} ریال با شرح «{b.description}» "
-                        f"در تاریخ {b.booking_date} ({days_open} روز پیش) ثبت شده اما در دفاتر مالی سندی برای آن یافت نشد."
+                        f"در تاریخ {b.booking_date} ({days_open} روز پیش) ثبت شده؛ هنوز تطبیق تأییدشده ندارد."
                     ),
                     financial_impact_irr=abs(b.amount_irr),
                     source_entity_type="bank_transaction",
@@ -103,10 +103,10 @@ class UnmatchedAccountingEntryRule(BaseFindingRule):
                     rule_code=self.rule_code,
                     category=self.category,
                     severity=severity,
-                    title_fa=f"سطر سند حسابداری نقد و بانک تطبیق‌نشده به مبلغ {amt_str} ریال",
+                    title_fa=unmatched_title("journal_line", net_amt),
                     summary_fa=(
                         f"سطر سند حسابداری به مبلغ {amt_str} ریال با شرح «{j['description']}» "
-                        f"در تاریخ {j['entry_date']} ثبت شده اما متناظر آن در تراکنش‌های بانکی موجود نیست."
+                        f"در تاریخ {j['entry_date']} ثبت شده؛ هنوز تطبیق تأییدشده ندارد."
                     ),
                     financial_impact_irr=net_amt,
                     source_entity_type="journal_line",
@@ -261,10 +261,10 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                         rule_code=self.rule_code,
                         category=self.category,
                         severity=severity,
-                        title_fa=f"تراکنش تطبیق‌نشده بااهمیت بانکی به مبلغ {amt:,.0f} ریال",
+                        title_fa=unmatched_title("bank_transaction", amt),
                         summary_fa=(
                             f"تراکنش بانکی به مبلغ بااهمیت {amt:,.0f} ریال در تاریخ {b.booking_date} "
-                            f"با شرح «{b.description}» بیش از حد مجاز بدون سند معادل در دفاتر بلاتکلیف مانده است."
+                            f"با شرح «{b.description}» هنوز تطبیق تأییدشده ندارد."
                         ),
                         financial_impact_irr=amt,
                         source_entity_type="bank_transaction",
@@ -302,10 +302,10 @@ class LargeUnreconciledTransactionRule(BaseFindingRule):
                         rule_code=self.rule_code,
                         category=self.category,
                         severity=severity,
-                        title_fa=f"سطر سند حسابداری تطبیق‌نشده بااهمیت به مبلغ {amt:,.0f} ریال",
+                        title_fa=unmatched_title("journal_line", amt),
                         summary_fa=(
                             f"سند حسابداری نقد و بانک به مبلغ بااهمیت {amt:,.0f} ریال در تاریخ {j['entry_date']} "
-                            f"فاقد گردش متناظر در صورت‌حساب بانک است."
+                            f"هنوز تطبیق تأییدشده ندارد."
                         ),
                         financial_impact_irr=amt,
                         source_entity_type="journal_line",

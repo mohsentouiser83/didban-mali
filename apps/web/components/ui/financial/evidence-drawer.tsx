@@ -1,5 +1,6 @@
+import { DetailSection, DetailGroup, DetailField, ControlLabel, fieldIcon } from "@/components/ui/field-layout";
 import React, { useState, useEffect } from "react";
-import { Drawer, DrawerSection, DrawerDetails, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerFooter } from "@/components/ui/drawer";
 import { RiskBadge, RiskLevel } from "./risk-badge";
 import { StatusChip, FinancialStatus } from "./status-chip";
 import { EvidenceSourceTag, EvidenceSourceType } from "./evidence-source-tag";
@@ -69,41 +70,43 @@ export function EvidenceDrawer({
   if (!finding) return null;
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} title={finding.title} description={finding.ruleDescription}>
+    <Drawer size="wide" open={open} onOpenChange={onOpenChange} title={finding.title} description={finding.ruleDescription}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2"><RiskBadge level={finding.riskLevel} score={finding.priorityScore} /><StatusChip status={finding.status} /></div>
         <bdi dir="ltr" className="text-xs text-muted-foreground">{finding.ruleCode}</bdi>
       </div>
           {/* Financial Impact Box */}
-      <DrawerDetails>
-        <div><dt>مبلغ مرتبط</dt><dd><MoneyDisplay amount={finding.amount} currency="ریال" /></dd></div>
-        {finding.ratioToRevenue !== undefined && <div><dt>نسبت به درآمد دوره</dt><dd>{toPersianDigits((finding.ratioToRevenue * 100).toFixed(1))}٪</dd></div>}
-      </DrawerDetails>
+      <DetailGroup>
+        <DetailField icon={fieldIcon("مبلغ مرتبط")} label="مبلغ مرتبط"><MoneyDisplay amount={finding.amount} currency="ریال" /></DetailField>
+        {finding.ratioToRevenue !== undefined && <DetailField icon={fieldIcon("نسبت به درآمد دوره")} label="نسبت به درآمد دوره">{toPersianDigits((finding.ratioToRevenue * 100).toFixed(1))}٪</DetailField>}
+      </DetailGroup>
 
-      <DrawerSection title="محاسبه امتیاز اولویت">
-        {([['impact', 'اثر مالی', 40], ['materiality', 'اهمیت نسبی', 25], ['confidence', 'اطمینان', 20], ['urgency', 'فوریت', 15]] as const).map(([key, label, weight]) => <DrawerSection key={key}>
-          <DrawerDetails><div><dt>{label} ({toPersianDigits(weight)}٪)</dt><dd>{toPersianDigits(finding.factors[key].score)}/۱۰۰</dd></div></DrawerDetails>
-          <p className="text-sm text-muted-foreground leading-7">{finding.factors[key].reason}</p>
-        </DrawerSection>)}
-      </DrawerSection>
+      <DetailSection title="محاسبه امتیاز اولویت">
+        {([['impact', 'اثر مالی', 40], ['materiality', 'اهمیت نسبی', 25], ['confidence', 'اطمینان', 20], ['urgency', 'فوریت', 15]] as const).map(([key, label, weight]) => <DetailSection key={key}>
+          <DetailGroup><DetailField icon={fieldIcon(label)} label={<>{label} ({toPersianDigits(weight)}٪)</>}>{toPersianDigits(finding.factors[key].score)}/۱۰۰</DetailField></DetailGroup>
+          <DetailGroup><DetailField icon={fieldIcon("دلیل امتیاز")} label="دلیل امتیاز">{finding.factors[key].reason}</DetailField></DetailGroup>
+        </DetailSection>)}
+      </DetailSection>
 
-      <DrawerSection title="شواهد و فایل منبع">
-        {finding.evidenceItems.map((item, index) => <DrawerSection key={item.id} title={item.title}>
+      <DetailSection title="شواهد و فایل منبع">
+        {finding.evidenceItems.map((item, index) => <DetailSection key={item.id} title={item.title}>
           <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{toPersianDigits(index + 1)}</span><EvidenceSourceTag source={item.sourceType} size="sm" /></div>
-          <p className="text-sm text-muted-foreground leading-7">{item.description}</p>
-          <DrawerDetails>
-            {item.fileName && <div><dt>فایل</dt><dd><bdi>{item.fileName}</bdi></dd></div>}
-            {item.sheetName && <div><dt>شیت</dt><dd><bdi>{item.sheetName}</bdi></dd></div>}
-            {item.rowNumber != null && <div><dt>ردیف منبع</dt><dd>{toPersianDigits(item.rowNumber)}</dd></div>}
-            {item.sha256 && <div><dt>هش فایل</dt><dd><bdi dir="ltr">{item.sha256}</bdi></dd></div>}
-          </DrawerDetails>
-        </DrawerSection>)}
-      </DrawerSection>
+          <DetailGroup><DetailField icon={fieldIcon("شرح شاهد")} label="شرح شاهد">{item.description}</DetailField></DetailGroup>
+          <DetailGroup>
+            {item.fileName && <DetailField icon={fieldIcon("فایل")} label="فایل"><bdi>{item.fileName}</bdi></DetailField>}
+            {item.sheetName && <DetailField icon={fieldIcon("شیت")} label="شیت"><bdi>{item.sheetName}</bdi></DetailField>}
+            {item.rowNumber != null && <DetailField icon={fieldIcon("ردیف منبع")} label="ردیف منبع">{toPersianDigits(item.rowNumber)}</DetailField>}
+            {item.sha256 && <DetailField icon={fieldIcon("هش فایل")} label="هش فایل"><bdi dir="ltr">{item.sha256}</bdi></DetailField>}
+          </DetailGroup>
+        </DetailSection>)}
+      </DetailSection>
 
           {/* Quick Review Action Bar */}
           {onAction && (
-            <DrawerSection title="نتیجه بررسی">
+            <DetailSection title="نتیجه بررسی">
+              <ControlLabel htmlFor="evidence-action-note" icon={fieldIcon("یادداشت")}>یادداشت مشاور</ControlLabel>
               <Input
+                id="evidence-action-note"
                 size="sm"
                 aria-label="یادداشت توضیحی مشاور"
                 placeholder="یادداشت توضیحی مشاور (اختیاری)..."
@@ -157,7 +160,7 @@ export function EvidenceDrawer({
                   رد / بی‌اثر
                 </Button>
               </DrawerFooter>
-            </DrawerSection>
+            </DetailSection>
           )}
     </Drawer>
   );

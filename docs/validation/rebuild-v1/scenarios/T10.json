@@ -1,0 +1,20 @@
+{
+  "id": "T10",
+  "level": "integration",
+  "events": [
+    "model-output-invalid.json",
+    "two concurrent model budget reservations",
+    "model timeout with unknown usage"
+  ],
+  "assertions": [
+    "extra field and invented evidence rejected",
+    "budget not exceeded",
+    "unknown charge not released as zero"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "F01",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "amount": "123.4",
+    "unit": "IRT"
+  },
+  "expected": {
+    "amount_irr": "1234"
+  },
+  "application_execution": "not_run"
+}

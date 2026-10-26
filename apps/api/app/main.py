@@ -23,6 +23,7 @@ from app.integrations.routes import router as integrations_router
 from app.moadian.routes import router as moadian_router
 from app.payables.routes import router as payables_router
 from app.receivables.routes import router as receivables_router
+from app.reconciliation.routes import router as reconciliation_router
 from app.reports.routes import router as reports_router
 from app.settlements.routes import router as settlements_router
 
@@ -50,6 +51,7 @@ app.include_router(data_router, prefix=settings.api_prefix)
 app.include_router(calculations_router, prefix=settings.api_prefix)
 app.include_router(analysis_router, prefix=settings.api_prefix)
 app.include_router(findings_router, prefix=settings.api_prefix)
+app.include_router(reconciliation_router, prefix=settings.api_prefix)
 app.include_router(dashboard_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(receivables_router, prefix=settings.api_prefix)

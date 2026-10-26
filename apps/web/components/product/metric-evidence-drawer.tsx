@@ -1,15 +1,17 @@
 "use client";
-import { FormMessage } from "@/components/ui/form";
+import { DetailSection, DetailGroup, DetailField, fieldIcon } from "@/components/ui/field-layout";
 import { LoadingState, ErrorState, EmptyState, MoneyDisplay, toPersianDigits, toJalaliDate } from "@/components/ui/financial";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { Drawer, DrawerSection, DrawerDetails } from "@/components/ui/drawer";
+import { Drawer } from "@/components/ui/drawer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/product-api";
-import type { MetricResultDTO, MetricStatus, MetricTraceRecord, MetricTraceResponse } from "@/lib/product-types";
-import { AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, HelpCircle, Info } from "@/components/ui/icons";
+import type { MetricResultDTO, MetricStatus } from "@/lib/product-types";
+import { AlertTriangle, CheckCircle2, HelpCircle, Info } from "@/components/ui/icons";
+import { useMetricTrace } from "./use-metric-trace";
+import { MetricTraceRecordView } from "./metric-trace-record";
 import { RecordLineageDialog } from "./record-lineage-dialog";
 
 export interface MetricEvidenceDrawerProps {
@@ -17,6 +19,7 @@ export interface MetricEvidenceDrawerProps {
   onOpenChange: (open: boolean) => void;
   companyId: string;
   metric: MetricResultDTO | null;
+  request?: typeof api;
 }
 
 const STATUS_CONFIG: Record<
@@ -60,51 +63,15 @@ export function MetricEvidenceDrawer({
   onOpenChange,
   companyId,
   metric,
+  request = api,
 }: MetricEvidenceDrawerProps) {
-  const [loadingTrace, setLoadingTrace] = useState(false);
-  const [traceData, setTraceData] = useState<MetricTraceResponse | null>(null);
-  const [traceError, setTraceError] = useState("");
+  const { data: traceData, loading: loadingTrace, error: traceError, retry: retryTrace } = useMetricTrace(companyId, metric?.metric_key, open, request);
 
   // Record lineage modal state for deeper Phase 1 drill-down
   const [selectedRecord, setSelectedRecord] = useState<{
     entityType: string;
     recordId: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (!open || !metric) {
-      setTraceData(null);
-      setTraceError("");
-      return;
-    }
-
-    let ignore = false;
-    setLoadingTrace(true);
-    setTraceError("");
-
-    api<MetricTraceResponse>(
-      `/companies/${companyId}/calculations/metrics/${metric.metric_key}/trace`,
-    )
-      .then((res) => {
-        if (!ignore) setTraceData(res);
-      })
-      .catch((err) => {
-        if (!ignore) {
-          setTraceError(
-            err instanceof Error
-              ? err.message
-              : "خطا در دریافت مسیر داده‌های شاخص",
-          );
-        }
-      })
-      .finally(() => {
-        if (!ignore) setLoadingTrace(false);
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [open, companyId, metric]);
 
   if (!metric) return null;
 
@@ -125,72 +92,65 @@ export function MetricEvidenceDrawer({
 
   return (
     <>
-      <Drawer open={open} onOpenChange={onOpenChange} title={evidence?.title_fa || metric.metric_key} description={evidence?.definition_fa || "شواهد و محاسبات شاخص مالی"}>
+      <Drawer size="wide" open={open} onOpenChange={onOpenChange} title={evidence?.title_fa || metric.metric_key} description={evidence?.definition_fa || "شواهد و محاسبات شاخص مالی"}>
         <div className="flex items-center gap-2 text-sm">
           <StatusIcon className={`size-4 ${st.text}`} /><span className={st.text}>{st.label}</span>
         </div>
             {/* Metric Value & Coverage Summary */}
-        <DrawerDetails>
-          <div><dt>مقدار محاسبه‌شده</dt><dd>{formatValue(metric.value_numeric, metric.unit)}</dd></div>
-          <div><dt>پوشش داده‌های ورودی</dt><dd>{toPersianDigits(metric.coverage_score)}٪</dd></div>
-          <div><dt>سطح اطمینان محاسباتی</dt><dd>{metric.confidence === "high" ? "بسیار بالا" : metric.confidence === "medium" ? "متوسط" : metric.confidence === "low" ? "پایین" : "نامشخص"}</dd></div>
-        </DrawerDetails>
+        <DetailGroup>
+          <DetailField icon={fieldIcon("مقدار محاسبه‌شده")} label="مقدار محاسبه‌شده">{formatValue(metric.value_numeric, metric.unit)}</DetailField>
+          <DetailField icon={fieldIcon("پوشش داده‌های ورودی")} label="پوشش داده‌های ورودی">{toPersianDigits(metric.coverage_score)}٪</DetailField>
+          <DetailField icon={fieldIcon("سطح اطمینان محاسباتی")} label="سطح اطمینان محاسباتی">{metric.confidence === "high" ? "بسیار بالا" : metric.confidence === "medium" ? "متوسط" : metric.confidence === "low" ? "پایین" : "نامشخص"}</DetailField>
+        </DetailGroup>
 
             {(metric.unit.toLowerCase() === "irr" || metric.unit.toLowerCase() === "toman") && metric.value_numeric != null && (
-              <details className="text-sm"><summary className="cursor-pointer min-h-11 content-center">مبلغ دقیق به ریال</summary>
-                <MoneyDisplay amount={metric.unit.toLowerCase() === "toman" ? Number(metric.value_numeric) * 10 : metric.value_numeric} currency="ریال" direction="neutral" />
-              </details>
+              <DetailGroup><DetailField icon={fieldIcon("مبلغ دقیق")} label="مبلغ دقیق">
+                <MoneyDisplay amount={metric.value_numeric} currency={metric.unit.toLowerCase() === "toman" ? "تومان" : "ریال"} direction="neutral" />
+              </DetailField></DetailGroup>
             )}
-            <p className="text-sm text-muted-foreground">داده تا {toJalaliDate(metric.as_of_date)}</p>
+            <DetailGroup><DetailField icon={fieldIcon("تاریخ مبنا")} label="تاریخ مبنا">{toJalaliDate(metric.as_of_date)}</DetailField></DetailGroup>
             {/* Formula & Calculation Logic */}
-            <DrawerSection title="فرمول و منطق محاسبه">
+            <DetailSection title="فرمول و منطق محاسبه">
               <Badge variant="outline" className="self-start"><bdi dir="ltr">{metric.metric_version}</bdi></Badge>
-              <div className="bg-muted/40 p-3 rounded-[var(--ds-card-radius)] font-mono text-sm text-foreground dir-ltr text-end break-all">
-                {evidence?.formula_fa ||
-                  "محاسبه قطعی بر اساس داده‌های مالی پذیرفته‌شده"}
-              </div>
-              <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
-                <span>تعداد اسناد ورودی: {toPersianDigits(metric.input_record_count)}</span>
-                <span>
-                  تعداد اسناد مستثنی‌شده: {toPersianDigits(metric.excluded_record_count)}
-                </span>
-              </div>
-            </DrawerSection>
+              <DetailGroup>
+                <DetailField icon={fieldIcon("فرمول محاسبه")} label="فرمول محاسبه" className="sm:col-span-2">{evidence?.formula_fa || "محاسبه قطعی بر اساس داده‌های مالی پذیرفته‌شده"}</DetailField>
+                <DetailField icon={fieldIcon("تعداد اسناد ورودی")} label="تعداد اسناد ورودی">{toPersianDigits(metric.input_record_count)}</DetailField>
+                <DetailField icon={fieldIcon("تعداد اسناد مستثنی‌شده")} label="تعداد اسناد مستثنی‌شده">{toPersianDigits(metric.excluded_record_count)}</DetailField>
+              </DetailGroup>
+            </DetailSection>
 
             {/* Warnings & Notes */}
             {metric.warnings && metric.warnings.length > 0 && (
-              <DrawerSection title="ملاحظات و هشدارهای کیفی">
+              <DetailSection title="ملاحظات و هشدارهای کیفی">
                 <ul className="space-y-1.5 text-sm text-muted-foreground pe-1">
                   {metric.warnings.map((w, idx) => (
                     <li key={idx} className="flex items-start gap-1.5">
-                      <span className="text-ds-warning shrink-0 font-bold">
-                        •
-                      </span>
+                      <AlertTriangle size={17} aria-hidden="true" className="mt-1 shrink-0 text-ds-warning" />
                       <span>{toPersianDigits(w)}</span>
                     </li>
                   ))}
                 </ul>
-              </DrawerSection>
+              </DetailSection>
             )}
 
             {metric.warnings?.length > 0 && <Button asChild variant="outline"><Link href={`/companies/${companyId}/data/connections`}>بررسی و تکمیل داده‌های ورودی</Link></Button>}
             {/* Reconciliation Notes */}
             {evidence?.reconciliation_notes &&
               evidence.reconciliation_notes.length > 0 && (
-                <DrawerSection title="تراز و انطباق‌های ریاضی">
+                <DetailSection title="تراز و انطباق‌های ریاضی">
                   <ul className="space-y-1 text-sm text-muted-foreground">
                     {evidence.reconciliation_notes.map((note, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
-                        <span className="text-ds-success font-bold">✓</span>
+                        <CheckCircle2 size={17} aria-hidden="true" className="mt-1 shrink-0 text-ds-success" />
                         <span>{toPersianDigits(note)}</span>
                       </li>
                     ))}
                   </ul>
-                </DrawerSection>
+                </DetailSection>
               )}
 
             {/* Data Lineage & Trace to Phase 1 Canonical Records */}
-            <DrawerSection title="رکوردهای منبع">
+            <DetailSection title="رکوردهای منبع">
               <div className="flex items-center justify-between">
                 {traceData && (
                   <span className="text-sm text-muted-foreground">
@@ -206,69 +166,19 @@ export function MetricEvidenceDrawer({
               )}
 
               {traceError && (
-                <FormMessage>{traceError}</FormMessage>
+                <ErrorState variant="compact" onRetry={retryTrace}>{traceError}</ErrorState>
               )}
 
               {traceData && traceData.sample_records.length > 0 && (
-                <div className="space-y-2 max-h-64 overflow-y-auto pe-1">
-                  {traceData.sample_records.map((rec: MetricTraceRecord) => (
-                    <div
-                      key={rec.record_id}
-                      className="p-3 rounded-[var(--ds-card-radius)] border border-border/70 bg-muted/20 flex items-center justify-between gap-3 text-sm"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground truncate">
-                            {rec.description || rec.entity_type}
-                          </span>
-                          {rec.source_file_name && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs flex items-center gap-1 font-mono"
-                            >
-                              <FileSpreadsheet className="size-3" />
-                              {rec.source_file_name}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-3">
-                          <span>تاریخ: {toJalaliDate(rec.date)}</span>
-                          {rec.source_row_number && (
-                            <span>سطر: {rec.source_row_number}</span>
-                          )}
-                          {rec.amount_irr !== null && (
-                            <span className="font-mono">
-                              مبلغ:{" "}
-                              {(rec.amount_irr / 10).toLocaleString("fa-IR")}{" "}
-                              تومان
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="gap-1 text-sm shrink-0"
-                        onClick={() =>
-                          setSelectedRecord({
-                            entityType: rec.entity_type,
-                            recordId: rec.record_id,
-                          })
-                        }
-                      >
-                        <ExternalLink className="size-3" />
-                        <span>ردگیری فایل</span>
-                      </Button>
-                    </div>
-                  ))}
+                <div className="grid min-w-0 gap-5">
+                  {traceData.sample_records.map((record) => <MetricTraceRecordView key={record.record_id} record={record} onTrace={() => setSelectedRecord({ entityType: record.entity_type, recordId: record.record_id })} />)}
                 </div>
               )}
 
               {traceData && traceData.sample_records.length === 0 && (
                 <EmptyState variant="compact">رکوردی در تاریخ مبنا ثبت نشده است.</EmptyState>
               )}
-            </DrawerSection>
+            </DetailSection>
       </Drawer>
 
       {/* Phase 1 Raw File Lineage Dialog */}

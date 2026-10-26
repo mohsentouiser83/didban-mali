@@ -1,4 +1,5 @@
 "use client";
+import { DetailGroup, ControlLabel, fieldIcon, DetailField } from "@/components/ui/field-layout";
 import { LoadingState } from "@/components/ui/financial/loading-state";
 import { FinancialChart, ChartGrid, ChartXAxis, ChartYAxis, ChartTooltip, ChartValueTooltip } from "@/components/ui/financial/financial-chart";
 import { ErrorState, EmptyState, StatusMessage, MoneyDisplay, toJalaliDate } from "@/components/ui/financial";
@@ -49,9 +50,9 @@ function CashBalanceChart({ controller: c, onInspect }: { controller: Controller
 }
 function CashDayDetails({ controller: c, open, onOpenChange }: { controller: Controller; open: boolean; onOpenChange: (open: boolean) => void }) {
   const id = useId();
-  return <Drawer open={open} onOpenChange={onOpenChange} title="جزئیات گردش روز">
-    <div className="space-y-2"><label htmlFor={id} className="text-sm">تاریخ روز</label><PersianDatePicker id={id} value={c.selectedDay?.date ?? ""} min={c.range.start_date} max={c.range.end_date} onValueChange={c.chooseDate} /></div>
+  return <Drawer size="wide" open={open} onOpenChange={onOpenChange} title="جزئیات گردش روز">
+    <div className="space-y-2"><ControlLabel htmlFor={id} className="text-sm" icon={fieldIcon("تاریخ روز")}>تاریخ روز</ControlLabel><PersianDatePicker id={id} value={c.selectedDay?.date ?? ""} min={c.range.start_date} max={c.range.end_date} onValueChange={c.chooseDate} /></div>
     <div className="flex items-center justify-between gap-3"><Button variant="outline" disabled={!c.canPrevious} onClick={c.previous}><ChevronRight size={16} aria-hidden="true" />روز قبل</Button><Button variant="outline" disabled={!c.canNext} onClick={c.next}>روز بعد<ChevronLeft size={16} aria-hidden="true" /></Button></div>
-    <dl key={c.selectedDay?.date} className="grid gap-4 motion-safe:animate-[metric-update_240ms_ease-out_both]">{c.dayAmounts.map(({ label, amount }) => <div key={label} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"><dt className="text-sm text-muted-foreground">{label}</dt><dd>{amount === null ? <span className="text-sm">ثبت نشده</span> : <MoneyDisplay amount={amount} currency="تومان" direction="neutral" size="lg" />}</dd></div>)}</dl>
+    <DetailGroup key={c.selectedDay?.date} className="motion-safe:animate-[metric-update_240ms_ease-out_both]">{c.dayAmounts.map(({ label, amount }) => <DetailField key={label} icon={fieldIcon(label)} label={<>{label}</>}>{amount === null ? <span className="text-sm">ثبت نشده</span> : <MoneyDisplay amount={amount} currency="تومان" direction="neutral" size="lg" />}</DetailField>)}</DetailGroup>
   </Drawer>;
 }

@@ -1,0 +1,27 @@
+{
+  "id": "F02",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "ledger": [
+      {
+        "role": "loan",
+        "amount": "1000"
+      },
+      {
+        "role": "revenue",
+        "amount": "200"
+      }
+    ],
+    "bank_in": [
+      "1000",
+      "50"
+    ]
+  },
+  "expected": {
+    "revenue": "200",
+    "bank_in": "1050"
+  },
+  "application_execution": "not_run"
+}

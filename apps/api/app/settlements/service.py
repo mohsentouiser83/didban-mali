@@ -321,7 +321,8 @@ async def _sync_receipts(
 
 
 async def allocate(
-    session: AsyncSession, company_id: UUID, actor_id: UUID, payload: AllocationInput
+    session: AsyncSession, company_id: UUID, actor_id: UUID, payload: AllocationInput,
+    *, commit: bool = True, settlement_source_row_id: UUID | None = None,
 ) -> UUID:
     # Serialize the two capacity constraints and idempotency in one tenant transaction.
     await session.execute(
@@ -382,6 +383,7 @@ async def allocate(
         id=uuid7(),
         company_id=company_id,
         invoice_source_row_id=invoice.source_row_id,
+        settlement_source_row_id=settlement_source_row_id,
         invoice_key=invoice.key,
         bank_transaction_id=bank.id,
         direction=invoice.direction,
@@ -406,7 +408,8 @@ async def allocate(
             "history_complete": payload.confirm_history_complete,
         },
     )
-    await session.commit()
+    if commit:
+        await session.commit()
     return allocation.id
 
 

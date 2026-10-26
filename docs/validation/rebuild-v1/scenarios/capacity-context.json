@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "company_id": "capacity-company",
+  "file_count": 10,
+  "data_rows": 20000,
+  "opening_balance": "0",
+  "opening_cutoff": "2026-09-01_start_of_day",
+  "expected": {
+    "inflow": "100000",
+    "outflow": "100000",
+    "closing_balance": "0"
+  },
+  "note": "One synthetic bank account partitioned into ten consecutive files; unique references. Five-user load measurement not run."
+}

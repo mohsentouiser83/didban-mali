@@ -1,0 +1,22 @@
+{
+  "id": "T05",
+  "level": "integration",
+  "events": [
+    "model unavailable",
+    "independent deterministic step ready",
+    "budget exhausted",
+    "necessary question raised"
+  ],
+  "assertions": [
+    "deterministic step may run before question",
+    "new model calls blocked",
+    "question blocks ALL steps",
+    "no complete flag for missing result"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

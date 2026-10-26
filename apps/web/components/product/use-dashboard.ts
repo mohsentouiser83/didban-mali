@@ -6,7 +6,7 @@ import { api } from "@/lib/product-api";
 import { rial, toman } from "@/lib/cashflow-amounts";
 import { dailyCashForecast } from "@/lib/dashboard-cash";
 import type { Company, CashFlowSummaryResponse, CashFlowForecastResponse, ReceivablesSummaryResponse, PayablesSummaryResponse, CustomersReceivablesResponse, VendorsPayablesResponse } from "@/lib/product-types";
-import type { ReviewItem } from "./review-workspace";
+import type { ReviewItem } from "@/lib/review";
 type DashboardData = { cash: CashFlowSummaryResponse | null; forecast: CashFlowForecastResponse | null; receivables: ReceivablesSummaryResponse | null; payables: PayablesSummaryResponse | null; customers: CustomersReceivablesResponse | null; vendors: VendorsPayablesResponse | null; findings: ReviewItem[] | null; errors: string[] };
 type AttentionItem = { id: string; title: string; detail: string; amount: string | null; href: string };
 export function useDashboard(company: Company) {

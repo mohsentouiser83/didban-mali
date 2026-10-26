@@ -1,0 +1,40 @@
+{
+  "id": "F10",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "payments": [
+      {
+        "id": "REAL1",
+        "amount": "20"
+      },
+      {
+        "id": "REAL2",
+        "amount": "20"
+      }
+    ],
+    "files": [
+      {
+        "id": "original",
+        "hash": "hash-a"
+      },
+      {
+        "id": "duplicate",
+        "hash": "hash-a"
+      },
+      {
+        "id": "overlap",
+        "hash": "hash-b",
+        "overlap_ambiguous": true
+      }
+    ]
+  },
+  "expected": {
+    "real_payment_count": 2,
+    "paid": "40",
+    "duplicate_effect": "0",
+    "overlap_state": "excluded_overlap"
+  },
+  "application_execution": "not_run"
+}

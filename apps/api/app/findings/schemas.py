@@ -6,14 +6,29 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_serializer, model_validator
 
 from app.findings.models import EvidenceType, FindingRunStatus
+from app.findings.reconciliation_scope import ReconciliationState
 
 
 class DetectFindingsRequest(BaseModel):
+    bank_account_id: UUID | None = None
+    accounting_complete: bool = False
+    bank_complete: bool = False
     period_start: date | None = None
     period_end: date | None = None
     calculation_run_id: UUID | None = None
     reconciliation_run_id: UUID | None = None
     trigger_type: Literal["manual", "post_calculation", "post_reconciliation"] = "manual"
+
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> "DetectFindingsRequest":
+        if self.period_start and self.period_end and self.period_start > self.period_end:
+            raise ValueError("شروع بازه باید قبل از پایان باشد.")
+        if (self.accounting_complete or self.bank_complete) and not (
+            self.bank_account_id and self.period_start and self.period_end
+        ):
+            raise ValueError("برای تأیید پوشش، حساب بانک و دو تاریخ را انتخاب کنید.")
+        return self
 
 
 class AssignFindingsRequest(BaseModel):
@@ -103,7 +118,26 @@ class FindingListItemResponse(BaseModel):
         return format(value, "f") if value is not None else None
 
 
+class ProposalDecisionRequest(BaseModel):
+    decision: Literal["confirm", "reject"]
+
+
+class ProposalDecisionResponse(BaseModel):
+    proposal_id: UUID
+    status: Literal["confirmed", "rejected"]
+
+
+class FindingProposalResponse(BaseModel):
+    id: UUID
+    score: str
+    match_type: str
+    payload: dict[str, Any]
+
+
 class FindingDetailResponse(BaseModel):
+    can_review_proposals: bool = False
+    reconciliation_state: ReconciliationState = "not_applicable"
+    proposals: list[FindingProposalResponse] = Field(default_factory=list)
     id: UUID
     fingerprint: str
     analysis_run_id: UUID | None = None
@@ -180,6 +214,7 @@ class FindingDetectionRunResponse(BaseModel):
 
 # Compatibility schemas for old tests / endpoints
 class FindingResponse(BaseModel):
+    reconciliation_state: ReconciliationState = "not_applicable"
     status: str = "new"
     assigned_to_name: str | None = None
     due_date: date | None = None
@@ -218,10 +253,19 @@ class FindingResponse(BaseModel):
         return format(value, "f") if value is not None else None
 
 
+class FindingDirectionCounts(BaseModel):
+    all: int = 0
+    matched: int = 0
+    suggested: int = 0
+    missing_accounting: int = 0
+    missing_bank: int = 0
+
+
 class FindingsResponse(BaseModel):
     items: list[FindingResponse]
     next_cursor: UUID | None = None
     total_count: int = 0
+    direction_counts: FindingDirectionCounts = Field(default_factory=FindingDirectionCounts)
 
 
 class PriorityConfigRequest(BaseModel):

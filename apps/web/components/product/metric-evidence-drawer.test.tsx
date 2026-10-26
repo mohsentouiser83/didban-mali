@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MetricEvidenceDrawer } from "./metric-evidence-drawer";
 import type { MetricResultDTO } from "@/lib/product-types";
@@ -16,7 +16,8 @@ describe("Metric evidence money and units", () => {
     expect(await screen.findByText("۱٫۷")).toBeVisible();
     expect(screen.getByText("میلیارد تومان")).toBeVisible();
     expect(screen.queryByText("17297400000.0000")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("مبلغ دقیق به ریال"));
+    expect(screen.getByText("مبلغ دقیق")).toBeVisible();
+    expect(screen.getByRole("dialog").querySelector("details")).toBeNull();
     expect(screen.getByText("۱۷٬۲۹۷٬۴۰۰٬۰۰۰")).toBeVisible();
     expect(screen.getByText("۱۲۰ سند فاقد تاریخ سررسید هستند")).toBeVisible();
     expect(screen.getByRole("link",{name:"بررسی و تکمیل داده‌های ورودی"})).toHaveAttribute("href","/companies/company/data/connections");
@@ -24,6 +25,6 @@ describe("Metric evidence money and units", () => {
   it("keeps ratios distinct from percentage units", () => {
     render(<MetricEvidenceDrawer open onOpenChange={vi.fn()} companyId="company" metric={{...metric,unit:"ratio",value_numeric:1.5}} />);
     expect(screen.getByText("۱٫۵")).toBeVisible();
-    expect(screen.queryByText("مبلغ دقیق به ریال")).not.toBeInTheDocument();
+    expect(screen.queryByText("مبلغ دقیق")).not.toBeInTheDocument();
   });
 });

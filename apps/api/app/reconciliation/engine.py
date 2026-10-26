@@ -1,3 +1,4 @@
+from bisect import bisect_left, bisect_right
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date
@@ -17,6 +18,22 @@ class ReconciliationConfig:
     review_calendar_days: int = 10
     fuzzy_threshold: Decimal = Decimal("70")
     ambiguity_margin: Decimal = Decimal("5")
+    non_working_weekdays: tuple[int, ...] = (4,)
+    holiday_dates: frozenset[date] = frozenset()
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.rule_business_days <= 14 or not 1 <= self.review_calendar_days <= 31:
+            raise ValueError("بازه تطبیق معتبر نیست.")
+        if len(set(self.non_working_weekdays)) > 6 or any(
+            day not in range(7) for day in self.non_working_weekdays
+        ):
+            raise ValueError("روزهای تعطیل هفتگی معتبر نیستند.")
+
+    @property
+    def candidate_window_days(self) -> int:
+        return max(
+            self.review_calendar_days, 7 * (self.rule_business_days + len(self.holiday_dates) + 1)
+        )
 
 
 @dataclass(frozen=True)
@@ -38,13 +55,16 @@ class LedgerRecord:
     line_id: UUID
     source_row_id: UUID
     entry_date: date
-    amount_irr: Decimal  # signed: positive for bank debit (inflow), negative for bank credit (outflow)
+    amount_irr: (
+        Decimal  # signed: positive for bank debit (inflow), negative for bank credit (outflow)
+    )
     description: str
     account_id: UUID | None = None
     reference: str | None = None
     invoice_ref: str | None = None
     source_entry_id: str | None = None
     counterparty_name: str | None = None
+    bank_account_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -76,16 +96,35 @@ def _normalized(value: str | None) -> str:
     return normalize_text(value or "")
 
 
+def _compatible_accounts(bank: BankRecord, ledger: LedgerRecord) -> bool:
+    # Unknown correspondence may be suggested, but is never proof of a match.
+    return ledger.bank_account_id is None or ledger.bank_account_id == bank.bank_account_id
+
+
+def _confirmed_account(bank: BankRecord, ledger: LedgerRecord) -> bool:
+    return bank.bank_account_id is not None and bank.bank_account_id == ledger.bank_account_id
+
+
 def _calendar_days(left: date, right: date) -> int:
     return abs((left - right).days)
 
 
-def _business_days(left: date, right: date) -> int:
+def _business_days(
+    left: date,
+    right: date,
+    config: ReconciliationConfig = ReconciliationConfig(),
+) -> int:
     if left == right:
         return 0
     start, end = sorted((left, right))
+    closed = set(config.non_working_weekdays)
     weeks, remainder = divmod((end - start).days, 7)
-    return weeks * 5 + sum((start.weekday() + offset) % 7 < 5 for offset in range(1, remainder + 1))
+    weekdays = weeks * (7 - len(closed)) + sum(
+        (start.weekday() + offset) % 7 not in closed for offset in range(1, remainder + 1)
+    )
+    return weekdays - sum(
+        start < day <= end and day.weekday() not in closed for day in config.holiday_dates
+    )
 
 
 def _similarity(left: str, right: str) -> Decimal:
@@ -101,7 +140,9 @@ def _similarity(left: str, right: str) -> Decimal:
     return (max(sequence, jaccard) * 100).quantize(Decimal("0.01"))
 
 
-def _features(bank: BankRecord, ledger: LedgerRecord) -> dict[str, Any]:
+def _features(
+    bank: BankRecord, ledger: LedgerRecord, config: ReconciliationConfig = ReconciliationConfig()
+) -> dict[str, Any]:
     reference_equal = bool(
         _normalized(bank.reference)
         and _normalized(bank.reference)
@@ -109,10 +150,11 @@ def _features(bank: BankRecord, ledger: LedgerRecord) -> dict[str, Any]:
     )
     text_similarity = _similarity(bank.description, ledger.description)
     return {
+        "account_correspondence_confirmed": _confirmed_account(bank, ledger),
         "amount_equal": bank.amount_irr == ledger.amount_irr,
         "amount_difference_irr": str(bank.amount_irr - ledger.amount_irr),
         "calendar_days": _calendar_days(bank.booking_date, ledger.entry_date),
-        "business_days": _business_days(bank.booking_date, ledger.entry_date),
+        "business_days": _business_days(bank.booking_date, ledger.entry_date, config),
         "reference_equal": reference_equal,
         "description_similarity": str(text_similarity),
     }
@@ -150,6 +192,8 @@ def _ledger_evidence(ledger: LedgerRecord) -> dict[str, Any]:
         "reference": ledger.reference,
         "invoice_ref": ledger.invoice_ref,
         "description": ledger.description,
+        "account_id": str(ledger.account_id) if ledger.account_id else None,
+        "bank_account_id": str(ledger.bank_account_id) if ledger.bank_account_id else None,
     }
 
 
@@ -167,14 +211,13 @@ def _pair(
     *,
     level: MatchLevel,
     status: MatchStatus,
+    config: ReconciliationConfig = ReconciliationConfig(),
     rule_code: str,
     forced_score: Decimal | None = None,
     match_reasons: list[str] | None = None,
 ) -> ProposedMatch:
-    features = _features(bank, ledger)
-    amount_difference = (
-        None if features["amount_equal"] else bank.amount_irr - ledger.amount_irr
-    )
+    features = _features(bank, ledger, config)
+    amount_difference = None if features["amount_equal"] else bank.amount_irr - ledger.amount_irr
     date_difference = (
         None if features["calendar_days"] == 0 else cast(int, features["calendar_days"])
     )
@@ -201,7 +244,19 @@ def _pair(
 
 def _bank_duplicate_keys(record: BankRecord) -> tuple[str | None, tuple[object, ...]]:
     identifier = _normalized(record.source_transaction_id)
-    strong = str((record.bank_account_id, identifier, record.booking_date, record.amount_irr, record.running_balance_irr)) if identifier else None
+    strong = (
+        str(
+            (
+                record.bank_account_id,
+                identifier,
+                record.booking_date,
+                record.amount_irr,
+                record.running_balance_irr,
+            )
+        )
+        if identifier
+        else None
+    )
     weak = (
         record.bank_account_id,
         record.running_balance_irr,
@@ -215,13 +270,17 @@ def _bank_duplicate_keys(record: BankRecord) -> tuple[str | None, tuple[object, 
 
 
 def _ledger_duplicate_keys(record: LedgerRecord) -> tuple[str | None, tuple[object, ...]]:
-    strong = _normalized(record.source_entry_id) or None
     weak = (
+        record.account_id,
         record.entry_date,
         record.amount_irr,
         _normalized(record.description),
         _normalized(record.reference),
+        _normalized(record.invoice_ref),
     )
+    # A voucher number identifies a document, never an individual posting.
+    identifier = _normalized(record.source_entry_id)
+    strong = str((identifier, *weak)) if identifier else None
     return strong, weak
 
 
@@ -266,17 +325,22 @@ def reconcile(
             continue
         eligible_banks.append(bank)
 
-    ledger_keys = {record.entry_id: _ledger_duplicate_keys(record) for record in ledgers}
-    ledger_strong_counts = Counter(strong for strong, _ in ledger_keys.values() if strong)
-    ledger_weak_counts = Counter(weak for _, weak in ledger_keys.values())
+    ledger_keys = {record.line_id: _ledger_duplicate_keys(record) for record in ledgers}
+    strong_documents: dict[str, set[UUID]] = defaultdict(set)
+    weak_documents: dict[tuple[object, ...], set[UUID]] = defaultdict(set)
+    for record in ledgers:
+        strong, weak = ledger_keys[record.line_id]
+        if strong:
+            strong_documents[strong].add(record.entry_id)
+        weak_documents[weak].add(record.entry_id)
     eligible_ledgers: list[LedgerRecord] = []
-    for ledger in sorted(ledgers, key=lambda item: (item.entry_date, str(item.entry_id))):
-        strong, weak = ledger_keys[ledger.entry_id]
+    for ledger in sorted(ledgers, key=lambda item: (item.entry_date, str(item.line_id))):
+        strong, weak = ledger_keys[ledger.line_id]
         duplicate_status = None
         rule_code = ""
-        if strong and ledger_strong_counts[strong] > 1:
+        if strong and len(strong_documents[strong]) > 1:
             duplicate_status, rule_code = MatchStatus.DUPLICATE_HIGH, "LEDGER_DUPLICATE_STRONG"
-        elif ledger_weak_counts[weak] > 1:
+        elif len(weak_documents[weak]) > 1:
             duplicate_status, rule_code = MatchStatus.DUPLICATE_POSSIBLE, "LEDGER_DUPLICATE_WEAK"
         if duplicate_status:
             results.append(
@@ -295,18 +359,39 @@ def reconcile(
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },
-                    allocations=[ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)],
+                    allocations=[
+                        ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)
+                    ],
                 )
             )
             continue
         eligible_ledgers.append(ledger)
 
+    ledger_by_amount_date: dict[tuple[Decimal, date], list[LedgerRecord]] = defaultdict(list)
+    ledger_by_day: dict[int, list[LedgerRecord]] = defaultdict(list)
+    for ledger in eligible_ledgers:
+        ledger_by_amount_date[ledger.amount_irr, ledger.entry_date].append(ledger)
+        ledger_by_day[ledger.entry_date.toordinal()].append(ledger)
+    ledger_days = sorted(ledger_by_day)
+
+    def nearby(bank: BankRecord, days: int) -> list[LedgerRecord]:
+        center = bank.booking_date.toordinal()
+        return [
+            ledger
+            for day in ledger_days[
+                bisect_left(ledger_days, center - days) : bisect_right(ledger_days, center + days)
+            ]
+            for ledger in ledger_by_day[day]
+        ]
+
     exact_by_bank: dict[UUID, list[LedgerRecord]] = defaultdict(list)
     for bank in eligible_banks:
-        for ledger in eligible_ledgers:
+        for ledger in ledger_by_amount_date.get((bank.amount_irr, bank.booking_date), []):
+            if not _compatible_accounts(bank, ledger):
+                continue
             if bank.amount_irr != ledger.amount_irr or bank.booking_date != ledger.entry_date:
                 continue
-            features = _features(bank, ledger)
+            features = _features(bank, ledger, config)
             if (
                 features["amount_equal"]
                 and features["calendar_days"] == 0
@@ -317,35 +402,41 @@ def reconcile(
             ):
                 exact_by_bank[bank.id].append(ledger)
     exact_journal_frequency = Counter(
-        ledger.entry_id for candidates in exact_by_bank.values() for ledger in candidates
+        ledger.line_id for candidates in exact_by_bank.values() for ledger in candidates
     )
     accepted_banks: set[UUID] = set()
     accepted_journals: set[UUID] = set()
     for bank in eligible_banks:
         exact_candidates = exact_by_bank.get(bank.id, [])
-        if (
-            len(exact_candidates) == 1
-            and exact_journal_frequency[exact_candidates[0].entry_id] == 1
-        ):
+        if len(exact_candidates) == 1 and exact_journal_frequency[exact_candidates[0].line_id] == 1:
             ledger = exact_candidates[0]
+            confirmed = _confirmed_account(bank, ledger)
             results.append(
                 _pair(
                     bank,
                     ledger,
+                    config=config,
                     level=MatchLevel.EXACT,
-                    status=MatchStatus.AUTO_MATCHED,
-                    rule_code="EXACT_AMOUNT_DATE_IDENTITY",
-                    forced_score=Decimal(100),
+                    status=MatchStatus.AUTO_MATCHED if confirmed else MatchStatus.POTENTIAL_MATCH,
+                    rule_code="EXACT_AMOUNT_DATE_IDENTITY"
+                    if confirmed
+                    else "ACCOUNT_MAPPING_REQUIRED",
+                    forced_score=Decimal(100) if confirmed else Decimal(99),
+                    match_reasons=[]
+                    if confirmed
+                    else ["ارتباط حساب بانک با حساب دفتر تأیید نشده است."],
                 )
             )
-            accepted_banks.add(bank.id)
-            accepted_journals.add(ledger.entry_id)
+            if confirmed:
+                accepted_banks.add(bank.id)
+                accepted_journals.add(ledger.line_id)
         elif exact_candidates:
             for ledger in exact_candidates:
                 results.append(
                     _pair(
                         bank,
                         ledger,
+                        config=config,
                         level=MatchLevel.EXACT,
                         status=MatchStatus.POTENTIAL_MATCH,
                         rule_code="AMBIGUOUS_EXACT_CANDIDATE",
@@ -357,17 +448,23 @@ def reconcile(
         if bank.id in accepted_banks or exact_by_bank.get(bank.id):
             continue
         proposals: list[ProposedMatch] = []
-        for ledger in eligible_ledgers:
-            if ledger.entry_id in accepted_journals:
+        for ledger in nearby(bank, config.candidate_window_days):
+            if not _compatible_accounts(bank, ledger):
+                continue
+            if ledger.line_id in accepted_journals:
                 continue
             # A shared voucher reference must never propose matching an inflow
             # against an outflow, even when their amounts differ.
             if (bank.amount_irr > 0) != (ledger.amount_irr > 0):
                 continue
             distance = _calendar_days(bank.booking_date, ledger.entry_date)
-            if distance > config.review_calendar_days and _business_days(bank.booking_date, ledger.entry_date) > config.rule_business_days:
+            if (
+                distance > config.review_calendar_days
+                and _business_days(bank.booking_date, ledger.entry_date, config)
+                > config.rule_business_days
+            ):
                 continue
-            features = _features(bank, ledger)
+            features = _features(bank, ledger, config)
             amount_equal = bool(features["amount_equal"])
             reference_equal = bool(features["reference_equal"])
             business_days = cast(int, features["business_days"])
@@ -379,6 +476,7 @@ def reconcile(
                 proposal = _pair(
                     bank,
                     ledger,
+                    config=config,
                     level=level,
                     status=MatchStatus.POTENTIAL_MATCH,
                     rule_code=rule,
@@ -394,6 +492,7 @@ def reconcile(
                     _pair(
                         bank,
                         ledger,
+                        config=config,
                         level=MatchLevel.MISMATCH,
                         status=MatchStatus.DATE_MISMATCH,
                         rule_code="DATE_OUTSIDE_MATCH_WINDOW",
@@ -404,6 +503,7 @@ def reconcile(
                     _pair(
                         bank,
                         ledger,
+                        config=config,
                         level=MatchLevel.MISMATCH,
                         status=MatchStatus.AMOUNT_MISMATCH,
                         rule_code="REFERENCE_AMOUNT_MISMATCH",
@@ -415,17 +515,26 @@ def reconcile(
             # Check 1:N batch settlement and smart FIFO allocation
             nearby_ledgers = [
                 ledger
-                for ledger in eligible_ledgers
-                if ledger.entry_id not in accepted_journals
+                for ledger in nearby(bank, 5)
+                if ledger.line_id not in accepted_journals
+                and _compatible_accounts(bank, ledger)
                 and _calendar_days(bank.booking_date, ledger.entry_date) <= 5
-                and ((bank.amount_irr > 0 and ledger.amount_irr > 0) or (bank.amount_irr < 0 and ledger.amount_irr < 0))
+                and (
+                    (bank.amount_irr > 0 and ledger.amount_irr > 0)
+                    or (bank.amount_irr < 0 and ledger.amount_irr < 0)
+                )
                 and abs(ledger.amount_irr) < abs(bank.amount_irr)
             ]
             matched_combo: list[LedgerRecord] | None = None
 
             # Bound exploratory suggestions: a dense real statement must never
             # spend millions of subset checks on one ambiguous bank movement.
-            nearby_ledgers.sort(key=lambda item: (_calendar_days(bank.booking_date, item.entry_date), str(item.line_id)))
+            nearby_ledgers.sort(
+                key=lambda item: (
+                    _calendar_days(bank.booking_date, item.entry_date),
+                    str(item.line_id),
+                )
+            )
             remaining_checks = 5_000
             # 1. Exact subset sum matching up to 5 items
             for k in range(2, min(6, len(nearby_ledgers) + 1)):
@@ -441,7 +550,8 @@ def reconcile(
             if not matched_combo and bank.amount_irr > 0:
                 norm_bank_desc = _normalized(bank.description)
                 cp_ledgers = [
-                    ledger for ledger in nearby_ledgers
+                    ledger
+                    for ledger in nearby_ledgers
                     if ledger.amount_irr > 0
                     and ledger.counterparty_name
                     and _normalized(ledger.counterparty_name) in norm_bank_desc
@@ -461,7 +571,9 @@ def reconcile(
             if matched_combo:
                 allocations = [ProposedAllocation("bank", bank.id, None, bank.amount_irr)]
                 for ledger in matched_combo:
-                    allocations.append(ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr))
+                    allocations.append(
+                        ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)
+                    )
                     # Suggestions do not reserve ledger lines: later bank rows
                     # must still be checked for reference/date discrepancies.
                 accepted_banks.add(bank.id)
@@ -499,7 +611,7 @@ def reconcile(
                     None,
                     None,
                     "BANK_WITHOUT_ACCOUNTING_MATCH",
-                    {},
+                    {"group_search_incomplete": remaining_checks == 0},
                     {
                         "bank": _bank_evidence(bank),
                         "bank_transaction_id": str(bank.id),
@@ -509,11 +621,100 @@ def reconcile(
                 )
             )
 
+    # Bank exports may split a payment that the ledger records as one posting.
+    # Suggestions remain unreserved until an explicit balanced confirmation.
+    bank_by_day: dict[int, list[BankRecord]] = defaultdict(list)
+    for bank in eligible_banks:
+        if bank.id not in accepted_banks:
+            bank_by_day[bank.booking_date.toordinal()].append(bank)
+    bank_days = sorted(bank_by_day)
+    grouped_bank_ids: set[UUID] = set()
+    for ledger in eligible_ledgers:
+        if ledger.line_id in accepted_journals:
+            continue
+        center = ledger.entry_date.toordinal()
+        candidates = [
+            bank
+            for day in bank_days[
+                bisect_left(bank_days, center - 5) : bisect_right(bank_days, center + 5)
+            ]
+            for bank in bank_by_day[day]
+            if _compatible_accounts(bank, ledger)
+            and (bank.amount_irr > 0) == (ledger.amount_irr > 0)
+            and 0 < abs(bank.amount_irr) < abs(ledger.amount_irr)
+        ]
+        # Never combine cash from separate bank accounts into one ledger posting.
+        by_account: dict[UUID | None, list[BankRecord]] = defaultdict(list)
+        for bank in candidates:
+            by_account[bank.bank_account_id].append(bank)
+        remaining = 5_000
+        for account_banks in by_account.values():
+            combo_match: tuple[BankRecord, ...] | None = None
+            for size in range(2, min(6, len(account_banks) + 1)):
+                for bank_combo in islice(combinations(account_banks, size), remaining):
+                    remaining -= 1
+                    if (
+                        sum((item.amount_irr for item in bank_combo), Decimal(0))
+                        == ledger.amount_irr
+                    ):
+                        combo_match = bank_combo
+                        break
+                if combo_match or remaining == 0:
+                    break
+            if combo_match:
+                allocations = [
+                    ProposedAllocation("bank", bank.id, None, bank.amount_irr)
+                    for bank in combo_match
+                ]
+                allocations.append(
+                    ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)
+                )
+                results.append(
+                    ProposedMatch(
+                        combo_match[0].id,
+                        ledger.entry_id,
+                        MatchLevel.RULE,
+                        MatchStatus.POTENTIAL_MATCH,
+                        Decimal(90),
+                        Decimal(0),
+                        max(
+                            _calendar_days(bank.booking_date, ledger.entry_date)
+                            for bank in combo_match
+                        ),
+                        "BATCH_SETTLEMENT_N_TO_1",
+                        {"batch_count": len(combo_match)},
+                        {
+                            "bank": _bank_evidence(combo_match[0]),
+                            "bank_items": [_bank_evidence(bank) for bank in combo_match],
+                            "accounting": _ledger_evidence(ledger),
+                        },
+                        match_type="many_to_one",
+                        match_reasons=[
+                            "مجموع چند گردش بانک با یک ردیف دفتر برابر است؛ تأیید لازم است."
+                        ],
+                        allocations=allocations,
+                    )
+                )
+                grouped_bank_ids.update(bank.id for bank in combo_match)
+            if remaining == 0:
+                break
+    results = [
+        item
+        for item in results
+        if not (
+            item.rule_code == "BANK_WITHOUT_ACCOUNTING_MATCH"
+            and item.bank_transaction_id in grouped_bank_ids
+        )
+    ]
+
     related_journals = {
-        item.journal_entry_id for item in results if item.journal_entry_id is not None
+        allocation.journal_line_id
+        for item in results
+        for allocation in item.allocations
+        if allocation.journal_line_id is not None
     }
     for ledger in eligible_ledgers:
-        if ledger.entry_id not in related_journals:
+        if ledger.line_id not in related_journals:
             results.append(
                 ProposedMatch(
                     None,
@@ -530,7 +731,9 @@ def reconcile(
                         "journal_entry_id": str(ledger.entry_id),
                         "source_row_id": str(ledger.source_row_id),
                     },
-                    allocations=[ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)],
+                    allocations=[
+                        ProposedAllocation("journal", None, ledger.line_id, ledger.amount_irr)
+                    ],
                 )
             )
     return results

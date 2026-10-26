@@ -1,8 +1,10 @@
 "use client";
+import { ControlLabel, DetailField, DetailGroup, fieldIcon } from "@/components/ui/field-layout";
+import type { api } from "@/lib/product-api";
 import { Form, FormMessage } from "@/components/ui/form";
 
 import { useId } from "react";
-import { LifeBuoy, Send } from "@/components/ui/icons";
+import { Send } from "@/components/ui/icons";
 import { useSupportTicket } from "./use-support-ticket";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,32 +15,26 @@ import { SelectField, SelectOption } from "./select-field";
 
 interface SupportModalProps {
   companyId: string;
+  request?: typeof api;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function SupportModal({
   companyId,
+  request,
   open,
   onOpenChange,
 }: SupportModalProps) {
   const id = useId();
-  const { category, setCategory, subject, setSubject, description, setDescription, submitting, success, error, handleSubmit, close, pathname } = useSupportTicket(companyId, onOpenChange);
+  const { category, setCategory, subject, setSubject, description, setDescription, submitting, success, error, handleSubmit, close, pathname } = useSupportTicket(companyId, onOpenChange, request);
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent dir="rtl" className="max-w-lg text-foreground font-sans">
+      <DialogContent closeDisabled={submitting} dir="rtl" className="max-w-lg text-foreground font-sans">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-primary mb-1">
-            <LifeBuoy className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold">
-              پشتیبانی و ارتباط با تیم مهندسی
-            </DialogTitle>
-          </div>
-          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            درخواست‌های شما با اولویت‌بندی عملیاتی در تیم پشتیبانی بررسی می‌شود.
-            اطلاعات حساس مالی شرکت به‌صورت خودکار ارسال نمی‌گردد.
-          </DialogDescription>
+          <DialogTitle>پشتیبانی</DialogTitle>
+          <DialogDescription>اطلاعات حساس مالی خودکار ارسال نمی‌شود.</DialogDescription>
         </DialogHeader>
 
         {success ? (
@@ -50,32 +46,30 @@ export function SupportModal({
             )}
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-priority`} className="text-xs font-semibold">
-                سطح اولویت درخواست
-              </label>
+              <ControlLabel htmlFor={`${id}-priority`} icon={fieldIcon("سطح اولویت درخواست")}>سطح اولویت درخواست</ControlLabel>
               <SelectField
                 id={`${id}-priority`}
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value as typeof category)}
                 className="w-full"
               >
                 <SelectOption value="P3_NORMAL">
-                  P3 — عادی (پرسش درباره عملکرد، گزارش خطا یا کندی جزئی)
+                  P3 — عادی
                 </SelectOption>
                 <SelectOption value="P2_HIGH">
-                  P2 — مهم (خطا در واردسازی فایل یا انطباق بانکی)
+                  P2 — مهم
                 </SelectOption>
                 <SelectOption value="P1_CRITICAL">
-                  P1 — بحرانی (قطعی سرویس یا مغایرت اساسی در ارقام محاسباتی)
+                  P1 — بحرانی
                 </SelectOption>
                 <SelectOption value="P4_QUESTION">
-                  P4 — سوال عمومی / پیشنهاد بهبود فرآیند
+                  P4 — پرسش و پیشنهاد
                 </SelectOption>
               </SelectField>
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-subject`} className="text-xs font-semibold">موضوع درخواست</label>
+              <ControlLabel htmlFor={`${id}-subject`} icon={fieldIcon("موضوع درخواست")}>موضوع درخواست</ControlLabel>
               <Input
                 id={`${id}-subject`}
                 value={subject}
@@ -86,7 +80,7 @@ export function SupportModal({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor={`${id}-description`} className="text-xs font-semibold">شرح کامل مشکل</label>
+              <ControlLabel htmlFor={`${id}-description`} icon={fieldIcon("شرح کامل مشکل")}>شرح کامل مشکل</ControlLabel>
               <Textarea
                 id={`${id}-description`}
                 value={description}
@@ -98,22 +92,19 @@ export function SupportModal({
               />
             </div>
 
-            <div className="rounded-lg bg-muted/40 p-2.5 text-[11px] text-muted-foreground font-mono">
-              بستر ارسالی: {pathname} | نسخه: سامانه پایدار v1.0
-            </div>
+            <DetailGroup><DetailField label="صفحه مرتبط" icon={fieldIcon("آدرس صفحه")}><bdi dir="ltr">{pathname}</bdi></DetailField></DetailGroup>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                disabled={submitting}
                 onClick={() => close(false)}
               >
                 انصراف
               </Button>
               <Button
                 type="submit"
-                size="sm"
                 disabled={submitting}
                 className="gap-1.5"
               >

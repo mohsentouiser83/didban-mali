@@ -8,12 +8,17 @@ export function useSettlements(companyId: string, role?: string) {
   const [direction, setDirection] = useState<"sales" | "purchases">("sales");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [invoices, setInvoices] = useState<SettlementInvoice[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("invoice");
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) setSelected(id);
+  }, [companyId]);
   const [detail, setDetail] = useState<SettlementDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
@@ -29,18 +34,18 @@ export function useSettlements(companyId: string, role?: string) {
   useEffect(() => {
     let active = true;
     setLoading(true); setListError("");
-    const params = new URLSearchParams({ direction, search, offset: String(offset) });
+    const params = new URLSearchParams({ direction, search, offset: String(offset), limit: String(pageSize) });
     void api<{ items: SettlementInvoice[]; total: number }>(`${base}/invoices?${params}`).then((result) => {
       if (active) { setInvoices(result.items); setTotal(result.total); }
     }).catch((e: Error) => { if (active) setListError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [base, direction, search, offset, revision]);
+  }, [base, direction, search, offset, pageSize, revision]);
   useEffect(() => {
     let active = true;
     if (!selected) return;
     setDetailLoading(true); setDetailError(""); setDetail(null); setBank(null);
     void api<SettlementDetail>(`${base}/invoices/${selected}?${new URLSearchParams({ search: bankSearch, offset: String(bankOffset) })}`).then((result) => {
-      if (active) setDetail(result);
+      if (active) { setDetail(result); setDirection(result.invoice.direction); }
     }).catch((e: Error) => { if (active) setDetailError(e.message); }).finally(() => { if (active) setDetailLoading(false); });
     return () => { active = false; };
   }, [base, selected, bankSearch, bankOffset, revision]);
@@ -83,7 +88,7 @@ export function useSettlements(companyId: string, role?: string) {
     finally { setBusy(false); }
   }
   return { direction, changeDirection: (v: "sales" | "purchases") => { setDirection(v); setOffset(0); open(null); }, search,
-    changeSearch: (v: string) => { setSearch(v); setOffset(0); }, offset, setOffset, invoices, total, loading, listError,
+    changeSearch: (v: string) => { setSearch(v); setOffset(0); }, offset, setOffset, pageSize, changePageSize: (size: number) => { setPageSize(size); setOffset(0); }, invoices, total, loading, listError,
     selected, open, detail, detailLoading, detailError, bankSearch, changeBankSearch: (v: string) => { setBankSearch(v); setBankOffset(0); },
     bankOffset, setBankOffset, bank, chooseBank, amount, setAmount: (value: string) => setAmount(value.replace(/[۰-۹٠-٩]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩".indexOf(digit) % 10)).replace(/[,٬،\s]/g, "")), complete, setComplete, busy, actionError, notice, save, reverse, confirmHistory,
     retry: () => setRevision((n) => n + 1), writable: !!role && ["owner", "finance_manager", "advisor"].includes(role),

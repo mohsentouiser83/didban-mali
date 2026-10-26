@@ -175,11 +175,9 @@ def test_gate_b_d_and_e_company3_sepehr_petro_toman_and_partial_import() -> None
         currency_unit="toman",
         calendar="jalali",
     )
-    # Verifies that optional due_date omission generates visible warning without blocking import
+    # Invoice comparison requires no due date or receipt history.
     assert not any(iss.severity == IssueSeverity.ERROR for iss in issues)
-    assert any(
-        iss.code == "DUE_DATE_MISSING" and iss.severity == IssueSeverity.WARNING for iss in issues
-    )
+    assert not any(iss.code == "DUE_DATE_MISSING" for iss in issues)
     # 15,000,000 Toman must be exactly 150,000,000 Rial (x10)
     assert transformed["gross_amount"] == "150000000"
 
@@ -213,7 +211,7 @@ def test_gate_b_d_and_e_company3_sepehr_petro_toman_and_partial_import() -> None
     )
     # Must report blocking/error issue and NOT allow dirty data into canonical model
     assert len(issues_err) > 0
-    assert any(iss.code == "REQUIRED_VALUE_MISSING" for iss in issues_err)
+    assert any(iss.code == "INVOICE_ID_MISSING" for iss in issues_err)
     assert any(iss.severity == IssueSeverity.ERROR for iss in issues_err)
 
     # Also test unparseable money

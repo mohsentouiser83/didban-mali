@@ -26,6 +26,7 @@ from app.findings.models import (
     FindingWorkflowStatus,
     PriorityBand,
 )
+from app.findings.titles import finding_title
 
 FINAL_ANALYSIS = {AnalysisStatus.COMPLETED, AnalysisStatus.COMPLETED_LIMITED}
 FINAL_FINDINGS = {FindingRunStatus.COMPLETED, FindingRunStatus.COMPLETED_LIMITED}
@@ -200,7 +201,7 @@ def _finding_response(item: Finding) -> DashboardFinding:
     return DashboardFinding(
         id=item.id,
         finding_code=item.finding_code,
-        title_fa=item.title_fa,
+        title_fa=finding_title(item),
         summary_fa=item.summary_fa,
         priority_band=item.priority_band,
         priority_score=item.priority_score,
@@ -304,7 +305,7 @@ async def build_dashboard(
             DashboardDriver(
                 finding_id=item.id,
                 finding_code=item.finding_code,
-                title_fa=item.title_fa,
+                title_fa=finding_title(item),
                 direction=(
                     str(item.calculation_json["direction"])
                     if item.calculation_json.get("direction")

@@ -98,3 +98,28 @@ it("blocks upload on an account loading failure and allows retry", async () => {
   await screen.findByLabelText("نام حساب جدید");
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
+
+it("maps settlement references separately from invoice totals and commits only on the final action", async () => {
+  const settlement = { ...batch, source_kind: "settlement_sales", original_name: "settlements.csv" } as ImportBatch;
+  const fields = ["settlement_id", "payment_date", "settlement_amount", "tax_id", "bank_reference"];
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.endsWith("/preview")) return { ...preview, required_fields: fields.slice(0,3), alternative_required_fields: [], columns: fields,
+      suggestions: fields.map((target_field) => ({ target_field, source_column: target_field })) } as never;
+    if (path.endsWith("/mapping")) return {} as never;
+    if (path.endsWith("/validate")) return { batch: { ...settlement, row_count: 3, accepted_count: 3, rejected_count: 0 }, issue_counts: {}, coverage: {} } as never;
+    if (path.endsWith("/commit")) return { ...settlement, status: "queued" } as never;
+    throw new Error("Unexpected request");
+  });
+  const done = vi.fn();
+  render(<UploadWizard company={company} initialBatch={settlement} onSaving={() => {}} onCancel={() => {}} onUpdated={() => {}} onDone={done} />);
+  await screen.findByLabelText("مبلغ تسویه *");
+  fireEvent.click(screen.getByRole("button", { name: "ادامه" }));
+  await screen.findByRole("button", { name: "ثبت سند" });
+  const saved = vi.mocked(api).mock.calls.find(([path]) => path.endsWith("/mapping"))!;
+  const payload = JSON.parse(saved[1]!.body as string);
+  expect(payload.mapping.settlement_amount).toBe("settlement_amount");
+  expect(payload.mapping.gross_amount).toBeUndefined();
+  expect(done).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "ثبت سند" }));
+  await waitFor(() => expect(done).toHaveBeenCalledOnce());
+});

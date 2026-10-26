@@ -1,0 +1,4 @@
+﻿source_file,sheet,source_row,row_id,raw_date,raw_amount,error_code,effect_irr
+invalid-rows.xlsx,خطاها,3,00002,2026-02-30,20,invalid_date,20
+invalid-rows.xlsx,خطاها,4,00003,2026-09-03,abc,invalid_amount,unknown
+invalid-rows.xlsx,خطاها,5,00004,2026-09-04,0.0000001,excess_precision,not_imported

@@ -1,0 +1,31 @@
+{
+  "id": "F14",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "rows": [
+      {
+        "id": "T1",
+        "tax": null,
+        "kind": "original"
+      },
+      {
+        "id": "T2",
+        "tax": "10",
+        "kind": "correction",
+        "reference": "MISSING"
+      }
+    ]
+  },
+  "expected": {
+    "tax": null,
+    "chain_state": "needs_review",
+    "financial_effect": null,
+    "reason_codes": [
+      "tax_missing",
+      "reference_missing"
+    ]
+  },
+  "application_execution": "not_run"
+}

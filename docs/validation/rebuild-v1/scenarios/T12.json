@@ -1,0 +1,23 @@
+{
+  "id": "T12",
+  "level": "browser",
+  "events": [
+    "desktop and mobile upload",
+    "question dialog keyboard focus and Escape",
+    "refresh waiting session",
+    "real OS reduced motion",
+    "chart and tooltip keyboard interaction"
+  ],
+  "assertions": [
+    "server pause persists",
+    "focus restored",
+    "visible states and charts",
+    "motion disabled without hiding progress"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

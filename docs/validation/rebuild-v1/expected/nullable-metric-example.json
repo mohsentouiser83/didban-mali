@@ -1,0 +1,29 @@
+{
+  "schema_version": "fixture-1-example-not-final-openapi",
+  "metric_key": "ar_invoice_historical",
+  "basis": "invoice",
+  "scope": {
+    "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+    "invoice_ids": [
+      "ad76ad50-b844-5246-8fea-033433d8db03"
+    ]
+  },
+  "value": null,
+  "unit": "IRR",
+  "status": "unavailable",
+  "as_of_date": "2026-09-30",
+  "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+  "comparison": null,
+  "reason_codes": [
+    "payment_dates_missing"
+  ],
+  "coverage": {
+    "state": "insufficient_history"
+  },
+  "formula_version": "financial-contract-0.1-fixture-1",
+  "manifest_id": "c40e41f1-74a2-5cd7-8edb-91065e8ada4a",
+  "evidence_refs": [
+    "scenarios/F12.json:input"
+  ],
+  "message_fa": "تاریخ وصول‌ها برای محاسبه مانده دوره موجود نیست."
+}

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api } from "@/lib/product-api";
-export function useFinancialValidation(companyId: string, onValidated: () => void) {
+export function useFinancialValidation(companyId: string, onValidated: () => void, request: typeof api = api) {
   const [cash, setCash] = useState("15000000000");
   const [receivables, setReceivables] = useState("32000000000");
   const [payables, setPayables] = useState("18000000000");
@@ -23,7 +23,7 @@ export function useFinancialValidation(companyId: string, onValidated: () => voi
     setError(null);
 
     try {
-      await api(`/companies/${companyId}/onboarding/validate`, {
+      await request(`/companies/${companyId}/onboarding/validate`, {
         method: "POST",
         body: JSON.stringify({
           cash_position_irr: cash,

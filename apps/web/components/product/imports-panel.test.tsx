@@ -154,7 +154,7 @@ describe("ImportsPanel", () => {
     render(<ImportsPanel company={mockCompanyOwner} />);
     fireEvent.click(screen.getByRole("button", { name: "بارگذاری فایل" }));
     fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [new File(["invalid"], "document.exe")] } });
-    expect(screen.getByText("فایل باید CSV، XLS، XLSX یا PDF بانک باشد.")).toBeInTheDocument();
+    expect(screen.getByText("فایل باید CSV، XLS، XLSX یا PDF متنی باشد.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ادامه" })).toBeDisabled();
     expect(vi.mocked(api).mock.calls.some(([path]) => path.endsWith("/uploads"))).toBe(false);
   });

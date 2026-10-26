@@ -1,0 +1,28 @@
+{
+  "id": "F08",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "gross": "100",
+    "snapshot": {
+      "as_of": "2026-09-30",
+      "paid": "30",
+      "included_events": [
+        "E1"
+      ]
+    },
+    "events": [
+      {
+        "id": "E1",
+        "date": "2026-09-15",
+        "amount": "30"
+      }
+    ]
+  },
+  "expected": {
+    "paid": "30",
+    "remaining": "70"
+  },
+  "application_execution": "not_run"
+}

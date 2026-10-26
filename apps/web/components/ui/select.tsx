@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { cva, type VariantProps } from "class-variance-authority";
-import { Check, ChevronDown, ChevronUp } from "@/components/ui/icons";
+import { Check, ChevronDown, ChevronUp, type AppIcon } from "@/components/ui/icons";
 
 import { cn } from "@/lib/utils";
 import { inputVariants } from "@/components/ui/input";
@@ -42,6 +42,7 @@ export interface SelectTriggerProps
   extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
     VariantProps<typeof selectTriggerVariants> {
   isInvalid?: boolean;
+  icon?: AppIcon;
 }
 
 const SelectTrigger = React.forwardRef<
@@ -49,7 +50,7 @@ const SelectTrigger = React.forwardRef<
   SelectTriggerProps
 >(
   (
-    { className, children, size = "default", isInvalid = false, ...props },
+    { className, children, size = "default", isInvalid = false, icon: FieldIcon, ...props },
     ref,
   ) => {
     return (
@@ -59,7 +60,7 @@ const SelectTrigger = React.forwardRef<
         className={cn(selectTriggerVariants({ size, isInvalid }), className)}
         {...props}
       >
-        {children}
+        {FieldIcon ? <><FieldIcon size={18} aria-hidden="true" className="shrink-0 text-primary/75" /><span className="min-w-0 flex-1 truncate text-start">{children}</span></> : children}
         <SelectPrimitive.Icon asChild>
           <ChevronDown className="size-4 shrink-0 text-[var(--ds-foreground-soft)] transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </SelectPrimitive.Icon>

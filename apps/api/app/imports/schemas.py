@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.imports.models import FileScanStatus, ImportStatus, IssueSeverity, SourceKind
+from app.imports.structure import InputScope, SourceLayout
 
 
 class BankAccountResponse(BaseModel):
@@ -56,6 +57,7 @@ TransformName = Literal[
     "parse_date",
     "toman_to_rial",
     "withdrawal_negative",
+    "dot_thousands",
 ]
 
 
@@ -66,6 +68,8 @@ class MappingRequest(BaseModel):
     transforms: dict[str, list[TransformName]] = Field(default_factory=dict)
     currency_unit: Literal["rial", "toman"]
     calendar: Literal["jalali", "gregorian"]
+    layout: SourceLayout = Field(default_factory=SourceLayout)
+    scope: InputScope = Field(default_factory=InputScope)
     profile_name: str | None = Field(default=None, min_length=2, max_length=160)
 
     @field_validator("mapping")
@@ -91,6 +95,8 @@ class MappingResponse(BaseModel):
     header_row: int
     column_fingerprint: str
     confirmed_at: datetime
+    layout: SourceLayout = Field(default_factory=SourceLayout)
+    scope: InputScope = Field(default_factory=InputScope)
 
 
 class MappingSuggestion(BaseModel):
@@ -118,6 +124,7 @@ class PreviewRow(BaseModel):
 
 
 class MatchingProfileSummary(BaseModel):
+    layout: SourceLayout = Field(default_factory=SourceLayout)
     id: UUID
     name: str
     source_kind: SourceKind
@@ -131,6 +138,8 @@ class MatchingProfileSummary(BaseModel):
 
 
 class ImportPreviewResponse(BaseModel):
+    header_rows: int = 1
+    amount_field_groups: list[list[str]] = Field(default_factory=list)
     sheets: list[str]
     selected_sheet: str
     header_row: int

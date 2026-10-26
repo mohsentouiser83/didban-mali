@@ -1,0 +1,30 @@
+{
+  "id": "F15",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "current": "50",
+    "previous_variants": [
+      null,
+      "0"
+    ]
+  },
+  "expected": {
+    "variants": [
+      {
+        "previous": null,
+        "delta": null,
+        "percent": null,
+        "reason": "comparison_missing"
+      },
+      {
+        "previous": "0",
+        "delta": "50",
+        "percent": null,
+        "reason": "zero_denominator"
+      }
+    ]
+  },
+  "application_execution": "not_run"
+}

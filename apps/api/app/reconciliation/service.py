@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, insert, or_, select
+from sqlalchemy import delete, func, insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid6 import uuid7
 
@@ -15,19 +15,24 @@ from app.financial.models import (
     AccountClass,
     AccountClassification,
     BankTransaction,
+    BankAccount,
     Counterparty,
     JournalEntry,
     JournalLine,
 )
 from app.financial.queries import cash_account_scope
 from app.imports.models import ImportBatch, ImportStatus, SourceRow
+from app.reconciliation.account_links import validate_match_accounts
 from app.reconciliation.engine import (
     BankRecord,
     LedgerRecord,
     ReconciliationConfig,
     reconcile,
 )
+from app.reconciliation.input_scope import input_coverage
+from app.reconciliation.locking import lock_reconciliation_company
 from app.reconciliation.models import (
+    BankLedgerLink,
     MatchLevel,
     MatchStatus,
     ReconciliationAllocation,
@@ -35,6 +40,9 @@ from app.reconciliation.models import (
     ReconciliationRun,
     ReconciliationStatus,
 )
+from app.reconciliation.proposal_state import invalidate_competing_proposals
+from app.reconciliation.rejections import omit_rejected_proposals
+from app.reconciliation.summary import proposal_counts
 
 # Chunked normalization commits intermediate rows. Reconciliation only sees an
 # upload after all chunks are normalized, or after it has fully completed.
@@ -80,12 +88,19 @@ async def run_canonical_reconciliation(
     commit: bool = True,
 ) -> ReconciliationRun:
     """Execute reconciliation directly on Phase 1 canonical bank transactions and journal lines."""
+    await lock_reconciliation_company(session, company_id)
+    if bank_account_id is not None and not await session.scalar(
+        select(BankAccount.id).where(BankAccount.id == bank_account_id, BankAccount.company_id == company_id)
+    ):
+        raise ValueError("حساب بانکی انتخاب‌شده پیدا نشد.")
     config_params = config_params or {}
     config = ReconciliationConfig(
         rule_business_days=int(config_params.get("rule_business_days", 3)),
         review_calendar_days=int(config_params.get("review_calendar_days", 10)),
         fuzzy_threshold=Decimal(str(config_params.get("fuzzy_threshold", "70"))),
         ambiguity_margin=Decimal(str(config_params.get("ambiguity_margin", "5"))),
+        non_working_weekdays=tuple(config_params.get("non_working_weekdays", [4])),
+        holiday_dates=frozenset(date.fromisoformat(value) for value in config_params.get("holiday_dates", [])),
     )
 
     matched_banks, matched_journals = await get_active_matched_ids(session, company_id)
@@ -101,6 +116,7 @@ async def run_canonical_reconciliation(
         bank_stmt = bank_stmt.where(BankTransaction.booking_date >= period_start)
     if period_end:
         bank_stmt = bank_stmt.where(BankTransaction.booking_date <= period_end)
+    bank_inputs_available = bool(await session.scalar(select(bank_stmt.exists())))
     if matched_banks:
         bank_stmt = bank_stmt.where(BankTransaction.id.not_in(matched_banks))
 
@@ -132,15 +148,18 @@ async def run_canonical_reconciliation(
             JournalLine.credit_irr,
             JournalLine.invoice_ref,
             JournalLine.account_id,
+            BankLedgerLink.bank_account_id.label("ledger_bank_account_id"),
             JournalEntry.id.label("entry_id"),
             JournalEntry.entry_date,
-            JournalEntry.description,
+            func.coalesce(func.nullif(JournalLine.description, ""), JournalEntry.description).label("description"),
             JournalEntry.reference,
             JournalEntry.source_entry_id,
             Counterparty.name.label("counterparty_name"),
         )
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
         .join(Account, Account.id == JournalLine.account_id)
+        .outerjoin(BankLedgerLink, (BankLedgerLink.account_id == JournalLine.account_id)
+                   & (BankLedgerLink.company_id == JournalLine.company_id))
         .join(SourceRow, SourceRow.id == JournalLine.source_row_id)
         .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
         .outerjoin(Counterparty, Counterparty.id == JournalLine.counterparty_id)
@@ -149,14 +168,22 @@ async def run_canonical_reconciliation(
             READY_IMPORT,
             # Match cash/bank ledger lines, not all asset accounts (receivables,
             # inventory, etc.). Keep this scope consistent with analysis snapshots.
-            cash_account_scope(),
+            or_(cash_account_scope(), BankLedgerLink.id.is_not(None)),
             JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
         )
     )
+    if bank_account_id:
+        journal_stmt = journal_stmt.where(or_(
+            BankLedgerLink.bank_account_id == bank_account_id, BankLedgerLink.id.is_(None)
+        ))
     if period_start:
-        journal_stmt = journal_stmt.where(JournalEntry.entry_date >= period_start - timedelta(days=15))
+        journal_stmt = journal_stmt.where(JournalEntry.entry_date >= period_start - timedelta(days=config.candidate_window_days))
     if period_end:
-        journal_stmt = journal_stmt.where(JournalEntry.entry_date <= period_end + timedelta(days=15))
+        journal_stmt = journal_stmt.where(JournalEntry.entry_date <= period_end + timedelta(days=config.candidate_window_days))
+    journal_inputs_available = bool(await session.scalar(select(journal_stmt.exists())))
+    unmapped_count = int(await session.scalar(select(func.count()).select_from(
+        journal_stmt.where(BankLedgerLink.id.is_(None)).subquery()
+    )) or 0)
     if matched_journals:
         journal_stmt = journal_stmt.where(JournalLine.id.not_in(matched_journals))
 
@@ -173,6 +200,7 @@ async def run_canonical_reconciliation(
             amount_irr=Decimal(row.debit_irr) - Decimal(row.credit_irr),
             description=row.description,
             account_id=row.account_id,
+            bank_account_id=row.ledger_bank_account_id,
             reference=row.reference,
             invoice_ref=row.invoice_ref,
             source_entry_id=row.source_entry_id,
@@ -182,8 +210,9 @@ async def run_canonical_reconciliation(
     ]
 
     # 3. Execute deterministic matching engine
-    inputs_available = bool(banks or matched_banks) and bool(ledgers or matched_journals)
+    inputs_available = bank_inputs_available and journal_inputs_available
     proposals = reconcile(banks, ledgers, config) if inputs_available else []
+    proposals = await omit_rejected_proposals(session, company_id, proposals)
 
     # 4. Compute Summary Statistics
     auto_matched_proposals = [p for p in proposals if p.status == MatchStatus.AUTO_MATCHED]
@@ -194,7 +223,11 @@ async def run_canonical_reconciliation(
     allocated_journal_ids = {a.journal_line_id for p in auto_matched_proposals for a in p.allocations if a.journal_line_id}
 
     unmatched_banks = [b for b in banks if b.id not in allocated_bank_ids]
-    unmatched_ledgers = [item for item in ledgers if item.line_id not in allocated_journal_ids]
+    unmatched_ledgers = [
+        item for item in ledgers if item.line_id not in allocated_journal_ids
+        and (period_start is None or item.entry_date >= period_start)
+        and (period_end is None or item.entry_date <= period_end)
+    ]
 
     unmatched_bank_count = len(unmatched_banks)
     unmatched_journal_count = len(unmatched_ledgers)
@@ -205,14 +238,24 @@ async def run_canonical_reconciliation(
     min_date = period_start or (min((b.booking_date for b in banks), default=now.date()) if banks else now.date())
     max_date = period_end or (max((b.booking_date for b in banks), default=now.date()) if banks else now.date())
 
-    suggested_count = sum(1 for p in proposals if p.status == MatchStatus.SUGGESTED_MATCH)
+    coverage = await input_coverage(
+        session, company_id, min_date, max_date, bank_account_id=bank_account_id,
+        explicit_period=period_start is not None and period_end is not None,
+        accounting_confirmed=bool(config_params.get("accounting_complete")),
+        bank_confirmed=bool(config_params.get("bank_complete")), unmapped_count=unmapped_count,
+    )
+    suggestions = proposal_counts(proposals)
+    suggested_count = suggestions["suggested_count"]
     needs_review_count = sum(1 for p in proposals if p.status == MatchStatus.NEEDS_REVIEW)
     counts_payload = {
         "inputs_available": inputs_available,
+        "input_coverage": coverage,
+        "absence_checks_available": coverage["absence_checks_available"],
+        "limitations": coverage["limitations"],
         "total_bank_transactions": len(banks),
         "total_journal_lines": len(ledgers),
         "matched_count": matched_count,
-        "suggested_count": suggested_count,
+        **suggestions,
         "needs_review_count": needs_review_count,
         "unmatched_bank_count": unmatched_bank_count,
         "unmatched_journal_count": unmatched_journal_count,
@@ -279,6 +322,7 @@ async def run_canonical_reconciliation(
             run_id=run.id,
             bank_transaction_id=p.bank_transaction_id,
             journal_entry_id=p.journal_entry_id,
+            journal_line_id=next((a.journal_line_id for a in p.allocations if a.journal_line_id), None),
             match_type=p.match_type,
             match_level=p.match_level,
             status=p.status,
@@ -340,6 +384,7 @@ async def manual_reconciliation_match(
     note: str | None = None,
 ) -> ReconciliationMatch:
     """Manually match bank transactions and journal lines, validating exact Rial balance."""
+    await lock_reconciliation_company(session, company_id)
     # Check for already matched records
     matched_banks, matched_journals = await get_active_matched_ids(session, company_id)
     for b_id in bank_transaction_ids:
@@ -375,6 +420,7 @@ async def manual_reconciliation_match(
     if len(journal_lines) != len(journal_line_ids):
         raise ValueError("یک یا چند سطر سند حسابداری انتخاب‌شده یافت نشد.")
 
+    await validate_match_accounts(session, company_id, list(bank_txs), [line for line, _ in journal_lines])
     total_bank = sum((Decimal(b.amount_irr) for b in bank_txs), Decimal(0))
     total_journal = sum((Decimal(line.debit_irr) - Decimal(line.credit_irr) for line, _ in journal_lines), Decimal(0))
 
@@ -426,6 +472,7 @@ async def manual_reconciliation_match(
         run_id=latest_run.id,
         bank_transaction_id=first_bank_id,
         journal_entry_id=first_entry_id,
+        journal_line_id=journal_lines[0][0].id,
         match_type=match_type,
         match_level=MatchLevel.MANUAL,
         status=MatchStatus.CONFIRMED,
@@ -469,6 +516,10 @@ async def manual_reconciliation_match(
             )
         )
 
+    await invalidate_competing_proposals(session, company_id=company_id, proposal_id=match.id,
+                                        bank_ids=set(bank_transaction_ids), journal_ids=set(journal_line_ids),
+                                        actor_id=actor_id, now=now)
+
     record_audit_event(
         session,
         action="reconciliation.manual_match_created",
@@ -493,6 +544,7 @@ async def reverse_reconciliation_match(
     reason: str,
 ) -> ReconciliationMatch:
     """Reverse a match (Undo) and release its allocations."""
+    await lock_reconciliation_company(session, company_id)
     match = await session.scalar(
         select(ReconciliationMatch).where(
             ReconciliationMatch.id == match_id,
@@ -576,25 +628,31 @@ async def get_unmatched_records(
             JournalLine.invoice_ref,
             JournalEntry.entry_date,
             JournalEntry.source_entry_id,
-            JournalEntry.description,
+            func.coalesce(func.nullif(JournalLine.description, ""), JournalEntry.description).label("description"),
             Counterparty.name.label("counterparty_name"),
         )
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
         .join(Account, Account.id == JournalLine.account_id)
+        .outerjoin(BankLedgerLink, (BankLedgerLink.account_id == JournalLine.account_id)
+                   & (BankLedgerLink.company_id == JournalLine.company_id))
         .join(SourceRow, SourceRow.id == JournalLine.source_row_id)
         .join(ImportBatch, ImportBatch.id == SourceRow.import_batch_id)
         .outerjoin(Counterparty, Counterparty.id == JournalLine.counterparty_id)
         .where(
             JournalLine.company_id == company_id,
             READY_IMPORT,
-            cash_account_scope(),
+            or_(cash_account_scope(), BankLedgerLink.id.is_not(None)),
             JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
         )
     )
+    if bank_account_id:
+        j_stmt = j_stmt.where(or_(
+            BankLedgerLink.bank_account_id == bank_account_id, BankLedgerLink.id.is_(None)
+        ))
     if period_start:
-        j_stmt = j_stmt.where(JournalEntry.entry_date >= period_start - timedelta(days=15))
+        j_stmt = j_stmt.where(JournalEntry.entry_date >= period_start)
     if period_end:
-        j_stmt = j_stmt.where(JournalEntry.entry_date <= period_end + timedelta(days=15))
+        j_stmt = j_stmt.where(JournalEntry.entry_date <= period_end)
     if matched_journals:
         j_stmt = j_stmt.where(JournalLine.id.not_in(matched_journals))
     j_stmt = j_stmt.order_by(JournalEntry.entry_date.desc(), JournalLine.id)
@@ -675,6 +733,7 @@ async def _inputs(
             description=row.description,
             reference=row.reference,
             source_transaction_id=row.source_transaction_id,
+            bank_account_id=row.bank_account_id,
             running_balance_irr=row.running_balance_irr,
         )
         for row, _ in bank_rows
@@ -696,18 +755,22 @@ async def _inputs(
         await session.execute(
             select(
                 JournalEntry.id,
-                JournalEntry.source_row_id,
+                JournalLine.source_row_id,
                 JournalEntry.entry_date,
-                JournalEntry.description,
+                func.coalesce(func.nullif(JournalLine.description, ""), JournalEntry.description).label("description"),
                 JournalEntry.reference,
                 JournalEntry.source_entry_id,
                 JournalLine.id,
                 JournalLine.debit_irr,
                 JournalLine.credit_irr,
                 JournalLine.invoice_ref,
+                JournalLine.account_id,
+                BankLedgerLink.bank_account_id,
             )
             .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
             .join(Account, Account.id == JournalLine.account_id)
+        .outerjoin(BankLedgerLink, (BankLedgerLink.account_id == JournalLine.account_id)
+                   & (BankLedgerLink.company_id == JournalLine.company_id))
             .where(
                 JournalEntry.company_id == analysis.company_id,
                 JournalEntry.import_batch_id.in_(manifest_ids),
@@ -715,8 +778,10 @@ async def _inputs(
                     analysis.period_start - timedelta(days=31),
                     analysis.period_end + timedelta(days=31),
                 ),
-                classification == AccountClass.ASSET,
-                cash_account_scope(),
+                or_(
+                    (classification == AccountClass.ASSET) & cash_account_scope(),
+                    BankLedgerLink.id.is_not(None),
+                ),
                 JournalEntry.entry_type.not_in(["opening", "closing", "income_closing"]),
             )
             .order_by(JournalEntry.entry_date, JournalEntry.id, JournalLine.id)
@@ -735,6 +800,8 @@ async def _inputs(
                 line_id=row[6],
                 amount_irr=Decimal(row[7]) - Decimal(row[8]),
                 invoice_ref=row[9],
+                account_id=row[10],
+                bank_account_id=row[11],
             )
         )
     return banks, ledgers
@@ -774,6 +841,8 @@ async def execute_reconciliation(
         review_calendar_days=int(run.config_json.get("review_calendar_days", 10)),
         fuzzy_threshold=Decimal(str(run.config_json.get("fuzzy_threshold", "70"))),
         ambiguity_margin=Decimal(str(run.config_json.get("ambiguity_margin", "5"))),
+        non_working_weekdays=tuple(run.config_json.get("non_working_weekdays", [4])),
+        holiday_dates=frozenset(date.fromisoformat(value) for value in run.config_json.get("holiday_dates", [])),
     )
     proposals = reconcile(banks, ledgers, config)
     now = datetime.now(UTC)
@@ -787,6 +856,7 @@ async def execute_reconciliation(
                         "run_id": run.id,
                         "bank_transaction_id": item.bank_transaction_id,
                         "journal_entry_id": item.journal_entry_id,
+                        "journal_line_id": next((a.journal_line_id for a in item.allocations if a.journal_line_id), None),
                         "match_level": item.match_level,
                         "status": item.status,
                         "score": item.score,
@@ -806,7 +876,8 @@ async def execute_reconciliation(
         "bank_transactions": len(banks),
         "accounting_entries": len({item.entry_id for item in ledgers}),
         "auto_matched": status_counts[MatchStatus.AUTO_MATCHED.value],
-        "potential_matches": status_counts[MatchStatus.POTENTIAL_MATCH.value],
+        "potential_matches": proposal_counts(proposals)["suggested_count"],
+        **proposal_counts(proposals),
         "amount_mismatches": status_counts[MatchStatus.AMOUNT_MISMATCH.value],
         "date_mismatches": status_counts[MatchStatus.DATE_MISMATCH.value],
         "duplicates": status_counts[MatchStatus.DUPLICATE_HIGH.value]

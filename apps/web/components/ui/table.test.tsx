@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import {
   Table,
@@ -121,4 +121,17 @@ describe("Table Component & High-Density Styles", () => {
     expect(containerRef.current?.tabIndex).toBe(0);
   });
 
+});
+
+it("opens a row from any cell while preserving nested actions and table semantics", () => {
+  const activate = vi.fn();
+  const nested = vi.fn();
+  render(<Table><TableBody><TableRow onActivate={activate}><TableRowHeader><button onClick={nested}>جزئیات</button></TableRowHeader><TableCell>بحرانی</TableCell><TableCell><a href="#source" onClick={(event) => event.preventDefault()}>فایل</a></TableCell></TableRow></TableBody></Table>);
+  fireEvent.click(screen.getByText("بحرانی"));
+  expect(activate).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("row")).toHaveFocus();
+  fireEvent.click(screen.getByRole("button", { name: "جزئیات" }));
+  expect(nested).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("link", { name: "فایل" }));
+  expect(activate).toHaveBeenCalledTimes(1);
 });

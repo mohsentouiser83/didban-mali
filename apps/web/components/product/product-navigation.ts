@@ -22,6 +22,7 @@ export function productNavigation(base: string, actionCount = 0, criticalCount =
   const secondary: ProductNavGroup[] = [{ items: [
     { href: `${base}/financial-periods`, label: "دوره‌های مالی", icon: Calendar },
     { href: `${base}/imports`, label: "بارگذاری اسناد", icon: UploadCloud },
+    { href: `${base}/bank-accounts`, label: "ارتباط حساب‌های بانکی", icon: WalletCards },
     { href: `${base}/settlements`, label: "دریافت و پرداخت", icon: WalletCards },
     { href: `${base}/moadian`, label: "تطبیق مؤدیان", icon: ClipboardCheck },
     { href: `${base}/reports`, label: "گزارش‌ها", icon: FileText },

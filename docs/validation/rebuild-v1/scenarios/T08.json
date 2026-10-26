@@ -1,0 +1,22 @@
+{
+  "id": "T08",
+  "level": "integration",
+  "events": [
+    "company-a viewer requests upload",
+    "company-b member requests company-a result",
+    "worker lacks company-a membership",
+    "assistant attempts mutation"
+  ],
+  "assertions": [
+    "403",
+    "404",
+    "no cross-company rows",
+    "no mutation tool"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

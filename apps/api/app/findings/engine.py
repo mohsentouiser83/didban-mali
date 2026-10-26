@@ -37,7 +37,7 @@ from app.reconciliation.models import (
     ReconciliationMatch,
     ReconciliationRun,
 )
-from app.reconciliation.service import get_unmatched_records
+from app.reconciliation.service import get_active_matched_ids, get_unmatched_records
 
 
 @dataclass
@@ -100,8 +100,18 @@ async def build_evaluation_context(
         f"{s.rule_code}:{s.entity_id}": s for s in suppressions_db
     }
 
-    # 3. Fetch unmatched records
-    unmatched_data = await get_unmatched_records(session, company_id=company_id, limit=None)
+    latest_recon = await session.scalar(select(ReconciliationRun).where(
+        ReconciliationRun.company_id == company_id,
+        *([ReconciliationRun.id == reconciliation_run_id] if reconciliation_run_id else []),
+    ).order_by(ReconciliationRun.created_at.desc()).limit(1))
+
+    # Findings inherit the exact reconciliation scope.
+    unmatched_data = await get_unmatched_records(
+        session, company_id=company_id, limit=None,
+        bank_account_id=latest_recon.bank_account_id if latest_recon else None,
+        period_start=latest_recon.period_start if latest_recon else None,
+        period_end=latest_recon.period_end if latest_recon else None,
+    )
     unmatched_banks = (
         await session.scalars(
             select(BankTransaction).where(
@@ -111,10 +121,6 @@ async def build_evaluation_context(
         )
     ).all() if unmatched_data["bank_transactions"] else []
 
-    latest_recon = await session.scalar(select(ReconciliationRun).where(
-        ReconciliationRun.company_id == company_id,
-        *([ReconciliationRun.id == reconciliation_run_id] if reconciliation_run_id else []),
-    ).order_by(ReconciliationRun.created_at.desc()).limit(1))
     reconciliation_available = bool(latest_recon and latest_recon.counts_json.get("inputs_available"))
     reconciliation_matches = (await session.scalars(select(ReconciliationMatch).where(
         ReconciliationMatch.company_id == company_id, ReconciliationMatch.run_id == latest_recon.id,
@@ -391,7 +397,16 @@ async def execute_finding_detection(
             Finding.fingerprint.not_in(fps),
             Finding.status.in_(["new", "triaged", "in_progress", "reopened"]),
         ))).all()
+        matched_banks, matched_journals = await get_active_matched_ids(session, company_id)
         for finding in stale:
+            # Absence from a narrower or incomplete run never proves resolution.
+            confirmed = (
+                finding.source_entity_type == "bank_transaction" and finding.source_entity_id in matched_banks
+            ) or (
+                finding.source_entity_type == "journal_line" and finding.source_entity_id in matched_journals
+            )
+            if not confirmed:
+                continue
             previous = finding.status
             finding.status = FindingStatus.RESOLVED
             finding.resolution_type = "reconciled"

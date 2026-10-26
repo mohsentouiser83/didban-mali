@@ -1,0 +1,19 @@
+{
+  "id": "F09",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "trade_ap": "100",
+    "loan": "50",
+    "invoice_ap": "80",
+    "same_scope": true
+  },
+  "expected": {
+    "ledger_total": "150",
+    "trade_ledger": "100",
+    "invoice": "80",
+    "difference": "20"
+  },
+  "application_execution": "not_run"
+}

@@ -1,0 +1,36 @@
+{
+  "id": "F04",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "lines": [
+      {
+        "kind": "opening",
+        "role": "revenue",
+        "credit": "100"
+      },
+      {
+        "kind": "closing_transfer",
+        "role": "revenue",
+        "debit": "100"
+      },
+      {
+        "kind": "regular",
+        "role": "revenue",
+        "credit": "200"
+      },
+      {
+        "kind": "real_cogs_adjustment",
+        "role": "cogs",
+        "debit": "60"
+      }
+    ]
+  },
+  "expected": {
+    "revenue": "200",
+    "cogs": "60",
+    "profit_before_tax": "140"
+  },
+  "application_execution": "not_run"
+}

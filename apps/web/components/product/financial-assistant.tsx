@@ -1,4 +1,5 @@
 "use client";
+import { DetailSection, DetailGroup, DetailField, fieldIcon, ControlLabel } from "@/components/ui/field-layout";
 import { Form } from "@/components/ui/form";
 import { ActionTooltip } from "@/components/ui/tooltip";
 import { EmptyState, LoadingState, ErrorState, MoneyDisplay, toJalaliDate, toPersianDigits } from "@/components/ui/financial";
@@ -6,10 +7,10 @@ import { EmptyState, LoadingState, ErrorState, MoneyDisplay, toJalaliDate, toPer
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { DrawerDetails, DrawerSection } from "@/components/ui/drawer";
+
 import { Textarea } from "@/components/ui/textarea";
 import { formatFinancialNumber } from "@/components/ui/financial/money-display";
-import { Sparkles, X, ArrowUp, RefreshCcw } from "@/components/ui/icons";
+import { Sparkles, X, ArrowUp, RefreshCcw, FileText } from "@/components/ui/icons";
 import { api } from "@/lib/product-api";
 import styles from "./financial-assistant.module.css";
 
@@ -57,13 +58,13 @@ function AssistantMoney({ amount }: { amount: string }) {
 
 type ChatTurn = { id: number; question: string; answer?: AssistantAnswer; errorMessage?: string; status: "pending" | "answered" | "error" | "cancelled" };
 
-type AssistantProps = { companyId: string; companyName: string; onOpenChange?: (open: boolean) => void };
+type AssistantProps = { companyId: string; companyName: string; onOpenChange?: (open: boolean) => void; request?: typeof api };
 
 export function FinancialAssistant(props: AssistantProps) {
   return <AssistantPanel key={props.companyId} {...props} />;
 }
 
-function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps) {
+function AssistantPanel({ companyId, companyName, onOpenChange, request = api }: AssistantProps) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -100,7 +101,7 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
       ? [...previous, { id, question: text, status: "pending" }]
       : previous.map((turn) => turn.id === id ? { ...turn, status: "pending" } : turn));
     try {
-      const result = await api<AssistantAnswer>(`/companies/${companyId}/assistant/ask`, {
+      const result = await request<AssistantAnswer>(`/companies/${companyId}/assistant/ask`, {
         method: "POST", body: JSON.stringify({ question: text, ...(conversationId.current ? { conversation_id: conversationId.current } : {}) }), signal: controller.signal,
       });
       if (!controller.signal.aborted && version === requestVersion.current) {
@@ -145,39 +146,42 @@ function AssistantPanel({ companyId, companyName, onOpenChange }: AssistantProps
               {(turn.status === "error" || turn.status === "cancelled") && <ErrorState onRetry={() => void ask(turn.question, turn.id)} retrying={busy} variant="compact" ><p>{turn.status === "error" ? (turn.errorMessage ?? "پاسخ دریافت نشد. دوباره تلاش کنید.") : "بررسی این پیام متوقف شد."}</p></ErrorState>}
         {answer && <div className={styles.answer} aria-label="پاسخ دستیار">
           <p>{answer.answer_fa}</p>
-          <details className={styles.responseDetails}><summary>جزئیات و منابع پاسخ</summary>
-          <div className={styles.responseDetailContent}>
-          {answer.facts && <DrawerDetails>{answer.facts.map((fact) => <div key={fact.key}><dt>{fact.label}</dt><dd>{fact.display}</dd></div>)}</DrawerDetails>}
+          <section className="grid gap-5 border-t border-border pt-5"><h3 className="text-sm font-medium">جزئیات و منابع پاسخ</h3>
+          <div className="grid min-w-0 gap-5">
+          {answer.facts && <DetailGroup>{answer.facts.map((fact) => <DetailField key={fact.key} icon={fieldIcon(fact.label)} label={<>{fact.label}</>}>{fact.display}</DetailField>)}</DetailGroup>}
           {answer.sources && <div className={styles.sources}>{answer.sources.map((source) => <Link key={source.path} className={styles.sourceLink} href={`/companies/${companyId}/${source.path}`}>{source.title}</Link>)}</div>}
-          <DrawerDetails>
-            <div><dt>تاریخ مبنا</dt><dd>{toJalaliDate(answer.as_of_date)}</dd></div>
-            {answer.latest_imported_at && <div><dt>آخرین دریافت فایل منبع</dt><dd>{toJalaliDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(answer.latest_imported_at)))}</dd></div>}
-            {answer.latest_invoice_date && <div><dt>جدیدترین تاریخ فاکتور</dt><dd>{toJalaliDate(answer.latest_invoice_date)}</dd></div>}
-            {answer.total_outstanding_irr !== null && <div><dt>کل مطالبات</dt><dd><AssistantMoney amount={answer.total_outstanding_irr} /></dd></div>}
-            {answer.total_overdue_irr !== null && <div><dt>مطالبات سررسیدگذشته</dt><dd><AssistantMoney amount={answer.total_overdue_irr} /></dd></div>}
-          </DrawerDetails>
-          {answer.priorities.map((customer, index) => <DrawerSection title={`${toPersianDigits(index + 1)}. ${customer.customer_name}`} key={customer.customer_id}>
-            <DrawerDetails><div><dt>مبلغ سررسیدگذشته</dt><dd><AssistantMoney amount={customer.overdue_amount_irr} /></dd></div><div><dt>بیشترین تأخیر</dt><dd>{toPersianDigits(customer.max_delay_days)} روز</dd></div></DrawerDetails>
-            <details className={styles.evidence}><summary>مشاهده فاکتورها و شواهد</summary>
-              {customer.evidence.map((item) => <div className={styles.invoice} key={item.invoice_id}>
-                <strong>فاکتور <bdi>{toPersianDigits(item.invoice_no)}</bdi></strong>
-                <AssistantMoney amount={item.remaining_amount_irr} />
-                <p className={styles.caption}>سررسید: {item.due_date ? toJalaliDate(item.due_date) : "نامشخص"} · {toPersianDigits(item.delay_days)} روز تأخیر</p>
-                {item.import_batch_id ? <Link className={styles.sourceLink} href={`/companies/${companyId}/imports/${item.import_batch_id}`} onClick={() => changeOpen(false)}><bdi>{item.filename}</bdi> · شیت <bdi>{item.sheet}</bdi> · ردیف {toPersianDigits(item.row_number ?? 0)}</Link> : <EmptyState variant="inline">نشانی ردیف منبع در دسترس نیست.</EmptyState>}
-              </div>)}
+          <DetailGroup>
+            <DetailField icon={fieldIcon("تاریخ مبنا")} label="تاریخ مبنا">{toJalaliDate(answer.as_of_date)}</DetailField>
+            {answer.latest_imported_at && <DetailField icon={fieldIcon("آخرین دریافت فایل منبع")} label="آخرین دریافت فایل منبع">{toJalaliDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(answer.latest_imported_at)))}</DetailField>}
+            {answer.latest_invoice_date && <DetailField icon={fieldIcon("جدیدترین تاریخ فاکتور")} label="جدیدترین تاریخ فاکتور">{toJalaliDate(answer.latest_invoice_date)}</DetailField>}
+            {answer.total_outstanding_irr !== null && <DetailField icon={fieldIcon("کل مطالبات")} label="کل مطالبات"><AssistantMoney amount={answer.total_outstanding_irr} /></DetailField>}
+            {answer.total_overdue_irr !== null && <DetailField icon={fieldIcon("مطالبات سررسیدگذشته")} label="مطالبات سررسیدگذشته"><AssistantMoney amount={answer.total_overdue_irr} /></DetailField>}
+          </DetailGroup>
+          {answer.priorities.map((customer, index) => <DetailSection title={`${toPersianDigits(index + 1)}. ${customer.customer_name}`} key={customer.customer_id}>
+            <DetailGroup><DetailField icon={fieldIcon("مبلغ سررسیدگذشته")} label="مبلغ سررسیدگذشته"><AssistantMoney amount={customer.overdue_amount_irr} /></DetailField><DetailField icon={fieldIcon("بیشترین تأخیر")} label="بیشترین تأخیر">{toPersianDigits(customer.max_delay_days)} روز</DetailField></DetailGroup>
+            <section className="grid min-w-0 gap-4"><h4 className="text-sm font-medium">فاکتورها و شواهد</h4>
+              {customer.evidence.map((item) => <DetailSection key={item.invoice_id}><DetailGroup>
+                <DetailField icon={fieldIcon("شماره فاکتور")} label="شماره فاکتور">{toPersianDigits(item.invoice_no)}</DetailField>
+                <DetailField icon={fieldIcon("مانده فاکتور")} label="مانده فاکتور"><AssistantMoney amount={item.remaining_amount_irr} /></DetailField>
+                <DetailField icon={fieldIcon("سررسید")} label="سررسید">{item.due_date ? toJalaliDate(item.due_date) : "نامشخص"}</DetailField>
+                <DetailField icon={fieldIcon("تأخیر")} label="تأخیر">{toPersianDigits(item.delay_days)} روز</DetailField>
+                <DetailField icon={fieldIcon("فایل منبع")} label="فایل منبع">{item.filename ?? "در دسترس نیست"}</DetailField>
+                <DetailField icon={fieldIcon("شیت")} label="شیت">{item.sheet ?? "—"}</DetailField>
+                <DetailField icon={fieldIcon("ردیف منبع")} label="ردیف منبع">{item.row_number == null ? "—" : toPersianDigits(item.row_number)}</DetailField>
+              </DetailGroup>{item.import_batch_id && <Button variant="outline" size="sm" asChild><Link href={`/companies/${companyId}/imports/${item.import_batch_id}`} onClick={() => changeOpen(false)}><FileText size={16} aria-hidden="true" />مشاهده فایل منبع</Link></Button>}</DetailSection>)}
               {customer.omitted_evidence_count > 0 && <p className={styles.caption}>{toPersianDigits(customer.omitted_evidence_count)} فاکتور دیگر در مبلغ این مشتری لحاظ شده است.</p>}
-            </details>
-          </DrawerSection>)}
+            </section>
+          </DetailSection>)}
           {answer.caveats_fa.length > 0 && <div className={styles.notice}><strong>ملاحظات پاسخ</strong><ul>{answer.caveats_fa.map((text) => <li key={text}>{text}</li>)}</ul></div>}
-          </div></details>
+          </div></section>
           {answer.status === "no_data" && <Button variant="outline" asChild><Link href={`/companies/${companyId}/imports`} onClick={() => changeOpen(false)}>افزودن فایل فروش</Link></Button>}
         </div>}
             </div>
           </div>;
         })}
       </div>
-      <Form className={styles.form} onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
-        <label className="sr-only" htmlFor={`assistant-question-${companyId}`}>پرسش شما</label>
+      <Form className="shrink-0 space-y-2 border-t border-border bg-background px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5" onSubmit={(event) => { event.preventDefault(); void ask(question); }}>
+        <ControlLabel htmlFor={`assistant-question-${companyId}`} icon={fieldIcon("پرسش شما")}>پرسش شما</ControlLabel>
         <div className={styles.composer}>
           <Textarea ref={input} id={`assistant-question-${companyId}`} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void ask(question); }

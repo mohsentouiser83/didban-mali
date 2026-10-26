@@ -49,6 +49,7 @@ from app.imports.mapping import (
     download_to_seekable,
     parse_table,
     raw_row_hash,
+    separate_ledger_controls,
     suggest_mapping,
     transform_and_validate_row,
     validate_mapping_fields,
@@ -67,6 +68,7 @@ from app.imports.models import (
     SourceRow,
     ValidationIssue,
 )
+from app.imports.revisions import RevisionConflict, revise_structure
 from app.imports.schemas import (
     BankAccountResponse,
     ImportBatchResponse,
@@ -83,8 +85,17 @@ from app.imports.schemas import (
     ValidationResponse,
 )
 from app.imports.storage import get_storage, iter_object
+from app.imports.structure import (
+    InputScope,
+    SourceLayout,
+    inherited_rows,
+    select_rows,
+    unknown_filter_rows,
+    validate_layout,
+)
 from app.imports.tasks import inspect_upload
 from app.imports.validation import receive_and_validate
+from app.moadian.models import InvoiceComparisonRun
 from app.reconciliation.models import ReconciliationMatch
 
 router = APIRouter(prefix="/companies/{company_id}/imports", tags=["imports"])
@@ -173,6 +184,8 @@ def _mapping_response(version: MappingVersion) -> MappingResponse:
         header_row=metadata["header_row"],
         column_fingerprint=metadata["column_fingerprint"],
         confirmed_at=version.confirmed_at,
+        layout=metadata.get("layout", {}),
+        scope=metadata.get("scope", {}),
     )
 
 
@@ -182,6 +195,7 @@ def _load_table(
     sheet_name: str | None,
     header_row: int,
     limit: int | None,
+    header_rows: int = 1,
 ) -> ParsedTable:
     body = get_storage().open(object_key)
     stream = download_to_seekable(body)
@@ -191,6 +205,7 @@ def _load_table(
             extension,
             sheet_name=sheet_name,
             header_row=header_row,
+            header_rows=header_rows,
             limit=limit,
         )
     finally:
@@ -253,7 +268,7 @@ async def get_import_summary(
             .group_by(ImportBatch.status)
         )
     ).all()
-    counts = dict(rows)
+    counts: dict[ImportStatus, int] = {item[0]: item[1] for item in rows}
     return {
         "total_count": sum(counts.values()),
         "pending_count": sum(counts.get(value, 0) for value in (
@@ -281,7 +296,7 @@ async def list_imports(
             .join(SourceFile, SourceFile.id == ImportBatch.file_id)
             .join(DataSource, DataSource.id == ImportBatch.source_id)
             .where(ImportBatch.company_id == company_id)
-            .where(DataSource.kind == source_kind if source_kind is not None else True)
+            .where(DataSource.kind == source_kind if source_kind is not None else ImportBatch.company_id == company_id)
             .order_by(ImportBatch.created_at.desc(), ImportBatch.id.desc())
             .offset(offset)
             .limit(limit)
@@ -385,9 +400,6 @@ async def upload_file(
         session, company_id, current_user.id, source_kind, normalized_label, bank_account_id,
     )
     validated = await receive_and_validate(file)
-    if validated.extension == ".pdf" and source_kind != SourceKind.BANK:
-        validated.stream.close()
-        raise HTTPException(422, "PDF فقط برای صورتحساب بانک قابل ورود است.")
     source_file = SourceFile(
         id=uuid7(),
         company_id=company_id,
@@ -511,6 +523,7 @@ async def list_mapping_templates(
                 currency_unit=m_json.get("currency_unit", "rial"),
                 calendar=m_json.get("calendar", "jalali"),
                 header_row=m_json.get("header_row", 1),
+            layout=m_json.get("layout", {}),
                 created_at=p.created_at,
             )
         )
@@ -540,7 +553,7 @@ async def list_import_rows(
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
     search: Annotated[str, Query(max_length=200)] = "",
-    row_status: Annotated[str, Query(pattern="^(all|accepted|rejected)$")] = "all",
+    row_status: Annotated[str, Query(pattern="^(all|accepted|rejected|review|matched)$")] = "all",
 ) -> dict[str, Any]:
     await _access(session, company_id, current_user.id)
     batch_row = await _batch_row(session, company_id, batch_id)
@@ -553,7 +566,11 @@ async def list_import_rows(
         ValidationIssue.source_row_id == SourceRow.id,
         ValidationIssue.severity.in_([IssueSeverity.ERROR, IssueSeverity.BLOCKING]),
     ).exists()
-    if row_status != "all":
+    if row_status in {"review", "matched"}:
+        filters.append(SourceRow.processing_result["status"].astext.in_(
+            ["review"] if row_status == "review" else ["matched", "duplicate"]
+        ))
+    elif row_status != "all":
         filters.append(has_error if row_status == "rejected" else ~has_error)
     if search.strip():
         # Treat wildcard characters as literal input.
@@ -570,9 +587,19 @@ async def list_import_rows(
         MappingVersion.company_id == company_id, MappingVersion.import_batch_id == batch_id,
     ))
     columns = version.mapping_json.get("columns") if version else None
+    outcomes = {row.id: dict(row.processing_result) for row in rows}
+    allocation_ids = [UUID(result["allocation_id"]) for result in outcomes.values() if result.get("allocation_id")]
+    if allocation_ids:
+        allocations = (await session.scalars(select(InvoiceAllocation).where(
+            InvoiceAllocation.company_id == company_id, InvoiceAllocation.id.in_(allocation_ids),
+        ))).all()
+        reversed_ids = {str(item.id) for item in allocations if item.reversed_at}
+        for result in outcomes.values():
+            if result.get("allocation_id") in reversed_ids:
+                result.update(status="reversed", reason="تخصیص برگشت داده شده است.")
     return {
         "columns": columns or (list(first.raw_json) if first else []), "total_count": total,
-        "items": [{"id": row.id, "row_number": row.row_number, "raw": row.raw_json,
+        "items": [{"id": row.id, "row_number": row.row_number, "raw": row.raw_json, "processing_result": outcomes[row.id],
             "issues": [{"field": issue.field, "severity": issue.severity, "message": issue.message, "remedy": issue.remedy}
                 for issue in issues if issue.source_row_id == row.id],
         } for row in rows],
@@ -587,6 +614,7 @@ async def preview_import(
     current_user: CurrentUser,
     sheet_name: Annotated[str | None, Query(max_length=160)] = None,
     header_row: Annotated[int, Query(ge=1, le=100)] = 1,
+    header_rows: Annotated[int, Query(ge=1, le=5)] = 1,
 ) -> ImportPreviewResponse:
     await _access(session, company_id, current_user.id)
     row = await _batch_row(session, company_id, batch_id)
@@ -604,6 +632,7 @@ async def preview_import(
         metadata = version.mapping_json
         sheet_name = metadata["sheet_name"]
         header_row = metadata["header_row"]
+        header_rows = metadata.get("layout", {}).get("header_rows", 1)
     try:
         parsed = await run_in_threadpool(
             _load_table,
@@ -611,13 +640,18 @@ async def preview_import(
             source_file.extension,
             sheet_name,
             header_row,
-            settings.import_preview_rows,
+            settings.import_max_rows + 1 if version and version.mapping_json.get("layout", {}).get("row_filter_column") else settings.import_preview_rows,
+            header_rows,
         )
     except TableParseError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
+    if version:
+        selected, _ = select_rows(parsed.rows, SourceLayout.model_validate(version.mapping_json.get("layout", {})))
+        parsed = ParsedTable(sheets=parsed.sheets, selected_sheet=parsed.selected_sheet, columns=parsed.columns,
+                             rows=selected[:settings.import_preview_rows], header_row=parsed.header_row)
     fingerprint = column_fingerprint(parsed.columns)
     matched_profile = await session.scalar(
         select(MappingProfile)
@@ -643,11 +677,14 @@ async def preview_import(
             currency_unit=m_json.get("currency_unit", "rial"),
             calendar=m_json.get("calendar", "jalali"),
             header_row=m_json.get("header_row", 1),
+            layout=m_json.get("layout", {}),
             created_at=matched_profile.created_at,
         )
     preview_rows: list[PreviewRow] = []
     mapping_response = _mapping_response(version) if version is not None else None
-    for row_number, raw in parsed.rows:
+    for row_number, raw, inherited in inherited_rows(
+        parsed.rows, version.mapping_json.get("layout", {}).get("fill_down_columns", []) if version else [],
+    ):
         transformed = None
         issues: list[RowIssue] = []
         if version is not None:
@@ -655,7 +692,7 @@ async def preview_import(
             transformed, issues = transform_and_validate_row(
                 source_kind=source.kind,
                 row_number=row_number,
-                raw=raw,
+                raw={**raw, **inherited},
                 mapping=metadata["fields"],
                 transforms=version.transforms_json,
                 currency_unit=metadata["currency_unit"],
@@ -673,6 +710,8 @@ async def preview_import(
         sheets=parsed.sheets,
         selected_sheet=parsed.selected_sheet,
         header_row=parsed.header_row,
+        header_rows=header_rows,
+        amount_field_groups=[["debit", "credit"], ["amount_signed"]] if source.kind == SourceKind.ACCOUNTING else [],
         columns=parsed.columns,
         column_fingerprint=fingerprint,
         rows=preview_rows,
@@ -727,6 +766,7 @@ async def confirm_mapping(
             payload.sheet_name,
             payload.header_row,
             1,
+            payload.layout.header_rows,
         )
     except TableParseError as exc:
         raise HTTPException(
@@ -734,12 +774,19 @@ async def confirm_mapping(
         ) from exc
     errors = validate_mapping_fields(source.kind, payload.mapping, parsed.columns)
     errors.extend(validate_transforms(payload.mapping, payload.transforms, payload.currency_unit))
+    errors.extend(validate_layout(payload.layout, payload.mapping, parsed.columns))
+    if payload.layout.invoice_rows != "records" and source.kind not in {
+        SourceKind.ACCOUNTING, SourceKind.SALES, SourceKind.PURCHASES, SourceKind.MOADIAN_SALES, SourceKind.MOADIAN_PURCHASES,
+    }:
+        errors.append("تجمیع اقلام فقط برای فاکتورها مجاز است.")
     if errors:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=errors)
 
     fingerprint = column_fingerprint(parsed.columns)
     metadata = {
         "fields": payload.mapping,
+        "layout": payload.layout.model_dump(mode="json"),
+        "scope": payload.scope.model_dump(mode="json"),
         "currency_unit": payload.currency_unit,
         "calendar": payload.calendar,
         "sheet_name": parsed.selected_sheet,
@@ -757,6 +804,13 @@ async def confirm_mapping(
                 MappingProfile.name == payload.profile_name,
             )
         )
+        if profile is not None and (
+            any(profile.mapping_json.get(key, {}) != metadata.get(key, {}) for key in
+                ("fields", "currency_unit", "calendar", "header_row"))
+            or SourceLayout.model_validate(profile.mapping_json.get("layout", {})) != payload.layout
+            or profile.transforms_json != payload.transforms
+        ):
+            raise HTTPException(409, "این نام قالب تنظیمات دیگری دارد؛ نام تازه‌ای انتخاب کنید.")
         if profile is None:
             profile = MappingProfile(
                 id=uuid7(),
@@ -874,6 +928,7 @@ async def validate_import(
             metadata["sheet_name"],
             metadata["header_row"],
             settings.import_max_rows + 1,
+            metadata.get("layout", {}).get("header_rows", 1),
         )
     except TableParseError as exc:
         issue = ValidationIssue(
@@ -935,12 +990,27 @@ async def validate_import(
         await session.commit()
         return result
 
+    if source.kind == SourceKind.ACCOUNTING:
+        financial, _controls = separate_ledger_controls(parsed.columns, parsed.rows, metadata["fields"])
+        parsed = ParsedTable(
+            sheets=parsed.sheets, selected_sheet=parsed.selected_sheet, columns=parsed.columns,
+            rows=financial, header_row=parsed.header_row, control_rows=[*parsed.control_rows, *_controls],
+        )
+    layout = SourceLayout.model_validate(metadata.get("layout", {}))
+    unclassified_rows = unknown_filter_rows(parsed.rows, layout)
+    selected, excluded_rows = select_rows(parsed.rows, layout)
+    parsed = ParsedTable(sheets=parsed.sheets, selected_sheet=parsed.selected_sheet, columns=parsed.columns,
+                         rows=selected, header_row=parsed.header_row, control_rows=parsed.control_rows)
     batch.status = ImportStatus.VALIDATING
     batch.stage = "full_validation"
     source_rows: list[SourceRow] = []
     pending_issues: list[tuple[UUID, RowIssue]] = []
     accepted = 0
-    for row_number, raw in parsed.rows:
+    balance_rows = 0
+    bank_identities: dict[str, set[str]] = {"iban": set(), "bank_account_number": set()}
+    for row_number, raw, inherited in inherited_rows(
+        parsed.rows, metadata.get("layout", {}).get("fill_down_columns", []),
+    ):
         source_row = SourceRow(
             id=uuid7(),
             company_id=company_id,
@@ -949,12 +1019,13 @@ async def validate_import(
             row_number=row_number,
             raw_json=raw,
             raw_hash=raw_row_hash(raw),
+            processing_result={"inherited_values": inherited} if inherited else {},
         )
         source_rows.append(source_row)
-        _, row_issues = transform_and_validate_row(
+        transformed_row, row_issues = transform_and_validate_row(
             source_kind=source.kind,
             row_number=row_number,
-            raw=raw,
+            raw={**raw, **inherited},
             mapping=metadata["fields"],
             transforms=version.transforms_json,
             currency_unit=metadata["currency_unit"],
@@ -964,7 +1035,23 @@ async def validate_import(
             issue.severity in {IssueSeverity.ERROR, IssueSeverity.BLOCKING} for issue in row_issues
         ):
             accepted += 1
+            if source.kind == SourceKind.SALES:
+                paid_column = metadata["fields"].get("paid_amount")
+                paid_value = str(raw.get(paid_column, "") if paid_column else "").strip()
+                if (paid_value not in {"", "None", "null", "-", "–", "—", "."}
+                    and transformed_row.get("customer_name") and transformed_row.get("invoice_no")):
+                    balance_rows += 1
+            if source.kind == SourceKind.BANK:
+                for field in bank_identities:
+                    value = "".join(str(transformed_row.get(field) or "").upper().split())
+                    if value:
+                        bank_identities[field].add(value)
         pending_issues.extend((source_row.id, issue) for issue in row_issues)
+    if any(len(values) > 1 for values in bank_identities.values()):
+        pending_issues.append((source_rows[0].id, RowIssue(
+            None, "bank_account_number", IssueSeverity.BLOCKING, "MULTIPLE_BANK_ACCOUNTS",
+            "فایل چند حساب بانکی دارد؛ ردیف‌های یک حساب را انتخاب کنید.",
+        )))
     session.add_all(source_rows)
     await session.flush()
     session.add_all(
@@ -990,6 +1077,31 @@ async def validate_import(
     batch.coverage_json = coverage_for(
         source.kind, row_count=len(source_rows), accepted_count=accepted, mapping=metadata["fields"]
     )
+    batch.coverage_json = {
+        **batch.coverage_json,
+        "input_scope": metadata.get("scope", InputScope().model_dump(mode="json")),
+        "row_selection": {"excluded": excluded_rows, "selected": len(source_rows), "unclassified": unclassified_rows},
+    }
+    if source.kind == SourceKind.SALES:
+        balance_ready = {"customer_name", "invoice_no", "paid_amount"} <= metadata["fields"].keys()
+        balance_ready = balance_ready and metadata.get("layout", {}).get("invoice_rows", "records") == "records"
+        batch.coverage_json = {**batch.coverage_json, "receivables": {
+            "available": balance_ready and accepted > 0 and balance_rows == accepted,
+            "balance_rows": balance_rows if balance_ready else 0,
+            "missing_balance_rows": accepted - balance_rows if balance_ready else accepted,
+            "reasons": [] if balance_ready and balance_rows == accepted else ["این فایل برای تطبیق فاکتورهاست؛ مانده وصول از آن مشخص نیست."],
+        }}
+    if source.kind == SourceKind.ACCOUNTING:
+        fields = metadata["fields"]
+        direction = metadata.get("layout", {}).get("invoice_direction", "mixed")
+        invoice_ready = bool(
+            fields.get("gross_amount") and any(fields.get(key) for key in ("invoice_no", "invoice_ref", "tax_id"))
+            and (direction != "mixed" or fields.get("invoice_direction"))
+        )
+        batch.coverage_json = {**batch.coverage_json, "invoice_comparison": {
+            "available": invoice_ready,
+            "directions": ["sales", "purchases"] if direction == "mixed" else [direction],
+        }}
     if not source_rows or not accepted:
         batch.status = ImportStatus.FAILED
         batch.stage = "validation_failed"
@@ -1188,6 +1300,12 @@ async def delete_import_batch(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="واردسازی پیدا نشد.")
     batch, source_file, source = row
+    used_in_comparison = await session.scalar(select(InvoiceComparisonRun.id).where(
+        InvoiceComparisonRun.company_id == company_id,
+        InvoiceComparisonRun.selection_json["batch_ids"].contains([str(batch_id)]),
+    ).limit(1))
+    if used_in_comparison:
+        raise HTTPException(409, "این فایل در گزارش ذخیره‌شده تطبیق مؤدیان استفاده شده است.")
 
     source_row_ids_subq = (
         select(SourceRow.id).where(
@@ -1213,6 +1331,7 @@ async def delete_import_batch(
     has_allocations = await session.scalar(select(InvoiceAllocation.id).where(
         InvoiceAllocation.company_id == company_id,
         (InvoiceAllocation.invoice_source_row_id.in_(source_row_ids_subq)) |
+        (InvoiceAllocation.settlement_source_row_id.in_(source_row_ids_subq)) |
         (InvoiceAllocation.bank_transaction_id.in_(bank_tx_ids_subq)),
     ).limit(1))
     has_linked_receipts = await session.scalar(select(InvoiceReceipt.id).join(
@@ -1383,3 +1502,24 @@ async def delete_mapping_template(
     await session.delete(profile)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{batch_id}/revise", response_model=ImportBatchResponse, status_code=201)
+async def revise_import_structure(
+    company_id: UUID, batch_id: UUID, session: DbSession, current_user: CurrentUser,
+    _csrf: CsrfProtected,
+) -> ImportBatchResponse:
+    access = await _access(session, company_id, current_user.id)
+    _require_upload_role(access)
+    row = await _batch_row(session, company_id, batch_id, for_update=True)
+    if row is None:
+        raise HTTPException(404, "واردسازی پیدا نشد.")
+    batch, source_file, source = row
+    _require_clean(source_file)
+    try:
+        revised = await revise_structure(session, batch, current_user.id)
+    except RevisionConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await session.commit()
+    await session.refresh(revised)
+    return _response(revised, source_file, source)

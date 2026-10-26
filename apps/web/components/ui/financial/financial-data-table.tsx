@@ -46,11 +46,11 @@ export function FinancialDataTable<T>({
           {column.sortable && onSort ? <Button variant="ghost" className="min-h-11 gap-1.5 px-0 text-inherit" onClick={() => onSort(column.key)}>{column.header}<SortIcon className="size-3" aria-hidden="true" /></Button> : column.header}
         </TableHead>;
       })}</TableRow></TableHeader>
-      <TableBody>{loading ? Array.from({ length: 4 }, (_, index) => <TableRow key={index}>{columns.map((column) => <TableCell key={column.key}><Skeleton className="h-4 w-28" /></TableCell>)}</TableRow>) : !data.length ?
+      <TableBody loading={loading}>{loading ? Array.from({ length: 4 }, (_, index) => <TableRow key={index}>{columns.map((column) => <TableCell key={column.key}><Skeleton className="h-4 w-28" /></TableCell>)}</TableRow>) : !data.length ?
         <TableRow><TableEmptyCell colSpan={Math.max(columns.length, 1)} className="h-40 p-0 text-center text-muted-foreground">{emptyMessage}</TableEmptyCell></TableRow> :
         data.map((row, index) => {
           const key = keyExtractor(row, index);
-          return <TableRow key={key} selected={selectedRowKey != null && selectedRowKey === key}>
+          return <TableRow key={key} onActivate={onRowClick ? () => onRowClick(row) : undefined} selected={selectedRowKey != null && selectedRowKey === key}>
             {columns.map((column, columnIndex) => {
               const content = column.render ? column.render(row, index) : String((row as Record<string, unknown>)[column.key] ?? "—");
               return <TableCell key={column.key} numeric={column.numeric} className={alignment(column)}>

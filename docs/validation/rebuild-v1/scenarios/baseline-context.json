@@ -1,0 +1,77 @@
+{
+  "schema_version": "fixture-1",
+  "synthetic": true,
+  "company_id": "company-a",
+  "timezone": "Asia/Tehran",
+  "calendar": "gregorian",
+  "currency": "IRR",
+  "periods": [
+    {
+      "id": "2026-08",
+      "start": "2026-08-01",
+      "end": "2026-08-31"
+    },
+    {
+      "id": "2026-09",
+      "start": "2026-09-01",
+      "end": "2026-09-30",
+      "previous_id": "2026-08"
+    }
+  ],
+  "as_of": "2026-09-30",
+  "declarations": {
+    "source": "fixture_author_not_independent_evidence",
+    "ledger_complete": true,
+    "bank_accounts": [
+      "bank_a",
+      "bank_b"
+    ],
+    "opening_anchor": "2026-08-01_start_of_day",
+    "bank_to_ledger": {
+      "بانک الف": "1101",
+      "بانک ب": "1102"
+    },
+    "invoice_openings_included": true,
+    "invoice_coverage": "all_open_at_2026-08-01_plus_all_september_invoices; settled_august_cash_invoice_not_supplied",
+    "historical_calibration": "July settled invoices before opening; effects already inside opening balances",
+    "vat_zero_explicit": true,
+    "august_income_tax_zero_confirmed": true,
+    "september_income_tax_recognized": true,
+    "coverage_end": "2026-10-03"
+  },
+  "roles": {
+    "ledger.xlsx": "financial_ledger",
+    "bank.xlsx": "cash_and_comparison",
+    "invoices.xlsx": "financial_invoices",
+    "settlements.csv": "financial_settlements",
+    "moadian-sales.csv": "comparison_only",
+    "moadian-purchases.csv": "comparison_only",
+    "planned-payments.csv": "future_obligations_not_current_expense",
+    "receipt-history.csv": "calibration_only_not_financial_import"
+  },
+  "forecast_policy": {
+    "version": "fixture-only-1",
+    "production_approved": false,
+    "minimum_events": 3,
+    "lookback_days": 180,
+    "delay_method": "amount_weighted_median",
+    "rounding": "none_needed_for_this_fixture"
+  },
+  "answers": [
+    {
+      "issue_id": "Q-RECEIPT-S001",
+      "question": "زمان پیشنهادی وصول گذشته است؛ تاریخ مورد انتظار؟",
+      "value": "2026-10-05",
+      "actor": "finance_manager",
+      "session_version": 1
+    },
+    {
+      "issue_id": "Q-PAYMENT-P000",
+      "question": "بدهی سررسیدگذشته چه تاریخی پرداخت می‌شود؟",
+      "value": "2026-10-12",
+      "actor": "finance_manager",
+      "session_version": 2
+    }
+  ],
+  "outcome_note": "Expected final output applies only after both valid answers; never auto-fill these dates."
+}

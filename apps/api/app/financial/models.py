@@ -335,6 +335,11 @@ class InvoiceAllocation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
+            ["settlement_source_row_id", "company_id"],
+            ["source_rows.id", "source_rows.company_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["bank_transaction_id", "company_id"],
             ["bank_transactions.id", "bank_transactions.company_id"],
             ondelete="RESTRICT",
@@ -347,9 +352,11 @@ class InvoiceAllocation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("company_id", "request_key", name="uq_invoice_allocation_request"),
         Index("ix_invoice_allocations_invoice", "company_id", "invoice_key"),
         Index("ix_invoice_allocations_bank", "bank_transaction_id"),
+        Index("ix_allocation_settlement_source", "settlement_source_row_id"),
     )
     company_id: Mapped[UUID] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
     invoice_source_row_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    settlement_source_row_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     invoice_key: Mapped[str] = mapped_column(String(64))
     bank_transaction_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
     direction: Mapped[str] = mapped_column(String(12))

@@ -1,4 +1,5 @@
 "use client";
+import { ControlLabel } from "@/components/ui/field-layout";
 import { FieldError, FieldDescription } from "@/components/ui/field";
 import { Form, FormMessage } from "@/components/ui/form";
 
@@ -88,14 +89,8 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 {mode === "register" && (
                   <>
                     <div className="space-y-1.5">
-                      <label
-                        htmlFor="auth-full_name"
-                        className="block text-xs font-semibold text-foreground"
-                      >
-                        نام و نام خانوادگی
-                      </label>
+                      <ControlLabel htmlFor="auth-full_name" icon={UserIcon}>نام و نام خانوادگی</ControlLabel>
                       <div className="auth-input-wrap relative flex items-center">
-                        <UserIcon className="input-icon absolute right-3.5 size-4 text-muted-foreground pointer-events-none" />
                         <Input
                           id="auth-full_name"
                           name="full_name"
@@ -111,7 +106,7 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                               : undefined
                           }
                           placeholder="مثلاً مهسا کریمی"
-                          className="ps-10 pe-3"
+                          className="text-start"
                         />
                       </div>
                       {fieldErrors.full_name && (
@@ -125,15 +120,12 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-                        <label htmlFor="auth-workspace_name">
-                          نام فضای کاری
-                        </label>
+                        <ControlLabel htmlFor="auth-workspace_name" icon={Building2}>نام فضای کاری</ControlLabel>
                         <span className="text-[11px] font-normal text-muted-foreground">
                           اختیاری
                         </span>
                       </div>
                       <div className="auth-input-wrap relative flex items-center">
-                        <Building2 className="input-icon absolute right-3.5 size-4 text-muted-foreground pointer-events-none" />
                         <Input
                           id="auth-workspace_name"
                           name="workspace_name"
@@ -148,7 +140,7 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                               : "auth-workspace_name-hint"
                           }
                           placeholder="مثلاً گروه مالی آریا"
-                          className="ps-10 pe-3"
+                          className="text-start"
                         />
                       </div>
                       <FieldDescription
@@ -168,14 +160,8 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 )}
 
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="auth-email"
-                    className="block text-xs font-semibold text-foreground"
-                  >
-                    {mode === "login" ? "ایمیل یا نام کاربری" : "ایمیل کاری"}
-                  </label>
+                  <ControlLabel htmlFor="auth-email" icon={Mail}>{mode === "login" ? "ایمیل یا نام کاربری" : "ایمیل کاری"}</ControlLabel>
                   <div className="auth-input-wrap relative flex items-center">
-                    <Mail className="input-icon absolute right-3.5 size-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="auth-email"
                       name="email"
@@ -192,7 +178,7 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                         fieldErrors.email ? "auth-email-error" : undefined
                       }
                       placeholder="ایمیل یا نام کاربری"
-                      className="pr-10 pl-3 text-end"
+                      className="text-start"
                     />
                   </div>
                   {fieldErrors.email && (
@@ -205,30 +191,10 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 </div>
 
                 <div className="auth-field space-y-1.5">
-                  <div className="field-label-row flex items-center justify-between text-xs font-semibold text-foreground">
-                    <label htmlFor="auth-password">رمز عبور</label>
-                    {mode === "login" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        className="forgot-password hover:underline font-normal cursor-pointer"
-                        aria-label="رمز را فراموش کرده‌اید؟"
-                        onClick={() => {
-                          const nextOpen = !recoveryOpen;
-                          setRecoveryOpen(nextOpen);
-                          if (nextOpen)
-                            requestAnimationFrame(() =>
-                              recoveryRef.current?.focus(),
-                            );
-                        }}
-                      >
-                        رمز را فراموش کرده‌اید؟
-                      </Button>
-                    )}
+                  <div className="h-6">
+                    <ControlLabel htmlFor="auth-password" icon={Lock}>رمز عبور</ControlLabel>
                   </div>
                   <div className="password-input-wrap relative flex items-center">
-                    <Lock className="input-icon absolute right-3.5 size-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="auth-password"
                       name="password"
@@ -259,14 +225,14 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                           .join(" ") || undefined
                       }
                       placeholder="رمز عبور"
-                      className="ps-10 pe-10 text-end"
+                      className="pe-12 text-start"
                     />
                     <Button
                       variant="surface"
-                      size="auto"
+                      size="icon"
                       motion="none"
                       type="button"
-                      className="password-toggle absolute left-3 size-6 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                      className="absolute end-0 top-0 size-11 min-h-11 min-w-11 text-muted-foreground hover:text-foreground"
                       aria-label={
                         showPassword ? "پنهان‌کردن رمز عبور" : "نمایش رمز عبور"
                       }
@@ -274,12 +240,31 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                       onClick={() => setShowPassword((shown) => !shown)}
                     >
                       {showPassword ? (
-                        <EyeOff className="size-4" />
+                        <EyeOff className="size-4" aria-hidden="true" />
                       ) : (
-                        <Eye className="size-4" />
+                        <Eye className="size-4" aria-hidden="true" />
                       )}
                     </Button>
                   </div>
+                    {mode === "login" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        className="forgot-password hover:underline font-normal cursor-pointer"
+                        aria-label="رمز را فراموش کرده‌اید؟"
+                        onClick={() => {
+                          const nextOpen = !recoveryOpen;
+                          setRecoveryOpen(nextOpen);
+                          if (nextOpen)
+                            requestAnimationFrame(() =>
+                              recoveryRef.current?.focus(),
+                            );
+                        }}
+                      >
+                        رمز را فراموش کرده‌اید؟
+                      </Button>
+                    )}
                   {mode === "register" && (
                     <FieldDescription
                       id="auth-password-hint"
@@ -359,10 +344,10 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
           </Tabs>
 
 
-          <details className="auth-assurance mt-4 text-xs text-muted-foreground border-t border-border/60 pt-4">
-            <summary className="cursor-pointer font-medium hover:text-foreground transition-colors text-center py-1">
+          <section className="auth-assurance mt-4 text-xs text-muted-foreground border-t border-border/60 pt-4">
+            <h3 className="text-center font-medium py-1">
               حریم خصوصی، امنیت و پشتیبانی
-            </summary>
+            </h3>
             <div className="mt-3 space-y-2.5 p-3 rounded-[var(--ds-card-radius)] bg-muted/40 text-[11px] leading-relaxed">
               <section>
                 <strong className="block font-semibold text-foreground mb-0.5">
@@ -392,7 +377,7 @@ export function AuthScreen({ initialMode = "login" }: AuthScreenProps) {
                 </p>
               </section>
             </div>
-          </details>
+          </section>
         </Card>
       </div>
     </main>

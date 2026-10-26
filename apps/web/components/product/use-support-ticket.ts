@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { api } from "@/lib/product-api";
-export function useSupportTicket(companyId: string, onOpenChange: (open: boolean) => void) {
+export function useSupportTicket(companyId: string, onOpenChange: (open: boolean) => void, request: typeof api = api) {
   const pathname = usePathname();
   const [category, setCategory] = useState<
     "P1_CRITICAL" | "P2_HIGH" | "P3_NORMAL" | "P4_QUESTION"
@@ -19,7 +19,7 @@ export function useSupportTicket(companyId: string, onOpenChange: (open: boolean
     setError(null);
 
     try {
-      await api(`/companies/${companyId}/support/tickets`, {
+      await request(`/companies/${companyId}/support/tickets`, {
         method: "POST",
         body: JSON.stringify({
           category,

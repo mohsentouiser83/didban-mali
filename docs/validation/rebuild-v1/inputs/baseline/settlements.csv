@@ -1,0 +1,6 @@
+﻿event_id,invoice_id,date,amount,bank_account,bank_reference,direction,currency
+E01,S000,2026-09-05,300,bank_a,RECOLD,receipt,IRR
+E02,S001,2026-09-06,400,bank_a,RECNEW,receipt,IRR
+E03,S002,2026-09-12,200,bank_b,CASHSALE,receipt,IRR
+E04,P001,2026-09-07,500,bank_a,PAY1,payment,IRR
+E05,S001,2026-10-03,100,bank_a,AFTER1,receipt,IRR

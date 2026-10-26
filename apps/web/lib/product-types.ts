@@ -43,7 +43,7 @@ export type BankAccount = {
 
 export type ImportBatch = {
   id: string;
-  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
+  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases" | "settlement_sales" | "settlement_purchases";
   source_label: string;
   status: ImportStatus;
   stage: string;
@@ -86,7 +86,10 @@ export type PreviewRow = {
   transformed: Record<string, unknown> | null;
   issues: PreviewIssue[];
 };
+export type ImportLayout = { number_format?: "standard" | "dot_thousands"; row_filter_column?: string | null; row_filter_value?: string; header_rows: number; fill_down_columns: string[]; invoice_rows: "records" | "line_totals" | "repeated_totals"; invoice_direction: "sales" | "purchases" | "mixed" };
+export type InputScope = { completeness: "unknown" | "partial" | "complete"; start_date: string | null; end_date: string | null };
 export type MappingResponse = {
+  layout?: ImportLayout; scope?: InputScope;
   id: string;
   import_batch_id: string;
   version: number;
@@ -100,9 +103,10 @@ export type MappingResponse = {
   confirmed_at: string;
 };
 export type MappingTemplateResponse = {
+  layout?: ImportLayout;
   id: string;
   company_id: string;
-  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
+  source_kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases" | "settlement_sales" | "settlement_purchases";
   name: string;
   column_fingerprint: string;
   mapping: Record<string, string>;
@@ -114,6 +118,7 @@ export type MappingTemplateResponse = {
 };
 
 export type ImportPreview = {
+  header_rows?: number; amount_field_groups?: string[][];
   sheets: string[];
   selected_sheet: string;
   header_row: number;
@@ -773,7 +778,7 @@ export type ReportSnapshot = {
 
 export type ReadinessState = "ready" | "limited" | "missing";
 export type SourceReadiness = {
-  kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases";
+  kind: "accounting" | "bank" | "sales" | "purchases" | "moadian_sales" | "moadian_purchases" | "settlement_sales" | "settlement_purchases";
   state: ReadinessState;
   completed_batches: number;
   last_activity_at: string | null;

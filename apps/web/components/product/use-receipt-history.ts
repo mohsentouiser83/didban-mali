@@ -10,7 +10,7 @@ const receiptRial = (text: string): bigint | null => {
   return match ? BigInt(match[1]) * BigInt(10) + BigInt(match[2] ?? "0") : null;
 };
 
-export function useReceiptHistory(companyId: string, onChanged: () => void, canWrite: boolean) {
+export function useReceiptHistory(companyId: string, onChanged: () => void, canWrite: boolean, request: typeof api = api) {
   const pending = useRef(false);
   const [open, setOpen] = useState(false);
   const [histories, setHistories] = useState<InvoiceHistory[]>([]);
@@ -23,7 +23,7 @@ export function useReceiptHistory(companyId: string, onChanged: () => void, canW
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   async function load() {
     setBusy(true); setError("");
-    try { setHistories(await api<InvoiceHistory[]>(`/companies/${companyId}/receivables/receipt-history`)); }
+    try { setHistories(await request<InvoiceHistory[]>(`/companies/${companyId}/receivables/receipt-history`)); }
     catch (err) { setError(err instanceof Error ? err.message : "تاریخچه دریافت نشد."); }
     finally { setBusy(false); }
   }
@@ -38,7 +38,7 @@ export function useReceiptHistory(companyId: string, onChanged: () => void, canW
     pending.current = true;
     setBusy(true); setError("");
     try {
-      await api(`/companies/${companyId}/receivables/invoices/${selected.invoice_id}/receipt-history`, { method: "PUT", body: JSON.stringify({
+      await request(`/companies/${companyId}/receivables/invoices/${selected.invoice_id}/receipt-history`, { method: "PUT", body: JSON.stringify({
         confirm_complete: true, expected_version: selected.version,
         receipts: draft.map((row) => ({ received_on: row.received_on, amount_irr: receiptRial(row.amount)!.toString(), reference: row.reference.trim() || null })),
       }) });

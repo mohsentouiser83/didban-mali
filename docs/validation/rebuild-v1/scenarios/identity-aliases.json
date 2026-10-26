@@ -1,0 +1,15 @@
+{
+  "note": "Readable aliases in financial fixtures map to deterministic UUIDs in API examples; adapter must preserve isolation.",
+  "aliases": {
+    "company-a": "a3157a45-115e-5ec9-9280-fedfda340f34",
+    "company-b": "fa02a7f7-be6b-5540-b2eb-b226021c4582",
+    "fixture-session-1": "4944b982-bfbc-5046-a746-3ac02f1741fd",
+    "fixture-manifest-1": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+    "fixture-F12": "c40e41f1-74a2-5cd7-8edb-91065e8ada4a",
+    "F12-INV": "ad76ad50-b844-5246-8fea-033433d8db03",
+    "2026-08": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+    "2026-09": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+    "Q-RECEIPT-S001": "ab09804d-b17d-51f6-aac8-97191da5329e",
+    "Q-PAYMENT-P000": "8a76164f-dcb5-52e8-92a2-1fbdae1ccd47"
+  }
+}

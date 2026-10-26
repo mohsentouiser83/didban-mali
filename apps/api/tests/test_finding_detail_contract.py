@@ -34,7 +34,8 @@ async def test_case_detail_includes_priority_evidence_and_workflow(monkeypatch):
     )
 
     async def detail(*args, **kwargs):
-        return {"finding": finding, "assigned_to_name": None, "resolved_by_name": None,
+        return {"title_fa": finding.title_fa, "summary_fa": finding.summary_fa,
+                "reconciliation_state": "not_applicable", "proposals": [], "finding": finding, "assigned_to_name": None, "resolved_by_name": None,
                 "verified_by_name": None, "evidence": [], "activities": []}
 
     monkeypatch.setattr(routes, "get_finding_detail", detail)
@@ -46,3 +47,6 @@ async def test_case_detail_includes_priority_evidence_and_workflow(monkeypatch):
     assert result["confidence_score"] == "100"
     assert result["workflow_status"] == "needs_review"
     assert result["priority_config"]["bands"]["high"] == "70"
+
+    assert result["reconciliation_state"] == "not_applicable"
+    assert result["proposals"] == []

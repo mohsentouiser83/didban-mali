@@ -35,6 +35,7 @@ from app.imports.models import (
     SourceRow,
     ValidationIssue,
 )
+from app.imports.structure import effective_raw
 
 CHUNK_SIZE = 1_000
 SPACE = re.compile(r"\s+")
@@ -113,7 +114,7 @@ def _transform(row: SourceRow, source: DataSource, version: MappingVersion) -> d
     transformed, issues = transform_and_validate_row(
         source_kind=source.kind,
         row_number=row.row_number,
-        raw=row.raw_json,
+        raw=effective_raw(row.raw_json, row.processing_result),
         mapping=metadata["fields"],
         transforms=version.transforms_json,
         currency_unit=metadata["currency_unit"],
@@ -382,8 +383,8 @@ async def _normalize_bank_chunk(
     identity = hashlib.sha256(iban.encode()).hexdigest() if iban else None
     if identity and account.iban_fingerprint and account.iban_fingerprint != identity:
         raise ValueError("صورتحساب متعلق به حساب بانکی انتخاب‌شده نیست.")
-    account_number = str(values[0][0].raw_json.get("شماره سپرده") or "").strip()
-    if re.fullmatch(r"\d{2,4}\.\d{1,4}\.\d{3,12}\.\d{1,4}", account_number):
+    account_number = str(values[0][1].get("bank_account_number") or values[0][0].raw_json.get("شماره سپرده") or "").strip()
+    if account_number:
         number_key = hashlib.sha256(account_number.encode()).hexdigest()
         if account.account_number_fingerprint and account.account_number_fingerprint != number_key:
             raise ValueError("شماره سپرده با حساب بانکی انتخاب‌شده سازگار نیست.")
@@ -393,7 +394,7 @@ async def _normalize_bank_chunk(
         await session.flush()
     tx_records: list[dict[str, object]] = []
     for row, item in values:
-        raw_desc = _text(item["description"])
+        raw_desc = _text(item.get("description") or "")
         tx_type = _optional_text(item.get("transaction_type"))
         desc = f"[{tx_type}] {raw_desc}" if tx_type and tx_type not in raw_desc else raw_desc
         tx_records.append(
@@ -442,6 +443,17 @@ async def _normalize_sales_chunk(
     rows: Sequence[SourceRow],
 ) -> None:
     values = [(row, _transform(row, source, version)) for row in rows]
+    # Comparing an invoice never proves its balance is unpaid.
+    paid_source = version.mapping_json["fields"].get("paid_amount")
+    if not paid_source or version.mapping_json.get("layout", {}).get("invoice_rows", "records") != "records":
+        return
+    values = [
+        (row, item) for row, item in values
+        if item.get("customer_name") and item.get("invoice_no")
+        and str(effective_raw(row.raw_json, row.processing_result).get(paid_source, "")).strip() not in {"", "None", "null", "-", "–", "—", "."}
+    ]
+    if not values:
+        return
     parties: dict[str, str] = {}
     for _, item in values:
         name = _text(item["customer_name"])
@@ -537,7 +549,7 @@ async def _normalize_sales_chunk(
 
 
 async def _normalized_count(session: AsyncSession, batch: ImportBatch, kind: SourceKind) -> int:
-    if kind in INVOICE_SNAPSHOT_KINDS:
+    if kind in INVOICE_SNAPSHOT_KINDS or kind == SourceKind.SALES:
         return batch.accepted_count
     if kind == SourceKind.ACCOUNTING:
         statement = select(func.count(JournalLine.id)).join(
@@ -585,6 +597,13 @@ async def normalize_import(
     await session.commit()
     await set_request_user(session, actor_id)
     await set_request_company(session, company_id)
+
+    from app.imports.mapping import SETTLEMENT_KINDS
+
+    if source.kind in SETTLEMENT_KINDS:
+        from app.settlements.import_service import process_settlement_import
+
+        return await process_settlement_import(session, batch, source, version, actor_id)
 
     after_row = 0
     while rows := await _accepted_rows(session, batch.id, after_row):

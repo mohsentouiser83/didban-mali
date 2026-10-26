@@ -31,6 +31,8 @@ class SourceKind(enum.StrEnum):
     PURCHASES = "purchases"
     MOADIAN_SALES = "moadian_sales"
     MOADIAN_PURCHASES = "moadian_purchases"
+    SETTLEMENT_SALES = "settlement_sales"
+    SETTLEMENT_PURCHASES = "settlement_purchases"
 
 
 class FileScanStatus(enum.StrEnum):
@@ -117,7 +119,7 @@ class ImportBatch(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "import_batches"
     __table_args__ = (
         CheckConstraint("progress >= 0 AND progress <= 100", name="ck_import_progress_range"),
-        UniqueConstraint("file_id", name="uq_import_batches_file"),
+        Index("ix_import_batches_file", "file_id"),
         UniqueConstraint("id", "company_id", name="uq_import_batch_company"),
         UniqueConstraint("company_id", "idempotency_key", name="uq_import_company_idempotency"),
         Index("ix_import_batches_company_created", "company_id", "created_at"),
@@ -234,6 +236,9 @@ class SourceRow(UUIDPrimaryKeyMixin, Base):
     row_number: Mapped[int] = mapped_column(Integer, nullable=False)
     raw_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     raw_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    processing_result: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}", nullable=False
+    )
 
 
 class ValidationIssue(UUIDPrimaryKeyMixin, Base):

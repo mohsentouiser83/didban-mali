@@ -1,4 +1,5 @@
 "use client";
+import { Trash2, X } from "./icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,10 +47,10 @@ export function ConfirmDialog({
             disabled={busy}
             onClick={() => onOpenChange(false)}
           >
-            انصراف
+            <X aria-hidden="true" />انصراف
           </Button>
           <Button type="button" variant="destructive" loading={busy} loadingText={busyLabel} onClick={onConfirm}>
-            {confirmLabel}
+            <Trash2 aria-hidden="true" />{confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

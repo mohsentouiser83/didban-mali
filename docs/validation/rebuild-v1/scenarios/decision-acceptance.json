@@ -1,0 +1,50 @@
+{
+  "schema_version": "decision-acceptance-1",
+  "synthetic": true,
+  "execution_status": "specified_not_executed",
+  "scope": "Acceptance requirements from explicit user decisions; not application test results or part of the original 318 fixture checks.",
+  "cases": [
+    {
+      "decision_id": "D01",
+      "setup": ["F01 input: 123.4 IRT", "Separate source variant: 123.4 USD", "Separate source variant: unknown unit"],
+      "expected": ["IRT normalizes to exactly 1234 IRR", "USD is unsupported_currency and is not converted or treated as IRR", "Unknown unit is not defaulted to IRR", "An incomplete total must not be presented as complete"]
+    },
+    {
+      "decision_id": "D02",
+      "setup": ["Only baseline/bank.xlsx selected", "Use the baseline company/account/anchor/currency/period declarations", "No necessary ambiguity question is open", "No ledger or invoice source selected"],
+      "expected": ["Cash at 2026-09-30 is available: 2798 IRR", "Revenue, expense and net profit from ledger are unavailable with ledger_source_missing", "Invoice-based AR/AP are unavailable with invoice_source_missing", "Session completes as completed_limited", "Missing sources alone do not create a global waiting_input barrier", "A necessary ambiguity question in a separate variant still blocks the whole session", "Supplemental sources create a new revision and preserve the old report"]
+    },
+    {
+      "decision_id": "D03",
+      "setup": ["First account-role mapping for company-a", "Independent role controls and evidence verification are test dependencies, separate from model output", "Variants: controls passed; model confidence only; conflicting human decision"],
+      "expected": ["Accept automatic role mapping only in the verified-controls variant", "Persist evidence, control results, automatic provenance and policy/effective version", "Model confidence alone cannot authorize acceptance", "Necessary ambiguity creates waiting_input for the whole session", "Do not overwrite a valid human decision", "Mapping acceptance does not assert source coverage or zero tax"],
+      "limitation": "This scenario does not establish the quality of role detection or implement the independent controls."
+    },
+    {
+      "decision_id": "D04",
+      "setup": ["Advisor/accountant is a current member of company-a", "Otherwise-valid financial answer, reconciliation decision and allocation/reversal request", "Variants: viewer; company-b-only membership; insufficient allocation capacity"],
+      "expected": ["Advisor may submit the authorized company-a operations", "Viewer cannot perform mutations", "Company-b-only membership grants no company-a access", "Financial capacity/version checks still apply", "Allocation reversal is compensating and audited", "No bank transfer is performed", "This authority alone does not permit report approval"]
+    },
+    {
+      "decision_id": "D05",
+      "setup": ["Immutable company-a report version R1", "Current finance manager; owner/advisor with and without explicit company-a approval permission", "Corrected report version R2"],
+      "expected": ["Finance manager may approve R1", "Owner/advisor may approve only with explicit company-a permission", "Viewer cannot approve", "Approval records actor, time, permission provenance and exact report version", "R1 approval does not carry to R2", "Generation and authorized download do not require prior approval"]
+    },
+    {
+      "decision_id": "D06",
+      "setup": ["Baseline source referenced by a historical manifest/report and allocation history", "Requests to archive, hard-delete or run configured retention", "Separate variant: no unresolved dependencies"],
+      "expected": ["Referenced source can be archived while its original and evidence remain available to authorized users", "Archiving does not change historical amounts or automatically remove financial effects", "Hard deletion is blocked while dependencies remain unresolved", "Reversing an allocation alone does not remove historical dependencies", "Retention and cascading deletion cannot bypass the guard", "Deletion without dependencies still requires authorization and explicit confirmation", "Backup restoration preserves consistent archived/deletion state"]
+    },
+    {
+      "decision_id": "D07",
+      "setup": ["Fresh project preparation", "Destination /Users/mohsentouiserkani/Projects/didban-mali-rebuild"],
+      "expected": ["Use a separate sibling project", "Preserve documents, fonts and design assets", "Do not copy legacy application code, users, schemas or business data", "Do not delete or reset the existing project"],
+      "limitation": "The destination is selected; project creation has not been executed in this review."
+    },
+    {
+      "decision_id": "D08",
+      "setup": ["Current owner of company-a grants/revokes explicit approval permission for an eligible company-a member", "Variants: finance manager; advisor; viewer; owner of company-b only; owner self-grant"],
+      "expected": ["Only the current company-a owner can grant or revoke company-a explicit approval permission", "Finance-manager authority to approve does not allow granting permission", "Installation administrator without company-a ownership gains no implicit grant authority", "Log actor, recipient, company, time and before/after values", "Ownership alone does not confer explicit report approval; self-grant must also be explicit and audited", "Revoke prevents new unauthorized approvals without deleting historical approvals"]
+    }
+  ]
+}

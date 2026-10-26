@@ -49,6 +49,14 @@ from app.findings.models import (
     ResolutionType,
 )
 from app.findings.priority import PriorityConfig, calculate_priority
+from app.findings.reconciliation_scope import (
+    ReconciliationFilter,
+    reconciliation_states,
+    review_direction_counts,
+    unmatched_condition,
+)
+from app.findings.review_proposals import finding_proposals
+from app.findings.titles import finding_summary, finding_title, finding_title_expression
 from app.identity.models import User
 from app.imports.models import ImportBatch, SourceFile, SourceRow
 from app.reconciliation.models import (
@@ -56,6 +64,7 @@ from app.reconciliation.models import (
     ReconciliationRun,
     ReconciliationStatus,
 )
+from app.reconciliation.summary import saved_proposal_counts
 
 FINAL_ANALYSIS = {AnalysisStatus.COMPLETED, AnalysisStatus.COMPLETED_LIMITED}
 FINAL_RECONCILIATION = {
@@ -105,7 +114,13 @@ async def get_finding_detail(
         ).all()
         user_map = {u.id: (u.full_name or u.email) for u in users}
 
+    state = (await reconciliation_states(session, [finding]))[finding.id]
+    proposals = await finding_proposals(session, finding) if state == "suggested" else []
     return {
+        "reconciliation_state": state,
+        "proposals": proposals,
+        "title_fa": finding_title(finding, state),
+        "summary_fa": finding_summary(finding, state),
         "finding": finding,
         "assigned_to_name": user_map.get(finding.assigned_to_user_id) if finding.assigned_to_user_id else None,
         "resolved_by_name": user_map.get(finding.resolved_by_user_id) if finding.resolved_by_user_id else None,
@@ -162,9 +177,10 @@ async def list_findings(
     assigned_to_user_id: UUID | None = None,
     is_suppressed: bool | None = False,
     search: str | None = None,
+    reconciliation_filter: ReconciliationFilter | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> tuple[list[dict[str, Any]], int]:
+) -> tuple[list[dict[str, Any]], int, dict[str, int]]:
     """Search and filter findings with user name resolution."""
     stmt = select(Finding).where(Finding.company_id == company_id)
 
@@ -193,24 +209,30 @@ async def list_findings(
         search_pattern = f"%{search.strip()}%"
         stmt = stmt.where(
             or_(
-                Finding.title_fa.ilike(search_pattern),
+                finding_title_expression().ilike(search_pattern),
                 Finding.summary_fa.ilike(search_pattern),
                 Finding.rule_code.ilike(search_pattern),
                 Finding.finding_code.ilike(search_pattern),
             )
         )
 
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total_count = (await session.scalar(count_stmt)) or 0
+    # Counts share company, search and workflow filters, but not the selected
+    # reconciliation direction or pagination, so users can compare both sides.
+    direction_counts = await review_direction_counts(session, stmt)
+    total_count = direction_counts[reconciliation_filter or "all"]
+    if reconciliation_filter:
+        stmt = stmt.where(unmatched_condition(reconciliation_filter))
 
     stmt = stmt.order_by(
         # Critical and High first, then newest
         (Finding.severity == "critical").desc(),
         (Finding.severity == "high").desc(),
         Finding.created_at.desc(),
+        Finding.id.desc(),
     ).limit(limit).offset(offset)
 
-    findings = (await session.scalars(stmt)).all()
+    findings = list((await session.scalars(stmt)).all())
+    states = await reconciliation_states(session, findings)
 
     user_ids = {f.assigned_to_user_id for f in findings if f.assigned_to_user_id}
     user_map: dict[UUID, str] = {}
@@ -231,8 +253,9 @@ async def list_findings(
             "rule_code": f.rule_code or f.finding_code,
             "kind": f.kind.value if hasattr(f.kind, "value") else str(f.kind),
             "category": f.category,
-            "title_fa": f.title_fa,
-            "summary_fa": f.summary_fa,
+            "title_fa": finding_title(f, states[f.id]),
+            "summary_fa": finding_summary(f, states[f.id]),
+            "reconciliation_state": states[f.id],
             "assertion_status": f.assertion_status.value if hasattr(f.assertion_status, "value") else str(f.assertion_status),
             "severity": f.severity,
             "priority_band": f.priority_band.value if hasattr(f.priority_band, "value") else str(f.priority_band),
@@ -243,7 +266,7 @@ async def list_findings(
             "confidence_score": f.confidence_score,
             "confidence_basis": f.confidence_basis_json,
             "affected_amount_irr": f.affected_amount_irr,
-            "financial_impact_irr": f.financial_impact_irr or f.affected_amount_irr,
+            "financial_impact_irr": f.financial_impact_irr if f.financial_impact_irr is not None else f.affected_amount_irr,
             "affected_ratio": f.affected_ratio,
             "period_start": f.period_start,
             "period_end": f.period_end,
@@ -263,7 +286,7 @@ async def list_findings(
         }
         for f in findings
     ]
-    return items, total_count
+    return items, total_count, direction_counts
 
 
 async def assign_finding(
@@ -742,7 +765,7 @@ async def get_control_overview(
     # Recent activity
     recent_acts = (
         await session.execute(
-            select(FindingActivity, User.full_name, Finding.title_fa)
+            select(FindingActivity, User.full_name, finding_title_expression())
             .join(Finding, Finding.id == FindingActivity.finding_id)
             .outerjoin(User, User.id == FindingActivity.user_id)
             .where(FindingActivity.company_id == company_id)
@@ -751,7 +774,12 @@ async def get_control_overview(
         )
     ).all()
 
+    direction_counts = await review_direction_counts(session, select(Finding).where(
+        Finding.company_id == company_id, Finding.is_suppressed.is_(False),
+    ))
+    suggestions = await saved_proposal_counts(session, company_id, latest_recon.id) if latest_recon else {}
     return {
+        "reconciliation_counts": direction_counts,
         "total_count": sum(counts_by_status.values()),
         "review_count": counts_by_status.get(FindingStatus.NEW, 0) + counts_by_status.get(FindingStatus.TRIAGED, 0),
         "follow_up_count": counts_by_status.get(FindingStatus.IN_PROGRESS, 0) + counts_by_status.get(FindingStatus.REOPENED, 0),
@@ -764,7 +792,10 @@ async def get_control_overview(
         "resolved_count": counts_by_status.get(FindingStatus.RESOLVED, 0),
         "verified_count": counts_by_status.get(FindingStatus.VERIFIED, 0),
         "latest_reconciliation": {
+            **suggestions,
             "run_id": latest_recon.id if latest_recon else None,
+            "limitations": latest_recon.counts_json.get("limitations", []) if latest_recon else [],
+            "absence_checks_available": latest_recon.counts_json.get("absence_checks_available", False) if latest_recon else False,
             "period_end": latest_recon.period_end if latest_recon else None,
             "matched_count": latest_recon.matched_count if latest_recon else 0,
             "unmatched_bank_count": latest_recon.unmatched_bank_count if latest_recon else 0,

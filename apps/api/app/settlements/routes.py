@@ -90,3 +90,50 @@ async def confirm_receipt_history(
     require_writer(access)
     await service.confirm_history(session, company_id, access.user_id, row_id, payload)
     return Response(status_code=204)
+
+
+@router.post("/imports/{batch_id}/retry", status_code=202)
+async def retry_settlement_import(
+    company_id: UUID,
+    batch_id: UUID,
+    session: DbSession,
+    access: CurrentCompanyAccess,
+    csrf: CsrfProtected,
+) -> dict[str, str]:
+    from celery.exceptions import CeleryError
+    from fastapi import HTTPException
+    from sqlalchemy import select
+
+    from app.financial.tasks import normalize_import_task
+    from app.imports.mapping import SETTLEMENT_KINDS
+    from app.imports.models import DataSource, ImportBatch, ImportStatus
+
+    require_writer(access)
+    row = (
+        await session.execute(
+            select(ImportBatch, DataSource.kind)
+            .join(
+                DataSource,
+                (DataSource.id == ImportBatch.source_id) & (DataSource.company_id == company_id),
+            )
+            .where(ImportBatch.id == batch_id, ImportBatch.company_id == company_id)
+            .with_for_update(of=ImportBatch)
+        )
+    ).first()
+    if row is None or row[1] not in SETTLEMENT_KINDS:
+        raise HTTPException(404, "فایل ریز تسویه پیدا نشد.")
+    batch = row[0]
+    if batch.status in {ImportStatus.QUEUED, ImportStatus.PROCESSING}:
+        return {"status": batch.status.value}
+    if batch.status not in {ImportStatus.COMPLETED, ImportStatus.COMPLETED_LIMITED}:
+        raise HTTPException(409, "ابتدا ورود فایل را تکمیل کنید.")
+    batch.status, batch.stage, batch.progress = ImportStatus.QUEUED, "ready_for_normalization", 0
+    await session.commit()
+    try:
+        normalize_import_task.delay(str(batch.id), str(company_id), str(access.user_id))
+    except CeleryError:
+        batch.status, batch.retryable = ImportStatus.FAILED, True
+        batch.failure_message = "صف پردازش در دسترس نیست؛ دوباره تلاش کنید."
+        await session.commit()
+        raise HTTPException(503, batch.failure_message) from None
+    return {"status": batch.status.value}

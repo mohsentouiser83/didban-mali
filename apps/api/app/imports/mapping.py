@@ -155,7 +155,7 @@ ALIASES: dict[str, tuple[str, ...]] = {
     "due_date": ("تاریخ سررسید", "سررسید", "due date"),
     "tax_amount": ("مالیات", "مالیات ارزش افزوده", "tax", "vat"),
     "paid_amount": ("مبلغ وصول شده", "پرداخت شده", "paid amount", "paid"),
-    "payment_date": ("تاریخ پرداخت", "payment date"),
+    "payment_date": ("تاریخ پرداخت", "تاریخ دریافت", "تاریخ تسویه", "payment date"),
     "customer_national_id": ("شناسه ملی مشتری", "کد ملی مشتری", "national id"),
     "status": ("وضعیت", "status"),
 }
@@ -163,17 +163,15 @@ ALIASES: dict[str, tuple[str, ...]] = {
 REQUIRED_FIELDS: dict[SourceKind, tuple[str, ...]] = {
     SourceKind.ACCOUNTING: (
         "entry_date",
-        "debit",
-        "credit",
     ),
-    SourceKind.BANK: ("booking_date", "description"),
-    SourceKind.SALES: ("invoice_no", "issue_date", "customer_name", "gross_amount"),
+    SourceKind.BANK: ("booking_date",),
+    SourceKind.SALES: ("issue_date", "gross_amount"),
 }
 
 ALTERNATIVE_REQUIRED_FIELDS: dict[SourceKind, tuple[tuple[str, ...], ...]] = {
     SourceKind.ACCOUNTING: (("account_code", "account_name"), ("general_code", "general_name")),
     SourceKind.BANK: (("amount_signed",), ("deposit_amount", "withdrawal_amount")),
-    SourceKind.SALES: (),
+    SourceKind.SALES: (("invoice_no",), ("tax_id",)),
 }
 
 TARGET_FIELDS: dict[SourceKind, tuple[str, ...]] = {
@@ -301,12 +299,67 @@ ALIASES["issue_date"] += ("تاریخ صدور صورتحساب", "تاریخ ص
 for kind in INVOICE_SNAPSHOT_KINDS:
     TARGET_FIELDS[kind] = INVOICE_FIELDS
     REQUIRED_FIELDS[kind] = (
-        ("tax_id", "issue_date", "gross_amount", "subject", "status")
+        ("tax_id", "issue_date", "gross_amount")
         if kind in PORTAL_KINDS
-        else ("invoice_no", "issue_date", "party_name", "gross_amount")
+        else ("issue_date", "gross_amount")
     )
-    ALTERNATIVE_REQUIRED_FIELDS[kind] = ()
+    ALTERNATIVE_REQUIRED_FIELDS[kind] = () if kind in PORTAL_KINDS else (("invoice_no",), ("tax_id",))
 TARGET_FIELDS[SourceKind.SALES] += ("tax_id", "subject", "reference_tax_id")
+
+TARGET_FIELDS[SourceKind.ACCOUNTING] += (
+    "amount_signed", "amount_direction", "invoice_no", "tax_id", "gross_amount", "tax_amount",
+    "party_id", "subject", "reference_tax_id", "status", "invoice_direction",
+)
+TARGET_FIELDS[SourceKind.BANK] += ("amount_direction", "bank_account_number")
+FIELD_LABELS["bank_account_number"] = "شماره حساب / سپرده"
+ALIASES["bank_account_number"] = ("شماره حساب", "شماره سپرده", "account number", "bank account number")
+FIELD_LABELS["amount_direction"] = "جهت گردش"
+FIELD_LABELS["invoice_direction"] = "جهت فاکتور"
+ALIASES["invoice_direction"] = ("نوع فاکتور", "خرید/فروش", "جهت فاکتور", "invoice direction")
+ALIASES["amount_direction"] = ("جهت", "جهت گردش", "ماهیت گردش", "بدهکار/بستانکار", "debit/credit", "direction", "dr/cr")
+
+SETTLEMENT_KINDS = {SourceKind.SETTLEMENT_SALES, SourceKind.SETTLEMENT_PURCHASES}
+for kind in SETTLEMENT_KINDS:
+    TARGET_FIELDS[kind] = (
+        "settlement_id",
+        "payment_date",
+        "settlement_amount",
+        "tax_id",
+        "invoice_no",
+        "party_id",
+        "bank_reference",
+        "bank_account",
+    )
+    REQUIRED_FIELDS[kind] = ("settlement_id", "payment_date", "settlement_amount")
+    ALTERNATIVE_REQUIRED_FIELDS[kind] = ()
+FIELD_LABELS.update(
+    {
+        "settlement_id": "شناسه ردیف تسویه",
+        "settlement_amount": "مبلغ تسویه",
+        "bank_reference": "شناسه تراکنش / پیگیری بانک",
+        "bank_account": "شبا / شماره حساب بانک",
+    }
+)
+ALIASES.update(
+    {
+        "settlement_id": (
+            "شناسه ردیف تسویه",
+            "شناسه تسویه",
+            "شماره سند دریافت",
+            "شماره سند پرداخت",
+            "settlement id",
+        ),
+        "settlement_amount": ("مبلغ تسویه", "مبلغ دریافت", "مبلغ پرداخت", "settlement amount"),
+        "bank_reference": (
+            "شناسه تراکنش",
+            "شماره پیگیری",
+            "کد رهگیری",
+            "شناسه مرجع",
+            "bank reference",
+        ),
+        "bank_account": ("شماره شبا", "شماره حساب", "شماره سپرده", "bank account"),
+    }
+)
 
 DATE_FIELDS = {
     "entry_date",
@@ -317,6 +370,7 @@ DATE_FIELDS = {
     "payment_date",
 }
 MONEY_FIELDS = {
+    "settlement_amount",
     "debit",
     "credit",
     "amount_signed",
@@ -455,23 +509,38 @@ def parse_table(
     *,
     sheet_name: str | None = None,
     header_row: int = 1,
+    header_rows: int = 1,
     limit: int | None = None,
 ) -> ParsedTable:
     stream.seek(0)
     if extension == ".pdf":
-        from app.imports.bank_pdf import parse_bank_pdf
+        import pdfplumber
 
-        return parse_bank_pdf(stream, limit=limit)
+        from app.imports.bank_pdf import logical, parse_bank_pdf
+        from app.imports.tabular_pdf import parse_tabular_pdf
+
+        try:
+            with pdfplumber.open(io.BytesIO(stream.read())) as document:
+                first = logical(document.pages[0].extract_text()) if document.pages else ""
+        except Exception as exc:
+            raise TableParseError("فایل PDF خوانده نشد؛ خروجی سالم و متنی وارد کنید.") from exc
+        stream.seek(0)
+        if "اقتصاد نوین" in first and "صورتحساب سپرده" in first:
+            return parse_bank_pdf(stream, limit=limit)
+        return parse_tabular_pdf(
+            stream, sheet_name=sheet_name, header_row=header_row,
+            header_rows=header_rows, limit=limit,
+        )
     if extension == ".csv":
-        return _parse_csv(stream, header_row=header_row, limit=limit)
+        return _parse_csv(stream, header_row=header_row, header_rows=header_rows, limit=limit)
     if extension == ".xls":
-        return _parse_xls(stream, sheet_name=sheet_name, header_row=header_row, limit=limit)
+        return _parse_xls(stream, sheet_name=sheet_name, header_row=header_row, header_rows=header_rows, limit=limit)
     if extension == ".xlsx":
-        return _parse_xlsx(stream, sheet_name=sheet_name, header_row=header_row, limit=limit)
+        return _parse_xlsx(stream, sheet_name=sheet_name, header_row=header_row, header_rows=header_rows, limit=limit)
     raise TableParseError("قالب فایل برای پیش‌نمایش پشتیبانی نمی‌شود.")
 
 
-def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> ParsedTable:
+def _parse_csv(stream: BinaryIO, *, header_row: int, header_rows: int = 1, limit: int | None) -> ParsedTable:
     payload = stream.read()
     for encoding in ("utf-8-sig", "cp1256"):
         try:
@@ -493,7 +562,7 @@ def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> Parse
     chosen_cols: list[str] | None = None
     chosen_indices: list[int] | None = None
 
-    if header_row == 1 and len(all_lines) > 1:
+    if header_rows == 1 and header_row == 1 and len(all_lines) > 1:
         cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_lines[0])
         if cand_cols is None or cand_score < 2:
             best_row = 1
@@ -514,7 +583,11 @@ def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> Parse
 
     if effective_header_row > len(all_lines):
         raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
-    header_values = all_lines[effective_header_row - 1]
+    from app.imports.structure import combined_header
+
+    header_values = combined_header(all_lines[effective_header_row - 1:effective_header_row - 1 + header_rows])
+    if header_rows > 1:
+        chosen_cols = chosen_indices = None
     if chosen_cols is None or chosen_indices is None:
         chosen_cols, chosen_indices = _columns(header_values)
 
@@ -524,7 +597,7 @@ def _parse_csv(stream: BinaryIO, *, header_row: int, limit: int | None) -> Parse
     footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
     rows: list[tuple[int, dict[str, object]]] = []
     for index, values in enumerate(
-        all_lines[effective_header_row:], start=effective_header_row + 1
+        all_lines[effective_header_row + header_rows - 1:], start=effective_header_row + header_rows
     ):
         if not any(str(value).strip() for value in values):
             continue
@@ -559,6 +632,7 @@ def _parse_xlsx(
     sheet_name: str | None,
     header_row: int,
     limit: int | None,
+    header_rows: int = 1,
 ) -> ParsedTable:
     workbook = load_workbook(stream, read_only=True, data_only=False)
     try:
@@ -579,13 +653,13 @@ def _parse_xlsx(
             ]
             all_raw_rows.append((row_number, values))
 
-        return _parse_workbook_rows(all_raw_rows, sheets, selected, header_row, limit)
+        return _parse_workbook_rows(all_raw_rows, sheets, selected, header_row, limit, header_rows)
 
     finally:
         workbook.close()
 
 
-def _parse_xls(stream: BinaryIO, *, sheet_name: str | None, header_row: int, limit: int | None) -> ParsedTable:
+def _parse_xls(stream: BinaryIO, *, sheet_name: str | None, header_row: int, header_rows: int = 1, limit: int | None) -> ParsedTable:
     try:
         workbook = xlrd.open_workbook(file_contents=stream.read(), on_demand=True)
     except xlrd.XLRDError as exc:
@@ -597,12 +671,12 @@ def _parse_xls(stream: BinaryIO, *, sheet_name: str | None, header_row: int, lim
             raise TableParseError("شیت انتخاب شده در فایل وجود ندارد.")
         sheet = workbook.sheet_by_name(selected)
         rows = [(i + 1, [_cell_value(v) for v in sheet.row_values(i)]) for i in range(sheet.nrows)]
-        return _parse_workbook_rows(rows, sheets, selected, header_row, limit)
+        return _parse_workbook_rows(rows, sheets, selected, header_row, limit, header_rows)
     finally:
         workbook.release_resources()
 
 
-def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: list[str], selected: str, header_row: int, limit: int | None) -> ParsedTable:
+def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: list[str], selected: str, header_row: int, limit: int | None, header_rows: int = 1) -> ParsedTable:
     if not all_raw_rows:
         raise TableParseError("شیت انتخاب‌شده خالی است.")
 
@@ -610,7 +684,7 @@ def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: l
     chosen_cols: list[str] | None = None
     chosen_indices: list[int] | None = None
 
-    if header_row == 1 and len(all_raw_rows) > 1:
+    if header_rows == 1 and header_row == 1 and len(all_raw_rows) > 1:
         cand_cols, cand_indices, cand_score = _evaluate_header_candidate(all_raw_rows[0][1])
         if cand_cols is None or cand_score < 2:
             best_row = 1
@@ -636,7 +710,13 @@ def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: l
         raise TableParseError("ردیف عنوان انتخاب‌شده در فایل وجود ندارد.")
 
     if chosen_cols is None or chosen_indices is None:
-        chosen_cols, chosen_indices = _columns(header_entry[1])
+        from app.imports.structure import combined_header
+
+        header_values = combined_header([
+            values for number, values in all_raw_rows
+            if effective_header_row <= number < effective_header_row + header_rows
+        ])
+        chosen_cols, chosen_indices = _columns(header_values)
 
     columns = chosen_cols
     indices = chosen_indices
@@ -644,7 +724,7 @@ def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: l
     footer_patterns = ("تاریخ صدور", "صفحه ", "از 1", "از ۱", "page ")
     rows: list[tuple[int, dict[str, object]]] = []
     for row_number, values in all_raw_rows:
-        if row_number <= effective_header_row:
+        if row_number < effective_header_row + header_rows:
             continue
         if not any(str(value).strip() for value in values):
             continue
@@ -677,12 +757,13 @@ def _parse_workbook_rows(all_raw_rows: list[tuple[int, list[object]]], sheets: l
 
 
 def separate_ledger_controls(
-    columns: list[str], rows: list[tuple[int, dict[str, object]]]
+    columns: list[str], rows: list[tuple[int, dict[str, object]]], mapping: dict[str, str] | None = None,
 ) -> tuple[list[tuple[int, dict[str, object]]], list[tuple[int, dict[str, object]]]]:
     """Retain printed carry rows and verified totals separately from postings."""
     headers = {normalize_header(column): column for column in columns}
-    debit, credit = headers.get("بدهکار"), headers.get("بستانکار")
-    code = next((headers[key] for key in ("کد حساب", "کد کل", "شماره دفتر کل") if key in headers), None)
+    mapped = mapping or {}
+    debit, credit = mapped.get("debit", headers.get("بدهکار")), mapped.get("credit", headers.get("بستانکار"))
+    code = mapped.get("account_code") or mapped.get("general_code") or next((headers[key] for key in ("کد حساب", "کد کل", "شماره دفتر کل") if key in headers), None)
     if not debit or not credit or not code:
         return rows, []
     financial, controls = [], []
@@ -722,6 +803,12 @@ def download_to_seekable(body: Any) -> BinaryIO:
 
 def suggest_mapping(columns: list[str], source_kind: SourceKind) -> list[dict[str, object]]:
     normalized_columns = {normalize_header(column): column for column in columns}
+    for column in columns:
+        leaf = normalize_header(column.split(" / ")[-1])
+        if leaf not in normalized_columns and sum(
+            normalize_header(other.split(" / ")[-1]) == leaf for other in columns
+        ) == 1:
+            normalized_columns[leaf] = column
     targets = list(TARGET_FIELDS[source_kind])
     suggestions: list[dict[str, object]] = []
     used: set[str] = set()
@@ -787,6 +874,10 @@ def validate_mapping_fields(
     if alternatives and not any(all(field in mapping for field in group) for group in alternatives):
         readable = " یا ".join(" + ".join(group) for group in alternatives)
         errors.append(f"یکی از ترکیب‌های مبلغ الزامی است: {readable}")
+    if source_kind == SourceKind.ACCOUNTING and not (
+        {"debit", "credit"} <= mapping.keys() or "amount_signed" in mapping
+    ):
+        errors.append("دو ستون بدهکار و بستانکار یا یک ستون مبلغ با علامت را نگاشت کنید.")
     allowed = set(TARGET_FIELDS[source_kind])
     unknown_targets = sorted(set(mapping) - allowed)
     if unknown_targets:
@@ -842,6 +933,11 @@ def _parse_date(value: object, calendar: str) -> str:
 
 def _parse_money(value: object, *, toman: bool) -> str:
     normalized = THOUSANDS.sub("", normalize_digits(value)).strip()
+    normalized = normalized.replace("−", "-").replace("٫", ".")
+    if normalized.startswith("(") and normalized.endswith(")"):
+        normalized = "-" + normalized[1:-1]
+    elif normalized.endswith("-") and len(normalized) > 1 and not normalized.startswith("-"):
+        normalized = "-" + normalized[:-1]
     if normalized in ("", "-", "–", "—", "None", "null", "."):
         return "0"
     try:
@@ -901,6 +997,8 @@ def transform_and_validate_row(
             if target in DATE_FIELDS or "parse_date" in operations:
                 value = _parse_date(value, calendar)
             if target in MONEY_FIELDS or "strip_thousands" in operations:
+                if "dot_thousands" in operations:
+                    value = normalize_digits(value).replace(".", "").replace(",", ".")
                 value = _parse_money(value, toman="toman_to_rial" in operations)
             if "withdrawal_negative" in operations and Decimal(str(value)) > 0:
                 value = str(-Decimal(str(value)))
@@ -920,6 +1018,37 @@ def transform_and_validate_row(
                 )
             )
 
+    if source_kind in {SourceKind.ACCOUNTING, SourceKind.BANK}:
+        amount_fields = ("amount_signed",) if "amount_signed" in mapping else (
+            ("debit", "credit") if source_kind == SourceKind.ACCOUNTING else ("deposit_amount", "withdrawal_amount")
+        )
+        blank_values = {"", "None", "null", "-", "–", "—", "."}
+        if all(str(raw.get(mapping.get(field, ""), "")).strip() in blank_values for field in amount_fields):
+            issues.append(RowIssue(row_number, "amount_signed", IssueSeverity.ERROR,
+                                   "MOVEMENT_AMOUNT_MISSING", "مبلغ گردش خالی است؛ صفر فرض نمی‌شود."))
+
+    if source_kind in {SourceKind.ACCOUNTING, SourceKind.BANK} and "amount_signed" in mapping:
+        try:
+            amount = Decimal(str(transformed.get("amount_signed", "0")))
+            if "amount_direction" in mapping:
+                direction = normalize_header(transformed.get("amount_direction", ""))
+                incoming = {"واریز", "دریافت", "ورودی", "deposit", "inflow", "in", "بدهکار", "debit", "dr"}
+                outgoing = {"برداشت", "پرداخت", "خروجی", "withdrawal", "outflow", "out", "بستانکار", "credit", "cr"}
+                if source_kind == SourceKind.BANK:
+                    incoming = (incoming - {"بدهکار", "debit", "dr"}) | {"بستانکار", "credit", "cr"}
+                    outgoing = (outgoing - {"بستانکار", "credit", "cr"}) | {"بدهکار", "debit", "dr"}
+                if direction not in incoming | outgoing:
+                    raise ValueError("جهت گردش باید واریز/برداشت یا بدهکار/بستانکار باشد.")
+                if amount < 0 and direction in incoming:
+                    raise ValueError("علامت مبلغ با جهت گردش سازگار نیست.")
+                amount = abs(amount) if direction in incoming else -abs(amount)
+            transformed["amount_signed"] = str(amount)
+            if source_kind == SourceKind.ACCOUNTING:
+                transformed["debit"] = str(max(amount, Decimal(0)))
+                transformed["credit"] = str(max(-amount, Decimal(0)))
+        except (ValueError, InvalidOperation) as exc:
+            issues.append(RowIssue(row_number, "amount_signed", IssueSeverity.ERROR,
+                                   "INVALID_AMOUNT_DIRECTION", str(exc)))
     required = REQUIRED_FIELDS[source_kind]
     for field in required:
         if str(transformed.get(field, "")).strip() == "":
@@ -1000,18 +1129,10 @@ def transform_and_validate_row(
                 )
             )
         transformed["amount_signed"] = str(deposit - withdrawal)
-    elif source_kind == SourceKind.SALES and "due_date" not in mapping:
-        issues.append(
-            RowIssue(
-                row_number,
-                "due_date",
-                IssueSeverity.WARNING,
-                "DUE_DATE_MISSING",
-                "تاریخ سررسید موجود نیست و تحلیل وصول محدود می‌شود.",
-                remedy="در صورت وجود، ستون سررسید را نگاشت کنید.",
-            )
-        )
     if source_kind in INVOICE_SNAPSHOT_KINDS or source_kind == SourceKind.SALES:
+        if not any(str(transformed.get(key) or "").strip() for key in ("invoice_no", "tax_id")):
+            issues.append(RowIssue(row_number, "invoice_no", IssueSeverity.ERROR,
+                                   "INVOICE_ID_MISSING", "شماره فاکتور یا شماره مالیاتی خالی است."))
         for field in ("gross_amount", "tax_amount", "paid_amount"):
             if field in transformed and Decimal(str(transformed[field])) < 0:
                 issues.append(
@@ -1049,6 +1170,21 @@ def transform_and_validate_row(
                         "شماره مالیاتی باید ۲۲ نویسه انگلیسی باشد.",
                     )
                 )
+    if source_kind in SETTLEMENT_KINDS:
+        from app.settlements.import_matching import validate_settlement_values
+
+        for field, message in validate_settlement_values(transformed):
+            issues.append(
+                RowIssue(
+                    row_number,
+                    field,
+                    IssueSeverity.ERROR,
+                    "INVALID_SETTLEMENT",
+                    message,
+                    None,
+                    "مقدار فایل را اصلاح کنید.",
+                )
+            )
     return transformed, issues
 
 
@@ -1080,9 +1216,12 @@ def coverage_for(
             "score": overall,
             "reasons": [] if accepted_count else ["تراکنش معتبر وجود ندارد"],
         }
+    elif source_kind in SETTLEMENT_KINDS:
+        coverage["settlements"] = {"available": accepted_count > 0, "score": overall}
     elif source_kind in INVOICE_SNAPSHOT_KINDS:
         coverage["invoice_comparison"] = {"available": accepted_count > 0, "score": overall}
     else:
+        coverage["invoice_comparison"] = {"available": accepted_count > 0, "score": overall}
         coverage["receivables"] = {
             "available": "due_date" in mapping and accepted_count > 0,
             "score": overall if "due_date" in mapping else 0,

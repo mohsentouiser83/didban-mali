@@ -12,6 +12,7 @@ from app.cashflow.service import get_cashflow_forecast, get_cashflow_summary
 from app.companies.models import Company
 from app.dashboard.service import build_dashboard, build_health_and_coverage
 from app.findings.models import Finding, FindingGenerationRun, FindingRunStatus, PriorityBand
+from app.findings.titles import finding_title
 from app.payables.service import get_payables_summary
 from app.receivables.service import get_receivables_summary
 from app.reviews.models import FindingNote, ReviewDecision
@@ -126,7 +127,7 @@ async def build_report_payload(
                     if hasattr(finding.finding_code, "value")
                     else str(finding.finding_code)
                 ),
-                "title_fa": finding.title_fa,
+                "title_fa": finding_title(finding),
                 "summary_fa": finding.summary_fa,
                 "priority_band": (
                     finding.priority_band.value
