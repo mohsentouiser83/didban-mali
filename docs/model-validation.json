@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "tests_run": 7,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "live_provider_calls": 0,
+  "fake_provider_only": true,
+  "test_sha256": "bbf7b630586c00352341718bce7673296e5fde327cc6df4723e4d5c755e88512"
+}

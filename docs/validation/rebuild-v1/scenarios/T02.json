@@ -1,0 +1,20 @@
+{
+  "id": "T02",
+  "level": "integration",
+  "events": [
+    "worker A lease fence 1",
+    "lease expires",
+    "worker B fence 2 commits",
+    "worker A tries commit"
+  ],
+  "assertions": [
+    "A rejected",
+    "only B effect"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

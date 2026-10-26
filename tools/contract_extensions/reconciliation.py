@@ -1,0 +1,8 @@
+"""Pinned comparison API additions, executed in the contract builder namespace."""
+obj('ReconciliationStart', {'kind': enum('bank_ledger','moadian_sales','moadian_purchases')})
+obj('ReconciliationSource', {'normalized_row_id': ID,'source_row_id': ID,'source_file_id': ID,'sheet_name': TEXT,'row_number': {'type':'integer','minimum':1},'side': enum('bank','ledger','internal','portal'),'reference': nullable(TEXT),'date': nullable(DATE),'amount': nullable(MONEY)})
+obj('ReconciliationCandidate', {'id': ID,'classification': enum('exact_unique','suggested','ambiguous','unmatched','amount_mismatch','needs_review'),'bank_movement_id': nullable(ID),'invoice_id': nullable(ID),'evidence_refs': arr(ID),'version': VERSION,'source_refs': arr(ref('ReconciliationSource')),'reason_codes': arr(TEXT),'difference': nullable(MONEY),'reference_chain':arr(TEXT),'decision':nullable(ref('Decision')),'provenance':enum('validated_automatic','human','preserved_human','unresolved'),'source_decision_id':nullable(ID)})
+obj('ReconciliationRun', {'id': ID,'manifest_id': ID,'kind': enum('bank_ledger','bank_invoice','moadian_sales','moadian_purchases'),'policy_id': ID,'candidate_count': {'type':'integer','minimum':0},'missing_source_kinds':arr(SOURCE_KIND),'status':enum('ready','limited'),'created_at': TIME})
+endpoint('post',C+'/results/{manifest_id}/reconciliations','startReconciliation','ReconciliationRun','ReconciliationStart',permission='company.operate')
+endpoint('get',C+'/results/{manifest_id}/reconciliations','listReconciliations',list_item='ReconciliationRun')
+endpoint('get',C+'/reconciliations/{run_id}/candidates','listReconciliationCandidates',list_item='ReconciliationCandidate')

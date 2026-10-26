@@ -1,0 +1,164 @@
+name: didban-rebuild
+x-build: &build
+  context: ..
+  dockerfile: infra/Dockerfile.api
+  args:
+    PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+x-connection: &connection
+  DIDBAN_DB_HOST: postgres
+  DIDBAN_DB_NAME: ${DIDBAN_DB_NAME:-didban}
+  DIDBAN_APP_DB_USER: ${DIDBAN_APP_DB_USER:-didban_runtime_login}
+  DIDBAN_APP_DB_PASSWORD: ${DIDBAN_APP_DB_PASSWORD:?Generate a database password}
+  DIDBAN_IDENTITY_DB_USER: ${DIDBAN_IDENTITY_DB_USER:-didban_identity_login}
+  DIDBAN_IDENTITY_DB_PASSWORD: ${DIDBAN_IDENTITY_DB_PASSWORD:?Generate a database password}
+x-model: &model
+  DIDBAN_MODEL_PROVIDER: ${DIDBAN_MODEL_PROVIDER:-openai}
+  DIDBAN_MODEL_API_KEY: ${DIDBAN_MODEL_API_KEY:-}
+  DIDBAN_MODEL_ID: ${DIDBAN_MODEL_ID:-}
+  DIDBAN_MODEL_ALLOWED_IDS: ${DIDBAN_MODEL_ALLOWED_IDS:-}
+  DIDBAN_MODEL_INPUT_USD_PER_MILLION: ${DIDBAN_MODEL_INPUT_USD_PER_MILLION:-}
+  DIDBAN_MODEL_OUTPUT_USD_PER_MILLION: ${DIDBAN_MODEL_OUTPUT_USD_PER_MILLION:-}
+  DIDBAN_MODEL_MAX_OUTPUT_TOKENS: ${DIDBAN_MODEL_MAX_OUTPUT_TOKENS:-512}
+  DIDBAN_MODEL_TIMEOUT_SECONDS: ${DIDBAN_MODEL_TIMEOUT_SECONDS:-30}
+  DIDBAN_MODEL_REASONING_EFFORT: ${DIDBAN_MODEL_REASONING_EFFORT:-}
+  DIDBAN_MODEL_INTAKE_ENABLED: ${DIDBAN_MODEL_INTAKE_ENABLED:-false}
+services:
+  postgres:
+    image: postgres@sha256:898c60cb390d1085bc97bdd6a1ae968757421df394b071848b52b1c09c89d6a5
+    environment:
+      POSTGRES_DB: ${DIDBAN_DB_NAME:-didban}
+      POSTGRES_USER: ${DIDBAN_DB_ADMIN_USER:-didban_migrator}
+      POSTGRES_PASSWORD: ${DIDBAN_DB_ADMIN_PASSWORD:?Generate an administrator password}
+    volumes:
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: didban-rebuild-api:local
+    build: *build
+    command: ["python", "-m", "didban.manage", "migrate-and-provision"]
+    environment:
+      <<: *connection
+      DIDBAN_WORKER_DB_USER: ${DIDBAN_WORKER_DB_USER:-didban_worker_login}
+      DIDBAN_WORKER_DB_PASSWORD: ${DIDBAN_WORKER_DB_PASSWORD:?Generate a worker database password}
+      DIDBAN_DB_ADMIN_USER: ${DIDBAN_DB_ADMIN_USER:-didban_migrator}
+      DIDBAN_DB_ADMIN_PASSWORD: ${DIDBAN_DB_ADMIN_PASSWORD:?Generate an administrator password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+  api:
+    image: didban-rebuild-api:local
+    build: *build
+    environment:
+      <<: [*connection, *model]
+      DIDBAN_SECRET: ${DIDBAN_SECRET:?Generate a persistent application secret}
+      DIDBAN_PUBLIC_ORIGIN: ${DIDBAN_PUBLIC_ORIGIN:-http://127.0.0.1:18148}
+      DIDBAN_COOKIE_SECURE: ${DIDBAN_COOKIE_SECURE:-false}
+      DIDBAN_STORAGE_ROOT: /data/objects
+    ports:
+      - "127.0.0.1:${DIDBAN_HTTP_PORT:-18147}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+    volumes:
+      - private-files:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  storage-init:
+    image: didban-rebuild-api:local
+    build: *build
+    user: "0:0"
+    command: ["python", "-c", "import os; os.makedirs('/data/objects',exist_ok=True); os.chown('/data/objects',10001,10001); os.chmod('/data/objects',0o700)"]
+    volumes: ["private-files:/data"]
+    restart: "no"
+  scanner:
+    image: clamav/clamav-debian@sha256:4c975c439fcb7ab9cbdd72162c2802f5efcb4a11dcf5b0b37da1d746474ef20e
+    entrypoint: ["clamd", "--config-file=/etc/clamav/didban.conf"]
+    volumes:
+      - ./clamd.conf:/etc/clamav/didban.conf:ro
+      - scanner-signatures:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--config-file=/etc/clamav/didban.conf", "--ping=1"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+    restart: unless-stopped
+  scanner-updates:
+    image: clamav/clamav-debian@sha256:4c975c439fcb7ab9cbdd72162c2802f5efcb4a11dcf5b0b37da1d746474ef20e
+    profiles: ["signature-updates"]
+    entrypoint: ["freshclam", "--daemon", "--foreground=true", "--config-file=/etc/clamav/didban-freshclam.conf"]
+    volumes:
+      - ./freshclam.conf:/etc/clamav/didban-freshclam.conf:ro
+      - scanner-signatures:/var/lib/clamav
+    restart: unless-stopped
+  worker:
+    image: didban-rebuild-api:local
+    build: *build
+    command: ["python", "-m", "didban.worker"]
+    environment:
+      <<: *model
+      DIDBAN_DB_HOST: postgres
+      DIDBAN_DB_NAME: ${DIDBAN_DB_NAME:-didban}
+      DIDBAN_WORKER_DB_USER: ${DIDBAN_WORKER_DB_USER:-didban_worker_login}
+      DIDBAN_WORKER_DB_PASSWORD: ${DIDBAN_WORKER_DB_PASSWORD:?Generate a worker database password}
+      DIDBAN_STORAGE_ROOT: /data/objects
+      DIDBAN_SCANNER_HOST: scanner
+    volumes: ["private-files:/data"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+      scanner:
+        condition: service_healthy
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+  web:
+    image: didban-rebuild-web:local
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.web
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    environment:
+      DIDBAN_API_ORIGIN: http://api:8000
+    ports:
+      - "127.0.0.1:${DIDBAN_WEB_PORT:-18148}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  database:
+  private-files:
+  scanner-signatures:

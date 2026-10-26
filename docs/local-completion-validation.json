@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-26",
+  "status": "passed_scoped_local_validation",
+  "scope": "local implementation and synthetic validation; not accountant or general real-source acceptance",
+  "schema": {
+    "migrations": 21,
+    "app_tables": 95,
+    "runtime_version": 10
+  },
+  "server_regression": {
+    "status": "passed",
+    "suites": 25,
+    "tests": 210,
+    "scope": "full PostgreSQL18 suite after migrations001-021; subsequent public-provenance formatting checked by focused suite"
+  },
+  "focused_intake_final": {
+    "status": "passed",
+    "tests_run": 8,
+    "failures": 0,
+    "errors": 0,
+    "live_provider_calls": 0
+  },
+  "web": {
+    "typecheck": "passed",
+    "eslint": "passed",
+    "client_tests": 20,
+    "build": "passed",
+    "api_types": "passed"
+  },
+  "contracts": {
+    "checks": 357,
+    "status": "passed"
+  },
+  "clean_local_compose": {
+    "checks": 15,
+    "report": "compose-web-validation.json"
+  },
+  "live": {
+    "assistant": "live-assistant-validation.json",
+    "bank_interpretation": "live-intake-model-validation.json",
+    "ledger_roles": "live-role-model-validation.json",
+    "synthetic_data_only": true,
+    "invalid_proposals_rejected": true
+  },
+  "browser": {
+    "provider": "Codex built-in browser",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 1000
+      },
+      {
+        "width": 390,
+        "height": 844
+      }
+    ],
+    "checks": [
+      "live assistant answer and source evidence",
+      "evidence next/Escape/focus return",
+      "source question barrier survives closing and reload",
+      "mobile select keyboard/Escape/focus return",
+      "ledger automatic-role provenance and hidden internal receipt metadata",
+      "desktop/mobile shared table and scrollable evidence dialog"
+    ],
+    "reduced_motion_report": "reduced-motion-live-validation.json",
+    "viewport_restored": true
+  },
+  "private_configuration": {
+    "git_ignored": true,
+    "docker_context_excluded": true,
+    "api_key_server_only": true,
+    "local_monthly_token_budget_usd": "0.01",
+    "key_expiration": "none",
+    "provider_key_limits_remain_separate": true
+  },
+  "remaining_acceptance": [
+    "authorized real financial source formats and accountant acceptance",
+    "exhaustive UI states beyond the explicitly recorded browser scope"
+  ],
+  "out_of_current_requested_scope": [
+    "organization server and TLS deployment"
+  ],
+  "source_sha256": {
+    "apps/api/didban/adapters/model_provider.py": "798efca94d0310d49c90e4efc0ac39e13556764a3a81352c1d3e0f278763c7fa",
+    "apps/api/didban/adapters/intake_model_provider.py": "01441959de2bab4d89d1d462739589e53a703301cfe757aa80be7ff2411e5323",
+    "apps/api/didban/application/intake_model.py": "6ae5d626ed3b3c73499604b37b2d7c7eb2cd6df4ea28da6f4232688de75460de",
+    "apps/api/didban/application/interpretation_worker.py": "32b15d980f0119a956b75d840253fbfbb4caff34fad6a73fb5967970306d3051",
+    "apps/api/didban/application/interpretations.py": "35790d34d077ee1101fa3d9d49c05a03da800eca32423453049450d2a59029c0",
+    "apps/api/didban/infrastructure/intake_model.py": "b816b9fc7cae90f98bc8490fbe437c2fc19c200da7abc4aea07a7955246a2c24",
+    "apps/api/didban/domain/model_interpretation.py": "a0d136d90d27f1ede3073a03b4a37ef18347e93119fe15cdbc8a06d09022981d",
+    "apps/api/didban/domain/interpretation.py": "7c3d42d137cf2c15e2defd3dccd0f4758706c0d5299e21d4649aee33e1e45f0e",
+    "apps/api/didban/domain/source_profiles.py": "b7c152ebe14efd578ed16343e8035130d3b1c447270cc5d69385523d51a2ae6c",
+    "apps/web/features/interpretation/format-values.ts": "b456bcdf681316bea2e76701481febcef31664c8370c887e46772f93e94de43d",
+    "apps/web/features/interpretation/labels.ts": "be1367480012fe127c57b1d56f92502bb4d52d345f5a2564c8570523c94fd330",
+    "tests/test_intake_model.py": "6bb7892a77a23d9595f5206921275cdd1753a531f05a9ceef12a760e23bb48e3",
+    "tests/test_intake_model_runtime.py": "4219cee21ab6ec782fa80295c78b49347ab7e0d0843f89ad2a04e809761fa81e",
+    "tests/format-values.test.ts": "2e8e91ad70ea021d545dcb7bbce50827633ad4316f8936b6a733360d4c8504cc",
+    "infra/compose.yaml": "9844c72b816f33df28e163ee5c1f40b38583d034c1f11fa30401ccd2ce36dde6",
+    "database/001_schema.sql": "7197ccb8ad6c6f11ac281fee45d3d8d2b73916417f0f3a3c7d587c9dd33e0cc0",
+    "database/002_guards.sql": "7268b2f70efe51285b54ed04634574ac343baf843ad8967735d8a17de0ec37c5",
+    "database/003_consistency.sql": "68152621c14171daa62ee2c4db51a87ed761ca7c403224ba79c9e9f66ce44cd6",
+    "database/004_identity_runtime.sql": "2a54262c8f7accb7845e533d9b2c40c4d18e41aa66895e7984d1319ccd84c523",
+    "database/005_command_completion.sql": "f4bf1b3660cee4a5fd708d4d8ba3ea189a88e952fe924c029ae5870c12ab8d45",
+    "database/006_intake_runtime.sql": "7709756c0792143b2e10b3d4928e76d5c2a4118757fb3ddcf458fe798fb089f3",
+    "database/007_interpretation_runtime.sql": "0183dda1d7878f588a4e1bfe390ba3c2d62903c49275f6f102cb2e563d52b322",
+    "database/008_financial_runtime.sql": "bc9e217d434db34b0de63212155c5587f271cc6e80d16b1b828ec026135e2d43",
+    "database/009_reconciliation_runtime.sql": "bd4837053ed7857622d384bd0a6dee32c6069683be96a0cbf3b58c752e0d8fc2",
+    "database/010_settlement_runtime.sql": "13ca588513bdacc671e392d2166b833ba7c55be12a2fbf1376fc5fa94e3cb24f",
+    "database/011_model_runtime.sql": "306486ff22337a760fa6bf6ce52caf338382568227c80cfb5073453bf4a497ba",
+    "database/012_analysis_runtime.sql": "21dc3c81720f33fd6ec28ea288016e60cbcece4de276e4193cf6da85f1e78f51",
+    "database/013_reports_runtime.sql": "d4c2fad3777cce2acc8e001a97bc95c38a20ad6fc62b9090fa4c3d92802ea8b0",
+    "database/014_policy_retention_runtime.sql": "29d362350f5baf7e2dedb4c479f199319b9c4e9221f7090bb468a41489e8e5ec",
+    "database/015_reporting_orchestration.sql": "d0902c35b74749a117509e4a1b3e5a350dfbfff650384908593fc68f0abdb716",
+    "database/016_analysis_capacity.sql": "c39dc04383d78bd2331a4cfbf74309ed2777986871c7b8d944b7bf6a224a81cc",
+    "database/017_avalai_model_provider.sql": "d19bf1f6d439f0a26ea658f3b48ba2adc5dc8e0785cac86a1a43e121b3438170",
+    "database/018_intake_model_proposals.sql": "59746a7e929f5a7cf2c2c17a00dd44ddd882f29cc087cb9816bff01463fd6a9c",
+    "database/019_intake_proposal_dependency_identity.sql": "428dc5ac504cd8c959e1537ef28b1d26ef583741a5a9f6b3ca1d4114a2f4a159",
+    "database/020_intake_model_safe_retries.sql": "da1dbc33ae0afedce8b277995dd3b90c13b23d4945d5c9ac93f6596487a1237b",
+    "database/021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e"
+  },
+  "screenshots": {
+    "docs/model-ui/role-evidence-mobile.png": "c2ff321e7484a1092bf170ac4ed48b0fe50e69205d3953699e65f5613461c239",
+    "docs/model-ui/reduced-motion-metrics.png": "51f2f34ea55639c3e2cd4bf1bb95953976456871cb217fe1760d26a6c3c97db9",
+    "docs/model-ui/role-evidence-desktop.png": "b9527e7c29401cbf3a4e1735173a9a7bfd6867cb6f88999c50daf6ea3311b09b",
+    "docs/model-ui/intake-live-mobile.png": "6b2476805dcd367cabe2200da99efcbed9faa514c23a5440ed31ccb103c802d8",
+    "docs/model-ui/assistant-live.png": "36f331520e9171da33333e2875bfcc5ab7edd013857c00d5372d32189ccd73d2"
+  }
+}

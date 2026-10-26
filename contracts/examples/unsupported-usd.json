@@ -1,0 +1,10 @@
+{
+  "schema": "AnswerRequest",
+  "expected_valid": false,
+  "value": {
+    "answer": {
+      "kind": "unit",
+      "value": "USD"
+    }
+  }
+}

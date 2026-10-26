@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "scope": "running_synthetic_preview_http_queue_worker_live_avalai",
+  "configured": true,
+  "answer_status": "ready",
+  "dependency_code": null,
+  "evidence_count": 8,
+  "budget": {
+    "spent": "0.00103560",
+    "ceiling": "0.01000000",
+    "currency": "USD",
+    "reserved": "0",
+    "period_end": "2026-11-01T00:00:00+00:00",
+    "period_start": "2026-10-01T00:00:00+00:00",
+    "usage_unknown": false,
+    "budget_configured": true
+  },
+  "question_id": "5e3c6501-3e19-473e-9fbe-9dd2002d624a",
+  "company_id": "da5fbc0e-7c82-4174-bee1-52192fe1043f"
+}

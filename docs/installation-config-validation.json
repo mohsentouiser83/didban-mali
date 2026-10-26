@@ -1,0 +1,5 @@
+{
+  "status": "passed",
+  "tests_run": 5,
+  "scope": "configuration only; no TLS certificate/handshake, external deployment or organization acceptance"
+}

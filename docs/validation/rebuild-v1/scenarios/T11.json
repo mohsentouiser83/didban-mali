@@ -1,0 +1,22 @@
+{
+  "id": "T11",
+  "level": "integration",
+  "events": [
+    "repeat API idempotency key with changed payload",
+    "page through equal timestamps",
+    "invalid amount field",
+    "If-Match stale"
+  ],
+  "assertions": [
+    "409",
+    "stable unique-id cursor",
+    "422 with field_errors",
+    "409"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

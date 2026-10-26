@@ -1,0 +1,188 @@
+{
+  "baseline_app_tables": 75,
+  "current_app_tables": 95,
+  "metadata_tables": [
+    "didban_meta.schema_migrations"
+  ],
+  "forward_migrations": [
+    "004_identity_runtime.sql",
+    "005_command_completion.sql",
+    "006_intake_runtime.sql",
+    "007_interpretation_runtime.sql",
+    "008_financial_runtime.sql",
+    "009_reconciliation_runtime.sql",
+    "010_settlement_runtime.sql",
+    "011_model_runtime.sql",
+    "012_analysis_runtime.sql",
+    "013_reports_runtime.sql",
+    "014_policy_retention_runtime.sql",
+    "015_reporting_orchestration.sql",
+    "016_analysis_capacity.sql",
+    "017_avalai_model_provider.sql",
+    "018_intake_model_proposals.sql",
+    "019_intake_proposal_dependency_identity.sql",
+    "020_intake_model_safe_retries.sql",
+    "021_intake_model_dependencies.sql"
+  ],
+  "additional_tables": [
+    {
+      "name": "identity_idempotency",
+      "scope": "installation_identity",
+      "purpose": "Encrypted idempotent responses including one-time secrets; never readable by financial runtime"
+    },
+    {
+      "name": "auth_rate_limits",
+      "scope": "installation_identity",
+      "purpose": "Durable keyed-hash login/token throttling across API workers"
+    },
+    {
+      "name": "interpretation_runs",
+      "scope": "company",
+      "purpose": "Immutable interpretation settings and staged summary, never a financial manifest"
+    },
+    {
+      "name": "normalized_source_rows",
+      "scope": "company",
+      "purpose": "Immutable canonical staging with source provenance and explicit rejected/overlap states"
+    },
+    {
+      "name": "dataset_file_selections",
+      "scope": "company",
+      "purpose": "Immutable file interpretation selections pinned to each sealed dataset revision"
+    },
+    {
+      "name": "company_dataset_heads",
+      "scope": "company",
+      "purpose": "Atomic current dataset revision pointer with publication CAS"
+    },
+    {
+      "name": "reconciliation_claims",
+      "scope": "company",
+      "purpose": "Exclusive source claims for accepted comparisons with versioned decisions"
+    },
+    {
+      "name": "cashflow_period_snapshots",
+      "scope": "company",
+      "purpose": "Immutable manifest-pinned daily cashflow, evidence and decision cut-off"
+    },
+    {
+      "name": "settlement_projections",
+      "scope": "company",
+      "purpose": "Immutable imported invoice, settlement and bank projection pinned to a manifest"
+    },
+    {
+      "name": "settlement_balance_snapshots",
+      "scope": "company",
+      "purpose": "Immutable operational balance revisions after allocation and reversal"
+    },
+    {
+      "name": "settlement_workspace_heads",
+      "scope": "company",
+      "purpose": "Current operational balance snapshot separate from historical financial manifests"
+    },
+    {
+      "name": "forecast_runs",
+      "scope": "company",
+      "purpose": "Pinned forecast inputs and answers; published thirty-day forecasts are immutable"
+    },
+    {
+      "name": "forecast_question_links",
+      "scope": "company",
+      "purpose": "Durable forecast question-to-run and answer-key linkage"
+    },
+    {
+      "name": "model_budget_settings",
+      "scope": "installation_model_admin",
+      "purpose": "Restricted pointer to installation budget policy; no implicit company-data access"
+    },
+    {
+      "name": "model_operations_audit",
+      "scope": "installation_model_admin",
+      "purpose": "Auditable budget changes and reconciliation of uncertain model usage"
+    },
+    {
+      "name": "policy_configuration_events",
+      "scope": "company",
+      "purpose": "Immutable explicit policy activation events and actor/reason provenance"
+    },
+    {
+      "name": "retention_settings",
+      "scope": "company",
+      "purpose": "Versioned owner-managed retention duration; automatic deletion remains disabled"
+    },
+    {
+      "name": "source_lifecycle_events",
+      "scope": "company",
+      "purpose": "Append-only archive, restore, deletion-request and retention audit history"
+    },
+    {
+      "name": "source_deletion_jobs",
+      "scope": "company",
+      "purpose": "Durable leased cleanup for authorized dependency-free original objects"
+    },
+    {
+      "name": "intake_model_proposals",
+      "scope": "company",
+      "purpose": "Budget-backed durable source interpretation proposals, immutable final decisions and independent evidence policy"
+    }
+  ],
+  "additional_columns": [
+    "users.activated_at",
+    "auth_sessions.user_auth_version",
+    "processing_sessions.preparation_finished_at",
+    "source_files.scan_engine",
+    "source_files.scanned_at",
+    "session_files.preparation_settings",
+    "session_files.preparation_summary",
+    "session_files.error_code",
+    "processing_steps.completed_items",
+    "processing_steps.total_items",
+    "outbox_events.lease_token",
+    "outbox_events.lease_expires_at",
+    "outbox_events.delivery_attempts",
+    "outbox_events.available_at",
+    "processing_sessions.interpretation_finished_at",
+    "processing_sessions.interpretation_context",
+    "session_files.interpretation_settings",
+    "session_files.interpretation_preview",
+    "session_files.interpretation_summary",
+    "session_files.interpretation_run_id",
+    "interpretation_versions.run_id",
+    "processing_sessions.financial_context",
+    "processing_sessions.financial_finished_at",
+    "processing_sessions.manifest_id",
+    "record_revisions.normalized_row_id",
+    "reconciliation_runs.missing_source_kinds",
+    "reconciliation_runs.status",
+    "reconciliation_candidates.latest_decision_id",
+    "reconciliation_candidates.accepted",
+    "decisions.provenance",
+    "decisions.source_decision_id",
+    "planned_payment_versions.title_snapshot",
+    "assistant_questions.dependency_code",
+    "assistant_questions.related_path",
+    "assistant_questions.lease_token",
+    "assistant_questions.lease_expires_at",
+    "assistant_questions.fence",
+    "assistant_questions.active_model_request_id",
+    "model_requests.assistant_question_id",
+    "model_requests.dispatch_token",
+    "model_requests.provider_response_id",
+    "model_requests.safe_to_retry",
+    "model_requests.cost_overrun",
+    "processing_sessions.analysis_finished_at",
+    "processing_sessions.analysis_context",
+    "report_snapshots.input_fingerprint",
+    "report_snapshots.revision_number",
+    "report_snapshots.generation_session_id",
+    "report_snapshots.scope_status",
+    "export_jobs.generation_actor_id",
+    "export_jobs.lease_token",
+    "export_jobs.lease_expires_at",
+    "export_jobs.attempts",
+    "export_jobs.error_code",
+    "export_jobs.byte_size"
+  ],
+  "runtime_version": 10,
+  "notes": "Baseline SQL001-003 frozen; forward migrations004-017; runtime10 with 94 app tables. Separate identity/app/worker logins, scoped company RLS and restricted installation model-budget functions. Core manifests, reconciliation, immutable cashflow snapshots, settlement workspace revisions, forecast runs, read-only assistant, pinned immutable report editions and private PDF/XLSX/error-CSV exports are implemented. Report approval checks current company permission and exact report edition. Versioned upload/forecast policies, owner retention/archive and dependency-guarded durable source deletion are implemented. Terminal sessions cannot reopen; forecast revisions use new continuation sessions. Analysis claim lease is bounded to ten minutes with token/fence/barrier checks. Validation reports define tested scope; fresh Compose image/organization TLS and live-model integration are not accepted. Provider is not connected to intake classification/mapping/account-role jobs. Migration017 permits provider-specific openai/avalai historical tariffs without changing old requests or runtime version; no live Avalai call is accepted by this metadata."
+}

@@ -1,0 +1,12 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_runtime.py" = ["E402"]
+
+"tools/ui_test_environment.py" = ["E402"]
+
+"tests/test_intake.py" = ["E402"]
+
+"tests/test_interpretation.py" = ["E402"]

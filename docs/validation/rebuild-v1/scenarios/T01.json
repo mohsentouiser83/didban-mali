@@ -1,0 +1,21 @@
+{
+  "id": "T01",
+  "level": "integration",
+  "events": [
+    "seal key K twice",
+    "worker commit succeeds",
+    "ack lost",
+    "redeliver same step"
+  ],
+  "assertions": [
+    "one effect",
+    "one report",
+    "same key different payload -> 409"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

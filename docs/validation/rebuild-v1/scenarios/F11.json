@@ -1,0 +1,27 @@
+{
+  "id": "F11",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "bank_capacity": "100",
+    "invoice_capacity": "100",
+    "proposals": [
+      {
+        "id": "A",
+        "amount": "100"
+      },
+      {
+        "id": "B",
+        "amount": "100"
+      }
+    ]
+  },
+  "expected": {
+    "max_active_amount": "100",
+    "max_full_commits": 1,
+    "loser": "capacity_conflict",
+    "winner": "either_A_or_B"
+  },
+  "application_execution": "not_run"
+}

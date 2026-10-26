@@ -1,0 +1,3 @@
+﻿row_id,date,row_type,reference,amount,balance,currency
+00004,2026-09-05,movement,RECOLD,300,1700,IRR
+NEW-REF,2026-09-06,movement,RECNEW,400,2100,IRR

@@ -1,0 +1,7 @@
+# Add after infra/compose.yaml. Run check_installation_config.py before startup.
+# A separately managed TLS reverse proxy forwards only to the loopback web port.
+services:
+  api:
+    environment:
+      DIDBAN_PUBLIC_ORIGIN: ${DIDBAN_PUBLIC_ORIGIN:?Set the exact organizational HTTPS origin}
+      DIDBAN_COOKIE_SECURE: "true"

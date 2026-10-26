@@ -1,0 +1,22 @@
+{
+  "id": "T03",
+  "level": "integration",
+  "events": [
+    "model request started at version 1",
+    "necessary question creates version 2",
+    "model returns version 1",
+    "Escape and refresh"
+  ],
+  "assertions": [
+    "session waiting_input",
+    "no final publication",
+    "question persists",
+    "stale output not applied"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

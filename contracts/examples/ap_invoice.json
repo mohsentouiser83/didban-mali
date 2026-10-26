@@ -1,0 +1,42 @@
+{
+  "schema": "MetricObservation",
+  "expected_valid": true,
+  "value": {
+    "id": "8d43694a-d67b-561a-9367-0e004b43bbae",
+    "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+    "metric_key": "ap_invoice",
+    "basis": "invoice",
+    "scope": {
+      "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+      "scope_key": "company_all",
+      "party_ids": [],
+      "account_ids": []
+    },
+    "value": "500",
+    "unit": "IRR",
+    "status": "available",
+    "as_of_date": "2026-09-30",
+    "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+    "comparison": {
+      "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+      "value": "200",
+      "delta": "300",
+      "percent": "150",
+      "reason_codes": []
+    },
+    "reason_codes": [],
+    "coverage": [
+      {
+        "state": "declared_complete",
+        "provenance": "user_declaration",
+        "scope_key": "fixture_declared",
+        "starts_on": "2026-09-01",
+        "ends_on": "2026-09-30"
+      }
+    ],
+    "formula_version": "financial-0.1",
+    "evidence_refs": [
+      "8deb98a2-6d87-5ba2-b3a7-fa7e6f68ef74"
+    ]
+  }
+}

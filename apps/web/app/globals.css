@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@source "../components";
+@source "../features";
+@theme inline {
+  --font-sans: var(--font-yekan);
+  --font-heading: var(--font-anjoman);
+  --color-background: #f6f7fc;
+  --color-surface: #ffffff;
+  --color-foreground: #20243f;
+  --color-muted: #68718a;
+  --color-border: #e9ecf5;
+  --color-primary: #5556de;
+  --color-primary-hover: #4345bf;
+  --color-accent: #eeedff;
+  --color-success: #237b64;
+  --color-warning: #93631b;
+  --color-danger: #b34b59;
+  --radius-panel: 20px;
+  --radius-summary: 24px;
+  --radius-control: 12px;
+  --shadow-panel: 0 8px 35px -24px #20243f30;
+  --shadow-float: 0 20px 70px -26px #20243f45;
+  --ease-smooth: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-reveal: reveal 280ms var(--ease-smooth) both;
+  --animate-dialog: dialog-enter 240ms var(--ease-smooth) both;
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes dialog-enter {
+    from {
+      opacity: 0;
+      transform: translateY(7px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

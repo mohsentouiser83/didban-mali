@@ -1,0 +1,34 @@
+{
+  "completed_stage": "report_generation_and_download",
+  "attempted_stage": "report_generation",
+  "distinct_users": 5,
+  "simultaneous_upload_clients": 5,
+  "file_count": 10,
+  "physical_rows": 20000,
+  "typed_bank_rows": 19990,
+  "movements": 19980,
+  "exact_cash_irr": "29980",
+  "upload_seconds": 0.378,
+  "interpretation_seconds": 5.733,
+  "financial_seconds": 104.443,
+  "model_calls": 0,
+  "scope_limit": "one shared synthetic bank session; concurrent uploads, not five concurrent heavy analyses; missing ledger profit remains null",
+  "analysis_seconds": 34.641,
+  "status": "passed",
+  "report_generation_and_download_seconds": 63.621,
+  "artifact_bytes": {
+    "error_csv": 215,
+    "pdf": 32479,
+    "xlsx": 5689350
+  },
+  "test_process_peak_rss_mib": 715.7,
+  "five_user_result_read_max_seconds": 1.09,
+  "report_exports_ready": 3,
+  "upload_response_median_seconds": 0.105,
+  "upload_version_conflict_retries": 22,
+  "financial_questions": 22,
+  "scanner": "real ClamAV",
+  "source_sha256": {
+    "tests/test_capacity_runtime.py": "0a2ecc62d4da95932fed6c6673e41ba5b079dd09f2ce771bfc6d01a2194493d9"
+  }
+}

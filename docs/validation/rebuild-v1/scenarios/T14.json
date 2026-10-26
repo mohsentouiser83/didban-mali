@@ -1,0 +1,22 @@
+{
+  "id": "T14",
+  "level": "integration",
+  "events": [
+    "clean private installation",
+    "processing restart",
+    "backup DB/files/config",
+    "restore isolated installation"
+  ],
+  "assertions": [
+    "same manifest and evidence hashes",
+    "no missing original files",
+    "retention disabled by default",
+    "restore tested before release"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

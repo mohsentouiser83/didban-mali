@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "tests_run": 7,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "test_sha256": "553141b6638df89bd5fa0f83725f699314002e3a6ff0cfda5cec91475e3d296f",
+  "capacity_sql_calls": {
+    "unmatched_1000_bank_rows": 15,
+    "exact_100_bank_ledger_pairs": 15
+  },
+  "source_sha256": {
+    "apps/api/didban/infrastructure/reconciliation.py": "de737e8467bedb090442e48fe808a9f1d105c4afeaf64546338dc70d4df451d5",
+    "apps/api/didban/infrastructure/reconciliation_projection.py": "830e99339d40b63f429107207f77dc2fe93b50549ec90eaea86c21e994a3c529",
+    "apps/api/didban/infrastructure/reconciliation_automatic.py": "20645550cb9a519365360d4533176f4c161cf3b98f4ebefdde892e7291720018",
+    "apps/api/didban/infrastructure/settlement_projection.py": "8d6a68f216cb61a040ebdfc871302ddbd07d0f6d7a330d6ab87cb9ed18a27b17",
+    "apps/api/didban/infrastructure/cashflow.py": "5cf1d07544aff52be0972e890e8c02bdc7590ad5f2335357629d88c7ff6ff12b"
+  }
+}

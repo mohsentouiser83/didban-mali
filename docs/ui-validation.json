@@ -1,0 +1,154 @@
+{
+  "scope": "identity_company_permissions_ui",
+  "browser": "Codex built-in IAB",
+  "production_build_checked": true,
+  "synthetic_data_only": true,
+  "status": "passed_with_documented_limits",
+  "model_calls": 0,
+  "external_notifications": 0,
+  "checks": [
+    {
+      "name": "login_validation",
+      "status": "passed",
+      "evidence_fa": "فرم خالی، پیام فارسی، فوکوس نخستین فیلد و ارتباط aria-describedby"
+    },
+    {
+      "name": "production_login_logout_cache_isolation",
+      "status": "passed",
+      "evidence_fa": "ورود/خروج واقعی؛ تعویض مدیر، مشاهده‌گر و کاربر بدون شرکت"
+    },
+    {
+      "name": "company_create_keyboard_select",
+      "status": "passed",
+      "evidence_fa": "ایجاد شرکت واقعی و انتخاب تومان با کلید جهت و Enter در مرورگر داخلی"
+    },
+    {
+      "name": "company_settings_persisted",
+      "status": "passed",
+      "evidence_fa": "تغییر واحد نمایش و حفظ آن پس از reload روی build"
+    },
+    {
+      "name": "members_add_by_email",
+      "status": "passed",
+      "evidence_fa": "افزودن دعوت‌شده موجود و نمایش نام/ایمیل همان شرکت روی build"
+    },
+    {
+      "name": "report_permission_persisted",
+      "status": "passed",
+      "evidence_fa": "اعطای مجوز مصنوعی با دلیل و مشاهده enabled پس از بازگشایی روی build"
+    },
+    {
+      "name": "last_owner_rejected",
+      "status": "passed",
+      "evidence_fa": "رد غیرفعال‌سازی آخرین مالک از فرم و حفظ ورودی‌ها"
+    },
+    {
+      "name": "viewer_management_denied",
+      "status": "passed",
+      "evidence_fa": "حساب مشاهده‌گر در URL مستقیم members مجوز مدیریت ندارد"
+    },
+    {
+      "name": "empty_companies_mobile",
+      "status": "passed",
+      "evidence_fa": "حساب بدون عضویت، حالت خالی و فقدان داده حساب قبلی"
+    },
+    {
+      "name": "manual_invitation_and_reissue",
+      "status": "passed",
+      "evidence_fa": "تولید دعوت و کد جدید برای حساب فعال‌نشده؛ بدون ارسال بیرونی"
+    },
+    {
+      "name": "dialog_keyboard_focus",
+      "status": "passed",
+      "evidence_fa": "چرخه Shift+Tab، Escape و بازگشت فوکوس به اقدام بازکننده"
+    },
+    {
+      "name": "responsive_rtl",
+      "status": "passed",
+      "evidence_fa": "دسکتاپ 1280 و موبایل 390؛ جدول/کارت و پنجره در محدوده صفحه"
+    },
+    {
+      "name": "approved_typography",
+      "status": "passed",
+      "evidence_fa": "عنوان 26px/500، IRANYekanX و Anjoman واقعی؛ بدون overflow افقی در بررسی DOM"
+    },
+    {
+      "name": "loading_error_retry",
+      "status": "passed",
+      "evidence_fa": "توقف موقت API مصنوعی، انتظار، خطای ارتباط و بازیابی با retry؛ بررسی مرورگر توسعه"
+    },
+    {
+      "name": "activation_reset_views",
+      "status": "partial",
+      "evidence_fa": "صفحات و اعتبارسنجی فعال‌سازی بررسی شدند؛ موفقیت تغییر رمز در HTTP، نه در مرورگر"
+    },
+    {
+      "name": "os_reduced_motion_enabled",
+      "status": "not_verified",
+      "evidence_fa": "محافظ‌های motion-safe/motion-reduce حاضرند؛ تنظیم فعال سیستم در مرورگر آزموده نشد"
+    }
+  ],
+  "source_sha256": {
+    "apps/web/app/(workspace)/companies/[companyId]/members/page.tsx": "d474490c383a5b3f83d455ea2b6a3f51df6a5cfc91fa571800b4044d78e0dcde",
+    "apps/web/app/(workspace)/companies/[companyId]/page.tsx": "fad17fd37de626a6758548fa1a2b8b33c76c28118dc94f9bfe0443a037c0ee4b",
+    "apps/web/app/(workspace)/companies/[companyId]/settings/page.tsx": "ea48382b58a6d0593790e63deb46b49a13740bf7b4115b5d7c2f4194f8ab5316",
+    "apps/web/app/(workspace)/companies/page.tsx": "cf59eb83a232f00b75e5e28ea62f3aebe9af34959ecc6a8359ad9dcd55c34cbb",
+    "apps/web/app/(workspace)/layout.tsx": "f6b60125b7ebef80fc2bafaa1aa965ef83457c349951b1db71b05985e2448fba",
+    "apps/web/app/(workspace)/loading.tsx": "5a2f9a6bfbb9ec6b55fa44f0021a6e78dc82435ceca4ca15562aea7cf0527f7a",
+    "apps/web/app/(workspace)/users/page.tsx": "6884261bd79aadc6d06cf5ca682198f38b7b808efff6c4d8d8088da4e060d45b",
+    "apps/web/app/accept-invitation/page.tsx": "a94c2521c5e6b6ae90f65b79895fd5cbb5f58610512ccf79ba4853c8c007cadb",
+    "apps/web/app/api/v1/[...path]/route.ts": "becc591fd0c98f97e72594122448a51096da5dec286803ffdd3058ad13ed6106",
+    "apps/web/app/error.tsx": "a46340c3a1bd6012d1a1b35ccbe8f0571cd2fed670300ea2034c3acfdb94797a",
+    "apps/web/app/globals.css": "19bfab52c1d8b6723b8b86c06306e31d2dacec541539ff32861d043c15ece845",
+    "apps/web/app/layout.tsx": "f32a474266b563c90c49fe17b2159493e1a810bb02d06f92d28b7ebcfc9e3f49",
+    "apps/web/app/login/page.tsx": "39ced21c837d0a010a818ac1ce73b0a0fcd0cd4222ff9f567b58d00457af3c01",
+    "apps/web/app/not-found.tsx": "6f463011b67b35b644893e4e396d5686d5cb20dfaf1929f595d90269e8c529e9",
+    "apps/web/app/page.tsx": "f8c6448e8e2ba3de0d23274b98159197a95ea3c653224825932ed168f92a32a0",
+    "apps/web/app/reset-password/page.tsx": "4a91be2cc89d34dc072e966d12cf130468513cee80fa5cc960fc9681baafe4f8",
+    "apps/web/components/providers.tsx": "bb1f14534e2de358bc8f7afc5cd94539638d6e80e19741a728104844ff815f54",
+    "apps/web/components/shell/workspace-shell.tsx": "bf9664a3f9b880e9e98c3def232b248a2ec14ba61f5a1ab7c3ee3fc8b9faf55a",
+    "apps/web/components/ui/badge.tsx": "c21bbcb1c46daa540b0fe107a5799b68f94f4780d1037c53917c018f4554d517",
+    "apps/web/components/ui/button.tsx": "55c6598a5979b6026ef8d45b01476e186782e98fe9123e90129904519e493dd3",
+    "apps/web/components/ui/dialog.tsx": "1fac8b8952c14681fb34472aaeaced45cdf2e3cc14e221a4d04e1380e48c3b72",
+    "apps/web/components/ui/field.tsx": "563f3a90c7f632c55aad66f8a26e3307d5891ffce1134ac578a6392e9c234589",
+    "apps/web/components/ui/form.tsx": "68e44ae2ec835ea02c1b1125a8d2f8537e86fd8e802cf27b58997c62b2eadeb6",
+    "apps/web/components/ui/select.tsx": "406ee2d0068f570127c89e2e2af46556a611daf7564b150a26dbb848b12fcf73",
+    "apps/web/components/ui/sonner.tsx": "7c4f27d95bc55f6c9fd3a81c4983816963307f9c2db0cde75184b544f36d4013",
+    "apps/web/components/ui/states.tsx": "903dcbe99d2b75014eab83403a2fd3b3eb148839179e3d15e9867ff064942331",
+    "apps/web/components/ui/status-icons.tsx": "4ec0f6d5f86ec97fe50edf61e877412056585a9d86ccd9ad821037cb166c796d",
+    "apps/web/components/ui/table.tsx": "5eb37acf0cffa87c771e0667c01f2dc9c810aba806068b0ec5810425f9b3af37",
+    "apps/web/eslint.config.mjs": "7016658361810fbb49effffbd0d5cc598dabfc95172a8d08130dd7183680170b",
+    "apps/web/features/auth/auth-controller.tsx": "3a6f0fbb09b74c45457fd5310064c163f3203d7e033ad0268ea03dc115c518b6",
+    "apps/web/features/auth/auth-view.tsx": "5aa839278157ee3d58208a082ac6e55066982b686bec28f21d83092852cc505a",
+    "apps/web/features/auth/use-auth.ts": "1221d11cd1d4265daa38b21227ba1e72fa004b3be3f5f8086a18991a36bb69e2",
+    "apps/web/features/companies/company-controller.tsx": "2a7eb6d1b1023d326df7815cb6338466400de1bdb364e875d36b0996ec549ee8",
+    "apps/web/features/companies/company-view.tsx": "aad6cb4788b4288b85df2a79669bc0d36e8a97cbeee9ebb0fac50ee4ec06cb0f",
+    "apps/web/features/companies/settings-controller.tsx": "282c5384b941e0bffa52427c04015d47ac80d59a86abf3245b9d70cc4f50d94f",
+    "apps/web/features/companies/settings-view.tsx": "37390bcc726d0f5ac35118d820780ee91dfad660d7da12cbe85dd01d749ffbff",
+    "apps/web/features/companies/use-companies.ts": "5320cdff5e3982428e727ff0933fcf32ef6182c7df0911319d5a5276df40fe6c",
+    "apps/web/features/members/member-controller.tsx": "632f5d896b5da0858371ae301fe06832d47ed49e73bf83e92174d7128820a20a",
+    "apps/web/features/members/member-view.tsx": "f61dc2ca7e87c4030cb2dd61a2cb8f903b83fbea1becd97e9146bb61c733beb4",
+    "apps/web/features/members/roles.ts": "d90a112245c538d7b150d27d398e9b906704d3c66b4fa594819afc15f0c468df",
+    "apps/web/features/members/use-members.ts": "7e5510340cf419bf9e54acf8f240f3c20a82e439a9caa05342e001d279981cdd",
+    "apps/web/features/users/use-users.ts": "204cdfb1dfb294e1b3015e49fb3a6e6c96c8b121793a9383ddc2e2064f037ce3",
+    "apps/web/features/users/user-controller.tsx": "41e2269adecdab39850ba95ce4274e0f9d5815115ac44a1b9b938e7ea4d8de8a",
+    "apps/web/features/users/user-view.tsx": "cdbfdd67ffd34f3cd575ce2f29ebf3792d6d0b80ec9e49b618339f395b0a8527",
+    "apps/web/lib/api.ts": "77a50d280fa4a9b2ee3832d51a3b8ee05b476d767ca9d26aac18f514700d915e",
+    "apps/web/lib/use-command.ts": "cf984ef9b910771e6c09815a83a9fac1b064851e90eaf839d384a10ed8b53358",
+    "apps/web/next.config.ts": "ffb26b9e78e758de19f7d939b88b0b55647d70609d180e8762ca0a14c55df412",
+    "apps/web/postcss.config.mjs": "b783348d5618047d0f37e12acd15c5a2c5f02809d8711e0764c9cea52750346c",
+    "package-lock.json": "a9159e5cd9a0e84ef4547a7512124b7e67e0b5c3f12b2e7377664f16a3519fde",
+    "packages/api-client/index.ts": "a897b895e721f4e84336ce7cdd918f058c7b7e3caf6f710e8ac7bce2a31fd011",
+    "packages/api-client/schema.ts": "20ca03dcf2ed765ecfc269649d8b202d559c439965a58fa8c496970d4fb83007"
+  },
+  "screenshots": {
+    "docs/ui-validation/desktop-members.jpg": "4ac63de6aa1669952e6cb4026df0af5446d54c489355f9af303bcb2cc3b7ebb3",
+    "docs/ui-validation/mobile-members.jpg": "c449c534b406bd419a430c4edbaa91617635983758e29a09fbbbf86bf981311f",
+    "docs/ui-validation/mobile-permission.jpg": "968fce8339f5ada2ae393ac1e0014d6b4552283bf16474c30519ccd9fe741515"
+  },
+  "ready_content_reveal": {
+    "duration_ms": 280,
+    "inspection": "computed in the built-in browser after production reload; ready content mounts after waiting",
+    "reduced_motion_enabled": "not_verified"
+  }
+}

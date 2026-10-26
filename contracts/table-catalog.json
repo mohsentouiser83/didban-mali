@@ -1,0 +1,304 @@
+{
+  "tables": [
+    {
+      "name": "users",
+      "company_scoped": false
+    },
+    {
+      "name": "installation_settings",
+      "company_scoped": false
+    },
+    {
+      "name": "auth_sessions",
+      "company_scoped": false
+    },
+    {
+      "name": "identity_tokens",
+      "company_scoped": false
+    },
+    {
+      "name": "companies",
+      "company_scoped": false
+    },
+    {
+      "name": "company_memberships",
+      "company_scoped": true
+    },
+    {
+      "name": "permission_grants",
+      "company_scoped": true
+    },
+    {
+      "name": "permission_events",
+      "company_scoped": true
+    },
+    {
+      "name": "financial_periods",
+      "company_scoped": true
+    },
+    {
+      "name": "policy_versions",
+      "company_scoped": true
+    },
+    {
+      "name": "processing_sessions",
+      "company_scoped": true
+    },
+    {
+      "name": "source_files",
+      "company_scoped": true
+    },
+    {
+      "name": "session_files",
+      "company_scoped": true
+    },
+    {
+      "name": "interpretation_versions",
+      "company_scoped": true
+    },
+    {
+      "name": "interpretation_controls",
+      "company_scoped": true
+    },
+    {
+      "name": "source_rows",
+      "company_scoped": true
+    },
+    {
+      "name": "validation_issues",
+      "company_scoped": true
+    },
+    {
+      "name": "processing_steps",
+      "company_scoped": true
+    },
+    {
+      "name": "step_dependencies",
+      "company_scoped": true
+    },
+    {
+      "name": "step_attempts",
+      "company_scoped": true
+    },
+    {
+      "name": "processing_issues",
+      "company_scoped": true
+    },
+    {
+      "name": "issue_answers",
+      "company_scoped": true
+    },
+    {
+      "name": "outbox_events",
+      "company_scoped": true
+    },
+    {
+      "name": "idempotency_records",
+      "company_scoped": true
+    },
+    {
+      "name": "dataset_revisions",
+      "company_scoped": true
+    },
+    {
+      "name": "logical_records",
+      "company_scoped": true
+    },
+    {
+      "name": "record_revisions",
+      "company_scoped": true
+    },
+    {
+      "name": "revision_records",
+      "company_scoped": true
+    },
+    {
+      "name": "source_coverage",
+      "company_scoped": true
+    },
+    {
+      "name": "accounts",
+      "company_scoped": true
+    },
+    {
+      "name": "account_role_versions",
+      "company_scoped": true
+    },
+    {
+      "name": "parties",
+      "company_scoped": true
+    },
+    {
+      "name": "party_identities",
+      "company_scoped": true
+    },
+    {
+      "name": "journal_entries",
+      "company_scoped": true
+    },
+    {
+      "name": "journal_lines",
+      "company_scoped": true
+    },
+    {
+      "name": "bank_accounts",
+      "company_scoped": true
+    },
+    {
+      "name": "bank_ledger_link_versions",
+      "company_scoped": true
+    },
+    {
+      "name": "balance_anchors",
+      "company_scoped": true
+    },
+    {
+      "name": "bank_movements",
+      "company_scoped": true
+    },
+    {
+      "name": "invoices",
+      "company_scoped": true
+    },
+    {
+      "name": "invoice_adjustments",
+      "company_scoped": true
+    },
+    {
+      "name": "settlement_events",
+      "company_scoped": true
+    },
+    {
+      "name": "settlement_snapshots",
+      "company_scoped": true
+    },
+    {
+      "name": "snapshot_settlement_events",
+      "company_scoped": true
+    },
+    {
+      "name": "allocations",
+      "company_scoped": true
+    },
+    {
+      "name": "allocation_reversals",
+      "company_scoped": true
+    },
+    {
+      "name": "obligations",
+      "company_scoped": true
+    },
+    {
+      "name": "planned_payment_versions",
+      "company_scoped": true
+    },
+    {
+      "name": "obligation_settlements",
+      "company_scoped": true
+    },
+    {
+      "name": "recurrence_proposals",
+      "company_scoped": true
+    },
+    {
+      "name": "invoice_snapshots",
+      "company_scoped": true
+    },
+    {
+      "name": "reference_chains",
+      "company_scoped": true
+    },
+    {
+      "name": "result_manifests",
+      "company_scoped": true
+    },
+    {
+      "name": "manifest_dependencies",
+      "company_scoped": true
+    },
+    {
+      "name": "calculation_runs",
+      "company_scoped": true
+    },
+    {
+      "name": "evidence",
+      "company_scoped": true
+    },
+    {
+      "name": "metric_observations",
+      "company_scoped": true
+    },
+    {
+      "name": "metric_evidence",
+      "company_scoped": true
+    },
+    {
+      "name": "reconciliation_runs",
+      "company_scoped": true
+    },
+    {
+      "name": "reconciliation_candidates",
+      "company_scoped": true
+    },
+    {
+      "name": "findings",
+      "company_scoped": true
+    },
+    {
+      "name": "decisions",
+      "company_scoped": true
+    },
+    {
+      "name": "forecast_days",
+      "company_scoped": true
+    },
+    {
+      "name": "report_snapshots",
+      "company_scoped": true
+    },
+    {
+      "name": "report_approvals",
+      "company_scoped": true
+    },
+    {
+      "name": "export_jobs",
+      "company_scoped": true
+    },
+    {
+      "name": "budget_policies",
+      "company_scoped": false
+    },
+    {
+      "name": "budget_periods",
+      "company_scoped": false
+    },
+    {
+      "name": "model_tariffs",
+      "company_scoped": false
+    },
+    {
+      "name": "model_requests",
+      "company_scoped": true
+    },
+    {
+      "name": "budget_reservations",
+      "company_scoped": true
+    },
+    {
+      "name": "assistant_questions",
+      "company_scoped": true
+    },
+    {
+      "name": "notifications",
+      "company_scoped": true
+    },
+    {
+      "name": "audit_events",
+      "company_scoped": true
+    },
+    {
+      "name": "operations",
+      "company_scoped": true
+    }
+  ]
+}

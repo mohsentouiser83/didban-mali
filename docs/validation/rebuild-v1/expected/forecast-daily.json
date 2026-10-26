@@ -1,0 +1,156 @@
+{
+  "as_of_date": "2026-09-30",
+  "status": "estimated",
+  "rows": [
+    {
+      "date": "2026-10-01",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-02",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-03",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-04",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-05",
+      "balance": "3398",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-06",
+      "balance": "3398",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-07",
+      "balance": "3398",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-08",
+      "balance": "3398",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-09",
+      "balance": "3398",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-10",
+      "balance": "3098",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-11",
+      "balance": "3098",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-12",
+      "balance": "2898",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-13",
+      "balance": "2898",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-14",
+      "balance": "2898",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-15",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-16",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-17",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-18",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-19",
+      "balance": "2798",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-20",
+      "balance": "2678",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-21",
+      "balance": "2678",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-22",
+      "balance": "2678",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-23",
+      "balance": "2678",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-24",
+      "balance": "2678",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-25",
+      "balance": "2628",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-26",
+      "balance": "2628",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-27",
+      "balance": "2628",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-28",
+      "balance": "2628",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-29",
+      "balance": "2628",
+      "status": "estimated"
+    },
+    {
+      "date": "2026-10-30",
+      "balance": "2628",
+      "status": "estimated"
+    }
+  ]
+}

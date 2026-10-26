@@ -1,0 +1,22 @@
+{
+  "id": "F03",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "revenue": "1000",
+    "expense_before_tax": "600",
+    "tax": "50",
+    "variant_missing_tax": null
+  },
+  "expected": {
+    "net_profit": "350",
+    "missing_tax_variant": {
+      "pretax": "400",
+      "net_profit": null,
+      "status": "unavailable",
+      "reason": "income_tax_unknown"
+    }
+  },
+  "application_execution": "not_run"
+}

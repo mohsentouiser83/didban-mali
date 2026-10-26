@@ -1,0 +1,10 @@
+{
+  "schema": "AnswerRequest",
+  "expected_valid": true,
+  "value": {
+    "answer": {
+      "kind": "unit",
+      "value": "IRT"
+    }
+  }
+}

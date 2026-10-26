@@ -1,0 +1,11 @@
+{
+  "schema": "AllocationRequest",
+  "expected_valid": false,
+  "value": {
+    "settlement_event_id": "ce139fc0-2ca1-506a-bf90-542f2bbfb6cc",
+    "invoice_id": "f4ea8b04-701e-5798-8e91-f18f91a63a41",
+    "dataset_revision_id": "63e27a6f-00ee-541e-9629-a6481f6f1ee7",
+    "amount": "-1",
+    "reason": "تخصیص"
+  }
+}

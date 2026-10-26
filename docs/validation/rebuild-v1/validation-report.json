@@ -1,0 +1,1301 @@
+{
+  "schema_version": "fixture-1",
+  "scope": "saved_fixture_consistency_only",
+  "status": "passed",
+  "checks_passed": 318,
+  "checks": [
+    {
+      "check": "unit:00001",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00002",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00003",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00004",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00005",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00006",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00007",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00008",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00009",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00010",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00011",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00012",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00013",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00014",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00015",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00016",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00017",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00018",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00019",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00020",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00021",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00022",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00023",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00024",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00025",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00026",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00027",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00028",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00029",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00030",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00031",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00032",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00033",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00034",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00035",
+      "status": "passed"
+    },
+    {
+      "check": "unit:00036",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:OPEN",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:A01",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:A02",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J101",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J102",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J103",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J104",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J105",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J106",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J107",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J108",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J109",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J110",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J111",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J112",
+      "status": "passed"
+    },
+    {
+      "check": "balanced:J201",
+      "status": "passed"
+    },
+    {
+      "check": "ledger text ID",
+      "status": "passed"
+    },
+    {
+      "check": "bank text ID",
+      "status": "passed"
+    },
+    {
+      "check": "real Excel date",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00002:previous",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00003:previous",
+      "status": "passed"
+    },
+    {
+      "check": "ledger-bank reconciliation:bank_a:previous",
+      "status": "passed"
+    },
+    {
+      "check": "ledger-bank reconciliation:bank_b:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:revenue:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:expense:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:net_profit:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ar_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ap_trade_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:debt_total_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:cash:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ar_invoice:previous",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ap_invoice:previous",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00002:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00003:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00004:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00005:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00006:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00007:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00008:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_a:00009:current",
+      "status": "passed"
+    },
+    {
+      "check": "ledger-bank reconciliation:bank_a:current",
+      "status": "passed"
+    },
+    {
+      "check": "bank golden:bank_a",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_b:00002:current",
+      "status": "passed"
+    },
+    {
+      "check": "running balance:bank_b:00003:current",
+      "status": "passed"
+    },
+    {
+      "check": "ledger-bank reconciliation:bank_b:current",
+      "status": "passed"
+    },
+    {
+      "check": "bank golden:bank_b",
+      "status": "passed"
+    },
+    {
+      "check": "invoice remaining:S000",
+      "status": "passed"
+    },
+    {
+      "check": "invoice remaining:S001",
+      "status": "passed"
+    },
+    {
+      "check": "invoice remaining:S002",
+      "status": "passed"
+    },
+    {
+      "check": "invoice remaining:P000",
+      "status": "passed"
+    },
+    {
+      "check": "invoice remaining:P001",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:revenue:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:expense:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:net_profit:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ar_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ap_trade_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:debt_total_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:cash:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ar_invoice:current",
+      "status": "passed"
+    },
+    {
+      "check": "golden metric:ap_invoice:current",
+      "status": "passed"
+    },
+    {
+      "check": "delta:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "percent:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "delta:expense",
+      "status": "passed"
+    },
+    {
+      "check": "percent:expense",
+      "status": "passed"
+    },
+    {
+      "check": "delta:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "percent:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "delta:cash",
+      "status": "passed"
+    },
+    {
+      "check": "percent:cash",
+      "status": "passed"
+    },
+    {
+      "check": "delta:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "percent:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "delta:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "percent:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "delta:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "percent:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "delta:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "percent:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "delta:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "percent:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "AR comparable difference",
+      "status": "passed"
+    },
+    {
+      "check": "AP comparable difference",
+      "status": "passed"
+    },
+    {
+      "check": "moadian matches:sales",
+      "status": "passed"
+    },
+    {
+      "check": "moadian discrepancies",
+      "status": "passed"
+    },
+    {
+      "check": "moadian portal only",
+      "status": "passed"
+    },
+    {
+      "check": "moadian matches:purchase",
+      "status": "passed"
+    },
+    {
+      "check": "cash movement:external_in",
+      "status": "passed"
+    },
+    {
+      "check": "cash movement:external_out",
+      "status": "passed"
+    },
+    {
+      "check": "cash movement:internal_in",
+      "status": "passed"
+    },
+    {
+      "check": "cash movement:internal_out",
+      "status": "passed"
+    },
+    {
+      "check": "weighted median delay",
+      "status": "passed"
+    },
+    {
+      "check": "overdue forecast requires answer",
+      "status": "passed"
+    },
+    {
+      "check": "question barrier before answers",
+      "status": "passed"
+    },
+    {
+      "check": "two explicit answers",
+      "status": "passed"
+    },
+    {
+      "check": "plan-invoice same obligation:PLAN1",
+      "status": "passed"
+    },
+    {
+      "check": "plan-invoice same obligation:PLAN2",
+      "status": "passed"
+    },
+    {
+      "check": "forecast events",
+      "status": "passed"
+    },
+    {
+      "check": "forecast:closing",
+      "status": "passed"
+    },
+    {
+      "check": "forecast:receipts",
+      "status": "passed"
+    },
+    {
+      "check": "forecast:payments",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:revenue:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:revenue:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:revenue:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:expense:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:expense:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:expense:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:net_profit:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:net_profit:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:net_profit:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:cash:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:cash:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:cash:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_ledger:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_invoice:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_invoice:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ar_invoice:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_trade_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_trade_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_trade_ledger:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_invoice:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_invoice:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:ap_invoice:delta",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:debt_total_ledger:current",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:debt_total_ledger:previous",
+      "status": "passed"
+    },
+    {
+      "check": "workbook reference:debt_total_ledger:delta",
+      "status": "passed"
+    },
+    {
+      "check": "F01",
+      "status": "passed"
+    },
+    {
+      "check": "F02:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "F02:bank",
+      "status": "passed"
+    },
+    {
+      "check": "F03",
+      "status": "passed"
+    },
+    {
+      "check": "F03:unknown",
+      "status": "passed"
+    },
+    {
+      "check": "F04:income",
+      "status": "passed"
+    },
+    {
+      "check": "F04:adjustment",
+      "status": "passed"
+    },
+    {
+      "check": "F05",
+      "status": "passed"
+    },
+    {
+      "check": "F06",
+      "status": "passed"
+    },
+    {
+      "check": "F06:internal",
+      "status": "passed"
+    },
+    {
+      "check": "F07period_remaining",
+      "status": "passed"
+    },
+    {
+      "check": "F07current_remaining",
+      "status": "passed"
+    },
+    {
+      "check": "F08",
+      "status": "passed"
+    },
+    {
+      "check": "F09:total",
+      "status": "passed"
+    },
+    {
+      "check": "F09:comparable",
+      "status": "passed"
+    },
+    {
+      "check": "F10:distinct",
+      "status": "passed"
+    },
+    {
+      "check": "F10:sum",
+      "status": "passed"
+    },
+    {
+      "check": "F10:duplicate",
+      "status": "passed"
+    },
+    {
+      "check": "F10:overlap",
+      "status": "passed"
+    },
+    {
+      "check": "F11:capacity_bound",
+      "status": "passed"
+    },
+    {
+      "check": "F11:concurrent execution pending",
+      "status": "passed"
+    },
+    {
+      "check": "F12:today",
+      "status": "passed"
+    },
+    {
+      "check": "F12:missing",
+      "status": "passed"
+    },
+    {
+      "check": "F13",
+      "status": "passed"
+    },
+    {
+      "check": "F14:missing_tax",
+      "status": "passed"
+    },
+    {
+      "check": "F14:unresolved",
+      "status": "passed"
+    },
+    {
+      "check": "F15:undefined_pct",
+      "status": "passed"
+    },
+    {
+      "check": "F15:zero_delta",
+      "status": "passed"
+    },
+    {
+      "check": "baseline file count",
+      "status": "passed"
+    },
+    {
+      "check": "exact file duplicate",
+      "status": "passed"
+    },
+    {
+      "check": "leading zero account",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-01.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-02.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-03.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-04.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-05.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-06.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-07.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-08.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-09.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity file size:bank-10.csv",
+      "status": "passed"
+    },
+    {
+      "check": "capacity row total",
+      "status": "passed"
+    },
+    {
+      "check": "capacity unique refs",
+      "status": "passed"
+    },
+    {
+      "check": "capacity net",
+      "status": "passed"
+    },
+    {
+      "check": "capacity inflow",
+      "status": "passed"
+    },
+    {
+      "check": "capacity outflow",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T01",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T01",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T02",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T02",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T03",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T03",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T04",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T04",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T05",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T05",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T06",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T06",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T07",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T07",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T08",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T08",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T09",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T09",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T10",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T10",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T11",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T11",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T12",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T12",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T13",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T13",
+      "status": "passed"
+    },
+    {
+      "check": "technical scenario has assertions:T14",
+      "status": "passed"
+    },
+    {
+      "check": "technical not run:T14",
+      "status": "passed"
+    },
+    {
+      "check": "invalid row classification",
+      "status": "passed"
+    },
+    {
+      "check": "malformed CSV",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:reference-results.xlsx:خلاصه",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:reference-results.xlsx:مانده‌ها",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:reference-results.xlsx:پیش‌بینی",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:reference-results.xlsx:تطبیق مؤدیان",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:reference-results.xlsx:ملاحظات",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:ledger.xlsx:دفتر",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:invoices.xlsx:فروش",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:invoices.xlsx:خرید",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:bank.xlsx:بانک الف",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:bank.xlsx:بانک ب",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:invalid-rows.xlsx:خطاها",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:weird-headers.xlsx:خروجی نامنظم",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:exact-duplicate-bank.xlsx:بانک الف",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:exact-duplicate-bank.xlsx:بانک ب",
+      "status": "passed"
+    },
+    {
+      "check": "no executable formula:missing-unit.xlsx:واحد نامعلوم",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:bank.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:bank.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:invoices.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:invoices.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:ledger.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:ledger.xlsx",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:moadian-purchases.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:moadian-purchases.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:moadian-sales.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:moadian-sales.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:planned-payments.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:planned-payments.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:receipt-history.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:receipt-history.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source hash:settlements.csv",
+      "status": "passed"
+    },
+    {
+      "check": "source bytes:settlements.csv",
+      "status": "passed"
+    },
+    {
+      "check": "input fingerprint",
+      "status": "passed"
+    },
+    {
+      "check": "API input fingerprint",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:revenue",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:expense",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:expense",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:expense",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:expense",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:net_profit",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:cash",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:cash",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:cash",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:cash",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:ar_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:ar_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:ap_trade_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:ap_invoice",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API golden amount:debt_total_ledger",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ar_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ar_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ar_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API metric required fields:ap_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API amount string:ap_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API company isolation:ap_comparable_difference",
+      "status": "passed"
+    },
+    {
+      "check": "API null not zero",
+      "status": "passed"
+    },
+    {
+      "check": "API null reason present",
+      "status": "passed"
+    },
+    {
+      "check": "safe text export:00001",
+      "status": "passed"
+    },
+    {
+      "check": "safe text export:00002",
+      "status": "passed"
+    },
+    {
+      "check": "safe text export:00003",
+      "status": "passed"
+    },
+    {
+      "check": "error export row IDs",
+      "status": "passed"
+    }
+  ],
+  "financial_cases": {
+    "specified": 15,
+    "reference_checks": "passed",
+    "application_engine": "not_run"
+  },
+  "technical_cases": {
+    "specified": 14,
+    "application_integration": "not_run"
+  },
+  "accountant_approval": "pending",
+  "provider_calls": 0,
+  "not_executed": [
+    "application engine",
+    "database concurrency/RLS",
+    "model interpretation quality",
+    "browser and reduced motion",
+    "five-user load",
+    "backup/restore",
+    "XLS legacy parser",
+    "macro/malware and decompression limits"
+  ]
+}

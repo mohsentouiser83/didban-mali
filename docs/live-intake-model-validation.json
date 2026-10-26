@@ -1,0 +1,87 @@
+{
+  "status": "passed",
+  "scope": "synthetic_csv_upload_live_avalai_mapping_independent_controls_budget_barrier",
+  "session_id": "d06856af-5c15-4b2d-b6f4-3cd4c040b6e4",
+  "company_id": "da5fbc0e-7c82-4174-bee1-52192fe1043f",
+  "session_status": "waiting_input",
+  "questions": [
+    "interpretation_coverage"
+  ],
+  "files": [
+    {
+      "id": "c794ac9d-3485-4a0d-a4b0-973714697210",
+      "summary": {
+        "valid_rows": 2,
+        "rejected_rows": 0,
+        "excluded_rows": 0,
+        "skipped_rows": 0,
+        "coverage": "unknown",
+        "financial_effects_committed": false,
+        "sheets": [
+          {
+            "sheet_name": "CSV",
+            "source_kind": "bank",
+            "header_row": 1,
+            "provenance": "validated_automatic",
+            "mapping": [
+              {
+                "target_field": "date",
+                "source_column": "1"
+              },
+              {
+                "target_field": "amount",
+                "source_column": "2"
+              },
+              {
+                "target_field": "balance",
+                "source_column": "3"
+              },
+              {
+                "target_field": "currency",
+                "source_column": "4"
+              },
+              {
+                "target_field": "bank_account",
+                "source_column": "5"
+              },
+              {
+                "target_field": "reference",
+                "source_column": "6"
+              }
+            ],
+            "controls": [
+              {
+                "key": "required_columns",
+                "outcome": "passed"
+              },
+              {
+                "key": "coverage",
+                "outcome": "unknown"
+              },
+              {
+                "key": "bank_balance_sequence",
+                "outcome": "passed"
+              },
+              {
+                "key": "model_proposal_validation",
+                "outcome": "passed"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "dispatch_receipts": [
+    {
+      "outcome": "accepted",
+      "attempt": 1,
+      "purpose": "propose_mapping",
+      "provider": "avalai",
+      "billing_status": "settled",
+      "input_tokens": 1017,
+      "output_tokens": 139,
+      "estimated_token_cost_usd": "0.00017120"
+    }
+  ]
+}

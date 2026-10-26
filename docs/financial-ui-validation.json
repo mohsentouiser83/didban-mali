@@ -1,0 +1,67 @@
+{
+  "status": "passed_for_recorded_scope",
+  "environment": "synthetic_private_local_runtime8",
+  "browser": "built-in Codex Browser",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 1000
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "checks": [
+    "result_list_empty_and_populated",
+    "baseline_12_metrics_and_exact_reference_values",
+    "previous_period_values_and_zero_delta",
+    "evidence_dialog_aggregate_and_source_row_next_previous",
+    "keyboard_enter_escape_and_focus_return",
+    "persistent_financial_question_close_reopen_refresh_and_answer",
+    "financial_question_dates_jalali",
+    "post_publication_mapping_disabled_source_rows_readable",
+    "missing_bank_and_invoice_values_are_null_not_zero",
+    "precise_local_missing_source_copy",
+    "missing_manifest_error_and_retry_control",
+    "real_pending_12_card_skeleton_and_loading_to_result",
+    "desktop_and_mobile_no_horizontal_overflow",
+    "title_26px_weight500_and_reveal_animation_computed"
+  ],
+  "notes": [
+    "Only synthetic fixture coverage declarations were confirmed; no organization data used.",
+    "Temporary pause/resume of the owned synthetic API exercised actual request-pending state.",
+    "Historical invoice coverage and CAS races are verified by separate real-database tests."
+  ],
+  "unverified": [
+    "live_os_reduced_motion",
+    "live_financial_value_update_animation",
+    "five_concurrent_users_and_full_financial_20000_row_capacity",
+    "independent_accountant_acceptance",
+    "all_remaining_release_modules"
+  ],
+  "screenshots": [
+    "docs/financial-ui/evidence-desktop.png",
+    "docs/financial-ui/evidence-mobile.png",
+    "docs/financial-ui/loading-mobile.png",
+    "docs/financial-ui/missing-sources-mobile.png",
+    "docs/financial-ui/question-desktop.png",
+    "docs/financial-ui/results-desktop.png",
+    "docs/financial-ui/results-mobile.png"
+  ],
+  "source_sha256": {
+    "apps/web/features/results/evidence-view.tsx": "074db0da6f660122abcc226c13ce12a73546471b31869f1e02dd0e3e97be1557",
+    "apps/web/features/results/result-detail-view.tsx": "7a670a9b3b90eb3a8cb048a72159b8b2c1d0ed43e07b1794a042fcd0d72a53f7",
+    "apps/web/features/results/result-loading-view.tsx": "26c01c76a471014490934cbb4cd6bd3171602cc543f5cdfd359c4ba4953bddf6",
+    "apps/web/features/results/results-controller.tsx": "5355d781d7feef98ce2fbdf5699fb7a9c31343612a7686ea1449fc077b79e0ad",
+    "apps/web/features/results/results-list-view.tsx": "a4da7f624a314cb99c4e428068349b32495cd266e7905e7fed9f8f637bfb828f",
+    "apps/web/features/results/presentation.ts": "87ae2a07b10c69b7d05c1617aa49da0051d84098b98d7332adb3f3dc01414a88",
+    "apps/web/features/results/use-results.ts": "ba6a9768f176c8900263c343e1789b1cff75839b000cb2a75d5d011067f7048d",
+    "apps/web/components/ui/states.tsx": "62fbe78399a935bd118822ee52c292c03add3224367081576a6743a54e60ed13",
+    "apps/web/components/ui/financial/stat-cards.tsx": "42a70c512a41fb386a93cfd1c433a30a7b2c62bba396c4c41e37e9d81ae13cc0",
+    "apps/web/features/intake/session-controller.tsx": "9ccc02b084321b1281505ab34a3ef1b74653e3a67a750d6659983b2a7ebb7b77",
+    "apps/web/features/intake/use-intake.ts": "5d903c7b06068a9fd67d1edf54b720e1160c3b56182c516cb786000115e7f538",
+    "apps/web/features/intake/presentation.ts": "b7c5774fc61d93182310b5901cb88e309ac449087ae2df3b1be3607697cee13f",
+    "tests/financial-ui.test.ts": "51b2bee5d5656b48f5db0214ea670907a98e35eca360ad3d9672466c0f2f8ad4"
+  }
+}

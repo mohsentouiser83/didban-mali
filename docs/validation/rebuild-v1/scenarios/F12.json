@@ -1,0 +1,24 @@
+{
+  "id": "F12",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "gross": "100",
+    "due_date": null,
+    "paid_total_today": "30",
+    "payment_dates": null,
+    "historical_cutoff": "2026-09-30"
+  },
+  "expected": {
+    "current_remaining": "70",
+    "overdue": null,
+    "historical_remaining": null,
+    "reason_codes": [
+      "due_date_missing",
+      "payment_dates_missing"
+    ],
+    "forecast_state": "waiting_input"
+  },
+  "application_execution": "not_run"
+}

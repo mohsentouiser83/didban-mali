@@ -1,0 +1,210 @@
+{
+  "schema_version": "fixture-1",
+  "synthetic": true,
+  "accountant_approved": false,
+  "company_id": "company-a",
+  "period_id": "2026-09",
+  "as_of_date": "2026-09-30",
+  "after_answers": true,
+  "metrics": {
+    "revenue": {
+      "current": "1200",
+      "previous": "800",
+      "delta": "400",
+      "percent": "50"
+    },
+    "expense": {
+      "current": "752",
+      "previous": "400",
+      "delta": "352",
+      "percent": "88"
+    },
+    "net_profit": {
+      "current": "448",
+      "previous": "400",
+      "delta": "48",
+      "percent": "12"
+    },
+    "cash": {
+      "current": "2798",
+      "previous": "1900",
+      "delta": "898",
+      "percent": "47.26315789473684210526315789"
+    },
+    "ar_ledger": {
+      "current": "600",
+      "previous": "300",
+      "delta": "300",
+      "percent": "100"
+    },
+    "ar_invoice": {
+      "current": "600",
+      "previous": "300",
+      "delta": "300",
+      "percent": "100"
+    },
+    "ap_trade_ledger": {
+      "current": "500",
+      "previous": "200",
+      "delta": "300",
+      "percent": "150"
+    },
+    "ap_invoice": {
+      "current": "500",
+      "previous": "200",
+      "delta": "300",
+      "percent": "150"
+    },
+    "debt_total_ledger": {
+      "current": "1150",
+      "previous": "200",
+      "delta": "950",
+      "percent": "475"
+    }
+  },
+  "bank_balances": {
+    "bank_a": "1898",
+    "bank_b": "900"
+  },
+  "debt_components": {
+    "trade": "500",
+    "loan": "500",
+    "payroll": "100",
+    "tax": "50"
+  },
+  "comparable_difference": {
+    "ar": "0",
+    "ap": "0"
+  },
+  "invoice_remaining": {
+    "S000": "0",
+    "S001": "600",
+    "S002": "0",
+    "P000": "200",
+    "P001": "300"
+  },
+  "cash_movements": {
+    "external_in": "1400",
+    "external_out": "502",
+    "internal_in": "200",
+    "internal_out": "200",
+    "net": "898"
+  },
+  "moadian": {
+    "sales": {
+      "matched": [
+        "S001"
+      ],
+      "amount_mismatch": [
+        {
+          "invoice_id": "S002",
+          "internal": "200",
+          "portal": "210",
+          "difference": "10"
+        }
+      ],
+      "portal_only": [
+        "PORTAL-ONLY"
+      ]
+    },
+    "purchase": {
+      "matched": [
+        "P001"
+      ]
+    }
+  },
+  "forecast": {
+    "status": "estimated",
+    "start": "2026-10-01",
+    "end": "2026-10-30",
+    "opening": "2798",
+    "receipts": "600",
+    "payments": "770",
+    "closing": "2628",
+    "weighted_median_delay_days": 3,
+    "events": [
+      {
+        "date": "2026-10-05",
+        "direction": "receipt",
+        "obligation_id": "S001",
+        "amount": "600",
+        "balance": "3398"
+      },
+      {
+        "date": "2026-10-10",
+        "direction": "payment",
+        "obligation_id": "OB-P001",
+        "amount": "300",
+        "balance": "3098"
+      },
+      {
+        "date": "2026-10-12",
+        "direction": "payment",
+        "obligation_id": "OB-P000",
+        "amount": "200",
+        "balance": "2898"
+      },
+      {
+        "date": "2026-10-15",
+        "direction": "payment",
+        "obligation_id": "SALARY1",
+        "amount": "100",
+        "balance": "2798"
+      },
+      {
+        "date": "2026-10-20",
+        "direction": "payment",
+        "obligation_id": "RENT-OCT",
+        "amount": "120",
+        "balance": "2678"
+      },
+      {
+        "date": "2026-10-25",
+        "direction": "payment",
+        "obligation_id": "TAX1",
+        "amount": "50",
+        "balance": "2628"
+      }
+    ],
+    "excluded": [
+      "PROPOSAL1:unconfirmed",
+      "PLAN6:outside_horizon",
+      "E05:after_as_of"
+    ],
+    "coverage": "synthetic_complete_obligations_declared"
+  },
+  "initial_workflow": {
+    "state": "waiting_input",
+    "publish_allowed": false,
+    "issue_ids": [
+      "Q-RECEIPT-S001",
+      "Q-PAYMENT-P000"
+    ]
+  },
+  "final_workflow": {
+    "state": "completed",
+    "report_label": "تولیدشده سامانه",
+    "human_approved": false
+  },
+  "evidence": {
+    "revenue": [
+      "ledger.xlsx!دفتر:J101",
+      "ledger.xlsx!دفتر:J112"
+    ],
+    "cash": [
+      "bank.xlsx!بانک الف:00009",
+      "bank.xlsx!بانک ب:00003"
+    ],
+    "receivable": [
+      "invoices.xlsx!فروش:S001",
+      "settlements.csv:E02"
+    ],
+    "debt": [
+      "ledger.xlsx!دفتر:J103",
+      "ledger.xlsx!دفتر:J106",
+      "ledger.xlsx!دفتر:J109",
+      "ledger.xlsx!دفتر:J110",
+      "ledger.xlsx!دفتر:J111"
+    ]
+  }
+}

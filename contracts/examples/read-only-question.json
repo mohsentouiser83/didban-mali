@@ -1,0 +1,8 @@
+{
+  "schema": "AssistantQuestionRequest",
+  "expected_valid": true,
+  "value": {
+    "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+    "question": "علت تغییر نقد چیست؟"
+  }
+}

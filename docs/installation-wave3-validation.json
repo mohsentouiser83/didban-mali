@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-26",
+  "status": "capacity_native_restore_and_clean_compose_smoke_passed",
+  "capacity": {
+    "status": "passed",
+    "tests_run": 1,
+    "elapsed_seconds": 175.858,
+    "reference": "docs/capacity-validation.json",
+    "scope": "5 concurrent upload/read users in one shared 20,000-physical-row synthetic bank session; real ClamAV, analysis, 3 exports and authenticated hash-verified downloads; not five concurrent heavy analyses"
+  },
+  "restore": {
+    "status": "passed",
+    "tests_run": 1,
+    "elapsed_seconds": 20.424,
+    "reference": "docs/restore-validation.json",
+    "scope": "actual independent PostgreSQL18 clusters, current host app and shared production backup/archive/recovery primitives; not fresh Compose app startup"
+  },
+  "fresh_api_image": {
+    "status": "passed",
+    "attempt_date": "2026-10-26",
+    "log": ".local/wave3-api-build-final-retry.log",
+    "log_sha256": "25e859d2af4f52a171d486fa3b4719ed3f618b02b4d20499543e05ecc50b4a35",
+    "prior_failures": "transient package index/DNS failures retained in earlier attempt logs; no TLS bypass or global DNS change"
+  },
+  "organizational_https": "not_deployed_or_verified",
+  "capacity_server_minimum": "not_measured; 4vCPU/8GB/100GB is an engineering starting proposal",
+  "live_model_calls": 0,
+  "source_sha256": {
+    "tests/test_capacity_runtime.py": "0a2ecc62d4da95932fed6c6673e41ba5b079dd09f2ce771bfc6d01a2194493d9",
+    "tests/test_restore_runtime.py": "315bb6019f8286bc8939e568bd02004e800566ec95465fb8072619c46ee3f2f3",
+    "tests/test_backup_bundle.py": "591a799e5beecd1cfdf4734ca429b8c8f3365896a32cf3d38155445fc3f7f962",
+    "tests/test_installation_config.py": "47af3767c51f235bde629a3880e8e7d2e394a143e02e9fdc31c4eb37e6c114fe",
+    "tools/backup_bundle.py": "83e66c9b9c5168db14a4f38840927867e2a82d4e1aeed12fb060734b6189118d",
+    "tools/installation_backup.py": "84cb5e003456ad5c95ed725a0c95f4371a2483c05cf1b9c768c733a037830938",
+    "tools/installation_snapshot.py": "86a8069027bb4159e8e646e78fee716978104bf35b25553f141fbdb2de1fc464",
+    "tools/database_archive.py": "935142238037253c630669a27da46661dfd5ed799b53fb373d1158d6233c576c",
+    "tools/recovery_configuration.py": "6b98c868e673d6398c6af3b26728a4e9f3f41af8037d12e3f96a03f18302d160",
+    "tools/check_installation_config.py": "5ea8dcfcda090e924def435f14c91de10fe473933cf3e542f686fd300a4ede9f",
+    "infra/Dockerfile.api": "55cca505a374b7831b40812b1ca25454f0a67ecb079a4a8dbd302d718ac5c78b",
+    "infra/compose.yaml": "75f49a58f64abed6e3f4fd730a552af9cf0675633605b3496f008a4616414d2e",
+    "infra/compose.production.yaml": "408fd6f8e2f6dda5bbb8197c6a8a12645b78844b58f0a088563eb565bf266b74",
+    "requirements-runtime.txt": "da18df87d2572bd9d36f4ac41128d1b747051f1ab5ac7c9880468ddf1fca8675",
+    "requirements-runtime.lock": "b5f177b664c1c340c5d8bfa8cc47c37e4820c2ef6892cac6607468d826a6cd3d",
+    "tools/check_compose_runtime.py": "8759730dabdb235c37bb92a9dd0da77569857c69983e5c804cc0bd58fb032965"
+  },
+  "clean_compose": {
+    "status": "passed",
+    "checks": 15,
+    "reference": "docs/compose-web-validation.json",
+    "scope": "fresh isolated PostgreSQL/API/worker/web, real intake/ClamAV/restart, nonroot, embedded PDF font and private export storage; not organizational HTTPS/full Compose restore"
+  }
+}

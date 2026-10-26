@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "tests_run": 7,
+  "failures": 0,
+  "errors": 0,
+  "model_calls": 0,
+  "source_sha256": {
+    "tests/test_policy_runtime.py": "f909103328e161c7857047b7a2c528941f93b1316645bd278e8ebc5e247e05a5",
+    "database/014_policy_retention_runtime.sql": "29d362350f5baf7e2dedb4c479f199319b9c4e9221f7090bb468a41489e8e5ec",
+    "apps/api/didban/application/policies.py": "38231a1cbe029d4f50e66c5fbfb4ce4aae0ea33ce797d2b26f45ced20a663eff",
+    "apps/api/didban/domain/policies.py": "afdd7404e7bcc4d570b267df63efb04048a7b20e753391ead29ea701d71ae67c",
+    "apps/api/didban/infrastructure/policies.py": "2627be65d977a028529468ef7d13ec245092b7ac7f1a002255bdb62f9b959016",
+    "apps/api/didban/application/source_cleanup_worker.py": "aa90bee4cf1948b7e2cee4521574cdcacb4a4a2dbaea8726d42393855d764584",
+    "apps/api/didban/application/intake.py": "266d5488e02702b77ef8b58f3c9661a03ce010ab5e0b70052e84f5ad1e313a45",
+    "apps/api/didban/application/forecast.py": "1476265d5b0675960f27b3502903241a2425d2c280e8c37e24eacabd199f7073",
+    "apps/api/didban/infrastructure/financial.py": "4551954bff8a3cdb9ded00639f726f6b00f651e42e1dec157f773906ceabc7e7",
+    "apps/api/didban/infrastructure/interpretation.py": "dc8c669c36d032185c113496a0f23c53623d45cd538a85591968d7a643b352a9"
+  }
+}

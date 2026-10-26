@@ -1,0 +1,14 @@
+{
+  "schema_version": "fixture-1-example-not-final-openapi",
+  "id": "4944b982-bfbc-5046-a746-3ac02f1741fd",
+  "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+  "status": "waiting_input",
+  "session_version": 2,
+  "publish_allowed": false,
+  "root_issue_ids": [
+    "ab09804d-b17d-51f6-aac8-97191da5329e",
+    "8a76164f-dcb5-52e8-92a2-1fbdae1ccd47"
+  ],
+  "completed_steps_replayed": false,
+  "closing_dialog_changes_state": false
+}

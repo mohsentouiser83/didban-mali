@@ -1,0 +1,17 @@
+{
+  "id": "F13",
+  "schema_version": "fixture-1",
+  "level": "domain",
+  "synthetic": true,
+  "input": {
+    "obligation_id": "O1",
+    "invoice_total": "100",
+    "plan_total": "100",
+    "paid": "40"
+  },
+  "expected": {
+    "future_payment": "60",
+    "obligation_count": 1
+  },
+  "application_execution": "not_run"
+}

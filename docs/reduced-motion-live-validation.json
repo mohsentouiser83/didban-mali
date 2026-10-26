@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "scope": "actual_macOS_preference_in_builtin_browser",
+  "initial_os_reduce_motion": "off",
+  "test_os_reduce_motion": "on",
+  "dialog": {
+    "dialogs": [
+      {
+        "animation": "none",
+        "duration": "0s",
+        "visible": true
+      }
+    ],
+    "reduced": true
+  },
+  "loading_and_navigation": {
+    "animated": 0,
+    "reduced": true
+  },
+  "metrics": {
+    "animated": 0,
+    "headings": 13,
+    "reduced": true
+  },
+  "restored_os_reduce_motion": "off",
+  "restored_browser": {
+    "reduced": false
+  },
+  "limitations": [
+    "scoped to question dialog, navigation/loading and loaded metrics; not every product animation"
+  ]
+}

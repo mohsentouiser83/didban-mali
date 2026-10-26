@@ -1,0 +1,19 @@
+{
+  "schema": "SealRequest",
+  "expected_valid": false,
+  "value": {
+    "expected_file_ids": [
+      "a60921d0-f0df-56a2-a3bc-bb3265b2d9aa",
+      "36d18f54-053a-5b2c-a4c0-c0372d85c664",
+      "35dc7531-f5b3-5a92-b848-fa8aca5ccbcd",
+      "4d347666-bd48-5f68-8e3d-986838dff7e9",
+      "0e7fe21e-a22f-5073-ada5-6f22c670a5b4",
+      "391663c6-c441-5971-8b26-82ac23e10fc2",
+      "f0bb4b4a-55c6-5874-bba3-b7c42e6c92d7",
+      "ac6027c5-a64e-5f2c-89bc-3d3257c1aca5",
+      "cd03944f-13ba-5e4a-a6b6-f59e5caee91d",
+      "fb7ed2cf-02d2-599e-85f8-3d9ca3e0905a",
+      "ad4cf9e2-13ff-56d6-b5f0-9c3af5a778bc"
+    ]
+  }
+}

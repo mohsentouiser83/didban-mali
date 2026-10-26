@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "tests_run": 23,
+  "command": ".venv/bin/python tests/test_financial_domain.py",
+  "scope": "synthetic_reference_and_hostile_pinned_rows",
+  "independent_accountant_approval": false,
+  "full_F01_F15_acceptance": false,
+  "source_sha256": {
+    "apps/api/didban/domain/financial/__init__.py": "6614a75ea79325cdadd9039c010d19ed5fa9bdac962421df169bd46ed9171720",
+    "apps/api/didban/domain/financial/bank.py": "d40de2ebbb76ba4fb26a6aa4e9c0f645c8bc6452656395c6ca349b91f468848f",
+    "apps/api/didban/domain/financial/common.py": "817c8768a643ae059ac4fd132c0bb9ea1bd8978ce3b87cae891de0051f565cb9",
+    "apps/api/didban/domain/financial/engine.py": "ef6c3af7ada11938bd0257c319c0d19e725d71bfc10f69384744dd5f7239c819",
+    "apps/api/didban/domain/financial/invoices.py": "54f1f0bd44a5d987a44fe50adb0c55a37b65cdbf696bff5a4ab1665d7a1d4e69",
+    "apps/api/didban/domain/financial/ledger.py": "4d90a44140697dacb1eb39800fa0126e9d61db15a7e014a2993046724123648f",
+    "apps/api/didban/domain/financial/types.py": "7c1fba11e905a5da8b3aaf74dca4cb198a315303f52617fd0126d5764d4d42ef",
+    "tests/test_financial_domain.py": "118dc9c74055311eb969de97c233aa9083c0082e63b8695f51d976e481680e30"
+  },
+  "acceptance_matrix": "docs/financial-acceptance-matrix.fa.md"
+}

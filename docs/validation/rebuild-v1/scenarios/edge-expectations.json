@@ -1,0 +1,68 @@
+{
+  "missing-unit.xlsx": {
+    "state": "waiting_input",
+    "question": "IRR_or_IRT",
+    "publish_allowed": false,
+    "possible_values_irr": [
+      "123.4",
+      "1234"
+    ]
+  },
+  "invalid-rows.xlsx": {
+    "valid_rows": [
+      "00001"
+    ],
+    "invalid_rows": {
+      "00002": "invalid_date",
+      "00003": "invalid_amount",
+      "00004": "excess_precision"
+    },
+    "known_excluded_amount": "20",
+    "unknown_impact_rows": [
+      "00003"
+    ],
+    "precision_rejected_amount": "0.0000001",
+    "full_result_allowed": false,
+    "note": "Standalone movement-only source can expose valid movement 10 as limited; no complete cash or profit result."
+  },
+  "weird-headers.xlsx": {
+    "header_row": 3,
+    "data_rows": [
+      4,
+      5
+    ],
+    "excluded_rows": [
+      1,
+      2,
+      3,
+      6
+    ],
+    "account_id": "0000123",
+    "calendar": "jalali",
+    "currency": "IRR",
+    "inflow": "100",
+    "outflow": "20",
+    "net": "80",
+    "normalized_dates": [
+      "2026-09-01",
+      "2026-09-02"
+    ]
+  },
+  "exact-duplicate-bank.xlsx": {
+    "same_company_duplicate_of": "baseline/bank.xlsx",
+    "new_financial_effect": "0"
+  },
+  "overlap.csv": {
+    "state": "excluded_overlap",
+    "active_until_resolved": false
+  },
+  "malformed.csv": {
+    "state": "rejected",
+    "reason": "invalid_csv"
+  },
+  "formula-text.csv": {
+    "formula_execution_allowed": false,
+    "text_preserved": true,
+    "download_formula_escape_required": true
+  }
+}

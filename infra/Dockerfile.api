@@ -1,0 +1,13 @@
+FROM python@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+ARG PIP_INDEX_URL=https://pypi.org/simple
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/app/apps/api
+COPY requirements-runtime.lock ./requirements-runtime.lock
+RUN python -m pip install --no-cache-dir --index-url "$PIP_INDEX_URL" -r requirements-runtime.lock
+COPY apps/api ./apps/api
+COPY assets/fonts ./assets/fonts
+COPY database ./database
+COPY contracts/openapi.json ./contracts/openapi.json
+USER 10001:10001
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "didban.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--no-proxy-headers"]

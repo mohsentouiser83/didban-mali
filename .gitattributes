@@ -1,0 +1,8 @@
+*.ttf binary
+*.woff2 binary
+*.xlsx binary
+# Preserve fixture bytes, including BOM/CRLF and malformed inputs.
+*.csv -text whitespace=cr-at-eol
+docs/design-reference/*.html -text
+# This skill is preserved verbatim from the source project.
+.agents/skills/ui-ux-design/SKILL.md whitespace=-blank-at-eol

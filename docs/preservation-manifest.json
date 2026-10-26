@@ -1,0 +1,441 @@
+{
+  "source_project": "/Users/mohsentouiserkani/Projects/didban-mali",
+  "files": [
+    {
+      "source": "AGENTS.md",
+      "destination": "AGENTS.md",
+      "sha256": "aa06662b82e844038002643ef2a364fe0ee782bcc7eb6484b47e678d63a7eebb"
+    },
+    {
+      "source": "design.md",
+      "destination": "design.md",
+      "sha256": "bc7d5a2f4ea85d066a410630ef8facf9e53e88ac5daa6f9a53989e3124c27920"
+    },
+    {
+      "source": "docs/rebuild-spec.fa.md",
+      "destination": "docs/rebuild-spec.fa.md",
+      "sha256": "5913eaf4a2b0e84e4e379e28936143b4019f9bea4055978125fdee22a5b68859"
+    },
+    {
+      "source": "docs/rebuild-financial-contract.fa.md",
+      "destination": "docs/rebuild-financial-contract.fa.md",
+      "sha256": "a50097c501cd7c5daefd797a8182015d29710956fefcc7c955946ee4b6d18da3"
+    },
+    {
+      "source": "docs/rebuild-technical-contract.fa.md",
+      "destination": "docs/rebuild-technical-contract.fa.md",
+      "sha256": "ca1a3e83c1a9d5c975856a43717a5bca0a51166466d7d1f4e5a45be0300024ab"
+    },
+    {
+      "source": "docs/rebuild-decision-review.fa.md",
+      "destination": "docs/rebuild-decision-review.fa.md",
+      "sha256": "c933ca274b4fb9a54b6c51e12debf460bfedf3f7409493da9c27662a92b1d1e5"
+    },
+    {
+      "source": "docs/design-reference/didban-luminous.html",
+      "destination": "docs/design-reference/didban-luminous.html",
+      "sha256": "1fff1703291b3dc65606a54f6c0a4305d2f63d2e17e7a079eee2beb10f46b235"
+    },
+    {
+      "source": ".agents/skills/ui-ux-design/SKILL.md",
+      "destination": ".agents/skills/ui-ux-design/SKILL.md",
+      "sha256": "3531b1df912923d47b9cfd9b28c0e5da140ad122e0cc481176d36012bd25e9c6"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/validation-report.fa.md",
+      "destination": "docs/validation/rebuild-v1/validation-report.fa.md",
+      "sha256": "6d4abf883fd3118bb5b33d7a496636b61a982407a041618dd0b51b6671ca8958"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/validation-report.json",
+      "destination": "docs/validation/rebuild-v1/validation-report.json",
+      "sha256": "f006496c7c2810d4076ae5e226378c8b32d55c35d21aa131eb66d75bea0ef843"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/README.fa.md",
+      "destination": "docs/validation/rebuild-v1/README.fa.md",
+      "sha256": "6c0b1f250f0028459e80ea1ab585996b4e8bed7da01c8b1ad9cede4fe29d8426"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/verify.py",
+      "destination": "docs/validation/rebuild-v1/verify.py",
+      "sha256": "d69485d49283e3eda639a368905c8c074abf43f77cef942bf0bd58b802f9400d"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/SHA256SUMS",
+      "destination": "docs/validation/rebuild-v1/SHA256SUMS",
+      "sha256": "40a8d526155cb62e96763791e30ce054b35e8cb767feca9c2ec9e8c1554dc9c3"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/session-waiting-input.json",
+      "destination": "docs/validation/rebuild-v1/expected/session-waiting-input.json",
+      "sha256": "6a3c486f9e6c5b5a93965d53e222bf54491b504b9ff1b3d2bf94ca58cf428385"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/source-manifest.json",
+      "destination": "docs/validation/rebuild-v1/expected/source-manifest.json",
+      "sha256": "cb2c532acc63006c55a61d6bf63f53ee05549d40fb72f98bff6be7291ae9fb6e"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/forecast-daily.json",
+      "destination": "docs/validation/rebuild-v1/expected/forecast-daily.json",
+      "sha256": "57bfb710fa10e6efeb5b0fcd832a5b090708f56f59a067b2420500f1d48f50ee"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/invalid-rows.csv",
+      "destination": "docs/validation/rebuild-v1/expected/invalid-rows.csv",
+      "sha256": "6c9bc6bdaf901dd668b87480b9bb0a1d6c2d243c3b5ebbcae4ed657af519396e"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/nullable-metric-example.json",
+      "destination": "docs/validation/rebuild-v1/expected/nullable-metric-example.json",
+      "sha256": "54af6b3619b173144487ea2470f902d7ae8694d150a5fe49a793c35ad0b4f6b1"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/metric-observations.json",
+      "destination": "docs/validation/rebuild-v1/expected/metric-observations.json",
+      "sha256": "e25a71271b65fde6434110fac36c38d5c85a3c453bce0bd7358d28ab0a2303ba"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/formula-text-safe-export.csv",
+      "destination": "docs/validation/rebuild-v1/expected/formula-text-safe-export.csv",
+      "sha256": "7759dd3d4366099367c5efea7d7884a7e63eb8b9cbdb1511a980bc6d7b06eb79"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/reference-results.xlsx",
+      "destination": "docs/validation/rebuild-v1/expected/reference-results.xlsx",
+      "sha256": "a7f5743aba8ee3422af8dfac21cc587ce7762da705a9ccd814d4ac3e41e807ab"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/expected/baseline.json",
+      "destination": "docs/validation/rebuild-v1/expected/baseline.json",
+      "sha256": "cbcb847b205a39c5687e948b9a6adee1ebf50d8e617b87881a2168707dfc9c84"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T06.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T06.json",
+      "sha256": "89484f0900be9aae411838e4cd667ae1caea2abd86fce47df9b6a9be83b2fab6"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T10.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T10.json",
+      "sha256": "f169628f845abac3c070fd060039fb04d0ec862e807698df9244fbb3fa6b504b"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T11.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T11.json",
+      "sha256": "b17c89d19ce9dbe67765bc7d3ddda23571482f2dc0d4d30d53cf5879ddd8abaf"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F01.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F01.json",
+      "sha256": "a5f0fe5da98df167d13f55601c85c0df9563f799101aeaacffb398749f4b63ca"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T07.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T07.json",
+      "sha256": "09bac4d2d6ebc215a576165adb7fdc403f468790350cd22f38f182a7faa3b85d"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/capacity-context.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/capacity-context.json",
+      "sha256": "ca289d05f1f32fdd40dd7e76e60e3a2f6eb5d8aaa30c1c5a831a8233c240c1fe"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F06.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F06.json",
+      "sha256": "d7c4b2bf097d10b40bc0f0bff60611264f48b06a6a7950f1e0ee0f0a58499dc1"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F10.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F10.json",
+      "sha256": "87059766226878d10f14ae6c1a18d7eb832ead2947bb051be76ae4cc93e10954"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/baseline-context.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/baseline-context.json",
+      "sha256": "1c22692e226a0eaff3d7061d2bc6852ab565e9cb44c2a4e15707cdcef6d87aa1"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/model-output-invalid.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/model-output-invalid.json",
+      "sha256": "2a1d26fa4d49b81f6b435ec23a48da9dae7bd321463564f3b49f36db1d2ebcbf"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F11.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F11.json",
+      "sha256": "0340c1a625be063a48b794bbc96de953666e36b9b48bd672a7eff9e43ed9cf8c"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F07.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F07.json",
+      "sha256": "b0bfa8ac13d478edf4e643f9f36fcc16038655430aacd9d74f3b0bcdadae9630"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T01.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T01.json",
+      "sha256": "7c6db3fbd01a84fc84331caac8a54d2953a21b037465c0ece299c9b69682c1b3"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/identity-aliases.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/identity-aliases.json",
+      "sha256": "086c402d7f9fcf4ea44f02e5ce842847f3edc5cf1614299dd34b5ec22f419631"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T14.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T14.json",
+      "sha256": "1880619d3e325292315152db0eec63f63a6d7aa97900f47243428dc62c9f99e8"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F12.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F12.json",
+      "sha256": "7a79e1988e1f477936e5a97fcb769ed15038e79b6f5c943cdf534a5a861b58d8"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T02.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T02.json",
+      "sha256": "2a3e699c9f2cd28a59f4f4ad6fbb433be234245bdf796f905bf09f07271300de"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F04.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F04.json",
+      "sha256": "0fa3982043a0c7591131c5217e9517b0993edcf63154e433cb7fd25c6325ceb8"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F08.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F08.json",
+      "sha256": "24ec213dddc16015ae3744a977ba1ba17963a94496ebdbbd439a490977756c2c"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F09.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F09.json",
+      "sha256": "12af79a36fbe1c847b881e334ec1c9a54ea542a169243d4296406994e33b2b6d"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/decision-acceptance.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/decision-acceptance.json",
+      "sha256": "17632f734e2044af44ef5d741a22e82cf04b2e6153e40dcbc2f07a6897a2b96a"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T03.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T03.json",
+      "sha256": "4bf3ca2dcdf06b2ae63f925d90c6d52d9ceaaced3284564fa61708ba9fdf4d15"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F05.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F05.json",
+      "sha256": "bf58956e77fa057d456b09abf0a6759a8ce72ae51aae71139d1d64c4c375e056"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F13.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F13.json",
+      "sha256": "ca4ab5bd8c9a6dcffe57bf3a36f2853632dc1028b8885cd849210a2a7ba11364"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/edge-expectations.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/edge-expectations.json",
+      "sha256": "271efd0c5508c7817b2ebc2f82a4081fe7f73200db62b9781349c7741153d2d6"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T08.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T08.json",
+      "sha256": "03a8255f09c7d2462a6604f14342e995162174688c0be6eba50bf70ccb27db93"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T12.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T12.json",
+      "sha256": "8dcdb9bf64b212525254b1963ea5829fbb42b637d97cb055a34377415e35f814"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F14.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F14.json",
+      "sha256": "42e11ef5ee07e22899b44ad6b9268460e416ef1e85c1bbf61ca02964032c6967"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T04.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T04.json",
+      "sha256": "9abe5bbf8b2937b083811a827af39641f79e01a3efdbdb56174c6a6950cb5148"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F02.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F02.json",
+      "sha256": "814963f0943830ce97e21623f3041b5cf8b1a83732580ab901054469527738a9"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T05.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T05.json",
+      "sha256": "bfa9265d9ad9ef9e23ea53ee7bb670868ddf2186c9f49a4ad1b6b55235b3b02e"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F03.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F03.json",
+      "sha256": "f626427ea9aac5ac2feab724b4c879551337224760926c2c13ff3a788532cd69"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T13.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T13.json",
+      "sha256": "e5d59d1c746082e82b2d33f359c5b3a8be6cc3c184be937dfbad5eb494f43c5b"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/F15.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/F15.json",
+      "sha256": "bea7dfd16587a17fa8faf8be02c8a69e3defeeea8732311432de7045cbc428a9"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/scenarios/T09.json",
+      "destination": "docs/validation/rebuild-v1/scenarios/T09.json",
+      "sha256": "2f44cb63ff52b3fa60d0be7198cfa3e915d4d2277bbc92af401baa7bf6e35c20"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/moadian-purchases.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/moadian-purchases.csv",
+      "sha256": "5afc58894ad0e8c3fe792335474a7ea50aed335b7dc3a0741ee392712b60648d"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/ledger.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/ledger.xlsx",
+      "sha256": "ac02f7d181fab9f778db736e69d7a0653aad9bad86aa96064ba903dd8f76804c"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/settlements.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/settlements.csv",
+      "sha256": "63ba374ee4da554482a4750049dcce198d098fb56c2804be3bf2e8b17817b729"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/moadian-sales.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/moadian-sales.csv",
+      "sha256": "ade151d585b101c6c508aa37c4e1999fefdc792fe780e8162e11b24b9c2ab9a1"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/planned-payments.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/planned-payments.csv",
+      "sha256": "f02a884572068a2cc062b960644416396ba13cda7c5c90653d7ae2cfe4b5c1cc"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/receipt-history.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/receipt-history.csv",
+      "sha256": "b9281016ec5772a718e75ea45f2238ef5be70bc3794c65941114469d97516557"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/invoices.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/invoices.xlsx",
+      "sha256": "3111e6d10b6ff51344a0efe0604f5741dfa65b217e32cec9d7c6c0295e0b0c9e"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/baseline/bank.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/baseline/bank.xlsx",
+      "sha256": "39036e870d7dc70ec94f1bc7e9a0115b4d648ff04d233830f3a97ded76660102"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-09.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-09.csv",
+      "sha256": "4c593b13c857f722eb23e6fb0dce791e4ba9be7c2fa28440103adb198e614365"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-08.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-08.csv",
+      "sha256": "0d6bce8e341346720d2d17e89d541dcb196619860932bb5dfdfa2c9361df1239"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-03.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-03.csv",
+      "sha256": "7031675d70f3bad557333ec03a5572b2dee4dccbf42897b6faa76a1441ccea69"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-02.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-02.csv",
+      "sha256": "7a09b5fb29790ba266565d795924232169af80a6ec216b17cc624930582171b4"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-01.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-01.csv",
+      "sha256": "47f814f968d4e4320f480063277cc989b361692fab2813c34b842c9fc3509258"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-05.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-05.csv",
+      "sha256": "b4ec6a8cf10209b0f76cef9c9895962ba7b2a08c88b91b471e583bc474273e76"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-04.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-04.csv",
+      "sha256": "fba4872bfe00ac9eaaa261d35f95a9bacd56a27dd3e1445526f8ec80f4e3156d"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-10.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-10.csv",
+      "sha256": "54528b59acb7eecdbe6a6958f429e51de7fce0d7e561e67f872656ce0f38b0a2"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-06.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-06.csv",
+      "sha256": "11e4dbbebaab96b09895c601d33de7834049de65db6b53d47e1279b95974be5c"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/capacity/bank-07.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/capacity/bank-07.csv",
+      "sha256": "76f5d2966ba36ccbcbb76ffa34197d93c0ecab0f6342b0aca263f63aaa009d96"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/formula-text.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/formula-text.csv",
+      "sha256": "c2c4ff38f95fdae99ca0272e3763eb4ab31325e843698d5fcde6bdc777925bfc"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/invalid-rows.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/invalid-rows.xlsx",
+      "sha256": "0cf3b38c270a5b29ae7e0eaf980ea80d33fe99bfb295e7710f4bed10d3678a29"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/malformed.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/malformed.csv",
+      "sha256": "f13ea3bb49ef2afb2b47cb3a64657a92c9520f5e03f80e0ef708aca18a82eeb2"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/weird-headers.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/weird-headers.xlsx",
+      "sha256": "aed37903861267d33f79f4dc3e46ab816a9d169c37abb5c05524fabf43a268a6"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/exact-duplicate-bank.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/exact-duplicate-bank.xlsx",
+      "sha256": "39036e870d7dc70ec94f1bc7e9a0115b4d648ff04d233830f3a97ded76660102"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/overlap.csv",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/overlap.csv",
+      "sha256": "3685756e8fa2a4cd59f3179f3a55a5f941f46e54b02908ecc65be6dadc5065ed"
+    },
+    {
+      "source": "docs/validation/rebuild-v1/inputs/edges/missing-unit.xlsx",
+      "destination": "docs/validation/rebuild-v1/inputs/edges/missing-unit.xlsx",
+      "sha256": "3377913be1893a54ef034a890a0f57459e2799f845830aefabafb769f5c45f9e"
+    },
+    {
+      "source": "apps/web/public/fonts/AnjomanMax-Medium.woff2",
+      "destination": "assets/fonts/AnjomanMax-Medium.woff2",
+      "sha256": "f596265c1cbf224eb473b0e3b34a1a790ae8f30b4366b5796851a75954d2af95"
+    },
+    {
+      "source": "apps/web/public/fonts/IRANYekanX-Regular.ttf",
+      "destination": "assets/fonts/IRANYekanX-Regular.ttf",
+      "sha256": "066b27af79c7f5e42f7209eef85d36f72b095f3b6ba5a006c42be869e02c3db8"
+    },
+    {
+      "source": "apps/web/public/fonts/IRANYekanX-Medium.ttf",
+      "destination": "assets/fonts/IRANYekanX-Medium.ttf",
+      "sha256": "4af9a0b8558b85db1abcb5a4a8026cc90b7b36acaa08c385ec091f4f43679dde"
+    },
+    {
+      "source": "apps/web/public/fonts/IRANYekanX-Bold.ttf",
+      "destination": "assets/fonts/IRANYekanX-Bold.ttf",
+      "sha256": "fc2cc76d90e7a785a7635bd4ef8b450de5a953ac2f8f4c65346159b232510c5b"
+    },
+    {
+      "source": "apps/web/public/fonts/IRANYekanX-ExtraBold.ttf",
+      "destination": "assets/fonts/IRANYekanX-ExtraBold.ttf",
+      "sha256": "dd5c431db7ec9651e7ebdd7e2db54ddc06f19fee06081bc381a3d9c4b3b11331"
+    }
+  ],
+  "legacy_application_code_copied": false
+}

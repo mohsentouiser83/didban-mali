@@ -1,0 +1,21 @@
+{
+  "id": "T04",
+  "level": "integration",
+  "events": [
+    "answer wrong company",
+    "answer stale version",
+    "valid answer twice with same key"
+  ],
+  "assertions": [
+    "inaccessible -> 404",
+    "stale -> 409",
+    "one answer effect",
+    "resume once"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

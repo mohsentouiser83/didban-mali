@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-26",
+  "status": "passed_with_explicit_coverage_limits",
+  "environment": "built-in Codex Browser, synthetic localhost installation only",
+  "checked": [
+    "automatic session completion after three exports",
+    "real PDF/XLSX/CSV browser downloads through same-origin proxy",
+    "embedded IRANYekanX regular/medium and visually reviewed two-page Persian PDF",
+    "finance manager exact-edition approval; owner without grant has no approval control; viewer has no mutation controls",
+    "archive source and blocked hard-delete dependency dialog",
+    "required field focus, Persian date and successful version-two forecast policy",
+    "retention validation and 365-day save without automatic purge",
+    "desktop and 390x844 mobile policies/sources/reports and missing-due receivables",
+    "Escape dismissal and focus return; shared Select keyboard interaction",
+    "positive known invoice balance retained with unknown due/aging; settled invoices stay settled",
+    "direct report URL after session link, reload, exact report fetch and back to report list"
+  ],
+  "not_verified": [
+    "live operating-system reduced-motion preference",
+    "every empty/error/loading state of every product page",
+    "independent financial-specialist acceptance"
+  ],
+  "title_typography": {
+    "font": "Anjoman Max Medium",
+    "computed_family": "anjoman",
+    "size_px": 26,
+    "weight": 500
+  },
+  "horizontal_overflow_at_390": false,
+  "pdf_pages_visually_reviewed": 2,
+  "screenshots": {
+    "docs/delivery-ui/policies-desktop.png": "d6bf4cac5eaf219f2ebe5ec08b5aaffecdc8e1965e165d1f2523f5af556671c8",
+    "docs/delivery-ui/policies-mobile.png": "3fa16a8094cf13ce5f384f1c76069558921aeb52913b6639ac44e24992e507f1",
+    "docs/delivery-ui/policy-dialog-mobile.png": "5ddb08ae4493c71fbcf280118f1107c48d06039c4a993cbaebd7807f43b271bd",
+    "docs/delivery-ui/receivables-unknown-due-mobile.png": "39c693a2b60bd133abf5c6e52aa80ad336777afa2b22e198236bb688612911fa",
+    "docs/delivery-ui/receivables-unknown-due.png": "adf088b2566482e3eb8a03cbb0f86fa3aca2df9406c7bfc17bf2cbdd83a9f9ec",
+    "docs/delivery-ui/report-direct-mobile.png": "5c82a1f3496cef2e88846e7a79b975d5afa00db2fcefe2f8e884f70e242085b8",
+    "docs/delivery-ui/reports-approved.png": "66928c6f3b21c962639eb21015972aac192395a433f991c3b1ef832003a3a5b2",
+    "docs/delivery-ui/reports-desktop.png": "ce32646f926c7eef89e016ca6ad803c5180ce937f1878088835b55eee6cebe79",
+    "docs/delivery-ui/reports-direct.png": "f7ef06d6bf2ed34300189fd2b65cad9a689b00b747295757695a5fb92086c75d",
+    "docs/delivery-ui/reports-mobile.png": "11b5d1c722c33b00504920972c2d3aae9cf981731669cb947c16bfd69047a178",
+    "docs/delivery-ui/sources-desktop.png": "b390b3040d482aef10c4eb8ce018449e0fc8b19e2457ba5c9067fc1569ae6734",
+    "docs/delivery-ui/sources-mobile.png": "853ea1e043b0939c1cd5c7921e1a933992d46cac22c29801697ea26eee71c2a2"
+  },
+  "source_sha256": {
+    "apps/web/features/reports/reports-view.tsx": "063dd12c367ab91c35b94164126d02068d5f2348b2010e9b70a1641249daf8fb",
+    "apps/web/features/reports/reports-controller.tsx": "dc2efba7a60122f82b38524166bd9b312a3f19aa2715d49dd0d3b81f985d5ee4",
+    "apps/web/features/reports/use-reports.ts": "cd6a6c3d001c6bddaaed029bd16e5dee89ef203beedefa419c353ce74ca06b11",
+    "apps/web/components/ui/persian-date-picker.tsx": "6ffe656ec3db789b387c32dbeb24960694362e1aaa76342bfbd2cd510aa976fd",
+    "apps/web/features/settlements/financial-balances-controller.tsx": "fe85e6a68451c6c81c094563371c4300b65f342e9f10ff69e91eff7cf949da0d",
+    "apps/web/features/settlements/presentation.ts": "6f89e694f2eae8513850dd8fa92b53d3c07f247dbccaaace0e183c5fad1c4d54",
+    "apps/api/didban/domain/settlements.py": "dc15f780feb7630128cb7b17652ca7348bb8adfe78fbd54a11d69c0e0d412b50",
+    "apps/api/didban/infrastructure/settlement_projection.py": "8d6a68f216cb61a040ebdfc871302ddbd07d0f6d7a330d6ab87cb9ed18a27b17",
+    "apps/api/didban/infrastructure/settlement_snapshot.py": "cbe5c303936705806b4a604f09b3dd315684da376335d03ec29acf659f03b7ee",
+    "apps/api/didban/application/analysis_worker.py": "17bfa9815e63fd6f8752ebc153ba1b22e647b5a15434fee425326e9f699f9774",
+    "apps/api/didban/application/forecast_start.py": "da4af361e84b31adfdb2fdae4751f68d3b1b73817e2470e88184c0389eeacba3",
+    "tools/check_compose_runtime.py": "8759730dabdb235c37bb92a9dd0da77569857c69983e5c804cc0bd58fb032965",
+    "tests/test_delivery_workflow.py": "8784fa64e07d0aa565777f077ae736ab835d5beaabc55a94c3d186a797cd3615",
+    "tests/test_settlements_runtime.py": "5a7eece1a09c070745a62569ebb7916a5c8c61efd5600b3172d606f7151d1dbb",
+    "tests/test_financial_domain.py": "118dc9c74055311eb969de97c233aa9083c0082e63b8695f51d976e481680e30",
+    "apps/web/app/(workspace)/companies/[companyId]/reports/[reportId]/page.tsx": "b4476d2c47637a3e3261fafe45a010666023eca71379a3be1271de936f9af031"
+  },
+  "model_calls_by_this_validation": 0
+}

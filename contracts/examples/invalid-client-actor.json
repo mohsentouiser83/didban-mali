@@ -1,0 +1,9 @@
+{
+  "schema": "PermissionRequest",
+  "expected_valid": false,
+  "value": {
+    "enabled": true,
+    "reason": "مجوز",
+    "actor_id": "1dd4e623-611c-508a-978e-a89e944b512d"
+  }
+}

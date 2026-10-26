@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "scope": "isolated_docker_postgresql_and_tcp_http_smoke",
+  "postgres_version": "18.6",
+  "checks": [
+    "clean_install_migrate_provision_start",
+    "nonroot_readonly_runtime_without_migration_credentials",
+    "real_tcp_login_session_csrf",
+    "real_tcp_company_and_owner_permissions",
+    "repeat_migration_preserves_users_and_session",
+    "real_tcp_logout_revokes_session"
+  ],
+  "model_calls": 0,
+  "external_notifications": 0,
+  "production_deployment": false
+}

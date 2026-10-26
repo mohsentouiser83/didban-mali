@@ -1,0 +1,2 @@
+﻿tax_id,invoice_id,issued_on,gross,vat,currency,kind,reference_tax_id
+A000000000000000000011,P001,2026-09-03,800,0,IRR,original,

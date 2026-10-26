@@ -1,0 +1,20 @@
+{
+  "id": "T06",
+  "level": "integration",
+  "events": [
+    "two allocations race for capacity 100",
+    "reverse winning allocation",
+    "repeat reversal key"
+  ],
+  "assertions": [
+    "active sum <= 100",
+    "capacity restored exactly once",
+    "history retained"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

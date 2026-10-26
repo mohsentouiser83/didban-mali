@@ -1,0 +1,4 @@
+﻿tax_id,invoice_id,issued_on,gross,vat,currency,kind,reference_tax_id
+A000000000000000000001,S001,2026-09-02,1000,0,IRR,original,
+A000000000000000000002,S002,2026-09-12,210,0,IRR,original,
+A000000000000000000003,PORTAL-ONLY,2026-09-14,50,0,IRR,original,

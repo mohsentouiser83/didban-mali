@@ -1,0 +1,100 @@
+{
+  "status": "passed",
+  "scope": "synthetic_ledger_live_avalai_account_roles_exact_name_journal_controls_budget_barrier",
+  "session_id": "e6c30d31-86aa-409e-a8c8-e1145fbfa643",
+  "company_id": "da5fbc0e-7c82-4174-bee1-52192fe1043f",
+  "session_status": "waiting_input",
+  "questions": [
+    "interpretation_coverage"
+  ],
+  "files": [
+    {
+      "id": "31e494b2-991e-4c4b-8f3d-57345e9762b7",
+      "summary": {
+        "valid_rows": 2,
+        "rejected_rows": 0,
+        "excluded_rows": 0,
+        "skipped_rows": 0,
+        "coverage": "unknown",
+        "financial_effects_committed": false,
+        "sheets": [
+          {
+            "sheet_name": "CSV",
+            "source_kind": "ledger",
+            "header_row": 1,
+            "provenance": "validated_automatic",
+            "mapping": [
+              {
+                "target_field": "entry_id",
+                "source_column": "1"
+              },
+              {
+                "target_field": "date",
+                "source_column": "2"
+              },
+              {
+                "target_field": "account",
+                "source_column": "3"
+              },
+              {
+                "target_field": "account_name",
+                "source_column": "4"
+              },
+              {
+                "target_field": "debit",
+                "source_column": "5"
+              },
+              {
+                "target_field": "credit",
+                "source_column": "6"
+              },
+              {
+                "target_field": "currency",
+                "source_column": "7"
+              },
+              {
+                "target_field": "entry_type",
+                "source_column": "8"
+              }
+            ],
+            "controls": [
+              {
+                "key": "required_columns",
+                "outcome": "passed"
+              },
+              {
+                "key": "coverage",
+                "outcome": "unknown"
+              },
+              {
+                "key": "account_role_consistency",
+                "outcome": "passed"
+              },
+              {
+                "key": "journal_balance",
+                "outcome": "passed"
+              },
+              {
+                "key": "model_proposal_validation",
+                "outcome": "passed"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "dispatch_receipts": [
+    {
+      "outcome": "accepted",
+      "attempt": 1,
+      "purpose": "suggest_account_role",
+      "provider": "avalai",
+      "billing_status": "settled",
+      "input_tokens": 1092,
+      "output_tokens": 198,
+      "estimated_token_cost_usd": "0.00020820"
+    }
+  ],
+  "roles_with_controls_and_evidence": 2
+}

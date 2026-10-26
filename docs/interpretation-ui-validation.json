@@ -1,0 +1,88 @@
+{
+  "status": "passed_with_recorded_limits",
+  "date": "2026-10-25",
+  "browser": "built-in Codex Browser",
+  "data": "synthetic_only",
+  "production_build": true,
+  "viewports": {
+    "desktop": [
+      1280,
+      720
+    ],
+    "desktop_capture": [
+      1280,
+      1000
+    ],
+    "mobile": [
+      390,
+      844
+    ]
+  },
+  "verified": [
+    "real browser upload of bank/ledger/invoices, automatic preparation and interpretation, persistent coverage question and valid answer",
+    "unknown CSV columns open a focused mapping dialog via session-wide question",
+    "manual date/amount/reference mapping and exact IRT to IRR conversion; original 000001 identifier retained",
+    "saved unit, columns and reason survive reopening the mapping form",
+    "required Select validation has local error, aria-invalid, aria-describedby and actual focus on column-date",
+    "generic necessary question opens on file evidence page; dismissal retains server barrier and visible reopen action",
+    "row evidence shows standard money, original money and unit; mobile layout remains within viewport width390",
+    "viewer reads evidence without configure action; wrong session/file association renders shared ErrorState with retry",
+    "real normalized-row cursor loads 25 then all36 ledger data rows; ordered source locations and no duplicate header rows",
+    "keyboard dropdown selection, Escape and focus return to configure trigger",
+    "approved title26px weight500 and RTL desktop/mobile layout"
+  ],
+  "not_verified": [
+    "live operating-system reduced-motion preference",
+    "five-concurrent-user load",
+    "financial engine and full F01-F15 results",
+    "organization TLS deployment and backup restore",
+    "live model/provider quality and pricing"
+  ],
+  "frontend_checks": {
+    "typescript": "passed",
+    "eslint": "passed",
+    "production_build": "passed",
+    "client_and_date_and_exact_money_tests": 10
+  },
+  "screenshots": [
+    "docs/interpretation-ui/review-desktop.jpg",
+    "docs/interpretation-ui/review-mobile.jpg",
+    "docs/interpretation-ui/evidence-mobile.jpg"
+  ],
+  "preview": "http://127.0.0.1:18148/companies/fa799a13-836c-4347-9fa8-447a9f5b17ef/uploads/7af59607-8d28-4c5b-a5a4-f986ef1e3d39/files/15678d90-fda5-47c9-aec8-6cc8463154cb",
+  "preview_retained": true,
+  "model_calls": 0,
+  "outbound_notifications": 0,
+  "expected_failure_case": "wrong session/file GET returned404 and was presented without leaking file data",
+  "source_sha256": {
+    "apps/web/features/interpretation/interpretation-controller.tsx": "cfeb40567d4dd3054c1b21e8400525cf38b41c7aa270cce2d83910e553d0cc4f",
+    "apps/web/features/interpretation/interpretation-view.tsx": "6f16a31e4a0580e968d2e65d1c3db452b7edab7da3f6e05fe18defa957415425",
+    "apps/web/features/interpretation/mapping-controller.tsx": "7eb5f9a5f9406656ccc082cee8c263ce5b1d32833c730d525a38870fbc024c15",
+    "apps/web/features/interpretation/mapping-view.tsx": "2d8487d7e73a92593110ceac8ed6c7c644790d22726e3989a75fe2fc3803451e",
+    "apps/web/features/intake/notifications-view.tsx": "9ba15e959a46f83be0036bbc7edd57e841480e1ebdbcc7b6ca05e17c5a5be322",
+    "apps/web/features/intake/notifications.tsx": "c5521f928450f8fad470fda9e1eb8ebad49328c83676856e9d08ccf37b87aaf9",
+    "apps/web/features/intake/processing-question.tsx": "212423ad8ff4347b7eb2ebdb8b7869be0b920b107d96516b144e6bad1c9a1569",
+    "apps/web/features/intake/session-controller.tsx": "d552403d7039816b05a231f4d8be8c6dbff219306bb3d76fba12b6d8f3354bd0",
+    "apps/web/features/intake/session-view.tsx": "9faf711e6fa9371b1f7544c9cd486955031fcf94de4d52deee0dee3e50fc2cd7",
+    "apps/web/features/intake/uploads-controller.tsx": "d2ae7b6a58763741c88db01651b646272c55c6abd8e560ce4c2992b1f156f829",
+    "apps/web/features/intake/uploads-view.tsx": "6c087f21b739fa2c7893f49861264745576fb49e74d415568a787c4e798156ad",
+    "apps/web/components/ui/badge.tsx": "c21bbcb1c46daa540b0fe107a5799b68f94f4780d1037c53917c018f4554d517",
+    "apps/web/components/ui/button.tsx": "55c6598a5979b6026ef8d45b01476e186782e98fe9123e90129904519e493dd3",
+    "apps/web/components/ui/dialog.tsx": "1fac8b8952c14681fb34472aaeaced45cdf2e3cc14e221a4d04e1380e48c3b72",
+    "apps/web/components/ui/field.tsx": "9a13cbb0c0607d0211dd70d51f6c5d0c787d6ef8896ee49738181b927f03a3bb",
+    "apps/web/components/ui/file-picker.tsx": "62c406723082c22cbaa460f087d3a0b7e91302d6648847cccc90fdc174ad1f77",
+    "apps/web/components/ui/form.tsx": "fe3bfc4075ced6da02855ab92d1d84cae3332bf8379061001ddad21c003ec9f6",
+    "apps/web/components/ui/persian-date-picker.tsx": "7f47b0e97a65c00be14e616fe4d11df79972ac35b761147a9bd1024cd1c48a27",
+    "apps/web/components/ui/popover.tsx": "1e7bd8a14b08c8e0db9326d20badd805fc1830974cd089a665301d4dbd2f7621",
+    "apps/web/components/ui/select.tsx": "097e0e548b53c993844cd943e4ccbdde145570cfc0d55517278f652c933d486d",
+    "apps/web/components/ui/sonner.tsx": "7c4f27d95bc55f6c9fd3a81c4983816963307f9c2db0cde75184b544f36d4013",
+    "apps/web/components/ui/states.tsx": "d0ae2883c0c536ffeef4517c72331086c525f034c8b8a3bd6e2c58e777a1cf61",
+    "apps/web/components/ui/status-icons.tsx": "4ec0f6d5f86ec97fe50edf61e877412056585a9d86ccd9ad821037cb166c796d",
+    "apps/web/components/ui/table.tsx": "5eb37acf0cffa87c771e0667c01f2dc9c810aba806068b0ec5810425f9b3af37",
+    "apps/web/features/interpretation/format-values.ts": "c6d2f7362b99eb85faf4985e6e60f34c75638e07ae2f2cd5760cc2a22a5247a9",
+    "apps/web/features/interpretation/labels.ts": "17fc0324da7747c42428de090bd2728d09395be2176846e100fe42c145ccd4c4",
+    "packages/api-client/schema.ts": "89742a23f8ba94bc1ce92a8afe8e2afb25c4da28f235d909754a3c4aae192f42",
+    "contracts/openapi.json": "9befbbb05a83a65c29773c645367299e237703058fea11de392996ee967921b2"
+  },
+  "limits": "Staged canonical data is not a financial result. Unknown source layouts require explicit mapping; no universal source compatibility is claimed. Reduce-motion source guards are not a live OS preference test."
+}

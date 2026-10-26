@@ -1,0 +1,22 @@
+{
+  "id": "T07",
+  "level": "integration",
+  "events": [
+    "duplicate bank file",
+    "ambiguous overlapping file",
+    "mapping revision changes",
+    "execute F01-F15 per manifest"
+  ],
+  "assertions": [
+    "duplicate no effect",
+    "overlap excluded",
+    "old report immutable",
+    "new manifest for changed interpretation"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

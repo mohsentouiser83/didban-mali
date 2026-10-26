@@ -1,0 +1,337 @@
+{
+  "schema_version": "fixture-1-example-not-final-openapi",
+  "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+  "fixture_input_fingerprint": "ba10e68e745aad0b1cbd13915f25f37e1dfde64ef5cef61363f0227830101d5d",
+  "metrics": [
+    {
+      "metric_key": "revenue",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "revenue"
+      },
+      "value": "1200",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "800",
+        "delta": "400",
+        "percent": "50"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:J101",
+        "ledger.xlsx!دفتر:J112"
+      ]
+    },
+    {
+      "metric_key": "expense",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "expense"
+      },
+      "value": "752",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "400",
+        "delta": "352",
+        "percent": "88"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:J101,J102,J108,J110,J111,J112",
+        "baseline-context.json:tax_and_coverage_declarations"
+      ]
+    },
+    {
+      "metric_key": "net_profit",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "net_profit"
+      },
+      "value": "448",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "400",
+        "delta": "48",
+        "percent": "12"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:J101,J102,J108,J110,J111,J112",
+        "baseline-context.json:tax_and_coverage_declarations"
+      ]
+    },
+    {
+      "metric_key": "cash",
+      "basis": "bank",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "cash"
+      },
+      "value": "2798",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "1900",
+        "delta": "898",
+        "percent": "47.26315789473684210526315789"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "bank.xlsx!بانک الف:00009",
+        "bank.xlsx!بانک ب:00003"
+      ]
+    },
+    {
+      "metric_key": "ar_ledger",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "trade_receivables_only"
+      },
+      "value": "600",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "300",
+        "delta": "300",
+        "percent": "100"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:rows2-37"
+      ]
+    },
+    {
+      "metric_key": "ar_invoice",
+      "basis": "invoice",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "ar_invoice"
+      },
+      "value": "600",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "300",
+        "delta": "300",
+        "percent": "100"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "invoices.xlsx!فروش:S001",
+        "settlements.csv:E02"
+      ]
+    },
+    {
+      "metric_key": "ap_trade_ledger",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "trade_payables_only"
+      },
+      "value": "500",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "200",
+        "delta": "300",
+        "percent": "150"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:rows2-37"
+      ]
+    },
+    {
+      "metric_key": "ap_invoice",
+      "basis": "invoice",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "ap_invoice"
+      },
+      "value": "500",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "200",
+        "delta": "300",
+        "percent": "150"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "invoices.xlsx!خرید:rows2-3",
+        "settlements.csv:E04"
+      ]
+    },
+    {
+      "metric_key": "debt_total_ledger",
+      "basis": "ledger",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "all_liability_roles"
+      },
+      "value": "1150",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": {
+        "period_id": "6d3a6248-4f38-5d7a-b409-1779748e813a",
+        "value": "200",
+        "delta": "950",
+        "percent": "475"
+      },
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:rows2-37"
+      ]
+    },
+    {
+      "metric_key": "ar_comparable_difference",
+      "basis": "comparable_difference",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "same_trade_scope_party_date_unit"
+      },
+      "value": "0",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": null,
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:rows2-37",
+        "invoices.xlsx",
+        "settlements.csv"
+      ]
+    },
+    {
+      "metric_key": "ap_comparable_difference",
+      "basis": "comparable_difference",
+      "scope": {
+        "company_id": "a3157a45-115e-5ec9-9280-fedfda340f34",
+        "description": "same_trade_scope_party_date_unit"
+      },
+      "value": "0",
+      "unit": "IRR",
+      "status": "available",
+      "as_of_date": "2026-09-30",
+      "period_id": "750d75b7-e5df-5422-80ae-de51d5e129b7",
+      "comparison": null,
+      "reason_codes": [],
+      "coverage": {
+        "state": "declared_complete",
+        "declared_by": "fixture_author",
+        "independently_verified": false
+      },
+      "formula_version": "financial-contract-0.1-fixture-1",
+      "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+      "evidence_refs": [
+        "ledger.xlsx!دفتر:rows2-37",
+        "invoices.xlsx",
+        "settlements.csv"
+      ]
+    }
+  ]
+}

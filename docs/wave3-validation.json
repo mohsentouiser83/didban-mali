@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-26",
+  "status": "implemented_and_scoped_validated",
+  "scope": "wave3 reports/approvals/policy/retention/archive/backup/restore/capacity, plus financial-aging and direct-report-route corrections",
+  "historical_full_suite": {
+    "status": "passed",
+    "suites": 23,
+    "tests": 198,
+    "migrations": 17,
+    "app_tables": 94,
+    "runtime_version": 10,
+    "scope": "before concurrent model integration migration018; not acceptance of subsequent model changes"
+  },
+  "final_focused_suite": {
+    "status": "passed",
+    "suites": 3,
+    "tests": 15,
+    "names": [
+      "test_delivery_workflow.py",
+      "test_settlements_runtime.py",
+      "test_policy_runtime.py"
+    ],
+    "observed_schema_migrations": 18,
+    "log_sha256": "da24cab9ce82dde3852d9286bee3e6ff3f0679753cfadeb9dc811cb4622e9fce",
+    "scope": "real upload to three exports/approval/forecast continuation, settlement aging/capacity/history and policy/retention/cleanup"
+  },
+  "web": {
+    "typecheck": "passed",
+    "eslint": "passed",
+    "client_tests": 19,
+    "production_build": "passed",
+    "api_types_at_last_check": "passed",
+    "browser_report": "docs/delivery-ui-validation.json"
+  },
+  "capacity": {
+    "status": "passed",
+    "file_count": 10,
+    "physical_rows": 20000,
+    "users": 5,
+    "elapsed_seconds": 175.858,
+    "scope": "one shared synthetic session; concurrent uploads and reads, not five heavy analyses at once",
+    "report": "docs/capacity-validation.json"
+  },
+  "restore": {
+    "status": "passed",
+    "migrations": 17,
+    "app_tables": 94,
+    "private_objects": 9,
+    "report": "docs/restore-validation.json",
+    "scope": "two actual PostgreSQL18 clusters and production backup primitives; not organizational full Compose restore"
+  },
+  "clean_compose": {
+    "status": "passed",
+    "checks": 15,
+    "report": "docs/compose-web-validation.json",
+    "scope": "wave3 fresh image/private install smoke including PDF fonts and nonroot worker export writes"
+  },
+  "concurrent_model_work": {
+    "chat_title": "بررسی اتصال GPT Luna",
+    "scope": "separate human-authorized work is editing the same repository; its model/schema additions are preserved",
+    "last_extra_full_attempt": "stopped at old hard-coded migration count17 versus18 before that test was corrected in the model task; full current model-stage acceptance belongs to that task"
+  },
+  "remaining_acceptance": [
+    "organizational HTTPS/server deployment/upgrade/restore rehearsal",
+    "real authorized financial file formats and accountant acceptance; see financial-acceptance-matrix.fa.md",
+    "live reduced-motion OS check",
+    "integrated acceptance after concurrent model changes finish"
+  ],
+  "source_sha256": {
+    "apps/web/features/reports/reports-view.tsx": "063dd12c367ab91c35b94164126d02068d5f2348b2010e9b70a1641249daf8fb",
+    "apps/web/features/reports/reports-controller.tsx": "dc2efba7a60122f82b38524166bd9b312a3f19aa2715d49dd0d3b81f985d5ee4",
+    "apps/web/features/reports/use-reports.ts": "cd6a6c3d001c6bddaaed029bd16e5dee89ef203beedefa419c353ce74ca06b11",
+    "apps/web/components/ui/persian-date-picker.tsx": "6ffe656ec3db789b387c32dbeb24960694362e1aaa76342bfbd2cd510aa976fd",
+    "apps/web/features/settlements/financial-balances-controller.tsx": "fe85e6a68451c6c81c094563371c4300b65f342e9f10ff69e91eff7cf949da0d",
+    "apps/web/features/settlements/presentation.ts": "6f89e694f2eae8513850dd8fa92b53d3c07f247dbccaaace0e183c5fad1c4d54",
+    "apps/api/didban/domain/settlements.py": "dc15f780feb7630128cb7b17652ca7348bb8adfe78fbd54a11d69c0e0d412b50",
+    "apps/api/didban/infrastructure/settlement_projection.py": "8d6a68f216cb61a040ebdfc871302ddbd07d0f6d7a330d6ab87cb9ed18a27b17",
+    "apps/api/didban/infrastructure/settlement_snapshot.py": "cbe5c303936705806b4a604f09b3dd315684da376335d03ec29acf659f03b7ee",
+    "apps/api/didban/application/analysis_worker.py": "17bfa9815e63fd6f8752ebc153ba1b22e647b5a15434fee425326e9f699f9774",
+    "apps/api/didban/application/forecast_start.py": "da4af361e84b31adfdb2fdae4751f68d3b1b73817e2470e88184c0389eeacba3",
+    "tools/check_compose_runtime.py": "8759730dabdb235c37bb92a9dd0da77569857c69983e5c804cc0bd58fb032965",
+    "tests/test_delivery_workflow.py": "8784fa64e07d0aa565777f077ae736ab835d5beaabc55a94c3d186a797cd3615",
+    "tests/test_settlements_runtime.py": "5a7eece1a09c070745a62569ebb7916a5c8c61efd5600b3172d606f7151d1dbb",
+    "tests/test_financial_domain.py": "118dc9c74055311eb969de97c233aa9083c0082e63b8695f51d976e481680e30",
+    "apps/web/app/(workspace)/companies/[companyId]/reports/[reportId]/page.tsx": "b4476d2c47637a3e3261fafe45a010666023eca71379a3be1271de936f9af031"
+  }
+}

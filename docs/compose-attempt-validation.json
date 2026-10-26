@@ -1,0 +1,22 @@
+{
+  "status": "blocked_external_dependency_download",
+  "date": "2026-10-25",
+  "scope": "fresh wave2 Compose image build and integrated startup",
+  "packaging_defect_fixed": "httpx0.28.1 and pinned httpcore/certifi were absent from runtime requirements; now added",
+  "attempts": [
+    "official Python package CDN DNS resolution failed",
+    "supported test-only mirror with cached dependencies reached API startup and exposed missing httpx",
+    "fresh dependency layer after fix failed intermittently to obtain locked pydantic2.14.1 and argon2-cffi25.1.0 from mirror"
+  ],
+  "current_integrated_compose": "wave3 clean smoke passed separately; see superseding report",
+  "previous_success_report": "docs/compose-web-validation.json is historical wave1 scope, not evidence for currentwave2",
+  "isolated_resources_cleaned": true,
+  "live_model_calls": 0,
+  "host_security_settings_changed": false,
+  "runtime_requirements_sha256": {
+    "requirements-runtime.txt": "f149cb5712aaa452d5e84a3e1c4f6f5db14a93f8599d405852b3cd55a9772fe6",
+    "requirements-runtime.lock": "3279e3e60381557d6649ee9e78053c93246c518df5838234b00b5af61ec92962"
+  },
+  "historical_only": true,
+  "superseded_by": "docs/installation-wave3-validation.json"
+}

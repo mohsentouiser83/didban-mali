@@ -1,0 +1,11 @@
+{
+  "schema": "AnswerRequest",
+  "expected_valid": true,
+  "value": {
+    "answer": {
+      "kind": "bank_ledger_link",
+      "bank_account_id": "dfdebf27-831b-50a9-acb6-33f5198a4f97",
+      "ledger_account_id": "1865c38e-5bd0-54d7-90f9-2f447475843e"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+﻿plan_id,obligation_id,invoice_id,date,total_obligation,paid_as_of,confirmed,currency
+PLAN1,OB-P001,P001,2026-10-10,800,500,true,IRR
+PLAN2,OB-P000,P000,2026-10-12,200,0,true,IRR
+PLAN3,SALARY1,,2026-10-15,100,0,true,IRR
+PLAN4,RENT-OCT,,2026-10-20,120,0,true,IRR
+PLAN5,TAX1,,2026-10-25,50,0,true,IRR
+PLAN6,LOAN1,,2027-01-15,500,0,true,IRR
+PROPOSAL1,RECURRING-UNKNOWN,,2026-10-22,40,0,false,IRR

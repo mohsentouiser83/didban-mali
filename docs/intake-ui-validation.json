@@ -1,0 +1,71 @@
+{
+  "status": "passed_with_recorded_limits",
+  "date": "2026-10-25",
+  "browser": "built-in Codex Browser",
+  "data": "synthetic_only",
+  "production_build": true,
+  "viewports": {
+    "desktop": [
+      1280,
+      720
+    ],
+    "mobile": [
+      390,
+      844
+    ]
+  },
+  "verified": [
+    "dedicated periods empty/list/create/edit with Persian dates",
+    "invalid Jalali leap date blocked with local message and first-error focus",
+    "Jalali calendar mobile layout, RTL arrow-key selection, Escape and trigger focus return",
+    "real CSV/XLSX selection from shared FilePicker; automatic session/upload/seal; actual ClamAV and worker preparation",
+    "real preparation status and explicit unavailable financial-analysis limitation",
+    "encoding question opens shared Dialog; closing/reloading preserves whole-session barrier; valid mobile answer resumes preparation",
+    "notification mark-read does not resolve question; reload still opens required question",
+    "viewer sees sessions/periods without upload or period-edit/create actions",
+    "latest production build after presentation/controller separation rechecked",
+    "mobile width390 equals scrollWidth390; title26px weight500; no captured console errors/warnings in final owner flow"
+  ],
+  "not_verified": [
+    "live operating-system reduced-motion preference",
+    "five-concurrent-user load",
+    "financial interpretation/calculation",
+    "organization TLS/deployment/backup restore"
+  ],
+  "reduced_motion": "source guards present; live OS preference not tested",
+  "screenshots": [
+    "docs/intake-ui/prepared-desktop.jpg",
+    "docs/intake-ui/prepared-mobile.jpg",
+    "docs/intake-ui/question-mobile.jpg",
+    "docs/intake-ui/periods-mobile.jpg"
+  ],
+  "screenshot_note": "periods-mobile is from earlier build in this turn; subsequent changes affected shared loading and intake presentation ownership, not period layout",
+  "preview": "http://127.0.0.1:18148/companies/18b40d05-9bd4-450d-a3b6-f3f3b92101cd/uploads/fce67b92-404d-4624-907d-7e4abe4a45e2",
+  "preview_retained": true,
+  "model_calls": 0,
+  "outbound_notifications": 0,
+  "source_sha256": {
+    "apps/web/features/intake/notifications-view.tsx": "9ba15e959a46f83be0036bbc7edd57e841480e1ebdbcc7b6ca05e17c5a5be322",
+    "apps/web/features/intake/notifications.tsx": "c5521f928450f8fad470fda9e1eb8ebad49328c83676856e9d08ccf37b87aaf9",
+    "apps/web/features/intake/session-controller.tsx": "4e028e2a289c27408bad576af6f94daaf6800da8ab4e9e157423915b17a37a6b",
+    "apps/web/features/intake/session-view.tsx": "5da5407a547ea6325410888e9614812de479be893d34f57b20acff0721d0a92e",
+    "apps/web/features/intake/uploads-controller.tsx": "e87dc36bbb5203c161e47f75bfaf4206ae22fa6144685e1a9fe077ffc2f8dd8d",
+    "apps/web/features/intake/uploads-view.tsx": "6c087f21b739fa2c7893f49861264745576fb49e74d415568a787c4e798156ad",
+    "apps/web/features/periods/period-controller.tsx": "6908686b66d08eaddaaf0a23653e00e0a3e0211b4047f48cd1bf821c9fce9aaf",
+    "apps/web/features/periods/period-view.tsx": "5b4eaf75b47535dc747e7f41c4b404ddd78b678376b612608564d84b11b470c3",
+    "apps/web/components/ui/badge.tsx": "c21bbcb1c46daa540b0fe107a5799b68f94f4780d1037c53917c018f4554d517",
+    "apps/web/components/ui/button.tsx": "55c6598a5979b6026ef8d45b01476e186782e98fe9123e90129904519e493dd3",
+    "apps/web/components/ui/dialog.tsx": "1fac8b8952c14681fb34472aaeaced45cdf2e3cc14e221a4d04e1380e48c3b72",
+    "apps/web/components/ui/field.tsx": "9a13cbb0c0607d0211dd70d51f6c5d0c787d6ef8896ee49738181b927f03a3bb",
+    "apps/web/components/ui/file-picker.tsx": "62c406723082c22cbaa460f087d3a0b7e91302d6648847cccc90fdc174ad1f77",
+    "apps/web/components/ui/form.tsx": "094ab417e8a9d8c1474bc11483357575bd8da18832ea8e85631c410676033087",
+    "apps/web/components/ui/persian-date-picker.tsx": "7f47b0e97a65c00be14e616fe4d11df79972ac35b761147a9bd1024cd1c48a27",
+    "apps/web/components/ui/popover.tsx": "1e7bd8a14b08c8e0db9326d20badd805fc1830974cd089a665301d4dbd2f7621",
+    "apps/web/components/ui/select.tsx": "406ee2d0068f570127c89e2e2af46556a611daf7564b150a26dbb848b12fcf73",
+    "apps/web/components/ui/sonner.tsx": "7c4f27d95bc55f6c9fd3a81c4983816963307f9c2db0cde75184b544f36d4013",
+    "apps/web/components/ui/states.tsx": "d0ae2883c0c536ffeef4517c72331086c525f034c8b8a3bd6e2c58e777a1cf61",
+    "apps/web/components/ui/status-icons.tsx": "4ec0f6d5f86ec97fe50edf61e877412056585a9d86ccd9ad821037cb166c796d",
+    "apps/web/components/ui/table.tsx": "5eb37acf0cffa87c771e0667c01f2dc9c810aba806068b0ec5810425f9b3af37"
+  },
+  "limitations": "Preparation readiness is not financial correctness. CSV and XLSX exercised through browser; XLS parser support is not a claim of universal source compatibility."
+}

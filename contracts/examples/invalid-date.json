@@ -1,0 +1,10 @@
+{
+  "schema": "AnswerRequest",
+  "expected_valid": false,
+  "value": {
+    "answer": {
+      "kind": "date",
+      "value": "2026-02-30"
+    }
+  }
+}

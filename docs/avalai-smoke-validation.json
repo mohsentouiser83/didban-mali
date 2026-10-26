@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-10-26T06:57:31.618163+00:00",
+  "provider": "avalai",
+  "model": "gpt-6-luna",
+  "synthetic_data_only": true,
+  "max_output_tokens": 256,
+  "attempts": 1,
+  "automatic_retries": 0,
+  "estimated_upper_bound_usd": "0.00057940",
+  "status": "passed",
+  "selection": {
+    "intent": "show_metrics",
+    "metric_keys": [
+      "revenue"
+    ],
+    "next_section": "results"
+  },
+  "input_tokens": 281,
+  "output_tokens": 29,
+  "estimated_token_cost_usd": "0.00004260",
+  "billing_note": "Token-rate estimate only; provider fees and final invoice may differ."
+}

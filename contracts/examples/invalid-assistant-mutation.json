@@ -1,0 +1,9 @@
+{
+  "schema": "AssistantQuestionRequest",
+  "expected_valid": false,
+  "value": {
+    "manifest_id": "ad7279e2-5695-5eda-ab1b-094d1581aa5f",
+    "question": "حذف کن",
+    "tool": "delete"
+  }
+}

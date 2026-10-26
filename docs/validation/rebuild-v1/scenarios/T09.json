@@ -1,0 +1,22 @@
+{
+  "id": "T09",
+  "level": "integration",
+  "events": [
+    "load malformed.csv and formula-text.csv",
+    "test actual XLS/XLSX signature and macro quarantine",
+    "override configured bytes/uncompressed limit",
+    "multi-sheet row total exceeds limit"
+  ],
+  "assertions": [
+    "invalid content rejected",
+    "original text retained safely",
+    "no cell formula executed",
+    "no limit bypass"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

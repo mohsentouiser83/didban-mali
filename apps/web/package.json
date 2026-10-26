@@ -1,0 +1,34 @@
+{
+  "name": "@didban/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 18148",
+    "build": "next build",
+    "start": "node ../../tools/start-web.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@daypicker/persian": "10.0.2",
+    "@daypicker/react": "10.0.2",
+    "@didban/api-client": "*",
+    "@tailwindcss/postcss": "4.3.3",
+    "@tanstack/react-query": "5.90.5",
+    "lucide-react": "0.548.0",
+    "next": "16.4.3",
+    "radix-ui": "1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "sonner": "2.0.7",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.10",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "eslint": "10.13.0",
+    "eslint-config-next": "16.4.3",
+    "typescript": "5.9.3"
+  }
+}

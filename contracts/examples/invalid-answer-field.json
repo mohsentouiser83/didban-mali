@@ -1,0 +1,11 @@
+{
+  "schema": "AnswerRequest",
+  "expected_valid": false,
+  "value": {
+    "answer": {
+      "kind": "unit",
+      "value": "IRR",
+      "company_id": "b272c72c-60b0-5ae5-b8b0-760affdfce72"
+    }
+  }
+}

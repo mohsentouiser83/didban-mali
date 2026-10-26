@@ -1,0 +1,48 @@
+{
+  "schema_version": "fixture-1",
+  "company_id": "company-a",
+  "files": [
+    {
+      "path": "inputs/baseline/bank.xlsx",
+      "bytes": 5221,
+      "sha256": "39036e870d7dc70ec94f1bc7e9a0115b4d648ff04d233830f3a97ded76660102"
+    },
+    {
+      "path": "inputs/baseline/invoices.xlsx",
+      "bytes": 4981,
+      "sha256": "3111e6d10b6ff51344a0efe0604f5741dfa65b217e32cec9d7c6c0295e0b0c9e"
+    },
+    {
+      "path": "inputs/baseline/ledger.xlsx",
+      "bytes": 6022,
+      "sha256": "ac02f7d181fab9f778db736e69d7a0653aad9bad86aa96064ba903dd8f76804c"
+    },
+    {
+      "path": "inputs/baseline/moadian-purchases.csv",
+      "bytes": 133,
+      "sha256": "5afc58894ad0e8c3fe792335474a7ea50aed335b7dc3a0741ee392712b60648d"
+    },
+    {
+      "path": "inputs/baseline/moadian-sales.csv",
+      "bytes": 260,
+      "sha256": "ade151d585b101c6c508aa37c4e1999fefdc792fe780e8162e11b24b9c2ab9a1"
+    },
+    {
+      "path": "inputs/baseline/planned-payments.csv",
+      "bytes": 402,
+      "sha256": "f02a884572068a2cc062b960644416396ba13cda7c5c90653d7ae2cfe4b5c1cc"
+    },
+    {
+      "path": "inputs/baseline/receipt-history.csv",
+      "bytes": 255,
+      "sha256": "b9281016ec5772a718e75ea45f2238ef5be70bc3794c65941114469d97516557"
+    },
+    {
+      "path": "inputs/baseline/settlements.csv",
+      "bytes": 338,
+      "sha256": "63ba374ee4da554482a4750049dcce198d098fb56c2804be3bf2e8b17817b729"
+    }
+  ],
+  "fixture_input_fingerprint": "ba10e68e745aad0b1cbd13915f25f37e1dfde64ef5cef61363f0227830101d5d",
+  "note": "File fingerprint only; a production manifest must also bind policy, scope, decisions, interpretations and dataset revision."
+}

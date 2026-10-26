@@ -1,0 +1,21 @@
+{
+  "id": "T13",
+  "level": "integration",
+  "events": [
+    "10 capacity CSV files 2000 rows each",
+    "five simultaneous authorized users",
+    "scan then process"
+  ],
+  "assertions": [
+    "record duration/memory/queue/scan metrics",
+    "no lost or duplicate rows",
+    "20000 canonical rows",
+    "no readiness claim without measured results"
+  ],
+  "execution_status": "specified_not_executed",
+  "required_environment": "fresh_application_test_installation",
+  "company_ids": [
+    "company-a",
+    "company-b"
+  ]
+}

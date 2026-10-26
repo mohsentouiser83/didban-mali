@@ -1,0 +1,5 @@
+{
+  "status": "passed",
+  "tests_run": 9,
+  "scope": "encryption, authenticated integrity, safe archive and existing-target refusal; not a database restore test"
+}
