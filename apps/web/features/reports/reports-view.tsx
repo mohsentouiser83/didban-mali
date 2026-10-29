@@ -1,3 +1,6 @@
+import { AppIcon } from "@/components/ui/app-icon";
+import { financialMetricIcon } from "@/components/ui/financial/metric-icons";
+
 import { Download, FileCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -15,6 +18,7 @@ import {
   TableCell,
   TableRowHeader,
 } from "@/components/ui/table";
+
 export type ReportModel = {
   id: string;
   edition: string;
@@ -36,6 +40,7 @@ export type ReportModel = {
     id: string;
     label: string;
     status: string;
+    review: { errors: string; excluded: string } | null;
     ready: boolean;
     failed: boolean;
     url: string;
@@ -94,7 +99,8 @@ export function ReportsView({
     <div className="space-y-7">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[26px] font-medium">
+          <h1 className="flex items-center gap-2 font-heading text-[26px] font-medium">
+            <AppIcon name="ClipboardList" className="text-primary" size={24} />
             گزارش‌ها و خروجی‌ها
           </h1>
           <p className="mt-2 text-sm text-muted">{company}</p>
@@ -113,7 +119,10 @@ export function ReportsView({
       </header>
       <section className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
-          <label htmlFor="report-manifest">مبنای فایل‌ها</label>
+          <label className="flex items-center gap-2" htmlFor="report-manifest">
+            <AppIcon name="FileSpreadsheet" className="text-primary" />
+            مبنای فایل‌ها
+          </label>
           <Select
             id="report-manifest"
             label="مبنای فایل‌ها"
@@ -124,7 +133,10 @@ export function ReportsView({
           />
         </div>
         <div className="space-y-2">
-          <label htmlFor="report-edition">نسخه گزارش</label>
+          <label className="flex items-center gap-2" htmlFor="report-edition">
+            <AppIcon name="ClipboardList" className="text-primary" />
+            نسخه گزارش
+          </label>
           <Select
             id="report-edition"
             label="نسخه گزارش"
@@ -137,7 +149,7 @@ export function ReportsView({
       </section>
       {error ? <StatusMessage>{error}</StatusMessage> : null}
       {!report ? (
-        <EmptyState title="گزارشی آماده نیست" />
+        <EmptyState icon="ClipboardList" title="گزارشی آماده نیست" />
       ) : (
         <>
           <section className="flex flex-wrap items-center justify-between gap-4 rounded-summary border border-border bg-surface p-5 sm:p-7">
@@ -178,6 +190,7 @@ export function ReportsView({
               )
               .map((m) => (
                 <StatCard
+                  icon={financialMetricIcon(m.key)}
                   key={m.key}
                   title={m.label}
                   value={m.value}
@@ -190,7 +203,10 @@ export function ReportsView({
               ))}
           </StatCards>
           <section className="space-y-4">
-            <h2 className="text-sm font-medium">فایل‌های این نسخه</h2>
+            <h2 className="flex items-center gap-2 text-sm font-medium">
+              <AppIcon name="FileSpreadsheet" className="text-primary" />
+              فایل‌های این نسخه
+            </h2>
             <div className="grid gap-4 md:grid-cols-3">
               {report.exports.map((e) => (
                 <article
@@ -207,6 +223,16 @@ export function ReportsView({
                       {e.status}
                     </Badge>
                   </div>
+                  {e.review ? (
+                    <dl className="space-y-2 text-sm">
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <dt>خطای واقعی</dt><dd className="tabular-nums">{e.review.errors}</dd>
+                      </div>
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <dt>تکراریِ کنارگذاشته‌شده</dt><dd className="tabular-nums">{e.review.excluded}</dd>
+                      </div>
+                    </dl>
+                  ) : null}
                   {e.ready ? (
                     <Button asChild variant="secondary">
                       <a href={e.url}>
@@ -220,6 +246,7 @@ export function ReportsView({
                       disabled={retrying}
                       onClick={() => onRetry(e.id)}
                     >
+                      <AppIcon name="RefreshCw" />
                       تلاش دوباره
                     </Button>
                   ) : null}
@@ -228,7 +255,8 @@ export function ReportsView({
             </div>
           </section>
           <section className="space-y-4">
-            <h2 className="text-sm font-medium">
+            <h2 className="flex items-center gap-2 text-sm font-medium">
+              <AppIcon name="Layers3" className="text-primary" />
               شاخص‌های همان نسخه · {report.unit}
             </h2>
             <Table>
@@ -267,10 +295,12 @@ export function ReportsView({
       )}
       {more ? (
         <Button variant="secondary" onClick={onMore}>
+          <AppIcon name="ChevronsDown" />
           گزارش‌های بیشتر
         </Button>
       ) : null}
       <Dialog
+        icon="ClipboardList"
         open={approvalOpen}
         onOpenChange={onApprovalOpen}
         title="تأیید این نسخه گزارش"
@@ -282,6 +312,7 @@ export function ReportsView({
         </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={onApprove} disabled={approving}>
+            <AppIcon name="Check" />
             {approving ? "در حال ثبت…" : "ثبت تأیید"}
           </Button>
           <Button
@@ -289,6 +320,7 @@ export function ReportsView({
             onClick={() => onApprovalOpen(false)}
             disabled={approving}
           >
+            <AppIcon name="X" />
             انصراف
           </Button>
         </div>

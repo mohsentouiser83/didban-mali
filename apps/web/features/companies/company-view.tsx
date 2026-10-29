@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon, IconTile, type AppIconName } from "@/components/ui/app-icon";
 import Link from "next/link";
 import type { Schema } from "@didban/api-client";
 import type { ReactNode, FormEvent } from "react";
@@ -21,20 +23,27 @@ import { Form } from "@/components/ui/form";
 import { Select } from "@/components/ui/select";
 export function PageHeader({
   title,
+  icon = "Building2",
   description,
   action,
 }: {
   title: string;
+  icon?: AppIconName;
   description?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-      <div className="min-w-0 flex-1">
-        <h1 className="font-heading text-[26px] font-medium leading-relaxed [overflow-wrap:anywhere]">
-          {title}
-        </h1>
-        {description ? <p className="mt-1 text-muted">{description}</p> : null}
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <IconTile name={icon} />
+        <div className="min-w-0">
+          <h1 className="font-heading text-[26px] font-medium leading-relaxed [overflow-wrap:anywhere]">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1 text-muted">{description}</p>
+          ) : null}
+        </div>
       </div>
       {action}
     </div>
@@ -56,6 +65,7 @@ export function CompaniesView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="Building2"
         title="شرکت‌ها"
         action={companies.length ? create : undefined}
       />
@@ -105,6 +115,7 @@ export function CompaniesView({
           {more ? (
             <div className="mt-6 text-center">
               <Button variant="secondary" onClick={onMore} disabled={busy}>
+                <AppIcon name="ChevronsDown" />
                 {busy ? "در حال دریافت…" : "شرکت‌های بیشتر"}
               </Button>
             </div>
@@ -112,6 +123,7 @@ export function CompaniesView({
         </>
       ) : (
         <EmptyState
+          icon="Building2"
           title="شرکتی برای نمایش نیست"
           description="هنوز عضویت فعالی در شرکتی ندارید."
           action={create}
@@ -143,6 +155,7 @@ export function CompanyCreateDialog({
 }) {
   return (
     <Dialog
+      icon="Building2"
       busy={busy}
       open={open}
       onOpenChange={onOpenChange}
@@ -155,20 +168,22 @@ export function CompanyCreateDialog({
       }
     >
       <Form className="space-y-5" onSubmit={onSubmit}>
-        <Field id="company-name" label="نام شرکت">
+        <Field icon="Building2" id="company-name" label="نام شرکت">
           <Input id="company-name" name="name" required maxLength={4000} />
         </Field>
-        <Field id="company-owner" label="مالک اولیه">
+        <Field icon="ShieldCheck" id="company-owner" label="مالک اولیه">
           <CompanyOwnerSelect owner={owner} options={owners} />
         </Field>
         {onMore ? (
           <Button variant="ghost" onClick={onMore} disabled={loadingMore}>
+            <AppIcon name="ChevronsDown" />
             کاربران بیشتر
           </Button>
         ) : null}
         <UnitSelect />
         <FormMessage>{error}</FormMessage>
         <Button type="submit" className="w-full" disabled={busy}>
+          <AppIcon name="Plus" />
           {busy ? "در حال ایجاد…" : "ایجاد شرکت"}
         </Button>
       </Form>
@@ -176,6 +191,7 @@ export function CompanyCreateDialog({
   );
 }
 import { useState } from "react";
+
 function CompanyOwnerSelect({
   owner,
   options,
@@ -197,7 +213,7 @@ function CompanyOwnerSelect({
 export function UnitSelect({ initial = "IRR" }: { initial?: "IRR" | "IRT" }) {
   const [value, setValue] = useState<string>(initial);
   return (
-    <Field id="display-unit" label="واحد نمایش">
+    <Field icon="Coins" id="display-unit" label="واحد نمایش">
       <Select
         id="display-unit"
         name="display_unit"
@@ -225,6 +241,7 @@ export function CompanyOverview({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="Building2"
         title={company.name}
         action={
           <Button variant="ghost" asChild>

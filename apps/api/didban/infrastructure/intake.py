@@ -116,6 +116,12 @@ def session_view(repo: IntakeRepository, row: dict) -> dict:
             for i in issues
             if i["required"] and not i["resolved_at"] and not i["superseded_at"]
         ],
+        "input_review_required": row["input_review_required"],
+        "input_review_confirmed": bool(
+            repo.conn.execute(
+                "SELECT app.input_review_ready(%s) AS ready", (row["id"],)
+            ).fetchone()["ready"]
+        ),
         "manifest_id": row["manifest_id"],
         "financial_finished_at": row["financial_finished_at"],
         "analysis_finished_at": row["analysis_finished_at"],

@@ -69,7 +69,7 @@ export function ReportsController() {
       />
     );
   if (!manifestRows.length && !selected)
-    return <EmptyState title="نتیجه مالی آماده نیست" />;
+    return <EmptyState icon="ClipboardList" title="نتیجه مالی آماده نیست" />;
   const unit = company.data.display_unit,
     permissions = access.data.permissions;
   const model: ReportModel | null = selected
@@ -87,7 +87,9 @@ export function ReportsController() {
         forecast: formatMoney(selected.forecast_closing ?? null, unit),
         metrics: (selected.metrics ?? []).map((m) => ({
           key: m.metric_key,
-          label: metricLabels[m.metric_key] ?? m.metric_key,
+          label:
+            (metricLabels[m.metric_key] ?? m.metric_key) +
+            (m.basis === "trial_balance" ? " · تراز آزمایشی" : ""),
           value: formatMoney(m.value, unit),
           state: statusLabels[m.status],
           reason: m.reason_codes.map(reasonLabel).join(" "),
@@ -97,8 +99,14 @@ export function ReportsController() {
           label: {
             pdf: "PDF مدیریتی",
             xlsx: "Excel جزئیات و مغایرت‌ها",
-            error_csv: "ردیف‌های خطادار",
+            error_csv: "خطاها و ردیف‌های کنارگذاشته‌شده",
           }[e.format],
+          review: e.format === "error_csv" && selected.row_review
+            ? {
+                errors: persianDigits(String(selected.row_review.errors)),
+                excluded: persianDigits(String(selected.row_review.excluded_overlap)),
+              }
+            : null,
           status: {
             pending: "در صف تولید",
             running: "در حال تولید",

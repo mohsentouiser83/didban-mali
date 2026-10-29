@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import Link from "next/link";
 import type { Schema } from "@didban/api-client";
 import { ArrowUpLeft, UploadCloud } from "lucide-react";
@@ -39,6 +40,7 @@ export function ResultsListView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="ChartNoAxesCombined"
         title="نتایج مالی"
         description={company.name}
         action={
@@ -52,6 +54,7 @@ export function ResultsListView({
       />
       {!items.length ? (
         <EmptyState
+          icon="ChartNoAxesCombined"
           title="نتیجه‌ای آماده نیست"
           description="پس از پردازش فایل‌ها، نسخه نتایج اینجا نمایش داده می‌شود."
         />
@@ -122,6 +125,7 @@ export function ResultsListView({
           {more ? (
             <div className="mt-6 text-center">
               <Button variant="secondary" disabled={busy} onClick={onMore}>
+                <AppIcon name="ChevronsDown" />
                 {busy ? "در حال دریافت…" : "نسخه‌های بیشتر"}
               </Button>
             </div>

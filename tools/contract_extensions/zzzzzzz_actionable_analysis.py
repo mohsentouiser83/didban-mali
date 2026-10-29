@@ -1,0 +1,16 @@
+obj('ActionableSettings',{'materiality_ratio':string(pattern=r'^(?:0\.[0-9]{1,6}|1(?:\.0{1,6})?)$'),'version':VERSION})
+obj('ActionableSettingsRequest',{'materiality_ratio':string(pattern=r'^(?:0\.[0-9]{1,6}|1(?:\.0{1,6})?)$'),'reason':TEXT})
+obj('ActionableProposal',{'id':ID,'report_id':ID,'axis':TEXT,'content':{'type':'object','additionalProperties':True},'evaluations':arr({'type':'object','additionalProperties':True}),'followup':enum('unreviewed','in_progress','done','rejected'),'version':VERSION})
+obj('ActionableAnalysis',{'items':arr(ref('ActionableProposal'))})
+obj('ActionableFollowupRequest',{'status':enum('unreviewed','in_progress','done','rejected'),'reason':string(maxLength=4000)})
+endpoint('get',C+'/reports/{report_id}/actionable-analysis','getActionableAnalysis','ActionableAnalysis')
+endpoint('post',C+'/reports/{report_id}/actionable-analysis','generateActionableAnalysis','ActionableAnalysis',status='200',permission='company.operate')
+endpoint('patch',C+'/analysis-proposals/{proposal_id}/followup','updateAnalysisFollowup','ActionableProposal','ActionableFollowupRequest',permission='company.operate',versioned=True)
+endpoint('get',C+'/analysis-settings','getAnalysisSettings','ActionableSettings')
+endpoint('put',C+'/analysis-settings','putAnalysisSettings','ActionableSettings','ActionableSettingsRequest',permission='company.financial_policy',versioned=True)
+
+SCHEMAS['ActionableSettings']['properties'].update({'urgency_days':{'type':'integer','minimum':0,'maximum':90},'recurrence_count':{'type':'integer','minimum':2,'maximum':12}})
+SCHEMAS['ActionableSettingsRequest']['properties'].update({'urgency_days':{'type':'integer','minimum':0,'maximum':90},'recurrence_count':{'type':'integer','minimum':2,'maximum':12}})
+
+obj('ActionableOverview',{'report_id':nullable(ID),'as_of_date':nullable(DATE),'created_at':nullable(TIME),'items':arr(ref('ActionableProposal'))})
+endpoint('get',C+'/actionable-summary','getLatestActionableSummary','ActionableOverview')

@@ -8,6 +8,7 @@ COPY packages/api-client/package.json ./packages/api-client/package.json
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund --prefer-offline --fetch-timeout=30000 --fetch-retries=1 --registry "$NPM_REGISTRY"
 COPY apps/web ./apps/web
 COPY packages/api-client ./packages/api-client
+COPY contracts/payroll ./contracts/payroll
 COPY assets/fonts ./assets/fonts
 RUN npm run build
 

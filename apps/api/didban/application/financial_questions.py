@@ -2,9 +2,21 @@
 
 from datetime import date
 from ..infrastructure.financial import digest
+from ..domain.financial.ledger_controls import posting_facts
 
-KINDS = ("ledger", "bank", "sales_invoices", "purchase_invoices", "settlements")
-LABELS = dict(zip(KINDS, ("دفتر", "بانک", "فاکتور فروش", "فاکتور خرید", "تسویه‌ها")))
+KINDS = (
+    "ledger",
+    "bank",
+    "sales_invoices",
+    "purchase_invoices",
+    "settlements",
+    "trial_balance",
+)
+LABELS = dict(
+    zip(
+        KINDS, ("دفتر", "بانک", "فاکتور فروش", "فاکتور خرید", "تسویه‌ها", "تراز آزمایشی")
+    )
+)
 
 
 def requirements(rows, period, previous):
@@ -22,18 +34,23 @@ def requirements(rows, period, previous):
                     f"پوشش {LABELS[kind]} از {p.starts_on} تا {p.ends_on} چگونه است؟",
                     ("declared_complete", "partial", "unknown"),
                 )
-        if "ledger" in present:
-            add(
-                "income_tax|" + p.id,
-                f"مالیات سود دوره {p.starts_on} تا {p.ends_on} در دفتر ثبت شده یا صفر است؟",
-                ("recognized", "zero_confirmed", "unknown"),
-            )
-            add(
-                "cogs|" + p.id,
-                f"بهای تمام‌شده دوره {p.starts_on} تا {p.ends_on} ثبت شده یا لازم نیست؟",
-                ("recognized", "not_required", "unknown"),
-            )
-    if "ledger" in present:
+        if present & {"ledger", "trial_balance"}:
+            facts = posting_facts(rows, p)
+            if facts.get("allocated_tax") is None:
+                add(
+                    "income_tax|" + p.id,
+                    f"مالیات سود دوره {p.starts_on} تا {p.ends_on} در منبع مالی ثبت شده یا صفر است؟",
+                    ("recognized", "zero_confirmed", "unknown"),
+                )
+            if facts.get("periodic_cogs") is None:
+                add(
+                    "cogs|" + p.id,
+                    f"بهای تمام‌شده دوره {p.starts_on} تا {p.ends_on} ثبت شده یا لازم نیست؟",
+                    ("recognized", "not_required", "unknown"),
+                )
+    if "ledger" in present and not posting_facts(rows, period).get(
+        "source_opening_verified"
+    ):
         add(
             "ledger_opening_complete",
             "مانده‌های افتتاحیه دفتر برای حساب‌های موجود کامل هستند؟",
@@ -186,6 +203,22 @@ def declarations(rows, period, previous, answers, actors=None):
         "comparable_parties",
     ):
         result[key] = answers.get(key) == "affirmed"
+    for p in [period] + ([previous] if previous else []):
+        facts = posting_facts(rows, p)
+        if facts.get("periodic_cogs") is not None and "cogs|" + p.id not in answers:
+            result["cogs"][p.id] = "recognized"
+        if (
+            facts.get("allocated_tax") is not None
+            and "income_tax|" + p.id not in answers
+        ):
+            result["income_tax"][p.id] = "recognized"
+        if (
+            p == period
+            and facts.get("source_opening_verified")
+            and "ledger_opening_complete" not in answers
+        ):
+            result["ledger_opening_complete"] = True
+        result.setdefault("automatic_evidence", {})[p.id] = facts
     for key, value in answers.items():
         if key.startswith("history|"):
             _, kind, start, end = key.split("|")

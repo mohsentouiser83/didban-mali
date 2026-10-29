@@ -1,0 +1,14 @@
+{
+  "url": "https://www.mcls.gov.ir/icm_content/media/image/2026/05/%d8%a8%d8%ae%d8%b4%d9%86%d8%a7%d9%85%d9%87%20%d9%85%d8%b2%d8%af%201405_895930.pdf?random=639140903063034615",
+  "http_status": 200,
+  "content_type": "application/pdf",
+  "file": "docs/legal-sources/payroll-1405/wage-circular-6682-1405.pdf",
+  "bytes": 327390,
+  "sha256": "3a48fa71fbc7a3219ac8ba5f6a0cc88574493bfc2d69828df68176b8ca7aa65a",
+  "pdf": true,
+  "tls_verified": true,
+  "retrieved_on": "2026-10-29",
+  "discovered_from": "https://hormozgan.mcls.gov.ir/",
+  "discovery_capture": "docs/legal-sources/payroll-1405/direct-7.html",
+  "status": "original_primary_pdf_visually_reviewed_relevant_pages"
+}

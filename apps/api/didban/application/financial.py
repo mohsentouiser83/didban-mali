@@ -1,6 +1,7 @@
 """Company-scoped financial commands and immutable result presenters."""
 
 from ..errors import missing, conflict
+from ..infrastructure.input_review import ready
 from ..infrastructure.financial import schedule
 from ..infrastructure.intake import IntakeRepository
 from .auth import response
@@ -70,6 +71,8 @@ class FinancialService:
                         or session["manifest_id"]
                     ):
                         raise conflict("financial_not_ready")
+                    if not ready(conn, str(session["id"])):
+                        raise conflict("input_review_required")
                     schedule(conn, company, session["id"])
                     updated = conn.execute(
                         "UPDATE app.processing_sessions SET status='sealed',session_version=session_version+1 WHERE company_id=%s AND id=%s RETURNING session_version",

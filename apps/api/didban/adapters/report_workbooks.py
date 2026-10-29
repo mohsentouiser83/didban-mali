@@ -4,7 +4,12 @@ from __future__ import annotations
 import csv
 from io import BytesIO, StringIO
 import json
-from ..domain.reports import METRIC_LABELS, spreadsheet_text, display_amount
+from ..domain.reports import (
+    METRIC_LABELS,
+    spreadsheet_text,
+    display_amount,
+    row_disposition,
+)
 
 
 def csv_bytes(content: dict) -> bytes:
@@ -21,6 +26,8 @@ def csv_bytes(content: dict) -> bytes:
             "state",
             "errors",
             "original_values",
+            "classification",
+            "reason",
         ]
     )
     identity = content.get("_report", {})
@@ -35,15 +42,18 @@ def csv_bytes(content: dict) -> bytes:
             "",
             "",
             "",
+            "",
+            "",
         ]
     )
     for row in content["rows"]:
-        if row["state"] != "valid" or row["error_codes"]:
+        disposition = row_disposition(row)
+        if disposition:
             writer.writerow(
                 [
                     spreadsheet_text(v)
                     for v in [
-                        "error",
+                        disposition,
                         identity.get("id", ""),
                         identity.get("content_hash", ""),
                         row["source_file_id"],
@@ -52,6 +62,12 @@ def csv_bytes(content: dict) -> bytes:
                         row["state"],
                         ";".join(row["error_codes"]),
                         json.dumps(row["raw_values"], ensure_ascii=False),
+                        "تکراریِ کنارگذاشته‌شده"
+                        if disposition == "excluded_overlap"
+                        else "خطای واقعی",
+                        "هم‌پوشانی؛ از محاسبات کنار گذاشته شد."
+                        if disposition == "excluded_overlap"
+                        else ";".join(row["error_codes"]),
                     ]
                 ]
             )
@@ -119,7 +135,19 @@ def xlsx_bytes(content: dict) -> bytes:
             ["برچسب", content["label"]],
             ["شرکت", manifest["company_name"]],
             ["دوره", manifest["period_name"]],
-            ["تاریخ مبنا", manifest["as_of_date"]],
+            ["تاریخ مبنای نسخه داده", manifest["as_of_date"]],
+            [
+                "شروع بازه گزارش",
+                (content.get("management") or {}).get(
+                    "starts_on", manifest.get("starts_on")
+                ),
+            ],
+            [
+                "پایان بازه گزارش",
+                (content.get("management") or {}).get(
+                    "as_of_date", manifest["as_of_date"]
+                ),
+            ],
             ["شناسه نسخه", manifest["id"]],
             ["هش داده", manifest["manifest_hash"]],
             ["شناسه گزارش", report.get("id", "")],
@@ -176,6 +204,34 @@ def xlsx_bytes(content: dict) -> bytes:
             for c in content["candidates"]
         ],
     )
+    if content.get("manifest_metrics"):
+        sheet(
+            "شاخص‌های نسخه داده",
+            ["تاریخ مبنا", "شاخص", "مبنا", "مقدار", "وضعیت", "علت"],
+            [
+                [
+                    manifest["as_of_date"],
+                    METRIC_LABELS.get(metric["metric_key"], metric["metric_key"]),
+                    metric["basis"],
+                    display_amount(metric["value"], unit),
+                    metric["status"],
+                    ";".join(metric["reason_codes"]),
+                ]
+                for metric in content["manifest_metrics"]
+            ],
+        )
+        sheet(
+            "شواهد شاخص‌های بازه",
+            ["شاخص", "بازه", "شواهد"],
+            [
+                [
+                    metric["metric_key"],
+                    json.dumps(content["report_scope"], ensure_ascii=False),
+                    json.dumps(metric.get("evidence", []), ensure_ascii=False),
+                ]
+                for metric in content["metrics"]
+            ],
+        )
     details = []
     for row in content["rows"]:
         values = {"canonical": row["canonical_values"], "original": row["raw_values"]}
@@ -237,21 +293,57 @@ def xlsx_bytes(content: dict) -> bytes:
             for d in forecast.get("days", [])
         ],
     )
-    sheet(
-        "ردیف‌های خطادار",
-        ["فایل", "برگه", "ردیف", "وضعیت", "علت"],
-        [
+    for disposition, title in (
+        ("error", "خطاهای واقعی"),
+        ("excluded_overlap", "ردیف‌های کنارگذاشته‌شده"),
+    ):
+        sheet(
+            title,
+            ["فایل", "برگه", "ردیف", "وضعیت", "علت"],
             [
-                r["source_file_id"],
-                r["sheet_name"],
-                r["row_number"],
-                r["state"],
-                ";".join(r["error_codes"]),
-            ]
-            for r in content["rows"]
-            if r["state"] != "valid" or r["error_codes"]
-        ],
-    )
+                [
+                    r["source_file_id"],
+                    r["sheet_name"],
+                    r["row_number"],
+                    "تکراریِ کنارگذاشته‌شده"
+                    if disposition == "excluded_overlap"
+                    else r["state"],
+                    "هم‌پوشانی؛ از محاسبات کنار گذاشته شد."
+                    if disposition == "excluded_overlap"
+                    else ";".join(r["error_codes"]),
+                ]
+                for r in content["rows"]
+                if row_disposition(r) == disposition
+            ],
+        )
+    generic = [
+        item
+        for item in (content.get("actionable_summary") or {}).get("items", [])
+        if item["axis"] != "payroll"
+    ]
+    if generic:
+        sheet(
+            "پیشنهادهای مدیریتی",
+            ["حوزه", "وضعیت", "اولویت", "یافته", "اقدام", "محدودیت"],
+            [
+                [
+                    i["title"],
+                    {
+                        "available": "آماده",
+                        "limited": "محدود",
+                        "unavailable": "داده کافی نیست",
+                    }.get(i["status"], i["status"]),
+                    "بالا" if i["priority"] == "high" else "عادی",
+                    i["explanation"],
+                    i["action"],
+                    ";".join(i["limitations"]),
+                ]
+                for i in generic
+            ],
+        )
+    from .report_management import workbook_sections
+
+    workbook_sections(content, sheet)
     out = BytesIO()
     book.save(out)
     return out.getvalue()

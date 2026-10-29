@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "tests": 108,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "modules": [
+    "test_financial_domain",
+    "test_management_domain",
+    "test_cashflow_domain",
+    "test_reconciliation_domain",
+    "test_forecast",
+    "test_statement_sources",
+    "test_actionable_analysis",
+    "test_payroll_domain",
+    "test_report_rendering"
+  ],
+  "live_installation_modified": false,
+  "external_legal_acceptance": false
+}

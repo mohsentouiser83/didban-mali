@@ -37,6 +37,61 @@ class ReportTests(ForecastWorkflowTests):
                 return
         self.fail("export worker did not drain")
 
+    def test_export_layout_revision_keeps_old_snapshot_exports_and_metrics(self):
+        _, first = self.report_fixture()
+        self.drain()
+        with psycopg.connect(self.dsn) as conn:
+            original = conn.execute(
+                "SELECT content_hash,content FROM app.report_snapshots WHERE id=%s",
+                (first["id"],),
+            ).fetchone()
+            hashes = conn.execute(
+                "SELECT id,sha256 FROM app.export_jobs WHERE report_id=%s ORDER BY id",
+                (first["id"],),
+            ).fetchall()
+        with patch(
+            "didban.infrastructure.reports.EXPORT_LAYOUT_VERSION",
+            "report-rows-next-test",
+        ):
+            response = self.mutate(
+                self.owner,
+                "POST",
+                self.base + "/results/" + first["manifest_id"] + "/reports",
+                None,
+            )
+            self.assertEqual(response.status_code, 201, response.text)
+            second = response.json()
+            repeated = self.mutate(
+                self.owner,
+                "POST",
+                self.base + "/results/" + first["manifest_id"] + "/reports",
+                None,
+            )
+            self.assertEqual(repeated.json()["id"], second["id"])
+        self.assertNotEqual(first["id"], second["id"])
+        self.assertEqual(second["revision_number"], first["revision_number"] + 1)
+        self.assertEqual(second["approval_ids"], [])
+        self.drain()
+        with psycopg.connect(self.dsn) as conn:
+            self.assertEqual(
+                conn.execute(
+                    "SELECT content_hash,content FROM app.report_snapshots WHERE id=%s",
+                    (first["id"],),
+                ).fetchone(),
+                original,
+            )
+            self.assertEqual(
+                conn.execute(
+                    "SELECT id,sha256 FROM app.export_jobs WHERE report_id=%s ORDER BY id",
+                    (first["id"],),
+                ).fetchall(),
+                hashes,
+            )
+            fresh = conn.execute(
+                "SELECT content FROM app.report_snapshots WHERE id=%s", (second["id"],)
+            ).fetchone()[0]
+            self.assertEqual(fresh["metrics"], original[1]["metrics"])
+
     def test_report_outputs_exact_pinned_approved_and_download_authorized(self):
         session, report = self.report_fixture()
         self.assertEqual(self.detail(session)["status"], "waiting_dependency")
@@ -59,6 +114,23 @@ class ReportTests(ForecastWorkflowTests):
         loaded = self.owner.get(self.base + "/reports/" + report["id"])
         self.assertEqual(loaded.status_code, 200, loaded.text)
         result = loaded.json()
+        self.assertIn("row_review", result)
+        with psycopg.connect(self.dsn) as conn:
+            stored_rows = conn.execute(
+                "SELECT content->'rows' FROM app.report_snapshots WHERE id=%s",
+                (report["id"],),
+            ).fetchone()[0]
+        from didban.domain.reports import row_disposition
+
+        self.assertEqual(
+            result["row_review"],
+            {
+                "errors": sum(row_disposition(row) == "error" for row in stored_rows),
+                "excluded_overlap": sum(
+                    row_disposition(row) == "excluded_overlap" for row in stored_rows
+                ),
+            },
+        )
         self.assertEqual(self.detail(session)["status"], "completed_limited")
         self.assertEqual(result["label"], "تولیدشده سامانه")
         self.assertEqual(result["forecast_closing"], "2628")

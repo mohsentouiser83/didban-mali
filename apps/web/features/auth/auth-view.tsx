@@ -1,10 +1,14 @@
 "use client";
+
+import { IconTile } from "@/components/ui/app-icon";
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState, type ReactNode, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpLeft, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Field, Input, FormMessage } from "@/components/ui/field";
+
 export function AuthFrame({
   title,
   children,
@@ -55,7 +59,10 @@ export function AuthFrame({
               className="mb-4 block h-1 w-9 rounded-full bg-primary"
               aria-hidden
             />
-            <h1 className="font-heading text-[26px] font-medium">{title}</h1>
+            <h1 className="flex items-center gap-3 font-heading text-[26px] font-medium">
+              <IconTile name="LockKeyhole" />
+              {title}
+            </h1>
           </div>
           {children}
         </section>
@@ -80,7 +87,7 @@ export function PasswordInput({
 }) {
   const [visible, setVisible] = useState(false);
   return (
-    <Field id={id} label={label}>
+    <Field icon="KeyRound" id={id} label={label}>
       <div className="relative">
         <Input
           id={id}
@@ -119,7 +126,7 @@ export function LoginView({
   return (
     <AuthFrame title="خوش آمدید">
       <Form onSubmit={onSubmit} className="space-y-5">
-        <Field id="email" label="ایمیل">
+        <Field icon="Mail" id="email" label="ایمیل">
           <Input
             id="email"
             name="email"
@@ -177,12 +184,16 @@ export function ActivationView({
         <div className="space-y-6">
           <FormMessage success>رمز ثبت شد؛ اکنون وارد حساب شوید.</FormMessage>
           <Button asChild className="w-full">
-            <Link href="/login">ورود به حساب</Link>
+            <Link href="/login">
+              <AppIcon name="BookOpen" />
+              ورود به حساب
+            </Link>
           </Button>
         </div>
       ) : (
         <Form className="space-y-5" onSubmit={onSubmit}>
           <Field
+            icon="KeyRound"
             id="token"
             label={mode === "invite" ? "کد دعوت" : "کد بازیابی"}
           >
@@ -209,10 +220,14 @@ export function ActivationView({
           </p>
           <FormMessage>{error}</FormMessage>
           <Button className="w-full" type="submit" disabled={busy}>
+            <AppIcon name="Save" />
             {busy ? "در حال ثبت…" : "ثبت رمز"}
           </Button>
           <Button asChild variant="ghost" className="w-full">
-            <Link href="/login">بازگشت به ورود</Link>
+            <Link href="/login">
+              <AppIcon name="Undo2" />
+              بازگشت به ورود
+            </Link>
           </Button>
         </Form>
       )}

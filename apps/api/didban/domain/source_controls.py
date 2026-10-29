@@ -18,6 +18,10 @@ def check_groups(kind: str, rows: list[CanonicalRow], mapping: dict, header_row:
             "evidence": {"reason": "dates_do_not_prove_completeness"},
         },
     ]
+    if kind == "trial_balance":
+        from .trial_balance_input import check_trial_rows
+
+        return controls + check_trial_rows(rows)
     if kind not in ("bank", "ledger"):
         key_field = {
             "sales_invoices": "invoice_id",

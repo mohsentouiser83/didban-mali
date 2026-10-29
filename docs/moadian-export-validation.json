@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-26",
+  "policy": "moadian-portal-export-v1",
+  "status": "passed",
+  "domain_tests": 10,
+  "runtime_tests": 4,
+  "regression_tests": {
+    "interpretation": 16,
+    "intake_model_domain": 5,
+    "reconciliation_domain": 14,
+    "web_client": 25
+  },
+  "real_file_acceptance": {
+    "environment": "disposable_company_database_HTTP_and_workers",
+    "file_count": 8,
+    "purchase_rows": 280,
+    "sales_rows": 144,
+    "valid_rows": 424,
+    "rejected_rows": 0,
+    "model_calls": 0,
+    "original_hashes_preserved": true,
+    "canonical_amounts_match_original": true,
+    "raw_files_committed": false,
+    "coverage_answer": "unknown_in_disposable_test_only"
+  },
+  "checks": {
+    "ruff": "passed",
+    "typescript": "passed",
+    "eslint": "passed",
+    "web_build": "passed",
+    "contract_structure": "passed",
+    "live_browser": "automatic_retry_success; 7 portal files staged with zero rejected rows; stopped at unrelated ledger mapping barrier",
+    "mobile": "390px_no_horizontal_overflow; retry_target_44px"
+  },
+  "boundaries": [
+    "No blanket correctness guarantee for other portal export formats",
+    "No fabricated internal invoice number",
+    "No inferred payment, settlement or completeness",
+    "Source-local issue date; timestamp retained without timezone guessing",
+    "Other necessary questions retain the session-wide barrier"
+  ]
+}

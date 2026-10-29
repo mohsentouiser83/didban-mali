@@ -29,6 +29,16 @@
     "018_intake_model_proposals.sql": "59746a7e929f5a7cf2c2c17a00dd44ddd882f29cc087cb9816bff01463fd6a9c",
     "019_intake_proposal_dependency_identity.sql": "428dc5ac504cd8c959e1537ef28b1d26ef583741a5a9f6b3ca1d4114a2f4a159",
     "020_intake_model_safe_retries.sql": "da1dbc33ae0afedce8b277995dd3b90c13b23d4945d5c9ac93f6596487a1237b",
-    "021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e"
+    "021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e",
+    "022_statement_account_roles.sql": "7cd1d767e9199196d600839c4d28ccb5abf46c7156d1ec3402250c4f3575205e",
+    "023_trial_balance_sources.sql": "2d65a2acc5b37b038b53953b62a825a72213f6d8cdb97fdebcade9ebdef0e5fe",
+    "024_extension_access.sql": "65d7d09ca75cf8d14cdd285f2ec0a0a66eb91ecce045104f4559075c8fed4363",
+    "025_company_modules.sql": "be16360ce13350e97ec707012c1e56d18cfcc7a2ccec04e110b9b8ecf4b5f71b",
+    "026_input_review.sql": "7281f5df8f581a719f9db1f4787e104e9b099fc3ec06944b7a5204f40c812a64",
+    "027_payroll.sql": "3972e2ea2a93af189948a3df87a3be3ca1cfd2022334d54b0403fdfbcbf198bb",
+    "028_actionable_analysis.sql": "c1647509d18c8ebca6e4bfc963f829552ecfd487a4725da181b4a020c735d84b",
+    "029_extension_authority_locks.sql": "bf1f1f4eea4f766680507adc6cdfcf1e5649c04922e59305e6473ee95dbebe88",
+    "030_input_review_completion.sql": "d754520a662c0420bbf17f3a949aad85b0f5d137b719d3c0395df9feaed5f7ed",
+    "031_actionable_automation.sql": "4e72b15bb613858240f48c457a4c90c1224232ee04cffeb5e2fe78c64f4ed0fb"
   }
 }

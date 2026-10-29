@@ -6,6 +6,7 @@ from psycopg.types.json import Jsonb
 from ..adapters.private_files import PrivateFiles
 from ..config import Settings
 from ..db import Database
+from ..infrastructure.company_modules import lock_module_configuration
 from ..errors import ApiError, missing, forbidden, conflict
 from ..domain.intake import PreparedFile
 from ..infrastructure.company import CompanyRepository
@@ -210,6 +211,7 @@ class IntakeService(IntakeQueries):
 
             def action():
                 if op == "createProcessingSession":
+                    lock_module_configuration(conn, company)
                     period = body.get("period_id")
                     if period:
                         if not conn.execute(
@@ -621,6 +623,21 @@ class IntakeService(IntakeQueries):
             from .financial_commands import answer_financial
 
             return answer_financial(
+                conn,
+                repo,
+                actor,
+                company,
+                session,
+                issue,
+                body,
+                key,
+                request_id,
+                access,
+            )
+        if issue["code"] == "input_review_clarification":
+            from .input_review_answers import answer_review
+
+            return answer_review(
                 conn,
                 repo,
                 actor,

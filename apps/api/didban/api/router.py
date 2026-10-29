@@ -11,6 +11,11 @@ from starlette.exceptions import HTTPException
 
 from ..application.auth import AuthService, response, user_view
 from ..application.companies import CompanyService
+from ..application.extension_access import ExtensionAccessService
+from ..application.company_modules import CompanyModuleService
+from ..application.actionable_analysis import ActionableAnalysisService
+from ..application.input_review import InputReviewService
+from ..application.payroll import PayrollService, PAYROLL_OPS
 from ..application.periods import PeriodService
 from ..application.intake import IntakeService
 from ..application.interpretations import InterpretationService
@@ -31,7 +36,31 @@ from ..errors import ApiError
 from ..security import Security
 from .contracts import DOCUMENT, validate
 
+ACTIONABLE_ANALYSIS_OPS = {
+    "getLatestActionableSummary",
+    "updateAnalysisFollowup",
+    "generateActionableAnalysis",
+    "getAnalysisSettings",
+    "putAnalysisSettings",
+    "getActionableAnalysis",
+}
+
+INPUT_REVIEW_OPS = {
+    "createInputReviewComment",
+    "getInputReview",
+    "decideInputReviewCorrection",
+    "confirmInputReview",
+    "resolveInputReviewComment",
+    "proposeInputReviewCorrection",
+}
+
 IMPLEMENTED = {
+    "getCompanyModules",
+    "setCompanyModules",
+    "listExtensionAccessEvents",
+    "getPayrollAccess",
+    "getPayrollPermissions",
+    "setPayrollPermissions",
     "readiness",
     "csrfToken",
     "login",
@@ -147,6 +176,11 @@ POLICY_OPS = {
     "updateRetentionPolicy",
 }
 REPORT_OPS = {
+    "downloadReportTemplate",
+    "generateManagementReport",
+    "getManagementReport",
+    "parseStatementTemplate",
+    "downloadStatementTemplate",
     "listReports",
     "getReport",
     "approveReport",
@@ -156,6 +190,8 @@ REPORT_OPS = {
     "downloadExport",
     "retryExport",
 }
+IMPLEMENTED.update(ACTIONABLE_ANALYSIS_OPS | INPUT_REVIEW_OPS | PAYROLL_OPS)
+
 IMPLEMENTED.update(
     PERIOD_OPS
     | INTAKE_OPS
@@ -186,6 +222,22 @@ class Controller:
         self.financial = FinancialService(self.intake)
         self.domain_services = {}
         for operations, service in [
+            (PAYROLL_OPS, PayrollService(self.intake)),
+            (INPUT_REVIEW_OPS, InputReviewService(self.intake)),
+            (ACTIONABLE_ANALYSIS_OPS, ActionableAnalysisService(self.intake)),
+            (
+                {"getCompanyModules", "setCompanyModules"},
+                CompanyModuleService(self.intake),
+            ),
+            (
+                {
+                    "getPayrollAccess",
+                    "getPayrollPermissions",
+                    "setPayrollPermissions",
+                    "listExtensionAccessEvents",
+                },
+                ExtensionAccessService(self.intake),
+            ),
             (PERIOD_OPS, self.periods),
             (INTAKE_OPS, self.intake),
             (INTERPRETATION_OPS, self.interpretations),
@@ -425,9 +477,14 @@ def install_routes(app: FastAPI, controller: Controller, settings: Settings) -> 
                 ):
                     raise ApiError(415, "json_required", "قالب درخواست معتبر نیست.")
                 raw = bytearray()
+                body_limit = (
+                    3_100_000
+                    if op == "previewPayrollImport"
+                    else settings.max_json_bytes
+                )
                 async for part in request.stream():
                     raw.extend(part)
-                    if len(raw) > settings.max_json_bytes:
+                    if len(raw) > body_limit:
                         raise ApiError(
                             413, "request_too_large", "حجم درخواست بیش از حد مجاز است."
                         )

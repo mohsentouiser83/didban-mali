@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "scope": "isolated_docker_postgresql_and_tcp_http_smoke",
+  "postgres_version": "18.6",
+  "checks": [
+    "clean_install_migrate_provision_start",
+    "nonroot_readonly_runtime_without_migration_credentials",
+    "current_image_renders_pdf_with_embedded_iranyekan",
+    "nonroot_worker_can_write_private_export_storage",
+    "standalone_web_nonroot_page_security_headers",
+    "real_tcp_login_session_csrf",
+    "real_tcp_company_and_owner_permissions",
+    "real_worker_versioned_interpretation_and_coverage_barrier",
+    "scoped_canonical_rows_without_financial_manifest",
+    "period_and_private_multipart_over_64k",
+    "durable_preparation_after_worker_stop_start",
+    "real_clamav_structural_summary",
+    "worker_restart_no_duplicate_and_credentials_isolated",
+    "repeat_migration_preserves_users_and_session",
+    "real_tcp_logout_revokes_session"
+  ],
+  "model_calls": 0,
+  "external_notifications": 0,
+  "production_deployment": false,
+  "same_origin_web_proxy": true,
+  "source_sha256": {
+    "infra/compose.yaml": "9844c72b816f33df28e163ee5c1f40b38583d034c1f11fa30401ccd2ce36dde6",
+    "infra/Dockerfile.api": "55cca505a374b7831b40812b1ca25454f0a67ecb079a4a8dbd302d718ac5c78b",
+    "infra/Dockerfile.web": "bb3c6a8970366bc7dd9faecd37d30f746b8cfbd51d4d14b2417fe6d1150e730d",
+    "package-lock.json": "f5f3aa63834e7a87a0cbdb083b3e93e5fe0a7a4c0a35345a5bab9a737a9fb8ae"
+  }
+}

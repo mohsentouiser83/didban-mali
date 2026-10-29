@@ -45,6 +45,13 @@ async function proxy(
     path[0] === "companies" &&
     path[2] === "processing-sessions" &&
     path[4] === "files";
+  const payrollImport =
+    request.method === "POST" &&
+    path.length === 4 &&
+    path[0] === "companies" &&
+    path[2] === "payroll" &&
+    path[3] === "imports";
+  const bodyLimit = payrollImport ? 3_100_000 : MAX_BODY;
   let oversized = false;
   try {
     let body: BodyInit | undefined;
@@ -70,7 +77,7 @@ async function proxy(
         const { done, value } = await reader.read();
         if (done) break;
         size += value.length;
-        if (size > MAX_BODY) {
+        if (size > bodyLimit) {
           await reader.cancel();
           return error(
             413,

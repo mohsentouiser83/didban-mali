@@ -49,7 +49,7 @@ HASH = string(pattern='^[0-9a-f]{64}$')
 ROLE = enum('owner','finance_manager','advisor_accountant','viewer')
 STATUS = enum('available','limited','estimated','unavailable')
 SESSION_STATE = enum('receiving','sealed','processing','waiting_input','waiting_dependency','completed','completed_limited','failed','cancelled')
-SOURCE_KIND = enum('ledger','bank','sales_invoices','purchase_invoices','settlements','moadian_sales','moadian_purchases','planned_payments','receipt_history')
+SOURCE_KIND = enum('trial_balance','ledger','bank','sales_invoices','purchase_invoices','settlements','moadian_sales','moadian_purchases','planned_payments','receipt_history')
 AMOUNT_PROPS = {'amount': MONEY, 'unit': enum('IRR','IRT')}
 
 obj('FieldError', {'field': TEXT, 'code': TEXT, 'message_fa': TEXT})

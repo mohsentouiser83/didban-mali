@@ -120,9 +120,24 @@ def persist(
             continue
         interpretation = uuid4()
         sheet_records.append((interpretation, sheet))
+        summary["skipped_rows"] += sheet.skipped_count
+        for row in sheet.structural_rows:
+            sources.append(
+                (
+                    uuid4(),
+                    company,
+                    interpretation,
+                    row.number,
+                    Jsonb(row.raw),
+                    fingerprint(row.raw),
+                )
+            )
         for row in sheet.rows:
             evidence = by_hash.get(row.fingerprint) or by_key.get(row.logical_key)
-            excluded = evidence and settings.get("overlap") != "distinct_records"
+            related = analysis.related_sources[0] if analysis.related_sources else None
+            excluded = (evidence and settings.get("overlap") != "distinct_records") or (
+                related and settings.get("overlap") == "keep_excluded"
+            )
             state = (
                 "excluded_overlap" if excluded and row.state == "valid" else row.state
             )
@@ -163,6 +178,8 @@ def persist(
                             }
                         ]
                         if evidence
+                        else [related]
+                        if excluded and related
                         else []
                     ),
                 )
@@ -326,6 +343,8 @@ def preview_view(file: dict) -> list[dict]:
                 else preview["mapping"],
                 "unit": saved.get("unit"),
                 "calendar": saved.get("calendar"),
+                "period_start": saved.get("period_start"),
+                "as_of_date": saved.get("as_of_date"),
                 "selected_kind": saved.get(
                     "source_kind",
                     summarized.get(preview["sheet_name"], {}).get("source_kind"),

@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowUpLeft, Archive, RotateCcw } from "lucide-react";
@@ -8,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { ConfirmDialog } from "@/components/ui/dialog";
+
 export function SettingsView({
   company,
   onSubmit,
@@ -27,6 +30,7 @@ export function SettingsView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="Building2"
         title="تنظیمات شرکت"
         description={company.name}
         action={
@@ -41,7 +45,7 @@ export function SettingsView({
       <div className="max-w-2xl space-y-5">
         <section className="rounded-panel border border-border bg-surface p-5 shadow-panel sm:p-7">
           <Form className="space-y-5" onSubmit={onSubmit}>
-            <Field id="settings-name" label="نام شرکت">
+            <Field icon="Building2" id="settings-name" label="نام شرکت">
               <Input
                 id="settings-name"
                 name="name"
@@ -54,11 +58,13 @@ export function SettingsView({
             <FormMessage>{error}</FormMessage>
             {error ? (
               <Button variant="ghost" onClick={onRefresh}>
+                <AppIcon name="Plus" />
                 دریافت نسخه تازه
               </Button>
             ) : null}
             <div className="flex justify-end">
               <Button type="submit" disabled={busy}>
+                <AppIcon name="Save" />
                 {busy ? "در حال ذخیره…" : "ذخیره تغییرات"}
               </Button>
             </div>

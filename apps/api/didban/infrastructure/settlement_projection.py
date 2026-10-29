@@ -274,6 +274,28 @@ def project(conn, company, manifest, raw=None):
             and r["values"].get("role") == "calibration_only"
         ],
         "has_payment_source": any(r["kind"] == "planned_payments" for r in rows),
+        "forecast_source_reason_codes": sorted(
+            {
+                "forecast_invalid_" + family + "_rows"
+                for r in rows
+                for family in [
+                    {
+                        "planned_payments": "payment",
+                        "receipt_history": "history",
+                        "sales_invoices": "invoice",
+                        "purchase_invoices": "invoice",
+                        "settlements": "settlement",
+                    }.get(r["kind"])
+                ]
+                if family
+                and (
+                    r["state"] == "rejected"
+                    or r["error_codes"]
+                    or r["values"].get("unit") != "IRR"
+                )
+                and r["state"] != "excluded_overlap"
+            }
+        ),
     }
     conn.execute(
         "INSERT INTO app.settlement_projections(company_id,manifest_id,content) VALUES(%s,%s,%s)",

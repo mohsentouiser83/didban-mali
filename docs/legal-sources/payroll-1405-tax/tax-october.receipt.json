@@ -1,0 +1,10 @@
+{
+  "format": "didban-source-fetch-1",
+  "url": "https://regulation.tax.gov.ir/lwvi?lid=txs5000152382&ty=mq",
+  "final_url": "https://regulation.tax.gov.ir/lwvi?lid=txs5000152382&ty=mq",
+  "fetched_at": "2026-10-29T18:50:32.681967+00:00",
+  "sha256": "ab486781f63bce72a1f4a878c834d2641b14a85613ff4c6931db43d50da235c8",
+  "size": 94796,
+  "media_type": "text/html",
+  "tls_verified": true
+}

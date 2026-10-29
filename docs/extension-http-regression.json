@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "tests": 39,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "modules": [
+    "test_financial_runtime",
+    "test_reconciliation_runtime",
+    "test_cashflow_runtime",
+    "test_settlements_runtime",
+    "test_forecast_workflow",
+    "test_reports_runtime",
+    "test_management_runtime",
+    "test_statement_sources_runtime",
+    "test_actionable_analysis_runtime",
+    "test_module_workflow_runtime"
+  ],
+  "database": "disposable_postgres14",
+  "live_installation_modified": false
+}

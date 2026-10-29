@@ -49,7 +49,7 @@ export function CashflowReportController() {
       />
     );
   if (!manifest || !report.data)
-    return <EmptyState title="نتیجه مالی آماده نیست" />;
+    return <EmptyState icon="Wallet" title="نتیجه مالی آماده نیست" />;
   const unit = company.data.display_unit,
     days = report.data.days,
     model = cashflowReportModel(days, unit);

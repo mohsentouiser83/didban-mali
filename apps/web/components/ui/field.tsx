@@ -5,6 +5,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { AppIcon, type AppIconName } from "./app-icon";
 import { cx } from "./button";
 function useValidation(id?: string, describedBy?: string) {
   const [invalid, setInvalid] = useState<string>();
@@ -123,16 +124,22 @@ export function Field({
   id,
   label,
   error,
+  icon = "Pencil",
   children,
 }: {
   id: string;
   label: string;
+  icon?: AppIconName;
   error?: string;
   children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="block font-medium">
+      <label
+        htmlFor={id}
+        className="flex min-h-6 items-center gap-2 font-medium"
+      >
+        <AppIcon name={icon} size={16} className="text-primary" />
         {label}
       </label>
       {children}

@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { Spinner } from "@/components/ui/states";
 import Link from "next/link";
 import { FileSpreadsheet, ArrowUpLeft, FolderOpen } from "lucide-react";
@@ -9,6 +11,7 @@ import { FormMessage } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/states";
 import { count } from "./presentation";
+
 export function BatchProgress({
   completed,
   total,
@@ -68,7 +71,11 @@ export function UploadListView({
 }) {
   return (
     <section className="space-y-5 motion-safe:animate-reveal">
-      <PageHeader title="بارگذاری و پردازش" description={company} />
+      <PageHeader
+        icon="UploadCloud"
+        title="بارگذاری و پردازش"
+        description={company}
+      />
       {canOperate ? (
         <FilePicker
           onFiles={onFiles}
@@ -80,12 +87,14 @@ export function UploadListView({
       <FormMessage>{error}</FormMessage>
       {onRetry ? (
         <Button variant="secondary" onClick={onRetry} disabled={busy}>
+          <AppIcon name="RefreshCw" />
           تلاش دوباره
         </Button>
       ) : null}
       {sessions.length ? (
         <div className="space-y-3">
-          <h2 className="font-heading text-lg font-medium">
+          <h2 className="flex items-center gap-2 font-heading text-lg font-medium">
+            <AppIcon name="UploadCloud" className="text-primary" />
             بسته‌های بارگذاری
           </h2>
           {sessions.map((session) => (
@@ -111,6 +120,7 @@ export function UploadListView({
         </div>
       ) : (
         <EmptyState
+          icon="UploadCloud"
           title="بسته‌ای بارگذاری نشده"
           description={
             canOperate
@@ -122,6 +132,7 @@ export function UploadListView({
       <div className="flex flex-wrap items-center justify-between gap-4">
         {more ? (
           <Button variant="secondary" disabled={moreBusy} onClick={onMore}>
+            <AppIcon name="ChevronsDown" />
             بسته‌های بیشتر
           </Button>
         ) : null}

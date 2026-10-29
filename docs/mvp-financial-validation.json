@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "tests_run": 5,
+  "failures": 0,
+  "errors": 0,
+  "scope": "F13_upload_to_forecast_and_exports_F14_moadian_HTTP_F12_domain_snapshot",
+  "live_model_calls": 0
+}

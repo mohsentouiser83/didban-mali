@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "tests": 5,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "modules": [
+    "test_delivery_workflow",
+    "test_capacity_runtime",
+    "test_module_scope"
+  ],
+  "database": "disposable_postgres14",
+  "live_installation_modified": false
+}

@@ -1,0 +1,14 @@
+{
+  "url": "https://www.mcls.gov.ir/icm_content/media/image/2026/05/1405_895934.pdf?random=639140906002243699",
+  "http_status": 200,
+  "content_type": "application/pdf",
+  "file": "docs/legal-sources/payroll-1405/hormozgan-wage-table-1405.pdf",
+  "bytes": 496825,
+  "sha256": "947d792beac65149155e3e3fb416b8fb15e69ac04810a60160a492127f08aced",
+  "pdf": true,
+  "tls_verified": true,
+  "retrieved_on": "2026-10-29",
+  "discovered_from": "https://hormozgan.mcls.gov.ir/",
+  "discovery_capture": "docs/legal-sources/payroll-1405/direct-7.html",
+  "status": "original_primary_pdf_visually_reviewed_relevant_pages"
+}

@@ -11,6 +11,7 @@ from ..infrastructure.intake import IntakeRepository
 from ..infrastructure.interpretation import overlap_candidates, persist
 from .preparation_worker import PreparationWorker, StaleJob
 from .intake_model import IntakeModel
+from .source_understanding import prepare, remember
 
 LOGGER = logging.getLogger("didban.interpretation")
 
@@ -54,11 +55,29 @@ class InterpretationWorker(PreparationWorker):
                             job["step_id"],
                         ),
                     ).fetchone()["id"]
-                    file = next(
-                        f
-                        for f in repo.files(job["company_id"], job["session_id"])
-                        if str(f["id"]) == job["file_id"]
-                    )
+                    files = repo.files(job["company_id"], job["session_id"])
+                    decisions = conn.execute(
+                        "SELECT i.answer_constraints,a.id,a.actor_id,a.answer FROM app.issue_answers a JOIN app.processing_issues i ON i.company_id=a.company_id AND i.id=a.issue_id WHERE i.company_id=%s AND i.session_id=%s AND i.code='interpretation_account_role' ORDER BY a.created_at DESC,a.id DESC",
+                        (job["company_id"], job["session_id"]),
+                    ).fetchall()
+                    for source in files:
+                        source["role_decisions"] = {}
+                        for decision in decisions:
+                            constraints = decision["answer_constraints"]
+                            if constraints.get("file_id") == str(source["id"]):
+                                source["role_decisions"].setdefault(
+                                    constraints["account_code"],
+                                    {
+                                        "role": decision["answer"]["value"],
+                                        "answer_id": str(decision["id"]),
+                                        "actor_id": str(decision["actor_id"]),
+                                    },
+                                )
+                    file = next(f for f in files if str(f["id"]) == job["file_id"])
+                    history = conn.execute(
+                        "SELECT id,settings FROM app.interpretation_runs WHERE company_id=%s ORDER BY created_at DESC,id DESC LIMIT 30",
+                        (job["company_id"],),
+                    ).fetchall()
                     if (
                         file["scan_status"] != "clean"
                         or not file["preparation_summary"]
@@ -81,7 +100,24 @@ class InterpretationWorker(PreparationWorker):
                         tables = SourceReader().read(
                             path, file["format"], file["preparation_settings"]
                         )
-                        result = analyze(tables, file["interpretation_settings"])
+                        settings, findings = prepare(
+                            self.storage, files, file, tables, history
+                        )
+                        result = analyze(tables, settings)
+                        with conn.transaction():
+                            self.model_checkpoint(
+                                conn, job, session["session_version"], step
+                            )
+                            conn.execute(
+                                "UPDATE app.session_files SET interpretation_settings=%s WHERE company_id=%s AND session_id=%s AND source_file_id=%s",
+                                (
+                                    Jsonb(settings),
+                                    job["company_id"],
+                                    job["session_id"],
+                                    job["file_id"],
+                                ),
+                            )
+                        file["interpretation_settings"] = settings
                         result = self.model.propose(
                             conn,
                             job,
@@ -90,6 +126,10 @@ class InterpretationWorker(PreparationWorker):
                             file,
                             tables,
                             result,
+                        )
+                        result.related_sources = findings
+                        file["interpretation_settings"] = remember(
+                            tables, file["interpretation_settings"], result
                         )
                     except FileNotFoundError:
                         raise DependencyUnavailable("storage_unavailable") from None
@@ -157,12 +197,34 @@ class InterpretationWorker(PreparationWorker):
                 )
             overlaps = []
             if result and not question:
+                if result.related_sources and file["interpretation_settings"].get(
+                    "overlap"
+                ) not in ("keep_excluded", "distinct_records"):
+                    finding = result.related_sources[0]
+                    question = Question(
+                        "interpretation_overlap",
+                        "",
+                        "overlap",
+                        "دو خروجی دفتر، گردش یکسان حساب‌ها دارند. نسخه دیگر تفصیلی‌تر است"
+                        + (
+                            " و تاریخ بعضی ثبت‌ها متفاوت است"
+                            if finding["date_difference_count"]
+                            else ""
+                        )
+                        + "؛ پیشنهاد: این خروجی کنار بماند و نسخه تفصیلی مبنا شود.",
+                        ("keep_excluded", "distinct_records"),
+                    )
                 overlaps = overlap_candidates(
                     conn, job["company_id"], job["file_id"], result
                 )
-                if overlaps and file["interpretation_settings"].get("overlap") not in (
-                    "keep_excluded",
-                    "distinct_records",
+                if (
+                    not question
+                    and overlaps
+                    and file["interpretation_settings"].get("overlap")
+                    not in (
+                        "keep_excluded",
+                        "distinct_records",
+                    )
                 ):
                     question = Question(
                         "interpretation_overlap",
@@ -249,7 +311,11 @@ class InterpretationWorker(PreparationWorker):
                             "SELECT coalesce(bool_or((p.parameters->>'auto_financial')::boolean),false) AS enabled FROM app.processing_steps s JOIN app.policy_versions p ON p.company_id=s.company_id AND p.id=s.policy_id WHERE s.company_id=%s AND s.session_id=%s AND s.step_kind LIKE 'prepare:%%'",
                             (job["company_id"], job["session_id"]),
                         ).fetchone()["enabled"]
-                        if valid and auto_financial:
+                        if (
+                            valid
+                            and auto_financial
+                            and not current["input_review_required"]
+                        ):
                             from ..infrastructure.financial import schedule
 
                             schedule(conn, job["company_id"], job["session_id"])
@@ -324,3 +390,10 @@ class InterpretationWorker(PreparationWorker):
                 != 1
             ):
                 raise StaleJob()
+
+    def model_checkpoint(self, conn, job, version, step):
+        self.context(conn, job)
+        conn.execute(
+            "SELECT app.assert_checkpoint(%s,%s,%s,%s)",
+            (job["session_id"], version, job["step_id"], step["fence"]),
+        )

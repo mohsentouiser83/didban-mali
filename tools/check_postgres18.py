@@ -1,6 +1,7 @@
 """Run SQL and HTTP suites on an isolated, disposable PostgreSQL 18 cluster."""
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -35,9 +36,29 @@ def main():
         parser.error("Each suite must name a test_*.py file in tests/")
     name = "didban-db-test-" + secrets.token_hex(6)
     scanner = None
-    suite_env = dict(os.environ)
+    suite_env = dict(
+        os.environ,
+        PYTHONPATH=os.pathsep.join([str(ROOT / "apps/api"), str(ROOT / "tests")]),
+    )
     password = secrets.token_urlsafe(32)
     env = dict(os.environ, POSTGRES_PASSWORD=password)
+
+    def hashes():
+        sources = sorted(
+            list((ROOT / "database").glob("*.sql"))
+            + list((ROOT / "apps/api/didban").rglob("*.py"))
+            + list((ROOT / "tests").glob("*.py"))
+            + list((ROOT / "contracts").rglob("*.json"))
+            + list((ROOT / "tools").glob("*.py"))
+            + [p for p in (ROOT / "docs/legal-sources").rglob("*") if p.is_file()]
+        )
+        return {
+            str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sources
+        }
+
+    initial_hashes = hashes()
+    suite_results = []
     try:
         if not suite_env.get("DIDBAN_TEST_SCANNER_PORT"):
             scanner = "didban-scanner-test-" + secrets.token_hex(6)
@@ -127,6 +148,10 @@ def main():
             "test_runtime.py",
             "test_intake.py",
             "test_interpretation.py",
+            "test_moadian_export.py",
+            "test_moadian_export_runtime.py",
+            "test_source_understanding.py",
+            "test_source_understanding_runtime.py",
             "test_financial_domain.py",
             "test_financial_runtime.py",
             "test_reconciliation_domain.py",
@@ -143,19 +168,54 @@ def main():
             "test_analysis_runtime.py",
             "test_policy_runtime.py",
             "test_report_rendering.py",
+            "test_management_domain.py",
+            "test_statement_sources.py",
+            "test_management_runtime.py",
+            "test_statement_sources_runtime.py",
+            "test_mvp_acceptance.py",
             "test_reports_runtime.py",
             "test_delivery_workflow.py",
             "test_backup_bundle.py",
+            "test_backup_local.py",
+            "test_restore_local.py",
+            "test_restore_local_runtime.py",
             "test_installation_config.py",
             "test_restore_runtime.py",
+            "test_extension_access_runtime.py",
+            "test_input_review.py",
+            "test_input_review_runtime.py",
+            "test_actionable_analysis.py",
+            "test_actionable_analysis_runtime.py",
+            "test_actionable_automation_runtime.py",
+            "test_module_workflow_runtime.py",
+            "test_module_scope.py",
+            "test_payroll_domain.py",
+            "test_payroll_1405_tax.py",
+            "test_payroll_catalog.py",
+            "test_payroll_rulepack.py",
+            "test_payroll_rulepack_runtime.py",
+            "test_payroll_runtime.py",
+            "test_extension_restore_runtime.py",
         ]:
+            started = time.monotonic()
             subprocess.run(
                 [sys.executable, str(ROOT / "tests" / suite)],
                 env=dict(suite_env, DIDBAN_TEST_DSN=dsn),
                 check=True,
             )
+            suite_results.append(
+                {
+                    "suite": suite,
+                    "status": "passed",
+                    "seconds": round(time.monotonic() - started, 3),
+                }
+            )
         if args.suite:
             return
+        if hashes() != initial_hashes:
+            raise RuntimeError(
+                "Source changed during PostgreSQL verification; rerun before declaring final acceptance."
+            )
         (ROOT / "docs/postgres18-validation.json").write_text(
             json.dumps(
                 {
@@ -205,6 +265,12 @@ def main():
                         (ROOT / "docs/restore-validation.json").read_text()
                     ).get("tests_run", 1),
                     "isolated_container": True,
+                    "suite_results": suite_results,
+                    "source_sha256": initial_hashes,
+                    "verified_migration_count": len(
+                        list((ROOT / "database").glob("*.sql"))
+                    ),
+                    "live_installation_modified": False,
                 },
                 indent=2,
             )

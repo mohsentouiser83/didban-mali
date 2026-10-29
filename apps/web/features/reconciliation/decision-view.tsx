@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import type { FormEvent } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Field, Textarea, FormMessage } from "@/components/ui/field";
 import { Select, type Option } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import type { CandidateModel } from "./presentation";
+
 export function DecisionView({
   item,
   unit,
@@ -37,6 +39,7 @@ export function DecisionView({
 }) {
   return (
     <Dialog
+      icon="GitCompareArrows"
       open
       title="شواهد مقایسه"
       busy={busy}
@@ -77,7 +80,10 @@ export function DecisionView({
         </div>
         {item.chain.length ? (
           <section>
-            <h3 className="mb-2 font-medium">زنجیره مرجع</h3>
+            <h3 className="flex items-center gap-2 mb-2 font-medium">
+              <AppIcon name="GitCompareArrows" className="text-primary" />
+              زنجیره مرجع
+            </h3>
             <ol className="space-y-2">
               {item.chain.map((r, i) => (
                 <li key={i} className="break-all text-xs">
@@ -92,8 +98,9 @@ export function DecisionView({
             <div>
               <label
                 htmlFor="comparison-action"
-                className="mb-2 block text-xs font-medium"
+                className="flex items-center gap-2 mb-2 block text-xs font-medium"
               >
+                <AppIcon name="GitCompareArrows" className="text-primary" />
                 تصمیم
               </label>
               <Select
@@ -105,7 +112,7 @@ export function DecisionView({
                 disabled={busy}
               />
             </div>
-            <Field label="دلیل" id="comparison-reason">
+            <Field icon="GitCompareArrows" label="دلیل" id="comparison-reason">
               <Textarea
                 id="comparison-reason"
                 required
@@ -119,6 +126,7 @@ export function DecisionView({
               {error ?? (success ? "تصمیم ثبت شد." : null)}
             </FormMessage>
             <Button type="submit" disabled={busy}>
+              <AppIcon name="Save" />
               {busy ? "در حال ثبت" : "ثبت تصمیم"}
             </Button>
           </Form>

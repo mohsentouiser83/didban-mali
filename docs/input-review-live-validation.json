@@ -1,0 +1,20 @@
+{
+  "scope": "synthetic_disposable_input_review_live_provider",
+  "started_at": "2026-10-29T16:42:15.320223+00:00",
+  "max_external_requests": 1,
+  "temporary_budget_ceiling_usd": "0.05",
+  "live_installation_modified": false,
+  "real_company_data_sent": false,
+  "proposal_status": "proposed",
+  "reinterpreted_and_confirmed": true,
+  "recorded_requests": 1,
+  "receipts": [
+    {
+      "status": "succeeded",
+      "billing_status": "settled",
+      "actual_cost_usd": "0.00016040",
+      "has_provider_response_id": false
+    }
+  ],
+  "status": "passed"
+}

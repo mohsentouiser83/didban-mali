@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import type { Schema } from "@didban/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export function EvidenceView({
 }) {
   return (
     <Dialog
+      icon="FileSearch"
       open
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -65,7 +67,8 @@ export function EvidenceView({
             ) : null}
             {facts.length ? (
               <div>
-                <h3 className="mb-2 text-xs font-medium">
+                <h3 className="flex items-center gap-2 mb-2 text-xs font-medium">
+                  <AppIcon name="FileSearch" className="text-primary" />
                   مقادیر شاهد · {metric.unit}
                 </h3>
                 <ul className="space-y-2">
@@ -92,6 +95,7 @@ export function EvidenceView({
               disabled={index === 0}
               onClick={() => onIndex(index - 1)}
             >
+              <AppIcon name="ChevronRight" />
               قبلی
             </Button>
             <span className="text-xs text-muted">
@@ -102,6 +106,7 @@ export function EvidenceView({
               disabled={index + 1 >= metric.evidenceRefs.length}
               onClick={() => onIndex(index + 1)}
             >
+              <AppIcon name="ChevronLeft" />
               بعدی
             </Button>
           </nav>

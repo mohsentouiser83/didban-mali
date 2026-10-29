@@ -1,4 +1,5 @@
 # Immutable report editions. Binary content is authenticated on every request.
+SCHEMAS['Report']['properties']['row_review'] = {'type':'object','additionalProperties':False,'required':['errors','excluded_overlap'],'properties':{'errors':{'type':'integer','minimum':0},'excluded_overlap':{'type':'integer','minimum':0}}}
 obj('ReportMetric', {'metric_key':TEXT,'basis':TEXT,'status':enum('available','limited','estimated','unavailable'),'value':nullable(MONEY),'reason_codes':arr(TEXT)})
 SCHEMAS['ExportJob']['properties'].update({'report_id':nullable(ID),'error_code':nullable(TEXT),'byte_size':nullable({'type':'integer','minimum':1})})
 SCHEMAS['Report']['properties'].update({'revision_number':VERSION,'scope_status':enum('ready','limited'),'exports':arr(ref('ExportJob')),'company_name':nullable(TEXT),'period_name':nullable(TEXT),'as_of_date':nullable(DATE),'metrics':arr(ref('ReportMetric')),'source_count':{'type':'integer','minimum':0},'candidate_count':{'type':'integer','minimum':0},'forecast_closing':nullable(MONEY),'pinned_versions':{'type':'object','additionalProperties':True}})

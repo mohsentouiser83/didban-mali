@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import { Button } from "@/components/ui/button";
 import { Field, Input, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -12,6 +13,7 @@ import {
   TableRowHeader,
   TableEmptyCell,
 } from "@/components/ui/table";
+
 export type ChargeModel = { id: string; time: string; reserved: string };
 export function BudgetView({
   ceiling,
@@ -48,7 +50,11 @@ export function BudgetView({
           }}
           className="space-y-5"
         >
-          <Field id="model-budget-ceiling" label="سقف ماهانه نصب · دلار">
+          <Field
+            icon="Coins"
+            id="model-budget-ceiling"
+            label="سقف ماهانه نصب · دلار"
+          >
             <Input
               id="model-budget-ceiling"
               dir="ltr"
@@ -65,12 +71,16 @@ export function BudgetView({
             <FormMessage success>سقف هزینه ثبت شد.</FormMessage>
           ) : null}
           <Button type="submit" disabled={busy}>
+            <AppIcon name="Save" />
             {busy ? "در حال ثبت…" : "ثبت سقف"}
           </Button>
         </Form>
       </section>
       <section className="space-y-4">
-        <h2 className="text-sm font-medium">درخواست‌های نیازمند تعیین هزینه</h2>
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <AppIcon name="Coins" className="text-primary" />
+          درخواست‌های نیازمند تعیین هزینه
+        </h2>
         <Table>
           <TableHeader>
             <TableRow>
@@ -91,6 +101,7 @@ export function BudgetView({
                   <TableCell>{c.reserved}</TableCell>
                   <TableCell>
                     <Button variant="secondary" onClick={() => onSelect(c.id)}>
+                      <AppIcon name="Save" />
                       ثبت هزینه واقعی
                     </Button>
                   </TableCell>
@@ -105,6 +116,7 @@ export function BudgetView({
         </Table>
         {more ? (
           <Button onClick={onMore} disabled={busyMore}>
+            <AppIcon name="ChevronsDown" />
             نمایش بیشتر
           </Button>
         ) : null}
@@ -131,6 +143,7 @@ export function CostReceiptDialog({
 }) {
   return (
     <Dialog
+      icon="Coins"
       open
       title="ثبت هزینه واقعی"
       onOpenChange={(open) => {
@@ -147,7 +160,11 @@ export function CostReceiptDialog({
         <p className="break-all text-xs text-muted">
           <bdi>{id}</bdi>
         </p>
-        <Field id="model-actual-cost" label="هزینه واقعی درخواست · دلار">
+        <Field
+          icon="Coins"
+          id="model-actual-cost"
+          label="هزینه واقعی درخواست · دلار"
+        >
           <Input
             id="model-actual-cost"
             required
@@ -161,6 +178,7 @@ export function CostReceiptDialog({
         </Field>
         <FormMessage>{error}</FormMessage>
         <Button disabled={busy} type="submit">
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "ثبت هزینه واقعی"}
         </Button>
       </Form>

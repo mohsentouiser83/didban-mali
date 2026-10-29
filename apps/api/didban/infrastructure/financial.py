@@ -35,7 +35,7 @@ def schedule(conn, company, session):
             "INSERT INTO app.policy_versions(company_id,kind,version,effective_from,parameters,validation_status,actor_id) VALUES(%s,'financial',1,current_date,%s,'evaluated',(SELECT requested_by FROM app.processing_sessions WHERE company_id=%s AND id=%s)) RETURNING id",
             (
                 company,
-                Jsonb({"engine": "financial-v1.0", "scope": "core_financial_v1"}),
+                Jsonb({"engine": "financial-v1.1", "scope": "core_financial_v1"}),
                 company,
                 session,
             ),
@@ -95,6 +95,7 @@ def inputs(conn, company, session):
             r["original_name"],
         )
         for r in raw
+        if r["state"] != "excluded_overlap"
     ]
     p = conn.execute(
         "SELECT * FROM app.financial_periods WHERE company_id=%s AND id=%s",
@@ -314,7 +315,7 @@ def publish(
                     (company, mid, eid),
                 )
     conn.execute(
-        "INSERT INTO app.calculation_runs(company_id,manifest_id,kind,formula_version,status) VALUES(%s,%s,'core_financial_v1','financial-v1.0','limited')",
+        "INSERT INTO app.calculation_runs(company_id,manifest_id,kind,formula_version,status) VALUES(%s,%s,'core_financial_v1','financial-v1.1','limited')",
         (company, manifest),
     )
     conn.execute(

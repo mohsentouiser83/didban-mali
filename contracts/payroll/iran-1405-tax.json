@@ -1,0 +1,48 @@
+{
+  "id": "iran-1405-ordinary-salary-tax-table-v1",
+  "calendar_year": 1405,
+  "status": "source_verified_component",
+  "legal_verified": false,
+  "scope": "ordinary_salary_exemption_and_progressive_bands_only",
+  "effective_from": "2026-03-21",
+  "effective_to": "2027-03-20",
+  "unit": "IRR",
+  "source": {
+    "url": "https://regulation.tax.gov.ir/uploads/aa27f525068b689822d8990ad74f61cc.pdf",
+    "sha256": "5417e111e74a84633f2f41fd509a95c334458b51cb3ebd246c3eff3c1891b78b",
+    "pdf_page": 9,
+    "printed_page": 5,
+    "table": "جدول الزامات منابع قانون بودجه سال ۱۴۰۵",
+    "rows": ["1-1", "1-2-1", "1-2-2", "1-2-3", "1-2-4", "1-2-5"]
+  },
+  "annual_exemption": "4800000000",
+  "annual_gross_band_bounds": [
+    "9600000000",
+    "12000000000",
+    "14400000000",
+    "16800000000",
+    null
+  ],
+  "monthly_exemption": "400000000",
+  "monthly_bands_after_exemption": [
+    { "up_to": "400000000", "rate": "0.10" },
+    { "up_to": "600000000", "rate": "0.15" },
+    { "up_to": "800000000", "rate": "0.20" },
+    { "up_to": "1000000000", "rate": "0.25" },
+    { "up_to": null, "rate": "0.30" }
+  ],
+  "excluded": [
+    "component_tax_treatment",
+    "multi_employer_reconciliation",
+    "special_employee_regimes",
+    "special_payments",
+    "insurance",
+    "official_export_format"
+  ],
+  "related_revision": {
+    "url": "https://regulation.tax.gov.ir/lwvi?lid=txs5000152382&ty=mq",
+    "reference": "200/1405/59",
+    "issued_on": "2026-10-19",
+    "scope": "welfare_component_treatment_requires_separate_evidence"
+  }
+}

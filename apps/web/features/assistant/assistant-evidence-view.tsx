@@ -1,6 +1,8 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { LoadingState, ErrorState } from "@/components/ui/states";
+
 export function AssistantEvidenceView({
   loading,
   error,
@@ -34,6 +36,7 @@ export function AssistantEvidenceView({
 }) {
   return (
     <Dialog
+      icon="MessageCircle"
       open
       title="شواهد پاسخ"
       onOpenChange={(open) => {
@@ -65,12 +68,14 @@ export function AssistantEvidenceView({
         className="mt-5 flex items-center justify-between gap-2"
       >
         <Button variant="secondary" disabled={first} onClick={onPrevious}>
+          <AppIcon name="ChevronRight" />
           قبلی
         </Button>
         <span className="text-xs text-muted">
           {position} از {total}
         </span>
         <Button variant="secondary" disabled={last} onClick={onNext}>
+          <AppIcon name="ChevronLeft" />
           بعدی
         </Button>
       </nav>

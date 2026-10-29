@@ -1,4 +1,5 @@
 from collections import defaultdict
+from .ledger_controls import posting_facts
 
 from .common import (
     ZERO,
@@ -28,7 +29,7 @@ BALANCE_ROLES = {
     },
 }
 KNOWN_ROLES = set(
-    "bank cash trade_ar other_ar trade_ap loan_payable tax_payable payroll_payable other_liability inventory capital revenue other_income expense cogs income_tax_expense vat_receivable vat_payable".split()
+    "bank cash cash_equivalent trade_ar other_ar trade_ap loan_payable tax_payable payroll_payable other_liability inventory fixed_asset other_asset contra_asset other_equity capital revenue other_income expense purchases cogs income_tax_expense vat_receivable vat_payable".split()
 )
 NON_FLOW = {"opening", "closing", "closing_transfer", "profit_loss_transfer"}
 
@@ -108,15 +109,29 @@ def ledger_metrics(
     other_income = -debit_net({"other_income"})
     operating = debit_net({"expense", "cogs"})
     tax = debit_net({"income_tax_expense"})
+    facts = posting_facts(source, period)
+    if facts.get("periodic_cogs") is not None:
+        operating += amount(facts["periodic_cogs"])
+    if facts.get("allocated_tax") is not None:
+        allocated = amount(facts["allocated_tax"])
+        if not tax:
+            tax = allocated
     cogs_state = declarations.get("cogs", {}).get(period.id)
-    has_cogs_rows = any(r.values["role"] == "cogs" for r in flow)
+    has_cogs_rows = (
+        any(r.values["role"] == "cogs" for r in flow)
+        or facts.get("periodic_cogs") is not None
+    )
     cogs_ok = (cogs_state == "recognized" and has_cogs_rows) or (
-        cogs_state == "not_required" and not has_cogs_rows
+        cogs_state == "not_required"
+        and not has_cogs_rows
+        and not any(r.values["role"] == "purchases" for r in flow)
     )
     tax_state = declarations.get("income_tax", {}).get(period.id)
     tax_ok = tax_state in {"recognized", "zero_confirmed"}
-    if tax_state == "recognized" and not any(
-        r.values["role"] == "income_tax_expense" for r in flow
+    if (
+        tax_state == "recognized"
+        and not any(r.values["role"] == "income_tax_expense" for r in flow)
+        and facts.get("allocated_tax") is None
     ):
         tax_ok = False
     if tax_state == "zero_confirmed" and tax:
@@ -129,12 +144,27 @@ def ledger_metrics(
         ("net_profit", revenue + other_income - operating - tax),
     ):
         errors = list(reasons)
+        if (
+            key in {"expense", "net_profit"}
+            and tax
+            and facts.get("allocated_tax") is not None
+            and tax != amount(facts["allocated_tax"])
+        ):
+            errors.append("income_tax_conflict")
         if key != "revenue" and not cogs_ok:
             errors.append("cogs_unknown")
         if key in {"expense", "net_profit"} and not tax_ok:
             errors.append("income_tax_unknown")
         results.append(
-            result(key, "ledger", None if errors else value, flow, errors, scopes)
+            result(
+                key,
+                "ledger",
+                None if errors else value,
+                flow,
+                errors,
+                scopes,
+                {"posting_controls": facts},
+            )
         )
     for key, roles in BALANCE_ROLES.items():
         errors = list(reasons)

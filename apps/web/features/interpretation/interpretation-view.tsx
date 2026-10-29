@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/features/companies/company-view";
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState, StatusMessage } from "@/components/ui/states";
 import { Dialog } from "@/components/ui/dialog";
+
 export type RowDisplay = {
   id: string;
   location: string;
@@ -69,18 +72,25 @@ export function InterpretationView({
   return (
     <section className="space-y-5 motion-safe:animate-reveal">
       <PageHeader
+        icon="FileSearch"
         title="تفسیر و شواهد فایل"
         description={name}
         action={
           <Button asChild variant="ghost">
-            <Link href={back}>بازگشت به بسته</Link>
+            <Link href={back}>
+              <AppIcon name="Undo2" />
+              بازگشت به بسته
+            </Link>
           </Button>
         }
       />
       {question}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-summary border border-primary/10 bg-linear-to-l from-accent to-surface p-5 sm:p-7">
         <div>
-          <h2 className="font-heading text-lg font-medium">داده استاندارد</h2>
+          <h2 className="flex items-center gap-2 font-heading text-lg font-medium">
+            <AppIcon name="FileSpreadsheet" className="text-primary" />
+            داده استاندارد
+          </h2>
           <p className="mt-2 text-muted">
             {summary ??
               (waiting
@@ -90,6 +100,7 @@ export function InterpretationView({
         </div>
         {canConfigure ? (
           <Button variant="secondary" onClick={onConfigure}>
+            <AppIcon name="SlidersHorizontal" />
             تنظیم تشخیص
           </Button>
         ) : null}
@@ -157,11 +168,13 @@ export function InterpretationView({
           </Table>
         ) : (
           <EmptyState
+            icon="FileSpreadsheet"
             title={waiting ? "منتظر تکمیل تفسیر" : "رکوردی برای نمایش نیست"}
           />
         ))}
       {more ? (
         <Button variant="secondary" disabled={busy} onClick={onMore}>
+          <AppIcon name="ChevronsDown" />
           ردیف‌های بیشتر
         </Button>
       ) : null}
@@ -177,6 +190,7 @@ export function RowEvidence({
 }) {
   return (
     <Dialog
+      icon="FileSearch"
       open={!!row}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -188,7 +202,10 @@ export function RowEvidence({
         {row?.errors.map((error) => (
           <StatusMessage key={error}>{error}</StatusMessage>
         ))}
-        <h3 className="font-medium">مقادیر استاندارد · ریال</h3>
+        <h3 className="flex items-center gap-2 font-medium">
+          <AppIcon name="FileSpreadsheet" className="text-primary" />
+          مقادیر استاندارد · ریال
+        </h3>
         <Table>
           <TableHeader>
             <TableRow>
@@ -207,7 +224,10 @@ export function RowEvidence({
             ))}
           </TableBody>
         </Table>
-        <h3 className="font-medium">مقادیر اصلی</h3>
+        <h3 className="flex items-center gap-2 font-medium">
+          <AppIcon name="FileSpreadsheet" className="text-primary" />
+          مقادیر اصلی
+        </h3>
         <Table>
           <TableHeader>
             <TableRow>

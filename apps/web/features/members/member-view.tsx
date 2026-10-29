@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState, type FormEvent } from "react";
 import type { Schema } from "@didban/api-client";
 import Link from "next/link";
@@ -26,6 +28,7 @@ import { Select, Switch } from "@/components/ui/select";
 import { Form } from "@/components/ui/form";
 import { Field, Input, FormMessage, Textarea } from "@/components/ui/field";
 import { roles, roleOptions } from "./roles";
+
 export type Member = Schema<"MemberDirectoryEntry">;
 export function MemberListView({
   company,
@@ -33,6 +36,7 @@ export function MemberListView({
   onAdd,
   onEdit,
   onPermission,
+  onPayrollPermission,
   more,
   busy,
   onMore,
@@ -42,6 +46,7 @@ export function MemberListView({
   onAdd: () => void;
   onEdit: (member: Member) => void;
   onPermission: (member: Member) => void;
+  onPayrollPermission: (member: Member) => void;
   more: boolean;
   busy: boolean;
   onMore: () => void;
@@ -49,6 +54,7 @@ export function MemberListView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="ShieldCheck"
         title="اعضا و مجوزها"
         description={company.name}
         action={
@@ -96,6 +102,7 @@ export function MemberListView({
                   <MemberActions
                     member={m}
                     onEdit={onEdit}
+                    onPayrollPermission={onPayrollPermission}
                     onPermission={onPermission}
                   />
                 </TableCell>
@@ -127,6 +134,7 @@ export function MemberListView({
             <MemberActions
               member={m}
               onEdit={onEdit}
+              onPayrollPermission={onPayrollPermission}
               onPermission={onPermission}
             />
           </article>
@@ -135,6 +143,7 @@ export function MemberListView({
       {more ? (
         <div className="mt-5 text-center">
           <Button variant="secondary" disabled={busy} onClick={onMore}>
+            <AppIcon name="ChevronsDown" />
             {busy ? "در حال دریافت…" : "اعضای بیشتر"}
           </Button>
         </div>
@@ -146,10 +155,12 @@ function MemberActions({
   member,
   onEdit,
   onPermission,
+  onPayrollPermission,
 }: {
   member: Member;
   onEdit: (m: Member) => void;
   onPermission: (m: Member) => void;
+  onPayrollPermission: (m: Member) => void;
 }) {
   return (
     <div className="flex flex-wrap gap-1">
@@ -161,7 +172,14 @@ function MemberActions({
       ["owner", "advisor_accountant"].includes(member.role) ? (
         <Button variant="ghost" onClick={() => onPermission(member)}>
           <ShieldCheck size={16} aria-hidden />
-          مجوز تأیید
+          مجوز تأیید گزارش
+        </Button>
+      ) : null}
+      {member.active &&
+      ["owner", "advisor_accountant"].includes(member.role) ? (
+        <Button variant="ghost" onClick={() => onPayrollPermission(member)}>
+          <ShieldCheck size={16} aria-hidden />
+          مجوزهای حقوق
         </Button>
       ) : null}
     </div>
@@ -182,9 +200,14 @@ export function AddMemberDialog({
 }) {
   const [role, setRole] = useState("viewer");
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="افزودن عضو">
+    <Dialog
+      icon="Users"
+      open={open}
+      onOpenChange={onOpenChange}
+      title="افزودن عضو"
+    >
       <Form onSubmit={onSubmit} className="space-y-5">
-        <Field id="member-email" label="ایمیل کاربر">
+        <Field icon="Mail" id="member-email" label="ایمیل کاربر">
           <Input
             id="member-email"
             name="email"
@@ -197,7 +220,7 @@ export function AddMemberDialog({
             حساب کاربر باید توسط مدیر سازمان ایجاد شده باشد.
           </p>
         </Field>
-        <Field id="member-role" label="نقش در شرکت">
+        <Field icon="ShieldCheck" id="member-role" label="نقش در شرکت">
           <Select
             id="member-role"
             name="role"
@@ -236,6 +259,7 @@ export function EditMemberDialog({
   return (
     <>
       <Dialog
+        icon="ShieldCheck"
         busy={busy}
         open
         onOpenChange={(v) => {
@@ -253,7 +277,7 @@ export function EditMemberDialog({
             else onSubmit({ role, active });
           }}
         >
-          <Field id="edit-role" label="نقش در شرکت">
+          <Field icon="ShieldCheck" id="edit-role" label="نقش در شرکت">
             <Select
               id="edit-role"
               value={role}
@@ -262,7 +286,10 @@ export function EditMemberDialog({
             />
           </Field>
           <div className="flex items-center justify-between">
-            <label htmlFor="member-active">دسترسی فعال</label>
+            <label className="flex items-center gap-2" htmlFor="member-active">
+              <AppIcon name="ShieldCheck" className="text-primary" />
+              دسترسی فعال
+            </label>
             <Switch
               id="member-active"
               checked={active}
@@ -272,16 +299,19 @@ export function EditMemberDialog({
           </div>
           {role !== member.role || !active ? (
             <p className="text-xs text-muted">
-              تغییر نقش یا غیرفعال‌سازی، مجوز صریح تأیید گزارش را لغو می‌کند.
+              تغییر نقش یا غیرفعال‌سازی، مجوزهای صریح تأیید گزارش و حقوق را لغو
+              می‌کند.
             </p>
           ) : null}
           <FormMessage>{error}</FormMessage>
           {error ? (
             <Button variant="ghost" onClick={onRefresh}>
+              <AppIcon name="Plus" />
               دریافت نسخه تازه
             </Button>
           ) : null}
           <Button type="submit" className="w-full" disabled={busy}>
+            <AppIcon name="Save" />
             {busy ? "در حال ثبت…" : "ذخیره دسترسی"}
           </Button>
         </Form>
@@ -321,7 +351,10 @@ export function PermissionForm({
       }}
     >
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor="report-permission">اجازه تأیید گزارش</label>
+        <label className="flex items-center gap-2" htmlFor="report-permission">
+          <AppIcon name="ClipboardList" className="text-primary" />
+          اجازه تأیید گزارش
+        </label>
         <Switch
           id="report-permission"
           checked={enabled}
@@ -329,7 +362,7 @@ export function PermissionForm({
           label="اجازه تأیید گزارش"
         />
       </div>
-      <Field id="permission-reason" label="دلیل تغییر">
+      <Field icon="Users" id="permission-reason" label="دلیل تغییر">
         <Textarea
           id="permission-reason"
           name="reason"
@@ -340,10 +373,12 @@ export function PermissionForm({
       <FormMessage>{error}</FormMessage>
       {error ? (
         <Button variant="ghost" onClick={onRefresh}>
+          <AppIcon name="Plus" />
           دریافت نسخه تازه
         </Button>
       ) : null}
       <Button type="submit" className="w-full" disabled={busy}>
+        <AppIcon name="Save" />
         {busy ? "در حال ثبت…" : "ثبت مجوز"}
       </Button>
     </Form>

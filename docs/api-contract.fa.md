@@ -1,6 +1,12 @@
 # قرارداد API ساخت تازه — ۰٫۱
 
-مرجع ماشین‌خوان `contracts/openapi.json` با OpenAPI 3.1.1 از `tools/build_openapi.py` تولید می‌شود. اکنون ۲۳ عملیات هویت/شرکت/مجوز اجرا شده‌اند؛ `/openapi.json` سرویس فقط همین مسیرهای فعال را ارائه می‌کند. سند کامل همچنان قرارداد حوزه‌های آینده را هم دارد. مرجع معنا [مشخصات رسمی OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html) است.
+افزونه ۲۰۲۶/۱۰/۲۹ شامل شش عملیات ماژول/مجوز/سابقه، شش عملیات بازبینی ورودی، شش عملیات تحلیل/پیگیری/خلاصه و ۲۵ عملیات حقوق است. مرجع دقیق مسیرها و schemaها `contracts/openapi.json` تولیدشده است؛ ثبت مسیر به معنی پذیرش قانونی یا استقرار آن نیست. قراردادهای اجرا: [ماژول‌ها](extension-foundation-runtime.fa.md)، [بازبینی](input-review-runtime.fa.md)، [تحلیل](actionable-analysis-runtime.fa.md) و [حقوق](payroll-runtime.fa.md).
+
+## تشخیص مجدد خودکار ورودی — ۲۰۲۶/۱۰/۲۶
+
+مسیر موجود POST /companies/{company_id}/processing-sessions/{session_id}/interpret علاوه بر شروع اولیه، درخواست صریح تشخیص مجدد برای بسته دارای سؤال بازِ interpretation_mapping یا interpretation_kind را می‌پذیرد. مجوز company.operate، نسخه و کلید تکرارپذیری الزامی‌اند. بسته منتشرشده، کامل، لغوشده یا دارای نتیجه مالی قابل بازگشایی نیست. فقط سؤال‌های نگاشت/نوعِ فایل‌های مربوط supersede می‌شوند؛ پاسخ ساختگی ایجاد نمی‌شود، تنظیم انسانی و نسخه‌های پیشین باقی می‌مانند و سایر سؤال‌های ضروری همچنان مانع worker هستند. اگر ابهام تکرار شود، سؤال تازه ساخته می‌شود. درخواست با رویداد interpretation.automatic_retry_requested ممیزی و با نوع عملیات موجود start_interpretation ثبت می‌شود؛ نیازی به تغییر schema نیست.
+
+مرجع ماشین‌خوان `contracts/openapi.json` با OpenAPI 3.1.1 از `tools/build_openapi.py` تولید می‌شود. در مرحله فعلی، registry سرور ۱۵۲ عملیات فعال دارد؛ قرارداد کامل ۱۳۷ مسیر، ۱۶۷ عملیات و ۲۵۵ schema را شامل می‌شود. `/openapi.json` سرویس فقط مسیرهای فعال را ارائه می‌کند. شمارهای قدیمی مربوط به مراحل قبلی‌اند. مرجع معنا [مشخصات رسمی OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html) است.
 
 ## قواعد مشترک
 
@@ -100,3 +106,12 @@ runtime نسخه ۷ با migration افزایشی 007، شامل ۷۹ جدول �
 گزارش‌های `reports-validation.json`، `report-rendering-validation.json`، `policy-validation.json`، `delivery-workflow-validation.json`، `backup-bundle-validation.json`، `installation-config-validation.json` و `restore-validation.json` شواهد این مرحله‌اند. ظرفیت کامل و بازیابی با ۱۷migration موفق‌اند؛ اجرای نهایی یکپارچه و حالت‌های باقی‌مانده مرورگر در حال به‌روزرسانی‌اند؛ وضعیت pass/fail و hash هر گزارش مرجع همان دامنه است. `wave2-validation.json` و گزارش‌های نصب مراحل قبل، شاهد نسخه فعلی همه قابلیت‌ها نیستند. مدل زنده و provider برای تشخیص فایل/نگاشت/نقش حساب، ارزیابی قالب‌های متنوع، کاهش حرکت واقعی سیستم‌عامل و پذیرش مالی/سازمانی همچنان باقی‌اند. هیچ پیام بیرونی، نصب روی سازمان یا فراخوانی مدل زنده انجام نشده است.
 
 عملیات افزوده گزارش: `listReports`، `generateReport`، `createExport`، `getExport`، `downloadExport` و `retryExport`؛ `getReport` و `approveReport` اکنون گزارش تولیدشده نسخه‌دار را مصرف می‌کنند. دانلود برخلاف پاسخ JSON، بایت PDF/XLSX/CSV با media type قراردادی، نام attachment کنترل‌شده و `nosniff` دارد؛ هر دانلود مجوز جاری، اندازه و hash را بررسی می‌کند. عملیات سیاست/منبع: `listPolicies`، `createPolicyVersion`، `getUploadPolicy`، `listSourceFiles`، `getSourceDeletionImpact`، `archiveSourceFile`، `deleteSourceFile`، `getRetentionPolicy` و `updateRetentionPolicy`. شناسه `report_id`، نوع نوبت `purpose` و `source_session_id` در قرارداد نوبت به UI کمک می‌کنند نسخه و ادامه پیش‌بینی را درست نشان دهد.
+
+## گزارش‌های مدیر مالی — ۲۰۲۶/۱۰/۲۶
+
+مسیرهای تازه شامل `POST /results/{manifest_id}/management-reports`، `GET /reports/{report_id}/management`، `GET /reports/{report_id}/statement-template`، `POST /statement-templates/parse` و `GET /statement-templates/example` هستند. مسیرها همچنان زیر شرکت مجاز قرار دارند؛ تولید/خواندن قالب ورودی مجوز عملیاتی و مشاهده/دانلود مجوز خواندن می‌خواهد. بارگذاری قالب متن‌محور و محدود از محتوای مالی جداست. قرارداد دقیق در OpenAPI تولیدشده و [راهنمای گزارش مدیریتی](management-reports-runtime.fa.md) آمده است. تاریخ خروجی گزارش سفارشی و شاخص‌های خلاصه آن از بازه انتخابی‌اند؛ manifest منبع بازنویسی نمی‌شود.
+
+
+## ادامه گزارش‌های مدیریتی — ۲۰۲۶/۱۰/۲۶
+
+تراز آزمایشی شش‌ستونی مستقل، دامنه و وضعیت اختتامیه صریح، و صورت جریان وجوه نقد دفتری در مسیر جدا اضافه شدند. قرارداد، کنترل‌ها و محدودیت‌های جاری در [تکمیل صورت‌های مالی](statements-v2-runtime.fa.md) ثبت شده‌اند. Migration افزایشی ۰۲۳ و فرمول `management-v2.0` مرجع این توسعه‌اند؛ وضعیت و محدودیت‌های تاریخی بالا دلیل پذیرش مالی یا نصب سازمانی نیستند.

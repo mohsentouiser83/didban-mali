@@ -1,3 +1,6 @@
+import { AppIcon } from "@/components/ui/app-icon";
+import { financialMetricIcon } from "@/components/ui/financial/metric-icons";
+
 import Link from "next/link";
 import type { Schema } from "@didban/api-client";
 import { PageHeader } from "@/features/companies/company-view";
@@ -16,6 +19,7 @@ import {
   TableCell,
   TableRowHeader,
 } from "@/components/ui/table";
+
 export type BalanceRow = {
   id: string;
   number: string;
@@ -50,11 +54,13 @@ export function BalancesView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="FileText"
         title={title}
         description={company.name}
         action={
           <Button asChild variant="secondary">
             <Link href={`/companies/${company.id}/settlements`}>
+              <AppIcon name="ArrowUpRight" />
               دریافت‌وپرداخت
             </Link>
           </Button>
@@ -62,7 +68,11 @@ export function BalancesView({
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="w-full max-w-sm">
-          <Field id="balance-version" label="مبنای فایل‌ها">
+          <Field
+            icon="FileSpreadsheet"
+            id="balance-version"
+            label="مبنای فایل‌ها"
+          >
             <Select
               id="balance-version"
               value={selected}
@@ -76,6 +86,7 @@ export function BalancesView({
       <StatCards>
         {metrics.map((metric) => (
           <StatCard
+            icon={financialMetricIcon(metric.key)}
             key={metric.key}
             title={metric.title}
             value={metric.value}
@@ -91,10 +102,12 @@ export function BalancesView({
       </StatCards>
       {!rows.length ? (
         <EmptyState
+          icon="FileText"
           title="فاکتوری موجود نیست"
           action={
             <Button asChild>
               <Link href={`/companies/${company.id}/uploads`}>
+                <AppIcon name="UploadCloud" />
                 تکمیل فایل‌ها
               </Link>
             </Button>

@@ -54,6 +54,7 @@ def pdf_bytes(content: dict, font_root: Path) -> bytes:
         fontSize=18,
         leading=27,
         spaceAfter=10,
+        keepWithNext=True,
     )
 
     def p(value, style=body):
@@ -88,20 +89,34 @@ def pdf_bytes(content: dict, font_root: Path) -> bytes:
         author="دیدبان مالی",
     )
     m = content["manifest"]
+    scope = content.get("report_scope", {})
+    report_date = scope.get("as_of_date", m["as_of_date"])
     report = content.get("_report", {})
     story = [
         p("گزارش مدیریتی", heading),
         p(m["company_name"]),
         p(
             m["period_name"]
-            + " | تا "
+            + (
+                (
+                    " | از "
+                    + jdatetime.date.fromgregorian(
+                        date=date.fromisoformat(scope["starts_on"])
+                    ).strftime("%Y/%m/%d")
+                    + " تا "
+                )
+                if scope
+                else " | تا "
+            )
             + jdatetime.date.fromgregorian(
-                date=date.fromisoformat(m["as_of_date"])
+                date=date.fromisoformat(report_date)
             ).strftime("%Y/%m/%d")
         ),
         p("تولیدشده سامانه"),
         Spacer(1, 8 * mm),
     ]
+    if content.get("management", {}).get("statement_basis") == "trial_balance":
+        story.append(p("مبنای سود و زیان این گزارش: تراز آزمایشی"))
     unit = "تومان" if m.get("display_unit") == "IRT" else "ریال"
     table = [[p("علت / وضعیت"), p("مقدار · " + unit), p("شاخص")]]
     for metric in content["metrics"]:
@@ -162,7 +177,19 @@ def pdf_bytes(content: dict, font_root: Path) -> bytes:
         story.append(p(METRIC_LABELS[metric["metric_key"]] + ": " + change))
         for code in comparison.get("reason_codes", []):
             story.append(p(REASON_LABELS.get(code, code)))
-    story += [Spacer(1, 7 * mm), p("تطبیق‌ها و پیش‌بینی", heading)]
+    context_title = "تطبیق‌ها و پیش‌بینی"
+    if scope:
+        context_title += " نسخه داده"
+    story += [Spacer(1, 7 * mm), p(context_title, heading)]
+    if scope:
+        story.append(
+            p(
+                "تاریخ مبنای تطبیق و پیش‌بینی: "
+                + jdatetime.date.fromgregorian(
+                    date=date.fromisoformat(m["as_of_date"])
+                ).strftime("%Y/%m/%d")
+            )
+        )
     for run in content["reconciliation_runs"]:
         label = {
             "bank_ledger": "بانک و دفتر",
@@ -195,6 +222,22 @@ def pdf_bytes(content: dict, font_root: Path) -> bytes:
             story.append(p(assumption))
     else:
         story.append(p("پیش‌بینی آماده نیست."))
+    generic = (content.get("actionable_summary") or {}).get("items", [])
+    if generic:
+        story += [Spacer(1, 7 * mm), p("پیشنهادهای مدیریتی", heading)]
+        for item in generic:
+            if item["axis"] == "payroll":
+                continue
+            story += [
+                p(item["title"], heading),
+                p(item["explanation"]),
+                p(item["action"]),
+            ]
+            for evidence in item.get("evidence", []):
+                story.append(p(money(evidence["value"]) + " " + unit))
+    from .report_management import pdf_sections
+
+    pdf_sections(story, content, p, heading, money)
     story += [
         Spacer(1, 6 * mm),
         p(

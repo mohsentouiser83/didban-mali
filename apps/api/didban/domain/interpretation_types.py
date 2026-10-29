@@ -36,6 +36,7 @@ class InterpretedSheet:
     controls: list[dict]
     skipped: bool = False
     skipped_count: int = 0
+    structural_rows: list[CanonicalRow] = field(default_factory=list)
 
 
 @dataclass
@@ -43,3 +44,4 @@ class Analysis:
     sheets: list[InterpretedSheet]
     previews: list[dict]
     question: Question | None = None
+    related_sources: list[dict] = field(default_factory=list)

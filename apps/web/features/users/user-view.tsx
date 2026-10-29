@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import type { FormEvent } from "react";
 import type { Schema } from "@didban/api-client";
 import { Plus, KeyRound, UserRound } from "lucide-react";
@@ -17,6 +19,7 @@ import {
 import { Dialog } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { Field, Input, FormMessage, Textarea } from "@/components/ui/field";
+
 export function UserListView({
   users,
   onInvite,
@@ -35,6 +38,7 @@ export function UserListView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="Users"
         title="کاربران سازمان"
         action={
           <Button onClick={onInvite}>
@@ -120,6 +124,7 @@ export function UserListView({
       {more ? (
         <div className="mt-5 text-center">
           <Button variant="secondary" disabled={busy} onClick={onMore}>
+            <AppIcon name="ChevronsDown" />
             {busy ? "در حال دریافت…" : "کاربران بیشتر"}
           </Button>
         </div>
@@ -157,6 +162,7 @@ export function InviteUserDialog({
 }) {
   return (
     <Dialog
+      icon="Users"
       busy={busy}
       open={open}
       onOpenChange={onOpenChange}
@@ -166,7 +172,7 @@ export function InviteUserDialog({
         <TokenReceipt token={token} label="کد دعوت" />
       ) : (
         <Form className="space-y-5" onSubmit={onSubmit}>
-          <Field id="invite-name" label="نام و نام خانوادگی">
+          <Field icon="Pencil" id="invite-name" label="نام و نام خانوادگی">
             <Input
               id="invite-name"
               name="display_name"
@@ -175,7 +181,7 @@ export function InviteUserDialog({
               autoComplete="off"
             />
           </Field>
-          <Field id="invite-email" label="ایمیل">
+          <Field icon="Mail" id="invite-email" label="ایمیل">
             <Input
               id="invite-email"
               name="email"
@@ -205,7 +211,7 @@ export function TokenReceipt({
 }) {
   return (
     <div className="space-y-4">
-      <Field id="manual-token" label={label}>
+      <Field icon="Users" id="manual-token" label={label}>
         <Textarea
           id="manual-token"
           dir="ltr"
@@ -247,6 +253,7 @@ export function ResetUserDialog({
 }) {
   return (
     <Dialog
+      icon="KeyRound"
       busy={busy}
       open
       onOpenChange={(v) => {
@@ -269,6 +276,7 @@ export function ResetUserDialog({
           </p>
           <FormMessage>{error}</FormMessage>
           <Button className="w-full" onClick={onReset} disabled={busy}>
+            <AppIcon name="Plus" />
             {busy
               ? "در حال ایجاد…"
               : user.activated

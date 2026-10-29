@@ -22,13 +22,21 @@ export function size(bytes: number) {
 }
 export function sessionLabel(session: Schema<"ProcessingSession">) {
   if (session.status === "completed") return "گزارش آماده";
-  if (session.status === "completed_limited") return "گزارش با دامنه محدود آماده";
+  if (session.status === "completed_limited")
+    return "گزارش با دامنه محدود آماده";
   if (["cancelled", "failed", "waiting_input"].includes(session.status))
     return {
       cancelled: "لغوشده",
       failed: "نیازمند اصلاح فایل",
       waiting_input: "نیازمند پاسخ",
     }[session.status as "cancelled" | "failed" | "waiting_input"];
+  if (
+    session.input_review_required &&
+    !session.input_review_confirmed &&
+    session.interpretation_finished_at &&
+    !session.financial_finished_at
+  )
+    return "در انتظار بازبینی شما";
   if (session.report_id) return "در حال آماده‌سازی خروجی‌ها";
   if (session.analysis_finished_at) return "تحلیل حوزه‌های مالی آماده";
   if (session.steps.some((step) => step.kind.startsWith("analysis:")))

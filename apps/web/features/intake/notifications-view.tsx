@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import Link from "next/link";
 import { Bell, Check } from "lucide-react";
 import type { Schema } from "@didban/api-client";
@@ -9,6 +11,7 @@ import {
   StatusMessage,
   LoadingState,
 } from "@/components/ui/states";
+
 export function NotificationsView({
   company,
   open,
@@ -55,7 +58,10 @@ export function NotificationsView({
       }
     >
       <section className="w-72 max-w-full space-y-3">
-        <h2 className="font-medium">اعلان‌های شرکت</h2>
+        <h2 className="flex items-center gap-2 font-medium">
+          <AppIcon name="Building2" className="text-primary" />
+          اعلان‌های شرکت
+        </h2>
         {error ? (
           <ErrorState message={error} onRetry={onRetry} />
         ) : loading ? (

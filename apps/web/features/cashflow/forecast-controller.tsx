@@ -8,7 +8,7 @@ import { ProcessingQuestion } from "@/features/intake/processing-question";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/states";
 import { formatDate, persianDigits } from "@/lib/dates";
 import { message } from "@/lib/api";
-import { formatMoney } from "@/features/results/presentation";
+import { formatMoney, reasonLabel } from "@/features/results/presentation";
 import { createFinancialChartData } from "@/components/ui/financial/chart-data";
 import {
   useForecastRuns,
@@ -88,7 +88,8 @@ export function ForecastController() {
         }}
       />
     );
-  if (!manifest) return <EmptyState title="نتیجه مالی آماده نیست" />;
+  if (!manifest)
+    return <EmptyState icon="TrendingUp" title="نتیجه مالی آماده نیست" />;
   const data = run.data,
     forecast = data?.forecast,
     unit = company.data.display_unit,
@@ -162,10 +163,7 @@ export function ForecastController() {
                 closing: formatMoney(day.closing, unit),
                 status: day.status,
                 reason: day.reason_codes
-                  .map(
-                    (r) =>
-                      reasonLabels[r] ?? "داده بخشی از پیش‌بینی کامل نیست.",
-                  )
+                  .map((r) => reasonLabels[r] ?? reasonLabel(r))
                   .join(" "),
               }
             : null

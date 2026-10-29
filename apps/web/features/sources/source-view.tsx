@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { useRef, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingState, ErrorState } from "@/components/ui/states";
@@ -16,6 +18,7 @@ import {
   TableRowHeader,
   TableEmptyCell,
 } from "@/components/ui/table";
+
 export type SourceRow = {
   id: string;
   name: string;
@@ -46,7 +49,8 @@ export function SourceView({
   return (
     <div className="space-y-7">
       <header>
-        <h1 className="font-heading text-[26px] font-medium">
+        <h1 className="flex items-center gap-2 font-heading text-[26px] font-medium">
+          <AppIcon name="FileSpreadsheet" className="text-primary" size={24} />
           فایل‌ها و نگهداری
         </h1>
         <p className="mt-2 text-sm text-muted">{company}</p>
@@ -79,9 +83,11 @@ export function SourceView({
                   <TableCell>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="ghost" onClick={() => onArchive(row)}>
+                        <AppIcon name="Archive" />
                         {row.archived ? "خروج از بایگانی" : "بایگانی"}
                       </Button>
                       <Button variant="ghost" onClick={() => onImpact(row)}>
+                        <AppIcon name="Trash2" />
                         بررسی حذف
                       </Button>
                     </div>
@@ -101,6 +107,7 @@ export function SourceView({
       </Table>
       {more ? (
         <Button variant="secondary" disabled={busy} onClick={onMore}>
+          <AppIcon name="ChevronsDown" />
           نمایش بیشتر
         </Button>
       ) : null}
@@ -122,9 +129,16 @@ export function RetentionForm({
 }) {
   return (
     <section className="mt-7 space-y-5 rounded-panel border border-border bg-surface p-5 sm:p-7">
-      <h2 className="text-sm font-medium">مدت نگهداری</h2>
+      <h2 className="flex items-center gap-2 text-sm font-medium">
+        <AppIcon name="FileSpreadsheet" className="text-primary" />
+        مدت نگهداری
+      </h2>
       <Form className="space-y-5" onSubmit={onSubmit}>
-        <Field id="retention-days" label="مدت نگهداری · روز">
+        <Field
+          icon="CalendarRange"
+          id="retention-days"
+          label="مدت نگهداری · روز"
+        >
           <Input
             key={days}
             id="retention-days"
@@ -140,7 +154,7 @@ export function RetentionForm({
         <p className="text-xs text-muted">
           این تنظیم فایل‌ها را خودکار حذف نمی‌کند؛ وابستگی‌های تاریخی محفوظ‌اند.
         </p>
-        <Field id="retention-reason" label="دلیل تغییر">
+        <Field icon="FileSpreadsheet" id="retention-reason" label="دلیل تغییر">
           <Textarea
             id="retention-reason"
             name="reason"
@@ -153,6 +167,7 @@ export function RetentionForm({
           <FormMessage success>مدت نگهداری ثبت شد.</FormMessage>
         ) : null}
         <Button disabled={busy} type="submit">
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "ثبت مدت نگهداری"}
         </Button>
       </Form>
@@ -211,6 +226,7 @@ export function ImpactDialog({
 }) {
   return (
     <Dialog
+      icon="FileSpreadsheet"
       open
       title="وابستگی‌های فایل"
       onOpenChange={(o) => {
@@ -240,6 +256,7 @@ export function ImpactDialog({
           </ul>
           {canDelete ? (
             <Button variant="danger" onClick={onDelete}>
+              <AppIcon name="Trash2" />
               حذف قطعی فایل
             </Button>
           ) : null}
@@ -274,7 +291,11 @@ export function DeleteConfirmation({
       onConfirm={() => form.current?.requestSubmit()}
     >
       <Form ref={form} onSubmit={onSubmit} className="space-y-4">
-        <Field id="source-delete-reason" label="دلیل حذف">
+        <Field
+          icon="FileSpreadsheet"
+          id="source-delete-reason"
+          label="دلیل حذف"
+        >
           <Textarea
             id="source-delete-reason"
             name="reason"

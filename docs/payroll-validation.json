@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "date": "2026-10-29",
+  "tests_run": 47,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "scope": "synthetic_payroll_domain_restricted_HTTP_SQL_and_preview_UI_helpers",
+  "database": "disposable_PostgreSQL18_Docker_UTF8",
+  "live_installation_modified": false,
+  "model_calls": 0,
+  "statutory_pack_1405_verified": false,
+  "official_insurance_tax_exports_verified": false,
+  "pdf_fonts": "IRANYekanX_Regular_Medium_embedded_pdffonts_checked",
+  "pdf_visual": "synthetic_one_employee_render_checked",
+  "browser_validation": "root_agent_separate_evidence",
+  "source_sha256": {
+    "apps/api/didban/domain/payroll/fingerprint.py": "3d1703b0900ba657686ac0061e8488091a9bc2a1433d13dcfa770218d431b312",
+    "apps/api/didban/domain/payroll/calculation.py": "c532f313e1eff887f2db72c416da7f0ef2ff3827629801256bf9e8b899fc06ac",
+    "apps/api/didban/domain/payroll/__init__.py": "b87885f491a1b2988982fc30e6d454365c6b3e94056ca9b274a64631871dcc6e",
+    "apps/api/didban/domain/payroll/validation.py": "a87ed08606fc154287a1c9964b41239e2d767b6c0fe12462d76d4c088ac4cee0",
+    "apps/api/didban/application/payroll_financial.py": "bacd7b438d7e7cdc0b02719b01b3a2e8df7fd14d0a96fc3cd6db376c5201ac3b",
+    "apps/api/didban/application/payroll.py": "ccbf1c516b55bd978170890882077991c7513b1ced4e191599394c39cddfbb41",
+    "apps/api/didban/application/payroll_calculations.py": "3167ce38cabdb058d293f9598ab4524aba9048ec4b806cb322d2dacd51335b19",
+    "apps/api/didban/adapters/payroll_import.py": "24ab5a943f634f933e88748c35222c8b9232b61067bda0245b062d6c6061e941",
+    "apps/api/didban/adapters/payroll_export.py": "391938da467ca613152bfa6de253640f1a421d897bebbba214b53f5fcf04f337",
+    "apps/api/didban/infrastructure/payroll.py": "9c1ff1b20c062a0380a82d1cc84bfc582f03e3b07d77fcee4cc6563139c684ad",
+    "database/027_payroll.sql": "3972e2ea2a93af189948a3df87a3be3ca1cfd2022334d54b0403fdfbcbf198bb",
+    "tools/contract_extensions/zzzzzz_payroll.py": "20ca5cf0c0aba40667a420685c8b46f9cd2e002beac5bec7bb4eef491af49a8d"
+  },
+  "test_breakdown": {
+    "domain": 19,
+    "restricted_HTTP_SQL": 15,
+    "frontend_preview_helpers": 6,
+    "primary_source_partial_catalog": 7
+  },
+  "checks": {
+    "typescript": "passed",
+    "payroll_eslint": "passed",
+    "ruff": "passed"
+  },
+  "frontend_preview_sha256": {
+    "apps/web/features/payroll/use-payroll-list.ts": "01b4b2d91ad951d658124f020372849ede6f699306737374c94776b89c0c584b",
+    "apps/web/features/payroll/payroll-fields-data.ts": "8fcfdf0602a9472966885109ba947e012f98f86c3d0f01b60c0d7b40ff8fa085",
+    "apps/web/features/payroll/payroll-fields.tsx": "5381aa0953c0a33d6144629bf1743e34d5c273f7b64c5e7cfe2b12d94de37a9b",
+    "apps/web/features/payroll/payroll-forms.tsx": "583eb370c0e492f76f75968bd755c44959dd42568636fe6ccba625e570a02a85",
+    "apps/web/features/payroll/payroll-financial-form.tsx": "459b0f1566326af1663f917df98bd7fbe5e20f99f4d94fe15120ebd5bae53783",
+    "apps/web/features/payroll/payroll-import-controller.tsx": "2b0bb2464b50162d9a122553fe6d93e4e72144b7d02f67cb22e0f2a5ae080da1",
+    "apps/web/features/payroll/payroll-form-values.ts": "f412ae408ae4094db63167c91114331f2a18695ebb7c9485e9b6e38e2bdb0576",
+    "apps/web/features/payroll/payroll-import-view.tsx": "a90fd29feeeeafe644d05da3bcb5cbd0e058ac4d99d9ed87b7551849be90fe16",
+    "apps/web/features/payroll/types.ts": "f151985a48aca87335c65bbb064040fcf1d5e3f00e73b8bcac9bee993fc99abc",
+    "apps/web/features/payroll/payroll-template-values.ts": "a134f36fbaff3c6bd24240524bf7539573e2b9aed3e5d9e2c11311fd38263f14",
+    "apps/web/features/payroll/payroll-template-view.tsx": "ef7be997f308790b081dbd3552e078aee425753c5bf1c8037e55595599829cca",
+    "apps/web/features/payroll/employee-details-view.tsx": "5c242e1795d0d1615dcc9aef1af1e17e0aff4ecffee524d5aec123d76852791e",
+    "apps/web/features/payroll/payroll-controller.tsx": "e043b35c68e4f2fd52bcc785500b8c44d9e3446282bd1488d0468ee44851d0a3",
+    "apps/web/features/payroll/payroll-import-values.ts": "de2676a7c7f34d084b1416ac6c773356c74624ee99382fc019f2e973ec5723c5",
+    "apps/web/features/payroll/payroll-view.tsx": "b545f9132f72ee590ad60d4bb41ce7ee0aa54fd1bfe75be028d7b018f64ebca3"
+  },
+  "preview_improvements": [
+    "extracted_original_and_normalized_rows_with_error_columns",
+    "local_20_row_pagination",
+    "named_dated_salary_contract_options",
+    "incomplete_plan_list_blocks_new_commitment_client_and_server",
+    "private_unapproved_pdf_xlsx_previews"
+  ],
+  "shared_focus_sha256": {
+    "apps/web/components/ui/dialog.tsx": "169724f33cba830db4f6beacab21be54387901b44557ac222a366f67b23fad81",
+    "apps/web/components/ui/file-picker.tsx": "f7c20b559d0dd644ed654cc7b39872077fe725f36b99c81f4deab4876313c78d"
+  },
+  "focus_return_browser_validation": "root_agent_retest_required_after_shared_ref_extension",
+  "work_import_identity_checks": [
+    "same_company_personnel_code",
+    "zero_prefix_text_preserved_CSV_XLSX",
+    "legacy_UUID_supported",
+    "both_identifiers_must_match",
+    "unknown_and_other_company_rejected",
+    "duplicate_after_resolved_identity",
+    "original_unit_exact_toman_conversion",
+    "explicit_selected_template_max_1000"
+  ],
+  "special_tax_profiles": {
+    "optional": true,
+    "annual_constants_added": false,
+    "kinds": [
+      "eidi",
+      "sanavat",
+      "termination",
+      "arrears"
+    ],
+    "history": "separate_kind_prefix_required_for_cumulative"
+  },
+  "partial_wage_insurance_catalog": {
+    "file": "contracts/payroll/iran-1405-wage-insurance.json",
+    "sha256": "63e936d7dce44cfff68a91720dfc0e092ad5498d9eb83b1c3829c96c79da0b4a",
+    "complete_rulepack": false,
+    "legal_verified": false
+  }
+}

@@ -18,19 +18,46 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { StatusMessage } from "@/components/ui/states";
+import {
+  useCompanyModules,
+  usePayrollAccess,
+} from "@/features/companies/use-company-modules";
+import type { Schema } from "@didban/api-client";
 import { CompanyNotifications } from "@/features/intake/notifications";
 
-type Destination = { href: string; label: string };
+import { AppIcon, type AppIconName } from "@/components/ui/app-icon";
+
+function moduleForPath(
+  path: string,
+): keyof Schema<"CompanyModuleValues"> | undefined {
+  if (path.includes("/cashflow/forecast")) return "forecast";
+  if (path.includes("/cashflow") || path.includes("/reconciliation"))
+    return "cash";
+  if (path.includes("/moadian")) return "moadian";
+  if (path.includes("/receivables") || path.includes("/payables"))
+    return "balances";
+  if (path.includes("/settlements") || path.includes("/planned-payments"))
+    return "settlements";
+  if (path.includes("/statements")) return "accounting";
+  if (path.includes("/employees") || path.includes("/payroll/"))
+    return "payroll";
+}
+
+type Destination = { href: string; label: string; icon: AppIconName };
 function NavigationGroup({
   label,
   icon: Icon,
   items,
   path,
+  modules,
 }: {
   label: string;
   icon: typeof Wallet;
   items: Destination[];
   path: string;
+  modules?: Schema<"CompanyModuleValues">;
 }) {
   const selected = items
     .filter((item) => path === item.href || path.startsWith(item.href + "/"))
@@ -64,7 +91,13 @@ function NavigationGroup({
                   : undefined
               }
             >
+              <AppIcon name={item.icon} size={16} />
               {item.label}
+              {modules &&
+              moduleForPath(item.href) &&
+              !modules[moduleForPath(item.href)!] ? (
+                <Badge tone="neutral">غیرفعال</Badge>
+              ) : null}
             </Link>
           </DropdownMenuItem>
         ))}
@@ -76,6 +109,10 @@ export function CompanyNavigation() {
   const params = useParams<{ companyId?: string }>(),
     path = usePathname(),
     id = params.companyId;
+  const moduleQuery = useCompanyModules(id ?? "", !!id);
+  const payrollAccess = usePayrollAccess(id ?? "", !!id);
+  const modules = moduleQuery.data?.modules;
+  const activeModule = moduleForPath(path);
   if (!id) return null;
   const base = `/companies/${id}`;
   return (
@@ -116,25 +153,115 @@ export function CompanyNavigation() {
             label="امور مالی"
             icon={Wallet}
             path={path}
+            modules={modules}
             items={[
-              { href: `${base}/reports`, label: "گزارش‌ها و خروجی‌ها" },
-              { href: `${base}/receivables`, label: "مطالبات" },
-              { href: `${base}/payables`, label: "بدهی‌ها" },
-              { href: `${base}/settlements`, label: "دریافت‌وپرداخت" },
-              { href: `${base}/planned-payments`, label: "برنامه پرداخت" },
-              { href: `${base}/cashflow`, label: "گزارش نقدینگی" },
-              { href: `${base}/cashflow/forecast`, label: "پیش‌بینی ۳۰روزه" },
+              {
+                href: `${base}/reports`,
+                label: "گزارش‌ها و خروجی‌ها",
+                icon: "ClipboardList",
+              },
+              {
+                href: `${base}/statements`,
+                label: "صورت‌های مالی",
+                icon: "ChartPie",
+              },
+              {
+                href: `${base}/daily-report`,
+                label: "گزارش روزانه مدیر مالی",
+                icon: "CalendarCheck",
+              },
+              {
+                href: `${base}/actionable-analysis`,
+                label: "تحلیل و پیشنهادها",
+                icon: "Sparkles",
+              },
+              {
+                href: `${base}/financial-analysis`,
+                label: "تحلیل تغییر سود و نقدینگی",
+                icon: "ChartNoAxesCombined",
+              },
+              {
+                href: `${base}/receivables`,
+                label: "مطالبات",
+                icon: "ArrowDownLeft",
+              },
+              {
+                href: `${base}/payables`,
+                label: "بدهی‌ها",
+                icon: "ArrowUpRight",
+              },
+              {
+                href: `${base}/settlements`,
+                label: "دریافت‌وپرداخت",
+                icon: "ArrowLeftRight",
+              },
+              {
+                href: `${base}/planned-payments`,
+                label: "برنامه پرداخت",
+                icon: "CalendarDays",
+              },
+              {
+                href: `${base}/cashflow`,
+                label: "گزارش نقدینگی",
+                icon: "Wallet",
+              },
+              {
+                href: `${base}/cashflow/statement`,
+                label: "صورت جریان وجوه نقد",
+                icon: "Activity",
+              },
+              {
+                href: `${base}/cashflow/forecast`,
+                label: "پیش‌بینی ۳۰روزه",
+                icon: "TrendingUp",
+              },
             ]}
           />
           <NavigationGroup
             label="تطبیق‌ها"
             icon={GitCompareArrows}
             path={path}
+            modules={modules}
             items={[
-              { href: `${base}/reconciliation`, label: "بانک و دفتر" },
-              { href: `${base}/moadian`, label: "مؤدیان" },
+              {
+                href: `${base}/reconciliation`,
+                label: "بانک و دفتر",
+                icon: "GitCompareArrows",
+              },
+              { href: `${base}/moadian`, label: "مؤدیان", icon: "FileCheck2" },
             ]}
           />
+          {payrollAccess.data?.view ? (
+            <NavigationGroup
+              label="کارکنان و حقوق"
+              icon={Wallet}
+              path={path}
+              modules={modules}
+              items={[
+                { href: `${base}/employees`, label: "کارکنان", icon: "Users" },
+                {
+                  href: `${base}/payroll/contracts`,
+                  label: "قراردادها",
+                  icon: "FileCheck2",
+                },
+                {
+                  href: `${base}/payroll/work`,
+                  label: "کارکرد",
+                  icon: "CalendarCheck",
+                },
+                {
+                  href: `${base}/payroll/rules`,
+                  label: "قواعد حقوق",
+                  icon: "SlidersHorizontal",
+                },
+                {
+                  href: `${base}/payroll/runs`,
+                  label: "محاسبه و فیش حقوق",
+                  icon: "ClipboardList",
+                },
+              ]}
+            />
+          ) : null}
           <Link
             href={`${base}/assistant`}
             prefetch={false}
@@ -155,16 +282,41 @@ export function CompanyNavigation() {
             label="مدیریت"
             icon={Settings2}
             path={path}
+            modules={modules}
             items={[
-              { href: `${base}/periods`, label: "دوره‌های مالی" },
-              { href: `${base}/policies`, label: "سیاست‌های پردازش" },
-              { href: `${base}/sources`, label: "فایل‌ها و نگهداری" },
-              { href: `${base}/model-usage`, label: "مصرف مدل" },
+              {
+                href: `${base}/modules`,
+                label: "ماژول‌های شرکت",
+                icon: "Layers3",
+              },
+              {
+                href: `${base}/periods`,
+                label: "دوره‌های مالی",
+                icon: "CalendarRange",
+              },
+              {
+                href: `${base}/policies`,
+                label: "سیاست‌های پردازش",
+                icon: "SlidersHorizontal",
+              },
+              {
+                href: `${base}/sources`,
+                label: "فایل‌ها و نگهداری",
+                icon: "Archive",
+              },
+              { href: `${base}/model-usage`, label: "مصرف مدل", icon: "Coins" },
             ]}
           />
         </nav>
         <CompanyNotifications company={id} />
       </div>
+      {modules && activeModule && !modules[activeModule] ? (
+        <div className="mx-auto mt-2 max-w-[1344px]">
+          <StatusMessage>
+            این ماژول غیرفعال است؛ سوابق قبلی قابل مشاهده‌اند.
+          </StatusMessage>
+        </div>
+      ) : null}
     </div>
   );
 }

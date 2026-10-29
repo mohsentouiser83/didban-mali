@@ -5,6 +5,7 @@ import logging
 from uuid import uuid4
 from psycopg.types.json import Jsonb
 from ..infrastructure.intake import IntakeRepository
+from ..infrastructure.company_modules import module_settings, lock_module_configuration
 from .preparation_worker import PreparationWorker, StaleJob
 
 LOGGER = logging.getLogger("didban.analysis")
@@ -16,6 +17,7 @@ class AnalysisWorker(PreparationWorker):
         from ..infrastructure.settlements import project
         from ..infrastructure.reconciliation import ensure_runs, pinned_rows
         from ..infrastructure.reports import ensure_report
+        from .management import build_management
         from .forecast import prepare_forecast
 
         with self.connection() as conn:
@@ -58,9 +60,19 @@ class AnalysisWorker(PreparationWorker):
                             step["id"],
                         ),
                     ).fetchone()["id"]
+                    lock_module_configuration(conn, str(job["company_id"]))
+                    modules = module_settings(conn, job["company_id"])["modules"]
                     raw = pinned_rows(conn, job["company_id"], session["manifest_id"])
-                    project(conn, job["company_id"], session["manifest_id"], raw=raw)
+                    if any(
+                        modules[k]
+                        for k in ("balances", "invoices", "settlements", "forecast")
+                    ):
+                        project(
+                            conn, job["company_id"], session["manifest_id"], raw=raw
+                        )
                     for kind in ("bank_ledger", "moadian_sales", "moadian_purchases"):
+                        if not modules["cash" if kind == "bank_ledger" else "moadian"]:
+                            continue
                         ensure_runs(
                             conn,
                             job["company_id"],
@@ -69,11 +81,20 @@ class AnalysisWorker(PreparationWorker):
                             kind,
                             raw=raw,
                         )
-                    ensure_cashflow_snapshot(
-                        conn, job["company_id"], session["manifest_id"], raw=raw
-                    )
-                    forecast = prepare_forecast(
-                        conn, job["company_id"], session, job["actor_id"]
+                    if modules["cash"]:
+                        ensure_cashflow_snapshot(
+                            conn, job["company_id"], session["manifest_id"], raw=raw
+                        )
+                    forecast = (
+                        prepare_forecast(
+                            conn, job["company_id"], session, job["actor_id"]
+                        )
+                        if modules["forecast"]
+                        else {
+                            "run_id": None,
+                            "waiting_input": False,
+                            "published": False,
+                        }
                     )
                     waiting = forecast["waiting_input"]
                     conn.execute(
@@ -93,14 +114,18 @@ class AnalysisWorker(PreparationWorker):
                             job["actor_id"],
                             forecast["run_id"],
                             processing_session_id=session["id"],
+                            management_builder=build_management,
                         )
                         conn.execute(
                             "UPDATE app.processing_sessions SET analysis_finished_at=clock_timestamp(),analysis_context=%s,session_version=session_version+1,status='waiting_dependency' WHERE company_id=%s AND id=%s",
                             (
                                 Jsonb(
-                                    session["analysis_context"] | {
+                                    session["analysis_context"]
+                                    | {
                                         "manifest_id": str(session["manifest_id"]),
-                                        "forecast_run_id": str(forecast["run_id"]),
+                                        "forecast_run_id": str(forecast["run_id"])
+                                        if forecast["run_id"]
+                                        else None,
                                         "report_id": str(report["id"]),
                                     }
                                 ),

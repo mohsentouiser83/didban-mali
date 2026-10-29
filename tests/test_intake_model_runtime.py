@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 import psycopg
 from psycopg.types.json import Jsonb
 
@@ -137,7 +138,11 @@ class IntakeModelRuntimeTests(InterpretationTests):
             ],
         )
         session, worker = self.prepared_model(FakeIntakeProvider(output), table)
-        worker.run_once()
+        # Exercise the provider fallback independently of the checked source adapter.
+        with patch(
+            "didban.domain.source_understanding.ledger_layout", return_value=None
+        ):
+            worker.run_once()
         self.assertEqual(self.issue(session)["code"], "interpretation_coverage")
         file = self.files(session)[0]
         rows = self.owner.get(self.file_path(session, file) + "/rows").json()["items"]

@@ -54,7 +54,7 @@ export function SettlementsController() {
       />
     );
   if (!manifest || !workspace.data)
-    return <EmptyState title="نتیجه مالی آماده نیست" />;
+    return <EmptyState icon="Link2" title="نتیجه مالی آماده نیست" />;
   const data = workspace.data,
     unit = company.data.display_unit,
     canOperate = access.data.permissions.includes("company.operate");

@@ -1,3 +1,6 @@
+import { AppIcon } from "@/components/ui/app-icon";
+import { financialMetricIcon } from "@/components/ui/financial/metric-icons";
+
 import Link from "next/link";
 import type { Schema } from "@didban/api-client";
 import { ArrowRight, FileSearch } from "lucide-react";
@@ -9,6 +12,7 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 
 export type MetricCardModel = {
   id: string;
+  metricKey?: string;
   title: string;
   value: string;
   unit: string;
@@ -56,6 +60,7 @@ export function ResultDetailView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="ChartNoAxesCombined"
         title="نتایج مالی"
         description={company.name}
         action={
@@ -100,6 +105,7 @@ export function ResultDetailView({
             ))}
             <Button variant="ghost" asChild>
               <Link href={`/companies/${company.id}/uploads`}>
+                <AppIcon name="UploadCloud" />
                 تکمیل فایل‌ها
               </Link>
             </Button>
@@ -113,6 +119,7 @@ export function ResultDetailView({
         <StatCards>
           {metrics.map((metric) => (
             <StatCard
+              icon={financialMetricIcon(metric.metricKey ?? "")}
               key={metric.id}
               title={metric.title}
               value={metric.value}
@@ -172,10 +179,11 @@ export function ResultDetailView({
           ))}
         </StatCards>
       ) : !metricsError ? (
-        <EmptyState title="شاخصی برای این نسخه ثبت نشده است" />
+        <EmptyState icon="Layers3" title="شاخصی برای این نسخه ثبت نشده است" />
       ) : null}
       {more ? (
         <Button variant="secondary" disabled={busy} onClick={onMore}>
+          <AppIcon name="ChevronsDown" />
           {busy ? "در حال دریافت…" : "شاخص‌های بیشتر"}
         </Button>
       ) : null}

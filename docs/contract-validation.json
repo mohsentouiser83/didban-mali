@@ -1,16 +1,16 @@
 {
   "status": "passed",
   "scope": "contract_structure_and_examples",
-  "checks": 357,
-  "paths": 98,
-  "operations": 119,
-  "schemas": 178,
+  "checks": 482,
+  "paths": 137,
+  "operations": 167,
+  "schemas": 255,
   "example_checks": 25,
   "runtime_http_tests": "not_run",
   "model_calls": 0,
   "original_assets_verified": 34,
   "source_sha256": {
-    "contracts/openapi.json": "1bafd655c752927751cf191346df6ba6a910b20982da6c70e505449a56ecfb85",
+    "contracts/openapi.json": "b81786dd09cbf48a42e4030d64191c5e7171651a3614a551cf3d8ce7e0bdf562",
     "database/001_schema.sql": "7197ccb8ad6c6f11ac281fee45d3d8d2b73916417f0f3a3c7d587c9dd33e0cc0",
     "database/002_guards.sql": "7268b2f70efe51285b54ed04634574ac343baf843ad8967735d8a17de0ec37c5",
     "database/003_consistency.sql": "68152621c14171daa62ee2c4db51a87ed761ca7c403224ba79c9e9f66ce44cd6",
@@ -31,6 +31,16 @@
     "database/018_intake_model_proposals.sql": "59746a7e929f5a7cf2c2c17a00dd44ddd882f29cc087cb9816bff01463fd6a9c",
     "database/019_intake_proposal_dependency_identity.sql": "428dc5ac504cd8c959e1537ef28b1d26ef583741a5a9f6b3ca1d4114a2f4a159",
     "database/020_intake_model_safe_retries.sql": "da1dbc33ae0afedce8b277995dd3b90c13b23d4945d5c9ac93f6596487a1237b",
-    "database/021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e"
+    "database/021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e",
+    "database/022_statement_account_roles.sql": "7cd1d767e9199196d600839c4d28ccb5abf46c7156d1ec3402250c4f3575205e",
+    "database/023_trial_balance_sources.sql": "2d65a2acc5b37b038b53953b62a825a72213f6d8cdb97fdebcade9ebdef0e5fe",
+    "database/024_extension_access.sql": "65d7d09ca75cf8d14cdd285f2ec0a0a66eb91ecce045104f4559075c8fed4363",
+    "database/025_company_modules.sql": "be16360ce13350e97ec707012c1e56d18cfcc7a2ccec04e110b9b8ecf4b5f71b",
+    "database/026_input_review.sql": "7281f5df8f581a719f9db1f4787e104e9b099fc3ec06944b7a5204f40c812a64",
+    "database/027_payroll.sql": "3972e2ea2a93af189948a3df87a3be3ca1cfd2022334d54b0403fdfbcbf198bb",
+    "database/028_actionable_analysis.sql": "c1647509d18c8ebca6e4bfc963f829552ecfd487a4725da181b4a020c735d84b",
+    "database/029_extension_authority_locks.sql": "bf1f1f4eea4f766680507adc6cdfcf1e5649c04922e59305e6473ee95dbebe88",
+    "database/030_input_review_completion.sql": "d754520a662c0420bbf17f3a949aad85b0f5d137b719d3c0395df9feaed5f7ed",
+    "database/031_actionable_automation.sql": "4e72b15bb613858240f48c457a4c90c1224232ee04cffeb5e2fe78c64f4ed0fb"
   }
 }

@@ -114,9 +114,19 @@ export function MappingController({
       setError("یک ستون را به چند فیلد متصل نکنید.");
       return;
     }
+    const form = new FormData(e.currentTarget);
+    const trialDates =
+      kind === "trial_balance"
+        ? Object.fromEntries(
+            ["period_start", "as_of_date"].flatMap((key) =>
+              form.get(key) ? [[key, String(form.get(key))]] : [],
+            ),
+          )
+        : {};
     command.mutate({
       version,
       body: {
+        ...trialDates,
         sheet_name: sheet,
         header_row: Number(header),
         source_kind:
@@ -164,6 +174,17 @@ export function MappingController({
       onUnit={setUnit}
       calendar={calendar}
       onCalendar={setCalendar}
+      trialDates={
+        kind === "trial_balance"
+          ? {
+              start: preview?.period_start ?? "",
+              end: preview?.as_of_date ?? "",
+              needsStart:
+                !mapping.period_start || mapping.period_start === "none",
+              needsEnd: !mapping.as_of_date || mapping.as_of_date === "none",
+            }
+          : null
+      }
       fields={fields}
       onColumn={(key, value) =>
         setMapping((current) => ({ ...current, [key]: value }))

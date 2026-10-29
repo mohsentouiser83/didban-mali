@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "scope": "extension_access_modules_and_owner_history",
+  "tests_run": 7,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "database": "disposable_PostgreSQL_14_UTF8",
+  "migrations": "001-031",
+  "live_installation_modified": false,
+  "browser_tests": "recorded_separately_in_final_extension_report",
+  "model_calls": 0,
+  "historical_initial_run": {
+    "tests_run": 28,
+    "migrations": "001-025",
+    "database": "disposable_PostgreSQL14_UTF8"
+  },
+  "source_sha256": {
+    "database/024_extension_access.sql": "65d7d09ca75cf8d14cdd285f2ec0a0a66eb91ecce045104f4559075c8fed4363",
+    "database/025_company_modules.sql": "be16360ce13350e97ec707012c1e56d18cfcc7a2ccec04e110b9b8ecf4b5f71b",
+    "database/029_extension_authority_locks.sql": "bf1f1f4eea4f766680507adc6cdfcf1e5649c04922e59305e6473ee95dbebe88",
+    "apps/api/didban/application/extension_access.py": "1848d74b54b22b26cd317293534e2ed15a39e43ba690f073bff539d85644f0c6",
+    "tests/test_extension_access_runtime.py": "655d3f005120d3ff5cc52c35ac7f901ef7627663761c4f584e07288bcfc71488"
+  }
+}

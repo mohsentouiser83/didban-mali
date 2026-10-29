@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/features/companies/company-view";
 import { Select, type Option } from "@/components/ui/select";
@@ -18,6 +19,7 @@ import {
   TableRowHeader,
 } from "@/components/ui/table";
 import type { CandidateModel } from "./presentation";
+
 export function ReconciliationView({
   title,
   company,
@@ -71,13 +73,14 @@ export function ReconciliationView({
 }) {
   return (
     <section className="motion-safe:animate-reveal">
-      <PageHeader title={title} description={company} />
+      <PageHeader icon="GitCompareArrows" title={title} description={company} />
       <div className="mb-6 grid gap-4 rounded-panel border border-border bg-surface p-5 sm:grid-cols-2">
         <div>
           <label
             htmlFor="comparison-manifest"
-            className="mb-2 block text-xs font-medium"
+            className="flex items-center gap-2 mb-2 block text-xs font-medium"
           >
+            <AppIcon name="Layers3" className="text-primary" />
             نسخه داده
           </label>
           <Select
@@ -93,6 +96,7 @@ export function ReconciliationView({
               onClick={onMoreManifests}
               disabled={manifestBusy}
             >
+              <AppIcon name="ChevronsDown" />
               {manifestBusy ? "در حال دریافت" : "نسخه‌های بیشتر"}
             </Button>
           ) : null}
@@ -101,8 +105,9 @@ export function ReconciliationView({
           <div>
             <label
               htmlFor="comparison-direction"
-              className="mb-2 block text-xs font-medium"
+              className="flex items-center gap-2 mb-2 block text-xs font-medium"
             >
+              <AppIcon name="GitCompareArrows" className="text-primary" />
               جهت مقایسه
             </label>
             <Select
@@ -118,6 +123,7 @@ export function ReconciliationView({
       {error}
       {!manifest ? (
         <EmptyState
+          icon="GitCompareArrows"
           title="نتیجه مالی موجود نیست"
           description="ابتدا فایل‌ها را پردازش کنید."
         />
@@ -125,10 +131,12 @@ export function ReconciliationView({
         <LoadingState layout="table" label="در حال دریافت تطبیق‌ها" />
       ) : !ready ? (
         <EmptyState
+          icon="GitCompareArrows"
           title="مقایسه آماده نیست"
           action={
             canOperate ? (
               <Button onClick={onStart} disabled={startBusy}>
+                <AppIcon name="GitCompareArrows" />
                 {startBusy ? "در حال بررسی" : "آغاز مقایسه"}
               </Button>
             ) : undefined
@@ -194,6 +202,7 @@ export function ReconciliationView({
                     </div>
                     <p className="text-xs text-muted">{item.decision}</p>
                     <Button variant="secondary" onClick={() => onOpen(item.id)}>
+                      <AppIcon name="FileSearch" />
                       بررسی شواهد
                     </Button>
                   </article>
@@ -206,13 +215,17 @@ export function ReconciliationView({
                     disabled={moreBusy}
                     onClick={onMore}
                   >
+                    <AppIcon name="ChevronsDown" />
                     {moreBusy ? "در حال دریافت" : "موارد بیشتر"}
                   </Button>
                 </div>
               ) : null}
             </>
           ) : (
-            <EmptyState title="ردیف قابل مقایسه موجود نیست" />
+            <EmptyState
+              icon="GitCompareArrows"
+              title="ردیف قابل مقایسه موجود نیست"
+            />
           )}
         </>
       )}

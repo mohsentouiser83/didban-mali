@@ -31,6 +31,21 @@ class IntakeModel:
         )
 
     def propose(self, conn, job, version, step, file, tables, analysis):
+        # Each pass has its own budget reservation, evidence and replay receipt.
+        for _ in range(3):
+            before = fingerprint(file["interpretation_settings"])
+            analysis = self.propose_once(
+                conn, job, version, step, file, tables, analysis
+            )
+            if (
+                not analysis.question
+                or analysis.question.code != "interpretation_account_role"
+                or before == fingerprint(file["interpretation_settings"])
+            ):
+                break
+        return analysis
+
+    def propose_once(self, conn, job, version, step, file, tables, analysis):
         if (
             not self.enabled
             or not analysis.question

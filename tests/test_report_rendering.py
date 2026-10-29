@@ -118,8 +118,53 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(len(rows), 3)
         self.assertTrue(rows[2][4].startswith("'="))
         self.assertEqual(
-            json.loads(rows[2][-1])["amount"], "-12345678901234567890.123456"
+            json.loads(rows[2][8])["amount"], "-12345678901234567890.123456"
         )
+
+    def test_real_errors_and_overlap_exclusions_have_separate_excel_sheets_and_csv_types(
+        self,
+    ):
+        from copy import deepcopy
+
+        content = fixture()
+        excluded = deepcopy(content["rows"][0])
+        excluded.update(row_number=5, state="excluded_overlap", error_codes=[])
+        valid = deepcopy(excluded)
+        valid.update(row_number=6, state="valid")
+        conflicting = deepcopy(excluded)
+        conflicting.update(row_number=7, error_codes=["invalid_amount"])
+        content["rows"] += [excluded, valid, conflicting]
+        original = deepcopy(content)
+        rows = list(
+            csv.DictReader(
+                StringIO(
+                    render("error_csv", content, ROOT / "assets/fonts").decode(
+                        "utf-8-sig"
+                    )
+                )
+            )
+        )
+        self.assertEqual(
+            [row["record_type"] for row in rows],
+            ["report", "error", "excluded_overlap", "error"],
+        )
+        self.assertEqual(rows[2]["errors"], "")
+        self.assertEqual(rows[2]["classification"], "تکراریِ کنارگذاشته‌شده")
+        self.assertTrue(rows[2]["reason"])
+        book = load_workbook(BytesIO(render("xlsx", content, ROOT / "assets/fonts")))
+        self.assertNotIn("ردیف‌های خطادار", book.sheetnames)
+        errors = list(book["خطاهای واقعی"].values)
+        exclusions = list(book["ردیف‌های کنارگذاشته‌شده"].values)
+        self.assertEqual([row[3] for row in errors[1:]], ["4", "7"])
+        self.assertEqual([row[3] for row in exclusions[1:]], ["5"])
+        self.assertEqual(content, original)
+
+    def test_duplicate_only_bundle_has_no_real_errors(self):
+        content = fixture()
+        content["rows"][0].update(state="excluded_overlap", error_codes=[])
+        book = load_workbook(BytesIO(render("xlsx", content, ROOT / "assets/fonts")))
+        self.assertEqual(book["خطاهای واقعی"].max_row, 1)
+        self.assertEqual(book["ردیف‌های کنارگذاشته‌شده"].max_row, 2)
 
     def test_pdf_embeds_font_and_can_be_rendered(self):
         data = render("pdf", fixture(), ROOT / "assets/fonts")

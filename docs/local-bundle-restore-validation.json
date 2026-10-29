@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "database": "isolated_PostgreSQL18",
+  "applied_migrations": 31,
+  "verified_objects": 6,
+  "checks": [
+    "authenticated_bundle",
+    "exact_all_app_table_counts",
+    "migration_checksums",
+    "source_and_export_bytes",
+    "original_runtime_role_credentials_and_RLS_attributes",
+    "application_secret",
+    "private_literal_model_configuration",
+    "budget_unchanged",
+    "signed_session_reads_original_report",
+    "no_saved_PID_or_watchdog_replay",
+    "private_modes",
+    "existing_installation_untouched",
+    "inconsistent_object_refused_and_owned_resources_cleaned"
+  ],
+  "live_installation_modified": false,
+  "model_calls": 0
+}

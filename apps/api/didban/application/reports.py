@@ -7,6 +7,8 @@ from ..errors import ApiError, missing, forbidden, conflict
 from ..infrastructure import reports as store
 from ..adapters.report_rendering import MIME
 from .auth import response
+from .management import build_management
+from ..domain.reports import row_disposition
 
 
 def export_view(row):
@@ -51,12 +53,15 @@ def report_view(conn, company, row):
             "scope_status",
         )
     } | {
+        "management_available": "management" in content,
         "version": row["row_version"],
         "approval_ids": [r["id"] for r in approvals],
         "exports": [export_view(r) for r in exports],
         "company_name": manifest.get("company_name"),
         "period_name": manifest.get("period_name"),
-        "as_of_date": manifest.get("as_of_date"),
+        "as_of_date": (content.get("management") or {}).get(
+            "as_of_date", manifest.get("as_of_date")
+        ),
         "metrics": [
             {
                 k: m[k]
@@ -65,8 +70,23 @@ def report_view(conn, company, row):
             for m in content.get("metrics", [])
         ],
         "source_count": len(content.get("sources", [])),
+        "row_review": {
+            "errors": sum(
+                row_disposition(r) == "error" for r in content.get("rows", [])
+            ),
+            "excluded_overlap": sum(
+                row_disposition(r) == "excluded_overlap"
+                for r in content.get("rows", [])
+            ),
+        },
         "candidate_count": len(content.get("candidates", [])),
-        "forecast_closing": days[-1]["closing"] if days else None,
+        "forecast_closing": days[-1]["closing"]
+        if days
+        and (content.get("report_scope") or {}).get(
+            "as_of_date", manifest.get("as_of_date")
+        )
+        == manifest.get("as_of_date")
+        else None,
         "pinned_versions": {
             "dataset_revision_id": manifest.get("dataset_revision_id"),
             "forecast_run_id": (content.get("forecast") or {}).get("id"),
@@ -91,8 +111,35 @@ class ReportService:
             identity=False, actor=str(actor["id"]), company=company
         ) as conn:
             access = self.intake.authorize(
-                conn, actor, company, op in ("generateReport", "retryExport")
+                conn,
+                actor,
+                company,
+                op
+                in (
+                    "generateReport",
+                    "generateManagementReport",
+                    "parseStatementTemplate",
+                    "retryExport",
+                ),
             )
+            if op == "downloadStatementTemplate":
+                from ..domain.management.templates import template_bytes
+
+                return response({}) | {
+                    "content_bytes": template_bytes(),
+                    "media_type": MIME["xlsx"],
+                    "filename": "didban-statement-template.xlsx",
+                }
+            if op == "parseStatementTemplate":
+                from ..domain.management.templates import parse_template, TemplateError
+
+                try:
+                    template = parse_template(body["name"], body["content_base64"])
+                except TemplateError as exc:
+                    # XML/ZIP parser diagnostics must never escape to a client.
+                    message = str(exc)
+                    raise ApiError(422, "invalid_statement_template", message) from None
+                return response(template, 201)
             if op == "listReports":
                 position = self.intake.security.read_cursor(
                     cursor, "reports", str(actor["id"]), company
@@ -117,7 +164,7 @@ class ReportService:
                         else None,
                     }
                 )
-            if op == "generateReport":
+            if op in ("generateReport", "generateManagementReport"):
                 session = conn.execute(
                     "SELECT s.* FROM app.processing_sessions s WHERE s.company_id=%s AND s.manifest_id=%s AND s.analysis_finished_at IS NOT NULL ORDER BY s.analysis_finished_at DESC,s.id DESC LIMIT 1 FOR UPDATE",
                     (company, ids["manifest_id"]),
@@ -141,9 +188,14 @@ class ReportService:
                         str(actor["id"]),
                         session["analysis_context"].get("forecast_run_id"),
                         processing_session_id=session["id"],
+                        management_options=body
+                        if op == "generateManagementReport"
+                        else None,
+                        management_builder=build_management,
                     )
                     if (
-                        session["status"]
+                        op == "generateReport"
+                        and session["status"]
                         not in ("completed", "completed_limited", "cancelled", "failed")
                         and str(report["generation_session_id"]) == str(session["id"])
                         and session["analysis_context"].get("report_id")
@@ -186,13 +238,46 @@ class ReportService:
                     payload=body,
                     action=generate,
                 )
-            if op in ("getReport", "approveReport"):
+            if op in (
+                "getReport",
+                "getManagementReport",
+                "downloadReportTemplate",
+                "approveReport",
+            ):
                 row = conn.execute(
                     "SELECT r.* FROM app.report_snapshots r JOIN app.result_manifests m ON m.company_id=r.company_id AND m.id=r.manifest_id WHERE r.company_id=%s AND r.id=%s AND m.status='published'",
                     (company, ids["report_id"]),
                 ).fetchone()
                 if not row:
                     raise missing()
+                if op == "downloadReportTemplate":
+                    from ..domain.management.templates import (
+                        template_bytes,
+                        template_from_report,
+                    )
+
+                    management = row["content"].get("management")
+                    if management is None:
+                        raise ApiError(
+                            409,
+                            "management_report_not_captured",
+                            "این نسخه قالب صورت مالی ندارد؛ نسخه تازه تولید کنید.",
+                        )
+                    template = template_from_report(management, row["content"]["rows"])
+                    return response({}) | {
+                        "content_bytes": template_bytes(template),
+                        "media_type": MIME["xlsx"],
+                        "filename": "didban-statement-template.xlsx",
+                    }
+                if op == "getManagementReport":
+                    management = row["content"].get("management")
+                    if management is None:
+                        raise ApiError(
+                            409,
+                            "management_report_not_captured",
+                            "این نسخه گزارش تحلیلی ندارد؛ نسخه تازه تولید کنید.",
+                        )
+                    return response(management)
                 if op == "getReport":
                     return response(
                         report_view(conn, company, row), etag=row["row_version"]

@@ -42,7 +42,13 @@ def seed(conn):
     insert(conn,'company_memberships',company_id=ids['other_company'],user_id=ids['other'],role='owner')
     ids['period']=insert(conn,'financial_periods',company_id=ids['company'],name='۲۰۲۶/۰۹',starts_on='2026-09-01',ends_on='2026-09-30')
     ids['policy']=insert(conn,'policy_versions',company_id=ids['company'],kind='financial',version=1,effective_from='2026-09-01',parameters='{}',validation_status='proposed',actor_id=ids['owner'])
-    ids['session']=insert(conn,'processing_sessions',company_id=ids['company'],requested_by=ids['owner'],status='processing',period_id=ids['period'])
+    # SQL-only baseline graph represents a historical pre-review snapshot. This
+    # administrator-only fixture is created exclusively in the disposable DB;
+    # real HTTP workflows use the review handshake, never this exemption.
+    conn.execute("SELECT set_config('app.user_id',%s,true),set_config('app.company_id',%s,true)",(str(ids['owner']),str(ids['company'])))
+    conn.execute('ALTER TABLE app.processing_sessions DISABLE TRIGGER input_review_default')
+    ids['session']=insert(conn,'processing_sessions',company_id=ids['company'],requested_by=ids['owner'],status='processing',period_id=ids['period'],input_review_required=False)
+    conn.execute('ALTER TABLE app.processing_sessions ENABLE TRIGGER input_review_default')
     ids['file']=insert(conn,'source_files',company_id=ids['company'],sha256=uuid4().hex*2,original_name='synthetic.csv',object_key=uuid4().hex,byte_size=10,format='csv',scan_status='clean',uploaded_by=ids['owner'])
     ids['interpretation']=insert(conn,'interpretation_versions',company_id=ids['company'],source_file_id=ids['file'],sheet_name='data',cell_range='A1:D10',source_kind='bank',unit='IRR',calendar='gregorian',mapping='{}',provenance='validated_automatic',policy_id=ids['policy'])
     ids['row']=insert(conn,'source_rows',company_id=ids['company'],interpretation_id=ids['interpretation'],row_number=2,raw_values='{}',raw_fingerprint='fixture-row')

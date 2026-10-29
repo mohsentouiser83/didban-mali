@@ -19,7 +19,14 @@ export function ResultLoadingView({ titles }: { titles: string[] }) {
         </div>
         <StatCards>
           {titles.map((title) => (
-            <StatCard key={title} title={title} value="" unit="" loading>
+            <StatCard
+              icon="ChartNoAxesCombined"
+              key={title}
+              title={title}
+              value=""
+              unit=""
+              loading
+            >
               <div className="space-y-3 border-t border-border pt-4">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-9 w-2/3" />

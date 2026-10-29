@@ -9,6 +9,7 @@ from ..infrastructure import settlements as store
 from ..infrastructure.financial import digest
 from ..infrastructure.policies import configured_policy
 from ..infrastructure.intake import IntakeRepository
+from ..infrastructure.company_modules import require_module
 from ..errors import conflict, missing
 from .auth import response
 
@@ -39,11 +40,15 @@ def new_run(conn, company, session, manifest, parameters=None):
         (company, manifest),
     ).fetchone()
     configured = configured_policy(conn, company, "forecast")
-    config = {
-        "minimum_events": 3,
-        "lookback_days": 180,
-        "delay_method": "amount_weighted_median",
-    } | (configured["parameters"] if configured else {}) | (parameters or {})
+    config = (
+        {
+            "minimum_events": 3,
+            "lookback_days": 180,
+            "delay_method": "amount_weighted_median",
+        }
+        | (configured["parameters"] if configured else {})
+        | (parameters or {})
+    )
     conn.execute(
         "SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
         (str(company) + ":forecast-policy",),
@@ -88,6 +93,7 @@ def new_run(conn, company, session, manifest, parameters=None):
         "history": history,
         "policy": config,
         "has_payment_source": p["has_payment_source"],
+        "source_reason_codes": p.get("forecast_source_reason_codes", []),
     }
     answers = (
         {"policy": True}
@@ -144,6 +150,7 @@ def prepare_forecast(conn, company, session, actor):
         minimum,
         policy["lookback_days"],
     )
+    reasons += inputs.get("source_reason_codes", [])
     future_invoices = [
         i
         for i in work["invoices"]
@@ -239,6 +246,10 @@ def prepare_forecast(conn, company, session, actor):
         "حد کفایت سابقه، فرض اجرایی اعلام‌شده کاربر است و ارزیابی مستقل آماری محسوب نمی‌شود.",
     ]
     labels = {
+        "forecast_invalid_payment_rows": "بعضی ردیف‌های برنامه پرداخت نامعتبرند؛ فقط تعهدهای معتبر در پیش‌بینی آمده‌اند.",
+        "forecast_invalid_history_rows": "بعضی سوابق وصول نامعتبرند؛ برآورد وصول فقط بر سابقه معتبر تکیه دارد.",
+        "forecast_invalid_invoice_rows": "بعضی فاکتورها نامعتبرند؛ دریافت و پرداخت آینده کامل نیست.",
+        "forecast_invalid_settlement_rows": "بعضی تسویه‌ها نامعتبرند؛ مانده تعهدهای وابسته قابل اتکا نیست.",
         "future_payment_coverage_unknown": "کامل‌بودن برنامه پرداخت تأیید نشده؛ فقط تعهدهای معلوم لحاظ شده‌اند.",
         "forecast_policy_unconfirmed": "زمان وصول‌ها با پاسخ موردی کاربر تعیین شده است.",
         "expected_date_unknown": "موارد با زمان نامشخص در جریان برآوردی نیامده‌اند.",
@@ -316,6 +327,8 @@ class ForecastService:
             identity=False, actor=str(actor["id"]), company=company
         ) as conn:
             access = self.intake.authorize(conn, actor, company, op == "createForecast")
+            if op == "createForecast":
+                require_module(conn, company, "forecast")
             if op == "listForecastRuns":
                 if not store.active_manifest(conn, company, ids["manifest_id"]):
                     raise missing()

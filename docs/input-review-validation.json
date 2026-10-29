@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "scope": "input_review_domain_and_disposable_HTTP_SQL",
+  "domain_tests": 4,
+  "runtime_tests": 10,
+  "database": "disposable_PostgreSQL14_UTF8",
+  "model_calls_external": 0,
+  "provider": "synthetic_provider_real_worker_budget_path",
+  "browser_tests": "root_integration_pending",
+  "live_installation_modified": false,
+  "sha256": {
+    "database/026_input_review.sql": "7281f5df8f581a719f9db1f4787e104e9b099fc3ec06944b7a5204f40c812a64",
+    "apps/api/didban/application/input_review.py": "821530aea31465942e147c5f65efa0155ac8a42902250dda7275a9ff98763c88",
+    "apps/api/didban/application/input_review_worker.py": "480954163106625f6e3afafe44ea065a42445324c1a7c19f1f5739eabe67be1e",
+    "apps/api/didban/infrastructure/input_review.py": "e072b9b29f8926c3f759367bb92501252d2c729a253b410c8562d7032174b882",
+    "apps/api/didban/domain/input_review.py": "74bab6b8a54178139e5cbdd01befa04b12e640336fb01f63444e8fa0643ecfd2",
+    "tests/test_input_review_runtime.py": "c20343a3e95bac37b649163069638e94a09fee450ed3a3c6e0acb8f1507339b3",
+    "database/030_input_review_completion.sql": "d754520a662c0420bbf17f3a949aad85b0f5d137b719d3c0395df9feaed5f7ed"
+  },
+  "financial_regression_tests": 8,
+  "static_checks": [
+    "ruff",
+    "TypeScript",
+    "ESLint"
+  ],
+  "live_provider_evidence": "input-review-live-validation.json",
+  "identity_schema_fixture_regressions": {
+    "schema": 17,
+    "runtime": 23,
+    "scope": "PG14_sql_only_historical_fixtures_explicit_admin_exemption_HTTP_workflows_still_confirm"
+  },
+  "client_tests": 26,
+  "migrations": [
+    "026_input_review.sql",
+    "030_input_review_completion.sql"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-26",
+  "policy": "ledger-understanding-v1",
+  "status": "passed",
+  "scope": "isolated_HTTP_worker_financial_acceptance_10_unchanged_Excel_files",
+  "real_files": 10,
+  "valid_rows": 1952,
+  "excluded_duplicate_rows_after_test_only_answer": 2046,
+  "raw_structural_rows_preserved": 13,
+  "rejected_rows": 0,
+  "questions": [
+    "interpretation_account_role",
+    "interpretation_overlap",
+    "interpretation_coverage"
+  ],
+  "model_calls": 0,
+  "original_files_unchanged": true,
+  "independent_original_amounts_matched": true,
+  "test_only_financial_assumptions": [
+    "shareholder_account_other_liability",
+    "exclude_flat_duplicate",
+    "declared_complete"
+  ],
+  "live_answers_submitted": false,
+  "domain_tests": 84,
+  "client_tests": 25,
+  "checks": [
+    "ruff",
+    "OpenAPI_and_contracts",
+    "TypeScript",
+    "ESLint",
+    "production_build",
+    "isolated_interpretation",
+    "isolated_model_budget_and_barriers",
+    "isolated_financial",
+    "isolated_management_and_statement_exports"
+  ],
+  "limitations": [
+    "PDF_image_OCR_input_deferred",
+    "general_model_quality_not_evaluated",
+    "universal_format_correctness_not_claimed",
+    "accountant_acceptance_outstanding"
+  ],
+  "browser": {
+    "desktop": "1280x720",
+    "mobile": "390x844",
+    "new_financial_question_visible": true,
+    "dropdown_escape_focus_return": true,
+    "live_answer_submitted": false,
+    "evidence": ".local/understanding-validation/live-question-desktop.png"
+  }
+}

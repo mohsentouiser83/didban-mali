@@ -59,5 +59,5 @@ class MetricResult:
     coverage: tuple[dict, ...] = ()
     evidence: tuple[EvidenceSpec, ...] = ()
     comparison: Comparison | None = None
-    formula_version: str = "financial-v1.0"
+    formula_version: str = "financial-v1.1"
     details: dict = field(default_factory=dict)

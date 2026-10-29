@@ -1,0 +1,85 @@
+{
+  "status": "passed",
+  "date": "2026-10-26",
+  "scope": "local_synthetic_managerial_reporting",
+  "backend_tests": {
+    "domain_and_interpretation": 50,
+    "managerial_http_sql_scenarios": 3,
+    "existing_report_scenarios": 4,
+    "existing_financial_scenarios": 8,
+    "rendering_tests": 5
+  },
+  "client_tests": 20,
+  "checks": [
+    "openapi_and_examples",
+    "generated_api_types",
+    "typescript",
+    "eslint",
+    "ruff",
+    "next_build",
+    "git_diff_check"
+  ],
+  "browser": {
+    "surface": "built_in_codex_browser",
+    "desktop_width": 1440,
+    "mobile_width": 390,
+    "horizontal_page_overflow": false,
+    "states": [
+      "populated",
+      "loading",
+      "empty",
+      "denied_access",
+      "limited_financial_data",
+      "invalid_date",
+      "formula_template_rejection",
+      "valid_template_generation"
+    ],
+    "keyboard": [
+      "Escape_focus_return",
+      "Home_Enter_day_selection"
+    ],
+    "reduced_motion": {
+      "native_setting_enabled": true,
+      "browser_preference_received": true,
+      "card_animation_names": [
+        "none"
+      ],
+      "dialog_animation": "none",
+      "dialog_duration": "0s",
+      "setting_restored": true,
+      "viewport_restored": true
+    }
+  },
+  "pdf": {
+    "default_pages_reviewed": 5,
+    "custom_range_pages_reviewed": 5,
+    "page_size": "A4",
+    "margin_mm": 20,
+    "embedded_fonts": [
+      "IRANYekanX Regular",
+      "IRANYekanX Medium"
+    ]
+  },
+  "live_model_calls_for_validation": 0,
+  "not_established": [
+    "financial_specialist_acceptance",
+    "all_real_workbook_formats",
+    "freeform_financial_statement_layouts",
+    "new_20000_row_capacity_benchmark",
+    "organization_deployment"
+  ],
+  "source_sha256": {
+    "apps/api/didban/domain/management/analysis.py": "1597af4ef83197c720373a63e18096b8f558d92412ba8af53bee8212b28f9fdc",
+    "apps/api/didban/domain/management/__init__.py": "f05cb300729f7edc38050cbb7e8cf8eb443c953e3186fbb0b7e693ba4894d55f",
+    "apps/api/didban/domain/management/templates.py": "0cabd814f2e3236e72766cdaa4e415f284e0ac9e56bf8fb4401f3fbf268de00e",
+    "apps/api/didban/domain/management/cash_analysis.py": "57facfdd33583e46ab0bcf8331d0653ab9b0af59ba59dfa16e31df8f75bd972b",
+    "apps/api/didban/domain/management/daily.py": "9a92dad21c3561e7b6c60d9fb02f5badcac3fa41d83872fc9b85c5ced363f616",
+    "apps/api/didban/domain/management/statements.py": "2e931630c922a1280bc6c5f6e9277be1ea24f0f704234ac715cb6ff7503b3e1e",
+    "apps/api/didban/application/management.py": "685348c7e1bcc550b3fc9e36004adfc506b3b92e293644135cfa45866907b742",
+    "apps/api/didban/application/report_scope.py": "49663faae0a473b2f1b5db52884435d3b8639fa3164fb9021ff8a71dce9a0217",
+    "apps/api/didban/adapters/report_management.py": "24aca880ebecc0f5b5ab03be99d7aa248b45db7b621ce330973b57bb1eb19b97",
+    "database/022_statement_account_roles.sql": "7cd1d767e9199196d600839c4d28ccb5abf46c7156d1ec3402250c4f3575205e",
+    "tests/test_management_domain.py": "0fd02d55005427f1e5e9a55c6d2b8ed8f645ef8fb15e08829a0462cbf7ee4bb0",
+    "tests/test_management_runtime.py": "7f4d16950e5602ea2ad747f66a6cd1141646d3188639c772d9e2173b5e4b09b6"
+  }
+}

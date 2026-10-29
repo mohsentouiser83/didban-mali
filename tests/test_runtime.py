@@ -198,11 +198,35 @@ class RuntimeTests(unittest.TestCase):
                         (self.company, kind, self.users["owner"]),
                     ).fetchone()[0]
                 )
+            # Trusted SQL-only fixtures model reports predating input review.
+            # The normal HTTP flow must always use the explicit review handshake.
+            conn.execute(
+                "SELECT set_config('app.user_id',%s,true),set_config('app.company_id',%s,true)",
+                (self.users["owner"], self.company),
+            )
+            has_review_column, has_review_trigger = conn.execute(
+                "SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid='app.processing_sessions'::regclass AND attname='input_review_required' AND NOT attisdropped), EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid='app.processing_sessions'::regclass AND tgname='input_review_default' AND NOT tgisinternal)"
+            ).fetchone()
+            if has_review_column != has_review_trigger:
+                raise RuntimeError("Incomplete input review schema in trusted fixture")
             for _ in range(count):
-                session = conn.execute(
-                    "INSERT INTO app.processing_sessions(company_id,requested_by,status,period_id) VALUES(%s,%s,'completed',%s) RETURNING id",
-                    (self.company, self.users["owner"], period),
-                ).fetchone()[0]
+                if has_review_column:
+                    conn.execute(
+                        "ALTER TABLE app.processing_sessions DISABLE TRIGGER input_review_default"
+                    )
+                    session = conn.execute(
+                        "INSERT INTO app.processing_sessions(company_id,requested_by,status,period_id,input_review_required) VALUES(%s,%s,'completed',%s,false) RETURNING id",
+                        (self.company, self.users["owner"], period),
+                    ).fetchone()[0]
+                    conn.execute(
+                        "ALTER TABLE app.processing_sessions ENABLE TRIGGER input_review_default"
+                    )
+                else:
+                    # The forward-upgrade test deliberately starts before 026.
+                    session = conn.execute(
+                        "INSERT INTO app.processing_sessions(company_id,requested_by,status,period_id) VALUES(%s,%s,'completed',%s) RETURNING id",
+                        (self.company, self.users["owner"], period),
+                    ).fetchone()[0]
                 revision = conn.execute(
                     "INSERT INTO app.dataset_revisions(company_id,session_id,state,sealed_at) VALUES(%s,%s,'sealed',clock_timestamp()) RETURNING id",
                     (self.company, session),

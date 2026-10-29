@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="/assets/scss/bootstrap.css?v=1.2">
+
+<link rel="stylesheet" href="/assets/css/fonts.css?v=1.2">
+<link rel="stylesheet" href="/assets/css/font-awesome.min.css?v=1.4">
+<link rel="stylesheet" href="/assets/js/plugins/persian_datepicker/persian-datepicker.min.css?v=1.5">
+<link rel="stylesheet" href="/assets/js/plugins/swiffy_slider/swiffy_slider.css?v=1.2">
+
+
+
+<link rel="stylesheet" href="/assets/js/plugins/swiffy_slider/swiffy_slider.css?v=1.1">
+<script src="/assets/js/plugins/swiffy_slider/swiffy-slider.min.js?v=1.1" defer></script>
+<link rel="stylesheet" href="/assets/scss/custom.css?v=2.13">
+
+
+
+<meta name="keywords" content="قانون بیمه بیکاری;قوانین و مقررات;سامانه قوانین" />
+<meta name="description" content="مجلس شورای اسلامی از نخستين دوره، برای كارشناسی طرح‌ها و لوايح، از مشورت موردی كارشناسان استفاده مي‌كرد. در عين حال‌، اساس كار برفهم شخصی و توان علمی خود نمايندگان متكی بود؛ لكن از اواخر سال 1371 به دستور هيأت رئيسه محترم مجلس، نهادی مستقل‌، دائمی و سازمان يافته به نام «مركز پژوهش‌های مجلس شورای اسلامی» برای ارائه خدمات مستمر كارشناسی و مطالعاتی در كنار مجلس قرار گرفت. مراحل قانونی تأسيس اين مركز در پاييز سال 1374 به انجام رسيد." />
+<link rel="icon"  href="/favicon.ico" type="image/ico"  sizes="16x16"/>
+<title>مرکز پژوهشها - قانون بیمه بیکاری</title>
+
+</head>
+<body onkeydown="keyPress(event)">
+ <header id="header" class="bg-primary" style="z-index: 100;
+ background-color: rgba(5,66,95,0.9) !important; 
+/* background-color: rgba(10,10,10,0.9) !important;*/
+
+">
+    <div class="container-xxl h-100 d-flex align-items-center justify-content-center">
+        <div class="d-flex w-100 align-items-center justify-content-between">
+            <div class="sidebar-icon me-3" onclick="showSideNav()">
+                    <span>
+                        <img src="/assets/img/header/list.svg" alt="">
+                    </span>
+            </div>
+            <div class="logo"><a href="/fa"><img src="/assets/img/header/logo.png" alt="لوگوی مرکز پژوهش های مجلس شورای اسلامی" ></a></div>
+            <div class="nav ms-auto">
+                <nav class="me-2 d-flex" >
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa" class="d-inline-block">برگ نخست</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/report" class="d-inline-block">گزارش‌های کارشناسی</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/news" class="d-inline-block">اخبار</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/legal_draft" class="d-inline-block">طرح ها و لوایح</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/law/search" class="d-inline-block">قوانین و مقررات</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://lib.majles.ir/" class="d-inline-block">کتابخانه تخصصی</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/news?tag=گزارش%20تصویری" class="d-inline-block">گزارش تصویری</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/news?tag=چند%20رسانه%20ای" class="d-inline-block">چند رسانه ای</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/content/about_research_center_fa" class="d-inline-block">درباره ما</a>
+                                            </div>
+                                    <div class="nav-dropdown">
+                        <a href="https://rc.majlis.ir/fa/content/contact_research_center_fa" class="d-inline-block">تماس با ما</a>
+                                            </div>
+                                </nav>
+            </div>
+            <div class="d-flex ms-3">
+                <div class="px-1 betasearch betasearch-header">
+                    <a href="https://rc.majlis.ir/redirect/100" >
+                        <span class="d-inline-block px-1">
+                        اخذ نظرات نخبگان
+                        </span>
+                    </a>
+                </div>
+                <div class="lang px-1">
+                    <div>
+                        <a href="/fa" class="active">فا</a><a href="/en" style="color: #18a558 !important;">EN</a>
+                    </div>
+                </div>
+                <div class="search px-1">
+                        <span style="cursor: pointer;" onclick="document.getElementById('modalSearch').classList.add('modal-show')">
+                            <i class="fa fa-search" aria-hidden="true"></i>
+                        </span>
+                </div>
+                <div class="more px-1 position-relative" id="more">
+                    <!-- <div class="connector" style="width: 38px;height: 52px;left: 0px;top: -5px;position: absolute; z-index: 101;">
+                    </div> -->
+                    <span class="position-relative" style="z-index: 102!important;">
+                            <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+                        </span>
+                    <div class="connector" style="width: 38px;height: 52px;left: 0px;top: -5px;position: absolute; z-index: 101;">
+                    </div>
+
+                    <div class="more-dropdown position-absolute text-dark" style="z-index:100;display: none;background-color: white; width: 300px;left: 0;top: 40px;border-radius: 8px; max-height: 800px;overflow-y:auto;box-shadow: rgb(171 171 171) 1px 1px 8px 1px, rgb(171 171 171) 1px 1px 4px">
+                        <ul class="items">
+                                                    <li class="item">
+                                <div>مرکز پژوهش ها</div>
+                                <ul>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/about_research_center_fa" class="d-block">درباره ما</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/contact_research_center_fa" class="d-block">تماس با ما</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/research_center_chart" class="d-block">ساختار سازمانی</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/department" class="d-block">دفاتر</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/report" class="d-block">گزارش‌های کارشناسی</a></li>
+                                                                    <li><a href="https://andishkadeh.mrc.ir" class="d-block"> اندیشکده‌های حکمرانی استانی</a></li>
+                                                                    <li><a href="http://book.mrc.ir" class="d-block">سامانه نشر علمی (کتاب)</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/news" class="d-block">اخبار</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/news?tag=گزارش تصویری" class="d-block">گزارش تصویری</a></li>
+                                                                    <li><a href="https://nashr.majles.ir/" class="d-block">فصلنامه های مجلس و راهبرد</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_book" class="d-block">کتب</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_ebook" class="d-block">کتب الکترونیکی</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_pdf" class="d-block">پژوهش نامه</a></li>
+                                                                </ul>
+                            </li>
+                                                    <li class="item">
+                                <div>سامانه قوانین</div>
+                                <ul>
+                                                                    <li><a href="https://rc.majlis.ir/fa/legal_draft" class="d-block">طرح ها و لوایح</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/law/search" class="d-block">قوانین و مقررات</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/iran_constitution" class="d-block">قانون اساسی ایران</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/law/show/132299" class="d-block">سیاست های کلی نظام</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/law/show/132295" class="d-block">سند چشم انداز</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/law/today_in_history" class="d-block">تقویم تاریخ قوانین</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/law_cd" class="d-block">سامانه قوانین و مقررات</a></li>
+                                                                </ul>
+                            </li>
+                                                    <li class="item">
+                                <div>مجلس شورای اسلامی</div>
+                                <ul>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/about_parliament" class="d-block">مجلس شورای اسلامی</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/parliament/parliament_chairman" class="d-block">ریاست مجلس</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/parliament_member" class="d-block">نمایندگان</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/parliament_commission" class="d-block">کمیسیون ها</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/agenda" class="d-block">دستور جلسه</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/interior_rule" class="d-block">آئین نامه داخلی</a></li>
+                                                                    <li><a href="https://rc.majlis.ir/fa/content/public_contact" class="d-block">ارتباطات مردمی</a></li>
+                                                                </ul>
+                            </li>
+                                                </ul>
+                        
+
+
+                        <div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidenav text-white">
+        <span class="close" onclick="hideSideNav()"><i class="fa fa-times"></i></span>
+        <div class="sidenav-logo">
+            <img src="/assets/img/header/logo.png" alt="" >
+        </div>
+        <div class="mt-4 betasearch" style="padding: 0 28px;">
+            <a href="https://rc.majlis.ir/redirect/100">
+                <span class="d-inline-block px-1">
+                            اخذ نظرات نخبگان
+                        </span>
+            </a>
+        </div>
+        <nav class="sidenav-nav">
+            <div class="menu-item" href="#">منوی اصلی</div>
+            <div class="sub-menu-items">
+                                    <a href="https://rc.majlis.ir/fa">برگ نخست</a>
+                                    <a href="https://rc.majlis.ir/fa/report">گزارش‌های کارشناسی</a>
+                                    <a href="https://rc.majlis.ir/fa/news">اخبار</a>
+                                    <a href="https://rc.majlis.ir/fa/legal_draft">طرح ها و لوایح</a>
+                                    <a href="https://rc.majlis.ir/fa/law/search">قوانین و مقررات</a>
+                                    <a href="https://lib.majles.ir/">کتابخانه تخصصی</a>
+                                    <a href="https://rc.majlis.ir/fa/news?tag=گزارش%20تصویری">گزارش تصویری</a>
+                                    <a href="https://rc.majlis.ir/fa/news?tag=چند%20رسانه%20ای">چند رسانه ای</a>
+                                    <a href="https://rc.majlis.ir/fa/content/about_research_center_fa">درباره ما</a>
+                                    <a href="https://rc.majlis.ir/fa/content/contact_research_center_fa">تماس با ما</a>
+                            </div>
+
+                            <div class="menu-item" href="#">مرکز پژوهش ها</div>
+                <div class="sub-menu-items">
+                                            <a href="https://rc.majlis.ir/fa/content/about_research_center_fa">درباره ما</a>
+                                            <a href="https://rc.majlis.ir/fa/content/contact_research_center_fa">تماس با ما</a>
+                                            <a href="https://rc.majlis.ir/fa/content/research_center_chart">ساختار سازمانی</a>
+                                            <a href="https://rc.majlis.ir/fa/department">دفاتر</a>
+                                            <a href="https://rc.majlis.ir/fa/report">گزارش‌های کارشناسی</a>
+                                            <a href="https://andishkadeh.mrc.ir"> اندیشکده‌های حکمرانی استانی</a>
+                                            <a href="http://book.mrc.ir">سامانه نشر علمی (کتاب)</a>
+                                            <a href="https://rc.majlis.ir/fa/news">اخبار</a>
+                                            <a href="https://rc.majlis.ir/fa/news?tag=گزارش تصویری">گزارش تصویری</a>
+                                            <a href="https://nashr.majles.ir/">فصلنامه های مجلس و راهبرد</a>
+                                            <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_book">کتب</a>
+                                            <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_ebook">کتب الکترونیکی</a>
+                                            <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_pdf">پژوهش نامه</a>
+                                    </div>
+
+                            <div class="menu-item" href="#">سامانه قوانین</div>
+                <div class="sub-menu-items">
+                                            <a href="https://rc.majlis.ir/fa/legal_draft">طرح ها و لوایح</a>
+                                            <a href="https://rc.majlis.ir/fa/law/search">قوانین و مقررات</a>
+                                            <a href="https://rc.majlis.ir/fa/content/iran_constitution">قانون اساسی ایران</a>
+                                            <a href="https://rc.majlis.ir/fa/law/show/132299">سیاست های کلی نظام</a>
+                                            <a href="https://rc.majlis.ir/fa/law/show/132295">سند چشم انداز</a>
+                                            <a href="https://rc.majlis.ir/fa/law/today_in_history">تقویم تاریخ قوانین</a>
+                                            <a href="https://rc.majlis.ir/fa/content/law_cd">سامانه قوانین و مقررات</a>
+                                    </div>
+
+                            <div class="menu-item" href="#">مجلس شورای اسلامی</div>
+                <div class="sub-menu-items">
+                                            <a href="https://rc.majlis.ir/fa/content/about_parliament">مجلس شورای اسلامی</a>
+                                            <a href="https://rc.majlis.ir/fa/parliament/parliament_chairman">ریاست مجلس</a>
+                                            <a href="https://rc.majlis.ir/fa/parliament_member">نمایندگان</a>
+                                            <a href="https://rc.majlis.ir/fa/parliament_commission">کمیسیون ها</a>
+                                            <a href="https://rc.majlis.ir/fa/agenda">دستور جلسه</a>
+                                            <a href="https://rc.majlis.ir/fa/content/interior_rule">آئین نامه داخلی</a>
+                                            <a href="https://rc.majlis.ir/fa/content/public_contact">ارتباطات مردمی</a>
+                                    </div>
+
+            
+
+
+        </nav>
+
+        <footer style="position: absolute;bottom: 0;right: 0;left: 0;">
+
+
+
+
+
+
+
+            <p class="text-center" style="font-size: 10px;">حق کپی رایت متعلق به مرکزپژوهش های مجلس شورای اسلامی است.</p>
+        </footer>
+    </div>
+</header>
+<div style="height: 70px;"></div>
+
+
+
+<main>
+    <!--? BEGIN: main content -->
+
+<main>
+        <section>
+            <div style="width: 100%;height: 100%;background-color: rgba(43, 18, 18, 0.459);">
+                <div class="d-flex align-items-center" style="background-color: white;">
+                    <div class="container-xxl">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb persian-num">
+                            <div class="d-flex align-items-center py-2" style="background-color: white;">
+    <div class="container-xxl">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <!-- <li class="breadcrumb-item"><span>مسیر شما: </span> </li> -->
+                <li class="breadcrumb-item"><a href="/fa">برگ نخست</a></li>
+                                                <li class="breadcrumb-item active"><a href="https://rc.majlis.ir/fa/law/search">قوانین و مقررات</a></li>
+
+                                                                <li class="breadcrumb-item">قانون بیمه بیکاری</li>
+                                            </ol>
+        </nav>
+    </div>
+</div>
+
+
+                            </ol>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+      <section id="newsSingle" class="container-xxl mt-4">
+        <div class="row">
+          <div class="col-12">
+            <div class="row">
+              <div
+                class="col-12 py-4 d-flex flex-column justify-content-center"
+              >
+                <h1 class="law-title persian-num" style="text-align: justify;">
+                قانون بیمه بیکاری
+                </h1>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+              </div>
+            </div>
+            <div class="row">
+              <p class="text-primary text-center fw-bold">جزئیات قانون</p>
+            </div>
+            <div class="row">
+              <div class="bg-primary d-flex justify-content-center line-spacer">
+                <img
+                  src="/assets/img/home/header_eslimi.svg"
+                  class="home-eslimi-global"
+                />
+              </div>
+            </div>
+            <div class="row mt-5">
+              <div class="col-12 col-md-8">
+                <div class="row">
+                  <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">تاریخ تصویب:</span>
+                      <span class="text-primary persian-num">1369/06/26</span>
+                  </div>
+                  <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">مرجع تصویب:</span
+                    ><span class="text-primary">
+                        <a class="text-primary text-decoration-none"
+                        href="https://rc.majlis.ir/fa/law/search?lu_approve_reference=lar2" target="_blank"
+                        >مصوبات مجلس شورا</a></span
+                    >
+                    </div>
+
+                    
+                                      <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">ماده:</span
+                    ><span class="text-primary persian-num">
+                         14</span
+                    >
+                  </div>
+                  
+                                      <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">دوره:</span
+                    ><span class="text-primary">
+                         3</span
+                    >
+                  </div>
+                  
+                                      <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">شماره چاپ:</span
+                    ><span class="text-primary">
+                         0</span
+                    >
+                  </div>
+                  
+                                      <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">شماره جلد:</span
+                    ><span class="text-primary">
+                         1</span
+                    >
+                  </div>
+                  
+                                      <div class="col-auto mt-3 law-meta-container">
+                    <span class="law-meta-title">شماره صفحه:</span
+                    ><span class="text-primary">
+                         410</span
+                    >
+                  </div>
+                  
+                  
+                  
+                  <div class="w-100"></div>
+
+                  <div class="col-6 mt-3">
+                    <a href="https://rc.majlis.ir/fa/law/print_version/91821" class="more btn btn-primary btn-sm px-4 py-2"
+                      >دریافت نسخه چاپی
+                      <span class="agenda-btn-icon">
+                        <img
+                          src="/assets/img/legal_draft_single/download.png" /></span
+                    ></a>
+                  </div>
+                  
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4 mt-3" style="text-align: center">
+                <img src="https://rc.majlis.ir/rc-assets/qr/91821.png" alt="QR" class="w-75"/>
+              </div>
+            </div>
+
+            <div class="row mt-5">
+              <p class="text-primary fw-bold text-center">جزئیات متن قانون</p>
+            </div>
+            <div class="row">
+              <div class="bg-primary d-flex justify-content-center line-spacer">
+                <img
+                  src="/assets/img/home/header_eslimi.svg"
+                  class="home-eslimi-global"
+                />
+              </div>
+            </div>
+            <div class="col-10 mt-5  mx-auto law-description">
+            
+                <div class="law_text bg-light persian-num" style="white-space: pre-wrap;word-wrap: break-word;font-weight: 300;">
+
+                    ‌قانون بیمه بیکاری<br />‌ماده 1 - کلیه مشمولین قانون تأمین اجتماعی که تابع قوانین کار و کار کشاورزی<br />هستند مشمول مقررات این قانون می‌باشند.<br />‌تبصره - گروههای زیر از شمول مقررات این قانون مستثنی هستند:<br />1 - بازنشستگان و ازکارافتادگان کلی.<br />2 - صاحبان حرف و مشاغل آزاد و بیمه‌شدگان اختیاری.<br />3 - اتباع خارجی.<br />‌ماده 2 - بیکار از نظر این قانون بیمه شده‌ای است که بدون میل و اراده بیکار شده<br />و آماده کار باشد.<br />‌تبصره 1 - بیمه شدگانی که به علت تغییرات ساختار اقتصادی واحد مربوطه به تشخیص<br />وزارتخانه ذیربط و تأیید شورای عالی کار بیکار موقت‌شناخته شوند نیز مشمول مقررات<br />این قانون خواهند بود.<br />‌تبصره 2 - بیمه شدگانی که به علت بروز حوادث قهریه و غیر مترقبه از قبیل سیل،<br />زلزله جنگ، آتش‌سوزی و... بیکار می‌شوند با معرفی واحد کار و‌امور اجتماعی محل از<br />مقرری بیمه بیکاری استفاده خواهند کرد.<br />‌ماده 3 - بیمه بیکاری به عنوان یکی از حمایت‌های تأمین اجتماعی است و سازمان<br />تأمین اجتماعی مکلف است با دریافت حق بیمه مقرر، به‌بیمه‌شدگانی که طبق مقررات این<br />قانون بیکار می‌شوند مقرری بیمه بیکاری پرداخت نماید.<br />‌ماده 4 - بیمه شده بیکار با معرفی کتبی واحد کار و امور اجتماعی محل از مزایای<br />این قانون منتفع خواهد شد.<br />‌تبصره - بیکاران مشمول این قانون کلیه حقوق و مزایا و خسارات مربوطه (‌موضوع<br />قانون کار) را دریافت خواهند کرد.<br />‌ماده 5 - حق بیمه بیکاری به میزان (3%) مزد بیمه شده می‌باشد که کلاً توسط کارفرما<br />تأمین و پرداخت خواهد شد.<br />‌تبصره - مزد بیمه شده و نحوه تشخیص تعیین حق بیمه بیکاری، چگونگی وصول آن، تکلیف<br />بیمه شده و کارفرما و همچنین نحوه رسیدگی به‌اعتراض، تخلفات و سایر مقررات مربوطه<br />در این مورد بر اساس ضوابطی است که برای حق بیمه سایر حمایتهای تأمین اجتماعی در<br />قانون و مقررات‌تأمین اجتماعی پیش‌بینی شده است.<br />‌ماده 6 - بیمه شدگان بیکار در صورت احراز شرایط زیر استحقاق دریافت مقرری بیمه<br />بیکاری را خواهند داشت:<br />‌الف - بیمه شده قبل از بیکار شدن حداقل (6) ماه سابقه پرداخت بیمه را داشته باشد.<br />مشمولین تبصره (2) ماده (2) این قانون از شمول این بند‌مستثنی می‌باشد.<br />ب - بیمه شده مکلف است ظرف (30) روز از تاریخ بیکاری با اعلام مراتب بیکاری به<br />واحدهای کار و امور اجتماعی آمادگی خود را برای اشتغال‌به کار تخصصی و یا مشابه آن<br />اطلاع دهد. مراجعه پس از سی روز با عذر موجه و با تشخیص هیأت حل اختلاف تا سه ماه<br />امکان‌پذیر خواهد بود.<br />ج - بیمه شده بیکار مکلف است در دوره‌های کارآموزی و سوادآموزی که توسط واحد کار و<br />امور اجتماعی و نهضت سوادآموزی و یا سایر‌واحدهای ذیربط با تأیید وزارت کار و امور<br />اجتماعی تعیین می‌شود شرکت نموده و هر دو ماه یک بار گواهی لازم در این مورد را به<br />شعب تأمین‌اجتماعی تسلیم نماید.<br />‌تبصره 1 - کارگرانی که در زمان دریافت مقرری بیمه بیکاری به شغل یا مشاغلی گمارده<br />می‌شوند که میزان حقوق و مزایای آن از مقرری بیمه بیکاری‌متعلقه کمتر باشد<br />مابه‌التفاوت دریافتی بیمه شده از حساب صندوق بیمه بیکاری پرداخت خواهد شد.<br />‌تبصره 2 - مدت دریافت مقرری بیمه بیکاری جزء سوابق پرداخت حق بیمه، بیمه شده از<br />نظر بازنشستگی، ازکارافتادگی و فوت محسوب خواهد‌شد.<br />‌ماده 7 - مدت پرداخت مقرری بیمه بیکاری و میزان آن به شرح زیر است:<br />‌الف - جمع مدت پرداخت مقرری از زمان برخورداری از مزایای بیمه بیکاری اعم از دوره<br />اجرای آزمایشی و یا دائمی آن برای مجردین حداکثر(36) ماه و برای متأهلین یا<br />متکلفین حداکثر (50) ماه بر اساس سابقه کلی پرداخت حق بیمه و به شرح جدول ذیل<br />می‌باشد:<br /><br />‌سابقه پرداخت حق بیمه حداکثر مدت استفاده از مقرری<br />جمعاً با احتساب دوره های قبلی<br />---------------------------------------------------------------<br />برای مجردین برای متأهلین یا متکفلین<br />---------------------------------------------------------------<br />‌از(6) ماه لغایت (24) ماه (6) ماه (12) ماه<br />‌از (25) ماه لغایت (120) ماه (12) ماه (18) ماه<br />‌از (121) ماه لغایت (180) ماه (18) ماه (26) ماه<br />‌از (181) ماه لغایت (240) ماه (26) ماه (36) ماه<br />‌از (241) ماه به بالا (36) ماه (50) ماه<br />---------------------------------------------------------------<br /><br />‌تبصره - افراد مسن مشمول این قانون که دارای 55 سال سن و بیشتر می‌باشند مادامی<br />که مشغول به کار نشده‌اند می‌توانند تا رسیدن به سن‌بازنشستگی تحت پوشش بیمه<br />بیکاری باقی بمانند.<br />ب - میزان مقرری روزانه بیمه شده بیکار معادل (55%) متوسط مزد یا حقوق و یا کارمزد<br />روزانه بیمه شده می‌باشد. به مقرری افراد متأهل یا‌متکفل، تا حداکثر (4) نفر از<br />افراد تحت تکفل به ازاء هر یک از آنها به میزان (10%) حداقل دستمزد افزوده خواهد<br />شد. در هر حال مجموع دریافتی‌مقرری‌بگیر نباید از حداقل دستمزد، کمتر و از (80%)<br />متوسط مزد یا حقوق وی بیشتر باشد.<br />ج - مقرری بیمه بیکاری از روز اول بیکاری قابل پرداخت است.<br />‌تبصره 1 - متوسط مزد یا حقوق روزانه بیمه شده بیکار به منظور محاسبه مقرری بیمه<br />بیکاری عبارت است از جمع کل دریافتی بیمه شده که به‌مأخذ آن حق بیمه دریافت شده در<br />آخرین (90) روز قبل از شروع بیکاری تقسیم بر روزهای کار، و در مورد بیمه شدگانی که<br />کارمزد دریافت می‌کنند‌آخرین مزد عبارت است از جمع کل دریافتی بیمه شده که به مأخذ<br />آن حق بیمه دریافت شده در آخرین (90) روز قبل از شروع بیکاری تقسیم بر (90)<br />در‌صورتی که بیمه شده کارمزد، ظرف (3) ماه مذکور مدتی از غرامت دستمزد استفاده<br />نموده باشد متوسط مزدی که مبنای محاسبه غرامت دستمزد قرار‌گرفته به منزله دستمزد<br />ایام بیکاری تلقی و در محاسبه منظور خواهد شد.<br />‌تبصره 2 - افراد تحت موضوع این ماده عبارتند از:<br />1 - همسر (‌زن یا شوهر)<br />2 - فرزندان اناث مادام که ازدواج ننموده و فاقد حرفه و شغل باشند.<br />3 - فرزندان ذکور که سن آنان کمتر از هجده سال تمام باشد و یا منحصراً به تحصیل<br />اشتغال داشته و یا طبق نظر پزشک معتمد سازمان تأمین‌اجتماعی، ازکارافتاده کلی<br />باشند.<br />4 - پدر و مادر که سن پدر از (60) سال متجاوز باشد و یا طبق نظر پزشک معتمد سازمان<br />تأمین اجتماعی ازکارافتاده کلی باشند و در هر حال معاش‌آنان منحصراً توسط بیمه شده<br />تأمین گردد.<br />5 - خواهر و برادر تحت تکفل در صورت داشتن شرایط مربوط به فرزندان اناث و ذکور،<br />مذکور در بندهای (2) و (3) این تبصره.<br />‌تبصره 3 - دریافت مقرری بیمه بیکاری مانع از دریافت مستمری جزئی نمی‌گردد.<br />‌تبصره 4 - در صورت بیکاری زوجین فقط یکی از آنان (‌زن یا شوهر) محق به استفاده از<br />افزایش مقرری به ازاء هر یک از فرزندان خواهد بود.<br />‌تبصره 5 - بیمه شده بیکار و افراد تحت تکفل، در مدت دریافت مقرری بیمه بیکاری از<br />خدمات درمانی موضوع بندهای "‌الف" و "ب" ماده (3)‌قانون تأمین اجتماعی استفاده<br />خواهند کرد.<br />‌تبصره 6 - مقرری بیمه بیکاری مانند سایر مستمریهای تأمین اجتماعی از پرداخت هر<br />گونه مالیات معاف خواهد بود.<br />‌ماده 8 - در موارد زیر مقرری بیمه بیکاری قطع خواهد شد.<br />‌الف - زمانی که بیمه شده مجدداً اشتغال به کار یابد.<br />ب - بنا به اعلام واحد کار و امور اجتماعی محل و یا نهضت سوادآموزی و سایر واحدهای<br />ذیربط از طریق وزارت کار و امور اجتماعی، بیمه شده‌بیکار بدون عذر موجه از شرکت در<br />دوره‌های کارآموزی یا سوادآموزی خودداری نماید.<br />ج - بیمه شده بیکار از قبول شغل تخصصی خود و یا شغل مشابه پیشنهادی خودداری ورزد.<br />‌د - بیمه شده بیکار ضمن دریافت مقرری بیمه بیکاری مشمول استفاده از مستمری<br />بازنشستگی و یا ازکارافتادگی کلی شود.<br />ه - بیمه شده به نحوی از انحاء با دریافت مزد ایام بلاتکلیفی به کار مربوطه اعاده<br />گردد.<br />‌تبصره 1 - در صورتی که پس از پرداخت مقرری بیمه بیکاری محرز شود که بیکاری بیمه<br />شده، ناشی از میل و اراده او بوده است کارگر موظف به‌استرداد وجوه دریافتی به<br />سازمان تأمین اجتماعی خواهد بود. مشمولین بند ( ه) این ماده نیز مکلف به بازپرداخت<br />مقرری بیمه بیکاری دریافتی، به‌سازمان مذکور می‌باشند.<br />‌تبصره 2 - چنانچه بیمه شده بیکار اشتغال مجدد خود را مکتوم داشته و مقرری بیمه<br />بیکاری را دریافت کرده باشد، ملزم به بازپرداخت مقرری‌دریافتی از تاریخ اشتغال<br />خواهد بود.<br />‌تبصره 3 - دریافت کمک‌هزینه حین کارآموزی مانع استفاده از مقرری بیمه بیکاری<br />نخواهد بود.<br />‌ماده 9 - کارفرمایان موظفند با هماهنگی شوراهای اسلامی و یا نمایندگان کارگران،<br />فهرست محلهای خالی شغل را که ایجاد می‌شوند به مراکز‌خدمات اشتغال محل اعلام<br />نمایند.‌محلهای شغلی مذکور (‌به استثنای رده‌های شغلی کارشناسی به بالا) منحصراً<br />توسط مراکز خدمات اشتغال و با‌معرفی بیکاران تأمین می‌گردد.<br />‌تبصره 1 - دولت مکلف است همه‌ساله از طریق سیستم بانکی و منابع اعتباری سازمان<br />تأمین اجتماعی و با استفاده از اعتبارات قرض‌الحسنه،‌طرحهای اشتغال‌زای مشخصی را<br />جهت اشتغال به کار بیکاران مشمول این قانون در بودجه سالانه کشور پیش‌بینی و رأساً<br />یا از طریق شرکتهای تعاونی و‌یا خصوصی و با نظارت وزارت کار و امور اجتماعی به<br />مورد اجراء گذارد.<br />‌تبصره 2 - بیکاران مشمول این قانون در اخذ پروانه‌های کسب و کار و موافقت اصولی و<br />تأسیس واحدهای اقتصادی از وزارتخانه‌های صنعتی،‌کشاورزی و خدماتی با معرفی وزارت<br />کار و امور اجتماعی در اولویت قرار خواهند داشت.<br />‌تبصره 3 - سازمان آموزش فنی و حرفه‌ای وزارت کار و امور اجتماعی مکلف است همزمان<br />با اجرای قانون بیمه بیکاری، آموزش مهارتهای مورد‌نیاز بازار کار و نیز بازآموزی و<br />تجدید مهارت کارگران تحت پوشش بیمه بیکاری موضوع بند "ج" ماده (7) این قانون را در<br />مراکز آموزش فنی و حرفه‌ای و‌یا مراکز آموزش جوار کارخانجات فراهم نماید.<br />هزینه‌های مربوط از محل اعتبارات حساب صندوق بیمه بیکاری مطابق آیین‌نامه‌ای که به<br />پیشنهاد‌سازمان‌های آموزش فنی و حرفه‌ای کشور و تأمین اجتماعی تهیه و به تصویب<br />وزرای کار و امور اجتماعی، و بهداشت و درمان و آموزش پزشکی‌خواهد رسید قابل پرداخت<br />است.<br />‌تبصره 4 - نهضت سوادآموزی موظف است با همکاری کارفرمایان و وزارتخانه‌های ذیربط<br />نسبت به تشکیل کلاسهای سوادآموزی برای بیسوادان‌مشمول این قانون اقدام نماید.<br />‌ماده 10 - سازمان تأمین اجتماعی مکلف است حسابهای درآمد حق بیمه بیکاری و پرداخت<br />مقرری بیمه بیکاری موضوع این قانون را جداگانه‌نگهداری و در صورت‌های مالی خود<br />منعکس نماید و گزارش عملکرد مالی خود را هر سال یک بار به وزیر بهداشت، درمان و<br />آموزش پزشکی و وزیر‌کار و امور اجتماعی و شورای اقتصاد ارائه نماید.<br />‌ماده 11 - وزارت کار و امور اجتماعی و سازمان تأمین اجتماعی مجری این قانون<br />خواهند بود.<br />‌ماده 12 - سازمان تأمین اجتماعی مکلف است هزینه‌های موضوع این قانون را منحصراً از<br />محل درآمدهای ناشی از آن تأمین نماید.<br />‌هزینه‌های اداری و پرسنلی هر دو دستگاه مجری قانون به طوری که از (10%) میزان<br />مقرری پرداختی به بیمه شدگان تجاوز ننماید با تأیید وزیر بهداشت،‌درمان و آموزش<br />پزشکی و وزیر کار و امور اجتماعی تعیین و تخصیص داده می‌شود.<br />‌ماده 13 - زمان اجرای این قانون از زمان اتمام قانون آزمایشی بیمه بیکاری<br />(1359.5.6) لازم‌الاجرا است.<br />‌ماده 14 - آیین‌نامه اجرایی این قانون ظرف یک ماه توسط وزارت کار و امور اجتماعی<br />و سازمان تأمین اجتماعی تهیه و به تصویب هیأت وزیران‌خواهد رسید.<br />‌قانون فوق مشتمل بر چهارده ماده و بیست و یک تبصره در جلسه علنی روز دوشنبه مورخ<br />بیست و ششم شهریور ماه یک هزار و سیصد و شصت و نه‌مجلس شورای اسلامی تصویب و در<br />تاریخ 1369.7.10 به تأیید شورای نگهبان رسیده است.<br />‌رئیس مجلس شورای اسلامی - مهدی کروبی<br />
+                </div>
+
+                
+            </div>
+              <div class="row px-3">
+                  <div class="col-12 meta-single-page py-4 mt-3 " style="font-size: 12px;">
+                      <ul class="my-0">
+                          <li>
+                              <div>آمار بازدید</div>
+                              <div>
+                                  <span class="text-majlis font-weight-bold persian-num" style="background: none;color: #05425f;">35262</span>
+                              </div>
+                          </li>
+                      </ul>
+                  </div>
+              </div>
+
+          </div>
+        </div>
+      </section>
+    </main>
+<!-- END: main content -->
+
+</main>
+<footer id="footer" class="mt-5">
+    <div class="header d-flex justify-content-center align-items-end">
+        <img class="" src="/assets/img/footer/eslimi.png" alt="">
+    </div>
+    <div class="container-xxl text-white px-5 px-xxl-0">
+        <div class="row">
+
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+                <h4 class="mb-4">مرکز پژوهش ها</h4>
+                <ul class="list">
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/about_research_center_fa" class="opacity-6 text-white">درباره ما</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/contact_research_center_fa" class="opacity-6 text-white">تماس با ما</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/research_center_chart" class="opacity-6 text-white">ساختار سازمانی</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/department" class="opacity-6 text-white">دفاتر</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/report" class="opacity-6 text-white">گزارش‌های کارشناسی</a>
+                    </li>
+                                        <li>
+                        <a href="https://andishkadeh.mrc.ir" class="opacity-6 text-white"> اندیشکده‌های حکمرانی استانی</a>
+                    </li>
+                                        <li>
+                        <a href="http://book.mrc.ir" class="opacity-6 text-white">سامانه نشر علمی (کتاب)</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/news" class="opacity-6 text-white">اخبار</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/news?tag=گزارش تصویری" class="opacity-6 text-white">گزارش تصویری</a>
+                    </li>
+                                        <li>
+                        <a href="https://nashr.majles.ir/" class="opacity-6 text-white">فصلنامه های مجلس و راهبرد</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_book" class="opacity-6 text-white">کتب</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_ebook" class="opacity-6 text-white">کتب الکترونیکی</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/book_pub?lu_type=bp_pdf" class="opacity-6 text-white">پژوهش نامه</a>
+                    </li>
+                                    </ul>
+
+
+            </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+                <h4 class="mb-4">سامانه قوانین</h4>
+                <ul class="list">
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/legal_draft" class="opacity-6 text-white">طرح ها و لوایح</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/law/search" class="opacity-6 text-white">قوانین و مقررات</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/iran_constitution" class="opacity-6 text-white">قانون اساسی ایران</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/law/show/132299" class="opacity-6 text-white">سیاست های کلی نظام</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/law/show/132295" class="opacity-6 text-white">سند چشم انداز</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/law/today_in_history" class="opacity-6 text-white">تقویم تاریخ قوانین</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/law_cd" class="opacity-6 text-white">سامانه قوانین و مقررات</a>
+                    </li>
+                                    </ul>
+
+
+            </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+                <h4 class="mb-4">مجلس شورای اسلامی</h4>
+                <ul class="list">
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/about_parliament" class="opacity-6 text-white">مجلس شورای اسلامی</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/parliament/parliament_chairman" class="opacity-6 text-white">ریاست مجلس</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/parliament_member" class="opacity-6 text-white">نمایندگان</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/parliament_commission" class="opacity-6 text-white">کمیسیون ها</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/agenda" class="opacity-6 text-white">دستور جلسه</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/interior_rule" class="opacity-6 text-white">آئین نامه داخلی</a>
+                    </li>
+                                        <li>
+                        <a href="https://rc.majlis.ir/fa/content/public_contact" class="opacity-6 text-white">ارتباطات مردمی</a>
+                    </li>
+                                    </ul>
+
+
+            </div>
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4 persian-num">
+                <h4 class="mb-4">راه‌های ارتباطی</h4>
+                <ul class="list">
+                    <li><p>آدرس مرکز: تهران خیابان پاسداران، روبروی پارک نیاوران(ضلع جنوبی)، پلاک 802</p></li>
+                    <li><p>کد پستی : 1954731113</p></li>
+                    <li><p>صندوق پستی : 15875-5855</p></li>
+                    <li><p>پست الکترونیک: mrc@majles.ir</p></li>
+                    <li><p>تلفن : 75183000</p></li>
+                    <li><p>نمابر : 22819951</p></li>
+                </ul>
+            </div>
+        </div>
+
+
+
+
+
+
+
+
+        <div class="row copyright text-center">
+            <p>حق کپی رایت متعلق به مرکز پژوهش های مجلس شورای اسلامی می باشد.</p>   
+        </div>
+    </div>
+</footer>
+<section id="modalSearch">
+    <div class="container-xxl position-relative">
+        <span class="close-btn" onclick="document.getElementById('modalSearch').classList.remove('modal-show');">&times;</span>
+        <div class="d-flex justify-content-center pt-5">
+            <div class=" input-container position-relative">
+                <input type="text"  id="input_seaerch">
+                <i class="fa fa-search magnify"></i>
+                <div id="loading_ajax_search" class="sp sp-circle serch_txt d-none"></div>
+            </div>
+        </div>
+        <div class="mt-3 desktop-categories">
+            <!-- <p class="active">همه <span class="count">10</span></p> -->
+            <!-- <p>گزارشات <span class="count">1</span></p>
+            <p>قانون <span class="count">5</span></p> -->
+            <p>گزارشات <span class="count"><input class=""  type="checkbox" name="report" id="report"></span></p>
+            <p>قانون <span class="count"><input class=""  type="checkbox" name="law" id="law"></span></p>
+            <p>طرح و لایحه <span class="count"><input class=""  type="checkbox" name="legal" id="legal"></span></p>
+            <p>دستور جلسات <span class="count"><input class=""  type="checkbox" name="agenda" id="agenda"></span></p>
+            <p>اخبار <span class="count"><input class=""  type="checkbox" name="news" id="news"></span></p>
+
+            <!-- <p>دستور جلسات <span class="count">3</span></p>
+            <p>اخبار <span class="count">1</span></p> -->
+        </div>
+        <div class="results mt-2">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">عنوان</th>
+                    <th scope="col">تاریخ</th>
+                    <th scope="col">نوع</th>
+                </tr>
+                </thead>
+                <tbody id="result">
+                <!-- <tr>
+                    <td scope="row">1</td>
+                    <td>رأی شماره ۱۵۳هیأت عمومی دیوان عدالت اداری با موضوع: بند ۳ مصوبه مورخ ۱۳۹۸/۱۰/۲۱ شورای عالی شهرسازی و معماری</td>
+                    <td>1401/02/17</td>
+                    <td>قانون</td>
+                </tr> -->
+
+
+
+                </tbody>
+            </table>
+            <!-- <nav>
+                <ul class="pagination pagination-sm justify-content-center">
+                    <li class="page-item">
+                        <a class="page-link next" href="#" aria-label="Previous">
+                            <span><i class="fa fa-caret-right"></i></span>
+                        </a>
+                    </li>
+                    <li class="page-item"><a class="page-link number" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link number" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link number active" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link prev" href="#" aria-label="Next">
+                            <span><i class="fa fa-caret-left"></i></span>
+                        </a>
+                    </li>
+                </ul>
+            </nav> -->
+        </div>
+    </div>
+    <script>
+
+        function keyPress (e) {
+            if(e.key === "Escape") {
+                document.getElementById('modalSearch').classList.remove('modal-show');
+            }
+        }
+    </script>
+</section>
+ <section id="tv">
+     <div class="container-xxl position-relative" style="z-index: 10;">
+         <span class="close-btn" onclick="document.getElementById('tv').classList.remove('modal-show');">&times;</span>
+
+
+
+
+     </div>
+     <input type="hidden" id="list_video" value="">
+          <script>
+
+         function keyPress (e) {
+             if(e.key === "Escape") {
+                 document.getElementById('modalSearch').classList.remove('modal-show');
+             }
+         }
+     </script>
+ </section>
+ <!--begin::social buttons-->
+ <div class="social-wrapper">
+     <a href="https://eitaa.com/rcmajles_ir" rel="noopener noreferrer nofollow" target="_blank"><span>ایتا</span> <img src="/assets/img/social/eitaa-white.svg"></a>
+     <a href="https://ble.ir/rcmajles_ir" rel="noopener noreferrer nofollow" target="_blank"><span>بله</span> <img src="/assets/img/social/bale-white.svg"></a>
+     <a href="https://virasty.com/Rcmajlis_ir" rel="noopener noreferrer nofollow" target="_blank"><span>ویراستی</span> <img src="/assets/img/social/virasti-white.svg"></a>
+     <a href="https://ble.ir/rcmajles_ir" rel="noopener noreferrer nofollow" target="_blank" onclick="event.preventDefault(); document.getElementById('tv').classList.add('modal-show');showTv()"><span>تلویزیون</span> <img src="/assets/img/social/television-white.svg"></a>
+     <a href="https://www.aparat.com/rcmajlis.ir" rel="noopener noreferrer nofollow" target="_blank"><span>آپارات</span> <img src="/assets/img/social/aparat.svg"></a>
+ </div>
+ <!--end::social buttons-->
+
+<script src="/assets/js/popper.min.js"></script>
+<script src="/assets/js/bootstrap.min.js"></script>
+<script src="/assets/js/jquery-3.6.0.min.js"></script>
+
+
+
+
+ <script>
+     //side nav
+     function showSideNav(){
+         const sideNav=document.getElementsByClassName('sidenav')[0];
+         sideNav.classList.add('sidenav-show');
+
+         //add side nav wrapper
+         let sidenavWrapper=document.createElement('div');
+         sidenavWrapper.className='sidenav-wrapper';
+         sideNav.parentNode.insertBefore(sidenavWrapper, sideNav.nextSibling);
+
+         document.getElementsByClassName('sidenav-wrapper')[0].addEventListener("click", function(){
+             hideSideNav()
+         })
+     }
+     // showSideNav()
+
+     function hideSideNav(){
+         const sideNav=document.getElementsByClassName('sidenav')[0];
+         sideNav.classList.remove('sidenav-show');
+
+         //remove side nav wrapper
+         const sidenavWrapper=document.getElementsByClassName('sidenav-wrapper')[0];
+         sidenavWrapper.remove()
+     }
+
+     // sidenav-nav
+     // menu-item
+     // sub-menu-items
+
+     function sideMenuClearActive(){
+         const mainItems=document.querySelectorAll('.sidenav-nav .menu-item');
+         let count=mainItems.length
+         if(count>0)
+             for(i=0;i<count;i++) mainItems[i].classList.remove('active');
+     }
+
+
+     document.querySelectorAll(".sidenav-nav .menu-item").forEach(element => {
+
+         element.addEventListener("click", function(){
+
+             if(this.classList.contains('active')==false)
+             {
+                 sideMenuClearActive();
+                 this.classList.add('active');
+             }
+             else{
+                 this.classList.remove('active')
+             }
+             // console.log(this.nextSibling.nextSibling)
+         })
+     })
+ </script>
+
+
+<script>
+    function moreDropdownClearActive(){
+        const items=document.querySelectorAll('.more-dropdown .item div');
+        let count=items.length
+        if(count>0)
+            for(i=0;i<count;i++) items[i].classList.remove('active');
+    }
+
+    document.querySelector('#more').addEventListener("mouseleave", function(){
+        moreDropdownClearActive();
+    });
+
+    document.querySelectorAll(".more-dropdown .item div").forEach(element => {
+        element.addEventListener("click", function(){
+
+            if(this.classList.contains('active')==false)
+            {
+                moreDropdownClearActive();
+                this.classList.add('active');
+            }
+            else{
+                this.classList.remove('active')
+            }
+            // console.log(this.nextSibling.nextSibling)
+        })
+    })
+</script>
+
+
+ <script>
+     $(document).ready(function(){
+         persian={0:'۰',1:'۱',2:'۲',3:'۳',4:'۴',5:'۵',6:'۶',7:'۷',8:'۸',9:'۹'};
+         function traverse(el){
+             if(el.nodeType==3){
+                 var list=el.data.match(/[0-9]/g);
+                 if(list!=null && list.length!=0){
+                     for(var i=0;i<list.length;i++)
+                         el.data=el.data.replace(list[i],persian[list[i]]);
+                 }
+             }
+             for(var i=0;i<el.childNodes.length;i++){
+                 traverse(el.childNodes[i]);
+             }
+         }
+         for (let i=0;i<document.getElementsByClassName('persian-num').length;i++){
+             traverse(document.getElementsByClassName('persian-num')[i]);
+         }
+
+        //set off indicator to first slider
+         setTimeout(function (){
+             for(let i=0;i<document.querySelectorAll('.slider-indicators button:last-child').length;i++) {
+                 document.querySelectorAll('.slider-indicators button:last-child')[i].click();
+             }
+         }, 2000);
+
+     });
+ </script>
+ <!-- scroll script -->
+ <script>
+     document.addEventListener('scroll', function () {
+
+         if(window.scrollY<800){
+             document.getElementById('header').style.height='70px';
+
+
+             for(let i=0;i<document.querySelectorAll('#header nav .nav-dropdown .details').length;i++){
+                 document.querySelectorAll('#header nav .nav-dropdown .details')[i].style.top='70px';
+             }
+
+             for(let i=0;i<document.querySelectorAll('#header nav .nav-dropdown>a').length;i++){
+                 document.querySelectorAll('#header nav .nav-dropdown>a')[i].style.paddingTop='22px';
+                 document.querySelectorAll('#header nav .nav-dropdown>a')[i].style.paddingBottom='22px';
+             }
+         }else if(window.scrollY>=800){
+             document.getElementById('header').style.height='50px';
+
+
+             for(let i=0;i<document.querySelectorAll('#header nav .nav-dropdown .details').length;i++){
+                 document.querySelectorAll('#header nav .nav-dropdown .details')[i].style.top='50px';
+             }
+
+             for(let i=0;i<document.querySelectorAll('#header nav .nav-dropdown>a').length;i++){
+                 document.querySelectorAll('#header nav .nav-dropdown>a')[i].style.paddingBottom='12px';
+                 document.querySelectorAll('#header nav .nav-dropdown>a')[i].style.paddingTop='12px';
+             }
+         }
+     });
+
+
+
+
+
+
+     document.addEventListener('DOMContentLoaded', function() {
+    var checkboxes = document.querySelectorAll('input[type=checkbox]');
+
+    for (var checkbox of checkboxes)
+    {
+        checkbox.addEventListener('change', function(event)
+        {
+
+                if($("#input_seaerch").val().length >= 3){
+            serachInElastic($("#input_seaerch").val() , $("#report").is(":checked") ? 'report' : null ,
+            $("#news").is(":checked") ? 'news' : null,$("#law").is(":checked") ? 'law' : null,
+            $("#legal").is(":checked") ? 'legal' : null,$("#agenda").is(":checked") ? 'agenda' : null );
+        }
+        });
+    }
+}, false);
+
+     function first_boot(){
+
+        document.querySelector("#input_seaerch").addEventListener("input", checkChange);
+
+    }
+
+     function checkChange(e){
+
+        if(e.target.value.length >= 3){
+            serachInElastic(e.target.value ,'report' ,
+            'news' ,  'law' , 'legal', 'agenda' );
+        }
+    }
+
+    $(document).ready(function(){
+        first_boot();
+
+    });
+
+
+    function serachInElastic(term ,report,news,law,legal,agenda ){
+        $("#loading_ajax_search").removeClass('d-none');
+        $.ajax({
+        // headers: {
+        //     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        // },
+        url:$('#searchAjax').val(),
+        data:{q:term, report:report ,news:news ,legal:legal ,agenda:agenda ,law:law },
+        type:"GET",
+        beforeSend:function(){
+            $('#result').empty();
+            // jQuery('#year_no').append('<option>' + WAIT + '</option>');
+        },
+        success:function(data) {
+            $('#result').empty();
+            // for(var i = 0; i < years_no.length; i++) {
+            //     var arr = Object.values(years_no[i]);
+            //     $('#year_no').append('<option value="' + arr[0] + '" ' +
+            //         (arr[0] == yearNo? 'selected': '') + '>' + arr[1] + '</option>');
+            //     }
+            if(data['result'].length > 0 ){
+                $('#result').empty();
+                var row=1;
+                data['result'].forEach(element => {
+
+                    var title = element['title'];
+                    var link = element['link'];
+                    var date = element['date_fa'];
+                    var tbl_value = element['tbl_value'];
+                    var pure_title = element['pure_title'];
+                    // <li class="dropdown-header">`+tbl_value+`</li>
+                    $('#result').append(`<tr class=""><td scope="row">`+row+`</td><td onClick="clickli(this)" role="option" ><p style="display:none" class="pure_title">`+pure_title+`</p><a  target="_blank"  >`+title+`</a></td><td>`+date+`</td><td><span>`+tbl_value+`</td></tr>`);
+                        row++;
+                    });
+                    // $("#list").show();
+                $("#loading_ajax_search").addClass('d-none');
+                    // $('#list li a').first().focus();
+                    }
+            }
+
+        });
+
+    }
+
+
+    function clickli(item){
+    $("#input_seaerch").empty();
+    $("#input_seaerch").val($(item).find('p').text());
+    // $('#result').find('tr').remove().end();
+    // $('#result').hide();
+    $('#btn_search').click();
+
+     }
+</script>
+
+
+<script src="/assets/js/plugins/persian_datepicker/persian-date.min.js"></script>
+<script src="/assets/js/plugins/persian_datepicker/persian-datepicker.min.js"></script>
+<script src="/assets/js/search.js"></script>
+<input type="hidden" id="searchAjax" value="https://rc.majlis.ir/fa/search/searchAjax" />
+
+
+ <script src="/assets/js/hls.js?v=1.0"></script>
+ <script>
+     function showTv(){
+         var video = document.getElementById('video');
+
+         var url_streams = 'https://rc.majlis.ir/stream/'; $(document).ready(function () {
+             var list_video = document.getElementById("list_video").value; var video = document.getElementById('video'); var resultArray = list_video.split('|'); var currentIndex = 0;
+             function playNextVideo() {
+                 currentIndex++;
+                 if (currentIndex < resultArray.length - 1) { var file_name = resultArray[currentIndex].split('.').slice(0, -1).join('.') + '.m3u8'; hls.loadSource(url_streams + file_name); video.play(); } else { currentIndex = 0; var file_name = resultArray[currentIndex].split('.').slice(0, -1).join('.') + '.m3u8'; hls.loadSource(url_streams + file_name); video.play(); }
+                 video.play();
+             }
+             if (Hls.isSupported()) {
+                 var hls = new Hls({ "debug": false, "enableWorker": true, "lowLatencyMode": true, "backBufferLength": 90, });
+                 hls.attachMedia(video); hls.on(Hls.Events.MEDIA_ATTACHED, function () { video.muted = true; video.puse(); });
+                 hls.on(Hls.Events.MANIFEST_PARSED, function () { video.puse(); });
+                 hls.on(Hls.Events.MEDIA_ENDED, function () { playNextVideo(); });
+                 var file_name = resultArray[currentIndex].split('.').slice(0, -1).join('.') + '.m3u8'; hls.loadSource(url_streams + file_name);
+             } else if (video.canPlayType('application/vnd.apple.mpegurl')) { video.src = url_streams + file_name; video.addEventListener('canplay', function () { video.pause(); video.muted = true; }); }
+             video.addEventListener('ended', function () { playNextVideo(); });
+         });
+         video.pause()
+     }
+ </script>
+
+
+</body>
+</html>

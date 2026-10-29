@@ -63,7 +63,17 @@ def invoice_metric(
     event_ids = Counter(r.values.get("event_id") for r in events)
     events_by_invoice = defaultdict(list)
     for event in events:
-        if event.values.get("direction") != direction:
+        event_direction = event.values.get("direction")
+        if event_direction not in {"receipt", "payment"}:
+            # An unknown direction may affect either balance. Rejecting its row
+            # must not turn an unverified unpaid total into an available balance.
+            try:
+                if day(event.values.get("date")) <= period.cutoff:
+                    errors.append("settlement_invalid")
+            except UnsafeFinancialData:
+                errors.append("payment_dates_missing")
+            continue
+        if event_direction != direction:
             continue
         events_by_invoice[event.values.get("invoice_id")].append(event)
         try:

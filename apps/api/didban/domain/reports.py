@@ -5,6 +5,18 @@ import hashlib
 import json
 from ..security import json_value
 
+EXPORT_LAYOUT_VERSION = "report-actionable-v3"
+
+
+def row_disposition(row: dict) -> str | None:
+    """Exclusion is not a validation failure; preserve failures if both are present."""
+    if row["state"] == "excluded_overlap" and not row["error_codes"]:
+        return "excluded_overlap"
+    if row["state"] != "valid" or row["error_codes"]:
+        return "error"
+    return None
+
+
 METRIC_LABELS = {
     "revenue": "درآمد",
     "expense": "هزینه",
@@ -42,23 +54,107 @@ def spreadsheet_text(value) -> str:
 
 
 def is_limited(content: dict) -> bool:
-    return (
-        any(m["status"] != "available" for m in content["metrics"])
-        or any(r.get("missing_source_kinds") for r in content["reconciliation_runs"])
-        or content.get("cashflow") is None
-        or bool((content.get("cashflow") or {}).get("payload", {}).get("reason_codes"))
+    """Missing information limits active scope; deliberately disabled areas do not."""
+    modules = (content.get("module_configuration") or {}).get("modules", {})
+
+    def enabled(name: str) -> bool:
+        return modules.get(name, True)
+
+    management = content.get("management") or {}
+    statements = management.get("statements") or {}
+    if (
+        enabled("accounting")
+        and management
+        and (
+            any(line["status"] != "available" for line in statements.get("lines", []))
+            or statements.get("balance_control", {}).get("status", "available")
+            != "available"
+        )
+    ):
+        return True
+    if (
+        enabled("cash")
+        and management.get("cashflow_statement", {}).get("status", "available")
+        != "available"
+    ):
+        return True
+    for metric in content["metrics"]:
+        key = metric["metric_key"]
+        required = (
+            ("cash",)
+            if key == "cash"
+            else ("invoices",)
+            if key in ("ar_invoice", "ap_invoice")
+            else ("balances", "invoices")
+            if "difference" in key
+            else ("balances",)
+            if key.startswith(("ar_", "ap_", "debt_"))
+            else ("accounting",)
+        )
+        if all(enabled(name) for name in required) and metric["status"] != "available":
+            return True
+    if any(
+        r.get("missing_source_kinds")
+        for r in content["reconciliation_runs"]
+        if enabled("cash" if r.get("kind") == "bank_ledger" else "moadian")
+    ):
+        return True
+    cash = content.get("cashflow")
+    if enabled("cash") and (
+        cash is None
+        or bool(cash.get("payload", {}).get("reason_codes"))
         or any(
             d.get("status") != "available"
-            for d in (content.get("cashflow") or {}).get("payload", {}).get("days", [])
+            for d in cash.get("payload", {}).get("days", [])
         )
-        or content.get("settlement") is None
-        or content.get("forecast") is None
-        or content.get("forecast", {}).get("content", {}).get("status")
-        in ("limited", "unavailable")
+    ):
+        return True
+    if (
+        any(
+            enabled(name)
+            for name in ("balances", "invoices", "settlements", "forecast")
+        )
+        and content.get("settlement") is None
+    ):
+        return True
+    forecast = content.get("forecast")
+    return enabled("forecast") and (
+        forecast is None
+        or forecast.get("content", {}).get("status") in ("limited", "unavailable")
     )
 
 
 REASON_LABELS = {
+    "forecast_invalid_payment_rows": "بعضی ردیف‌های برنامه پرداخت نامعتبرند؛ فقط تعهدهای معتبر در پیش‌بینی آمده‌اند.",
+    "forecast_invalid_history_rows": "بعضی سوابق وصول نامعتبرند؛ برآورد وصول فقط بر سابقه معتبر تکیه دارد.",
+    "forecast_invalid_invoice_rows": "بعضی فاکتورها نامعتبرند؛ دریافت و پرداخت آینده کامل نیست.",
+    "forecast_invalid_settlement_rows": "بعضی تسویه‌ها نامعتبرند؛ مانده تعهدهای وابسته قابل اتکا نیست.",
+    "trial_balance_source_missing": "تراز آزمایشی بارگذاری نشده است.",
+    "trial_balance_date_missing": "تراز آزمایشی در تاریخ گزارش موجود نیست.",
+    "trial_balance_scope_mismatch": "گردش تراز با بازه گزارش یکسان نیست.",
+    "trial_balance_closing_entries_unknown": "گردش پیش از اختتامیه مشخص نیست؛ سود دوره محاسبه نشد.",
+    "trial_balance_level_unknown": "سطح جزئی حساب‌های تراز مشخص نیست.",
+    "duplicate_trial_balance_account": "حساب تراز در همین بازه تکرار شده است.",
+    "trial_balance_unbalanced": "جمع بدهکار و بستانکار تراز برابر نیست.",
+    "trial_balance_rollforward_mismatch": "مانده ابتدا و گردش با مانده پایان تراز تطابق ندارد.",
+    "cashflow_activity_missing": "طبقه بعضی گردش‌های نقد مشخص نیست؛ خالص فعالیت کامل نیست.",
+    "cash_statement_bridge_mismatch": "گردش نقد با تغییر مانده دفتری تطابق ندارد.",
+    "scope_not_comparable": "دامنه دفتر و فاکتورها قابل مقایسه نیست",
+    "settlement_coverage_unknown": "تاریخچه تسویه کامل نیست",
+    "invoice_openings_unknown": "فاکتورهای باز ابتدای دوره مشخص نیست",
+    "payment_dates_missing": "تاریخ تسویه‌ها مشخص نیست",
+    "cash_movement_coverage_unknown": "گردش بانک تمام بازه را پوشش نمی‌دهد",
+    "cash_bridge_control_failed": "جمع گردش با تغییر مانده بانک تطابق ندارد",
+    "template_accounts_unmapped": "بعضی حساب‌ها در قالب نگاشت نشده‌اند",
+    "template_account_missing": "حساب تعیین‌شده در داده دفتر موجود نیست",
+    "template_role_conflict": "سرفصل قالب با نقش حساب سازگار نیست",
+    "template_section_missing": "بخش لازم در قالب تعریف نشده",
+    "balance_sheet_unbalanced": "جمع دارایی با بدهی و حقوق مالکانه برابر نیست",
+    "variance_control_failed": "اجزای تغییر سود با تغییر کل تطابق ندارند",
+    "bank_source_missing": "گردش بانک برای این روز موجود نیست",
+    "forecast_date_or_sources_missing": "پیش‌بینی متناسب با تاریخ گزارش موجود نیست",
+    "transfer_scope_unknown": "انتقال داخلی از گردش خارجی تفکیک نشده",
+    "aggregate_out_of_range": "جمع مبالغ خارج از محدوده مجاز است",
     "comparison_missing": "داده معتبر دوره قبل موجود نیست",
     "zero_denominator": "مبلغ دوره قبل صفر است؛ درصد تغییر محاسبه نشده",
     "sign_change": "تغییر نسبت به مقدار منفی؛ درصد تغییر نمایش داده نشده",
@@ -78,6 +174,7 @@ REASON_LABELS = {
     "incomparable_scopes": "دامنه دفتر و فاکتورها قابل مقایسه نیست",
 }
 SOURCE_LABELS = {
+    "trial_balance": "تراز آزمایشی",
     "ledger": "دفتر حسابداری",
     "bank": "گردش بانک",
     "sales_invoices": "فاکتور فروش",

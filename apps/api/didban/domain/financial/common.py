@@ -114,7 +114,7 @@ def selected(rows: list[FinancialRow], kind: str) -> list[FinancialRow]:
     # Deduplicate the same pinned row only. Equal independent transactions remain.
     unique: dict[str, FinancialRow] = {}
     for row in rows:
-        if row.kind == kind:
+        if row.kind == kind and row.state != "excluded_overlap":
             old = unique.get(row.normalized_id)
             if old is not None and old != row:
                 raise UnsafeFinancialData("conflicting_row_identity")

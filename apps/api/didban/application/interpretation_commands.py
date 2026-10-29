@@ -83,10 +83,18 @@ def answer(conn, repo, actor, company, session, issue, body, key, request_id, ac
                 settings.setdefault("sheets", {}).setdefault(
                     constraints["sheet_name"], {}
                 ).setdefault("account_roles", {})[constraints["account_code"]] = value
-            elif field in ("unit", "source_kind"):
+            elif field in (
+                "unit",
+                "source_kind",
+                "trial_balance_level",
+                "trial_balance_flows",
+            ):
                 settings.setdefault("sheets", {}).setdefault(
                     constraints["sheet_name"], {}
                 )[field] = value
+                settings["sheets"][constraints["sheet_name"]].setdefault(
+                    "human_decisions", {}
+                )[field] = {"actor_id": str(actor["id"]), "value": value}
             else:
                 raise ApiError(
                     422, "answer_not_allowed", "پاسخ با این سؤال سازگار نیست."

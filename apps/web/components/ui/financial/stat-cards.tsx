@@ -1,3 +1,4 @@
+import { IconTile, type AppIconName } from "../app-icon";
 import type { ReactNode } from "react";
 import { cx } from "../button";
 import { Skeleton } from "../states";
@@ -23,6 +24,7 @@ export function MetricCardFrame({
 
 export function StatCard({
   title,
+  icon = "ChartNoAxesCombined",
   value,
   unit,
   status,
@@ -30,6 +32,7 @@ export function StatCard({
   loading = false,
 }: {
   title: string;
+  icon?: AppIconName;
   value: string;
   unit: string;
   status?: ReactNode;
@@ -39,7 +42,10 @@ export function StatCard({
   return (
     <MetricCardFrame>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">{title}</h2>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <IconTile name={icon} compact />
+          <h2 className="min-w-0 text-sm font-medium">{title}</h2>
+        </div>
         {status}
       </div>
       {loading ? (

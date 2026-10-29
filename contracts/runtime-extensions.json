@@ -1,6 +1,6 @@
 {
   "baseline_app_tables": 75,
-  "current_app_tables": 95,
+  "current_app_tables": 122,
   "metadata_tables": [
     "didban_meta.schema_migrations"
   ],
@@ -22,7 +22,17 @@
     "018_intake_model_proposals.sql",
     "019_intake_proposal_dependency_identity.sql",
     "020_intake_model_safe_retries.sql",
-    "021_intake_model_dependencies.sql"
+    "021_intake_model_dependencies.sql",
+    "022_statement_account_roles.sql",
+    "023_trial_balance_sources.sql",
+    "024_extension_access.sql",
+    "025_company_modules.sql",
+    "026_input_review.sql",
+    "027_payroll.sql",
+    "028_actionable_analysis.sql",
+    "029_extension_authority_locks.sql",
+    "030_input_review_completion.sql",
+    "031_actionable_automation.sql"
   ],
   "additional_tables": [
     {
@@ -124,6 +134,141 @@
       "name": "intake_model_proposals",
       "scope": "company",
       "purpose": "Budget-backed durable source interpretation proposals, immutable final decisions and independent evidence policy"
+    },
+    {
+      "name": "actionable_evaluations",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_followups",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_maintenance_checks",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_notification_states",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_proposals",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_settings",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "actionable_settings_events",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "company_module_settings",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "extension_access_events",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "input_review_comments",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "input_review_confirmations",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "input_review_proposals",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_contracts",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_employee_history",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_employees",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_financial_links",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_import_commits",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_import_previews",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_legal_reviews",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_legal_revocations",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_payment_links",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_permissions",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_rule_reviews",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_rule_sets",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_run_approvals",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_runs",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
+    },
+    {
+      "name": "payroll_work_records",
+      "scope": "company",
+      "purpose": "Versioned extension data with company-scoped authorization; see domain runtime contract"
     }
   ],
   "additional_columns": [
@@ -181,8 +326,39 @@
     "export_jobs.lease_expires_at",
     "export_jobs.attempts",
     "export_jobs.error_code",
-    "export_jobs.byte_size"
+    "export_jobs.byte_size",
+    "processing_sessions.input_review_required"
   ],
   "runtime_version": 10,
-  "notes": "Baseline SQL001-003 frozen; forward migrations004-017; runtime10 with 94 app tables. Separate identity/app/worker logins, scoped company RLS and restricted installation model-budget functions. Core manifests, reconciliation, immutable cashflow snapshots, settlement workspace revisions, forecast runs, read-only assistant, pinned immutable report editions and private PDF/XLSX/error-CSV exports are implemented. Report approval checks current company permission and exact report edition. Versioned upload/forecast policies, owner retention/archive and dependency-guarded durable source deletion are implemented. Terminal sessions cannot reopen; forecast revisions use new continuation sessions. Analysis claim lease is bounded to ten minutes with token/fence/barrier checks. Validation reports define tested scope; fresh Compose image/organization TLS and live-model integration are not accepted. Provider is not connected to intake classification/mapping/account-role jobs. Migration017 permits provider-specific openai/avalai historical tariffs without changing old requests or runtime version; no live Avalai call is accepted by this metadata."
+  "notes": "Runtime protocol version10 is distinct from migration count. Fresh disposable schema currently has31 migrations and122 app tables. Input review gates new-session final publication; existing sessions preserve historical exemption. Company modules and independent payroll access, report-bound actionable proposals/follow-up/maintenance, employee/contract/work imports, exact draft payroll engine and private exports are implemented. Immutable historical reports and permissions remain distinct. Statutory1405 rulepack, legal-specialist acceptance and official insurance/tax formats are not verified; related finalization stays closed. Validation reports define tested scope; local upgrade status is recorded separately. No synthetic legal acceptance or fixtures may be installed into user data.",
+  "extension_foundation": {
+    "date": "2026-10-29",
+    "scope": "server and UI permissions, module configuration and automatic pipeline scope",
+    "tables": [
+      "payroll_permissions",
+      "extension_access_events",
+      "company_module_settings"
+    ],
+    "operations": [
+      "getPayrollAccess",
+      "getPayrollPermissions",
+      "setPayrollPermissions",
+      "getCompanyModules",
+      "setCompanyModules",
+      "listExtensionAccessEvents"
+    ],
+    "pending": [],
+    "live_installation_migrated": true
+  },
+  "extensions": {
+    "date": "2026-10-29",
+    "migrations": "024-031",
+    "input_review_operations": 6,
+    "payroll_operations": 25,
+    "actionable_analysis_operations": 6,
+    "legal_1405_verified": false,
+    "official_payroll_formats_verified": false,
+    "live_installation_migrated": true,
+    "evidence": "docs/extension-completion-validation.json"
+  }
 }

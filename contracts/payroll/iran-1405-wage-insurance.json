@@ -1,0 +1,255 @@
+{
+  "id": "iran-1405-wage-insurance-partial-v1",
+  "status": "verified_components_only",
+  "legal_verified": false,
+  "complete_rulepack": false,
+  "currency": "IRR",
+  "effective_from": "2026-03-21",
+  "sources": {
+    "tamin_1405_news": {
+      "url": "https://tamin.ir/News/Item/197732",
+      "path": "docs/legal-sources/payroll-1405/direct-6.html",
+      "sha256": "7c7e04bb2290396c0411adf0f20ead95a07250b8aadfe19c01871dbb861dddba",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_html",
+      "status": "reviewed_relevant_body_not_full_consolidation"
+    },
+    "labour_law": {
+      "url": "https://rc.majlis.ir/fa/law/show/99612",
+      "path": "docs/legal-sources/payroll-1405/direct-4.html",
+      "sha256": "664716dadbcbf4963075ea658792d9a6a682120b03c47af5a50149e52c96d93b",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_html",
+      "status": "reviewed_relevant_body_not_full_consolidation"
+    },
+    "social_security_law": {
+      "url": "https://hormozgan.mcls.gov.ir/icm_content/media/image/2021/07/477227_orig.pdf",
+      "path": "docs/legal-sources/payroll-1405/extra-2.pdf",
+      "sha256": "23b0bb596411c587b4c50b0158bd5d4a286ac7c149de06b9f0a179babc4dcdda",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_pdf",
+      "status": "relevant_articles_reviewed_current_all_amendments_not_certified",
+      "locator": "PDF pages51–52, printed13–14; article28 and note1",
+      "discovered_from": "https://hormozgan.mcls.gov.ir/"
+    },
+    "unemployment_law": {
+      "url": "https://rc.majlis.ir/fa/law/show/91821",
+      "path": "docs/legal-sources/payroll-1405/extra-0.html",
+      "sha256": "a2e234b4ad37d33c8c4144fa6a5c1840a2be31178da56b22e8a5d79ed08ddc31",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_html",
+      "status": "relevant_articles_reviewed_current_all_amendments_not_certified"
+    },
+    "wage_circular_6682": {
+      "url": "https://www.mcls.gov.ir/icm_content/media/image/2026/05/%d8%a8%d8%ae%d8%b4%d9%86%d8%a7%d9%85%d9%87%20%d9%85%d8%b2%d8%af%201405_895930.pdf?random=639140903063034615",
+      "path": "docs/legal-sources/payroll-1405/wage-circular-6682-1405.pdf",
+      "sha256": "3a48fa71fbc7a3219ac8ba5f6a0cc88574493bfc2d69828df68176b8ca7aa65a",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_pdf",
+      "discovered_from": "https://hormozgan.mcls.gov.ir/",
+      "discovery_capture": "docs/legal-sources/payroll-1405/direct-7.html",
+      "status": "signed_circular",
+      "locator": "circular6682 dated1405/01/31 pages1–2"
+    },
+    "provincial_wage_table": {
+      "url": "https://www.mcls.gov.ir/icm_content/media/image/2026/05/1405_895934.pdf?random=639140906002243699",
+      "path": "docs/legal-sources/payroll-1405/hormozgan-wage-table-1405.pdf",
+      "sha256": "947d792beac65149155e3e3fb416b8fb15e69ac04810a60160a492127f08aced",
+      "retrieved_on": "2026-10-29",
+      "tls_verified": true,
+      "retrieval": "downloaded_primary_pdf",
+      "discovered_from": "https://hormozgan.mcls.gov.ir/",
+      "discovery_capture": "docs/legal-sources/payroll-1405/direct-7.html",
+      "status": "official_provincial_table_not_full_cabinet_approval",
+      "locator": "1405 leftmost column and footnotes1–6 page1"
+    }
+  },
+  "parameters": {
+    "insurance_daily_floor": {
+      "value": "5541850",
+      "source": "tamin_1405_news",
+      "locator": "حداقل دستمزد روزانه مبنای وصول حق‌بیمه",
+      "scope": "ordinary_labor_law_employees_excludes_fixed_wage_occupations"
+    },
+    "other_wage_increase_rate": {
+      "value": "0.45",
+      "source": "tamin_1405_news",
+      "locator": "سایر سطوح دستمزدی براساس آخرین دستمزد روزانه سال 1404",
+      "automatic_contract_update": false
+    },
+    "other_wage_increase_daily_fixed": {
+      "value": "519549",
+      "source": "tamin_1405_news",
+      "locator": "رقم ثابت روزانه",
+      "automatic_contract_update": false
+    },
+    "seniority_daily_component": {
+      "value": "166667",
+      "source": "tamin_1405_news",
+      "locator": "مبلغ مزد پایه سنواتی",
+      "eligibility": "at_least_one_year_same_workshop_or_one_year_since_last_seniority_base",
+      "automatic_component": false
+    },
+    "night_premium": {
+      "value": "0.35",
+      "source": "labour_law",
+      "locator": "ماده 58",
+      "scope": "non_shift_night_hours_only"
+    },
+    "overtime_multiplier": {
+      "value": "1.4",
+      "source": "labour_law",
+      "locator": "ماده 59 بند ب",
+      "derivation": "1 + 0.40",
+      "scope": "ordinary_overtime_with_consent_and_legal_limits"
+    },
+    "shift_morning_evening": {
+      "value": "0.10",
+      "source": "labour_law",
+      "locator": "ماده 56"
+    },
+    "shift_three_shift": {
+      "value": "0.15",
+      "source": "labour_law",
+      "locator": "ماده 56"
+    },
+    "shift_night_rotation": {
+      "value": "0.225",
+      "source": "labour_law",
+      "locator": "ماده 56"
+    },
+    "employee_insurance_rate": {
+      "value": "0.07",
+      "source": "social_security_law",
+      "locator": "article28, PDFpage51",
+      "scope": "ordinary_compulsory_insurance_no_special_exemption"
+    },
+    "employer_base_insurance_rate": {
+      "value": "0.20",
+      "source": "social_security_law",
+      "locator": "article28 note1, PDFpage52",
+      "scope": "ordinary_compulsory_insurance_no_special_exemption"
+    },
+    "employer_unemployment_rate": {
+      "value": "0.03",
+      "source": "unemployment_law",
+      "locator": "article5",
+      "scope": "only_employees_eligible_under_article1"
+    },
+    "employer_insurance_rate": {
+      "value": "0.23",
+      "source": "social_security_law",
+      "supporting_sources": [
+        "unemployment_law"
+      ],
+      "locator": "article28 note1 + unemployment article5",
+      "derivation": "0.20 + 0.03",
+      "scope": "ordinary_compulsory_insurance_and_unemployment_eligible_no_exemption",
+      "requires_explicit_eligibility": true,
+      "excluded": [
+        "foreign_nationals",
+        "self_employed",
+        "optional_insurance",
+        "retired",
+        "totally_disabled",
+        "special_employer_exemption"
+      ]
+    },
+    "household_allowance_monthly": {
+      "value": "22000000",
+      "source": "wage_circular_6682",
+      "locator": "page2 clause3",
+      "scope": "labor_law_workers_married_or_unmarried",
+      "automatic_component": false,
+      "excluded": [
+        "summer_student_temporary_familiarization_under_clause6"
+      ]
+    },
+    "marriage_allowance_monthly": {
+      "value": "5000000",
+      "source": "wage_circular_6682",
+      "locator": "page2 clause4",
+      "eligibility": "currently_married_worker_regardless_of_gender",
+      "automatic_component": false,
+      "excluded": [
+        "unmarried_workers",
+        "summer_student_temporary_familiarization_under_clause6"
+      ]
+    },
+    "housing_allowance_monthly": {
+      "value": "30000000",
+      "source": "provincial_wage_table",
+      "locator": "page1 rowhousing leftmost1405column",
+      "scope": "workshops_without_job_classification_as_table_title",
+      "verification_level": "official_provincial_table_only",
+      "cabinet_instrument_verified": false,
+      "automatic_component": false,
+      "prior_1404_value_not_current": "9000000"
+    },
+    "child_allowance_monthly_per_eligible_child": {
+      "value": "16625550",
+      "source": "provincial_wage_table",
+      "locator": "page1 rowfamily_allowance footnote1",
+      "eligibility": {
+        "minimum_paid_insurance_days": 720,
+        "child_any_of": [
+          "under18",
+          "exclusively_studying",
+          "unable_to_work_with_article91_medical_certificate"
+        ],
+        "child_count_limit": null
+      },
+      "scope": "workshops_without_job_classification_as_table_title",
+      "automatic_component": false,
+      "excluded": [
+        "less_than720_paid_insurance_days",
+        "adult_child_neither_qualifying_student_nor_medically_unable"
+      ]
+    },
+    "eidi_minimum_full_year": {
+      "value": "332511000",
+      "source": "provincial_wage_table",
+      "locator": "page1 minimum_eidi_1405column",
+      "scope": "full_year_workshops_without_job_classification_as_table_title",
+      "automatic_component": false,
+      "partial_year_requires_pro_rata": true
+    },
+    "eidi_maximum_full_year": {
+      "value": "498766500",
+      "source": "provincial_wage_table",
+      "locator": "page1 maximum_eidi_1405column",
+      "scope": "full_year_workshops_without_job_classification_as_table_title",
+      "automatic_component": false,
+      "partial_year_requires_pro_rata": true
+    }
+  },
+  "unavailable": [
+    "insurance_daily_cap",
+    "current_all_amendments_and_occupation_exceptions",
+    "official_upload_formats",
+    "housing_current_cabinet_approval_instrument",
+    "automated_family_and_seniority_eligibility"
+  ],
+  "prohibited_inferences": [
+    "no_automatic_legal_approval",
+    "no_fixed_wage_occupation_coverage",
+    "no_automatic_family_eligibility",
+    "no_full_1405_pack_from_news_article"
+  ],
+  "engine_mapping": {
+    "insurance_daily_floor": "insurance_daily_floor",
+    "night_premium": "night_premium",
+    "overtime_multiplier": "overtime_multiplier",
+    "shift_morning_evening": "shift_rates.morning_evening",
+    "shift_three_shift": "shift_rates.three_shift",
+    "shift_night_rotation": "shift_rates.night_rotation",
+    "employee_insurance_rate": "employee_insurance_rate",
+    "employer_insurance_rate": "employer_insurance_rate"
+  },
+  "current_consolidated_legal_acceptance": false
+}

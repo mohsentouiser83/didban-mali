@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 from psycopg.types.json import Jsonb
-from ..domain.reports import digest, is_limited
+from ..domain.reports import digest, is_limited, EXPORT_LAYOUT_VERSION
 from ..security import json_value
 from ..errors import missing, conflict
+from .company_modules import module_settings
 
 FORMATS = ("pdf", "xlsx", "error_csv")
 
@@ -51,7 +52,7 @@ def capture(conn, company, manifest_id, forecast_run_id=None):
         (company, manifest_id),
     ).fetchall()
     rows = conn.execute(
-        "SELECT n.id,n.source_kind,n.canonical_values,n.state,n.error_codes,r.row_number,r.raw_values,i.source_file_id,i.sheet_name FROM app.dataset_file_selections ds JOIN app.normalized_source_rows n ON n.company_id=ds.company_id AND n.run_id=ds.interpretation_run_id JOIN app.source_rows r ON r.company_id=n.company_id AND r.id=n.source_row_id JOIN app.interpretation_versions i ON i.company_id=r.company_id AND i.id=r.interpretation_id WHERE ds.company_id=%s AND ds.dataset_revision_id=%s ORDER BY i.source_file_id,i.sheet_name,r.row_number,n.id",
+        "SELECT n.id,n.source_row_id,r.interpretation_id,n.source_kind,n.canonical_values,n.state,n.error_codes,r.row_number,r.raw_values,i.source_file_id,i.sheet_name FROM app.dataset_file_selections ds JOIN app.normalized_source_rows n ON n.company_id=ds.company_id AND n.run_id=ds.interpretation_run_id JOIN app.source_rows r ON r.company_id=n.company_id AND r.id=n.source_row_id JOIN app.interpretation_versions i ON i.company_id=r.company_id AND i.id=r.interpretation_id WHERE ds.company_id=%s AND ds.dataset_revision_id=%s ORDER BY i.source_file_id,i.sheet_name,r.row_number,n.id",
         (company, manifest["dataset_revision_id"]),
     ).fetchall()
     evidence = conn.execute(
@@ -62,9 +63,10 @@ def capture(conn, company, manifest_id, forecast_run_id=None):
         "SELECT rr.record_revision_id FROM app.revision_records rr WHERE rr.company_id=%s AND rr.dataset_revision_id=%s ORDER BY rr.record_revision_id",
         (company, manifest["dataset_revision_id"]),
     ).fetchall()
-    return json_value(
+    content = json_value(
         {
-            "schema_version": 1,
+            "schema_version": 3,
+            "module_configuration": module_settings(conn, company),
             "label": "تولیدشده سامانه",
             "manifest": manifest,
             "metrics": metrics,
@@ -81,6 +83,7 @@ def capture(conn, company, manifest_id, forecast_run_id=None):
             "evidence": evidence,
         }
     )
+    return content
 
 
 def ensure_report(
@@ -91,12 +94,22 @@ def ensure_report(
     forecast_run_id=None,
     *,
     processing_session_id=None,
+    management_options=None,
+    management_builder=None,
 ):
     conn.execute(
         "SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
         (str(company) + ":report:" + str(manifest_id),),
     )
     content = capture(conn, company, manifest_id, forecast_run_id)
+    content["export_layout_version"] = EXPORT_LAYOUT_VERSION
+    if management_builder is not None:
+        content["management"] = management_builder(
+            conn, company, content, management_options
+        )
+    from .actionable_analysis import prepare_summary, persist_proposals
+
+    content["actionable_summary"] = prepare_summary(conn, company, content)
     fingerprint = digest(content)
     row = conn.execute(
         "SELECT * FROM app.report_snapshots WHERE company_id=%s AND manifest_id=%s AND input_fingerprint=%s",
@@ -117,6 +130,14 @@ def ensure_report(
                 manifest_id,
             ),
         ).fetchone()
+    persist_proposals(
+        conn,
+        company,
+        row,
+        actor_id,
+        row["content"]["actionable_summary"]["items"],
+        row["content"]["actionable_summary"]["settings"],
+    )
     for format in FORMATS:
         conn.execute(
             "INSERT INTO app.export_jobs(company_id,manifest_id,report_id,requested_by,format,status) VALUES(%s,%s,%s,%s,%s,'pending') ON CONFLICT DO NOTHING",

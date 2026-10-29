@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState } from "react";
 import type { Schema } from "@didban/api-client";
 import { PageHeader } from "@/features/companies/company-view";
@@ -18,6 +19,7 @@ import {
   TableCell,
   TableRowHeader,
 } from "@/components/ui/table";
+
 export type PlanRow = {
   id: string;
   title: string;
@@ -65,16 +67,22 @@ export function PlansView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="ArrowUpRight"
         title="برنامه پرداخت"
         description={company.name}
         action={
-          canOperate ? <Button onClick={onCreate}>تعهد جدید</Button> : undefined
+          canOperate ? (
+            <Button onClick={onCreate}>
+              <AppIcon name="Plus" />
+              تعهد جدید
+            </Button>
+          ) : undefined
         }
       />
       {asOf ? <p className="text-xs text-muted">مانده‌ها تا {asOf}</p> : null}
       {error ? <FormMessage>{error}</FormMessage> : null}
       {!rows.length ? (
-        <EmptyState title="برنامه‌ای ثبت نشده" />
+        <EmptyState icon="Pencil" title="برنامه‌ای ثبت نشده" />
       ) : (
         <Table>
           <TableHeader>
@@ -101,6 +109,7 @@ export function PlansView({
                   {canOperate && row.active ? (
                     <div className="flex gap-2">
                       <Button variant="ghost" onClick={() => onEdit(row.id)}>
+                        <AppIcon name="Pencil" />
                         ویرایش
                       </Button>
                       <Button variant="ghost" onClick={() => onCancel(row.id)}>
@@ -117,9 +126,12 @@ export function PlansView({
         </Table>
       )}
       <section className="space-y-4">
-        <h2 className="text-sm font-medium">پیشنهاد پرداخت تکرارشونده</h2>
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <AppIcon name="ArrowUpRight" className="text-primary" />
+          پیشنهاد پرداخت تکرارشونده
+        </h2>
         {!proposals.length ? (
-          <EmptyState title="الگوی تکرار قابل اتکا پیدا نشده" />
+          <EmptyState icon="Link2" title="الگوی تکرار قابل اتکا پیدا نشده" />
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {proposals.map((p) => (
@@ -140,6 +152,7 @@ export function PlansView({
                       disabled={busy}
                       onClick={() => onProposal(p.id, "accept")}
                     >
+                      <AppIcon name="Plus" />
                       بررسی و افزودن تعهد
                     </Button>
                     <Button
@@ -147,6 +160,7 @@ export function PlansView({
                       disabled={busy}
                       onClick={() => onProposal(p.id, "reject")}
                     >
+                      <AppIcon name="CircleX" />
                       رد پیشنهاد
                     </Button>
                   </div>
@@ -182,6 +196,7 @@ export function PlanDialog({
     [unit, setUnit] = useState("IRR");
   return (
     <Dialog
+      icon="Pencil"
       open={open}
       onOpenChange={(v) => {
         if (!v && !busy) onClose();
@@ -195,7 +210,7 @@ export function PlanDialog({
           onSubmit(new FormData(e.currentTarget));
         }}
       >
-        <Field id="plan-title" label="عنوان تعهد">
+        <Field icon="Pencil" id="plan-title" label="عنوان تعهد">
           <Input
             id="plan-title"
             name="title"
@@ -203,7 +218,7 @@ export function PlanDialog({
             required
           />
         </Field>
-        <Field id="plan-date" label="تاریخ مورد انتظار">
+        <Field icon="CalendarRange" id="plan-date" label="تاریخ مورد انتظار">
           <PersianDatePicker
             id="plan-date"
             name="scheduled_on"
@@ -214,7 +229,7 @@ export function PlanDialog({
         </Field>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2">
-            <Field id="plan-amount" label="کل مبلغ تعهد">
+            <Field icon="Coins" id="plan-amount" label="کل مبلغ تعهد">
               <Input
                 id="plan-amount"
                 name="total_amount"
@@ -227,7 +242,7 @@ export function PlanDialog({
               <FieldError id="plan-amount-error">{amountError}</FieldError>
             </Field>
           </div>
-          <Field id="plan-unit" label="واحد">
+          <Field icon="Coins" id="plan-unit" label="واحد">
             <Select
               id="plan-unit"
               name="unit"
@@ -241,7 +256,7 @@ export function PlanDialog({
           </Field>
         </div>
         {!plan ? (
-          <Field id="plan-invoice" label="فاکتور مرتبط">
+          <Field icon="FileText" id="plan-invoice" label="فاکتور مرتبط">
             <Select
               id="plan-invoice"
               name="invoice_id"
@@ -253,6 +268,7 @@ export function PlanDialog({
         ) : null}
         {error ? <FormMessage>{error}</FormMessage> : null}
         <Button type="submit" disabled={busy}>
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "ثبت برنامه"}
         </Button>
       </Form>

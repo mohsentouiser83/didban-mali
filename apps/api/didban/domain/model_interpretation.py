@@ -4,8 +4,12 @@ from copy import deepcopy
 from .interpretation import analyze
 from .normalization import text
 from .source_profiles import LOOKUP, PROFILES, header_key
+from .ledger_layout import named_role
+from .normalization import money, financial_date, currency, InvalidValue
+from collections import defaultdict
+from decimal import Decimal, localcontext
 
-POLICY = "model-evidence-v1"
+POLICY = "model-evidence-v1.2"
 # Reviewed semantic labels, not model-authored assertions or account-code guesses.
 HEADER_LABELS = {
     "date": {"تاریخ عملیات", "زمان تراکنش"},
@@ -14,6 +18,10 @@ HEADER_LABELS = {
     "reference": {"کد رهگیری"},
 }
 ROLE_LABELS = {
+    "fixed_asset": {"دارایی ثابت", "دارایی‌های ثابت مشهود"},
+    "other_asset": {"سایر دارایی‌ها"},
+    "contra_asset": {"استهلاک انباشته"},
+    "other_equity": {"سود و زیان انباشته", "اندوخته قانونی"},
     "bank": {"بانک", "موجودی بانک"},
     "cash": {"صندوق", "موجودی صندوق"},
     "trade_ar": {"حسابهای دریافتنی تجاری", "حساب‌های دریافتنی تجاری"},
@@ -47,10 +55,17 @@ def model_context(tables, settings, question):
                 mapping["account"], mapping["account_name"]
             ):
                 continue
-            code = text(row.values[mapping["account"] - 1])
-            if code in saved.get("account_roles", {}) or code in saved.get(
-                "model_account_roles", {}
-            ):
+            derived = saved.get("derived_rows", {}).get(str(row.number), {})
+            code = derived.get("account") or text(row.values[mapping["account"] - 1])
+            if any(
+                code in saved.get(key, {})
+                for key in (
+                    "account_roles",
+                    "model_account_roles",
+                    "automatic_account_roles",
+                    "linked_account_roles",
+                )
+            ) or str(row.number) in saved.get("structural_rows", {}):
                 continue
             if (
                 "role" in mapping
@@ -62,22 +77,88 @@ def model_context(tables, settings, question):
                 code,
                 {
                     "account_code": code,
-                    "account_name": text(row.values[mapping["account_name"] - 1]),
+                    "account_name": (
+                        derived.get("labels")
+                        or [text(row.values[mapping["account_name"] - 1])]
+                    )[-1],
+                    "account_name_path": derived.get("labels", []),
                     "source_row": row.number,
                 },
             )
+    selected_rows = {row.number for row in rows[:5]}
+    selected_rows.update(
+        {preview["header_row"] - 1, preview["header_row"], preview["header_row"] + 1}
+    )
+    data_rows = [
+        row
+        for row in rows
+        if row.number > preview["header_row"]
+        and str(row.number) not in saved.get("structural_rows", {})
+    ]
+    sample_indexes = sorted(
+        {
+            0,
+            1,
+            2,
+            len(data_rows) // 4,
+            len(data_rows) // 2,
+            3 * len(data_rows) // 4,
+            len(data_rows) - 2,
+            len(data_rows) - 1,
+        }
+    )
+    sample = [
+        data_rows[index] for index in sample_indexes if 0 <= index < len(data_rows)
+    ]
     return {
         "question_kind": question.code,
         "sheet_name": table.name,
         "header_candidates": [
             {"row": r.number, "cells": [text(v)[:256] for v in r.values[:200]]}
-            for r in rows[:20]
+            for r in rows[:100]
+            if r.number in selected_rows
         ],
         "sample_rows": [
             {"row": r.number, "cells": [text(v)[:256] for v in r.values[:200]]}
-            for r in rows[1:4]
+            for r in sample
         ],
-        "human_settings": settings.get("sheets", {}).get(table.name, {}),
+        "human_settings": {
+            key: saved[key]
+            for key in ("source_kind", "mapping", "unit", "calendar", "account_roles")
+            if key in saved
+        },
+        "sheet_inventory": [
+            {
+                "sheet_name": item.name,
+                "physical_rows": len(item.rows),
+                "columns": max((len(row.values) for row in item.rows), default=0),
+            }
+            for item in tables
+        ],
+        "column_samples": [
+            {
+                "column": column,
+                "nonempty": sum(
+                    bool(text(row.values[column - 1]))
+                    for row in data_rows
+                    if len(row.values) >= column
+                ),
+                "examples": list(
+                    dict.fromkeys(
+                        text(row.values[column - 1])[:128]
+                        for row in sample
+                        if len(row.values) >= column and text(row.values[column - 1])
+                    )
+                )[:4],
+            }
+            for column in range(
+                1, min(max((len(row.values) for row in rows), default=0), 60) + 1
+            )
+        ],
+        "deterministic_controls": [
+            {"key": control["key"], "outcome": control["outcome"]}
+            for control in saved.get("understanding_controls", [])
+        ],
         "unclassified_accounts": list(unknown.values())[:40],
         "allowed_mapping_fields": {
             kind: {"required": required, "optional": optional + ["currency"]}
@@ -94,7 +175,7 @@ def accept_proposal(tables, settings, proposal, request_id):
     if table is None:
         return None
     rows = [r for r in table.rows if any(text(v) for v in r.values)]
-    header = next((r for r in rows[:20] if r.number == proposal["header_row"]), None)
+    header = next((r for r in rows[:100] if r.number == proposal["header_row"]), None)
     if header is None or header.formulas:
         return None
     mapping = {}
@@ -157,7 +238,11 @@ def accept_proposal(tables, settings, proposal, request_id):
             for r in rows
             if r.number > header.number
             and len(r.values) >= mapping["account"]
-            and text(r.values[mapping["account"] - 1]) == code
+            and (
+                saved.get("derived_rows", {}).get(str(r.number), {}).get("account")
+                or text(r.values[mapping["account"] - 1])
+            )
+            == code
         ]
         if not relevant:
             return None
@@ -167,10 +252,14 @@ def accept_proposal(tables, settings, proposal, request_id):
                 or mapping["account_name"] in row.formulas
             ):
                 return None
-            label = text(row.values[mapping["account_name"] - 1])
-            if label != item["evidence"] or header_key(label) not in {
-                header_key(v) for v in ROLE_LABELS.get(role, ())
-            }:
+            derived = saved.get("derived_rows", {}).get(str(row.number), {})
+            label = (
+                derived.get("labels") or [text(row.values[mapping["account_name"] - 1])]
+            )[-1]
+            if label != item["evidence"] or not (
+                header_key(label) in {header_key(v) for v in ROLE_LABELS.get(role, ())}
+                or named_role(derived.get("labels", [label])) == role
+            ):
                 return None
             if (
                 "role" in mapping
@@ -183,6 +272,12 @@ def accept_proposal(tables, settings, proposal, request_id):
         saved["model_account_roles"] = role_map
     analysis = analyze([table], candidate)
     if analysis.question is not None:
+        if (
+            analysis.question.code == "interpretation_account_role"
+            and proposal["account_roles"]
+            and raw_journal_balanced(table, mapping, saved)
+        ):
+            return candidate, analyze(tables, candidate)
         # Currency, date/role ambiguity and coverage questions retain the shared barrier.
         return None
     sheet = next((s for s in analysis.sheets if s.name == table.name), None)
@@ -191,3 +286,53 @@ def accept_proposal(tables, settings, proposal, request_id):
     if any(c["outcome"] != "passed" for c in sheet.controls if c["key"] != "coverage"):
         return None
     return candidate, analyze(tables, candidate)
+
+
+def raw_journal_balanced(table, mapping, saved):
+    """Validate every article even when some account roles are still unresolved."""
+    groups = defaultdict(list)
+    try:
+        with localcontext() as context:
+            context.prec = 96
+            for row in table.rows:
+                if (
+                    row.number <= saved["header_row"]
+                    or str(row.number) in saved.get("structural_rows", {})
+                    or not any(text(value) for value in row.values)
+                ):
+                    continue
+
+                def cell(key):
+                    return row.values[mapping[key] - 1]
+
+                if any(
+                    mapping[key] in row.formulas
+                    for key in ("entry_id", "date", "account", "debit", "credit")
+                ):
+                    return False
+                derived = saved.get("derived_rows", {}).get(str(row.number), {})
+                unit = (
+                    currency(cell("currency"))
+                    if "currency" in mapping
+                    else saved.get("unit")
+                )
+                date = financial_date(
+                    derived.get("date", cell("date")), saved.get("calendar")
+                )
+                if not text(cell("entry_id")) or not text(cell("account")):
+                    return False
+                groups[text(cell("entry_id"))].append(
+                    (
+                        date,
+                        Decimal(money(cell("debit"), unit)),
+                        Decimal(money(cell("credit"), unit)),
+                    )
+                )
+            return bool(groups) and all(
+                len(rows) >= 2
+                and len({row[0] for row in rows}) == 1
+                and sum((row[1] - row[2] for row in rows), Decimal(0)) == 0
+                for rows in groups.values()
+            )
+    except (InvalidValue, IndexError, KeyError, TypeError):
+        return False

@@ -7,6 +7,7 @@ from ..infrastructure.reconciliation import (
     record_decision,
 )
 from ..errors import missing
+from ..infrastructure.company_modules import require_module
 from .auth import response
 
 KINDS = {"bank_ledger", "moadian_sales", "moadian_purchases"}
@@ -74,6 +75,11 @@ class ReconciliationService:
             mutating = op in ("startReconciliation", "decideReconciliation")
             access = self.intake.authorize(conn, actor, company, mutating)
             if op == "startReconciliation":
+                require_module(
+                    conn,
+                    company,
+                    "cash" if body["kind"] == "bank_ledger" else "moadian",
+                )
 
                 def action():
                     run = ensure_runs(
@@ -136,11 +142,16 @@ class ReconciliationService:
 
                 def action():
                     row = conn.execute(
-                        "SELECT c.*,r.manifest_id FROM app.reconciliation_candidates c JOIN app.reconciliation_runs r ON r.company_id=c.company_id AND r.id=c.run_id WHERE c.company_id=%s AND c.id=%s",
+                        "SELECT c.*,r.manifest_id,r.kind AS run_kind FROM app.reconciliation_candidates c JOIN app.reconciliation_runs r ON r.company_id=c.company_id AND r.id=c.run_id WHERE c.company_id=%s AND c.id=%s",
                         (company, ids["candidate_id"]),
                     ).fetchone()
                     if not row:
                         raise missing()
+                    require_module(
+                        conn,
+                        company,
+                        "cash" if row["run_kind"] == "bank_ledger" else "moadian",
+                    )
                     lock_manifest_session(conn, company, row["manifest_id"])
                     conn.execute(
                         "SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",

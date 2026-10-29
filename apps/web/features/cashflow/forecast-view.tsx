@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Schema } from "@didban/api-client";
@@ -15,6 +16,7 @@ import { Field, Input, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/states";
+
 export type ForecastDayModel = {
   date: string;
   opening: string;
@@ -78,16 +80,24 @@ export function ForecastView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="TrendingUp"
         title="پیش‌بینی ۳۰روزه"
         description={company.name}
         action={
           canStart ? (
-            <Button onClick={onStart}>پیش‌بینی تازه</Button>
+            <Button onClick={onStart}>
+              <AppIcon name="Plus" />
+              پیش‌بینی تازه
+            </Button>
           ) : undefined
         }
       />
       <div className="grid gap-4 md:grid-cols-2">
-        <Field id="forecast-manifest" label="مبنای فایل‌ها">
+        <Field
+          icon="FileSpreadsheet"
+          id="forecast-manifest"
+          label="مبنای فایل‌ها"
+        >
           <Select
             id="forecast-manifest"
             value={manifest}
@@ -96,7 +106,7 @@ export function ForecastView({
           />
         </Field>
         {runs.length ? (
-          <Field id="forecast-run" label="نسخه پیش‌بینی">
+          <Field icon="TrendingUp" id="forecast-run" label="نسخه پیش‌بینی">
             <Select
               id="forecast-run"
               value={run}
@@ -112,14 +122,15 @@ export function ForecastView({
         <Badge>{status}</Badge>
       </div>
       {pending ? (
-        <EmptyState title="پیش‌بینی منتظر پاسخ است" />
+        <EmptyState icon="TrendingUp" title="پیش‌بینی منتظر پاسخ است" />
       ) : !run ? (
-        <EmptyState title="نسخه پیش‌بینی موجود نیست" />
+        <EmptyState icon="TrendingUp" title="نسخه پیش‌بینی موجود نیست" />
       ) : (
         <>
           <StatCards>
             {metrics.map((m) => (
               <StatCard
+                icon="TrendingUp"
                 key={m.title}
                 title={m.title}
                 value={m.value}
@@ -133,9 +144,13 @@ export function ForecastView({
           </StatCards>
           <section className="space-y-5 rounded-panel border border-border bg-surface p-5 sm:p-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-medium">مسیر مانده نقد</h2>
+              <h2 className="flex items-center gap-2 text-sm font-medium">
+                <AppIcon name="Wallet" className="text-primary" />
+                مسیر مانده نقد
+              </h2>
               <Button asChild variant="ghost">
                 <Link href={`/companies/${company.id}/cashflow`}>
+                  <AppIcon name="CalendarRange" />
                   گزارش دوره
                 </Link>
               </Button>
@@ -147,13 +162,20 @@ export function ForecastView({
                 selectedIndex={Number(selectedDay)}
               />
             ) : (
-              <EmptyState title="مانده پیش‌بینی قابل محاسبه نیست" />
+              <EmptyState
+                icon="TrendingUp"
+                title="مانده پیش‌بینی قابل محاسبه نیست"
+              />
             )}
             {day ? (
               <>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="w-full max-w-xs">
-                    <Field id="forecast-day" label="روز مورد بررسی">
+                    <Field
+                      icon="CalendarRange"
+                      id="forecast-day"
+                      label="روز مورد بررسی"
+                    >
                       <Select
                         id="forecast-day"
                         value={selectedDay}
@@ -163,6 +185,7 @@ export function ForecastView({
                     </Field>
                   </div>
                   <Button variant="secondary" onClick={onDetails}>
+                    <AppIcon name="Eye" />
                     جزئیات روز
                   </Button>
                 </div>
@@ -176,7 +199,10 @@ export function ForecastView({
           </section>
           {assumptions.length ? (
             <section className="space-y-3 rounded-panel border border-border bg-surface p-5">
-              <h2 className="text-sm font-medium">فرض‌ها و محدودیت‌ها</h2>
+              <h2 className="flex items-center gap-2 text-sm font-medium">
+                <AppIcon name="TrendingUp" className="text-primary" />
+                فرض‌ها و محدودیت‌ها
+              </h2>
               <ul className="space-y-2 text-xs leading-6 text-muted">
                 {assumptions.map((text) => (
                   <li key={text}>{text}</li>
@@ -188,6 +214,7 @@ export function ForecastView({
       )}
       {day ? (
         <Dialog
+          icon="TrendingUp"
           open={dayOpen}
           onOpenChange={(v) => {
             if (!v) onCloseDay();
@@ -195,19 +222,31 @@ export function ForecastView({
           title={day.date}
         >
           <dl className="grid grid-cols-2 gap-4 text-sm">
-            <dt className="text-muted">مانده آغاز روز</dt>
+            <dt className="flex items-center gap-2 text-muted">
+              <AppIcon name="CalendarRange" className="text-primary" />
+              مانده آغاز روز
+            </dt>
             <dd>
               {day.opening} {unit}
             </dd>
-            <dt className="text-muted">دریافت مورد انتظار</dt>
+            <dt className="flex items-center gap-2 text-muted">
+              <AppIcon name="TrendingUp" className="text-primary" />
+              دریافت مورد انتظار
+            </dt>
             <dd>
               {day.incoming} {unit}
             </dd>
-            <dt className="text-muted">پرداخت مورد انتظار</dt>
+            <dt className="flex items-center gap-2 text-muted">
+              <AppIcon name="TrendingUp" className="text-primary" />
+              پرداخت مورد انتظار
+            </dt>
             <dd>
               {day.outgoing} {unit}
             </dd>
-            <dt className="text-muted">مانده پایان روز</dt>
+            <dt className="flex items-center gap-2 text-muted">
+              <AppIcon name="CalendarRange" className="text-primary" />
+              مانده پایان روز
+            </dt>
             <dd>
               {day.closing} {unit}
             </dd>
@@ -235,6 +274,7 @@ export function ForecastStartDialog({
 }) {
   return (
     <Dialog
+      icon="TrendingUp"
       open={open}
       onOpenChange={(v) => {
         if (!v && !busy) onClose();
@@ -248,7 +288,11 @@ export function ForecastStartDialog({
           onSubmit(new FormData(e.currentTarget));
         }}
       >
-        <Field id="forecast-minimum" label="حداقل تعداد سابقه هر مشتری">
+        <Field
+          icon="TrendingUp"
+          id="forecast-minimum"
+          label="حداقل تعداد سابقه هر مشتری"
+        >
           <Input
             id="forecast-minimum"
             name="minimum_events"
@@ -259,7 +303,11 @@ export function ForecastStartDialog({
             required
           />
         </Field>
-        <Field id="forecast-lookback" label="پنجره سابقه · روز">
+        <Field
+          icon="CalendarRange"
+          id="forecast-lookback"
+          label="پنجره سابقه · روز"
+        >
           <Input
             id="forecast-lookback"
             name="lookback_days"
@@ -272,6 +320,7 @@ export function ForecastStartDialog({
         </Field>
         {error ? <FormMessage>{error}</FormMessage> : null}
         <Button type="submit" disabled={busy}>
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "اعمال فرض‌ها و آغاز"}
         </Button>
       </Form>

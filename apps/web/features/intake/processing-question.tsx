@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { ForecastQuestion } from "@/features/cashflow/forecast-question";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -14,6 +16,7 @@ import {
   financialQuestionLabel,
   financialQuestionText,
 } from "./presentation";
+
 export function ProcessingQuestion({
   companyId,
   session,
@@ -73,6 +76,7 @@ export function ProcessingQuestion({
     <>
       {showTrigger && dismissed === required.id && !requested ? (
         <Button variant="secondary" onClick={() => setDismissed(null)}>
+          <AppIcon name="Eye" />
           مشاهده سؤال برای ادامه
         </Button>
       ) : null}

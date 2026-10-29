@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import type { Schema } from "@didban/api-client";
@@ -24,6 +25,7 @@ import {
   TableCell,
   TableRowHeader,
 } from "@/components/ui/table";
+
 export type AllocationRow = {
   id: string;
   invoice: string;
@@ -69,11 +71,15 @@ export function SettlementsView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="ArrowUpRight"
         title="دریافت‌وپرداخت"
         description={company.name}
         action={
           canOperate ? (
-            <Button onClick={onCreate}>ارتباط جدید</Button>
+            <Button onClick={onCreate}>
+              <AppIcon name="Plus" />
+              ارتباط جدید
+            </Button>
           ) : undefined
         }
       />
@@ -83,15 +89,19 @@ export function SettlementsView({
         </p>
         <Button asChild variant="secondary">
           <Link href={`/companies/${company.id}/planned-payments`}>
+            <AppIcon name="ArrowUpRight" />
             برنامه پرداخت
           </Link>
         </Button>
       </div>
       {error ? <FormMessage>{error}</FormMessage> : null}
       <section className="space-y-4">
-        <h2 className="text-sm font-medium">ارتباط‌های ثبت‌شده</h2>
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <AppIcon name="Link2" className="text-primary" />
+          ارتباط‌های ثبت‌شده
+        </h2>
         {!rows.length ? (
-          <EmptyState title="ارتباطی ثبت نشده" />
+          <EmptyState icon="Link2" title="ارتباطی ثبت نشده" />
         ) : (
           <Table>
             <TableHeader>
@@ -121,6 +131,7 @@ export function SettlementsView({
                         disabled={busy}
                         onClick={() => onReverse(row.id)}
                       >
+                        <AppIcon name="Undo2" />
                         برگشت ارتباط
                       </Button>
                     ) : (
@@ -134,9 +145,12 @@ export function SettlementsView({
         )}
       </section>
       <section className="space-y-4">
-        <h2 className="text-sm font-medium">گردش‌های بانکی برای تخصیص</h2>
+        <h2 className="flex items-center gap-2 text-sm font-medium">
+          <AppIcon name="Banknote" className="text-primary" />
+          گردش‌های بانکی برای تخصیص
+        </h2>
         {!banks.length ? (
-          <EmptyState title="گردش بانکی موجود نیست" />
+          <EmptyState icon="Banknote" title="گردش بانکی موجود نیست" />
         ) : (
           <Table>
             <TableHeader>
@@ -164,6 +178,7 @@ export function SettlementsView({
                         disabled={busy}
                         onClick={() => onEvent(row.id)}
                       >
+                        <AppIcon name="Link2" />
                         آماده‌سازی تخصیص
                       </Button>
                     ) : (
@@ -202,6 +217,7 @@ export function AllocationDialog({
     [event, setEvent] = useState("");
   return (
     <Dialog
+      icon="ArrowUpRight"
       open={open}
       onOpenChange={(v) => {
         if (!v && !busy) onClose();
@@ -215,7 +231,7 @@ export function AllocationDialog({
           onSubmit(new FormData(e.currentTarget));
         }}
       >
-        <Field id="allocation-invoice" label="فاکتور">
+        <Field icon="FileText" id="allocation-invoice" label="فاکتور">
           <Select
             id="allocation-invoice"
             name="invoice_id"
@@ -225,7 +241,11 @@ export function AllocationDialog({
             validate={(v) => (v ? null : "فاکتور را انتخاب کنید.")}
           />
         </Field>
-        <Field id="allocation-event" label="رویداد دریافت یا پرداخت">
+        <Field
+          icon="ArrowUpRight"
+          id="allocation-event"
+          label="رویداد دریافت یا پرداخت"
+        >
           <Select
             id="allocation-event"
             name="event_id"
@@ -235,7 +255,7 @@ export function AllocationDialog({
             validate={(v) => (v ? null : "رویداد را انتخاب کنید.")}
           />
         </Field>
-        <Field id="allocation-amount" label="مبلغ تخصیص · ریال">
+        <Field icon="Coins" id="allocation-amount" label="مبلغ تخصیص · ریال">
           <Input
             id="allocation-amount"
             name="amount"
@@ -248,11 +268,12 @@ export function AllocationDialog({
           />
           <FieldError id="allocation-amount-error">{amountError}</FieldError>
         </Field>
-        <Field id="allocation-reason" label="دلیل ارتباط">
+        <Field icon="Link2" id="allocation-reason" label="دلیل ارتباط">
           <Textarea id="allocation-reason" name="reason" required />
         </Field>
         {error ? <FormMessage>{error}</FormMessage> : null}
         <Button type="submit" disabled={busy}>
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "ثبت ارتباط"}
         </Button>
       </Form>
@@ -293,7 +314,7 @@ export function ReversalDialog({
           );
         }}
       >
-        <Field id="reversal-reason" label="دلیل برگشت">
+        <Field icon="Link2" id="reversal-reason" label="دلیل برگشت">
           <Textarea id="reversal-reason" name="reason" required />
         </Field>
         {error ? <FormMessage>{error}</FormMessage> : null}

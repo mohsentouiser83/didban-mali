@@ -1,0 +1,80 @@
+{
+  "status": "passed",
+  "date": "2026-10-26",
+  "scope": "synthetic_trial_balance_and_classified_book_cash_flow",
+  "formula_version": "management-v2.0",
+  "migration": "023_trial_balance_sources.sql",
+  "tests": {
+    "domain_and_rendering": 73,
+    "new_statement_http_sql_scenarios": 3,
+    "existing_managerial_http_sql_scenarios": 3,
+    "client": 20,
+    "live_model_calls": 0
+  },
+  "checks": [
+    "openapi_generation_current",
+    "openapi_contracts_and_examples_383",
+    "generated_types_current",
+    "typescript",
+    "eslint",
+    "ruff",
+    "next_build",
+    "git_diff_check"
+  ],
+  "browser": {
+    "surface": "built_in_codex_browser",
+    "isolated_origin": "http://127.0.0.1:18158",
+    "desktop_width": 1440,
+    "mobile_width": 390,
+    "horizontal_page_overflow": false,
+    "verified": [
+      "classified_cash_values_1000_1400_300_minus300_400",
+      "source_drilldown",
+      "Escape_focus_return",
+      "basis_select_keyboard_and_generation",
+      "trial_profit_250_and_balance_1300",
+      "unclassified_cash_local_null_and_refs",
+      "required_trial_date_validation_and_first_error_focus",
+      "trial_date_save_then_level_question",
+      "level_answer_then_closing_question",
+      "unanswered_question_persists_after_close_and_reload",
+      "loading_and_mobile_layout",
+      "main_installation_empty_companies"
+    ],
+    "reduced_motion": "shared components retain previously verified guards; no new OS-setting test in this extension"
+  },
+  "pdf": {
+    "rendered_documents": 2,
+    "rendered_pages": 10,
+    "visual_review": "all-page contact sheet plus full-size trial statement and classified cash page",
+    "font_check": "IRANYekanX Regular and Medium embedded",
+    "size": "A4",
+    "margins_mm": 20,
+    "evidence_directory": ".local/report-validation/statements-v2"
+  },
+  "main_installation": {
+    "mode": "clean_local",
+    "company_scoped_tables_checked": 83,
+    "company_scoped_rows": 0,
+    "companies": 0,
+    "users": 1,
+    "migrations": 23,
+    "private_object_files": 0
+  },
+  "test_environment_cleanup": "separate browser tab closed; synthetic DB/container stopped and removed; disposable PostgreSQL test cluster stopped",
+  "limitations": [
+    "accountant_acceptance_not_performed",
+    "authorized_real_files_not_evaluated",
+    "no_organizational_TLS_deployment",
+    "no_new_20000_row_capacity_benchmark",
+    "net_activity_statement_not_full_statutory_disclosures",
+    "payroll_journal_posting_full_cheque_management_and_budgets_not_implemented"
+  ],
+  "source_sha256": {
+    "database/023_trial_balance_sources.sql": "2d65a2acc5b37b038b53953b62a825a72213f6d8cdb97fdebcade9ebdef0e5fe",
+    "apps/api/didban/domain/management/trial_balance.py": "5aca6cab6ee4eac9866a54b78474287e6f293d27bc0064884ffa7ea636c7c8cb",
+    "apps/api/didban/domain/management/cash_statement.py": "2281ce945e896755a3b06eef631b158f6e76cdc6894b7207bfe6e3bd665e70da",
+    "tests/test_statement_sources.py": "461a4fccc47dac68e8f4bfefb47c34452dae2cccb0846a406603d77a2e361469",
+    "tests/test_statement_sources_runtime.py": "ffa19f519ae5e4eab514e3acdc3413c63b441d0c1a0879156267eaf602a08fd5"
+  }
+}

@@ -46,7 +46,7 @@ export function BalancesController({
       />
     );
   if (!selected || !workspace.data)
-    return <EmptyState title="نتیجه مالی آماده نیست" />;
+    return <EmptyState icon="Link2" title="نتیجه مالی آماده نیست" />;
   const unit = company.data.display_unit;
   return (
     <BalancesView

@@ -126,6 +126,41 @@ class FinancialEngineTests(unittest.TestCase):
     def setUp(self):
         self.rows, self.declarations = baseline()
 
+    def test_unknown_settlement_direction_blocks_both_dependent_balances(self):
+        from didban.domain.financial import FinancialRow
+
+        bad = FinancialRow(
+            "bad",
+            "bad",
+            "bad-file",
+            "bad-interpretation",
+            "CSV",
+            2,
+            "settlements",
+            {
+                "event_id": "bad",
+                "invoice_id": "P001",
+                "date": "2026-09-20",
+                "direction": "unrecognized",
+                "amount": "40",
+                "unit": "IRR",
+            },
+            "rejected",
+            ("invalid_direction",),
+        )
+        actual = metrics(self.rows + [bad], self.declarations)
+        self.assertIsNone(actual["ap_invoice"].value)
+        self.assertIsNone(actual["ar_invoice"].value)
+        self.assertIn("settlement_invalid", actual["ap_invoice"].reason_codes)
+        self.assertEqual(
+            actual["cash"].value, metrics(self.rows, self.declarations)["cash"].value
+        )
+        future = replace(bad, values={**bad.values, "date": "2026-10-20"})
+        self.assertEqual(
+            metrics(self.rows + [future], self.declarations)["ap_invoice"].value,
+            metrics(self.rows, self.declarations)["ap_invoice"].value,
+        )
+
     def test_reference_nine_current_and_previous_metrics(self):
         expected = json.loads(
             (ROOT / "docs/validation/rebuild-v1/expected/baseline.json").read_text()

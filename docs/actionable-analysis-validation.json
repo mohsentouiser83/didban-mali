@@ -1,0 +1,46 @@
+{
+  "status": "passed",
+  "tests": 17,
+  "domain_tests": 9,
+  "actionable_HTTP_SQL_tests": 2,
+  "automatic_report_custom_scope_deadline_tests": 4,
+  "disabled_module_workflow_tests": 2,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "scope": "focused_frozen_actionable_v2_automation_and_private_payroll_integration",
+  "formula_version": "actionable-v2",
+  "migrations": "001-031",
+  "database": "disposable_PostgreSQL14",
+  "final_postgres18_report": "postgres18-validation.json",
+  "live_installation_modified": false,
+  "browser": "coordinator_scoped_validation",
+  "model_calls": 0,
+  "legal_rules": "synthetic_fixture_only_no_external_acceptance",
+  "additional_postgresql18_regression": {
+    "status": "passed",
+    "tests": 2,
+    "case": "manager_changes_sensitivity_after_report_before_private_payroll_generation_uses_pinned_settings",
+    "log": ".local/extension-private-pinned-settings.log"
+  },
+  "final_postgres18_verification": {
+    "status": "passed",
+    "server_version": "18.6",
+    "suite_count": 46,
+    "unittest_executions": 369,
+    "sql_checks": 17,
+    "verified_migrations": 31,
+    "source_hashes_unchanged": true,
+    "report": "postgres18-validation.json",
+    "final_readable_work_template_regression": true
+  },
+  "final_populated_extension_restore": {
+    "status": "passed",
+    "report": "extension-restore-validation.json"
+  },
+  "final_clean_compose_with_web": {
+    "status": "passed",
+    "checks": 15,
+    "report": "compose-web-validation.json"
+  }
+}

@@ -1,6 +1,8 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { Spinner } from "@/components/ui/states";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import {
   FileSpreadsheet,
@@ -21,6 +23,11 @@ import { Select } from "@/components/ui/select";
 import { FilePicker } from "@/components/ui/file-picker";
 import { StatusMessage } from "@/components/ui/states";
 import { BatchProgress } from "./uploads-view";
+import {
+  ProcessingProgress,
+  type ProcessingStage,
+} from "@/components/ui/processing-progress";
+
 export type FileDisplay = {
   id: string;
   name: string;
@@ -36,9 +43,11 @@ export type FileDisplay = {
 };
 export function SessionView({
   companyId,
+  review,
   title,
   state,
   files,
+  processingStages,
   completed,
   canOperate,
   receiving,
@@ -58,6 +67,7 @@ export function SessionView({
   progress,
   onUploadRetry,
   onInterpret,
+  interpretLabel = "ادامه تفسیر فایل‌ها",
   onCalculate,
   financialFinished,
   analysisFinished,
@@ -66,6 +76,7 @@ export function SessionView({
   reportHref,
   purpose = "upload",
 }: {
+  review?: ReactNode;
   onCalculate?: () => void;
   onAnalyze?: () => void;
   analysisFinished: boolean;
@@ -74,10 +85,12 @@ export function SessionView({
   reportHref?: string;
   purpose?: "upload" | "forecast";
   onInterpret?: () => void;
+  interpretLabel?: string;
   companyId: string;
   title: string;
   state: string;
   files: FileDisplay[];
+  processingStages: ProcessingStage[];
   completed: string;
   canOperate: boolean;
   receiving: boolean;
@@ -101,6 +114,7 @@ export function SessionView({
   return (
     <section className="space-y-5 motion-safe:animate-reveal">
       <PageHeader
+        icon="TrendingUp"
         title={purpose === "forecast" ? "بازبینی پیش‌بینی" : "پرونده بارگذاری"}
         description={title}
         action={
@@ -139,7 +153,10 @@ export function SessionView({
           <div className="mt-5 flex flex-wrap items-center gap-3">
             {reportHref ? (
               <Button asChild>
-                <Link href={reportHref}>گزارش و خروجی‌ها</Link>
+                <Link href={reportHref}>
+                  <AppIcon name="ClipboardList" />
+                  گزارش و خروجی‌ها
+                </Link>
               </Button>
             ) : null}
             <Button asChild>
@@ -151,6 +168,7 @@ export function SessionView({
             {analysisFinished ? (
               <Button asChild variant="secondary">
                 <Link href={`/companies/${companyId}/cashflow/forecast`}>
+                  <AppIcon name="TrendingUp" />
                   پیش‌بینی نقدینگی
                 </Link>
               </Button>
@@ -160,16 +178,19 @@ export function SessionView({
                 disabled={commandBusy}
                 onClick={onAnalyze}
               >
+                <AppIcon name="Activity" />
                 ادامه تحلیل حوزه‌های مالی
               </Button>
             ) : null}
           </div>
-        ) : prepared ? (
+        ) : prepared && !review ? (
           <p className="mt-5 text-sm text-muted">
             داده‌های استاندارد آماده محاسبات مالی هستند.
           </p>
         ) : null}
       </div>
+      {review}
+      <ProcessingProgress stages={processingStages} />
       {receiving && canOperate ? (
         <FilePicker
           onFiles={onFiles}
@@ -185,6 +206,7 @@ export function SessionView({
           onClick={onUploadRetry}
           disabled={uploadBusy}
         >
+          <AppIcon name="RefreshCw" />
           تلاش دوباره دریافت
         </Button>
       ) : null}
@@ -247,7 +269,7 @@ export function SessionView({
         <div className="flex flex-wrap justify-end gap-3">
           {onInterpret ? (
             <Button onClick={onInterpret} disabled={commandBusy}>
-              ادامه تفسیر فایل‌ها
+              {interpretLabel}
             </Button>
           ) : null}
           {onCalculate ? (
@@ -257,6 +279,7 @@ export function SessionView({
           ) : null}
           {receiving && files.length > 0 ? (
             <Button onClick={onSeal} disabled={commandBusy || uploadBusy}>
+              <AppIcon name="Activity" />
               ادامه آماده‌سازی همین فایل‌ها
             </Button>
           ) : null}
@@ -266,6 +289,7 @@ export function SessionView({
               variant="secondary"
               disabled={commandBusy}
             >
+              <AppIcon name="RefreshCw" />
               تلاش دوباره پردازش
             </Button>
           ) : null}
@@ -327,6 +351,7 @@ export function QuestionDialog({
   const [value, setValue] = useState("");
   return (
     <Dialog
+      icon="MessageCircle"
       open={open}
       onOpenChange={onOpenChange}
       title="برای ادامه، پاسخ شما لازم است"
@@ -336,10 +361,13 @@ export function QuestionDialog({
       <Form onSubmit={onSubmit} className="space-y-5">
         {mappingHref ? (
           <Button asChild variant="secondary" disabled={!canAnswer}>
-            <Link href={mappingHref}>تنظیم ستون‌ها</Link>
+            <Link href={mappingHref}>
+              <AppIcon name="SlidersHorizontal" />
+              تنظیم ستون‌ها
+            </Link>
           </Button>
         ) : (
-          <Field id="question-value" label={label}>
+          <Field icon="UploadCloud" id="question-value" label={label}>
             <Select
               id="question-value"
               name="value"
@@ -352,7 +380,10 @@ export function QuestionDialog({
         )}
         {periodsHref ? (
           <Button asChild variant="ghost">
-            <Link href={periodsHref}>مدیریت دوره‌های مالی</Link>
+            <Link href={periodsHref}>
+              <AppIcon name="CalendarRange" />
+              مدیریت دوره‌های مالی
+            </Link>
           </Button>
         ) : null}
         <StatusMessage>تا دریافت پاسخ، کل بسته متوقف می‌ماند.</StatusMessage>
@@ -363,6 +394,7 @@ export function QuestionDialog({
             type="submit"
             disabled={busy || !canAnswer || !value}
           >
+            <AppIcon name="Save" />
             {busy ? "در حال ثبت…" : "ثبت پاسخ و ادامه"}
           </Button>
         ) : null}

@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Form } from "@/components/ui/form";
 import { Field, Textarea, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/states";
+
 export type QuestionModel = {
   id: string;
   question: string;
@@ -59,11 +61,15 @@ export function AssistantView({
   return (
     <div className="space-y-7">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-[26px] font-medium">دستیار مالی</h1>
+        <h1 className="flex items-center gap-2 font-heading text-[26px] font-medium">
+          <AppIcon name="MessageCircle" className="text-primary" size={24} />
+          دستیار مالی
+        </h1>
         <Badge>فقط‌خواندنی</Badge>
       </header>
       {!manifests.length ? (
         <EmptyState
+          icon="MessageCircle"
           title="نتیجه‌ای آماده نیست"
           action={
             <Link
@@ -83,7 +89,7 @@ export function AssistantView({
             }}
             className="space-y-5"
           >
-            <Field id="assistant-manifest" label="نسخه نتایج">
+            <Field icon="Layers3" id="assistant-manifest" label="نسخه نتایج">
               <Select
                 id="assistant-manifest"
                 value={manifest}
@@ -97,10 +103,11 @@ export function AssistantView({
             </Field>
             {moreManifests ? (
               <Button type="button" variant="ghost" onClick={onMoreManifests}>
+                <AppIcon name="ChevronsDown" />
                 نسخه‌های بیشتر
               </Button>
             ) : null}
-            <Field id="assistant-question" label="پرسش">
+            <Field icon="MessageCircle" id="assistant-question" label="پرسش">
               <Textarea
                 id="assistant-question"
                 required
@@ -115,6 +122,7 @@ export function AssistantView({
             ) : null}
             <FormMessage>{error}</FormMessage>
             <Button disabled={busy || !manifest} type="submit">
+              <AppIcon name="Save" />
               {busy ? "در حال ثبت پرسش…" : "ارسال پرسش"}
             </Button>
           </Form>
@@ -151,6 +159,7 @@ export function AssistantView({
               ) : null}
               {q.hasEvidence ? (
                 <Button variant="secondary" onClick={() => onEvidence(q.id)}>
+                  <AppIcon name="FileSearch" />
                   شواهد پاسخ
                 </Button>
               ) : null}
@@ -160,6 +169,7 @@ export function AssistantView({
                   onClick={() => onRetry(q.id)}
                   disabled={busy}
                 >
+                  <AppIcon name="RefreshCw" />
                   تلاش دوباره
                 </Button>
               ) : null}
@@ -169,6 +179,7 @@ export function AssistantView({
       </div>
       {more ? (
         <Button onClick={onMore} disabled={busyMore}>
+          <AppIcon name="ChevronsDown" />
           پرسش‌های بیشتر
         </Button>
       ) : null}

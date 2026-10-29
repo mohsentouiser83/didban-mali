@@ -111,6 +111,7 @@ export function ResultDetailController() {
     metrics.data?.pages.flatMap((p) => p.items) ?? [],
   ).map((metric) => ({
     id: metric.id,
+    metricKey: metric.metric_key,
     title: metricLabels[metric.metric_key] ?? "شاخص مالی",
     value: formatMoney(metric.value, unit),
     unit: unitLabel(unit),

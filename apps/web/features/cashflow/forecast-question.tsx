@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Schema } from "@didban/api-client";
@@ -69,10 +71,12 @@ export function ForecastQuestion({
     <>
       {showTrigger && dismissed === issue.id && !requested ? (
         <Button variant="secondary" onClick={() => setDismissed(null)}>
+          <AppIcon name="Eye" />
           مشاهده سؤال پیش‌بینی
         </Button>
       ) : null}
       <Dialog
+        icon="TrendingUp"
         open={dismissed !== issue.id || requested}
         onOpenChange={(open) => {
           if (!open) close();
@@ -101,7 +105,11 @@ export function ForecastQuestion({
             }}
           >
             {issue.answer_kind === "date" ? (
-              <Field label="تاریخ مورد انتظار" id="forecast-date">
+              <Field
+                icon="CalendarRange"
+                label="تاریخ مورد انتظار"
+                id="forecast-date"
+              >
                 <PersianDatePicker
                   id="forecast-date"
                   name="expected_on"
@@ -111,7 +119,7 @@ export function ForecastQuestion({
                 />
               </Field>
             ) : (
-              <Field label="پاسخ" id="forecast-choice">
+              <Field icon="MessageCircle" label="پاسخ" id="forecast-choice">
                 <Select
                   id="forecast-choice"
                   label="پاسخ"
@@ -135,6 +143,7 @@ export function ForecastQuestion({
                   answer.isPending || (issue.answer_kind !== "date" && !choice)
                 }
               >
+                <AppIcon name="Save" />
                 {answer.isPending ? "در حال ثبت…" : "ثبت پاسخ و ادامه"}
               </Button>
               {issue.constraints.allow_unknown ? (
@@ -143,6 +152,7 @@ export function ForecastQuestion({
                   disabled={answer.isPending}
                   onClick={() => answer.mutate({ kind: "unknown" })}
                 >
+                  <AppIcon name="TrendingUp" />
                   زمان یا فرض مشخص نیست
                 </Button>
               ) : null}

@@ -22,6 +22,24 @@ class FinancialTests(InterpretationTests):
         return session
 
     def start_financial(self, session):
+        state = self.detail(session)
+        if state.get("input_review_required") and not state.get(
+            "input_review_confirmed"
+        ):
+            review_url = (
+                self.base + "/processing-sessions/" + session["id"] + "/input-review"
+            )
+            review = self.owner.get(review_url)
+            self.assertEqual(review.status_code, 200, review.text)
+            result = self.mutate(
+                self.owner,
+                "POST",
+                review_url + "/confirm",
+                {"snapshot_hash": review.json()["snapshot_hash"]},
+                version=review.json()["session_version"],
+            )
+            self.assertEqual(result.status_code, 200, result.text)
+            return
         result = self.mutate(
             self.owner,
             "POST",
@@ -77,6 +95,8 @@ class FinancialTests(InterpretationTests):
         with TestClient(app, base_url="https://testserver"):
             self.owner = self.client("owner", app=app)
             session = self.prepared()
+            self.assertFalse(self.detail(session)["manifest_id"])
+            self.start_financial(session)
             state = self.finish_financial(session)
             self.assertEqual(
                 self.metrics(state["manifest_id"])["revenue"]["value"], "100"

@@ -16,6 +16,13 @@ from .normalization import (
 )
 from .interpretation_types import Analysis, Question, CanonicalRow, InterpretedSheet
 from .source_controls import check_groups
+from .moadian_export import (
+    portal_export,
+    issue_date,
+    document_kind,
+    check_amounts,
+    POLICY,
+)
 from .source_profiles import (
     PROFILES,
     MONEY,
@@ -49,14 +56,15 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
         header = None
         mapping = {}
         kinds = []
-        for row in nonempty[:20]:
-            found = header_mapping(row.values)
-            options = candidates(found)
+        for row in nonempty[:100]:
+            portal = portal_export(row.values) if not row.formulas else None
+            found = portal.mapping if portal else header_mapping(row.values)
+            options = [portal.kind] if portal else candidates(found)
             if options or selected.get("header_row") == row.number:
                 header, mapping, kinds = row, found, options
                 break
         header = header or max(
-            nonempty[:20], key=lambda r: len(header_mapping(r.values))
+            nonempty[:100], key=lambda r: len(header_mapping(r.values))
         )
         if selected.get("header_row"):
             header = next(
@@ -64,6 +72,7 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
             )
             mapping = selected.get("mapping", {})
             kinds = candidates(mapping)
+        portal = portal_export(header.values) if not header.formulas else None
         width = max(len(r.values) for r in nonempty)
         preview = {
             "sheet_name": table.name,
@@ -79,7 +88,7 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                         str(v if v is not None else "")[:256] for v in r.values
                     ],
                 }
-                for r in nonempty[:20]
+                for r in nonempty[:100]
             ],
             "sample_rows": [
                 [(raw_value(v)[:256] if v is not None else None) for v in r.values]
@@ -116,6 +125,15 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
             )
             continue
         kind = selected.get("source_kind")
+        if portal and kind and kind != portal.kind:
+            result.question = Question(
+                "interpretation_mapping",
+                table.name,
+                "mapping",
+                "جهت منبع با نقش خریدار یا فروشنده در سربرگ سازگار نیست.",
+                (),
+            )
+            return result
         if not kind:
             if len(kinds) == 1:
                 kind = kinds[0]
@@ -181,6 +199,17 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
             )
             return result
         unit = selected.get("unit")
+        if portal and unit and unit != portal.unit:
+            result.question = Question(
+                "interpretation_mapping",
+                table.name,
+                "mapping",
+                "واحد انتخاب‌شده با واحد صریح سربرگ سازگار نیست.",
+                (),
+            )
+            return result
+        if portal and not unit and "currency" not in mapping:
+            unit = portal.unit
         if "currency" not in mapping and not unit:
             header_units = {
                 currency(token)
@@ -231,15 +260,69 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                 ("IRR", "IRT"),
             )
             return result
+        if kind == "trial_balance":
+            for key in ("period_start", "as_of_date"):
+                if key not in mapping and not selected.get(key):
+                    result.question = Question(
+                        "interpretation_mapping",
+                        table.name,
+                        "mapping",
+                        f"بازه تاریخی تراز شیت «{table.name}» را مشخص کنید.",
+                        (),
+                    )
+                    return result
+            for key, message, choices in (
+                (
+                    "trial_balance_level",
+                    "ردیف‌های تراز فقط حساب‌های جزئی هستند؟",
+                    ("detail", "unknown"),
+                ),
+                (
+                    "trial_balance_flows",
+                    "گردش تراز پیش از اسناد اختتامیه است؟",
+                    ("before_closing", "includes_closing", "unknown"),
+                ),
+            ):
+                column = "row_level" if key == "trial_balance_level" else "flow_basis"
+                if column not in mapping and not selected.get(key):
+                    result.question = Question(
+                        "interpretation_" + key, table.name, key, message, choices
+                    )
+                    return result
         rows = []
+        structural = []
         for row in nonempty:
             if row.number <= header.number:
                 continue
             raw = [raw_value(v) for v in row.values]
+            if str(row.number) in selected.get("structural_rows", {}) and selected.get(
+                "understanding_evidence"
+            ):
+                structural.append(
+                    CanonicalRow(
+                        row.number,
+                        raw,
+                        {
+                            "exclusion_reason": selected["structural_rows"][
+                                str(row.number)
+                            ]
+                        },
+                    )
+                )
+                continue
             values = {}
             errors = []
+            derived = (
+                selected.get("derived_rows", {}).get(str(row.number), {})
+                if selected.get("understanding_evidence")
+                else {}
+            )
+            if derived.get("source_account_conflict"):
+                errors.append("account_role_conflict")
 
             def cell(name):
+                if name in ("account", "date", "account_name") and name in derived:
+                    return derived[name]
                 index = mapping.get(name)
                 return (
                     row.values[index - 1]
@@ -280,7 +363,13 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                         ):
                             raise InvalidValue("negative_" + target)
                     elif target in DATES:
-                        values[target] = financial_date(value, selected.get("calendar"))
+                        if kind.startswith("moadian_") and target == "issued_on":
+                            values[target] = issue_date(value, selected.get("calendar"))
+                            values["issued_at_source"] = raw_value(value)
+                        else:
+                            values[target] = financial_date(
+                                value, selected.get("calendar")
+                            )
                     elif target == "confirmed":
                         if text(value).lower() not in (
                             "true",
@@ -334,54 +423,142 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                     and Decimal(values.get("amount") or "0") != 0
                 ):
                     errors.append("opening_has_movement")
-            if kind == "ledger":
+            if kind == "trial_balance":
+                for key in ("period_start", "as_of_date"):
+                    if key not in mapping:
+                        try:
+                            values[key] = financial_date(selected[key], "gregorian")
+                        except InvalidValue:
+                            errors.append("invalid_" + key)
+                values["row_level"] = {
+                    "جزئی": "detail",
+                    "ریز": "detail",
+                    "leaf": "detail",
+                    "جمع": "summary",
+                    "گروه": "summary",
+                }.get(
+                    values.get("row_level"),
+                    values.get("row_level") or selected.get("trial_balance_level"),
+                )
+                values["flow_basis"] = {
+                    "قبل از اختتامیه": "before_closing",
+                    "شامل اختتامیه": "includes_closing",
+                }.get(
+                    values.get("flow_basis"),
+                    values.get("flow_basis") or selected.get("trial_balance_flows"),
+                )
+                if values.get("row_level") not in {"detail", "summary", "unknown"}:
+                    errors.append("invalid_trial_balance_level")
+                if values.get("flow_basis") not in {
+                    "before_closing",
+                    "includes_closing",
+                    "unknown",
+                }:
+                    errors.append("invalid_trial_balance_flows")
+                if (
+                    values.get("period_start")
+                    and values.get("as_of_date")
+                    and values["period_start"] > values["as_of_date"]
+                ):
+                    errors.append("invalid_trial_balance_dates")
+            if values.get("cashflow_activity"):
+                activity = {
+                    "عملیاتی": "operating",
+                    "سرمایه‌گذاری": "investing",
+                    "سرمایه گذاری": "investing",
+                    "تأمین مالی": "financing",
+                    "تامین مالی": "financing",
+                }.get(values["cashflow_activity"], values["cashflow_activity"])
+                if activity not in {"operating", "investing", "financing"}:
+                    errors.append("invalid_cashflow_activity")
+                else:
+                    values["cashflow_activity"] = activity
+                    values["cashflow_activity_provenance"] = "explicit_source_field"
+            if kind in ("ledger", "trial_balance"):
                 debit, credit = (
                     Decimal(values.get("debit") or "0"),
                     Decimal(values.get("credit") or "0"),
                 )
-                if debit and credit:
+                if kind == "ledger" and debit and credit:
                     errors.append("two_sided_journal_line")
                 source_role = values.get("role")
                 account = values.get("account")
                 override = selected.get("account_roles", {}).get(account)
-                automatic = selected.get("model_account_roles", {}).get(account)
+                linked = selected.get("linked_account_roles", {}).get(account)
+                automatic = selected.get("automatic_account_roles", {}).get(
+                    account
+                ) or selected.get("model_account_roles", {}).get(account)
                 role = (
-                    override
-                    or automatic
+                    (
+                        "calibration_only"
+                        if kind == "trial_balance"
+                        and values.get("row_level") == "summary"
+                        else None
+                    )
+                    or override
+                    or (linked["role"] if linked else None)
                     or {
                         "operating_expense": "expense",
                         "payroll_expense": "expense",
                         "bank_fee": "expense",
                     }.get(source_role, source_role)
+                    or automatic
                 )
                 if role and role.startswith("bank_"):
                     role = "bank"
-                if account and role not in ROLES:
+                if account and role not in ROLES and not errors:
                     result.question = Question(
                         "interpretation_account_role",
                         table.name,
                         "account_role",
-                        f"نقش حساب «{account}» در شیت «{table.name}» چیست؟",
+                        f"حساب «{values.get('account_name') or account}» مربوط به کدام گروه مالی است؟",
                         tuple(sorted(ROLES - {"calibration_only"})),
                         account,
                     )
                     return result
+                if role not in ROLES:
+                    errors.append("account_role_unknown")
                 values["source_role"] = source_role
                 values["role"] = role
                 values["role_provenance"] = (
                     "user_declaration"
-                    if override
+                    if override or linked
                     else "validated_policy"
-                    if automatic
+                    if automatic and not source_role
                     else "explicit_source_field"
                 )
-                if automatic and not override:
+                if linked and not override:
+                    values["role_evidence"] = linked
+                if automatic and not override and not linked and not source_role:
                     values["role_evidence"] = {
                         "source_row": row.number,
                         "account_name": cell("account_name"),
-                        **selected["model_proposal"],
+                        **selected.get(
+                            "model_proposal", selected.get("understanding_evidence", {})
+                        ),
+                        "source_labels": derived.get("labels"),
+                        "related_file": derived.get("role_related_file"),
+                        "reference": derived.get("role_reference"),
                     }
                     values["role_controls_passed"] = False
+                if derived:
+                    values["account_source_code"] = derived.get("account_source_code")
+                    values["account_leaf_name"] = derived.get("account_leaf_name")
+                    if "entry_type" not in mapping:
+                        values["entry_type"] = derived["entry_type"]
+                        values["entry_evidence"] = derived.get("entry_evidence")
+                    if (
+                        role in {"trade_ar", "other_ar", "trade_ap"}
+                        and "party_id" not in mapping
+                    ):
+                        values["party_id"] = account
+                        values["party_id_namespace"] = "ledger_account_path"
+                    if derived.get("periodic_inventory_transfer"):
+                        values["periodic_inventory_transfer"] = True
+                    if derived.get("income_tax_charge"):
+                        values["income_tax_charge"] = money(
+                            derived["income_tax_charge"], actual_unit or ""
+                        )
             if kind in (
                 "sales_invoices",
                 "purchase_invoices",
@@ -400,6 +577,28 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                     and values["due_on"] < values["issued_on"]
                 ):
                     errors.append("due_before_issue")
+            if kind.startswith("moadian_"):
+                values["kind"] = document_kind(values.get("kind"))
+                # The portal's tax identity is sufficient. Never fabricate a book invoice number.
+                values.setdefault("invoice_id", None)
+                if portal:
+                    try:
+                        if actual_unit != portal.unit:
+                            raise InvalidValue("moadian_unit_conflict")
+                        if portal.base_column in row.formulas:
+                            raise InvalidValue("formula_not_evaluated")
+                        check_amounts(
+                            values,
+                            cell_value := (
+                                row.values[portal.base_column - 1]
+                                if len(row.values) >= portal.base_column
+                                else None
+                            ),
+                            actual_unit,
+                        )
+                        values["net"] = money(cell_value, actual_unit or "")
+                    except InvalidValue as error:
+                        errors.append(str(error))
             if kind.startswith("moadian_") and values.get("kind") not in (
                 "original",
                 "corrective",
@@ -424,7 +623,42 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
             )
             rows[-1].values["unit"] = "IRR" if actual_unit else None
         controls = check_groups(kind, rows, mapping, header.number)
-        if kind == "ledger" and all(
+        controls.extend(selected.get("understanding_controls", []))
+        if selected.get("understanding_evidence"):
+            controls.append(
+                {
+                    "key": "source_understanding",
+                    "outcome": "failed"
+                    if any(row.errors for row in rows)
+                    else "passed",
+                    "evidence": selected["understanding_evidence"],
+                }
+            )
+        if portal:
+            controls.append(
+                {
+                    "key": "moadian_portal_export",
+                    "outcome": "failed"
+                    if any(row.errors for row in rows)
+                    else (
+                        "unknown"
+                        if any(row.values.get("vat") is None for row in rows)
+                        else "passed"
+                    ),
+                    "evidence": {
+                        "policy": POLICY,
+                        "direction": portal.kind,
+                        "direction_basis": "taxpayer_role_header",
+                        "unit": portal.unit,
+                        "unit_header_column": portal.base_column,
+                        "date_policy": "validated_source_local_date",
+                        "identity": "tax_id",
+                        "invoice_id_required": False,
+                        "amount_control": "gross_equals_net_plus_vat",
+                    },
+                }
+            )
+        if kind in ("ledger", "trial_balance") and all(
             c["outcome"] == "passed" for c in controls if c["key"] != "coverage"
         ):
             for row in rows:
@@ -467,6 +701,12 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                 for k in (
                     {
                         "ledger": ["entry_id", "account", "party_id", "date"],
+                        "trial_balance": [
+                            "account",
+                            "period_start",
+                            "as_of_date",
+                            "row_level",
+                        ],
                         "bank": ["bank_account", "reference", "date"],
                         "sales_invoices": ["invoice_id", "party_id"],
                         "purchase_invoices": ["invoice_id", "party_id"],
@@ -492,10 +732,14 @@ def analyze(tables: list[Sheet], settings: dict) -> Analysis:
                 unit,
                 selected.get("calendar"),
                 "human"
-                if "mapping" in selected and not selected.get("model_proposal")
+                if "mapping" in selected
+                and not selected.get("model_proposal")
+                and not selected.get("understanding_evidence")
                 else "validated_automatic",
                 rows,
                 controls,
+                skipped_count=len(structural),
+                structural_rows=structural,
             )
         )
     return result

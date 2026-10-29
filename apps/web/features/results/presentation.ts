@@ -32,6 +32,7 @@ export const coverageLabels = {
 } as const;
 export const sourceLabels: Record<string, string> = {
   ledger: "دفتر حسابداری",
+  trial_balance: "تراز آزمایشی",
   bank: "گردش بانک",
   invoices: "فاکتورها",
   sales_invoices: "فاکتورهای فروش",
@@ -83,6 +84,29 @@ export function formatMoney(value: string | null, unit: DisplayUnit): string {
 }
 
 const reasons: Record<string, string> = {
+  forecast_invalid_payment_rows:
+    "بعضی ردیف‌های برنامه پرداخت نامعتبرند؛ فقط تعهدهای معتبر در پیش‌بینی آمده‌اند.",
+  forecast_invalid_history_rows:
+    "بعضی سوابق وصول نامعتبرند؛ برآورد وصول فقط بر سابقه معتبر تکیه دارد.",
+  forecast_invalid_invoice_rows:
+    "بعضی فاکتورها نامعتبرند؛ دریافت و پرداخت آینده کامل نیست.",
+  forecast_invalid_settlement_rows:
+    "بعضی تسویه‌ها نامعتبرند؛ مانده تعهدهای وابسته قابل اتکا نیست.",
+
+  trial_balance_source_missing: "تراز آزمایشی بارگذاری نشده است.",
+  trial_balance_date_missing: "تراز آزمایشی در تاریخ گزارش موجود نیست.",
+  trial_balance_scope_mismatch: "گردش تراز با بازه گزارش یکسان نیست.",
+  trial_balance_closing_entries_unknown:
+    "گردش پیش از اختتامیه مشخص نیست؛ سود دوره محاسبه نشد.",
+  trial_balance_level_unknown: "سطح جزئی حساب‌های تراز مشخص نیست.",
+  duplicate_trial_balance_account: "حساب تراز در همین بازه تکرار شده است.",
+  trial_balance_unbalanced: "جمع بدهکار و بستانکار تراز برابر نیست.",
+  trial_balance_rollforward_mismatch:
+    "مانده ابتدا و گردش با مانده پایان تراز تطابق ندارد.",
+  cashflow_activity_missing:
+    "طبقه بعضی گردش‌های نقد مشخص نیست؛ خالص فعالیت کامل نیست.",
+  cash_statement_bridge_mismatch: "گردش نقد با تغییر مانده دفتری تطابق ندارد.",
+
   invalid_amount: "مبلغ نامعتبر است؛ این شاخص محاسبه نشده است.",
   invalid_date: "تاریخ نامعتبر است؛ این شاخص محاسبه نشده است.",
   conflicting_row_identity:
@@ -97,6 +121,9 @@ const reasons: Record<string, string> = {
   income_tax_unknown:
     "هزینه مالیات بر درآمد مشخص نیست؛ سود خالص محاسبه نشده است.",
   cogs_unknown: "بهای تمام‌شده مشخص نیست.",
+  income_tax_conflict: "هزینه مالیات با سند تخصیص سود تطابق ندارد.",
+  periodic_cogs_template_scope: "قالب انتخابی بهای تمام‌شده ادواری را پوشش نمی‌دهد.",
+  allocated_tax_template_scope: "قالب انتخابی مالیات سند تخصیص سود را پوشش نمی‌دهد.",
   bank_binding_unknown: "ارتباط حساب بانکی با دفتر مشخص نیست.",
   bank_source_accounts_ambiguous:
     "یک شیت شامل چند حساب بانکی است؛ فایل هر حساب را جدا بارگذاری کنید.",

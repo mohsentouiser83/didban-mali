@@ -26,7 +26,7 @@
   "source_sha256": {
     "infra/compose.yaml": "9844c72b816f33df28e163ee5c1f40b38583d034c1f11fa30401ccd2ce36dde6",
     "infra/Dockerfile.api": "55cca505a374b7831b40812b1ca25454f0a67ecb079a4a8dbd302d718ac5c78b",
-    "infra/Dockerfile.web": "bb3c6a8970366bc7dd9faecd37d30f746b8cfbd51d4d14b2417fe6d1150e730d",
+    "infra/Dockerfile.web": "c5cd3f9959f5a0629d982e8e17a4343ffa658b3725db87707f9dc027463a4682",
     "package-lock.json": "f5f3aa63834e7a87a0cbdb083b3e93e5fe0a7a4c0a35345a5bab9a737a9fb8ae"
   }
 }

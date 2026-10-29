@@ -1,5 +1,6 @@
+import { AppIcon, type AppIconName } from "./app-icon";
 import { ArrowPathIcon } from "./status-icons";
-import { Building2, ShieldAlert, LoaderCircle } from "lucide-react";
+import { ShieldAlert, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button, cx } from "./button";
 export function Spinner({ className }: { className?: string }) {
@@ -94,17 +95,19 @@ export function LoadingState({
 }
 export function EmptyState({
   title,
+  icon = "FolderOpen",
   description,
   action,
 }: {
   title: string;
+  icon?: AppIconName;
   description?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-panel border border-dashed border-border bg-surface px-5 py-16 text-center">
       <span className="flex size-14 items-center justify-center rounded-panel bg-accent text-primary">
-        <Building2 size={25} aria-hidden />
+        <AppIcon name={icon} size={25} />
       </span>
       <h2 className="font-heading text-xl font-medium">{title}</h2>
       {description ? (

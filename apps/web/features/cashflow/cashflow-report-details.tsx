@@ -1,3 +1,4 @@
+import { AppIcon } from "@/components/ui/app-icon";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { persianDigits } from "@/lib/dates";
 import type { CashflowDayModel } from "./cashflow-report-presentation";
+
 export function CashflowDayDetails({
   day,
   unit,
@@ -27,6 +29,7 @@ export function CashflowDayDetails({
 }) {
   return (
     <Dialog
+      icon="Wallet"
       open
       title={`گردش ${day.date}`}
       onOpenChange={(open) => {
@@ -100,6 +103,7 @@ export function CashflowDayDetails({
                 disabled={offset === 0}
                 onClick={() => onOffset(Math.max(0, offset - 25))}
               >
+                <AppIcon name="ChevronRight" />
                 قبلی
               </Button>
               <Button
@@ -107,12 +111,16 @@ export function CashflowDayDetails({
                 disabled={offset + 25 >= day.movements.length}
                 onClick={() => onOffset(offset + 25)}
               >
+                <AppIcon name="ChevronLeft" />
                 بعدی
               </Button>
             </div>
           </>
         ) : (
-          <EmptyState title="تراکنش ثبت‌شده‌ای برای این روز نیست" />
+          <EmptyState
+            icon="CalendarRange"
+            title="تراکنش ثبت‌شده‌ای برای این روز نیست"
+          />
         )}
       </div>
     </Dialog>
@@ -135,6 +143,7 @@ export function CashflowAccounts({
 }) {
   return (
     <Dialog
+      icon="Wallet"
       open
       title="مانده حساب‌های بانکی"
       onOpenChange={(open) => {
@@ -168,7 +177,7 @@ export function CashflowAccounts({
           </TableBody>
         </Table>
       ) : (
-        <EmptyState title="حساب قابل مشاهده موجود نیست" />
+        <EmptyState icon="BookOpen" title="حساب قابل مشاهده موجود نیست" />
       )}
     </Dialog>
   );

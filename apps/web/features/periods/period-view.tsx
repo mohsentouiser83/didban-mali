@@ -1,4 +1,6 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import { useState, type FormEvent } from "react";
 import type { Schema } from "@didban/api-client";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -20,6 +22,7 @@ import { Field, Input, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { formatDate } from "@/lib/dates";
+
 export function PeriodListView({
   periods,
   company,
@@ -50,12 +53,17 @@ export function PeriodListView({
   return (
     <section className="motion-safe:animate-reveal">
       <PageHeader
+        icon="CalendarRange"
         title="دوره‌های مالی"
         description={company}
         action={periods.length ? create : undefined}
       />
       {!periods.length ? (
-        <EmptyState title="دوره‌ای تعریف نشده" action={create} />
+        <EmptyState
+          icon="CalendarRange"
+          title="دوره‌ای تعریف نشده"
+          action={create}
+        />
       ) : (
         <>
           <div className="hidden md:block">
@@ -136,6 +144,7 @@ export function PeriodListView({
           disabled={busy}
           onClick={onMore}
         >
+          <AppIcon name="ChevronsDown" />
           دوره‌های بیشتر
         </Button>
       ) : null}
@@ -162,6 +171,7 @@ export function PeriodFormDialog({
   );
   return (
     <Dialog
+      icon="CalendarRange"
       open
       busy={busy}
       onOpenChange={(v) => {
@@ -170,7 +180,7 @@ export function PeriodFormDialog({
       title={period ? "ویرایش دوره مالی" : "دوره مالی جدید"}
     >
       <Form className="space-y-5" onSubmit={onSubmit}>
-        <Field id="period-name" label="نام دوره">
+        <Field icon="CalendarRange" id="period-name" label="نام دوره">
           <Input
             id="period-name"
             name="name"
@@ -180,7 +190,7 @@ export function PeriodFormDialog({
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="period-start" label="شروع دوره">
+          <Field icon="CalendarRange" id="period-start" label="شروع دوره">
             <PersianDatePicker
               id="period-start"
               name="starts_on"
@@ -189,7 +199,7 @@ export function PeriodFormDialog({
               required
             />
           </Field>
-          <Field id="period-end" label="پایان دوره">
+          <Field icon="CalendarRange" id="period-end" label="پایان دوره">
             <PersianDatePicker
               id="period-end"
               name="ends_on"
@@ -199,7 +209,7 @@ export function PeriodFormDialog({
             />
           </Field>
         </div>
-        <Field id="previous-period" label="دوره قبل">
+        <Field icon="CalendarRange" id="previous-period" label="دوره قبل">
           <Select
             id="previous-period"
             name="previous_period_id"
@@ -215,6 +225,7 @@ export function PeriodFormDialog({
         </Field>
         <FormMessage>{error}</FormMessage>
         <Button type="submit" disabled={busy} className="w-full">
+          <AppIcon name="Save" />
           {busy ? "در حال ثبت…" : "ذخیره دوره"}
         </Button>
       </Form>

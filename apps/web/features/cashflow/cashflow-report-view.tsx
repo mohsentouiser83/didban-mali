@@ -1,3 +1,6 @@
+import { AppIcon } from "@/components/ui/app-icon";
+import { financialMetricIcon } from "@/components/ui/financial/metric-icons";
+
 import type { ReactNode } from "react";
 import { PageHeader } from "@/features/companies/company-view";
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,7 @@ import type {
   CashflowReportModel,
   CashflowDayModel,
 } from "./cashflow-report-presentation";
+
 export function CashflowReportView({
   company,
   manifest,
@@ -56,10 +60,12 @@ export function CashflowReportView({
   return (
     <section className="space-y-6 motion-safe:animate-reveal">
       <PageHeader
+        icon="Wallet"
         title="گزارش گردش نقد"
         description={company}
         action={
           <Button variant="secondary" onClick={onAccounts}>
+            <AppIcon name="Banknote" />
             حساب‌های بانکی
           </Button>
         }
@@ -67,8 +73,9 @@ export function CashflowReportView({
       <div className="rounded-panel border border-border bg-surface p-5">
         <label
           htmlFor="cashflow-manifest"
-          className="mb-2 block text-xs font-medium"
+          className="flex items-center gap-2 mb-2 block text-xs font-medium"
         >
+          <AppIcon name="Layers3" className="text-primary" />
           نسخه داده
         </label>
         <Select
@@ -84,6 +91,7 @@ export function CashflowReportView({
             onClick={onMoreManifests}
             disabled={manifestBusy}
           >
+            <AppIcon name="ChevronsDown" />
             {manifestBusy ? "در حال دریافت" : "نسخه‌های بیشتر"}
           </Button>
         ) : null}
@@ -99,7 +107,13 @@ export function CashflowReportView({
       ))}
       <StatCards>
         {model.metrics.map((m) => (
-          <StatCard key={m.key} title={m.title} value={m.value} unit={unit}>
+          <StatCard
+            icon={financialMetricIcon(m.key)}
+            key={m.key}
+            title={m.title}
+            value={m.value}
+            unit={unit}
+          >
             {m.missing ? (
               <p className="text-xs text-muted">{m.reason}</p>
             ) : null}
@@ -107,7 +121,10 @@ export function CashflowReportView({
         ))}
       </StatCards>
       <section className="space-y-5 rounded-panel border border-border bg-surface p-5 sm:p-7">
-        <h2 className="font-medium">روند مانده ثبت‌شده</h2>
+        <h2 className="flex items-center gap-2 font-medium">
+          <AppIcon name="Wallet" className="text-primary" />
+          روند مانده ثبت‌شده
+        </h2>
         {model.chart.points.length ? (
           <FinancialChart
             label="روند مانده روزانه حساب‌ها"
@@ -115,7 +132,10 @@ export function CashflowReportView({
             selectedIndex={dayIndex}
           />
         ) : (
-          <EmptyState title="مانده روزانه قابل محاسبه نیست" />
+          <EmptyState
+            icon="CalendarRange"
+            title="مانده روزانه قابل محاسبه نیست"
+          />
         )}
         {day ? (
           <>
@@ -123,8 +143,9 @@ export function CashflowReportView({
               <div>
                 <label
                   htmlFor="cashflow-day"
-                  className="mb-2 block text-xs font-medium"
+                  className="flex items-center gap-2 mb-2 block text-xs font-medium"
                 >
+                  <AppIcon name="CalendarRange" className="text-primary" />
                   روز گزارش
                 </label>
                 <Select
@@ -141,6 +162,7 @@ export function CashflowReportView({
                   onClick={onPrevious}
                   disabled={dayIndex <= 0}
                 >
+                  <AppIcon name="CalendarRange" />
                   روز قبل
                 </Button>
                 <Button
@@ -148,6 +170,7 @@ export function CashflowReportView({
                   onClick={onNext}
                   disabled={dayIndex >= model.options.length - 1}
                 >
+                  <AppIcon name="CalendarRange" />
                   روز بعد
                 </Button>
               </div>
@@ -170,6 +193,7 @@ export function CashflowReportView({
                   </p>
                 ))}
                 <Button variant="secondary" onClick={onDetails}>
+                  <AppIcon name="Eye" />
                   جزئیات گردش این روز
                 </Button>
               </div>

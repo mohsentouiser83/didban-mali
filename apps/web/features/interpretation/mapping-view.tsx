@@ -1,10 +1,14 @@
 "use client";
+
+import { AppIcon } from "@/components/ui/app-icon";
 import type { FormEvent } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import { Field, Input, Textarea, FormMessage } from "@/components/ui/field";
 import { Select, type Option } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+
 export type MappingField = {
   key: string;
   label: string;
@@ -29,6 +33,7 @@ export function MappingView({
   onCalendar,
   fields,
   onColumn,
+  trialDates,
   reason,
   onReason,
   busy,
@@ -51,6 +56,12 @@ export function MappingView({
   onCalendar: (v: string) => void;
   fields: MappingField[];
   onColumn: (key: string, value: string) => void;
+  trialDates: {
+    start: string;
+    end: string;
+    needsStart: boolean;
+    needsEnd: boolean;
+  } | null;
   reason: string;
   onReason: (v: string) => void;
   busy: boolean;
@@ -59,13 +70,14 @@ export function MappingView({
 }) {
   return (
     <Dialog
+      icon="SlidersHorizontal"
       title="تنظیم تشخیص فایل"
       open={open}
       onOpenChange={onOpenChange}
       busy={busy}
     >
       <Form onSubmit={onSubmit} className="space-y-5">
-        <Field id="mapping-sheet" label="شیت">
+        <Field icon="FileSpreadsheet" id="mapping-sheet" label="شیت">
           <Select
             id="mapping-sheet"
             value={sheet}
@@ -73,7 +85,7 @@ export function MappingView({
             options={sheets}
           />
         </Field>
-        <Field id="mapping-kind" label="نوع منبع">
+        <Field icon="FileSpreadsheet" id="mapping-kind" label="نوع منبع">
           <Select
             id="mapping-kind"
             value={kind}
@@ -81,7 +93,11 @@ export function MappingView({
             options={kinds}
           />
         </Field>
-        <Field id="mapping-header" label="شماره ردیف سربرگ">
+        <Field
+          icon="FileSpreadsheet"
+          id="mapping-header"
+          label="شماره ردیف سربرگ"
+        >
           <Input
             id="mapping-header"
             type="number"
@@ -93,7 +109,7 @@ export function MappingView({
           />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="mapping-unit" label="واحد ردیف‌های بدون واحد">
+          <Field icon="Coins" id="mapping-unit" label="واحد ردیف‌های بدون واحد">
             <Select
               id="mapping-unit"
               value={unit}
@@ -105,7 +121,11 @@ export function MappingView({
               ]}
             />
           </Field>
-          <Field id="mapping-calendar" label="تقویم تاریخ متنی">
+          <Field
+            icon="CalendarRange"
+            id="mapping-calendar"
+            label="تقویم تاریخ متنی"
+          >
             <Select
               id="mapping-calendar"
               value={calendar}
@@ -118,8 +138,39 @@ export function MappingView({
             />
           </Field>
         </div>
+        {trialDates ? (
+          <div key={sheet} className="grid gap-4 sm:grid-cols-2">
+            {trialDates.needsStart ? (
+              <Field icon="BookOpen" id="trial-start" label="آغاز گردش تراز">
+                <PersianDatePicker
+                  id="trial-start"
+                  name="period_start"
+                  label="آغاز گردش تراز"
+                  initialValue={trialDates.start}
+                  required
+                />
+              </Field>
+            ) : null}
+            {trialDates.needsEnd ? (
+              <Field icon="CalendarRange" id="trial-end" label="تاریخ تراز">
+                <PersianDatePicker
+                  id="trial-end"
+                  name="as_of_date"
+                  label="تاریخ تراز"
+                  initialValue={trialDates.end}
+                  required
+                />
+              </Field>
+            ) : null}
+          </div>
+        ) : null}
         {fields.map((field) => (
-          <Field key={field.key} id={`column-${field.key}`} label={field.label}>
+          <Field
+            icon="FileSpreadsheet"
+            key={field.key}
+            id={`column-${field.key}`}
+            label={field.label}
+          >
             <Select
               id={`column-${field.key}`}
               value={field.value}
@@ -129,7 +180,7 @@ export function MappingView({
             />
           </Field>
         ))}
-        <Field id="mapping-reason" label="دلیل تنظیم">
+        <Field icon="SlidersHorizontal" id="mapping-reason" label="دلیل تنظیم">
           <Textarea
             id="mapping-reason"
             required
@@ -140,6 +191,7 @@ export function MappingView({
         </Field>
         <FormMessage>{error}</FormMessage>
         <Button type="submit" className="w-full" disabled={busy || !kind}>
+          <AppIcon name="RefreshCw" />
           {busy ? "در حال ثبت…" : "ثبت تنظیمات و بررسی دوباره"}
         </Button>
       </Form>

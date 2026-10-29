@@ -14,13 +14,16 @@ import {
 import { LoadingState, ErrorState } from "@/components/ui/states";
 import { Dialog } from "@/components/ui/dialog";
 import { message } from "@/lib/api";
+import { PayrollPermissionDialog } from "./payroll-permission-dialog";
 export function MemberController() {
   const { companyId } = useParams<{ companyId: string }>(),
     access = useAccess(companyId),
     company = useCompany(companyId);
   const allowed = access.data?.permissions.includes("company.owner") ?? false;
   const members = useMembers(companyId, allowed),
-    [mode, setMode] = useState<"add" | "edit" | "permission" | null>(null),
+    [mode, setMode] = useState<
+      "add" | "edit" | "permission" | "payroll" | null
+    >(null),
     [target, setTarget] = useState<Member | null>(null);
   const commands = useMemberCommands(companyId, () => {
     setMode(null);
@@ -70,6 +73,10 @@ export function MemberController() {
           setTarget(m);
           setMode("edit");
         }}
+        onPayrollPermission={(m) => {
+          setTarget(m);
+          setMode("payroll");
+        }}
         onPermission={(m) => {
           setTarget(m);
           setMode("permission");
@@ -80,6 +87,13 @@ export function MemberController() {
           void members.fetchNextPage();
         }}
       />
+      {mode === "payroll" && target ? (
+        <PayrollPermissionDialog
+          company={companyId}
+          member={target}
+          onClose={close}
+        />
+      ) : null}
       {mode === "add" ? (
         <AddMemberDialog
           open
@@ -120,6 +134,7 @@ export function MemberController() {
       ) : null}
       {mode === "permission" && target ? (
         <Dialog
+          icon="ShieldCheck"
           busy={commands.permission.isPending}
           open
           onOpenChange={(v) => {

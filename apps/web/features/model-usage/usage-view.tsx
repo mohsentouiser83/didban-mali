@@ -1,3 +1,4 @@
+import { IconTile } from "@/components/ui/app-icon";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { StatCards, StatCard } from "@/components/ui/financial/stat-cards";
@@ -29,7 +30,10 @@ export function UsageView({
   return (
     <div className="space-y-7">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-[26px] font-medium">{title}</h1>
+        <h1 className="flex items-center gap-3 font-heading text-[26px] font-medium">
+          <IconTile name="Coins" />
+          {title}
+        </h1>
         {adminPath ? (
           <Link
             className="min-h-11 content-center text-sm text-primary"
@@ -57,16 +61,19 @@ export function UsageView({
       </section>
       <StatCards>
         <StatCard
+          icon="Coins"
           title="سقف ماهانه نصب"
           value={configured ? ceiling : "—"}
           unit="دلار"
         />
         <StatCard
+          icon="Coins"
           title={companyScope ? "هزینه ثبت‌شده شرکت" : "هزینه ثبت‌شده نصب"}
           value={spent}
           unit="دلار"
         />
         <StatCard
+          icon="Clock3"
           title={companyScope ? "رزرو جاری شرکت" : "رزرو جاری نصب"}
           value={reserved}
           unit="دلار"

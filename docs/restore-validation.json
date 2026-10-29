@@ -1,8 +1,8 @@
 {
   "status": "passed",
   "runtime_version": 10,
-  "verified_migrations": 21,
-  "verified_app_tables": 95,
+  "verified_migrations": 31,
+  "verified_app_tables": 122,
   "original_and_generated_objects": 9,
   "generated_exports_verified": 3,
   "report_approvals_preserved": 1,
@@ -11,6 +11,6 @@
   "membership_and_cross_company_authorization": "verified after restore using restricted logins",
   "scope": "current host application + actual two disposable PostgreSQL18 clusters + shared production archive/encryption/recovery primitives; not fresh Compose image startup",
   "model_calls": 0,
-  "encrypted_bundle_sha256": "3341153dfc85febeb91fd33c7bb4255cd6b3561439bce88501fd7bc2e5cee24a",
+  "encrypted_bundle_sha256": "0d6c68894541a5e1f6db8172ce728b018aa2e28bd5598b7b2ea77f1b3ed5fe92",
   "test_sha256": "315bb6019f8286bc8939e568bd02004e800566ec95465fb8072619c46ee3f2f3"
 }

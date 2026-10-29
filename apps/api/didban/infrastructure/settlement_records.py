@@ -51,8 +51,13 @@ def plans(conn, company, cutoff):
                 (company, row["obligation_id"], cutoff),
             ).fetchone()["total"]
         )
+        payroll_paid = conn.execute(
+            "SELECT app.payroll_paid_for_obligation(%s,%s,%s) AS amount",
+            (company, row["obligation_id"], cutoff),
+        ).fetchone()["amount"]
         with localcontext() as ctx:
             ctx.prec = 96
+            paid += payroll_paid
             left = max(Decimal(0), row["total_amount"] - paid)
         paid_unknown = False
         if row["source_row_id"]:

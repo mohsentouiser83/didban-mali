@@ -1,0 +1,481 @@
+{
+  "status": "passed",
+  "server_version": "18.6",
+  "sql_tests": 17,
+  "http_tests": 23,
+  "intake_tests": 14,
+  "interpretation_tests": 16,
+  "financial_tests": 8,
+  "reconciliation_tests": 7,
+  "cashflow_tests": 2,
+  "settlement_tests": 7,
+  "forecast_workflow_tests": 2,
+  "model_tests": 7,
+  "analysis_tests": 3,
+  "policy_tests": 7,
+  "report_tests": 5,
+  "delivery_workflow_tests": 1,
+  "restore_tests": 1,
+  "isolated_container": true,
+  "suite_results": [
+    {
+      "suite": "test_schema.py",
+      "status": "passed",
+      "seconds": 1.475
+    },
+    {
+      "suite": "test_runtime.py",
+      "status": "passed",
+      "seconds": 7.281
+    },
+    {
+      "suite": "test_intake.py",
+      "status": "passed",
+      "seconds": 6.967
+    },
+    {
+      "suite": "test_interpretation.py",
+      "status": "passed",
+      "seconds": 11.307
+    },
+    {
+      "suite": "test_moadian_export.py",
+      "status": "passed",
+      "seconds": 0.091
+    },
+    {
+      "suite": "test_moadian_export_runtime.py",
+      "status": "passed",
+      "seconds": 3.028
+    },
+    {
+      "suite": "test_source_understanding.py",
+      "status": "passed",
+      "seconds": 0.488
+    },
+    {
+      "suite": "test_source_understanding_runtime.py",
+      "status": "passed",
+      "seconds": 2.614
+    },
+    {
+      "suite": "test_financial_domain.py",
+      "status": "passed",
+      "seconds": 0.641
+    },
+    {
+      "suite": "test_financial_runtime.py",
+      "status": "passed",
+      "seconds": 13.009
+    },
+    {
+      "suite": "test_reconciliation_domain.py",
+      "status": "passed",
+      "seconds": 0.053
+    },
+    {
+      "suite": "test_reconciliation_runtime.py",
+      "status": "passed",
+      "seconds": 15.328
+    },
+    {
+      "suite": "test_cashflow_domain.py",
+      "status": "passed",
+      "seconds": 0.235
+    },
+    {
+      "suite": "test_cashflow_runtime.py",
+      "status": "passed",
+      "seconds": 3.345
+    },
+    {
+      "suite": "test_forecast.py",
+      "status": "passed",
+      "seconds": 0.039
+    },
+    {
+      "suite": "test_settlements_runtime.py",
+      "status": "passed",
+      "seconds": 32.581
+    },
+    {
+      "suite": "test_forecast_workflow.py",
+      "status": "passed",
+      "seconds": 12.119
+    },
+    {
+      "suite": "test_model_provider.py",
+      "status": "passed",
+      "seconds": 0.1
+    },
+    {
+      "suite": "test_model_runtime.py",
+      "status": "passed",
+      "seconds": 7.691
+    },
+    {
+      "suite": "test_intake_model.py",
+      "status": "passed",
+      "seconds": 0.054
+    },
+    {
+      "suite": "test_intake_model_runtime.py",
+      "status": "passed",
+      "seconds": 4.582
+    },
+    {
+      "suite": "test_analysis_runtime.py",
+      "status": "passed",
+      "seconds": 3.928
+    },
+    {
+      "suite": "test_policy_runtime.py",
+      "status": "passed",
+      "seconds": 3.989
+    },
+    {
+      "suite": "test_report_rendering.py",
+      "status": "passed",
+      "seconds": 0.283
+    },
+    {
+      "suite": "test_management_domain.py",
+      "status": "passed",
+      "seconds": 0.45
+    },
+    {
+      "suite": "test_statement_sources.py",
+      "status": "passed",
+      "seconds": 0.201
+    },
+    {
+      "suite": "test_management_runtime.py",
+      "status": "passed",
+      "seconds": 20.19
+    },
+    {
+      "suite": "test_statement_sources_runtime.py",
+      "status": "passed",
+      "seconds": 4.91
+    },
+    {
+      "suite": "test_mvp_acceptance.py",
+      "status": "passed",
+      "seconds": 7.214
+    },
+    {
+      "suite": "test_reports_runtime.py",
+      "status": "passed",
+      "seconds": 29.613
+    },
+    {
+      "suite": "test_delivery_workflow.py",
+      "status": "passed",
+      "seconds": 8.997
+    },
+    {
+      "suite": "test_backup_bundle.py",
+      "status": "passed",
+      "seconds": 2.192
+    },
+    {
+      "suite": "test_backup_local.py",
+      "status": "passed",
+      "seconds": 0.972
+    },
+    {
+      "suite": "test_installation_config.py",
+      "status": "passed",
+      "seconds": 0.051
+    },
+    {
+      "suite": "test_restore_runtime.py",
+      "status": "passed",
+      "seconds": 16.81
+    },
+    {
+      "suite": "test_extension_access_runtime.py",
+      "status": "passed",
+      "seconds": 3.325
+    },
+    {
+      "suite": "test_input_review.py",
+      "status": "passed",
+      "seconds": 0.039
+    },
+    {
+      "suite": "test_input_review_runtime.py",
+      "status": "passed",
+      "seconds": 7.719
+    },
+    {
+      "suite": "test_actionable_analysis.py",
+      "status": "passed",
+      "seconds": 0.037
+    },
+    {
+      "suite": "test_actionable_analysis_runtime.py",
+      "status": "passed",
+      "seconds": 13.652
+    },
+    {
+      "suite": "test_actionable_automation_runtime.py",
+      "status": "passed",
+      "seconds": 24.233
+    },
+    {
+      "suite": "test_module_workflow_runtime.py",
+      "status": "passed",
+      "seconds": 12.447
+    },
+    {
+      "suite": "test_module_scope.py",
+      "status": "passed",
+      "seconds": 0.079
+    },
+    {
+      "suite": "test_payroll_domain.py",
+      "status": "passed",
+      "seconds": 0.157
+    },
+    {
+      "suite": "test_payroll_runtime.py",
+      "status": "passed",
+      "seconds": 7.148
+    },
+    {
+      "suite": "test_extension_restore_runtime.py",
+      "status": "passed",
+      "seconds": 18.558
+    }
+  ],
+  "source_sha256": {
+    "apps/api/didban/__init__.py": "b5ca53cc772977bc599713780eff78618c4ec1f62e355bd851594858623fb03e",
+    "apps/api/didban/adapters/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "apps/api/didban/adapters/input_review_provider.py": "5fdf7242ef4a89a72c46d2c02c9fd1d3feaf62742e2cbc245e8893701d37c983",
+    "apps/api/didban/adapters/intake_model_provider.py": "01441959de2bab4d89d1d462739589e53a703301cfe757aa80be7ff2411e5323",
+    "apps/api/didban/adapters/model_provider.py": "798efca94d0310d49c90e4efc0ac39e13556764a3a81352c1d3e0f278763c7fa",
+    "apps/api/didban/adapters/payroll_export.py": "391938da467ca613152bfa6de253640f1a421d897bebbba214b53f5fcf04f337",
+    "apps/api/didban/adapters/payroll_import.py": "0e9d9c7c1efcbf8d7df8002d63dd79b959bd10679ad9e970ad6c69df1c763b41",
+    "apps/api/didban/adapters/private_files.py": "bb5954597f91e7b9ced947fe42ef596bd555c0973b0271b37cc16875e9072cc7",
+    "apps/api/didban/adapters/report_management.py": "47c04b18ca2e5be7baf1e71d41e520b59929849f00a516d6a743e5ea01ac3c7b",
+    "apps/api/didban/adapters/report_pdf.py": "6b687c8c3736f78c94c6f55ab8cf0c5a73be990c89658fc8af90a93a924f90ff",
+    "apps/api/didban/adapters/report_rendering.py": "7d687b07aca8cb8dbd7f3f5deff0a5163ef8f202fe94095038420e7a045806c3",
+    "apps/api/didban/adapters/report_workbooks.py": "ea72aaa0cbaa673d7a9b43a999916a2299738a3e37a437908fd5588454697f8f",
+    "apps/api/didban/adapters/scanner.py": "006236350cbb838e693712820cbe9e4cf6dcb8df3945282253d2b3f8692c1491",
+    "apps/api/didban/adapters/source_reader.py": "5294c50da723ad89fe9aa677538c015c7124e4137855091b5fa54576ad4f3a35",
+    "apps/api/didban/adapters/table_inspector.py": "a83055c26cbfd14cde28fcac82b89d2c8dbe2da2c432a2a1df8b847ea79c03a6",
+    "apps/api/didban/api/__init__.py": "480f7917797354589d6035422e1d4640b7cc6da863b8a730bf5990046308d815",
+    "apps/api/didban/api/contracts.py": "9080fbb45f059a4a43846d911659ce530450e723fce524d0582b94b3edfb0291",
+    "apps/api/didban/api/router.py": "c02881657fc3a9e2c019635828033aaf39bccfe5b593affc7bfd1ba70d82340e",
+    "apps/api/didban/application/__init__.py": "08dcd8b4766cfe121c796ed9c74f9fe29de3f3b7f177f2550928081fe8bfc304",
+    "apps/api/didban/application/actionable_analysis.py": "9532efddede7cad0263caae2843348f5e97cde5701aa55bd064f5f41a7522492",
+    "apps/api/didban/application/actionable_maintenance_worker.py": "8b0928dc24f41ccd0c73f0a2e33cd37177b143955c5d962d81f9b779b3b55103",
+    "apps/api/didban/application/analysis.py": "9fd0f7ad2eaffffa0a1864f020a8e812604213f1c72bec43a03722e0807fe467",
+    "apps/api/didban/application/analysis_worker.py": "d5fab3a16dc96b7edff0cbe6fe4564c4c166bd4e1910299ba5f699e3df43aa16",
+    "apps/api/didban/application/assistant.py": "74e1f65d70d30429f7aca5e0e88b0a09a445249f4c035049642653b78ac38bc5",
+    "apps/api/didban/application/auth.py": "2c3eba2ee2ba29aa645b8195b0c900ba028e2df2fd45a18fecd592f7acddf964",
+    "apps/api/didban/application/budget.py": "72ba90babea595a44ff3502051e43ed701065cc65733e14a12654c92f8587731",
+    "apps/api/didban/application/cashflow.py": "ba78c6d5ff64b6f7bf7bf08b28b2b569ade538baa3846214688a60b8fc8e5cbb",
+    "apps/api/didban/application/companies.py": "62d133bffa10df250dc205772c4f77690c996c58a7c3b127bb08a12b6a5b41b5",
+    "apps/api/didban/application/company_modules.py": "50446d5b5de4e0e228d3969aada9ca86ed834b5258c45e85a3134626332e41c9",
+    "apps/api/didban/application/extension_access.py": "1848d74b54b22b26cd317293534e2ed15a39e43ba690f073bff539d85644f0c6",
+    "apps/api/didban/application/financial.py": "28c564e8f78db44939a13b5de200eacd23cd7fbdf6c3e194d246b6cb0e4a8503",
+    "apps/api/didban/application/financial_commands.py": "3a88fcf0a87924154728a98e6a9b3715df9fbfacabf4aaa4e16ce156932cc7af",
+    "apps/api/didban/application/financial_questions.py": "e15c4e57293f5ba45a0a6722785ae67f95c9b07e6814caef52e1b492a68f3b17",
+    "apps/api/didban/application/financial_worker.py": "926aca6c66959444f7a9b472c1f6290ffd7c3c947283d15f48ba506111fd826d",
+    "apps/api/didban/application/forecast.py": "d5a8d7b80de6fec174f931d4c245bcd8ec1ba992d963c5d3fd71465af0cf4297",
+    "apps/api/didban/application/forecast_commands.py": "be3fb95cf52b12348649cd218a33ecab256cfa3f67e5fd113527625a4b3da277",
+    "apps/api/didban/application/forecast_start.py": "da4af361e84b31adfdb2fdae4751f68d3b1b73817e2470e88184c0389eeacba3",
+    "apps/api/didban/application/idempotency.py": "77993109c85be183f3d3a5bc9dc9541b0cb96b23fb40853b0d3bfc569089fec3",
+    "apps/api/didban/application/input_review.py": "821530aea31465942e147c5f65efa0155ac8a42902250dda7275a9ff98763c88",
+    "apps/api/didban/application/input_review_answers.py": "f3c2893729f0189f1bb643da26ee3e126fc5225a717e7648fed4276d505a430d",
+    "apps/api/didban/application/input_review_worker.py": "480954163106625f6e3afafe44ea065a42445324c1a7c19f1f5739eabe67be1e",
+    "apps/api/didban/application/intake.py": "e215308d04e4b9a5db004c3075e07149b7cfc3dbe7a9a2504b288b1675ac420a",
+    "apps/api/didban/application/intake_model.py": "12b4cbd19a2ad5956bb8c8775a3b165a4aea324850824a674a0ecacb7eac5941",
+    "apps/api/didban/application/intake_queries.py": "974765c03636b1ee6d383bc7f5b250aa38b3d5b679ed2225f2b2c746dff58dd2",
+    "apps/api/didban/application/interpretation_commands.py": "3cb7f46cd1fcd9d9eef61b548165084f95bc15e0049ef1228a034729be1745f4",
+    "apps/api/didban/application/interpretation_worker.py": "fc131cb3d4de48eb3bd674205e844a2e68315edcc3b34976448a8eae7378063d",
+    "apps/api/didban/application/interpretations.py": "35790d34d077ee1101fa3d9d49c05a03da800eca32423453049450d2a59029c0",
+    "apps/api/didban/application/management.py": "598033e2f69166e876a87ce1f1bc8178f3ffdbd352134c8b7d2239f187194c18",
+    "apps/api/didban/application/model_answers.py": "0baf8ec87aecc15a5701e46f6d7910109310f1c3b8edf0c33a01211201a1e6c9",
+    "apps/api/didban/application/model_worker.py": "2da277116ed2cf0f423d4b10865e70978c44df9e7a8a78eaa001807a5bec37b6",
+    "apps/api/didban/application/payroll.py": "9d3be8486ff13da7a4e70666c1bcab329693cf1a9866e8796001114254586d38",
+    "apps/api/didban/application/payroll_calculations.py": "3167ce38cabdb058d293f9598ab4524aba9048ec4b806cb322d2dacd51335b19",
+    "apps/api/didban/application/payroll_financial.py": "bacd7b438d7e7cdc0b02719b01b3a2e8df7fd14d0a96fc3cd6db376c5201ac3b",
+    "apps/api/didban/application/periods.py": "3d6ac265be1d3c96c62df6c048fc792ac7f5b0052cc2f6f1bdb715d2e02dc06f",
+    "apps/api/didban/application/policies.py": "38231a1cbe029d4f50e66c5fbfb4ce4aae0ea33ce797d2b26f45ced20a663eff",
+    "apps/api/didban/application/preparation_worker.py": "46b44189c00f9717b0e8903876d6dbfe0ffd515f3e90e61d14ec6f29c8dbe92f",
+    "apps/api/didban/application/reconciliation.py": "d404add7a77a47019d78883df8b4248dbd4788c10333e87e650c77ea9cd5b8b7",
+    "apps/api/didban/application/report_scope.py": "1504ff4f086e2d2e788e4fe1b084b6bde6b64e8cbba7d89b1ad53673b0a5d772",
+    "apps/api/didban/application/report_worker.py": "f43d48896780a75aebe6b4fe4d351a8a0de012a5c27c55b7e5f94c4478b6905e",
+    "apps/api/didban/application/reports.py": "23f0442a89ab7249048eb52055dc86c4c1edbbb4f2bcd1e90828571461af2a25",
+    "apps/api/didban/application/settlement_allocation_commands.py": "51acdfa58da5f84c6a49c9e07b00cb4309491f23fc8cc131ae70672211c8fcd2",
+    "apps/api/didban/application/settlement_context.py": "b8e8ad5d43c37250ac1c2a19238216e54f7e17d3ef31700b254c100a9dacd8c9",
+    "apps/api/didban/application/settlement_plan_commands.py": "1d3ea0f54e92085fc85a61968dc4d8654a14c6dc0b9f5920d4a279c8e7cb52b4",
+    "apps/api/didban/application/settlements.py": "3bff4c94f443e4de5342ca06fe57eed16fd75900c71c8df55f69f4c607cb6274",
+    "apps/api/didban/application/source_cleanup_worker.py": "aa90bee4cf1948b7e2cee4521574cdcacb4a4a2dbaea8726d42393855d764584",
+    "apps/api/didban/application/source_understanding.py": "736063e61f19aca9f048fd674d891d0804f51d7f03e078e9edcfd2395d0abfe0",
+    "apps/api/didban/application/start_interpretation.py": "4f084240745f4bd4d7048505557339de3756e55a2cea4ec7225c065280f0f450",
+    "apps/api/didban/config.py": "5d467cea8d3221128d8a32b665c17497117bdc2e57ff24cea926d457c0ecddf5",
+    "apps/api/didban/db.py": "ab96f34ebc99fb3134c7e0b53d7e47deb8587e2fcace6c5b8f003b0721a6d279",
+    "apps/api/didban/domain/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "apps/api/didban/domain/actionable_analysis.py": "370188ab8e5ccd6bb6366349dc66ebf323bb6315a33343286d62bce148145f40",
+    "apps/api/didban/domain/cashflow.py": "5ac9eb38f672261b5f957202ded8b9620a993873e1e7fce357d58e4de3ddd6cb",
+    "apps/api/didban/domain/company_modules.py": "627a9d1804a51cede8ec80cae99a7ba1375351298a462cf7a0b6c5ca5c8673b5",
+    "apps/api/didban/domain/financial/__init__.py": "6614a75ea79325cdadd9039c010d19ed5fa9bdac962421df169bd46ed9171720",
+    "apps/api/didban/domain/financial/bank.py": "d40de2ebbb76ba4fb26a6aa4e9c0f645c8bc6452656395c6ca349b91f468848f",
+    "apps/api/didban/domain/financial/common.py": "2dffc607e1e231e3b74ae1a386cb9595ed820928069d8550767a070d4479e7e8",
+    "apps/api/didban/domain/financial/engine.py": "ef6c3af7ada11938bd0257c319c0d19e725d71bfc10f69384744dd5f7239c819",
+    "apps/api/didban/domain/financial/invoices.py": "2d780aad7f7c4c94c0092d3af42f9e900535b83ca7f9bec3023625ad89db72ca",
+    "apps/api/didban/domain/financial/ledger.py": "9c66c8c19ac0ae2244dbd309cb38c70cd0dd9bc385d50be934b47c69d173e4a7",
+    "apps/api/didban/domain/financial/ledger_controls.py": "73e0b113a7f745571854020afd5a758207174855f3341065a0f8f4b6b8065be7",
+    "apps/api/didban/domain/financial/types.py": "0d0ab4b84bd42e7b87941065e7c2c7260907ff08265d924a0841f4f846271985",
+    "apps/api/didban/domain/forecast.py": "cb11ec1484d63b90f8a7108651d0cfa7926513cfa0bb18fbd2b670ee210ecf74",
+    "apps/api/didban/domain/input_review.py": "74bab6b8a54178139e5cbdd01befa04b12e640336fb01f63444e8fa0643ecfd2",
+    "apps/api/didban/domain/intake.py": "c820293ea5978cce0a5f8074c87a296b68a0a09216dac8344513e7aae6b6846a",
+    "apps/api/didban/domain/interpretation.py": "67275cd27e137d77b62a736cba8dd4bf50f310f7a2ff54acce475b0c901ed614",
+    "apps/api/didban/domain/interpretation_types.py": "7f70e274e6055e35e37cffa4df15819f0261d8f6756d486b6ef0182e46546714",
+    "apps/api/didban/domain/ledger_layout.py": "1e6b511a50342fd5c7f605056bc3b95443d14415896c4f0c8ac2a927933e38d3",
+    "apps/api/didban/domain/management/__init__.py": "ba321e8a53cf742f9a29cac8daf71d2b9b06942546e8e715a8b5a91585fc5809",
+    "apps/api/didban/domain/management/analysis.py": "1597af4ef83197c720373a63e18096b8f558d92412ba8af53bee8212b28f9fdc",
+    "apps/api/didban/domain/management/cash_analysis.py": "57facfdd33583e46ab0bcf8331d0653ab9b0af59ba59dfa16e31df8f75bd972b",
+    "apps/api/didban/domain/management/cash_statement.py": "2281ce945e896755a3b06eef631b158f6e76cdc6894b7207bfe6e3bd665e70da",
+    "apps/api/didban/domain/management/daily.py": "9a92dad21c3561e7b6c60d9fb02f5badcac3fa41d83872fc9b85c5ced363f616",
+    "apps/api/didban/domain/management/statements.py": "d782804642339210b1d9839bdad962ee27c282f9de5fce90a76a6de2f44aa857",
+    "apps/api/didban/domain/management/templates.py": "f2d27341882e5a7d77e68cc4ad17b577f05db5b8ead73b5ae83786e9c5acd785",
+    "apps/api/didban/domain/management/trial_balance.py": "5aca6cab6ee4eac9866a54b78474287e6f293d27bc0064884ffa7ea636c7c8cb",
+    "apps/api/didban/domain/moadian_export.py": "592c6efa34b83bbc025168ba043b4a7ff0c01bdbbfa5d2e73bca40034b37c4bf",
+    "apps/api/didban/domain/model_interpretation.py": "5305555b87e6602a659286ee0476641e335de476e641ccd95e1dc010a46c9f10",
+    "apps/api/didban/domain/normalization.py": "e3aa14c297a2183f153b6c4321ad2b64892104176f2eca10369a2eb21dbbf0d7",
+    "apps/api/didban/domain/payroll/__init__.py": "b87885f491a1b2988982fc30e6d454365c6b3e94056ca9b274a64631871dcc6e",
+    "apps/api/didban/domain/payroll/calculation.py": "2adfae4d38cd4482da37111c6dfb1c5cedf581537856e50f50124a82a3bde8c5",
+    "apps/api/didban/domain/payroll/fingerprint.py": "3d1703b0900ba657686ac0061e8488091a9bc2a1433d13dcfa770218d431b312",
+    "apps/api/didban/domain/payroll/validation.py": "5cbd344293b28af0867e73e4016894f900b9537cec083ddc98a95f2c6bab3217",
+    "apps/api/didban/domain/policies.py": "afdd7404e7bcc4d570b267df63efb04048a7b20e753391ead29ea701d71ae67c",
+    "apps/api/didban/domain/reconciliation.py": "1dab7cd656b8d8e5a5c83ff472e62fba0b18fde546952391787aca15d3d45be5",
+    "apps/api/didban/domain/reports.py": "47de360a16beadd3766cf7ee3a956da91a2f33584c9546ea1a875b4571998075",
+    "apps/api/didban/domain/settlements.py": "dc15f780feb7630128cb7b17652ca7348bb8adfe78fbd54a11d69c0e0d412b50",
+    "apps/api/didban/domain/source_controls.py": "1dd8a88f3d3b8187e034099a318760abf5fca98f047c0b326f28abb19277f5f6",
+    "apps/api/didban/domain/source_profiles.py": "10739aa45a2f6d69b1f30a2d2b42c7d1aec400bf79ef32fbf59d31d299e7ffec",
+    "apps/api/didban/domain/source_tables.py": "c2bf3cfafbab4aa64b5226cc5b739b1da528590ccd8e7478aa0a75bc80e2642a",
+    "apps/api/didban/domain/source_understanding.py": "41748112e968d02ccd56eadb90c82554c772a0569ee4e176722b7c5e9f0e0169",
+    "apps/api/didban/domain/trial_balance_input.py": "64bb0cfc1adc63b88aa1463600dca062e1948081ff14c43c3bcc6107bc7e9841",
+    "apps/api/didban/errors.py": "ffc3c1d6206635078929ecbfd779ff98309eea6a5149de9a329c6f4da945f89c",
+    "apps/api/didban/infrastructure/__init__.py": "7296f379f4b997d52f354cdd5e6ce5314187146e117f02f04b6fa86f39bf6cd6",
+    "apps/api/didban/infrastructure/actionable_analysis.py": "73411d06d0d1d6c49b1bda59aabebd2b9a20604ca008d5becd30d9c0e643b2ae",
+    "apps/api/didban/infrastructure/analysis.py": "0c30d0614a74f500a3465ad5e1583ac4c3c508054faffb58e55f83b817b23351",
+    "apps/api/didban/infrastructure/cashflow.py": "5cf1d07544aff52be0972e890e8c02bdc7590ad5f2335357629d88c7ff6ff12b",
+    "apps/api/didban/infrastructure/commands.py": "4c73abd4889badb57e63c55ce1d5f497848b43da4b5bacf5733b4ac814f8a469",
+    "apps/api/didban/infrastructure/company.py": "54f36d09fc7023a0933ab959469cd086a0ab9650ae1c03163d86212d3cf7e2c4",
+    "apps/api/didban/infrastructure/company_modules.py": "f12ed5469211e9461988c24fb6960021281e76ef95226f74522951dcf1f456da",
+    "apps/api/didban/infrastructure/extension_access.py": "89e9f98ad820fc8f1ee705f2efdcdf5d243add633d654f16da6fb6a13bae504c",
+    "apps/api/didban/infrastructure/financial.py": "9601030e7dd0a982aa3984bd6a0bd89b6d11c97a3cf229bbff740a1d1b37adee",
+    "apps/api/didban/infrastructure/identity.py": "3d9ee05b78c8b930c603d174d0019a2e0be746d805e742e4105c8294384dccb9",
+    "apps/api/didban/infrastructure/input_review.py": "e072b9b29f8926c3f759367bb92501252d2c729a253b410c8562d7032174b882",
+    "apps/api/didban/infrastructure/intake.py": "e8d9c8860cf7a6dcc94bbcede58c4d27d78f86d1684e695cc284c20a3c0aec51",
+    "apps/api/didban/infrastructure/intake_model.py": "b816b9fc7cae90f98bc8490fbe437c2fc19c200da7abc4aea07a7955246a2c24",
+    "apps/api/didban/infrastructure/interpretation.py": "41fc327e4ad8b5c05bd9dec2c8d3e780c6cf1ccea9ca4695e86fbe15dfaf00fd",
+    "apps/api/didban/infrastructure/model.py": "dbe58b220cce6382f44244140bc7330382b7dff589243435bbbfd4ccca42df68",
+    "apps/api/didban/infrastructure/payroll.py": "fa676a816e510a8513c67faa1f5937f0e1b686255824f01270a929dcac5e1796",
+    "apps/api/didban/infrastructure/policies.py": "2627be65d977a028529468ef7d13ec245092b7ac7f1a002255bdb62f9b959016",
+    "apps/api/didban/infrastructure/reconciliation.py": "de737e8467bedb090442e48fe808a9f1d105c4afeaf64546338dc70d4df451d5",
+    "apps/api/didban/infrastructure/reconciliation_automatic.py": "20645550cb9a519365360d4533176f4c161cf3b98f4ebefdde892e7291720018",
+    "apps/api/didban/infrastructure/reconciliation_projection.py": "830e99339d40b63f429107207f77dc2fe93b50549ec90eaea86c21e994a3c529",
+    "apps/api/didban/infrastructure/reports.py": "b151b99736572984863ef9960e68cb7448ac19a4a19b9d947dd7946bf5abcb81",
+    "apps/api/didban/infrastructure/settlement_projection.py": "1e339dc96bd0a071aca4ca1155ba46f1a59ce7952848be6c5a724b0dc308176b",
+    "apps/api/didban/infrastructure/settlement_records.py": "a816390d12b6335ebbf4761a0475535d8968c9ee48f2359e46ddddf037dd4874",
+    "apps/api/didban/infrastructure/settlement_recurrence.py": "852526b3dcf0ef45b3085b894beb61cb7bd8987719d068f394d309882c849f1b",
+    "apps/api/didban/infrastructure/settlement_snapshot.py": "cbe5c303936705806b4a604f09b3dd315684da376335d03ec29acf659f03b7ee",
+    "apps/api/didban/infrastructure/settlements.py": "53587c7208f000443860940b1fe4cf9aa9969a246526dc0f802ac18bd7a0ca9a",
+    "apps/api/didban/main.py": "0e9953e578997e67c302835a141f653344be6c03165e66f6894bed5dfee45f46",
+    "apps/api/didban/manage.py": "5633f3b4d17c0feb93560b4a06c18700e9c77c3f51a31dda0086f18f2b82ef56",
+    "apps/api/didban/security.py": "d4aa2c69ad8dea6fcb00e450a23001cf407efdefbe453574d90f136ff988ca7d",
+    "apps/api/didban/worker.py": "d25a9996caebb3b770b56e0f32014ad455113a861a48b2b5153dfed66fb9d9f2",
+    "contracts/openapi.json": "b81786dd09cbf48a42e4030d64191c5e7171651a3614a551cf3d8ce7e0bdf562",
+    "database/001_schema.sql": "7197ccb8ad6c6f11ac281fee45d3d8d2b73916417f0f3a3c7d587c9dd33e0cc0",
+    "database/002_guards.sql": "7268b2f70efe51285b54ed04634574ac343baf843ad8967735d8a17de0ec37c5",
+    "database/003_consistency.sql": "68152621c14171daa62ee2c4db51a87ed761ca7c403224ba79c9e9f66ce44cd6",
+    "database/004_identity_runtime.sql": "2a54262c8f7accb7845e533d9b2c40c4d18e41aa66895e7984d1319ccd84c523",
+    "database/005_command_completion.sql": "f4bf1b3660cee4a5fd708d4d8ba3ea189a88e952fe924c029ae5870c12ab8d45",
+    "database/006_intake_runtime.sql": "7709756c0792143b2e10b3d4928e76d5c2a4118757fb3ddcf458fe798fb089f3",
+    "database/007_interpretation_runtime.sql": "0183dda1d7878f588a4e1bfe390ba3c2d62903c49275f6f102cb2e563d52b322",
+    "database/008_financial_runtime.sql": "bc9e217d434db34b0de63212155c5587f271cc6e80d16b1b828ec026135e2d43",
+    "database/009_reconciliation_runtime.sql": "bd4837053ed7857622d384bd0a6dee32c6069683be96a0cbf3b58c752e0d8fc2",
+    "database/010_settlement_runtime.sql": "13ca588513bdacc671e392d2166b833ba7c55be12a2fbf1376fc5fa94e3cb24f",
+    "database/011_model_runtime.sql": "306486ff22337a760fa6bf6ce52caf338382568227c80cfb5073453bf4a497ba",
+    "database/012_analysis_runtime.sql": "21dc3c81720f33fd6ec28ea288016e60cbcece4de276e4193cf6da85f1e78f51",
+    "database/013_reports_runtime.sql": "d4c2fad3777cce2acc8e001a97bc95c38a20ad6fc62b9090fa4c3d92802ea8b0",
+    "database/014_policy_retention_runtime.sql": "29d362350f5baf7e2dedb4c479f199319b9c4e9221f7090bb468a41489e8e5ec",
+    "database/015_reporting_orchestration.sql": "d0902c35b74749a117509e4a1b3e5a350dfbfff650384908593fc68f0abdb716",
+    "database/016_analysis_capacity.sql": "c39dc04383d78bd2331a4cfbf74309ed2777986871c7b8d944b7bf6a224a81cc",
+    "database/017_avalai_model_provider.sql": "d19bf1f6d439f0a26ea658f3b48ba2adc5dc8e0785cac86a1a43e121b3438170",
+    "database/018_intake_model_proposals.sql": "59746a7e929f5a7cf2c2c17a00dd44ddd882f29cc087cb9816bff01463fd6a9c",
+    "database/019_intake_proposal_dependency_identity.sql": "428dc5ac504cd8c959e1537ef28b1d26ef583741a5a9f6b3ca1d4114a2f4a159",
+    "database/020_intake_model_safe_retries.sql": "da1dbc33ae0afedce8b277995dd3b90c13b23d4945d5c9ac93f6596487a1237b",
+    "database/021_intake_model_dependencies.sql": "5ae6c64d0eeb8e34230765e255770328e6f1d2da04ec5631527e38ac2f97268e",
+    "database/022_statement_account_roles.sql": "7cd1d767e9199196d600839c4d28ccb5abf46c7156d1ec3402250c4f3575205e",
+    "database/023_trial_balance_sources.sql": "2d65a2acc5b37b038b53953b62a825a72213f6d8cdb97fdebcade9ebdef0e5fe",
+    "database/024_extension_access.sql": "65d7d09ca75cf8d14cdd285f2ec0a0a66eb91ecce045104f4559075c8fed4363",
+    "database/025_company_modules.sql": "be16360ce13350e97ec707012c1e56d18cfcc7a2ccec04e110b9b8ecf4b5f71b",
+    "database/026_input_review.sql": "7281f5df8f581a719f9db1f4787e104e9b099fc3ec06944b7a5204f40c812a64",
+    "database/027_payroll.sql": "3972e2ea2a93af189948a3df87a3be3ca1cfd2022334d54b0403fdfbcbf198bb",
+    "database/028_actionable_analysis.sql": "c1647509d18c8ebca6e4bfc963f829552ecfd487a4725da181b4a020c735d84b",
+    "database/029_extension_authority_locks.sql": "bf1f1f4eea4f766680507adc6cdfcf1e5649c04922e59305e6473ee95dbebe88",
+    "database/030_input_review_completion.sql": "d754520a662c0420bbf17f3a949aad85b0f5d137b719d3c0395df9feaed5f7ed",
+    "database/031_actionable_automation.sql": "4e72b15bb613858240f48c457a4c90c1224232ee04cffeb5e2fe78c64f4ed0fb",
+    "tests/payroll_fixture.py": "909d3b5a5a8557449bc87265234563ed51063dd88bff9c7b66585498a23c770a",
+    "tests/test_actionable_analysis.py": "b2936c2b21ef6501c51425743028cb6a5c1dc1c16f74511fb7fcbaeeeaf521ec",
+    "tests/test_actionable_analysis_runtime.py": "4023b8fe7c6802558475587a5fb3952e416d5fbbe1e7b891bd5cdf047adda9c7",
+    "tests/test_actionable_automation_runtime.py": "34ecc593cf9d7554457ea02ecb52dee9185fddd2b0e3e9e6860855adc6bb558b",
+    "tests/test_analysis_runtime.py": "934790784377b8b0f23449562c2a092f491e9e1283deea55803e9aaf26a3c012",
+    "tests/test_backup_bundle.py": "591a799e5beecd1cfdf4734ca429b8c8f3365896a32cf3d38155445fc3f7f962",
+    "tests/test_backup_local.py": "72061ffdd9cd276a5bc79b7d7fd37c8bf703e3934ac597921139c621cf7260ae",
+    "tests/test_backup_local_database.py": "0fe9e196b46ce4b30cbaebf5315c2f102fa11a5db9291795e9ba9a48b10c76d0",
+    "tests/test_capacity_runtime.py": "0a2ecc62d4da95932fed6c6673e41ba5b079dd09f2ce771bfc6d01a2194493d9",
+    "tests/test_cashflow_domain.py": "d528457e059058ba346ca41cde6e93a49b8c0d0f1c845d87e4ca355b5d914e73",
+    "tests/test_cashflow_runtime.py": "9d93beb31276edb5676db62986ba1a7cd834b59cd0496dc689a7b235429ec425",
+    "tests/test_delivery_workflow.py": "8784fa64e07d0aa565777f077ae736ab835d5beaabc55a94c3d186a797cd3615",
+    "tests/test_extension_access_runtime.py": "655d3f005120d3ff5cc52c35ac7f901ef7627663761c4f584e07288bcfc71488",
+    "tests/test_extension_restore_runtime.py": "979b681bd998dae22910f76556bf5dfc569510da0a7a9d44c4e73a783e50328b",
+    "tests/test_financial_domain.py": "9a5b496ebc1ce55230b9636ba37938f49f275e2108e2f9799a587c96a5cdf805",
+    "tests/test_financial_runtime.py": "75ab9758eade85bc3a1495267c52407626ab4f54fbbe575a56fd1a7b99abaa04",
+    "tests/test_forecast.py": "1b149d2fc48f5dc804eae909dc61b4f58f9f3c31da42999af04a0dea2515cdc5",
+    "tests/test_forecast_workflow.py": "658b60cd9f31359fe5892ae02f25cdba7a3f27bef197a58899be59a210f58aae",
+    "tests/test_input_review.py": "a350194a3c8c035b52df9ad7b499ad960a577960756dfe82626b068f3099ecf9",
+    "tests/test_input_review_runtime.py": "c20343a3e95bac37b649163069638e94a09fee450ed3a3c6e0acb8f1507339b3",
+    "tests/test_installation_config.py": "47af3767c51f235bde629a3880e8e7d2e394a143e02e9fdc31c4eb37e6c114fe",
+    "tests/test_intake.py": "7522960671ebde1cf7909f27d197e3a8432ba07f2dfb8510321fb76502ace6c4",
+    "tests/test_intake_model.py": "6bb7892a77a23d9595f5206921275cdd1753a531f05a9ceef12a760e23bb48e3",
+    "tests/test_intake_model_runtime.py": "3b33dbcbb6403e1a06e034698a2de12c50216b39cd4a8147b2d0308d64f860f7",
+    "tests/test_interpretation.py": "ac68bca0d4f9169bc59a052d61318a1df826be06fac2f9d0d15e3c2747c2d581",
+    "tests/test_local_restart.py": "b8f57382002270b45b9f7a8bd5111cb1952cffc5bcfcbfc5d8f217a2e89ceb4b",
+    "tests/test_local_watchdog.py": "4f424fb6924e606adf5aac485c7ef9e7cdbabc7a8573e7b3c639b80a6bd8bcc5",
+    "tests/test_management_domain.py": "0fd02d55005427f1e5e9a55c6d2b8ed8f645ef8fb15e08829a0462cbf7ee4bb0",
+    "tests/test_management_runtime.py": "7f4d16950e5602ea2ad747f66a6cd1141646d3188639c772d9e2173b5e4b09b6",
+    "tests/test_moadian_export.py": "23cb44ea1f733cf41f15a1b0054b802f4ab9de4d552299e927c79674cecf06b9",
+    "tests/test_moadian_export_runtime.py": "fc0178499e8808f8d10f34f0c2dd90530e8b409fa2059500491228fa2d5381cc",
+    "tests/test_model_provider.py": "2d1ac214a5c3553e1bd23070a6a25dac78285b7856db7629fa628af27624ea58",
+    "tests/test_model_runtime.py": "bbf7b630586c00352341718bce7673296e5fde327cc6df4723e4d5c755e88512",
+    "tests/test_module_scope.py": "d974c1a4c7c1eb389293f75108b555750474eb768c663d94bbb92b5a5d514353",
+    "tests/test_module_workflow_runtime.py": "ecc9a5a46364bbcbbe70b0fb9bbe25d3d0be14dcb4cb153a432eaf05f0e2c643",
+    "tests/test_mvp_acceptance.py": "a24ce87cf0df1b58ff3e940ffe099c85b8a221875916ad7afb60717605d29b13",
+    "tests/test_payroll_domain.py": "2c6df0bcf399c3a5a9f59998843c816506e8c372c4742606021c54213c0dbe65",
+    "tests/test_payroll_runtime.py": "c289ee1cb41c1b218192755c47cd721ca39b205895a82dbbcb3d0fdf632a91a6",
+    "tests/test_policy_runtime.py": "f909103328e161c7857047b7a2c528941f93b1316645bd278e8ebc5e247e05a5",
+    "tests/test_reconciliation_domain.py": "bdca11b74985a2c530512faeedca985fb0561479e5a0dc347a440aabda1fff2d",
+    "tests/test_reconciliation_runtime.py": "553141b6638df89bd5fa0f83725f699314002e3a6ff0cfda5cec91475e3d296f",
+    "tests/test_report_rendering.py": "4725bb1f71edf02257488ba471eb19fdb95e33f85228c000d444765079cc4c4b",
+    "tests/test_reports_runtime.py": "7a287d89a91d575c7ef096615760674287cae7b0c71b2b05d4da8fb21e950455",
+    "tests/test_restore_runtime.py": "315bb6019f8286bc8939e568bd02004e800566ec95465fb8072619c46ee3f2f3",
+    "tests/test_runtime.py": "45b788ad3cc9302fd599315f356e40fd0d019e1b08edd9659f3739298f5b8e15",
+    "tests/test_schema.py": "fcfb51dc46483038bf710c3f79e8ac00700846712c92438e85112cfa13a26aad",
+    "tests/test_settlements_runtime.py": "5a7eece1a09c070745a62569ebb7916a5c8c61efd5600b3172d606f7151d1dbb",
+    "tests/test_source_understanding.py": "a61ec69b6440aeda6f3252eb5787a28821770976a63bbab8a1462371ff73ef00",
+    "tests/test_source_understanding_runtime.py": "41bfa19a03db5e1ba616cb3f6c10e9bcf58098c9bbbccecd037b2137dca1ed46",
+    "tests/test_statement_sources.py": "461a4fccc47dac68e8f4bfefb47c34452dae2cccb0846a406603d77a2e361469",
+    "tests/test_statement_sources_runtime.py": "ffa19f519ae5e4eab514e3acdc3413c63b441d0c1a0879156267eaf602a08fd5"
+  },
+  "verified_migration_count": 31,
+  "live_installation_modified": false
+}

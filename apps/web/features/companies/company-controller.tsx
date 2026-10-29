@@ -1,4 +1,5 @@
 "use client";
+import { ActionableSummary } from "@/features/actionable-analysis/summary";
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -112,11 +113,14 @@ export function CompanyOverviewController() {
       />
     );
   return (
-    <CompanyOverview
-      company={company.data}
-      role={roles[access.data.role]}
-      canManage={access.data.permissions.includes("company.owner")}
-      canApprove={access.data.permissions.includes("company.approve_report")}
-    />
+    <>
+      <CompanyOverview
+        company={company.data}
+        role={roles[access.data.role]}
+        canManage={access.data.permissions.includes("company.owner")}
+        canApprove={access.data.permissions.includes("company.approve_report")}
+      />
+      <ActionableSummary company={companyId} />
+    </>
   );
 }

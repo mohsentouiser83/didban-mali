@@ -7,6 +7,7 @@ from psycopg.types.json import Jsonb
 from ..domain.financial import calculate
 from ..infrastructure.financial import inputs, publish, digest
 from ..infrastructure.intake import IntakeRepository
+from ..infrastructure.input_review import ready
 from .financial_questions import requirements, declarations
 from .preparation_worker import PreparationWorker, StaleJob
 
@@ -27,7 +28,8 @@ class FinancialWorker(PreparationWorker):
                     repo = IntakeRepository(conn)
                     session = repo.session(job["company_id"], job["session_id"], True)
                     if (
-                        not session["interpretation_finished_at"]
+                        not ready(conn, str(session["id"]))
+                        or not session["interpretation_finished_at"]
                         or session["manifest_id"]
                     ):
                         raise StaleJob()
@@ -55,6 +57,24 @@ class FinancialWorker(PreparationWorker):
                         context = {"selection_fingerprint": fingerprint, "answers": {}}
                         session["financial_context"] = context
                     answers = context.get("answers", {})
+                    shared = session["interpretation_context"]
+                    if (
+                        data[0] is None
+                        and shared.get("coverage") == "declared_complete"
+                    ):
+                        for source_kind in {row.kind for row in data[3]}:
+                            coverage_key = "coverage|" + source_kind + "|" + data[4].id
+                            answers.setdefault(coverage_key, shared["coverage"])
+                            context.setdefault("answer_actors", {}).setdefault(
+                                coverage_key, shared.get("actor_id")
+                            )
+                        context["answers"] = answers
+                        context["shared_coverage_origin"] = {
+                            "kind": "interpretation_coverage",
+                            "actor_id": shared.get("actor_id"),
+                            "period_id": data[4].id,
+                            "selection_fingerprint": fingerprint,
+                        }
                     question = next(
                         (
                             q
