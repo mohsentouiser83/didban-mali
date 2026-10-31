@@ -69,13 +69,9 @@ def pdf_bytes(content: dict, font_root: Path) -> bytes:
 
     def money(value):
         value = display_amount(value, content["manifest"].get("display_unit", "IRR"))
-        sign = "−" if value.startswith("-") else ""
-        whole, _, fraction = value.lstrip("-").partition(".")
-        groups = []
-        while whole:
-            groups.insert(0, whole[-3:])
-            whole = whole[:-3]
-        return sign + "٬".join(groups) + ("٫" + fraction if fraction else "")
+        from .money_presentation import grouped_amount
+
+        return grouped_amount(value).replace("-", "−").replace(".", "٫")
 
     out = BytesIO()
     doc = SimpleDocTemplate(

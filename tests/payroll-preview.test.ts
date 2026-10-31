@@ -65,8 +65,8 @@ const preview: ImportPreview = {
 test("payroll preview preserves original toman amount and exact canonical rial without a second conversion", () => {
   const cells = importPage(preview, 0);
   assert.equal(cells[0].original, "0001");
-  assert.equal(cells[1].original, "۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳٫۱۲۳۴۵۶");
-  assert.equal(cells[1].normalized, "۹۰٬۰۷۱٬۹۹۲٬۵۴۷٬۴۰۹٬۹۳۱٫۲۳۴۵۶ ریال");
+  assert.equal(cells[1].original, "۹,۰۰۷,۱۹۹,۲۵۴,۷۴۰,۹۹۳٫۱۲۳۴۵۶");
+  assert.equal(cells[1].normalized, "۹۰,۰۷۱,۹۹۲,۵۴۷,۴۰۹,۹۳۱٫۲۳۴۵۶ ریال");
   assert.equal(cells[1].unit, "تومان");
   const missing = cells.find((c) => c.row === "۳" && c.field === "نام");
   assert.equal(missing?.error, "نام لازم است.");
@@ -108,7 +108,7 @@ test("sample contract labels expose employee, validity and exact base salary", (
   assert.equal(labels[0].value, "opaque");
   assert.match(labels[0].label, /کارمند نمونه/);
   assert.match(labels[0].label, /بدون پایان/);
-  assert.match(labels[0].label, /۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳٫۱۲۳۴۵۶ ریال/);
+  assert.match(labels[0].label, /۹,۰۰۷,۱۹۹,۲۵۴,۷۴۰,۹۹۳٫۱۲۳۴۵۶ ریال/);
   assert.doesNotMatch(labels[0].label, /opaque/);
 });
 

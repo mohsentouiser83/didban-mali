@@ -1,7 +1,7 @@
 import { choiceLabels } from "@/features/interpretation/labels";
 import { formatMoney } from "@/features/results/presentation";
 import { formatDate, persianDigits } from "@/lib/dates";
-const moneyFields = new Set(["debit", "credit", "amount", "gross"]);
+import { moneyFields } from "@/features/interpretation/format-values";
 const dateFields = new Set(["date", "issued_on", "due_on"]);
 const choices = new Set(["role", "row_type", "unit", "original_unit"]);
 const identifiers = new Set(["account", "bank_account", "entry_id"]);

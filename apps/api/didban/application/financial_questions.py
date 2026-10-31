@@ -1,5 +1,6 @@
 """Explicit, durable declarations; no completeness inferred from observed rows."""
 
+from ..domain.money_format import grouped_amount
 from datetime import date
 from ..infrastructure.financial import digest
 from ..domain.financial.ledger_controls import posting_facts
@@ -119,7 +120,7 @@ def requirements(rows, period, previous):
             ):
                 add(
                     "anchor|" + token + "|row:" + str(r.row_number),
-                    f"مانده {r.values['balance']} در {r.values['date']} برای {source_label} مربوط به کدام لحظه است؟",
+                    f"مانده {grouped_amount(r.values['balance'])} در {r.values['date']} برای {source_label} مربوط به کدام لحظه است؟",
                     ("start_of_day", "end_of_day", "unknown"),
                 )
     if bank:

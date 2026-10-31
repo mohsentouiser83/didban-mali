@@ -212,7 +212,7 @@ class ModelProviderTests(unittest.TestCase):
             "company-a",
             "manifest-a",
         )
-        self.assertIn("۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹۰.۱۲۳۴۵۶", text)
+        self.assertIn("۱۲۳,۴۵۶,۷۸۹,۰۱۲,۳۴۵,۶۷۸,۹۰۱,۲۳۴,۵۶۷,۸۹۰.۱۲۳۴۵۶", text)
         self.assertEqual(refs, ["evidence-a"])
         self.assertEqual(path, "/companies/company-a/results/manifest-a")
         text, refs, path = render_answer(

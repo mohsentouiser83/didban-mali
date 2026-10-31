@@ -91,8 +91,8 @@ class RenderingTests(unittest.TestCase):
         data = render("xlsx", content, ROOT / "assets/fonts")
         book = load_workbook(BytesIO(data), data_only=False)
         values = [c.value for row in book["شاخص‌ها"] for c in row]
-        self.assertIn("123456789012345678901.123456", values)
-        self.assertIn("0", values)
+        self.assertIn("123,456,789,012,345,678,901.123456", values)
+        self.assertIn(0, values)
         self.assertIn("unavailable", values)
         cells = [c for ws in book for row in ws for c in row]
         self.assertFalse(any(c.data_type == "f" for c in cells))
@@ -109,8 +109,21 @@ class RenderingTests(unittest.TestCase):
         data = render("xlsx", content, ROOT / "assets/fonts")
         book = load_workbook(BytesIO(data), data_only=False)
         values = [c.value for row in book["شاخص‌ها"] for c in row]
-        self.assertIn("12345678901234567890.1123456", values)
+        self.assertIn("12,345,678,901,234,567,890.1123456", values)
         self.assertEqual(content["metrics"][0]["value"], "123456789012345678901.123456")
+
+    def test_excel_grouped_numeric_cells_and_large_exact_text(self):
+        content = fixture()
+        content["metrics"][2]["value"] = "1234567.125000"
+        book = load_workbook(BytesIO(render("xlsx", content, ROOT / "assets/fonts")))
+        # A is the continuation marker; D is the financial amount.
+        small = book["شاخص‌ها"]["D4"]
+        self.assertEqual(small.value, 1234567.125)
+        self.assertEqual(small.data_type, "n")
+        self.assertEqual(small.number_format, "#,##0.000000")
+        large = book["شاخص‌ها"]["D2"]
+        self.assertEqual(large.data_type, "s")
+        self.assertEqual(large.value.replace(",", ""), content["metrics"][0]["value"])
 
     def test_error_csv_is_sanitized_and_includes_original_row(self):
         raw = render("error_csv", fixture(), ROOT / "assets/fonts").decode("utf-8-sig")

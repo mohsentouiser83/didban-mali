@@ -142,7 +142,7 @@ export function AnalysisEvidence({
                 <p className="text-sm tabular-nums">
                   مقادیر محاسبه:{" "}
                   {ref.fact_values
-                    .map((value) => persianDigits(value))
+                    .map((value) => formatMoney(value, "IRR"))
                     .join("، ")}
                 </p>
               ) : null}

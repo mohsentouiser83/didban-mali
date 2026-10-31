@@ -1,4 +1,5 @@
 import type { Schema } from "@didban/api-client";
+import { groupMoneyDigits } from "@/lib/money";
 import { persianDigits } from "@/lib/dates";
 
 export type DisplayUnit = "IRR" | "IRT";
@@ -79,7 +80,7 @@ export function formatMoney(value: string | null, unit: DisplayUnit): string {
   ).replace(/0+$/, "");
   const nonzero = /[1-9]/.test(integral + decimal);
   return persianDigits(
-    `${negative && nonzero ? "−" : ""}${integral.replace(/\B(?=(\d{3})+(?!\d))/g, "٬")}${decimal ? `٫${decimal}` : ""}`,
+    `${negative && nonzero ? "−" : ""}${groupMoneyDigits(integral)}${decimal ? `٫${decimal}` : ""}`,
   );
 }
 
@@ -122,8 +123,10 @@ const reasons: Record<string, string> = {
     "هزینه مالیات بر درآمد مشخص نیست؛ سود خالص محاسبه نشده است.",
   cogs_unknown: "بهای تمام‌شده مشخص نیست.",
   income_tax_conflict: "هزینه مالیات با سند تخصیص سود تطابق ندارد.",
-  periodic_cogs_template_scope: "قالب انتخابی بهای تمام‌شده ادواری را پوشش نمی‌دهد.",
-  allocated_tax_template_scope: "قالب انتخابی مالیات سند تخصیص سود را پوشش نمی‌دهد.",
+  periodic_cogs_template_scope:
+    "قالب انتخابی بهای تمام‌شده ادواری را پوشش نمی‌دهد.",
+  allocated_tax_template_scope:
+    "قالب انتخابی مالیات سند تخصیص سود را پوشش نمی‌دهد.",
   bank_binding_unknown: "ارتباط حساب بانکی با دفتر مشخص نیست.",
   bank_source_accounts_ambiguous:
     "یک شیت شامل چند حساب بانکی است؛ فایل هر حساب را جدا بارگذاری کنید.",

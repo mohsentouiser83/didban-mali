@@ -1,3 +1,4 @@
+import { MoneyInput } from "@/components/ui/money-input";
 import { AppIcon } from "@/components/ui/app-icon";
 import { useState } from "react";
 import type { Schema } from "@didban/api-client";
@@ -230,7 +231,7 @@ export function PlanDialog({
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <Field icon="Coins" id="plan-amount" label="کل مبلغ تعهد">
-              <Input
+              <MoneyInput
                 id="plan-amount"
                 name="total_amount"
                 inputMode="decimal"

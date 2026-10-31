@@ -1,17 +1,27 @@
+import {
+  formatMoneyText,
+  groupMoneyDigits,
+  normalizeMoneyInput,
+} from "@/lib/money";
 import type { Schema } from "@didban/api-client";
 import { formatDate } from "@/lib/dates";
 
 /** Localize embedded civil dates for display without changing API values. */
 export function financialQuestionText(text: string): string {
-  return text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, (date) => {
-    const parsed = new Date(`${date}T12:00:00Z`);
-    if (
-      !Number.isFinite(parsed.getTime()) ||
-      parsed.toISOString().slice(0, 10) !== date
+  return formatMoneyText(text)
+    .replace(
+      /(مانده\s+)([−-]?[0-9۰-۹٠-٩]+(?:[,٬][0-9۰-۹٠-٩]{3})*(?:[.٫][0-9۰-۹٠-٩]+)?)/g,
+      (_, label, value) => label + groupMoneyDigits(normalizeMoneyInput(value)),
     )
-      return date;
-    return formatDate(date);
-  });
+    .replace(/\b\d{4}-\d{2}-\d{2}\b/g, (date) => {
+      const parsed = new Date(`${date}T12:00:00Z`);
+      if (
+        !Number.isFinite(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== date
+      )
+        return date;
+      return formatDate(date);
+    });
 }
 export const count = (value: number) =>
   new Intl.NumberFormat("fa-IR").format(value);

@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 from io import BytesIO, StringIO
 import json
+from .money_presentation import WorkbookMoney, workbook_money
 from ..domain.reports import (
     METRIC_LABELS,
     spreadsheet_text,
@@ -84,29 +85,43 @@ def xlsx_bytes(content: dict) -> bytes:
     book = Workbook()
     book.remove(book.active)
 
+    def shown(value, unit):
+        return workbook_money(display_amount(value, unit))
+
     def sheet(name, headers, rows):
         ws = book.create_sheet(name)
         ws.sheet_view.rightToLeft = True
         ws.freeze_panes = "A2"
         ws.append(["قطعه سلول", *headers])
         for values in rows:
-            texts = ["" if v is None else str(v) for v in values]
-            pieces = max([1, *[(len(v) + 29999) // 30000 for v in texts]])
+            texts = [
+                "" if v is None else v if isinstance(v, WorkbookMoney) else str(v)
+                for v in values
+            ]
+            pieces = max(
+                [1, *[(len(v) + 29999) // 30000 for v in texts if isinstance(v, str)]]
+            )
             for part in range(pieces):
                 ws.append(
                     [
                         str(part + 1),
                         *[
                             v[part * 30000 : (part + 1) * 30000]
-                            if len(v) > 30000
+                            if isinstance(v, str) and len(v) > 30000
+                            else v.cell_value()
+                            if isinstance(v, WorkbookMoney)
                             else v
                             for v in texts
                         ],
                     ]
                 )
+                for cell, value in zip(list(ws[ws.max_row])[1:], texts):
+                    if isinstance(value, WorkbookMoney):
+                        cell.number_format = value.number_format
         for row in ws:
             for cell in row:
-                cell.data_type = "s"
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
         for cell in ws[1]:
             cell.font = Font(name="IRANYekanX", bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor="5556DE")
@@ -117,7 +132,8 @@ def xlsx_bytes(content: dict) -> bytes:
                     horizontal="right", vertical="top", wrap_text=True
                 )
                 # Exact decimal strings are text, never Excel's 15-digit floats.
-                cell.number_format = "@"
+                if cell.number_format == "General":
+                    cell.number_format = "@"
         ws.auto_filter.ref = ws.dimensions
         for i in range(1, len(headers) + 2):
             ws.column_dimensions[get_column_letter(i)].width = (
@@ -155,7 +171,7 @@ def xlsx_bytes(content: dict) -> bytes:
             ["نسخه گزارش", report.get("revision_number", "")],
             ["واحد شاخص‌ها و پیش‌بینی", unit],
             ["واحد پایه داده‌های استاندارد", "IRR"],
-            ["مبالغ", "رشته دقیق؛ ناموجود با وضعیت و علت مشخص است"],
+            ["مبالغ", "نمایش سه‌رقمی؛ مبالغ بیش از دقت Excel متن دقیق هستند"],
         ],
     )
     sheet(
@@ -182,7 +198,7 @@ def xlsx_bytes(content: dict) -> bytes:
             [
                 METRIC_LABELS.get(m["metric_key"], m["metric_key"]),
                 m["basis"],
-                display_amount(m["value"], unit),
+                shown(m["value"], unit),
                 m["status"],
                 ";".join(m["reason_codes"]),
                 json.dumps(m.get("comparison"), ensure_ascii=False),
@@ -213,7 +229,7 @@ def xlsx_bytes(content: dict) -> bytes:
                     manifest["as_of_date"],
                     METRIC_LABELS.get(metric["metric_key"], metric["metric_key"]),
                     metric["basis"],
-                    display_amount(metric["value"], unit),
+                    shown(metric["value"], unit),
                     metric["status"],
                     ";".join(metric["reason_codes"]),
                 ]
@@ -283,10 +299,10 @@ def xlsx_bytes(content: dict) -> bytes:
         [
             [
                 d["date"],
-                display_amount(d["opening"], unit),
-                display_amount(d["expected_in"], unit),
-                display_amount(d["expected_out"], unit),
-                display_amount(d["closing"], unit),
+                shown(d["opening"], unit),
+                shown(d["expected_in"], unit),
+                shown(d["expected_out"], unit),
+                shown(d["closing"], unit),
                 d["status"],
                 ";".join(d["reason_codes"]),
             ]

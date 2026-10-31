@@ -1,3 +1,4 @@
+import { MoneyInput } from "@/components/ui/money-input";
 import { AppIcon } from "@/components/ui/app-icon";
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -10,7 +11,6 @@ import { Dialog, ConfirmDialog } from "@/components/ui/dialog";
 import { Form } from "@/components/ui/form";
 import {
   Field,
-  Input,
   Textarea,
   FormMessage,
   FieldError,
@@ -256,7 +256,7 @@ export function AllocationDialog({
           />
         </Field>
         <Field icon="Coins" id="allocation-amount" label="مبلغ تخصیص · ریال">
-          <Input
+          <MoneyInput
             id="allocation-amount"
             name="amount"
             inputMode="decimal"

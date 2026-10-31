@@ -1,3 +1,4 @@
+import { formatMoneyText } from "@/lib/money";
 import { AppIcon } from "@/components/ui/app-icon";
 import type { Schema } from "@didban/api-client";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,9 @@ export function EvidenceView({
           <ErrorState message={error} onRetry={onRetry} />
         ) : evidence ? (
           <section className="space-y-4 rounded-panel border border-border p-4">
-            <p className="leading-7">{evidence.description_fa}</p>
+            <p className="leading-7">
+              {formatMoneyText(evidence.description_fa)}
+            </p>
             {evidence.sheet_name || row ? (
               <p className="text-xs text-muted">
                 {evidence.sheet_name ? `برگه: ${evidence.sheet_name}` : null}

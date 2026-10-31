@@ -35,11 +35,11 @@ test("financial question display localizes embedded ISO dates without changing w
 test("financial results preserve 32-digit amounts and fractional precision", () => {
   assert.equal(
     formatMoney("99999999999999999999999999999991.234560", "IRR"),
-    "۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۱٫۲۳۴۵۶",
+    "۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۱٫۲۳۴۵۶",
   );
   assert.equal(
     formatMoney("99999999999999999999999999999991.234560", "IRT"),
-    "۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹٫۱۲۳۴۵۶",
+    "۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹,۹۹۹٫۱۲۳۴۵۶",
   );
 });
 test("rial to toman conversion is exact for signed sub-unit amounts and zero", () => {
@@ -175,5 +175,24 @@ test("overdue labels distinguish unknown dates and balances from current and set
   assert.equal(
     invoiceOverdue({ ...invoice, due_on: "2026-09-20", overdue_days: 10 }),
     "۱۰ روز سررسیدگذشته",
+  );
+});
+
+test("monetary text and editable input grouping preserve exact digits and non-money text", async () => {
+  const { normalizeMoneyInput, groupMoneyDigits, formatMoneyText } =
+    await import("../apps/web/lib/money");
+  assert.equal(
+    groupMoneyDigits(normalizeMoneyInput("−۹٬۰۰۷٬۱۹۹٬۲۵۴٬۷۴۰٬۹۹۳٫۱۲۳۴۵۶")),
+    "-9,007,199,254,740,993.123456",
+  );
+  assert.equal(
+    formatMoneyText("۱۲۳۴۵۶ ریال، ۱۲۳ ریال"),
+    "۱۲۳,۴۵۶ ریال، ۱۲۳ ریال",
+  );
+  assert.equal(groupMoneyDigits("1234567."), "1,234,567.");
+  assert.equal(groupMoneyDigits("0.00000100"), "0.00000100");
+  assert.equal(
+    formatMoneyText("درآمد: ۱۲۳۴۵۶۷٫۰۰۰۰۰۱ ریال؛ کد 1234567، 2026-10-31"),
+    "درآمد: ۱,۲۳۴,۵۶۷٫۰۰۰۰۰۱ ریال؛ کد 1234567، 2026-10-31",
   );
 });

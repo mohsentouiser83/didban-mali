@@ -11,6 +11,7 @@ import { formatTime } from "@/lib/dates";
 import { message } from "@/lib/api";
 import { AssistantView } from "./assistant-view";
 import { AssistantEvidenceView } from "./assistant-evidence-view";
+import { formatMoneyText } from "@/lib/money";
 import { formatMoney } from "@/features/results/presentation";
 import {
   useAssistantCommands,
@@ -93,7 +94,7 @@ export function AssistantController() {
           id: q.id,
           question: q.question,
           answer:
-            q.answer_fa ??
+            (q.answer_fa ? formatMoneyText(q.answer_fa) : null) ??
             (q.dependency_code
               ? (reasons[q.dependency_code] ??
                 "برای ادامه، سرویس باید بررسی شود.")
@@ -153,7 +154,11 @@ export function AssistantController() {
         <AssistantEvidenceView
           loading={evidence.isPending}
           error={evidence.error ? message(evidence.error) : null}
-          description={evidence.data?.description_fa ?? null}
+          description={
+            evidence.data?.description_fa
+              ? formatMoneyText(evidence.data.description_fa)
+              : null
+          }
           sheet={evidence.data?.sheet_name ?? null}
           row={evidence.data?.row_number?.toLocaleString("fa-IR") ?? "—"}
           facts={(evidence.data?.fact_values ?? []).map(

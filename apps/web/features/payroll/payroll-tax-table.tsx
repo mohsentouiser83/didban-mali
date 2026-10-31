@@ -1,4 +1,5 @@
 "use client";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Button } from "@/components/ui/button";
 import { Field, Input, FieldDescription } from "@/components/ui/field";
 import { usePayrollTaxTable } from "./use-payroll-tax-table";
@@ -36,11 +37,11 @@ export function PayrollTaxTable() {
         </>
       ) : null}
       <Field id="tax_exemption_monthly" label="معافیت ماهانه مالیات — ریال">
-        <Input
+        <MoneyInput
           id="tax_exemption_monthly"
           name="tax_exemption_monthly"
           value={tax.exemption}
-          onChange={(e) => tax.setExemption(e.target.value)}
+          onValueChange={tax.setExemption}
           inputMode="decimal"
           dir="ltr"
           required
@@ -58,11 +59,11 @@ export function PayrollTaxTable() {
                 : "حد بالا — ریال"
             }
           >
-            <Input
+            <MoneyInput
               id={`band_upper_${i}`}
               name={`band_upper_${i}`}
               value={band.up_to}
-              onChange={(e) => tax.update(i, "up_to", e.target.value)}
+              onValueChange={(value) => tax.update(i, "up_to", value)}
               inputMode="decimal"
               dir="ltr"
               required={i !== tax.bands.length - 1}

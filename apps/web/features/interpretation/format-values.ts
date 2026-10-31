@@ -1,6 +1,7 @@
+import { groupMoneyDigits } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { choiceLabels } from "./labels";
-const moneyFields = new Set([
+export const moneyFields = new Set([
   "amount",
   "balance",
   "debit",
@@ -11,13 +12,19 @@ const moneyFields = new Set([
   "paid_as_of",
   "deposit",
   "withdrawal",
+  "opening_debit",
+  "opening_credit",
+  "period_debit",
+  "period_credit",
+  "closing_debit",
+  "closing_credit",
 ]);
 const dateFields = new Set(["date", "issued_on", "due_on", "paid_on"]);
 export function formatCanonical(field: string, value: string | null): string {
   if (value === null) return "نامعلوم";
   if (moneyFields.has(field) && /^-?\d+(\.\d+)?$/.test(value)) {
     const [whole, fraction] = value.split(".");
-    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, "٬");
+    const grouped = groupMoneyDigits(whole);
     return `${grouped}${fraction ? "٫" + fraction : ""}`.replace(
       /\d/g,
       (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)],

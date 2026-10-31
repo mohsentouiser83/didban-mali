@@ -1,5 +1,6 @@
 """Shared presentation rows for offline managerial exports."""
 
+from .money_presentation import workbook_money
 from ..domain.reports import REASON_LABELS, display_amount
 
 
@@ -10,7 +11,7 @@ def workbook_sections(content, sheet):
     unit = content["manifest"].get("display_unit", "IRR")
 
     def shown(value):
-        return display_amount(value, unit)
+        return workbook_money(display_amount(value, unit))
 
     statement = management["statements"]
     sheet(

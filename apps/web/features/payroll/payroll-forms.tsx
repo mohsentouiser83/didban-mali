@@ -1,4 +1,5 @@
 "use client";
+import { MoneyInput } from "@/components/ui/money-input";
 import { workFields, ruleFields, specialTaxKinds } from "./payroll-fields-data";
 import { useState, type FormEvent } from "react";
 import { Dialog } from "@/components/ui/dialog";
@@ -47,9 +48,10 @@ function Money({
   initial?: string;
   required?: boolean;
 }) {
+  const Control = label.includes("ریال") ? MoneyInput : Input;
   return (
     <Field id={name} label={label}>
-      <Input
+      <Control
         id={name}
         name={name}
         inputMode="decimal"

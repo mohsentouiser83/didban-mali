@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from xml.sax.saxutils import escape
 from datetime import date
+from .money_presentation import WorkbookMoney, workbook_money, grouped_amount
 
 LABELS = {
     "gross": "ناخالص",
@@ -34,7 +35,12 @@ def export_run(run, format, settings):
                     item["personnel_code"],
                     run.get("company_name", "—"),
                     item["profile"]["name"],
-                    *[item["result"][k] for k in LABELS],
+                    *[
+                        item["result"][k]
+                        if k == "leave_balance_days"
+                        else workbook_money(item["result"][k]).cell_value()
+                        for k in LABELS
+                    ],
                 ]
             )
         for row in sheet:
@@ -42,6 +48,12 @@ def export_run(run, format, settings):
                 cell.font = Font(name="IRANYekanX", size=11)
                 if isinstance(cell.value, str):
                     cell.data_type = "s"
+        for row, item in zip(sheet.iter_rows(min_row=2), run["content"]["items"]):
+            for cell, key in zip(row[3:], LABELS):
+                if key != "leave_balance_days":
+                    cell.number_format = WorkbookMoney(
+                        item["result"][key]
+                    ).number_format
         metadata = book.create_sheet("مشخصات")
         metadata.sheet_view.rightToLeft = True
         for label, value in [
@@ -119,8 +131,7 @@ def export_run(run, format, settings):
         ).strftime("%Y/%m/%d")
 
     def money(value):
-        whole, dot, fraction = str(value).partition(".")
-        return f"{int(whole):,}".replace(",", "٬") + ("٫" + fraction if dot else "")
+        return grouped_amount(str(value)).replace(".", "٫")
 
     story = []
     for i, item in enumerate(run["content"]["items"]):

@@ -1,4 +1,5 @@
 "use client";
+import { MoneyInput } from "@/components/ui/money-input";
 import { useState, type FormEvent, type RefObject } from "react";
 import { PageHeader } from "@/features/companies/company-view";
 import { Button } from "@/components/ui/button";
@@ -481,7 +482,7 @@ export function RunDetails({
               }))}
             />
             <Field id="payment_amount" label="مبلغ — ریال">
-              <Input
+              <MoneyInput
                 id="payment_amount"
                 name="amount"
                 inputMode="decimal"

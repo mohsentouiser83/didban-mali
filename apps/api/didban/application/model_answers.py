@@ -1,5 +1,7 @@
 """Render only trusted amounts from a selected immutable snapshot."""
 
+from ..domain.money_format import grouped_amount
+
 LABELS = {
     "revenue": "درآمد",
     "expense": "هزینه",
@@ -57,10 +59,10 @@ def render_answer(selection, context, company, manifest):
             )
             lines.append(f"{label}: محاسبه نشده؛ {reason or 'داده کافی نیست'}.")
         else:
-            line = f"{label}: {metric['value_irr'].translate(DIGITS)} ریال."
+            line = f"{label}: {grouped_amount(metric['value_irr']).translate(DIGITS)} ریال."
             previous = metric.get("comparison")
             if previous and previous.get("value") is not None:
-                line += f" دوره قبل: {previous['value'].translate(DIGITS)} ریال."
+                line += f" دوره قبل: {grouped_amount(previous['value']).translate(DIGITS)} ریال."
             lines.append(line)
         refs.extend(metric["evidence_refs"])
     section = selection["next_section"]

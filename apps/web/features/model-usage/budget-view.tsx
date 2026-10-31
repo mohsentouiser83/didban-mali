@@ -1,6 +1,7 @@
+import { MoneyInput } from "@/components/ui/money-input";
 import { AppIcon } from "@/components/ui/app-icon";
 import { Button } from "@/components/ui/button";
-import { Field, Input, FormMessage } from "@/components/ui/field";
+import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Dialog } from "@/components/ui/dialog";
 import {
@@ -55,14 +56,14 @@ export function BudgetView({
             id="model-budget-ceiling"
             label="سقف ماهانه نصب · دلار"
           >
-            <Input
+            <MoneyInput
               id="model-budget-ceiling"
               dir="ltr"
               inputMode="decimal"
               required
               pattern="(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,8})?"
               value={ceiling}
-              onChange={(e) => onCeiling(e.target.value)}
+              onValueChange={onCeiling}
               disabled={busy}
             />
           </Field>
@@ -165,14 +166,14 @@ export function CostReceiptDialog({
           id="model-actual-cost"
           label="هزینه واقعی درخواست · دلار"
         >
-          <Input
+          <MoneyInput
             id="model-actual-cost"
             required
             inputMode="decimal"
             dir="ltr"
             pattern="(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,8})?"
             value={actual}
-            onChange={(e) => onActual(e.target.value)}
+            onValueChange={onActual}
             disabled={busy}
           />
         </Field>
