@@ -1,15 +1,14 @@
 # محل ادامه ساخت تازه
 
-تاریخ: ۲۰۲۶/۱۰/۲۵.
+به‌روزرسانی: ۲۰۲۶/۱۱/۰۱.
 
-پروژه مستقل در `/Users/mohsentouiserkani/Projects/didban-mali-rebuild` ایجاد شده است. برای ادامه ساخت، working directory همان پروژه تازه باشد. کد برنامه و داده واقعی این مخزن منتقل نشده‌اند؛ این مخزن قدیمی حفظ شده است.
+کاربر با دستور «replace کن همچی رو» ساخت تازه را در همین مسیر `didban-mali` جایگزین تصمیم پوشه جدا کرد. نسخه قبلی و تغییرات ثبت‌نشده در پوشه پشتیبان ثبت‌شده در `replacement-backup.json` محفوظ‌اند. پوشه `didban-mali-rebuild` در زمان بررسی موجود نبود؛ شمار جدول‌ها و آزمون‌های نقل‌شده در سند قدیمی، شواهد پیاده‌سازی فعلی نیستند.
 
-مرجع ادامه در مخزن تازه:
+مرجع ادامه:
 
-- `README.md` و `AGENTS.md`
-- `docs/data-model.fa.md` و سه فایل `database/*.sql`
-- `docs/api-contract.fa.md` و `contracts/openapi.json`
-- `docs/workflow-contract.fa.md`
-- `docs/implementation-status.fa.md`
+- `../AGENTS.md` و `../README.md`
+- `current-implementation.fa.md`
+- `data-model.fa.md`، `api-contract.fa.md` و `workflow-contract.fa.md`
+- `../contracts/openapi.json` و `../database/schema.sql`
 
-۷۵ جدول، ۷۵ مسیر/۹۰ عملیات OpenAPI و ۱۳۳ schema تدوین شده‌اند. ۲۸۳ کنترل ساختار/مثال/دارایی و ۱۷ آزمون واقعی قیود SQL در پایگاه موقت پاس شدند. این نتیجه سرور HTTP، UI، موتور مالی کامل یا استقرار نیست. برای وضعیت جاری، گزارش مخزن تازه مقدم بر snapshotهای این مخزن است.
+وضعیت فعلی را از گزارش پیاده‌سازی بخوانید؛ تأیید طراحی یا ایجاد کد به معنی پذیرش مالی و آمادگی استقرار نیست. سند تحویل قدیمی در `history/rebuild-handoff-20261025.fa.md` حفظ شده است.

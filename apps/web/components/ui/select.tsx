@@ -1,181 +1,90 @@
 "use client";
-
-import * as React from "react";
-import * as SelectPrimitive from "@radix-ui/react-select";
-import { cva, type VariantProps } from "class-variance-authority";
-import { Check, ChevronDown, ChevronUp, type AppIcon } from "@/components/ui/icons";
-
 import { cn } from "@/lib/utils";
-import { inputVariants } from "@/components/ui/input";
-
-export type SelectSize = "sm" | "default" | "lg";
-
-const Select = SelectPrimitive.Root;
-const SelectValue = SelectPrimitive.Value;
-const SelectGroup = SelectPrimitive.Group;
-
-export const selectTriggerVariants = cva(
-  cn(
-    inputVariants({ size: null }),
-    "group flex items-center justify-between gap-2.5 [&>span]:line-clamp-1 select-none cursor-pointer",
-  ),
-  {
-    variants: {
-      size: {
-        sm: "h-9 px-3 text-sm",
-        default: "h-11 px-3.5 text-sm",
-        lg: "h-12 px-4 text-base",
-      },
-      isInvalid: {
-        true: "border-[var(--ds-danger)] bg-[var(--ds-input-bg)] hover:border-[var(--ds-danger)] focus:border-[var(--ds-danger)] focus:ring-[var(--ds-danger)] text-[var(--ds-foreground)]",
-        false: "",
-      },
-    },
-    defaultVariants: {
-      size: "default",
-      isInvalid: false,
-    },
-  },
-);
-
-export interface SelectTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
-    VariantProps<typeof selectTriggerVariants> {
-  isInvalid?: boolean;
-  icon?: AppIcon;
+import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
+import * as Primitive from "@radix-ui/react-select";
+import { controlClass } from "./input";
+export interface SelectOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
 }
-
-const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Trigger>,
-  SelectTriggerProps
->(
-  (
-    { className, children, size = "default", isInvalid = false, icon: FieldIcon, ...props },
-    ref,
-  ) => {
-    return (
-      <SelectPrimitive.Trigger
-        ref={ref}
-        aria-invalid={isInvalid ? "true" : undefined}
-        className={cn(selectTriggerVariants({ size, isInvalid }), className)}
-        {...props}
-      >
-        {FieldIcon ? <><FieldIcon size={18} aria-hidden="true" className="shrink-0 text-primary/75" /><span className="min-w-0 flex-1 truncate text-start">{children}</span></> : children}
-        <SelectPrimitive.Icon asChild>
-          <ChevronDown className="size-4 shrink-0 text-[var(--ds-foreground-soft)] transition-transform duration-200 group-data-[state=open]:rotate-180" />
-        </SelectPrimitive.Icon>
-      </SelectPrimitive.Trigger>
-    );
-  },
-);
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
-
-export interface SelectContentProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> {}
-
-const SelectContent = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Content>,
-  SelectContentProps
->(
-  (
-    { className, children, position = "popper", sideOffset = 6, ...props },
-    ref,
-  ) => (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        ref={ref}
-        dir="rtl"
-        position={position}
-        sideOffset={sideOffset}
+export function Select({
+  id,
+  value,
+  onValueChange,
+  options,
+  placeholder = "انتخاب کنید",
+  disabled = false,
+  label,
+  className,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
+}: {
+  id?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  label?: string;
+  className?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
+}) {
+  return (
+    <Primitive.Root
+      dir="rtl"
+      value={value || undefined}
+      onValueChange={onValueChange}
+      disabled={disabled}
+    >
+      <Primitive.Trigger
+        id={id}
+        aria-label={label}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         className={cn(
-          "relative z-50 max-h-80 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-[var(--ds-radius-control)] border border-[var(--ds-control-muted-hover)] bg-[var(--ds-input-bg)] text-[var(--ds-control-ink)] shadow-[var(--ds-shadow-lg)]",
-          "menu-animated-content",
+          controlClass,
+          "group flex cursor-pointer items-center justify-between gap-3 text-start data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/10 [&>span:first-child]:min-w-0 [&>span:first-child]:truncate",
           className,
         )}
-        {...props}
       >
-        <SelectPrimitive.ScrollUpButton className="flex h-6 cursor-default items-center justify-center py-1 text-[var(--ds-foreground-soft)]">
-          <ChevronUp className="size-4" />
-        </SelectPrimitive.ScrollUpButton>
-        <SelectPrimitive.Viewport
-          className={cn(
-            "p-1.5",
-            position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
-          )}
+        <Primitive.Value placeholder={placeholder} />
+        <Primitive.Icon>
+          <CaretDownIcon
+            size={16}
+            aria-hidden
+            className="shrink-0 text-primary transition-transform duration-200 ease-interface group-data-[state=open]:rotate-180 motion-reduce:transition-none"
+          />
+        </Primitive.Icon>
+      </Primitive.Trigger>
+      <Primitive.Portal>
+        <Primitive.Content
+          position="popper"
+          sideOffset={6}
+          className="z-80 max-h-72 min-w-(--radix-select-trigger-width) overflow-auto rounded-control border border-border bg-surface p-1.5 text-sm shadow-overlay motion-safe:animate-fade-in"
         >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectPrimitive.ScrollDownButton className="flex h-6 cursor-default items-center justify-center py-1 text-[var(--ds-foreground-soft)]">
-          <ChevronDown className="size-4" />
-        </SelectPrimitive.ScrollDownButton>
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-  ),
-);
-SelectContent.displayName = SelectPrimitive.Content.displayName;
-
-export interface SelectItemProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> {}
-
-const SelectItem = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Item>,
-  SelectItemProps
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Item
-    ref={ref}
-    className={cn(
-      "relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 ps-8 pe-3 text-sm outline-none transition-colors",
-      "text-[var(--ds-foreground)] focus:bg-[var(--ds-surface-subtle)] focus:text-[var(--ds-foreground)] hover:bg-[var(--ds-surface-subtle)] data-[highlighted]:bg-[var(--ds-surface-subtle)] data-[highlighted]:text-[var(--ds-foreground)]",
-      "data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
-      className,
-    )}
-    {...props}
-  >
-    <span className="absolute start-2.5 flex size-4 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check className="size-4 text-[var(--ds-input-focus)] font-bold" />
-      </SelectPrimitive.ItemIndicator>
-    </span>
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-  </SelectPrimitive.Item>
-));
-SelectItem.displayName = SelectPrimitive.Item.displayName;
-
-const SelectLabel = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Label>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Label
-    ref={ref}
-    className={cn(
-      "px-2.5 py-1.5 text-xs font-bold text-[var(--ds-muted-fg)] uppercase tracking-wider",
-      className,
-    )}
-    {...props}
-  />
-));
-SelectLabel.displayName = SelectPrimitive.Label.displayName;
-
-const SelectSeparator = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Separator>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Separator
-    ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-[var(--ds-border)]", className)}
-    {...props}
-  />
-));
-SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
-
-export {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-};
+          <Primitive.Viewport>
+            {options.map((option) => (
+              <Primitive.Item
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+                className="relative flex min-h-11 cursor-default items-center gap-2 rounded-lg py-2 ps-8 pe-3 outline-none transition-colors duration-200 ease-interface motion-reduce:transition-none data-highlighted:bg-primary-soft data-highlighted:text-primary data-disabled:opacity-50"
+              >
+                <Primitive.ItemIndicator className="absolute start-2">
+                  <CheckIcon
+                    size={16}
+                    aria-hidden
+                    className="motion-safe:animate-fade-in"
+                  />
+                </Primitive.ItemIndicator>
+                <Primitive.ItemText>{option.label}</Primitive.ItemText>
+              </Primitive.Item>
+            ))}
+          </Primitive.Viewport>
+        </Primitive.Content>
+      </Primitive.Portal>
+    </Primitive.Root>
+  );
+}

@@ -1,0 +1,2 @@
+employee_id,employee_name,date,currency,gross_pay,net_pay,payroll_tax,employee_insurance,employer_insurance,other_deductions
+EMP-001,کارمند نمونه,2026-10-01,IRR,100000000,88000000,2000000,7000000,23000000,3000000

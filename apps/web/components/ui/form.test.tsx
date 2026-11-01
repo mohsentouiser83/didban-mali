@@ -1,59 +1,46 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
-import { Form, FormMessage } from "./form";
-import { Input } from "./input";
-import { Textarea } from "./textarea";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { Button } from "./button";
-import { FieldError } from "./field";
-import { PersianDatePicker } from "./persian-date-picker";
-
-afterEach(cleanup);
-
-it("blocks invalid submission, links Persian messages and focuses the first invalid control", async () => {
-  const submit = vi.fn((event: React.FormEvent) => event.preventDefault());
-  render(<Form onSubmit={submit}><label htmlFor="email">ایمیل</label><Input id="email" type="email" required aria-describedby="hint" /><p id="hint">ایمیل کاری</p><label htmlFor="body">توضیح</label><Textarea id="body" required /><Button type="submit">ثبت</Button></Form>);
-  fireEvent.click(screen.getByRole("button", { name: "ثبت" }));
-  expect(submit).not.toHaveBeenCalled();
-  expect(screen.getByLabelText("ایمیل")).toHaveFocus();
-  expect(screen.getByLabelText("ایمیل")).toHaveAttribute("aria-invalid", "true");
-  expect(screen.getByLabelText("ایمیل")).toHaveAttribute("aria-describedby", "hint email-validation");
-  expect(screen.getAllByText("این فیلد را تکمیل کنید.")).toHaveLength(2);
-  fireEvent.change(screen.getByLabelText("ایمیل"), { target: { value: "person@example.com" } });
-  fireEvent.change(screen.getByLabelText("توضیح"), { target: { value: "آزمون فرم" } });
-  await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
-  expect(screen.getByLabelText("ایمیل")).toHaveAttribute("aria-describedby", "hint");
-  fireEvent.click(screen.getByRole("button", { name: "ثبت" }));
-  expect(submit).toHaveBeenCalledTimes(1);
+import { Field } from "./field";
+import { Form } from "./form";
+import { Input } from "./input";
+describe("accessible form validation", () => {
+  it("blocks whitespace values and focuses the field associated with its error", () => {
+    const submit = vi.fn((event) => event.preventDefault());
+    render(
+      <Form onSubmit={submit}>
+        <Field id="name" label="نام">
+          <Input id="name" required defaultValue="   " />
+        </Field>
+        <Button type="submit">ذخیره</Button>
+      </Form>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره" }));
+    const input = screen.getByLabelText("نام");
+    expect(submit).not.toHaveBeenCalled();
+    expect(input).toHaveFocus();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("این مورد را وارد کنید.");
+    fireEvent.input(input, { target: { value: "نام شرکت" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره" }));
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
 });
-
-it("checks trimmed required text, optional minimum length and email format", () => {
-  render(<Form><Input aria-label="نام" required defaultValue="  " /><Input aria-label="شناسه" minLength={8} defaultValue="123" /><Input aria-label="ایمیل" type="email" defaultValue="invalid" /><Button>ثبت</Button></Form>);
-  fireEvent.click(screen.getByRole("button", { name: "ثبت" }));
-  expect(screen.getByText("این فیلد را تکمیل کنید.")).toBeInTheDocument();
-  expect(screen.getByText("حداقل ۸ نویسه وارد کنید.")).toBeInTheDocument();
-  expect(screen.getByText("ایمیل معتبر وارد کنید.")).toBeInTheDocument();
-});
-
-it("preserves explicit custom form validation", () => {
-  const submit = vi.fn((event: React.FormEvent) => event.preventDefault());
-  render(<Form noValidate onSubmit={submit}><Input required /><Button>ثبت</Button></Form>);
-  fireEvent.click(screen.getByRole("button", { name: "ثبت" }));
-  expect(submit).toHaveBeenCalledTimes(1);
-});
-
-it("blocks invalid Persian dates without duplicating their existing field message", () => {
-  const submit = vi.fn((event: React.FormEvent) => event.preventDefault());
-  render(<Form onSubmit={submit}><label htmlFor="date">تاریخ</label><PersianDatePicker id="date" value="2026-03-20" min="2026-03-21" onValueChange={() => {}} required /><Button>ثبت</Button></Form>);
-  fireEvent.click(screen.getByRole("button", { name: "ثبت" }));
-  expect(submit).not.toHaveBeenCalled();
-  expect(screen.getAllByText(/تاریخ باید از/)).toHaveLength(1);
-  expect(screen.getByLabelText("تاریخ")).toHaveFocus();
-});
-
-it("does not announce empty field errors and distinguishes errors from success", () => {
-  const { rerender } = render(<FieldError errors={[undefined, {}]} />);
+it("associates server field errors and removes corrected errors while preserving helper text", () => {
+  render(
+    <Form fieldErrors={{ email: "این ایمیل قابل استفاده نیست." }}>
+      <Field id="account-email" label="ایمیل" description="ایمیل سازمانی">
+        <Input id="account-email" defaultValue="old@example.test" />
+      </Field>
+    </Form>,
+  );
+  const input = screen.getByLabelText("ایمیل");
+  expect(input).toHaveAttribute("aria-invalid", "true");
+  expect(input).toHaveAccessibleDescription(
+    "این ایمیل قابل استفاده نیست. ایمیل سازمانی",
+  );
+  fireEvent.input(input, { target: { value: "new@example.test" } });
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  rerender(<><FormMessage>ذخیره انجام نشد.</FormMessage><FormMessage variant="success">ذخیره شد.</FormMessage></>);
-  expect(screen.getByRole("alert")).toHaveTextContent("ذخیره انجام نشد.");
-  expect(screen.getByRole("status")).toHaveTextContent("ذخیره شد.");
+  expect(input).toHaveAccessibleDescription("ایمیل سازمانی");
 });

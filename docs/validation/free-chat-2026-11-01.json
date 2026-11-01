@@ -1,0 +1,24 @@
+{
+  "synthetic_only": true,
+  "without_report": true,
+  "replies": [
+    {
+      "manifest_id": null,
+      "mode": "chat",
+      "facts": [],
+      "evidence_refs": [],
+      "answer": "سلام! ممنون، من خوبم 😊 خبر خاصی نیست؛ در خدمتم. شما چطورید؟",
+      "model_state": "completed",
+      "model_request_id": "3cc50a39-40b4-48ff-9608-cd7bc3bf8d60"
+    },
+    {
+      "manifest_id": null,
+      "mode": "chat",
+      "facts": [],
+      "evidence_refs": [],
+      "answer": "گفتید: «سلام خوبی چه خبر؟»",
+      "model_state": "completed",
+      "model_request_id": "fccfa10f-34a0-42ae-9031-1d8137988701"
+    }
+  ]
+}

@@ -1,100 +1,129 @@
 "use client";
-
-import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "@/components/ui/icons";
-import type { ComponentProps, HTMLAttributes } from "react";
-
-import { fieldIcon } from "./field-layout";
-import { TruncatedText } from "./tooltip";
 import { cn } from "@/lib/utils";
+import { XIcon } from "@phosphor-icons/react";
+import * as Primitive from "@radix-ui/react-dialog";
+import { useRef, type ReactNode } from "react";
 import { Button } from "./button";
-import { useOverlayFocus } from "./use-overlay-focus";
-
-const Dialog = DialogPrimitive.Root;
-const DialogTrigger = DialogPrimitive.Trigger;
-const DialogPortal = DialogPrimitive.Portal;
-const DialogClose = DialogPrimitive.Close;
-
-const DialogOverlay = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Overlay>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-[rgb(24_45_59_/_32%)] modal-overlay-animated",
-      className
-    )}
-    {...props}
-  />
-));
-DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
-
-const DialogContent = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Content>,
-  ComponentProps<typeof DialogPrimitive.Content> & { closeDisabled?: boolean; showCloseButton?: boolean; overlayClassName?: string }
->(({ className, children, closeDisabled, showCloseButton = true, overlayClassName, onOpenAutoFocus, onCloseAutoFocus, ...props }, ref) => {
-  const focus = useOverlayFocus(onOpenAutoFocus, onCloseAutoFocus);
+export function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  sheet = false,
+  modal = true,
+  bodyClassName,
+  headerClassName,
+  className,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  sheet?: boolean;
+  modal?: boolean;
+  bodyClassName?: string;
+  headerClassName?: string;
+  className?: string;
+}) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
-  <DialogPortal>
-    <DialogOverlay className={overlayClassName} />
-    <DialogPrimitive.Content
-      data-slot="dialog-content"
-      ref={ref}
-      dir="rtl"
-      className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg max-h-[calc(100dvh-2rem)] overflow-y-auto -translate-x-1/2 -translate-y-1/2 gap-6 rounded-[var(--ds-p-radius-xl)] border border-[var(--ds-border-strong)] bg-[var(--ds-surface-elevated)] p-5 sm:p-6 text-[var(--ds-foreground)] shadow-[var(--ds-shadow-xl)] modal-content-animated",
-        className
-      )}
-      {...props}
-      {...focus}
+    <Primitive.Root open={open} onOpenChange={onOpenChange} modal={modal}>
+      <Primitive.Portal>
+        {modal && (
+          <Primitive.Overlay
+            className={cn(
+              "fixed inset-0 z-50 bg-foreground/25 data-[state=open]:animate-fade-in motion-reduce:animate-none!",
+              sheet && "data-[state=closed]:animate-drawer-backdrop-out",
+            )}
+          />
+        )}
+        <Primitive.Content
+          dir="rtl"
+          onFocusOutside={modal ? undefined : (event) => event.preventDefault()}
+          onOpenAutoFocus={() => {
+            returnFocus.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (returnFocus.current?.isConnected) returnFocus.current.focus();
+          }}
+          className={cn(
+            "fixed z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col overflow-hidden border border-border bg-surface p-5 shadow-overlay outline-none sm:p-7 motion-reduce:animate-none!",
+            sheet
+              ? "inset-y-4 end-4 h-[calc(100dvh-2rem)] max-w-lg rounded-dialog data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out data-[state=closed]:pointer-events-none"
+              : "start-1/2 top-1/2 max-w-xl translate-x-1/2 -translate-y-1/2 rounded-dialog data-[state=open]:animate-dialog-in",
+            className,
+          )}
+        >
+          <div className={cn("mb-5 flex items-start justify-between gap-4", headerClassName)}>
+            <div>
+              <Primitive.Title className="font-display text-xl font-medium">
+                {title}
+              </Primitive.Title>
+              <Primitive.Description
+                className={description ? "mt-2 text-sm text-muted" : "sr-only"}
+              >
+                {description || title}
+              </Primitive.Description>
+            </div>
+            <Primitive.Close asChild>
+              <Button variant="ghost" className="size-11 p-0" aria-label="بستن">
+                <XIcon size={20} />
+              </Button>
+            </Primitive.Close>
+          </div>
+          <div className={cn("min-h-0 overflow-y-auto overscroll-contain pe-1", bodyClassName)}>
+            {children}
+          </div>
+          {footer && (
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+              {footer}
+            </div>
+          )}
+        </Primitive.Content>
+      </Primitive.Portal>
+    </Primitive.Root>
+  );
+}
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  children,
+  onConfirm,
+  busy,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  children: ReactNode;
+  onConfirm: () => void;
+  busy?: boolean;
+}) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      footer={
+        <>
+          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            انصراف
+          </Button>
+          <Button variant="danger" busy={busy} onClick={onConfirm}>
+            تأیید
+          </Button>
+        </>
+      }
     >
       {children}
-      {showCloseButton && <DialogPrimitive.Close asChild>
-        <Button type="button" variant="ghost" size="icon" disabled={closeDisabled}
-          className="absolute end-3 top-3" aria-label="بستن پنجره">
-          <X aria-hidden="true" />
-        </Button>
-      </DialogPrimitive.Close>}
-    </DialogPrimitive.Content>
-  </DialogPortal>
-  );
-});
-DialogContent.displayName = DialogPrimitive.Content.displayName;
-
-function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("min-w-0 space-y-2 pe-10 text-start", className)} {...props} />;
-}
-
-function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-start sm:flex-row-reverse border-t border-[var(--ds-border)] pt-4 mt-2", className)}
-      {...props}
-    />
+    </Dialog>
   );
 }
-
-function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
-  const { children, ...titleProps } = props;
-  const text = typeof children === "string" && !className?.split(/\s+/).includes("sr-only") ? children : null;
-  return <DialogPrimitive.Title className={cn("flex min-w-0 items-center gap-3 text-lg font-bold text-foreground", className)} {...titleProps}>{text ? <><span aria-hidden="true" className="shrink-0 text-primary">{React.createElement(fieldIcon(text), { size: 24 })}</span><span className="min-w-0 flex-1"><TruncatedText text={text} /></span></> : children}</DialogPrimitive.Title>;
-}
-
-function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn("text-sm leading-relaxed text-[var(--ds-foreground-soft)]", className)} {...props} />;
-}
-
-export {
-  Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogTrigger,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-};

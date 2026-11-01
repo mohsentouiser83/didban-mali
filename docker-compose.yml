@@ -1,200 +1,98 @@
-name: didban-mali
-
-x-api-environment: &api-environment
-  APP_ENV: ${APP_ENV:-development}
-  APP_NAME: ${APP_NAME:-دیدبان مالی}
-  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://didban_app:change-me-app-password@postgres:5432/didban_mali}
-  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
-  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
-  MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
-  MINIO_BUCKET: ${MINIO_BUCKET:-didban-uploads}
-  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-didban-local}
-  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-change-me-minio-password}
-  UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
-  IMPORT_PREVIEW_ROWS: ${IMPORT_PREVIEW_ROWS:-20}
-  IMPORT_MAX_ROWS: ${IMPORT_MAX_ROWS:-250000}
-  CLAMD_HOST: ${CLAMD_HOST:-clamav}
-  CLAMD_PORT: ${CLAMD_PORT:-3310}
-  CLAMD_TIMEOUT_SECONDS: ${CLAMD_TIMEOUT_SECONDS:-90}
-  SENTRY_DSN: ${SENTRY_DSN:-}
-  JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-before-deploy}
-  ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-1440}
-  REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-30}
-  COOKIE_SECURE: ${COOKIE_SECURE:-false}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-  AI_ENABLED: ${AI_ENABLED:-false}
-  AI_PROVIDER: ${AI_PROVIDER:-disabled}
-  AI_MODEL: ${AI_MODEL:-unconfigured}
-  AI_DATA_REGION: ${AI_DATA_REGION:-}
-  AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-15}
-  ASSISTANT_PROVIDER: ${ASSISTANT_PROVIDER:-disabled}
-  ASSISTANT_API_URL: ${ASSISTANT_API_URL:-}
-  ASSISTANT_API_KEY: ${ASSISTANT_API_KEY:-}
-  ASSISTANT_MODEL: ${ASSISTANT_MODEL:-}
-  ASSISTANT_COMPANY_IDS: ${ASSISTANT_COMPANY_IDS:-}
-
+name: didban-fresh
 services:
   postgres:
-    image: postgres:18.3-alpine
+    image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-didban_mali}
-      POSTGRES_USER: ${POSTGRES_USER:-didban_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-real-environments}
-      APP_DB_USER: ${APP_DB_USER:-didban_app}
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-change-me-app-password}
-    ports:
-      - "${POSTGRES_PORT:-55432}:5432"
+      POSTGRES_DB: didban_fresh
+      POSTGRES_USER: didban_migration_admin
+      POSTGRES_PASSWORD: ${DIDBAN_POSTGRES_ADMIN_PASSWORD:?Set DIDBAN_POSTGRES_ADMIN_PASSWORD}
+      DIDBAN_APP_DB_PASSWORD: ${DIDBAN_APP_DB_PASSWORD:?Set DIDBAN_APP_DB_PASSWORD}
     volumes:
-      - postgres-data:/var/lib/postgresql
-      - ./infra/docker/postgres-init.sh:/docker-entrypoint-initdb.d/010-app-role.sh:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
-  redis:
-    image: redis:8.6-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+      - fresh_postgres:/var/lib/postgresql/data
+      - ./infra/postgres/001-app-role.sh:/docker-entrypoint-initdb.d/001-app-role.sh:ro
     ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+      - 127.0.0.1:55434:5432
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [CMD-SHELL, pg_isready -U didban_migration_admin -d didban_fresh]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
     restart: unless-stopped
-
-  minio:
-    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-didban-local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+  scanner:
+    image: clamav/clamav:stable
     volumes:
-      - minio-data:/data
+      - fresh_clamav:/var/lib/clamav
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-
-  minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
-    depends_on:
-      minio:
-        condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-didban-local}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-password}
-      MINIO_BUCKET: ${MINIO_BUCKET:-didban-uploads}
-    entrypoint:
-      - /bin/sh
-      - -c
-      - >-
-        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" &&
-        mc mb --ignore-existing "local/$${MINIO_BUCKET}" &&
-        mc anonymous set none "local/$${MINIO_BUCKET}"
-
-  clamav:
-    image: clamav/clamav-debian:1.5.4
-    environment:
-      CLAMD_CONF_StreamMaxLength: 55M
-      FRESHCLAM_CONF_DatabaseMirror: ${CLAMAV_DATABASE_MIRROR:-database.clamav.net}
-    volumes:
-      - clamav-data:/var/lib/clamav
-    healthcheck:
-      test: ["CMD-SHELL", "printf 'zPING\\0' | nc -w 2 127.0.0.1 3310 | grep -q PONG"]
-      interval: 10s
-      timeout: 5s
+      test: [CMD, clamdcheck.sh]
+      interval: 20s
+      timeout: 10s
+      retries: 20
       start_period: 120s
-      retries: 30
     restart: unless-stopped
-
-  migrate:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    command: ["alembic", "upgrade", "head"]
-    environment:
-      <<: *api-environment
-      DATABASE_URL: ${DATABASE_ADMIN_URL:-postgresql+asyncpg://didban_admin:change-me-in-real-environments@postgres:5432/didban_mali}
-    volumes:
-      - ./apps/api/alembic:/workspace/apps/api/alembic
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    environment: *api-environment
+    environment: &api_environment
+      DIDBAN_DATABASE_URL: postgresql+psycopg://didban_app:${DIDBAN_APP_DB_PASSWORD:?Set DIDBAN_APP_DB_PASSWORD}@postgres:5432/didban_fresh
+      DIDBAN_PRODUCTION: "true"
+      DIDBAN_STORAGE: /app/var/private
+      DIDBAN_FONTS: /app/apps/web/public/fonts
+      DIDBAN_WEB_ORIGIN: ${DIDBAN_WEB_ORIGIN:?Set the HTTPS origin of the TLS reverse proxy}
+      DIDBAN_SCANNER_HOST: scanner
+      DIDBAN_SCANNER_PORT: "3310"
+      DIDBAN_MODEL_BUDGET_UNLIMITED: ${DIDBAN_MODEL_BUDGET_UNLIMITED:-false}
+      DIDBAN_MODEL_PROVIDER: ${DIDBAN_MODEL_PROVIDER:-AvalAI}
+      DIDBAN_MODEL_ENABLED: ${DIDBAN_MODEL_ENABLED:-false}
+      DIDBAN_OPENAI_API_KEY: ${DIDBAN_OPENAI_API_KEY:-}
+      DIDBAN_BOTS_ENABLED: ${DIDBAN_BOTS_ENABLED:-false}
+      DIDBAN_TELEGRAM_BOT_TOKEN: ${DIDBAN_TELEGRAM_BOT_TOKEN:-}
+      DIDBAN_TELEGRAM_WEBHOOK_SECRET: ${DIDBAN_TELEGRAM_WEBHOOK_SECRET:-}
+      DIDBAN_TELEGRAM_BOT_USERNAME: ${DIDBAN_TELEGRAM_BOT_USERNAME:-}
+      DIDBAN_BALE_BOT_TOKEN: ${DIDBAN_BALE_BOT_TOKEN:-}
+      DIDBAN_BALE_WEBHOOK_SECRET: ${DIDBAN_BALE_WEBHOOK_SECRET:-}
+      DIDBAN_BALE_BOT_USERNAME: ${DIDBAN_BALE_BOT_USERNAME:-}
     volumes:
-      - ./apps/api/app:/workspace/apps/api/app
+      - fresh_private:/app/var/private
     ports:
-      - "${API_PORT:-8000}:8000"
+      - 127.0.0.1:8000:8000
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
+      postgres:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      scanner:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready')"]
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-
   worker:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
-    environment: *api-environment
+    command: [python, -m, didban.worker]
+    environment: *api_environment
     volumes:
-      - ./apps/api/app:/workspace/apps/api/app
+      - fresh_private:/app/var/private
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-      clamav:
+      api:
         condition: service_healthy
     restart: unless-stopped
-
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      DIDBAN_API_URL: http://api:8000
+      NEXT_TELEMETRY_DISABLED: "1"
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - 127.0.0.1:3010:3010
     depends_on:
       api:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
     restart: unless-stopped
-
 volumes:
-  postgres-data:
-  redis-data:
-  minio-data:
-  clamav-data:
+  fresh_postgres:
+  fresh_private:
+  fresh_clamav:

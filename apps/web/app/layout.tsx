@@ -1,44 +1,47 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-
-import { LegacyAppearanceCleanup } from "@/components/legacy-appearance-cleanup";
-import { DirectionProvider } from "@/components/ui/direction";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-
+import type { Metadata } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
-import "@/components/ui/workspace-motion.css";
-
+const yekan = localFont({
+  src: [
+    {
+      path: "../public/fonts/IRANYekanX-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/IRANYekanX-Medium.ttf",
+      weight: "500",
+      style: "normal",
+    },
+  ],
+  variable: "--font-yekan",
+  display: "swap",
+});
+const anjoman = localFont({
+  src: "../public/fonts/AnjomanMax-Medium.woff2",
+  weight: "500",
+  variable: "--font-anjoman",
+  display: "swap",
+});
 export const metadata: Metadata = {
-  title: "دیدبان مالی",
-  description: "لایه هوشمندی، کنترل و تحلیل مالی برای کسب‌وکارهای ایرانی",
+  title: { default: "دیدبان مالی", template: "%s | دیدبان مالی" },
+  description: "تصویر روشن مالی، با شواهد قابل پیگیری",
 };
-
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="fa"
       dir="rtl"
-      className="font-sans antialiased"
-      data-scroll-behavior="smooth"
+      className={`${yekan.variable} ${anjoman.variable}`}
     >
-      <head>
-        <link
-          rel="preload"
-          href="/fonts/IRANYekanX-Regular.ttf"
-          as="font"
-          type="font/ttf"
-          crossOrigin="anonymous"
-        />
-      </head>
-      <body className="ds-root font-sans antialiased">
-        <LegacyAppearanceCleanup />
-        <DirectionProvider dir="rtl">
-          <TooltipProvider delayDuration={250}>
-            {children}
-            <Toaster position="top-center" closeButton />
-          </TooltipProvider>
-        </DirectionProvider>
+      <body className="min-h-dvh bg-canvas font-body text-sm font-normal leading-7 text-foreground antialiased [font-synthesis:none] selection:bg-primary-soft selection:text-primary [&_*]:caret-primary">
+        {children}
+        <Toaster />
       </body>
     </html>
   );

@@ -1,80 +1,36 @@
-"use client"
-
-import * as React from "react"
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
-import { Check, Minus } from "@/components/ui/icons"
-import { cva, type VariantProps } from "class-variance-authority"
-
-import { cn } from "@/lib/utils"
-
-const checkboxVariants = cva(
-  "group peer shrink-0 rounded-[4px] border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-primary)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ds-surface-card)] disabled:cursor-not-allowed disabled:opacity-45 grid place-content-center cursor-pointer",
-  {
-    variants: {
-      variant: {
-        default:
-          "border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] data-[state=checked]:bg-[var(--ds-primary)] data-[state=checked]:border-[var(--ds-primary)] data-[state=checked]:text-[var(--ds-primary-foreground)] data-[state=indeterminate]:bg-[var(--ds-primary)] data-[state=indeterminate]:border-[var(--ds-primary)] data-[state=indeterminate]:text-[var(--ds-primary-foreground)] hover:border-[var(--ds-primary)]",
-        success:
-          "border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] data-[state=checked]:bg-[var(--ds-success)] data-[state=checked]:border-[var(--ds-success)] data-[state=checked]:text-white data-[state=indeterminate]:bg-[var(--ds-success)] data-[state=indeterminate]:border-[var(--ds-success)] data-[state=indeterminate]:text-white hover:border-[var(--ds-success)]",
-      },
-      size: {
-        sm: "h-4 w-4",
-        default: "h-[18px] w-[18px]",
-        lg: "h-[22px] w-[22px] rounded-[5px]",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-export interface CheckboxProps
-  extends React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>,
-    VariantProps<typeof checkboxVariants> {
-  isInvalid?: boolean
-}
-
-const Checkbox = React.forwardRef<
-  React.ElementRef<typeof CheckboxPrimitive.Root>,
-  CheckboxProps
->(({ className, variant, size = "default", isInvalid, checked, ...props }, ref) => {
-  const iconSizeClass =
-    size === "sm" ? "h-3 w-3 stroke-[2.5]" : size === "lg" ? "h-4 w-4 stroke-[2.5]" : "h-3.5 w-3.5 stroke-[2.5]"
-
+"use client";
+import { CheckIcon } from "@phosphor-icons/react";
+import * as Primitive from "@radix-ui/react-checkbox";
+export function Checkbox({
+  id,
+  checked,
+  onCheckedChange,
+  label,
+  disabled = false,
+}: {
+  id?: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
-    <CheckboxPrimitive.Root
-      ref={ref}
-      checked={checked}
-      aria-invalid={isInvalid ? "true" : props["aria-invalid"]}
-      className={cn(
-        checkboxVariants({ variant, size }),
-        isInvalid &&
-          "border-[var(--ds-danger)] text-[var(--ds-danger)] bg-[var(--ds-danger)]/5 focus-visible:ring-[var(--ds-danger)]/40 hover:border-[var(--ds-danger)]",
-        className
-      )}
-      {...props}
+    <label
+      htmlFor={id}
+      className="flex min-h-12 items-center gap-3 rounded-control px-2 py-2 transition-colors duration-200 ease-interface has-[:enabled]:cursor-pointer has-[:enabled]:hover:bg-primary-soft/50 has-[:focus-visible]:bg-primary-soft/50 has-[:disabled]:cursor-not-allowed motion-reduce:transition-none"
     >
-      <CheckboxPrimitive.Indicator
-        className={cn("grid place-content-center text-current")}
+      <Primitive.Root
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        className="grid size-5 shrink-0 place-items-center rounded-md border border-border bg-surface text-white outline-none transition-[color,background-color,border-color,box-shadow] duration-200 ease-interface motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-primary data-[state=checked]:border-primary data-[state=checked]:bg-primary disabled:opacity-50"
       >
-        <Minus
-          className={cn(
-            iconSizeClass,
-            "hidden data-[state=indeterminate]:block [[data-state=indeterminate]_&]:block group-data-[state=indeterminate]:block"
-          )}
-        />
-        <Check
-          className={cn(
-            iconSizeClass,
-            "block data-[state=indeterminate]:hidden [[data-state=indeterminate]_&]:hidden group-data-[state=indeterminate]:hidden"
-          )}
-        />
-      </CheckboxPrimitive.Indicator>
-    </CheckboxPrimitive.Root>
-  )
-})
-Checkbox.displayName = CheckboxPrimitive.Root.displayName
-
-export { Checkbox, checkboxVariants }
+        <Primitive.Indicator className="motion-safe:animate-fade-in">
+          <CheckIcon size={15} weight="bold" aria-hidden />
+        </Primitive.Indicator>
+      </Primitive.Root>
+      <span>{label}</span>
+    </label>
+  );
+}

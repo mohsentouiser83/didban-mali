@@ -1,43 +1,46 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
-import React from "react";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./tooltip";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { expect, it } from "vitest";
+import { Button } from "./button";
+import { Dialog } from "./dialog";
+import { Hint } from "./tooltip";
 
-describe("Tooltip Component", () => {
-  it("renders trigger button and content structure", () => {
-    render(
-      <TooltipProvider>
-        <Tooltip open>
-          <TooltipTrigger asChild>
-            <button>اطلاعات مالی</button>
-          </TooltipTrigger>
-          <TooltipContent>
-            تراز ۴ ستونی منتهی به شهریور ۱۴۰۵
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
+function InvoiceDetails() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>بازکردن فاکتور</Button>
+      <Dialog open={open} onOpenChange={setOpen} title="جزئیات فاکتور">
+        <Hint label="شرح کامل فاکتور">
+          شرح کامل و قابل بررسی فاکتور
+        </Hint>
+      </Dialog>
+    </>
+  );
+}
 
-    const trigger = screen.getByRole("button", { name: "اطلاعات مالی" });
-    expect(trigger).toBeDefined();
-    expect(screen.getByText("تراز ۴ ستونی منتهی به شهریور ۱۴۰۵")).toBeDefined();
+it("dismisses nested details before the parent dialog and restores focus at each level", async () => {
+  render(<InvoiceDetails />);
+  const opener = screen.getByRole("button", { name: "بازکردن فاکتور" });
+  opener.focus();
+  fireEvent.click(opener);
+  await screen.findByRole("dialog", { name: "جزئیات فاکتور" });
+
+  const hint = screen.getByRole("button", { name: "شرح کامل فاکتور" });
+  hint.focus();
+  fireEvent.click(hint);
+  expect(await screen.findByText("شرح کامل و قابل بررسی فاکتور")).toBeVisible();
+
+  fireEvent.keyDown(document.activeElement || document, { key: "Escape" });
+  await waitFor(() => {
+    expect(screen.queryByText("شرح کامل و قابل بررسی فاکتور")).not.toBeInTheDocument();
+    expect(hint).toHaveFocus();
   });
+  expect(screen.getByRole("dialog", { name: "جزئیات فاکتور" })).toBeVisible();
 
-  it("renders with custom className and sideOffset", () => {
-    render(
-      <TooltipProvider>
-        <Tooltip open>
-          <TooltipTrigger asChild>
-            <button>راهنما</button>
-          </TooltipTrigger>
-          <TooltipContent className="custom-tooltip-class" sideOffset={12}>
-            متن راهنما
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-
-    const content = screen.getByText("متن راهنما");
-    expect(content.className).toContain("custom-tooltip-class");
+  fireEvent.keyDown(hint, { key: "Escape" });
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog", { name: "جزئیات فاکتور" })).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 });

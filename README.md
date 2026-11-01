@@ -1,53 +1,84 @@
-# دیدبان مالی
+# دیدبان مالی — ساخت تازه
 
-«دیدبان مالی» یک لایه هوشمندی، تطبیق و کنترل مالی برای شرکت‌های ایرانی است. این محصول جایگزین نرم‌افزار حسابداری نیست؛ داده‌های حسابداری، بانک و فروش را دریافت می‌کند و آن‌ها را به یافته‌های اولویت‌بندی‌شده، توضیح‌پذیر و قابل ردیابی تبدیل می‌کند.
+این مخزن از ۱ نوامبر ۲۰۲۶ با دستور کاربر از نو پیاده می‌شود. کد و تنظیمات نسخه قبلی، شامل تغییرات ثبت‌نشده، در پوشهٔ پشتیبان کنار مخزن حفظ شده‌اند؛ مسیر دقیق در [`docs/replacement-backup.json`](docs/replacement-backup.json) ثبت است. داده و کاربران نسخه قبلی وارد ساخت تازه نمی‌شوند.
 
-مسیر توسعه انتخاب‌شده: بازسازی کاملاً تازه با حفظ اسناد، فونت‌ها و دارایی‌های طراحی؛ کاربر Excel/CSV را بارگذاری کند و مراحل بعد خودکار انجام شوند. همه بخش‌ها در دامنه انتشار اول‌اند. مدل اصلی هدف `gpt-6-luna` برای تفسیر و توضیح است و محاسبات دقیق در کد انجام می‌شوند. سؤال ضروری کل بسته را تا پاسخ متوقف می‌کند. نصب خصوصی سازمانی و طراحی روشن، زنده و روان مبناست. این نسخه هنوز پیاده‌سازی نشده است؛ تصمیم‌ها و موارد باز در [مشخصات بازسازی](docs/rebuild-spec.fa.md) آمده‌اند.
+مرجع محصول [`docs/rebuild-spec.fa.md`](docs/rebuild-spec.fa.md)، قرارداد مالی [`docs/rebuild-financial-contract.fa.md`](docs/rebuild-financial-contract.fa.md) و مرجع بصری [`design.md`](design.md) هستند. تصمیم تازهٔ جایگزینی در همین پوشه، مقصد قدیمی D07 را تغییر داده است. گزارش‌های فازهای نسخه قدیمی، وضعیت ساخت تازه را اثبات نمی‌کنند.
 
-وضعیت فعلی: رابط محصول شامل داشبورد، نقدینگی، مطالبات، بدهی‌ها، بارگذاری اسناد، بررسی و پیگیری و گزارش‌ها است. فایل‌های CSV و Excel پس از بررسی امنیتی، تأیید ستون‌ها و ثبت نهایی وارد مدل مالی می‌شوند. با موجود بودن گردش بانک و دفتر حسابداری، تطبیق خودکار انجام می‌شود و مغایرت مبلغ، تاریخ و موارد تطبیق‌نشده همراه با فایل، شیت و ردیف منبع در «بررسی و پیگیری» نمایش داده می‌شوند. با ثبت فایل بعدی، یافته‌ها به‌روز می‌شوند و مغایرت‌های برطرف‌شده بسته می‌شوند. اتصال‌های داده و مدیریت اعضا در تنظیمات در دسترس‌اند.
+## اجرای توسعه
 
-- [مشخصات فنی MVP نسخه ۰٫۱](docs/mvp-technical-spec-v0.1.fa.md)
-- [مشخصات بازسازی و تصمیم‌های فعلی محصول](docs/rebuild-spec.fa.md)
-- [محل ادامه ساخت در مخزن مستقل didban-mali-rebuild](docs/rebuild-handoff.fa.md)
-- [قرارداد مالی بازسازی — نسخه ۰٫۱](docs/rebuild-financial-contract.fa.md)
-- [فایل‌های نمونه و خروجی مرجع اعتبارسنجی بازسازی](docs/validation/rebuild-v1/README.fa.md)
-- [قرارداد فنی بازسازی — نسخه ۰٫۱](docs/rebuild-technical-contract.fa.md)
-- [برنامه قبلی ارتقای پردازش خودکار؛ مرجع تاریخی](docs/mvp-exception-first-build-plan.fa.md)
-- [وضعیت پیاده‌سازی](docs/implementation-status.fa.md)
-- [گزارش جامع قابلیت‌های پیاده‌سازی‌شده و محدودیت‌های فعلی](docs/implemented-features-current.fa.md)
-- [راهنمای دمو و بازیابی](docs/demo-and-recovery-runbook.fa.md)
-- [پرونده پذیرش کامل MVP](docs/mvp-acceptance-v1.json)
+نیازمندی‌ها: Python 3.12 و Node.js 22 با pnpm 10.
 
-## اجرای محلی
-
-پیش‌نیازها: Docker و Docker Compose. برای اسکنر ClamAV دست‌کم ۳ گیگابایت حافظهٔ آزاد و برای به‌روزرسانی امضاها دسترسی شبکه به `database.clamav.net` در نظر بگیرید. در شبکه‌های محدود می‌توان آینهٔ مجاز را با `CLAMAV_DATABASE_MIRROR` تنظیم کرد.
-
-```bash
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r apps/api/requirements.txt
+pnpm install --frozen-lockfile
 cp .env.example .env
-docker compose up --build
+.venv/bin/python scripts/bootstrap.py --email admin@example.local --name 'مدیر نصب' --admin --company 'شرکت من'
 ```
 
-پس از آماده‌شدن سرویس‌ها:
+رمز در ترمینال و بدون نمایش دریافت می‌شود. مالک شرکت به‌طور ضمنی مجوز تأیید گزارش ندارد. حساب‌ها از داخل نصب ساخته می‌شوند؛ ثبت‌نام عمومی وجود ندارد.
 
-- رابط فارسی: `http://localhost:3000`
-- مستندات API: `http://localhost:8000/docs`
-- وضعیت زنده API: `http://localhost:8000/api/v1/health/live`
-- کنسول MinIO: `http://localhost:9001`
+در دو ترمینال جدا (worker توسعه در فرآیند API اجرا می‌شود):
 
-## کنترل کیفیت
-
-```bash
-make test
-make lint
-make compose-check
+```sh
+PYTHONPATH=apps/api .venv/bin/python -m uvicorn didban.api:app --host 127.0.0.1 --port 8000
+npm run dev:web
 ```
 
-برای اجرای آزمون‌های یکپارچهٔ جداسازی شرکت‌ها، اسکن بدافزار، نگاشت، اعتبارسنجی، نرمال‌سازی و lineage، ابتدا سرویس‌ها را بالا بیاورید و سپس اجرا کنید:
+در توسعه، worker همراه API اجرا می‌شود؛ در Compose سرویس worker جداست.
 
-```bash
-make test-integration
-make test-e2e
-make verify-mvp
+رابط توسعه در [127.0.0.1:3000](http://127.0.0.1:3000) و API در [127.0.0.1:8000](http://127.0.0.1:8000) اجرا می‌شوند. پیش از اجرا، سرویس قدیمی اشغال‌کنندهٔ پورت ۸۰۰۰ را متوقف کنید؛ پایگاه و فضای ذخیره‌سازی ساخت تازه مستقل می‌مانند. SQLite فقط برای توسعه است. در حالت توسعه بدون تنظیم اسکنر، فایل با وضعیت `development_unscanned` ثبت می‌شود؛ این حالت برای نصب عملیاتی مناسب نیست.
+
+## نصب خصوصی با Docker Compose
+
+دو رمز مستقل تصادفی در `.env` برای `DIDBAN_POSTGRES_ADMIN_PASSWORD` و `DIDBAN_APP_DB_PASSWORD` تنظیم کنید؛ برای رمز متصل به URL از کاراکترهای URL-safe استفاده کنید. مقدار `DIDBAN_WEB_ORIGIN` را به دامنه HTTPS نصب، مانند `https://finance.example.org` تغییر دهید و reverse proxy دارای TLS را به وب روی پورت ۳۰۱۰ متصل کنید. نشست نصب عملیاتی کوکی Secure دارد؛ ورود آن از HTTP محلی پشتیبانی نمی‌شود. سپس:
+
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose exec api python scripts/bootstrap.py --email admin@example.local --name 'مدیر نصب' --admin --company 'شرکت من'
 ```
 
-قابلیت‌های دامنه مالی مطابق فازهای سند مشخصات، پس از عبور هر دروازه پیاده‌سازی می‌شوند.
+نام Compose برابر `didban-fresh` و volumeها مستقل‌اند. دستورهای این نصب، سرویس‌ها و volumeهای نسخه قدیمی را حذف نمی‌کنند. PostgreSQL، اسکنر، API، worker و وب اجرا می‌شوند. DB با نقش `didban_app` بدون superuser/BYPASSRLS استفاده می‌شود. فقط پورت‌های loopback میزبان منتشر شده‌اند. شروع حالت production با origin غیر HTTPS رد می‌شود.
+
+در Compose، وب با آدرس داخلی `http://api:8000` build می‌شود. برای استقرار جداگانه وب، `DIDBAN_API_URL` باید در مرحله build صحیح باشد.
+
+برای بازنشانی رمز حساب مدیریت‌شده:
+
+```sh
+.venv/bin/python scripts/reset_password.py --actor admin@example.local --email user@example.local
+```
+
+این فرمان رمز مدیر نصب را می‌خواهد، نشست‌های قبلی کاربر را باطل و رویداد ممیزی نصب ثبت می‌کند.
+
+## کنترل کیفیت و قرارداد
+
+```sh
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+PYTHONPATH=apps/api .venv/bin/python -m pytest apps/api/tests
+PYTHONPATH=apps/api .venv/bin/python -m ruff check apps/api scripts
+```
+
+OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snapshot قابل بررسی با فرمان `.venv/bin/python scripts/generate_contracts.py` از source به `contracts/openapi.json` و `database/schema.sql` تولید می‌شود. نسخه schema در DB کنترل می‌شود؛ ارتقای آینده نیازمند migration صریح نسخه‌دار است و `create_all` جای migration نیست. بخش‌های تکمیل‌نشده و نتیجه واقعی آزمون‌ها در [`docs/current-implementation.fa.md`](docs/current-implementation.fa.md) ثبت می‌شوند. وجود صفحه یا قرارداد به معنی تأیید حسابدار، اتصال Luna یا آمادگی انتشار نیست.
+
+## مدل و هزینه
+
+ارائه‌دهنده و مدل جاری در [سند اتصال مدل](docs/model-gateway.fa.md) ثبت‌اند؛ تنظیم فعلی کد AvalAI و `gpt-5.6-luna` است. پیش‌فرض کد غیرفعال است و تنظیم محلی سرور می‌تواند آن را فعال کند. کلید فقط در محیط سرور با `DIDBAN_OPENAI_API_KEY` قرار می‌گیرد؛ API یا فرم مرورگر آن را دریافت یا بازنمی‌گرداند. در حالت دارای سقف، فعال‌سازی با `DIDBAN_MODEL_ENABLED=true` به‌تنهایی کافی نیست: بودجه نصب، بودجه شرکت و تعرفه نسخه‌دار USD باید صریحاً تنظیم شوند. حالت بدون سقف فقط با تنظیم صریح سرور فعال می‌شود و دفتر مصرف/هزینه همچنان حفظ می‌شود. تفسیر مدل فقط بعد از کنترل مستقل همه ردیف‌ها می‌تواند نگاشت خودکار بسازد؛ واحد و تقویم از گفته مدل فرض نمی‌شوند. جزئیات قیود، endpointهای مدیریت و وضعیت آزمون در [`docs/model-gateway.fa.md`](docs/model-gateway.fa.md) ثبت است. هیچ اتصال زنده یا تأیید کیفیت عمومی مدل با آزمون ساختگی اثبات نشده است.
+
+## پشتیبان و بازیابی
+
+```sh
+.venv/bin/python scripts/backup.py --mode sqlite --output /path/outside/repo/didban-backup
+.venv/bin/python scripts/backup.py --mode compose --output /path/outside/repo/didban-backup
+```
+
+حالت SQLite قفل نوشتن را هنگام snapshot پایگاه و اصل فایل‌ها نگه می‌دارد. حالت Compose، API و worker فعال را موقتاً متوقف و پس از تهیهٔ dump و آرشیو اصل فایل‌ها دوباره اجرا می‌کند. فایل تنظیمات، در صورت وجود، با دسترسی محدود حفظ می‌شود؛ پشتیبان حاوی اسرار است و باید خارج از دیسک اصلی با دسترسی محدود نگهداری شود. فایل `manifest.json` هش و اندازه خروجی‌ها را ثبت می‌کند. پاک‌سازی یا retention خودکار وجود ندارد.
+
+بازیابی را ابتدا در نصب ایزوله با همان نسخه برنامه انجام دهید: صحت هش‌ها، DB، اصل فایل‌ها، تنظیمات، membershipها و گزارش‌های ثابت را کنترل کنید. SQLite را فقط با سرویس‌های متوقف جایگزین کنید. در PostgreSQL نقش‌ها و schema با همان نسخه برنامه آماده و dump با نقش مدیریت بازیابی شود؛ سپس مالکیت جدول‌ها و نقش محدود برنامه و RLS دوباره کنترل شوند. موفقیت تهیهٔ پشتیبان، موفقیت بازیابی را اثبات نمی‌کند.
+
+## بررسی تم رابط
+
+صفحات ساخت تازه با تم مصوب `didban-luminous` و اجزای مشترک هماهنگ‌اند. [گزارش بررسی رابط](docs/ui-theme-review.fa.md) شامل مسیرهای کنترل‌شده در مرورگر داخلی، تصاویر دسکتاپ/موبایل، آزمون زنده کاهش حرکت و محدودیت‌های نتیجه است.

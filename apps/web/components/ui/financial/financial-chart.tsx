@@ -1,51 +1,160 @@
 "use client";
-
-import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
-import { CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EmptyState } from "./empty-state";
-import { ErrorState } from "./error-state";
-import { LoadingState } from "./loading-state";
-import { cn } from "@/lib/utils";
-
-export function FinancialChart({ children, label, className, loading = false, empty = false, error, onRetry, emptyMessage = "داده‌ای برای نمودار ثبت نشده است.", ...props }: Omit<HTMLAttributes<HTMLDivElement>, "children"> & { children: ReactElement; label: string; loading?: boolean; empty?: boolean; error?: string | null; onRetry?: () => void; emptyMessage?: string }) {
-  return <div role="group" aria-label={label} data-slot="financial-chart" aria-busy={loading} dir="ltr" className={cn(
-    "h-72 min-w-0 w-full motion-safe:animate-[workspace-enter_240ms_ease-out_both] sm:h-80 [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-axis-tick_text]:text-[11px] [&_.recharts-cartesian-axis-tick_text]:font-[family-name:var(--font-sans)] sm:[&_.recharts-cartesian-axis-tick_text]:text-xs [&_.recharts-surface]:focus-visible:outline-2 [&_.recharts-surface]:focus-visible:outline-primary",
-    className,
-  )} {...props}>{loading ? <LoadingState variant="chart" label={`در حال دریافت ${label}`} className="h-full [&>div]:h-full" /> : error ? <ErrorState variant="compact" dir="rtl" error={error} onRetry={onRetry} className="h-full justify-center" /> : empty ? <EmptyState variant="compact" dir="rtl" title={emptyMessage} className="h-full" /> : <ResponsiveContainer width="100%" height="100%" minWidth={0}>{children}</ResponsiveContainer>}</div>;
+import type { CashDay } from "@/lib/api";
+import { amount, displayDate } from "@/lib/utils";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipContentProps,
+} from "recharts";
+import { EmptyState } from "../content-states";
+export function FinancialChart({
+  data,
+  children,
+  label,
+}: {
+  data: unknown[];
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div
+      role="img"
+      aria-label={label}
+      className="h-64 w-full min-w-0 motion-safe:animate-fade-in"
+      dir="ltr"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={data}
+          margin={{ top: 12, right: 12, left: 0, bottom: 8 }}
+        >
+          {children}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
-
-export function ChartGrid(props: ComponentProps<typeof CartesianGrid>) {
-  return <CartesianGrid vertical={false} stroke="var(--ds-border)" strokeDasharray="3 5" {...props} />;
+export function ChartGrid() {
+  return <CartesianGrid stroke="var(--color-border)" vertical={false} />;
 }
-ChartGrid.displayName = "CartesianGrid";
-
-export function ChartXAxis(props: ComponentProps<typeof XAxis>) {
-  return <XAxis axisLine={false} tickLine={false} minTickGap={24} {...props} />;
+export function ChartXAxis() {
+  return (
+    <XAxis
+      dataKey="date"
+      tickFormatter={(value) => displayDate(String(value))}
+      tickLine={false}
+      axisLine={false}
+      minTickGap={35}
+      stroke="var(--color-muted)"
+      fontSize={11}
+    />
+  );
 }
-ChartXAxis.displayName = "XAxis";
-
-export function ChartYAxis(props: ComponentProps<typeof YAxis>) {
-  return <YAxis width={60} axisLine={false} tickLine={false} tickFormatter={formatChartNumber} {...props} />;
+export function ChartYAxis() {
+  return (
+    <YAxis
+      tickFormatter={(value) =>
+        new Intl.NumberFormat("fa-IR", { notation: "compact" }).format(value)
+      }
+      tickLine={false}
+      axisLine={false}
+      stroke="var(--color-muted)"
+      fontSize={11}
+      width={65}
+    />
+  );
 }
-ChartYAxis.displayName = "YAxis";
-
-export function formatChartNumber(value: unknown) {
-  if (value == null || (typeof value === "string" && !value.trim())) return "—";
-  const number = Number(value);
-  return Number.isFinite(number) ? new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 1 }).format(number) : "—";
+export function ChartTooltipSurface({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      dir="rtl"
+      className="rounded-control border border-border bg-surface p-3 text-sm shadow-overlay"
+    >
+      {children}
+    </div>
+  );
 }
-
-export function ChartTooltipSurface({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div dir="rtl" data-slot="chart-tooltip" className={cn("grid min-w-0 max-w-[min(20rem,calc(100vw-2rem))] gap-2 rounded-[var(--ds-card-radius)] border border-border bg-card p-3 text-start text-xs text-foreground shadow-[var(--ds-shadow-md)] [overflow-wrap:anywhere]", className)} {...props} />;
-}
-
-type TooltipEntry = { name?: unknown; value?: unknown; color?: string };
-export function ChartValueTooltip({ active, label, payload, unit, labelFormatter }: { active?: boolean; label?: unknown; payload?: readonly TooltipEntry[]; unit?: string; labelFormatter?: (label: unknown) => string }) {
+export function ChartTooltipContent({
+  active,
+  payload,
+  label,
+  unit = "IRR",
+}: Partial<TooltipContentProps<number, string>> & { unit?: "IRR" | "TOMAN" }) {
   if (!active || !payload?.length) return null;
-  return <ChartTooltipSurface><strong className="font-medium">{labelFormatter ? labelFormatter(label) : String(label ?? "")}</strong><dl className="grid gap-2">{payload.map((entry, index) => <div key={index} className="flex flex-wrap items-center justify-between gap-3"><dt className="text-muted-foreground">{String(entry.name ?? "مانده")}</dt><dd className="tabular-nums"><bdi>{formatChartNumber(entry.value)}</bdi>{unit && <span className="ms-1">{unit}</span>}</dd></div>)}</dl></ChartTooltipSurface>;
+  const sourceBalance = payload[0]?.payload?.balance;
+  const exactBalance = typeof sourceBalance === "string" ? sourceBalance : null;
+  return (
+    <ChartTooltipSurface>
+      <p className="text-xs text-muted">{displayDate(String(label))}</p>
+      <p className="mt-1 tabular-nums">
+        {amount(exactBalance, unit)} {unit === "IRR" ? "ریال" : "تومان"}
+      </p>
+    </ChartTooltipSurface>
+  );
 }
-
-/** Shared tooltip defaults; custom contents use ChartTooltipSurface. */
-export function ChartTooltip(props: ComponentProps<typeof Tooltip>) {
-  return <Tooltip cursor={{ stroke: "var(--ds-border-strong)" }} {...props} />;
+export function ChartTooltip({ unit = "IRR" }: { unit?: "IRR" | "TOMAN" }) {
+  return (
+    <Tooltip
+      content={<ChartTooltipContent unit={unit} />}
+      isAnimationActive={false}
+    />
+  );
+}
+export function CashChart({
+  days,
+  unit = "IRR",
+  label = "مانده روزانه نقد",
+}: {
+  days: CashDay[];
+  unit?: "IRR" | "TOMAN";
+  label?: string;
+}) {
+  if (!days.some((day) => day.balance != null))
+    return (
+      <EmptyState
+        compact
+        title="مانده روزانه موجود نیست"
+        description="مانده مبنا و گردش تاریخ‌دار بانک لازم است."
+      />
+    );
+  return (
+    <FinancialChart
+      data={days.map((day) => ({
+        ...day,
+        value:
+          day.balance == null
+            ? null
+            : Number(day.balance) / (unit === "TOMAN" ? 10 : 1),
+      }))}
+      label={`${label} (${unit === "IRR" ? "ریال" : "تومان"})`}
+    >
+      <ChartGrid />
+      <ChartXAxis />
+      <ChartYAxis />
+      <ChartTooltip unit={unit} />
+      <Line
+        dataKey="value"
+        type="monotone"
+        stroke="var(--color-primary)"
+        strokeWidth={2.5}
+        connectNulls={false}
+        dot={
+          days.filter((day) => day.balance != null).length === 1
+            ? { r: 4 }
+            : false
+        }
+        activeDot={{ r: 4 }}
+        isAnimationActive={false}
+      />
+    </FinancialChart>
+  );
 }

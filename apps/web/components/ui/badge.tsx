@@ -1,104 +1,86 @@
-import { cva, type VariantProps } from "class-variance-authority";
-import { forwardRef, type HTMLAttributes, type MouseEvent } from "react";
-import { X } from "@/components/ui/icons";
-
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-
-const badgeVariants = cva(
-  "inline-flex shrink-0 items-center select-none font-medium max-w-full whitespace-normal [overflow-wrap:anywhere] transition-colors duration-150 motion-reduce:transition-none",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-[var(--ds-primary)] text-[var(--ds-primary-foreground)] shadow-xs",
-        secondary:
-          "bg-[var(--ds-muted)] text-[var(--ds-foreground-soft)] hover:bg-[var(--ds-muted-hover)]",
-        outline:
-          "border border-[var(--ds-border-strong)] bg-transparent text-[var(--ds-foreground-soft)]",
-        success:
-          "border border-[color-mix(in_oklch,var(--ds-success)_25%,transparent)] bg-[color-mix(in_oklch,var(--ds-success)_14%,transparent)] text-[var(--ds-success)]",
-        warning:
-          "border border-[color-mix(in_oklch,var(--ds-warning)_25%,transparent)] bg-[color-mix(in_oklch,var(--ds-warning)_15%,transparent)] text-[color-mix(in_oklch,var(--ds-warning)_80%,var(--ds-foreground))]",
-        danger:
-          "border border-[color-mix(in_oklch,var(--ds-danger)_25%,transparent)] bg-[color-mix(in_oklch,var(--ds-danger)_13%,transparent)] text-[var(--ds-danger)]",
-        accent:
-          "border border-[color-mix(in_oklch,var(--ds-accent)_25%,transparent)] bg-[var(--ds-accent-soft)] text-[var(--ds-accent)]",
-        info: "border border-primary/25 bg-primary/12 text-primary",
-      },
-      size: {
-        xs: "min-h-5 px-1.5 py-0 text-[10.5px] rounded gap-1 [&_svg]:size-2.5",
-        sm: "min-h-6 px-2 py-0.5 text-xs rounded gap-1 [&_svg]:size-3",
-        default:
-          "min-h-7 px-2.5 py-1 text-xs rounded gap-1.5 [&_svg]:size-3.5",
-        lg: "min-h-8 px-3.5 py-1 text-sm rounded gap-2 [&_svg]:size-4",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
-export interface BadgeProps
-  extends HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof badgeVariants> {
-  dot?: boolean;
-  pulse?: boolean;
-  onRemove?: (event: MouseEvent<HTMLButtonElement>) => void;
-}
-
-const Badge = forwardRef<HTMLSpanElement, BadgeProps>(({
-  className,
-  variant,
-  size,
-  dot = false,
-  pulse = false,
-  onRemove,
+const labels: Record<string, string> = {
+  accepted: "پذیرفته‌شده",
+  needs_review: "نیازمند بررسی",
+  exact_proposal: "پیشنهاد تطبیق",
+  settled: "تسویه‌شده",
+  overdue: "سررسیدگذشته",
+  credit: "اعتبار طرف حساب",
+  receiving: "دریافت فایل",
+  sealed: "در صف پردازش",
+  processing: "در حال پردازش",
+  waiting_input: "نیازمند پاسخ",
+  waiting_dependency: "در انتظار سرویس",
+  completed: "تکمیل‌شده",
+  completed_limited: "نتیجه محدود",
+  failed: "ناموفق",
+  cancelled: "لغوشده",
+  ready: "آماده",
+  clean: "سالم",
+  rejected: "ردشده",
+  available: "موجود",
+  limited: "محدود",
+  unavailable: "ناموجود",
+  estimated: "برآوردی",
+  open: "باز",
+  resolved: "رسیدگی‌شده",
+  confirmed: "تأییدشده",
+  pending: "در انتظار",
+  approved: "تأیید مالی",
+  archived: "بایگانی",
+  development_unscanned: "بدون اسکن؛ محیط توسعه",
+};
+export function Badge({
   children,
-  ...props
-}, ref) => {
+  tone = "neutral",
+  className,
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger" | "primary";
+  className?: string;
+}) {
   return (
     <span
-      ref={ref}
-      data-slot="badge"
       className={cn(
-        badgeVariants({ variant, size }),
-        props.onClick && "cursor-pointer",
+        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium",
+        {
+          "bg-canvas text-muted": tone === "neutral",
+          "bg-success-soft text-success": tone === "success",
+          "bg-warning-soft text-warning": tone === "warning",
+          "bg-danger-soft text-danger": tone === "danger",
+          "bg-primary-soft text-primary": tone === "primary",
+        },
         className,
       )}
-      {...props}
     >
-      {dot && (
-        <span
-          className={cn(
-            "size-1.5 rounded-full bg-current shrink-0",
-            pulse && "motion-safe:animate-pulse",
-          )}
-          aria-hidden="true"
-        />
-      )}
       {children}
-      {onRemove && (
-        <Button
-          variant="surface"
-          size="auto"
-          motion="none"
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(e);
-          }}
-          className="cursor-pointer ms-0.5 -me-0.5 rounded-full p-0.5 hover:bg-black/15 transition-colors focus-visible:outline-none"
-          aria-label="حذف"
-        >
-          <X className="size-2.5" />
-        </Button>
-      )}
     </span>
   );
-});
-Badge.displayName = "Badge";
-
-export { Badge, badgeVariants };
+}
+export function StatusBadge({ status }: { status: string }) {
+  const tone = [
+    "completed",
+    "clean",
+    "available",
+    "approved",
+    "settled",
+    "accepted",
+  ].includes(status)
+    ? "success"
+    : [
+          "overdue",
+          "needs_review",
+          "waiting_input",
+          "completed_limited",
+          "limited",
+          "estimated",
+          "development_unscanned",
+        ].includes(status)
+      ? "warning"
+      : ["failed", "rejected"].includes(status)
+        ? "danger"
+        : ["processing", "receiving", "sealed"].includes(status)
+          ? "primary"
+          : "neutral";
+  return <Badge tone={tone}>{labels[status] || "نامشخص"}</Badge>;
+}

@@ -1,141 +1,92 @@
 "use client";
-
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { forwardRef, type MouseEvent, type ButtonHTMLAttributes } from "react";
-
 import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
-
-const buttonVariants = cva(
-  "ds-focus ds-button group inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-medium select-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none disabled:bg-[var(--ds-control-muted)] disabled:text-[var(--ds-control-caption)] [&_svg]:pointer-events-none cursor-pointer",
-  {
-    variants: {
-      variant: {
-        surface: "bg-transparent text-inherit",
-        success:
-          "bg-[var(--ds-success-foreground)] text-white shadow-[var(--ds-button-shadow)] hover:brightness-95",
-        "success-subtle":
-          "border border-[color-mix(in_oklch,var(--ds-success)_30%,transparent)] bg-[color-mix(in_oklch,var(--ds-success)_8%,transparent)] text-[var(--ds-success-foreground)] hover:bg-[color-mix(in_oklch,var(--ds-success)_15%,transparent)]",
-        default:
-          "bg-[var(--ds-button-bg)] text-[var(--ds-button-fg)] shadow-[var(--ds-button-shadow)] hover:bg-[var(--ds-button-hover-bg)] active:bg-[var(--ds-button-active-bg)]",
-        accent:
-          "bg-[var(--ds-accent)] text-white shadow-[var(--ds-button-shadow)] hover:bg-[var(--ds-button-accent-hover)]",
-        secondary:
-          "bg-[var(--ds-control-muted)] text-[var(--ds-control-ink)] hover:bg-[var(--ds-control-muted-hover)]",
-        outline:
-          "border border-[var(--ds-control-border)] bg-[var(--ds-p-white)] text-[var(--ds-control-ink)] hover:bg-[var(--ds-control-muted)] active:bg-[var(--ds-control-selected)]",
-        ghost:
-          "text-[var(--ds-control-caption)] hover:bg-[var(--ds-control-muted)] hover:text-[var(--ds-control-ink)]",
-        destructive:
-          "bg-[var(--ds-danger)] text-white hover:bg-[var(--ds-button-danger-hover)] active:bg-[var(--ds-button-danger-active)] shadow-[var(--ds-button-shadow)]",
-        "destructive-subtle":
-          "bg-[color-mix(in_oklch,var(--ds-danger)_12%,transparent)] text-[var(--ds-danger)] border border-[color-mix(in_oklch,var(--ds-danger)_25%,transparent)] hover:bg-[color-mix(in_oklch,var(--ds-danger)_20%,transparent)]",
-      },
-      size: {
-        auto: "h-auto p-0 whitespace-normal",
-        xs: "h-7 min-h-7 px-2.5 text-xs rounded-[calc(var(--ds-button-radius)-2px)] [&_svg]:size-3.5",
-        sm: "h-9 min-h-9 px-3 text-sm rounded-[var(--ds-button-radius)] [&_svg]:size-3.5",
-        default:
-          "h-11 min-h-11 px-4 text-sm rounded-[var(--ds-button-radius)] [&_svg]:size-4",
-        lg: "h-12 min-h-12 px-6 text-base rounded-[calc(var(--ds-button-radius)+2px)] [&_svg]:size-4.5",
-        icon: "size-11 min-h-11 min-w-11 p-0 rounded-[var(--ds-button-radius)] [&_svg]:size-4",
-        "icon-sm":
-          "size-9 min-h-9 min-w-9 p-0 rounded-[var(--ds-button-radius)] [&_svg]:size-3.5",
-        "icon-xs":
-          "size-7 min-h-7 min-w-7 p-0 rounded-[calc(var(--ds-button-radius)-2px)] [&_svg]:size-3",
-      },
+import { CircleNotchIcon } from "@phosphor-icons/react";
+import Link from "next/link";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "soft";
+  busy?: boolean;
+};
+export const buttonClass = (variant: ButtonProps["variant"] = "primary") =>
+  cn(
+    "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,scale] duration-200 ease-interface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&[aria-busy=true]>svg:not([data-spinner])]:hidden enabled:cursor-pointer motion-safe:active:scale-[0.96] motion-reduce:transition-none",
+    {
+      "bg-primary text-white hover:bg-primary-hover hover:shadow-md hover:shadow-primary/20 shadow-action":
+        variant === "primary",
+      "[&>svg]:text-primary border border-border bg-surface text-foreground hover:border-primary/30 hover:bg-canvas":
+        variant === "secondary",
+      "[&>svg]:text-primary text-muted hover:bg-canvas hover:text-foreground":
+        variant === "ghost",
+      "bg-danger-soft text-danger hover:bg-danger hover:text-white":
+        variant === "danger",
+      "bg-primary-soft text-primary hover:bg-primary/15": variant === "soft",
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
-    loading?: boolean;
-    loadingText?: string;
-    /** Keep the dedicated motion of navigation and interactive cards. */
-    motion?: "default" | "none";
-  };
-
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
+  );
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
     {
       className,
-      variant,
-      size,
-      asChild = false,
-      loading = false,
-      loadingText,
-      motion = "none",
+      variant = "primary",
+      busy,
       disabled,
       children,
-      onClickCapture,
+      type = "button",
       ...props
     },
     ref,
-  ) => {
-    const isBusy = loading;
-    const isDisabled = Boolean(disabled || isBusy);
-
-    if (asChild) {
-      return (
-        <Slot
-          ref={ref}
-          data-slot="button"
-          data-variant={variant ?? "default"}
-          data-size={size ?? "default"}
-          data-motion={motion}
-          aria-disabled={isDisabled ? true : undefined}
-          aria-busy={isBusy ? true : undefined}
-          data-loading={isBusy ? "true" : undefined}
-          className={cn(buttonVariants({ variant, size }), className)}
-          {...props}
-          tabIndex={isDisabled ? -1 : props.tabIndex}
-          onClickCapture={(event) => {
-            if (isDisabled) {
-              event.preventDefault();
-              event.stopPropagation();
-              return;
-            }
-            onClickCapture?.(event as MouseEvent<HTMLButtonElement>);
-          }}
-        >
-          {children}
-        </Slot>
-      );
-    }
-
+  ) {
     return (
       <button
-        ref={ref}
-        data-slot="button"
-        data-variant={variant ?? "default"}
-        data-size={size ?? "default"}
-        data-motion={motion}
-        disabled={isDisabled}
-        aria-busy={isBusy ? true : undefined}
-        data-loading={isBusy ? "true" : undefined}
-        className={cn(buttonVariants({ variant, size }), className)}
         {...props}
-        onClickCapture={onClickCapture}
+        ref={ref}
+        type={type}
+        disabled={disabled || busy}
+        aria-busy={busy || undefined}
+        className={cn(buttonClass(variant), className)}
       >
-        {isBusy ? (
-          <>
-            <Spinner aria-hidden="true" className="size-4 animate-spin shrink-0" />
-            <span>{loadingText ?? children}</span>
-          </>
-        ) : (
-          children
+        {busy && (
+          <CircleNotchIcon
+            data-spinner
+            aria-hidden
+            className="size-4 animate-spin motion-reduce:animate-none"
+          />
         )}
+        {children}
       </button>
     );
   },
 );
-Button.displayName = "Button";
-
-export { Button, buttonVariants, type ButtonProps };
+export function ButtonLink({
+  href,
+  children,
+  variant = "primary",
+  className,
+  onClick,
+  target,
+  rel,
+}: {
+  href: string;
+  children: React.ReactNode;
+  variant?: ButtonProps["variant"];
+  className?: string;
+  onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+  target?: React.HTMLAttributeAnchorTarget;
+  rel?: string;
+}) {
+  return (
+    <Link
+      onClick={onClick}
+      href={href}
+      target={target}
+      rel={target === "_blank" ? "noopener noreferrer" : rel}
+      prefetch={target === "_blank" ? false : undefined}
+      className={cn(
+        buttonClass(variant),
+        "cursor-pointer motion-safe:active:scale-[0.96]",
+        className,
+      )}
+    >
+      {children}
+    </Link>
+  );
+}

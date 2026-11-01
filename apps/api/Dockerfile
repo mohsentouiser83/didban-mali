@@ -1,22 +1,12 @@
-FROM python:3.12.10-slim AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
-WORKDIR /workspace/apps/api
-
-COPY apps/api/pyproject.toml ./
-RUN mkdir -p app && touch app/__init__.py && pip install --upgrade pip && pip install .
-
-RUN useradd --create-home --uid 10001 didban && chown -R didban:didban /workspace
-
-COPY --chown=didban:didban apps/api/app ./app
-COPY --chown=didban:didban apps/api/alembic.ini ./alembic.ini
-COPY --chown=didban:didban apps/api/alembic ./alembic
-
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/apps/api
+WORKDIR /app
+COPY apps/api/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && useradd --create-home --uid 10001 didban
+COPY --chown=didban:didban apps/api /app/apps/api
+COPY --chown=didban:didban apps/web/public/fonts /app/apps/web/public/fonts
+COPY --chown=didban:didban scripts /app/scripts
+RUN mkdir -p /app/var/private && chown -R didban:didban /app/var
 USER didban
-
 EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "didban.api:app", "--host", "0.0.0.0", "--port", "8000"]

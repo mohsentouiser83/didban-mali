@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "postgres_version": "17.11",
+  "role_superuser": false,
+  "role_bypass_rls": false,
+  "parallel_initialize_workers": 2,
+  "parallel_initialize_seconds": 0.319,
+  "rls_tables_checked": 28,
+  "membership_discovery": "own_actor_only",
+  "cross_company_read_update_delete_checks": 84,
+  "cross_company_fk_checks": 23,
+  "rls_cross_company_insert_checks": 1,
+  "canonical_numeric_columns": 11,
+  "canonical_money_invalid_binds_rejected": 7,
+  "canonical_money_large_exact_roundtrip": true,
+  "canonical_money_raw_nan_rejected": true,
+  "immutable_update_delete_checks": 30,
+  "elapsed_seconds": 0.622,
+  "synthetic": true
+}

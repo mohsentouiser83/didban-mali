@@ -1,11 +1,41 @@
 "use client";
-import { ErrorState } from "@/components/ui/financial/error-state";
+import { PageTitle } from "@/components/ui/page-title";
+import { WarningCircleIcon as TitleIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import localFont from "next/font/local";
 import "./globals.css";
-
-export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
-  return <html lang="fa" dir="rtl"><head><title>سامانه بارگذاری نشد | دیدبان مالی</title></head><body className="flex min-h-screen items-center justify-center bg-background p-6 font-sans text-foreground">
-    <ErrorState title="سامانه بارگذاری نشد" onRetry={retry} retryLabel="بازنشانی سامانه">
-      {error.digest && <code className="text-xs text-muted-foreground">کد پیگیری: {error.digest}</code>}
-    </ErrorState>
-  </body></html>;
+const yekan = localFont({
+  src: [
+    { path: "../public/fonts/IRANYekanX-Regular.ttf", weight: "400" },
+    { path: "../public/fonts/IRANYekanX-Medium.ttf", weight: "500" },
+  ],
+  variable: "--font-yekan",
+});
+const anjoman = localFont({
+  src: "../public/fonts/AnjomanMax-Medium.woff2",
+  weight: "500",
+  variable: "--font-anjoman",
+});
+export default function GlobalError({ retry }: { retry: () => void }) {
+  return (
+    <html
+      lang="fa"
+      dir="rtl"
+      className={`${yekan.variable} ${anjoman.variable}`}
+    >
+      <body className="grid min-h-dvh place-items-center bg-canvas p-5 font-body text-foreground">
+        <main className="max-w-lg rounded-dialog border border-border bg-surface p-8 text-center">
+          <PageTitle icon={TitleIcon} className="justify-center">
+            نمایش برنامه ممکن نشد
+          </PageTitle>
+          <p className="mt-3 text-sm text-muted">
+            برای بازیابی صفحه دوباره تلاش کنید.
+          </p>
+          <Button onClick={retry} className="mt-6">
+            تلاش دوباره
+          </Button>
+        </main>
+      </body>
+    </html>
+  );
 }

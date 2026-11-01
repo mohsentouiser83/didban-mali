@@ -1,5 +1,0 @@
-.subtitle { font-size: 14px; font-weight: 500; margin-block-end: 8px; }
-.caption, .note { font-size: 13px; line-height: 1.9; overflow-wrap: anywhere; }
-.caption { color: var(--ds-foreground-soft); }
-.note { white-space: pre-wrap; }
-.error { font-size: 13px; line-height: 1.9; color: var(--ds-risk-high-fg); }

@@ -1,0 +1,11 @@
+{
+  "tested": "2026-11-01",
+  "reducedMotion": true,
+  "checks": {
+    "loadingSkeletonAnimation": "none",
+    "dialogAnimation": "none",
+    "overlayAnimation": "none",
+    "pageAndMetricsAnimation": "none",
+    "mobileDrawerAnimation": "none"
+  }
+}

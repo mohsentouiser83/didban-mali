@@ -1,29 +1,18 @@
-FROM node:22.23.1-alpine AS dependencies
-WORKDIR /workspace
-COPY package.json package-lock.json .npmrc ./
-COPY apps/web/package.json ./apps/web/package.json
-COPY packages ./packages
-RUN npm ci
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json apps/web/package.json
+RUN pnpm install --frozen-lockfile
+COPY apps/web apps/web
+ENV NEXT_TELEMETRY_DISABLED=1 DIDBAN_API_URL=http://api:8000
+RUN pnpm --dir apps/web build
 
-FROM node:22.23.1-alpine AS builder
-WORKDIR /workspace
-COPY --from=dependencies /workspace/node_modules ./node_modules
-COPY --from=dependencies /workspace/apps/web/node_modules ./apps/web/node_modules
-COPY package.json package-lock.json ./
-COPY packages ./packages
-COPY apps/web ./apps/web
-RUN npm run build --workspace=@didban/web
-
-FROM node:22.23.1-alpine AS runtime
-ENV NODE_ENV=production
-WORKDIR /workspace
-COPY --from=dependencies /workspace/node_modules ./node_modules
-COPY --from=dependencies /workspace/apps/web/node_modules ./apps/web/node_modules
-COPY package.json ./
-COPY apps/web/package.json ./apps/web/package.json
-COPY --from=builder /workspace/apps/web/.next ./apps/web/.next
-COPY --from=builder /workspace/apps/web/public ./apps/web/public
-
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+COPY --from=build --chown=node:node /app /app
 USER node
-EXPOSE 3000
-CMD ["npm", "run", "start", "--workspace=@didban/web"]
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 DIDBAN_API_URL=http://api:8000
+EXPOSE 3010
+CMD ["pnpm", "--dir", "apps/web", "start"]

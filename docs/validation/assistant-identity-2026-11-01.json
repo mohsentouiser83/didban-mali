@@ -1,0 +1,24 @@
+{
+  "synthetic_only": true,
+  "without_report": true,
+  "replies": [
+    {
+      "manifest_id": null,
+      "mode": "chat",
+      "facts": [],
+      "evidence_refs": [],
+      "answer": "من دستیار شخصی شما برای کمک در امور مختلف هستم.",
+      "model_state": "completed",
+      "model_request_id": "5ec01255-ba75-4db7-9e50-bada414dcecd"
+    },
+    {
+      "manifest_id": null,
+      "mode": "chat",
+      "facts": [],
+      "evidence_refs": [],
+      "answer": "من دستیار شخصی شما برای کمک در امور مختلف هستم.",
+      "model_state": "completed",
+      "model_request_id": "4751e6c7-feaf-4362-81c3-4426df805ba6"
+    }
+  ]
+}

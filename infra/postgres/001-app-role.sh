@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+: "${DIDBAN_APP_DB_PASSWORD:?DIDBAN_APP_DB_PASSWORD is required}"
+psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --set=app_password="$DIDBAN_APP_DB_PASSWORD" --set=ON_ERROR_STOP=1 <<'SQL'
+SELECT format('CREATE ROLE didban_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD %L', :'app_password') \gexec
+GRANT CONNECT ON DATABASE didban_fresh TO didban_app;
+GRANT USAGE, CREATE ON SCHEMA public TO didban_app;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+SQL

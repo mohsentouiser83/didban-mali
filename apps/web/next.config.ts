@@ -1,21 +1,13 @@
-import type { NextConfig } from "next";
-
-const backendApiOrigin =
-  process.env.BACKEND_API_ORIGIN ??
-  (process.env.NODE_ENV === "production"
-    ? "https://didban-mali.fly.dev"
-    : "http://127.0.0.1:8000");
-
-const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  async rewrites() {
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${backendApiOrigin}/api/v1/:path*`,
-      },
-    ];
-  },
+import type { NextConfig } from 'next';
+const config: NextConfig = {
+  poweredByHeader: false,
+  devIndicators: false,
+  distDir: process.env.DIDBAN_NEXT_DIST_DIR || ".next",
+  async rewrites() { return [{ source: '/api/:path*', destination: `${process.env.DIDBAN_API_URL || 'http://127.0.0.1:8000'}/api/:path*` }]; },
+  async headers() { return [{source: '/:path*', headers: [
+    {key: 'X-Content-Type-Options',value: 'nosniff'},
+    {key: 'Referrer-Policy',value:'same-origin'},
+    {key:'X-Frame-Options',value:'DENY'},
+  ]}]; },
 };
-
-export default nextConfig;
+export default config;

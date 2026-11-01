@@ -1,118 +1,129 @@
 "use client";
-
-import { useEffect, useId, useRef, useState } from "react";
-import { DayPicker, getDateLib } from "@daypicker/persian";
-import { CalendarBlank } from "@phosphor-icons/react";
-import { FieldError } from "./field";
-import { Input, type InputProps } from "./input";
+import { cn, displayDate, isoDate } from "@/lib/utils";
+import { DayPicker } from "@daypicker/persian";
+import {
+  CalendarBlankIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+} from "@phosphor-icons/react";
+import * as Popover from "@radix-ui/react-popover";
+import { useEffect, useRef } from "react";
+import type { DayButtonProps } from "react-day-picker";
 import { Button } from "./button";
-import { CalendarDropdown } from "./calendar-dropdown";
-import { CalendarDayButton, CalendarNavigationButton } from "./calendar-buttons";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./popover";
-import { dateFromISO, dateToISO, formatPersianDate, parsePersianDate } from "@/lib/persian-date";
-import "react-day-picker/style.css";
-import "./persian-date-picker.css";
-
-type PersianDatePickerProps = Omit<InputProps, "type" | "value" | "defaultValue" | "onChange" | "min" | "max"> & {
-  /** Gregorian YYYY-MM-DD, matching the API's date-only contract. */
+export function PersianDatePicker({
+  id,
+  value,
+  onChange,
+  label,
+  disabled = false,
+  minExclusive,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
+}: {
+  id?: string;
   value: string;
-  onValueChange: (value: string) => void;
-  min?: string;
-  max?: string;
-};
-
-const calendar = getDateLib();
-
-export function PersianDatePicker({ value, onValueChange, min, max, id, name,
-  disabled, readOnly, required, size, className, onBlur, onKeyDown,
-  "aria-label": ariaLabel, ...props }: PersianDatePickerProps) {
-  const generatedId = useId();
-  const inputId = id ?? generatedId;
-  const errorId = `${inputId}-error`;
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState({ source: value, text: formatPersianDate(value) });
-  const selected = dateFromISO(value);
-  const text = draft.source === value ? draft.text : formatPersianDate(value);
-  const parsed = parsePersianDate(text);
-  const iso = parsed ? dateToISO(parsed) : "";
-  const error = text && !parsed ? "تاریخ شمسی معتبر وارد کنید؛ مانند ۱۴۰۵/۰۱/۰۱."
-    : iso && min && iso < min ? `تاریخ باید از ${formatPersianDate(min)} به بعد باشد.`
-    : iso && max && iso > max ? `تاریخ باید تا ${formatPersianDate(max)} باشد.` : "";
-
-  useEffect(() => {
-    inputRef.current?.setCustomValidity(error);
-  }, [error]);
-
-  function select(date: Date | undefined) {
-    const next = date ? dateToISO(date) : "";
-    setDraft({ source: next, text: formatPersianDate(next) });
-    onValueChange(next);
-    setOpen(false);
-  }
-
+  onChange: (value: string) => void;
+  label?: string;
+  disabled?: boolean;
+  minExclusive?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
+}) {
+  const selected = value ? new Date(value + "T12:00:00") : undefined;
   return (
-    <div className="w-full min-w-0">
-      <Popover open={open && !disabled && !readOnly} onOpenChange={setOpen} modal>
-        <PopoverAnchor asChild>
-          <div className="relative" dir="ltr">
-            <Input {...props} ref={inputRef} id={inputId} type="text" dir="ltr"
-              value={text} size={size} disabled={disabled} readOnly={readOnly}
-              required={required} placeholder={props.placeholder ?? "۱۴۰۵/۰۱/۰۱"}
-              aria-label={ariaLabel} aria-invalid={error ? "true" : props["aria-invalid"]}
-              aria-describedby={[props["aria-describedby"], error ? errorId : ""].filter(Boolean).join(" ") || undefined}
-              className={`pe-12 tabular-nums ${className ?? ""}`} autoComplete="off"
-              onChange={(event) => {
-                const nextText = event.target.value;
-                const nextDate = parsePersianDate(nextText);
-                const next = nextDate ? dateToISO(nextDate) : "";
-                setDraft({ source: next, text: nextText });
-                onValueChange(next);
-              }}
-              onBlur={(event) => {
-                if (parsed && !error) setDraft({ source: value, text: formatPersianDate(value) });
-                onBlur?.(event);
-              }}
-              onKeyDown={(event) => {
-                onKeyDown?.(event);
-                if (event.key === "ArrowDown" && !event.defaultPrevented) {
-                  event.preventDefault(); setOpen(true);
-                }
-              }}
-            />
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size={size === "sm" ? "icon-sm" : "icon"}
-                disabled={disabled || readOnly} className="absolute end-0 top-0"
-                aria-label={ariaLabel ? `انتخاب ${ariaLabel}` : "باز کردن تقویم شمسی"}>
-                <CalendarBlank aria-hidden="true" />
-              </Button>
-            </PopoverTrigger>
-          </div>
-        </PopoverAnchor>
-        <PopoverContent align="start" className="w-auto max-w-[calc(100vw-2rem)] p-3" dir="rtl">
-          <DayPicker key={open ? value : "closed"} className="persian-calendar"
-            mode="single" selected={selected} onSelect={select}
-            defaultMonth={selected} autoFocus captionLayout="dropdown" navLayout="after"
-            components={{ Dropdown: CalendarDropdown, DayButton: CalendarDayButton,
-              PreviousMonthButton: CalendarNavigationButton, NextMonthButton: CalendarNavigationButton }}
-            classNames={{ dropdowns: "flex items-center gap-2 text-sm" }}
-            startMonth={min ? dateFromISO(min) : calendar.newDate(1300, 0, 1)}
-            endMonth={max ? dateFromISO(max) : calendar.newDate(1500, 11, 29)}
-            disabled={[
-              ...(min && dateFromISO(min) ? [{ before: dateFromISO(min)! }] : []),
-              ...(max && dateFromISO(max) ? [{ after: dateFromISO(max)! }] : []),
-            ]}
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <Button
+          id={id}
+          variant="secondary"
+          disabled={disabled}
+          aria-label={label}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          className="w-full justify-between text-start font-normal data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/10"
+        >
+          <span className={value ? "" : "text-muted"}>
+            {value ? displayDate(value) : "انتخاب تاریخ"}
+          </span>
+          <CalendarBlankIcon size={18} aria-hidden className="text-primary" />
+        </Button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          dir="rtl"
+          sideOffset={8}
+          className="z-80 rounded-panel border border-border bg-surface p-4 shadow-overlay motion-safe:animate-fade-in"
+        >
+          <DayPicker
+            mode="single"
+            disabled={(date) => !!minExclusive && isoDate(date) <= minExclusive}
+            selected={selected}
+            onSelect={(date) => onChange(date ? isoDate(date) : "")}
+            dir="rtl"
+            components={{
+              Chevron: ({ orientation }) =>
+                orientation === "left" ? (
+                  <CaretLeftIcon size={18} />
+                ) : (
+                  <CaretRightIcon size={18} />
+                ),
+              DayButton: CalendarDayButton,
+              NextMonthButton: ({ className, ...props }) => (
+                <Button
+                  {...props}
+                  variant="ghost"
+                  className={cn("size-10 min-h-10 p-0", className)}
+                />
+              ),
+              PreviousMonthButton: ({ className, ...props }) => (
+                <Button
+                  {...props}
+                  variant="ghost"
+                  className={cn("size-10 min-h-10 p-0", className)}
+                />
+              ),
+            }}
+            classNames={{
+              months: "relative",
+              month: "space-y-3",
+              month_caption:
+                "flex h-11 items-center justify-center px-12 font-medium",
+              nav: "absolute inset-x-0 top-0 flex justify-between",
+              month_grid: "w-full border-collapse",
+              weekdays: "flex",
+              weekday: "w-10 py-2 text-xs font-normal text-muted",
+              week: "mt-1 flex",
+              day: "size-10 text-center",
+              day_button:
+                "size-10 rounded-control outline-none focus-visible:ring-2 focus-visible:ring-primary hover:bg-primary-soft",
+              selected: "rounded-control bg-primary text-white",
+              today: "font-medium text-primary",
+              outside: "text-muted opacity-40",
+              disabled: "opacity-30",
+            }}
           />
-          <div className="mt-3 flex justify-between gap-2 border-t border-border pt-3">
-            <Button type="button" variant="ghost" size="sm"
-              disabled={Boolean((min && dateToISO(new Date()) < min) || (max && dateToISO(new Date()) > max))}
-              onClick={() => select(new Date())}>امروز</Button>
-            {!required && <Button type="button" variant="ghost" size="sm" onClick={() => select(undefined)}>پاک کردن</Button>}
-          </div>
-        </PopoverContent>
-      </Popover>
-      {name && <Input type="hidden" name={name} value={value} disabled={disabled} />}
-      {error && <FieldError id={errorId} dir="rtl" className="mt-1">{error}</FieldError>}
-    </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+function CalendarDayButton({ day, modifiers, ...props }: DayButtonProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (modifiers.focused) ref.current?.focus();
+  }, [modifiers.focused]);
+  return (
+    <Button
+      {...props}
+      ref={ref}
+      variant="ghost"
+      className={cn(
+        "size-10 min-h-10 p-0 font-normal",
+        modifiers.selected && "bg-primary text-white hover:bg-primary-hover",
+        props.className,
+      )}
+      data-day={day.date.toISOString()}
+    />
   );
 }

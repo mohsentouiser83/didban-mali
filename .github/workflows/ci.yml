@@ -1,0 +1,57 @@
+name: Fresh rebuild checks
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: didban_validation
+          POSTGRES_USER: didban_migration_admin
+          POSTGRES_PASSWORD: ci-admin-only
+        ports: ['55435:5432']
+        options: >-
+          --health-cmd 'pg_isready -U didban_migration_admin -d didban_validation'
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+      - run: python -m pip install -r apps/api/requirements.txt
+      - name: Prepare restricted disposable PostgreSQL role
+        env:
+          PGPASSWORD: ci-admin-only
+        run: |
+          psql -h 127.0.0.1 -p 55435 -U didban_migration_admin -d didban_validation -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE didban_validation_app LOGIN PASSWORD 'ci-app-only' NOSUPERUSER NOBYPASSRLS;
+          GRANT USAGE, CREATE ON SCHEMA public TO didban_validation_app;
+          SQL
+      - run: python -m ruff check apps/api scripts
+      - run: python -m pytest apps/api/tests
+        env:
+          PYTHONPATH: apps/api
+          DIDBAN_POSTGRES_TEST_URL: postgresql+psycopg://didban_validation_app:ci-app-only@127.0.0.1:55435/didban_validation
+      - run: python scripts/generate_contracts.py
+      - run: git diff --exit-code -- contracts/openapi.json database/schema.sql
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'

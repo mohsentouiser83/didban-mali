@@ -1,0 +1,648 @@
+[
+  {
+    "charts": [
+      {
+        "height": 256,
+        "width": 308
+      }
+    ],
+    "errors": [],
+    "overflow": false,
+    "route": "/",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-dashboard.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/uploads",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-uploads.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/uploads/24cf69ed-8981-4089-804a-252f7daff03e",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-uploads-24cf69ed-8981-4089-804a-252f7daff03e.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/sources",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-sources.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/review",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-review.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/reconciliation",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-reconciliation.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/receivables",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-receivables.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/payables",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-payables.png"
+  },
+  {
+    "charts": [
+      {
+        "height": 255.99993896484375,
+        "width": 308
+      }
+    ],
+    "errors": [],
+    "overflow": false,
+    "route": "/cashflow",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-cashflow.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/cashflow/forecast",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-cashflow-forecast.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/moadian",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-moadian.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settlements",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settlements.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settlements/plans",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settlements-plans.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/reports",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-reports.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/periods",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settings-periods.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/company",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settings-company.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/members",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settings-members.png"
+  },
+  {
+    "charts": [],
+    "errors": [
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره"
+    ],
+    "overflow": false,
+    "route": "/settings/usage",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-settings-usage.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/notifications",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-notifications.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/assistant",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-assistant.png"
+  },
+  {
+    "charts": [
+      {
+        "height": 256,
+        "width": 566
+      }
+    ],
+    "errors": [],
+    "overflow": false,
+    "route": "/",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-dashboard.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/uploads",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-uploads.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/uploads/24cf69ed-8981-4089-804a-252f7daff03e",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-uploads-24cf69ed-8981-4089-804a-252f7daff03e.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/sources",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-sources.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/review",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-review.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/reconciliation",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-reconciliation.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/receivables",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-receivables.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/payables",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-payables.png"
+  },
+  {
+    "charts": [
+      {
+        "height": 256,
+        "width": 1086
+      }
+    ],
+    "errors": [],
+    "overflow": false,
+    "route": "/cashflow",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-cashflow.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/cashflow/forecast",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-cashflow-forecast.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/moadian",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-moadian.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settlements",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settlements.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settlements/plans",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settlements-plans.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/reports",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-reports.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/periods",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settings-periods.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/company",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settings-company.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/settings/members",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settings-members.png"
+  },
+  {
+    "charts": [],
+    "errors": [
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره",
+      "اطلاعات این بخش در دسترس نیست.تلاش دوباره"
+    ],
+    "overflow": false,
+    "route": "/settings/usage",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-settings-usage.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/notifications",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-notifications.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/assistant",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-assistant.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/login",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-login.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/theme-missing-page",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 390,
+    "screenshot": "mobile-theme-missing-page.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/login",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-login.png"
+  },
+  {
+    "charts": [],
+    "errors": [],
+    "overflow": false,
+    "route": "/theme-missing-page",
+    "title": [
+      {
+        "size": "26px",
+        "weight": "500"
+      }
+    ],
+    "width": 1440,
+    "screenshot": "desktop-theme-missing-page.png"
+  }
+]

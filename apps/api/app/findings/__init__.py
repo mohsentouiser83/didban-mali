@@ -1,1 +1,0 @@
-"""Constrained deterministic finding catalog."""

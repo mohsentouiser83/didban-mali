@@ -1,0 +1,24 @@
+{
+  "synthetic": true,
+  "files": 10,
+  "total_data_rows": 20000,
+  "active_readers": 5,
+  "upload_seconds": 0.678,
+  "processing_seconds": 2.994,
+  "report_read_seconds": 0.052,
+  "five_reads_wall_seconds": 0.311,
+  "read_latencies_seconds": [
+    0.058,
+    0.112,
+    0.256,
+    0.31,
+    0.167
+  ],
+  "process_peak_rss_native_units": 304873472,
+  "platform": "darwin",
+  "response_bytes": 12627,
+  "cash_irr": "29990",
+  "database": "SQLite development",
+  "scanner": "not configured; development unscanned",
+  "is_production_benchmark": false
+}

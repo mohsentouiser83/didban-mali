@@ -1,9 +1,12 @@
 .git
-.env
 .venv
+**/node_modules
+**/.next*
 **/__pycache__
 **/.pytest_cache
-**/node_modules
-**/.next
-**/coverage
-docs
+**/.ruff_cache
+.env
+.env.*
+var
+outputs
+.impeccable

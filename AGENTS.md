@@ -1,3 +1,21 @@
+# Current replacement decision — 2026-11-01
+
+- Bot scope update (2026-11-01): user requested Telegram and Bale connectivity prerequisites and an AI-connected bot. This expands the earlier in-product-only channel constraint. The current milestone is server-side account pairing and read-only report questions through the existing model gateway; automatic alerts, schedules, file intake, PDF delivery and gear-menu connection UI remain separate implementation work. See `docs/bots.fa.md`; do not claim live bot activation without actual token/webhook verification.
+- Bot UI follow-up (2026-11-01): user explicitly requested account connection and management in the gear menu. `/settings/connections` now provides personal company-scoped pairing, private-bot links, confirmation and revocation. Server configuration remains an installation responsibility; never expose bot tokens in the UI. See `docs/bot-connections-ui-review.fa.md` for actual browser checks.
+
+The user explicitly superseded the separate-folder destination: implement the fresh rebuild **in this repository** (`/Users/mohsentouiserkani/Projects/didban-mali`) and replace its legacy implementation. The user then explicitly requested parallel agent work.
+
+- The full legacy tree, uncommitted changes, local configuration and original instructions were preserved at `/Users/mohsentouiserkani/Projects/didban-mali-legacy-20261101-191555`; see `docs/replacement-backup.json`.
+- Do not copy legacy implementation code, accounts or financial data back into the new application. Original documents, design reference and fonts remain assets.
+- The sibling `didban-mali-rebuild` was absent when this replacement began. Historical claims about its 75-table schema are not current implementation evidence.
+- Current executable implementation is `apps/api/didban` and `apps/web`. Read `docs/current-implementation.fa.md`, `docs/data-model.fa.md`, `docs/api-contract.fa.md` and `docs/workflow-contract.fa.md` for actual status and limits.
+- UI steering (2026-11-01): reproduce the pin gear-menu UI, without its separate settings sidebar. Move documents/source management into this gear menu. Render the assistant as a bottom-left floating icon opening a non-modal chat; keep conversations across routes of the same company and clear them on company/session changes. Preserve dedicated routes and permissions. This explicit change supersedes older navigation placement requirements.
+- Decision D09 (2026-11-01): use at least 3 dated receipt events in the preceding 180 days for the same customer; otherwise ask the expected receipt date. Use amount-weighted median lag relative to actual due dates, exclude future evidence, and ask when the estimated date is past or due date is unknown. An explicit unknown-date answer allows a limited result. This is now a user decision, not an unapproved threshold.
+- Use the approved `design.md` and source contracts below for product behavior. The location/preservation instructions superseded above do not override financial decisions D01–D06/D08 or the design/quality requirements below.
+- User scope update (2026-11-01): modules are configurable per company from the gear menu, with separate off and missing-valid-source states. Disabling preserves financial evidence and historical reports. New requested areas: tax, insurance, payroll, employees, and financial reports per employee (salary, deductions, insurance, tax; explicitly selected). The user explicitly limited tax scope to payroll tax; corporate income tax and VAT are outside this requested module. Source reporting is not evidence of statutory-rate calculation or filing; see `docs/personnel-modules.fa.md`.
+- User port override (2026-11-01): fresh development uses web 3000/API 8000 and its own database/storage; Docker project `didban-fresh` has separate volumes. Never reset or reuse the legacy database.
+- No provider call, production financial acceptance, capacity benchmark or live reduced-motion check is established merely by source presence or unit tests. Record actual verification honestly.
+
 # Project instructions
 
 These instructions apply to work in this repository and its subdirectories.
