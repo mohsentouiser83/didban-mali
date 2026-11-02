@@ -1,0 +1,1083 @@
+{
+  "schema_version": "accounting-reference-proposed-1",
+  "created_on": "2026-11-01",
+  "synthetic": true,
+  "review_status": "pending_accountant_review",
+  "production_posting_approved": false,
+  "scope": {
+    "currency": [
+      "IRR",
+      "TOMAN"
+    ],
+    "tax_rates_calculated": false,
+    "vat": false,
+    "corporate_tax": false,
+    "inventory": false,
+    "bank_money_movement": false
+  },
+  "account_aliases": [
+    {
+      "alias": "bank_a",
+      "label_fa": "بانک الف",
+      "kind": "asset"
+    },
+    {
+      "alias": "bank_b",
+      "label_fa": "بانک ب",
+      "kind": "asset"
+    },
+    {
+      "alias": "trade_receivable",
+      "label_fa": "مطالبات تجاری",
+      "kind": "asset"
+    },
+    {
+      "alias": "notes_receivable",
+      "label_fa": "چک‌های دریافتنی",
+      "kind": "asset"
+    },
+    {
+      "alias": "trade_payable",
+      "label_fa": "بدهی تجاری خدمات",
+      "kind": "liability"
+    },
+    {
+      "alias": "notes_payable",
+      "label_fa": "چک‌های پرداختنی",
+      "kind": "liability"
+    },
+    {
+      "alias": "payroll_payable",
+      "label_fa": "حقوق پرداختنی",
+      "kind": "liability"
+    },
+    {
+      "alias": "insurance_payable",
+      "label_fa": "بیمه پرداختنی",
+      "kind": "liability"
+    },
+    {
+      "alias": "payroll_tax_payable",
+      "label_fa": "مالیات حقوق پرداختنی",
+      "kind": "liability"
+    },
+    {
+      "alias": "other_deductions_payable",
+      "label_fa": "سایر کسورات پرداختنی",
+      "kind": "liability"
+    },
+    {
+      "alias": "service_revenue",
+      "label_fa": "درآمد خدمات",
+      "kind": "revenue"
+    },
+    {
+      "alias": "service_expense",
+      "label_fa": "هزینه خدمات خریداری‌شده",
+      "kind": "expense"
+    },
+    {
+      "alias": "internet_expense",
+      "label_fa": "هزینه اینترنت",
+      "kind": "expense"
+    },
+    {
+      "alias": "bank_fee_expense",
+      "label_fa": "کارمزد بانک",
+      "kind": "expense"
+    },
+    {
+      "alias": "salary_expense",
+      "label_fa": "هزینه حقوق",
+      "kind": "expense"
+    },
+    {
+      "alias": "employer_insurance_expense",
+      "label_fa": "هزینه بیمه سهم کارفرما",
+      "kind": "expense"
+    }
+  ],
+  "journal_cases": [
+    {
+      "id": "J01",
+      "title_fa": "فروش خدمات نسیه",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "service_delivered": true,
+        "invoice_amount_excludes_unmodeled_taxes": true
+      },
+      "lines": [
+        {
+          "account": "trade_receivable",
+          "debit": "1000",
+          "credit": "0"
+        },
+        {
+          "account": "service_revenue",
+          "debit": "0",
+          "credit": "1000"
+        }
+      ],
+      "expected_total_debit": "1000",
+      "expected_total_credit": "1000",
+      "expected_report_deltas": {
+        "revenue": "1000",
+        "expense": "0",
+        "net_result": "1000",
+        "bank": "0",
+        "trade_receivable": "1000"
+      }
+    },
+    {
+      "id": "J02",
+      "title_fa": "خرید خدمات نسیه",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "service_received": true
+      },
+      "lines": [
+        {
+          "account": "service_expense",
+          "debit": "400",
+          "credit": "0"
+        },
+        {
+          "account": "trade_payable",
+          "debit": "0",
+          "credit": "400"
+        }
+      ],
+      "expected_total_debit": "400",
+      "expected_total_credit": "400",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "400",
+        "net_result": "-400",
+        "bank": "0",
+        "trade_payable": "400"
+      }
+    },
+    {
+      "id": "J03",
+      "title_fa": "دریافت بخشی از طلب",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "existing_receivable": "1000",
+        "settlement_allocation": "600",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "bank_a",
+          "debit": "600",
+          "credit": "0"
+        },
+        {
+          "account": "trade_receivable",
+          "debit": "0",
+          "credit": "600"
+        }
+      ],
+      "expected_total_debit": "600",
+      "expected_total_credit": "600",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "600",
+        "trade_receivable": "-600"
+      }
+    },
+    {
+      "id": "J04",
+      "title_fa": "پرداخت بخشی از بدهی",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "existing_payable": "400",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "trade_payable",
+          "debit": "250",
+          "credit": "0"
+        },
+        {
+          "account": "bank_a",
+          "debit": "0",
+          "credit": "250"
+        }
+      ],
+      "expected_total_debit": "250",
+      "expected_total_credit": "250",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "-250",
+        "trade_payable": "-250"
+      }
+    },
+    {
+      "id": "J05",
+      "title_fa": "هزینه اینترنت پرداخت‌شده",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "original_amount": "12",
+        "original_unit": "TOMAN",
+        "canonical_amount": "120",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "internet_expense",
+          "debit": "120",
+          "credit": "0"
+        },
+        {
+          "account": "bank_a",
+          "debit": "0",
+          "credit": "120"
+        }
+      ],
+      "expected_total_debit": "120",
+      "expected_total_credit": "120",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "120",
+        "net_result": "-120",
+        "bank": "-120"
+      }
+    },
+    {
+      "id": "J06",
+      "title_fa": "انتقال داخلی همراه کارمزد صریح",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "principal_transfer": "200",
+        "explicit_fee": "2",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "bank_b",
+          "debit": "200",
+          "credit": "0"
+        },
+        {
+          "account": "bank_fee_expense",
+          "debit": "2",
+          "credit": "0"
+        },
+        {
+          "account": "bank_a",
+          "debit": "0",
+          "credit": "202"
+        }
+      ],
+      "expected_total_debit": "202",
+      "expected_total_credit": "202",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "2",
+        "net_result": "-2",
+        "bank": "-2"
+      }
+    },
+    {
+      "id": "J07",
+      "title_fa": "حقوق و کسورات با مبالغ صریح مصنوعی",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "gross": "1000",
+        "employee_insurance": "70",
+        "employer_insurance": "230",
+        "payroll_tax": "50",
+        "other_deductions": "20",
+        "net_pay": "860",
+        "amounts_imported_not_rate_calculated": true
+      },
+      "lines": [
+        {
+          "account": "salary_expense",
+          "debit": "1000",
+          "credit": "0"
+        },
+        {
+          "account": "employer_insurance_expense",
+          "debit": "230",
+          "credit": "0"
+        },
+        {
+          "account": "payroll_payable",
+          "debit": "0",
+          "credit": "860"
+        },
+        {
+          "account": "insurance_payable",
+          "debit": "0",
+          "credit": "300"
+        },
+        {
+          "account": "payroll_tax_payable",
+          "debit": "0",
+          "credit": "50"
+        },
+        {
+          "account": "other_deductions_payable",
+          "debit": "0",
+          "credit": "20"
+        }
+      ],
+      "expected_total_debit": "1230",
+      "expected_total_credit": "1230",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "1230",
+        "net_result": "-1230",
+        "bank": "0",
+        "payroll_payable": "860",
+        "insurance_payable": "300",
+        "payroll_tax_payable": "50",
+        "other_deductions_payable": "20"
+      }
+    },
+    {
+      "id": "J08",
+      "title_fa": "پرداخت حقوق خالص",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "existing_payroll_payable": "860",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "payroll_payable",
+          "debit": "860",
+          "credit": "0"
+        },
+        {
+          "account": "bank_a",
+          "debit": "0",
+          "credit": "860"
+        }
+      ],
+      "expected_total_debit": "860",
+      "expected_total_credit": "860",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "-860",
+        "payroll_payable": "-860"
+      }
+    },
+    {
+      "id": "J09",
+      "title_fa": "دریافت چک بابت طلب",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "existing_receivable": "300",
+        "check_face_amount": "300",
+        "bank_collection_confirmed": false
+      },
+      "lines": [
+        {
+          "account": "notes_receivable",
+          "debit": "300",
+          "credit": "0"
+        },
+        {
+          "account": "trade_receivable",
+          "debit": "0",
+          "credit": "300"
+        }
+      ],
+      "expected_total_debit": "300",
+      "expected_total_credit": "300",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "0",
+        "trade_receivable": "-300",
+        "notes_receivable": "300"
+      }
+    },
+    {
+      "id": "J10",
+      "title_fa": "وصول چک دریافتنی",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "requires_prior_event": "J09",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "bank_a",
+          "debit": "300",
+          "credit": "0"
+        },
+        {
+          "account": "notes_receivable",
+          "debit": "0",
+          "credit": "300"
+        }
+      ],
+      "expected_total_debit": "300",
+      "expected_total_credit": "300",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "300",
+        "notes_receivable": "-300"
+      }
+    },
+    {
+      "id": "J11",
+      "title_fa": "برگشت چک دریافتنی پیش از وصول",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "requires_prior_event": "J09",
+        "alternative_to": "J10",
+        "not_after_collection": true
+      },
+      "lines": [
+        {
+          "account": "trade_receivable",
+          "debit": "300",
+          "credit": "0"
+        },
+        {
+          "account": "notes_receivable",
+          "debit": "0",
+          "credit": "300"
+        }
+      ],
+      "expected_total_debit": "300",
+      "expected_total_credit": "300",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "0",
+        "trade_receivable": "300",
+        "notes_receivable": "-300"
+      }
+    },
+    {
+      "id": "J12",
+      "title_fa": "صدور چک بابت بدهی",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "existing_payable": "180",
+        "check_face_amount": "180",
+        "bank_debit_confirmed": false
+      },
+      "lines": [
+        {
+          "account": "trade_payable",
+          "debit": "180",
+          "credit": "0"
+        },
+        {
+          "account": "notes_payable",
+          "debit": "0",
+          "credit": "180"
+        }
+      ],
+      "expected_total_debit": "180",
+      "expected_total_credit": "180",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "0",
+        "trade_payable": "-180",
+        "notes_payable": "180"
+      }
+    },
+    {
+      "id": "J13",
+      "title_fa": "پرداخت بانکی چک صادرشده",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "requires_prior_event": "J12",
+        "bank_evidence_present": true
+      },
+      "lines": [
+        {
+          "account": "notes_payable",
+          "debit": "180",
+          "credit": "0"
+        },
+        {
+          "account": "bank_a",
+          "debit": "0",
+          "credit": "180"
+        }
+      ],
+      "expected_total_debit": "180",
+      "expected_total_credit": "180",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "-180",
+        "notes_payable": "-180"
+      }
+    },
+    {
+      "id": "J14",
+      "title_fa": "برگشت چک پرداختنی بدون برداشت بانک",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "requires_prior_event": "J12",
+        "alternative_to": "J13",
+        "bank_debit_confirmed": false
+      },
+      "lines": [
+        {
+          "account": "notes_payable",
+          "debit": "180",
+          "credit": "0"
+        },
+        {
+          "account": "trade_payable",
+          "debit": "0",
+          "credit": "180"
+        }
+      ],
+      "expected_total_debit": "180",
+      "expected_total_credit": "180",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "0",
+        "trade_payable": "180",
+        "notes_payable": "-180"
+      }
+    },
+    {
+      "id": "J15",
+      "title_fa": "واگذاری چک دریافتنی بابت بدهی",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "requires_prior_event": "J09",
+        "alternative_to": "J10/J11",
+        "transfer_validated": true,
+        "contingent_obligation_treatment": "pending_accountant_review_not_silently_zero"
+      },
+      "lines": [
+        {
+          "account": "trade_payable",
+          "debit": "300",
+          "credit": "0"
+        },
+        {
+          "account": "notes_receivable",
+          "debit": "0",
+          "credit": "300"
+        }
+      ],
+      "expected_total_debit": "300",
+      "expected_total_credit": "300",
+      "expected_report_deltas": {
+        "revenue": "0",
+        "expense": "0",
+        "net_result": "0",
+        "bank": "0",
+        "trade_payable": "-300",
+        "notes_receivable": "-300"
+      }
+    },
+    {
+      "id": "J16",
+      "title_fa": "برگشت کامل سند فروش اشتباه",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "reversal_of": "J01",
+        "original_document_remains_immutable": true,
+        "reason_required": true
+      },
+      "lines": [
+        {
+          "account": "service_revenue",
+          "debit": "1000",
+          "credit": "0"
+        },
+        {
+          "account": "trade_receivable",
+          "debit": "0",
+          "credit": "1000"
+        }
+      ],
+      "expected_total_debit": "1000",
+      "expected_total_credit": "1000",
+      "expected_report_deltas": {
+        "revenue": "-1000",
+        "expense": "0",
+        "net_result": "-1000",
+        "bank": "0",
+        "trade_receivable": "-1000"
+      }
+    },
+    {
+      "id": "J17",
+      "title_fa": "سند جایگزین فروش اصلاح‌شده",
+      "review_status": "proposed_pending_accountant_review",
+      "unit": "IRR",
+      "date": "2026-11-02",
+      "company_alias": "synthetic-company-a",
+      "context": {
+        "replacement_for": "J01",
+        "linked_reversal": "J16",
+        "independent_exact_version_approval_required": true
+      },
+      "lines": [
+        {
+          "account": "trade_receivable",
+          "debit": "1200",
+          "credit": "0"
+        },
+        {
+          "account": "service_revenue",
+          "debit": "0",
+          "credit": "1200"
+        }
+      ],
+      "expected_total_debit": "1200",
+      "expected_total_credit": "1200",
+      "expected_report_deltas": {
+        "revenue": "1200",
+        "expense": "0",
+        "net_result": "1200",
+        "bank": "0",
+        "trade_receivable": "1200"
+      }
+    }
+  ],
+  "behavior_cases": [
+    {
+      "id": "B01",
+      "key": "owner_without_grant",
+      "title_fa": "مالک بدون اعطای صریح حق ثبت ندارد",
+      "expected": "forbidden",
+      "decision_refs": "P03/P07/D14",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B02",
+      "key": "finance_manager_posting_authority",
+      "title_fa": "مدیر مالی اختیار ثبت دارد؛ اختیار اعطای مجوز ندارد",
+      "expected": "posting_allowed_grant_forbidden",
+      "decision_refs": "P07/D14",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B03",
+      "key": "reconcile_not_post",
+      "title_fa": "اختیار تطبیق به‌تنهایی مجوز ثبت نیست",
+      "expected": "forbidden",
+      "decision_refs": "P07/D04",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B04",
+      "key": "revoked_before_approval",
+      "title_fa": "لغو مجوز پیش از ثبت در وب/بات کنترل شود",
+      "expected": "forbidden_no_journal",
+      "decision_refs": "P01/P07/P09",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B05",
+      "key": "stale_draft_version",
+      "title_fa": "تغییر پیش‌نویس پس از نمایش تأیید",
+      "expected": "conflict_no_journal",
+      "decision_refs": "P02/D15",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B06",
+      "key": "closed_period",
+      "title_fa": "ثبت/برگشت با تاریخ دوره بسته",
+      "expected": "period_closed_no_journal",
+      "decision_refs": "D19/D20/P18",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B07",
+      "key": "authorized_reopen",
+      "title_fa": "بازگشایی با مجوز جاری و دلیل؛ گزارش قدیمی ثابت",
+      "expected": "reopened_audited_snapshot_unchanged",
+      "decision_refs": "D20/P18",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B08",
+      "key": "idempotent_bot_web",
+      "title_fa": "تأیید هم‌زمان یا تکراری وب و بات",
+      "expected": "at_most_one_journal",
+      "decision_refs": "P09",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B09",
+      "key": "necessary_question",
+      "title_fa": "واحد/تاریخ/طرف حساب مبهم در رسانه",
+      "expected": "session_waiting_input_no_posting",
+      "decision_refs": "P10",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B10",
+      "key": "duplicate_similarity",
+      "title_fa": "عکس مشابه یا فایل تکراری",
+      "expected": "review_no_silent_delete_or_post",
+      "decision_refs": "P11",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B11",
+      "key": "scenario_no_effect",
+      "title_fa": "سناریوی تأخیر وصول یا هزینه فرضی",
+      "expected": "no_journal_no_real_report_mutation",
+      "decision_refs": "P20",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B12",
+      "key": "cross_company",
+      "title_fa": "مدرک/حساب/مجوز شرکت دیگر",
+      "expected": "forbidden_no_cross_company_effect",
+      "decision_refs": "P08/P25",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B13",
+      "key": "draft_no_financial_effect",
+      "title_fa": "پیش‌نویس متوازن اما تأییدنشده",
+      "expected": "no_ledger_or_report_effect",
+      "decision_refs": "P02/P24",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B14",
+      "key": "batch_stale_member",
+      "title_fa": "یک سند منتخب پس از پیش‌نمایش تغییر کرده",
+      "expected": "batch_policy_pending_explicit_definition_no_unreviewed_posting",
+      "decision_refs": "P01",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B15",
+      "key": "close_not_profit_zeroing",
+      "title_fa": "بستن عملیاتی دوره بدون قاعده مصوب اختتامیه",
+      "expected": "period_lock_only_no_invented_closing_journal",
+      "decision_refs": "P18/P27",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B16",
+      "key": "reopen_no_approval_transfer",
+      "title_fa": "بازگشایی و ثبت اصلاح جدید",
+      "expected": "new_report_version_requires_new_approval",
+      "decision_refs": "D20/D05",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B17",
+      "key": "native_import_same_event",
+      "title_fa": "یک رویداد از دفتر داخلی و فایل خارجی",
+      "expected": "one_selected_book_effect_with_linked_comparison_evidence",
+      "decision_refs": "D10/D11",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "id": "B18",
+      "key": "unknown_bank_balance",
+      "title_fa": "ثبت دریافت بدون مانده معتبر بانک",
+      "expected": "bank_movement_delta_only_balance_unavailable",
+      "decision_refs": "D02/P05",
+      "execution_status": "specified_not_executed"
+    }
+  ],
+  "decision_acceptance": [
+    {
+      "decision": "P01",
+      "phase": "A",
+      "dependencies": "D14/D15; draft versions",
+      "acceptance_fa": "B04/B05/B08/B14؛ مبلغ جمع گروه، اصلاح یک عضو و تکرار تأیید",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P02",
+      "phase": "A",
+      "dependencies": "D12; draft store",
+      "acceptance_fa": "B05/B13؛ پیش‌نویس بی‌اثر و ابطال تأیید پس از تغییر",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P03",
+      "phase": "A",
+      "dependencies": "posting grants",
+      "acceptance_fa": "B01/B02؛ تأیید تهیه‌کننده فقط با مجوز جاری",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P04",
+      "phase": "A",
+      "dependencies": "chart/period/money",
+      "acceptance_fa": "عدم تراز، حساب غیرفعال/شرکت دیگر، پول نامعتبر و تاریخ خارج دوره رد شوند",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P05",
+      "phase": "A",
+      "dependencies": "accountant-reviewed J01–J08",
+      "acceptance_fa": "J01–J08؛ سند و گزارش دقیق، بدون انتقال واقعی پول",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P06",
+      "phase": "A",
+      "dependencies": "check lifecycle review",
+      "acceptance_fa": "J09–J15؛ شاخه‌های جایگزین، عدم احتساب چک به‌عنوان بانک",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P07",
+      "phase": "A",
+      "dependencies": "independent permissions",
+      "acceptance_fa": "B01–B04؛ ثبت/تطبیق/گزارش/اعطا مستقل",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P08",
+      "phase": "B",
+      "dependencies": "company-qualified bot routing",
+      "acceptance_fa": "B12؛ انتخاب روشن شرکت و رد شناسه متعلق به دیگری",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P09",
+      "phase": "B",
+      "dependencies": "shared draft + idempotency",
+      "acceptance_fa": "B08؛ webhook تکراری، رقابت وب/بات و قطع پس از commit",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P10",
+      "phase": "B",
+      "dependencies": "private media/scanner/extraction",
+      "acceptance_fa": "B09؛ ابهام واحد/عدد/تاریخ/طرف، حفظ اصل و سؤال مشترک",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P11",
+      "phase": "B",
+      "dependencies": "fingerprints + review",
+      "acceptance_fa": "B10؛ فایل یکسان در برابر مدرک شبیه؛ عدم حذف خاموش",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P12",
+      "phase": "B",
+      "dependencies": "opt-in schedule + privacy",
+      "acceptance_fa": "خاموشی، ساعات سکوت، لغو عضویت قبل ارسال و عدم افشای پرسنلی",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P13",
+      "phase": "C",
+      "dependencies": "accepted corrections + policy versions",
+      "acceptance_fa": "یادگیری شرکت الف به ب نرود؛ لغو قاعده، حفظ تصمیم انسانی و تأیید اجباری",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P14",
+      "phase": "C",
+      "dependencies": "capacity/tenant/evidence",
+      "acceptance_fa": "جمع دقیق چندبه‌چند، کارمزد صریح، نامزد رقیب و رد تخصیص بیش از ظرفیت",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P15",
+      "phase": "C",
+      "dependencies": "finding lifecycle + audit",
+      "acceptance_fa": "مسئول/مهلت معتبر، دلیل پذیرش و سابقهٔ رفع/بازگشایی یافته",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P16",
+      "phase": "C",
+      "dependencies": "deterministic rules vs anomaly",
+      "acceptance_fa": "عدم تراز مانع؛ جهش هزینه هشدار؛ عدم برچسب تقلب قطعی",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P17",
+      "phase": "C",
+      "dependencies": "versioned rule engine + preview",
+      "acceptance_fa": "پیش‌نمایش بی‌اثر، فعال‌سازی نسخه‌دار، قاعده بدون مجوز نتواند ثبت کند",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P18",
+      "phase": "A",
+      "dependencies": "period lock + checklist",
+      "acceptance_fa": "B06/B07/B15/B16؛ خطای قطعی مانع و عبور هشدار با دلیل",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P19",
+      "phase": "D",
+      "dependencies": "D09 + historical forecast snapshots",
+      "acceptance_fa": "سه رویداد/۱۸۰ روز، منع شاهد آینده، خطای پیش‌بینی و داده ناموجود",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P20",
+      "phase": "D",
+      "dependencies": "separate scenario store",
+      "acceptance_fa": "B11؛ تغییر فرض مانده/تعهد/سند واقعی را تغییر ندهد",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P21",
+      "phase": "D",
+      "dependencies": "receivable history + tasks",
+      "acceptance_fa": "وعده پرداخت وصول نیست؛ فرمول اولویت دیده شود؛ ارسال فقط با اقدام صریح",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P22",
+      "phase": "D",
+      "dependencies": "optional dimensions + allocation policy",
+      "acceptance_fa": "تخصیص مشترک مجموع را حفظ کند؛ بدون مبنا سود پروژه ساخته نشود",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P23",
+      "phase": "D",
+      "dependencies": "safe query spec + deterministic engine",
+      "acceptance_fa": "فیلتر/دوره/مبنا روشن، null≠0، PDF/Excel همان نسخه و متن فرمول امن",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P24",
+      "phase": "A/B",
+      "dependencies": "read-only assistant + explicit actions",
+      "acceptance_fa": "B13؛ متن دستورگونه یا خروجی مدل اجازه ثبت نسازد",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P25",
+      "phase": "C",
+      "dependencies": "entity comments/tasks + memberships",
+      "acceptance_fa": "B12؛ نظر/مدرک/مسئول با کنترل شرکت و لغو مجوز",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P26",
+      "phase": "E",
+      "dependencies": "group permission + intercompany matches",
+      "acceptance_fa": "جمع ساده مقایسه‌ای؛ حذف دوطرفه قابل ردیابی و عدم افشای شرکت غیرمجاز",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P27",
+      "phase": "GATE",
+      "dependencies": "named accountant + reviewed fixtures",
+      "acceptance_fa": "ثبت شناسه نسخه، نام بازبین، موارد پذیرفته/ردشده؛ محاسبه قانونی ادعا نشود",
+      "execution_status": "specified_not_executed"
+    },
+    {
+      "decision": "P28",
+      "phase": "ALL",
+      "dependencies": "all phase gates + built-in browser",
+      "acceptance_fa": "آزمون مالی/مجوز/تکرار/خروجی، دسکتاپ/موبایل/صفحه‌کلید/کاهش حرکت",
+      "execution_status": "specified_not_executed"
+    }
+  ],
+  "proposal_register": [
+    {
+      "key": "batch_atomicity",
+      "status": "engineering_proposal_pending_contract_review",
+      "recommendation": "all selected exact-version drafts commit atomically; if any changed or invalid, none post and return per-item reasons"
+    },
+    {
+      "key": "book_source_selection",
+      "status": "financial_contract_proposal_pending_accountant_review",
+      "recommendation": "explicit selected authoritative book source per company/period/scope; native events and imported representations linked as evidence, never silently unioned"
+    },
+    {
+      "key": "check_endorsement_contingency",
+      "status": "financial_contract_pending_accountant_review",
+      "recommendation": "validate J15 and contingent obligation disclosure; no inference of zero exposure"
+    },
+    {
+      "key": "closing_entries",
+      "status": "financial_contract_pending_accountant_review",
+      "recommendation": "operational period lock differs from profit/loss closing entries; no automatic closing entries until mapping is reviewed"
+    }
+  ],
+  "review_record": {
+    "accountant_name": null,
+    "reviewed_on": null,
+    "accepted_case_ids": [],
+    "rejected_case_ids": [],
+    "evidence_reference": null
+  }
+}

@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = Field(default=None, repr=False)
     # Speech is a separate, explicitly enabled provider capability. Its cost is
     # not covered by the structured-text model tariff/reservation ledger.
+    media_extraction_enabled: bool = False
+    media_max_bytes: int = Field(default=20 * 1024 * 1024, ge=1024, le=20 * 1024 * 1024)
+    media_max_pages: int = Field(default=4, ge=1, le=4)
+    media_max_pixels: int = Field(default=16_000_000, ge=10000, le=16_000_000)
     voice_enabled: bool = False
     voice_model: str = Field(default="", max_length=100, pattern=r"^[A-Za-z0-9._/-]*$")
     voice_max_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=10 * 1024 * 1024)

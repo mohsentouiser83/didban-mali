@@ -33,6 +33,10 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
               const companyModule = modules.data?.items.find(value => value.key === moduleRoutes[item.href]);
               const current =
                 pathname === item.href ||
+                (item.href === "/review" && (pathname.startsWith("/review/") || pathname === "/accounting")) ||
+                (item.href === "/cashflow/forecast" && pathname === "/cashflow/scenarios") ||
+                (item.href === "/receivables" && pathname === "/receivables/followups") ||
+                (item.href === "/reports" && pathname.startsWith("/reports/")) ||
                 (item.href === "/reports" && pathname === "/employee-reports") ||
                 (item.href === "/settlements" &&
                   pathname.startsWith("/settlements/"));
@@ -55,7 +59,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
                     weight={current ? "duotone" : "regular"}
                     aria-hidden
                   />
-                  <span className="min-w-0 flex-1">{item.label}</span>{companyModule && !companyModule.available && <span className="text-[10px] text-muted">{companyModule.enabled ? "بدون سند" : "خاموش"}</span>}
+                  <span className="min-w-0 flex-1">{item.label}</span>{companyModule && !companyModule.available && <span className="text-[10px] text-muted">{companyModule.enabled ? "پوشش ناقص" : "خاموش"}</span>}
                 </Link>
               );
             })}

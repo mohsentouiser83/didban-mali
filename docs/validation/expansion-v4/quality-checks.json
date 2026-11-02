@@ -1,0 +1,13 @@
+{
+  "ruff": "passed",
+  "eslint": "passed",
+  "typescript": "passed",
+  "next_production_build": "passed",
+  "contracts": {
+    "tables": 88,
+    "http_paths": 191
+  },
+  "whitespace": "passed",
+  "browser_qa": "synthetic isolated SQLite; screenshots and reduced motion proof in browser/",
+  "live_bot_vendor_provider_acceptance": false
+}

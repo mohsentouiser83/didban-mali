@@ -1,7 +1,7 @@
 "use client";
 import { CalendarBlankIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Select } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog, Dialog } from "@/components/ui/dialog";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -32,15 +32,17 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
+import { PeriodLockPanel } from "./period-lock-panel";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
-export function PeriodsView() {
+function PeriodWorkspace() {
   const workspace = useWorkspace();
   const resource = usePagedResource<Period>(
     workspace.companyPath("financial-periods"),
   );
   const command = useCommand();
   const [editing, setEditing] = useState<Period | null | undefined>();
+  const [locking, setLocking] = useState<Period | null>(null);
   const [deleting, setDeleting] = useState<Period | null>(null);
   const [name, setName] = useState("");
   const [start, setStart] = useState("");
@@ -87,15 +89,21 @@ export function PeriodsView() {
   if (!workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="دوره‌های مالی"
         action={
-          workspace.canWrite && (
-            <Button onClick={() => open(null)}>
-              <PlusIcon size={18} />
-              دوره جدید
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/accounting/period-end" variant="secondary">
+              اسناد پایان و آغاز دوره
+            </ButtonLink>
+            {workspace.canWrite && (
+              <Button onClick={() => open(null)}>
+                <PlusIcon size={18} aria-hidden />
+                دوره جدید
+              </Button>
+            )}
+          </div>
         }
       />
       <Panel>
@@ -131,6 +139,12 @@ export function PeriodsView() {
                         {displayDate(period.end)}
                       </TableCell>
                       <TableCell>
+                        <Button
+                          variant="secondary"
+                          onClick={() => setLocking(period)}
+                        >
+                          آمادگی و قفل دوره
+                        </Button>
                         {workspace.canWrite && (
                           <div className="flex gap-1">
                             <Button
@@ -166,6 +180,20 @@ export function PeriodsView() {
           </>
         )}
       </Panel>
+      <Dialog
+        title={locking?.name || "قفل دوره"}
+        open={!!locking}
+        onOpenChange={(open) => {
+          if (!open) setLocking(null);
+        }}
+      >
+        {locking && (
+          <PeriodLockPanel
+            key={`${workspace.company.id}:${locking.id}`}
+            periodId={locking.id}
+          />
+        )}
+      </Dialog>
       <Dialog
         title={editing ? "ویرایش دوره مالی" : "دوره مالی جدید"}
         open={editing !== undefined}
@@ -269,5 +297,13 @@ export function PeriodsView() {
         <FormMessage error>{command.error?.message}</FormMessage>
       </ConfirmDialog>
     </>
+  );
+}
+
+export function PeriodsView() {
+  const workspace = useWorkspace();
+  if (!workspace.company) return <NoCompany />;
+  return (
+    <PeriodWorkspace key={`${workspace.user?.id}:${workspace.company.id}`} />
   );
 }

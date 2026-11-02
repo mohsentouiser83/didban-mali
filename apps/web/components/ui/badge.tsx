@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 const labels: Record<string, string> = {
   accepted: "پذیرفته‌شده",
+  accepted_in_group: "پذیرفته در گروه",
   needs_review: "نیازمند بررسی",
   exact_proposal: "پیشنهاد تطبیق",
   settled: "تسویه‌شده",
@@ -65,6 +66,7 @@ export function StatusBadge({ status }: { status: string }) {
     "approved",
     "settled",
     "accepted",
+    "accepted_in_group",
   ].includes(status)
     ? "success"
     : [

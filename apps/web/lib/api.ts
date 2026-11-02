@@ -316,6 +316,14 @@ export interface Usage {
   policies: { id: string; cap: string; period: string; version: number }[];
 }
 export interface ReconciliationCandidate {
+  group_state?: "accepted";
+  group_decision_id?: string;
+  group_candidate_key?: string;
+  group_version?: number;
+  group_basis?: "native_book" | "imported_ledger";
+  group_ledger_account?: string;
+  group_native_statement_id?: string;
+  single_status?: string;
   id: string;
   bank_id: string;
   ledger_ids: string[];
@@ -324,7 +332,7 @@ export interface ReconciliationCandidate {
   reference: string;
   date: string;
   amount: string;
-  status: "accepted" | "rejected" | "needs_review" | "exact_proposal";
+  status: "accepted" | "accepted_in_group" | "rejected" | "needs_review" | "exact_proposal";
   reason_codes: string[];
   evidence_refs: string[];
   version: number;

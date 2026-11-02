@@ -15,6 +15,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from didban.api import app
+from didban.config import settings
 from didban.db import initialize,transaction
 from didban.models import User,ProcessingSession,SourceFile,ResultManifest
 from didban.security import hasher
@@ -28,7 +29,7 @@ response=client.post('/api/v1/auth/login',json={'email':'test@example.test','pas
 assert response.status_code==200,response.text
 csrf=response.json()['csrf']
 def headers(version=None,key=None):
-    h={'X-CSRF-Token':csrf,'Idempotency-Key':key or str(uuid4()),'Origin':'http://127.0.0.1:3010'}
+    h={'X-CSRF-Token':csrf,'Idempotency-Key':key or str(uuid4()),'Origin':settings.web_origin}
     if version is not None:h['If-Match']=str(version)
     return h
 def post(path,body=None,version=None,key=None):

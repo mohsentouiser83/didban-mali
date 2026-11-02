@@ -36,6 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { AccountingPermissionsPanel } from "./accounting-permissions-panel";
 
 const roles = [
   { value: "owner", label: "مالک" },
@@ -63,7 +64,8 @@ export function MembersView() {
   if (!workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="اعضا و دسترسی"
         action={
           <div className="flex gap-2">
@@ -215,6 +217,10 @@ export function MembersView() {
           {!open && !accountOpen ? command.error?.message : undefined}
         </FormMessage>
       </Panel>
+      <AccountingPermissionsPanel
+        key={workspace.company.id}
+        members={resource.data}
+      />
       <Dialog title="افزودن عضو شرکت" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={command.error?.fields}

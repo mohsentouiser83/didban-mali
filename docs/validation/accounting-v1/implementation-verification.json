@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-01",
+  "implementation_report": "docs/accounting-foundation-implementation.fa.md",
+  "api": {
+    "passed": 222,
+    "skipped": 1,
+    "skip_reason": "Requires isolated PostgreSQL validation role (DIDBAN_POSTGRES_TEST_URL not configured)"
+  },
+  "web": {
+    "passed": 54,
+    "files": 17
+  },
+  "checks": {
+    "ruff": "passed",
+    "eslint": "passed",
+    "typecheck": "passed",
+    "production_build": "passed",
+    "contracts_generated": true
+  },
+  "schema": {
+    "tables": 42,
+    "http_paths": 83
+  },
+  "browser": {
+    "surface": "Codex built-in browser",
+    "desktop": [
+      1280,
+      720
+    ],
+    "mobile": [
+      390,
+      844
+    ],
+    "data": "isolated synthetic SQLite and storage",
+    "live_reduced_motion": "not_tested",
+    "evidence_directory": "docs/validation/accounting-v1/browser"
+  },
+  "financial_posting_available": false,
+  "accountant_review": "pending",
+  "all_28_capabilities_complete": false
+}

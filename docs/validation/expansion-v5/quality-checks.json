@@ -1,0 +1,18 @@
+{
+  "ruff": "passed",
+  "eslint": "passed",
+  "typescript": "passed",
+  "next_production_build": "passed",
+  "contracts": {
+    "tables": 109,
+    "http_paths": 234
+  },
+  "pdfs_rendered_and_visually_checked": [
+    "native-forecast.synthetic.pdf",
+    "native-forecast-limited.synthetic.pdf",
+    "native-invoice-export/report.pdf",
+    "native-invoice-builder-export/report.pdf"
+  ],
+  "pdf_font_family": "IRANYekanX",
+  "is_live_provider_or_production_acceptance": false
+}

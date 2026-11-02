@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Pagination } from "@/components/ui/pagination";
+import { ButtonLink } from "@/components/ui/button";
 import { FileTextIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
@@ -41,18 +42,20 @@ function EvidenceRow({ id }: { id: string }) {
           />
           <p className="break-all font-medium">{evidence.filename}</p>
         </div>
-        <a
+        <ButtonLink
+          download
           href={`/api/v1${workspace.companyPath(`source-files/${evidence.file_id}/download`)}`}
-          className="grid size-11 shrink-0 place-items-center rounded-control text-primary outline-none hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-primary"
+          variant="ghost"
+          className="size-11 shrink-0 p-0"
           aria-label="دریافت اصل سند"
         >
           <DownloadSimpleIcon size={20} />
-        </a>
+        </ButtonLink>
       </div>
       <p className="text-xs text-muted">
         {evidence.sheet} · ردیف {persian(evidence.row_number)}
       </p>
-      <Table>
+      <Table className="table-fixed has-[tbody_td:not([colspan])]:min-w-0">
         <TableHeader>
           <TableRow>
             <TableHead>ستون</TableHead>
@@ -62,8 +65,10 @@ function EvidenceRow({ id }: { id: string }) {
         <TableBody>
           {Object.entries(evidence.values).map(([key, value]) => (
             <TableRow key={key}>
-              <TableRowHeader>{key}</TableRowHeader>
-              <TableCell className="max-w-64 break-words">
+              <TableRowHeader className="break-words [overflow-wrap:anywhere]">
+                {key}
+              </TableRowHeader>
+              <TableCell className="break-words [overflow-wrap:anywhere]">
                 {value || "—"}
               </TableCell>
             </TableRow>
@@ -74,6 +79,7 @@ function EvidenceRow({ id }: { id: string }) {
   );
 }
 export function EvidenceList({ evidence }: { evidence: unknown[] }) {
+  const workspace = useWorkspace();
   const [requestedPage, setPage] = useState(0);
   const page = Math.min(
     requestedPage,
@@ -84,7 +90,42 @@ export function EvidenceList({ evidence }: { evidence: unknown[] }) {
   return (
     <div className="space-y-4">
       {evidence.slice(page * 5, (page + 1) * 5).map((item, index) =>
-        typeof item === "string" && /^[\da-f]{8}-[\da-f-]{27}$/i.test(item) ? (
+        workspace.company &&
+        typeof item === "string" &&
+        /^native-invoice-snapshot:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(
+          item,
+        ) ? (
+          <div key={index} className="space-y-2">
+            <p className="text-sm">نسخهٔ ثابت فاکتورهای دفتر دیدبان</p>
+            <ButtonLink
+              download
+              variant="secondary"
+              href={`/api/v1${workspace.companyPath(`accounting/native-invoices/snapshots/${item.slice("native-invoice-snapshot:".length)}/export?format=pdf`)}`}
+            >
+              دریافت گزارش فاکتورها
+            </ButtonLink>
+          </div>
+        ) : workspace.company &&
+          typeof item === "string" &&
+          /^native-statement:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(
+            item,
+          ) ? (
+          <section
+            key={item}
+            className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-control border border-border p-3"
+          >
+            <p className="font-medium">گزارش مالی دفتر اصلی</p>
+            <ButtonLink
+              download
+              variant="secondary"
+              href={`/api/v1${workspace.companyPath(`accounting/statements/${item.slice("native-statement:".length)}/export?format=pdf`)}`}
+            >
+              <DownloadSimpleIcon size={18} aria-hidden />
+              دریافت گزارش مالی
+            </ButtonLink>
+          </section>
+        ) : typeof item === "string" &&
+          /^[\da-f]{8}-[\da-f-]{27}$/i.test(item) ? (
           <EvidenceRow key={item} id={item} />
         ) : (
           <div

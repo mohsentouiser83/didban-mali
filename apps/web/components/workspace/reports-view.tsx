@@ -33,11 +33,30 @@ export function ReportsView() {
   if (!workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon} title="گزارش‌ها" action={
-        <ButtonLink href="/employee-reports" variant="soft">
-          <HeaderIcon size={18} aria-hidden />گزارش کارمندان
-        </ButtonLink>
-      } />
+      <PageHeader
+        icon={HeaderIcon}
+        title="گزارش‌ها"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/reports/native" variant="soft">
+              صورت مالی دفتر دیدبان
+            </ButtonLink>
+            <ButtonLink href="/reports/dimensions" variant="soft">
+              گزارش ابعاد
+            </ButtonLink>
+            <ButtonLink href="/reports/companies" variant="soft">
+              مقایسه شرکت‌ها
+            </ButtonLink>
+            <ButtonLink href="/reports/builder" variant="soft">
+              گزارش‌ساز
+            </ButtonLink>
+            <ButtonLink href="/employee-reports" variant="soft">
+              <HeaderIcon size={18} aria-hidden />
+              گزارش کارمندان
+            </ButtonLink>
+          </div>
+        }
+      />
       <Panel>
         {resource.loading ? (
           <LoadingState />
@@ -107,17 +126,15 @@ export function ReportsView() {
                                 command.clearError();
                               }}
                             >
-                              <ShieldCheckIcon size={18} aria-hidden />تأیید نسخه
+                              <ShieldCheckIcon size={18} aria-hidden />
+                              تأیید نسخه
                             </Button>
                           )}
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell
-                    colSpan={5}
-                    title="گزارشی تولید نشده"
-                  />
+                  <TableEmptyCell colSpan={5} title="گزارشی تولید نشده" />
                 )}
               </TableBody>
             </Table>

@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 /Users/mohsentouiserkani/Projects/didban-mali/apps/web
+
+
+ Test Files  36 passed (36)
+      Tests  115 passed (115)
+   Start at  12:38:56
+   Duration  6.42s (transform 1.51s, setup 5.68s, import 16.48s, tests 6.67s, environment 18.88s)
+

@@ -2,7 +2,6 @@
 
 from hashlib import sha256
 from pathlib import Path
-from uuid import uuid4
 
 from fastapi import APIRouter, File, Request, UploadFile
 from sqlalchemy import select
@@ -13,7 +12,8 @@ from .. import services as service
 from ..config import settings
 from ..errors import require
 from ..http import C, access, expected, mutate, paginate, public_source
-from ..ingestion import interpret, read_file, scan
+from ..ingestion import read_file, scan
+from ..period_lock_service import require_open_period
 from ..workflow import (
     answer_issue,
     audit,
@@ -36,6 +36,7 @@ def create_session(company_id: str, data: s.SessionInput, request: Request):
     def apply(db, user):
         if data.period_id:
             service.get_entity(db, m.Period, company_id, data.period_id)
+            require_open_period(db, company_id, data.period_id)
         parent_id = data.parent_id
         if parent_id:
             service.get_entity(db, m.ResultManifest, company_id, parent_id)
@@ -62,6 +63,7 @@ def recalculate(company_id: str, data: s.RecalculateInput, request: Request):
     def apply(db, user):
         parent = service.get_entity(db, m.ResultManifest, company_id, data.parent_id)
         service.get_entity(db, m.Period, company_id, data.period_id)
+        require_open_period(db, company_id, data.period_id)
         session = m.ProcessingSession(
             company_id=company_id,
             period_id=data.period_id,
@@ -141,73 +143,9 @@ async def upload(company_id: str, session_id: str, request: Request, file: Uploa
     def apply(db, user):
         session = service.get_entity(db, m.ProcessingSession, company_id, session_id)
         require(session.state == "receiving", "session_sealed", "دریافت این نوبت پایان یافته است.", 409)
-        existing = list(
-            db.scalars(
-                select(m.SourceFile).where(
-                    m.SourceFile.company_id == company_id, m.SourceFile.session_id == session_id
-                )
-            )
-        )
-        require(len(existing) < settings.max_files, "file_limit", "حداکثر ۱۰ فایل در هر نوبت مجاز است.", 413)
-        duplicate = db.scalar(
-            select(m.SourceFile).where(m.SourceFile.company_id == company_id, m.SourceFile.sha256 == checksum)
-        )
-        require(not duplicate, "duplicate_file", "این فایل قبلاً در همین شرکت ثبت شده است.", 409)
-        count = sum(len(sheet.rows) for sheet in sheets)
-        require(
-            sum(f.row_count for f in existing) + count <= settings.max_rows,
-            "row_limit",
-            "مجموع ردیف‌های نوبت نباید بیش از ۲۰ هزار باشد.",
-            413,
-        )
-        key = str(uuid4())
-        path = settings.storage / key
-        with path.open("xb") as target:
-            target.write(content)
-        path.chmod(0o600)
-        source = m.SourceFile(
-            company_id=company_id,
-            session_id=session_id,
-            name=name,
-            sha256=checksum,
-            size=len(content),
-            storage_key=key,
-            row_count=count,
-            scan_status=scanned,
-            state="ready",
-        )
-        db.add(source)
-        db.flush()
-        for sheet in sheets:
-            proposal = interpret(sheet, name)
-            db.add(
-                m.Interpretation(
-                    company_id=company_id,
-                    file_id=source.id,
-                    sheet=sheet.name,
-                    provenance="validated_header_rules",
-                    **proposal,
-                )
-            )
-            db.add_all(
-                m.SourceRow(
-                    company_id=company_id,
-                    file_id=source.id,
-                    sheet=sheet.name,
-                    row_number=number,
-                    values=values,
-                )
-                for number, values in sheet.rows
-            )
-        session.version += 1
-        audit(
-            db,
-            company_id,
-            user.id,
-            "source.received",
-            source.id,
-            {"sha256": checksum, "row_count": count, "scan_status": scanned},
-        )
+        from ..source_intake import store_source
+
+        source = store_source(db, company_id, user, session_id, name, content, scanned, sheets)
         return public_source(source)
 
     return mutate(request, company_id, payload, "write", apply)
@@ -218,6 +156,7 @@ def seal(company_id: str, session_id: str, data: s.SealInput, request: Request):
     def apply(db, user):
         session = service.get_entity(db, m.ProcessingSession, company_id, session_id)
         service.check_version(session, expected(request))
+        require_open_period(db, company_id, session.period_id)
         require(
             session.state == "receiving", "session_already_sealed", "دریافت این نوبت پایان یافته است.", 409
         )

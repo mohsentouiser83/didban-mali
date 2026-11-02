@@ -9,6 +9,9 @@ import {
 } from "@/components/ui/content-states";
 import { CashChart } from "@/components/ui/financial/financial-chart";
 import { StatCards } from "@/components/ui/financial/stat-cards";
+import { useResource } from "@/hooks/use-resource";
+import { useWorkspace } from "@/hooks/workspace";
+import { NativeDashboardView } from "./native-dashboard-view";
 import { useDashboard } from "@/hooks/use-financial-view";
 import { amount, displayDate } from "@/lib/utils";
 import {
@@ -27,13 +30,14 @@ import {
   PeriodFilter,
 } from "./page-parts";
 
-export function DashboardView() {
+function ImportedDashboardView() {
   const view = useDashboard();
   const { unit } = view.workspace;
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="خلاصه مالی"
         action={
           <ButtonLink href="/reports" variant="secondary">
@@ -88,14 +92,27 @@ export function DashboardView() {
                   href: "/receivables",
                   icon: UsersThreeIcon,
                 },
-                { key: "ap_invoice", label: "بدهی فاکتوری", href: "/payables", icon: ReceiptIcon },
+                {
+                  key: "ap_invoice",
+                  label: "بدهی فاکتوری",
+                  href: "/payables",
+                  icon: ReceiptIcon,
+                },
               ].map((item) => (
                 <Link
                   key={item.key}
                   href={item.href}
                   className="group -m-2 rounded-control p-2 outline-none transition-colors duration-200 ease-interface hover:bg-surface/80 focus-visible:bg-surface/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
                 >
-                  <p className="flex items-center gap-2 text-xs text-muted group-hover:text-primary group-focus-visible:text-primary"><item.icon size={18} aria-hidden className="text-primary" />{item.label}<ArrowUpLeftIcon size={14} className="ms-auto shrink-0 text-primary" aria-hidden /></p>
+                  <p className="flex items-center gap-2 text-xs text-muted group-hover:text-primary group-focus-visible:text-primary">
+                    <item.icon size={18} aria-hidden className="text-primary" />
+                    {item.label}
+                    <ArrowUpLeftIcon
+                      size={14}
+                      className="ms-auto shrink-0 text-primary"
+                      aria-hidden
+                    />
+                  </p>
                   <div className="mt-1 flex flex-wrap items-baseline gap-2">
                     <span className="text-metric font-medium tabular-nums">
                       {amount(view.metrics[item.key]?.value, unit)}
@@ -120,8 +137,13 @@ export function DashboardView() {
             <Panel
               title="مسیر نقدینگی"
               action={
-                <ButtonLink href="/cashflow" variant="ghost" className="px-3 text-xs text-primary">
-                  جزئیات<ArrowUpLeftIcon size={16} aria-hidden />
+                <ButtonLink
+                  href="/cashflow"
+                  variant="ghost"
+                  className="px-3 text-xs text-primary"
+                >
+                  جزئیات
+                  <ArrowUpLeftIcon size={16} aria-hidden />
                 </ButtonLink>
               }
             >
@@ -133,8 +155,13 @@ export function DashboardView() {
             <Panel
               title="اولویت رسیدگی"
               action={
-                <ButtonLink href="/review" variant="ghost" className="px-3 text-xs text-primary">
-                  مشاهده همه<ArrowUpLeftIcon size={16} aria-hidden />
+                <ButtonLink
+                  href="/review"
+                  variant="ghost"
+                  className="px-3 text-xs text-primary"
+                >
+                  مشاهده همه
+                  <ArrowUpLeftIcon size={16} aria-hidden />
                 </ButtonLink>
               }
             >
@@ -170,7 +197,14 @@ export function DashboardView() {
                 href={`/uploads/${session.id}`}
                 className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-control px-3 py-3 outline-none transition-colors duration-200 ease-interface hover:bg-primary-soft/50 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               >
-                <span className="flex items-center gap-2"><ClockCounterClockwiseIcon size={18} className="shrink-0 text-primary" aria-hidden />{displayDate(session.created_at)}</span>
+                <span className="flex items-center gap-2">
+                  <ClockCounterClockwiseIcon
+                    size={18}
+                    className="shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  {displayDate(session.created_at)}
+                </span>
                 <StatusBadge status={session.state} />
               </Link>
             ))}
@@ -178,5 +212,27 @@ export function DashboardView() {
         </Panel>
       )}
     </>
+  );
+}
+
+export function DashboardView() {
+  const workspace = useWorkspace();
+  const setup = useResource<{ mode: "analysis" | "primary" }>(
+    workspace.companyPath("accounting/setup"),
+  );
+  if (!workspace.company) return <NoCompany />;
+  if (setup.loading)
+    return (
+      <>
+        <PageHeader title="خلاصه مالی" icon={HeaderIcon} />
+        <LoadingState />
+      </>
+    );
+  if (setup.error)
+    return <ErrorState message={setup.error.message} onRetry={setup.refresh} />;
+  return setup.data?.mode === "primary" ? (
+    <NativeDashboardView key={workspace.company.id} />
+  ) : (
+    <ImportedDashboardView key={workspace.company.id} />
   );
 }

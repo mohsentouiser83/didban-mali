@@ -1,4 +1,5 @@
 import {
+  BooksIcon,
   SquaresFourIcon,
   PlugsConnectedIcon,
   BuildingsIcon,
@@ -12,7 +13,10 @@ import {
 } from "@phosphor-icons/react";
 import type { Company } from "./api";
 type Permission =
-  "company" | "owner" | "installation_admin" | "company_or_admin";
+  | "company"
+  | "owner"
+  | "installation_admin"
+  | "company_or_admin";
 export interface SettingsDestination {
   key: string;
   href: string;
@@ -44,9 +48,20 @@ export interface SettingsSearchResult {
 }
 export const settingsCatalog: SettingsCategory[] = [
   {
-    key: "connections", title: "اتصال‌ها", description: "حساب تلگرام و بله", icon: PlugsConnectedIcon,
-    items: [{ key: "connections", href: "/settings/connections", label: "اتصال‌ها", icon: PlugsConnectedIcon,
-      permission: "company", keywords: ["تلگرام", "بله", "بات", "ربات", "telegram", "bale"] }],
+    key: "connections",
+    title: "اتصال‌ها",
+    description: "حساب تلگرام و بله",
+    icon: PlugsConnectedIcon,
+    items: [
+      {
+        key: "connections",
+        href: "/settings/connections",
+        label: "اتصال‌ها",
+        icon: PlugsConnectedIcon,
+        permission: "company",
+        keywords: ["تلگرام", "بله", "بات", "ربات", "telegram", "bale"],
+      },
+    ],
   },
   {
     key: "employees",
@@ -54,22 +69,82 @@ export const settingsCatalog: SettingsCategory[] = [
     description: "مدیریت اطلاعات کارمندان",
     icon: UsersThreeIcon,
     items: [
-      { key: "employees", href: "/employees", label: "کارمندان", icon: UsersThreeIcon, permission: "company" },
+      {
+        key: "employees",
+        href: "/employees",
+        label: "کارمندان",
+        icon: UsersThreeIcon,
+        permission: "company",
+      },
     ],
   },
-  { key: "modules", title: "ماژول‌های شرکت", description: "فعال‌سازی بخش‌ها برای این شرکت", icon: SquaresFourIcon,
-    items: [{ key: "modules", href: "/settings/modules", label: "ماژول‌های شرکت", icon: SquaresFourIcon, permission: "company", keywords: ["فعال", "غیرفعال", "حقوق", "بیمه", "مالیات"] }] },
+  {
+    key: "modules",
+    title: "ماژول‌های شرکت",
+    description: "فعال‌سازی بخش‌ها برای این شرکت",
+    icon: SquaresFourIcon,
+    items: [
+      {
+        key: "modules",
+        href: "/settings/modules",
+        label: "ماژول‌های شرکت",
+        icon: SquaresFourIcon,
+        permission: "company",
+        keywords: ["فعال", "غیرفعال", "حقوق", "بیمه", "مالیات"],
+      },
+    ],
+  },
   {
     key: "documents",
     title: "اسناد",
-    description: "بارگذاری و مدیریت منابع",
+    description: "اسناد حسابداری و منابع",
     icon: FilesIcon,
     hub: "/settings/documents",
     items: [
       {
+        key: "accounting",
+        href: "/accounting",
+        label: "اسناد حسابداری",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: [
+          "پیش‌نویس",
+          "سند حسابداری",
+          "دفتر",
+          "ثبت نهایی",
+          "عملیات مالی",
+          "برگشت",
+          "جایگزین",
+        ],
+      },
+      {
+        key: "accounts",
+        href: "/settings/accounts",
+        label: "کدینگ حساب‌ها",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: ["کدینگ", "حساب", "دفتر", "نقش حساب", "طبقه‌بندی"],
+      },
+      {
+        key: "automation-rules",
+        href: "/settings/rules",
+        label: "قواعد خودکار",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: ["قاعده", "خودکار", "قانون"],
+      },
+      {
+        key: "learning",
+        href: "/settings/learning",
+        label: "حافظه اصلاحات",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: ["یادگیری", "نگاشت", "الگو"],
+      },
+      {
         key: "uploads",
         href: "/uploads",
-        label: "اسناد و پردازش",
+        label: "بارگذاری و پردازش منابع",
         icon: UploadSimpleIcon,
         permission: "company",
         keywords: ["فایل", "بارگذاری", "Excel", "CSV"],
@@ -91,6 +166,14 @@ export const settingsCatalog: SettingsCategory[] = [
     icon: BuildingsIcon,
     hub: "/settings/company-access",
     items: [
+      {
+        key: "dimensions",
+        href: "/settings/dimensions",
+        label: "پروژه، شعبه و مرکز هزینه",
+        icon: BuildingsIcon,
+        permission: "company",
+        keywords: ["پروژه", "شعبه", "مرکز هزینه"],
+      },
       {
         key: "company",
         href: "/settings/company",
@@ -121,7 +204,14 @@ export const settingsCatalog: SettingsCategory[] = [
         label: "دوره‌های مالی",
         icon: CalendarBlankIcon,
         permission: "company",
-        keywords: ["تاریخ", "دوره مقایسه"],
+        keywords: [
+          "تاریخ",
+          "دوره مقایسه",
+          "افتتاحیه",
+          "اختتامیه",
+          "قفل",
+          "اسناد پایان",
+        ],
       },
     ],
   },

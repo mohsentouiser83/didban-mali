@@ -8,6 +8,7 @@ import type {
   ResourceList,
 } from "@/lib/api";
 import { listItems } from "@/lib/api";
+import type { ControlFinding } from "@/lib/control";
 import {
   addExactAmounts,
   forecastAssumptionLabel,
@@ -143,14 +144,14 @@ export function useDashboard() {
   const sessions = useResource<ResourceList<ProcessingSession>>(
     view.workspace.companyPath("processing-sessions"),
   );
-  const findings = useResource<ResourceList<Finding>>(
-    view.workspace.companyPath("findings"),
+  const findings = useResource<ResourceList<Finding & ControlFinding>>(
+    view.workspace.companyPath("control/findings"),
   );
   return {
     ...view,
     sessions: listItems(sessions.data).slice(0, 3),
     findings: listItems(findings.data)
-      .filter((item) => item.state === "open")
+      .filter((item) => item.case ? ["open", "in_progress"].includes(item.case.state) : item.state === "open")
       .slice(0, 3),
   };
 }

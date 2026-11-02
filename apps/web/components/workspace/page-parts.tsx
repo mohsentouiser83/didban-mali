@@ -54,6 +54,12 @@ export function PageHeader({
 export function CurrentPageHeader() {
   const pathname = usePathname();
   const extra: Record<string, { title: string; icon: Icon }> = {
+    "/cashflow/scenarios": { title: "سناریوی نقدینگی", icon: FilesIcon },
+    "/receivables/followups": { title: "پیگیری وصول", icon: UsersThreeIcon },
+    "/review/expense-changes": { title: "تغییرات هزینه", icon: FilesIcon },
+    "/reports/companies": { title: "مقایسه شرکت‌ها", icon: FilesIcon },
+    "/reports/dimensions": { title: "گزارش پروژه و مرکز هزینه", icon: FilesIcon },
+    "/reports/builder": { title: "گزارش‌ساز", icon: FilesIcon },
     "/employee-reports": { title: "گزارش کارمندان", icon: UsersThreeIcon },
     "/settlements/plans": { title: "برنامه پرداخت", icon: CalendarBlankIcon },
     "/notifications": { title: "اعلان‌ها", icon: BellIcon },

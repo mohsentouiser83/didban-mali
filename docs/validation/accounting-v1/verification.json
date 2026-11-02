@@ -1,0 +1,12 @@
+{
+  "reference": "docs/validation/accounting-v1/reference.json",
+  "sha256": "a49989224d4c1ae4ae1f7d75ab4b3aebd6f1cc8c690768e474f85c8f9ea99041",
+  "checks_passed": 751,
+  "journal_cases": 17,
+  "behavior_specifications": 18,
+  "decisions_mapped": 28,
+  "result": "fixture_arithmetic_and_coverage_passed",
+  "accountant_review": "pending",
+  "product_execution": "not_performed",
+  "production_posting_approved": false
+}

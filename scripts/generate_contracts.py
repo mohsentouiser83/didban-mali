@@ -33,7 +33,8 @@ def main() -> None:
     statements.append("COMMIT;")
     (ROOT / "database").mkdir(exist_ok=True)
     (ROOT / "contracts").mkdir(exist_ok=True)
-    (ROOT / "database/schema.sql").write_text("\n\n".join(statements) + "\n")
+    schema = "\n".join(line.rstrip() for line in "\n\n".join(statements).splitlines())
+    (ROOT / "database/schema.sql").write_text(schema + "\n")
     (ROOT / "contracts/openapi.json").write_text(json.dumps(app.openapi(), ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     print(f"Generated {len(Base.metadata.tables)} tables and {len(app.openapi()['paths'])} HTTP paths")
 

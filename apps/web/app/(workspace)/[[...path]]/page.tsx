@@ -1,3 +1,6 @@
+import { AccountingView } from "@/components/workspace/accounting-view";
+import { AccountsView } from "@/components/workspace/accounts-view";
+import { CollectionFollowupsView } from "@/components/workspace/collection-followups-view";
 import { ModulesView } from "@/components/workspace/modules-view";
 import { BotConnectionsView } from "@/components/workspace/bot-connections-view";
 import { PeopleView } from "@/components/workspace/people-view";
@@ -35,7 +38,8 @@ export default async function Page({
 }) {
   const { path = [] } = await params;
   const route = path.join("/");
-  if (["payroll", "tax", "insurance"].includes(route)) redirect("/employee-reports");
+  if (["payroll", "tax", "insurance"].includes(route))
+    redirect("/employee-reports");
   if (path.length === 2 && path[0] === "uploads")
     return (
       <div key={route} className="motion-safe:animate-page-reveal">
@@ -47,8 +51,11 @@ export default async function Page({
     uploads: <UploadsView />,
     sources: <SourcesView />,
     review: <ReviewView />,
+    accounting: <AccountingView />,
+    "settings/accounts": <AccountsView />,
     reconciliation: <ReconciliationView />,
     receivables: <InvoicesView direction="sales" />,
+    "receivables/followups": <CollectionFollowupsView />,
     payables: <InvoicesView direction="purchases" />,
     cashflow: <CashflowView />,
     "cashflow/forecast": <ForecastView />,

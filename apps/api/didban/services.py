@@ -56,11 +56,7 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
         "این بازه با دوره دیگری هم‌پوشانی دارد.",
     )
     if period:
-        used = db.scalar(
-            select(ProcessingSession.id)
-            .where(ProcessingSession.company_id == company, ProcessingSession.period_id == period.id)
-            .limit(1)
-        )
+        used = period_has_dependencies(db, company, period.id)
         require(
             not used
             or (
@@ -328,3 +324,46 @@ def delete_source(db: Session, company: str, user: User, file: SourceFile, confi
     db.delete(file)
     audit(db, company, user.id, "source.deleted", file.id)
     return {"deleted": True}
+
+
+def period_has_dependencies(db: Session, company: str, period_id: str) -> bool:
+    """Even an empty frozen report/zero declaration is retained financial evidence."""
+    from .accounting_models import Draft
+    from .native_control_models import NativeControlRun
+    from .native_reporting_models import NativeStatementRun, NativeZeroOpeningEvidence
+    from .period_lock_models import PeriodLockEvent
+    from .posting_models import NativeJournal
+    from .report_builder_models import NativeInvoiceBuilderRun
+
+    if db.scalar(
+        select(NativeInvoiceBuilderRun.id)
+        .where(
+            NativeInvoiceBuilderRun.company_id == company,
+            NativeInvoiceBuilderRun.snapshot["spec"]["period_id"].as_string() == period_id,
+        )
+        .limit(1)
+    ):
+        return True
+    for model in (
+        ProcessingSession,
+        PeriodLockEvent,
+        Draft,
+        NativeJournal,
+        NativeZeroOpeningEvidence,
+        NativeControlRun,
+    ):
+        if db.scalar(
+            select(model.id).where(model.company_id == company, model.period_id == period_id).limit(1)
+        ):
+            return True
+    return (
+        db.scalar(
+            select(NativeStatementRun.id)
+            .where(
+                NativeStatementRun.company_id == company,
+                NativeStatementRun.snapshot["period_id"].as_string() == period_id,
+            )
+            .limit(1)
+        )
+        is not None
+    )

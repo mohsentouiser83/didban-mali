@@ -1,3 +1,19 @@
+> وضعیت جاری موج پنجم — ۲۰۲۶/۱۱/۰۲: [ممیزی هر ۱۵ قابلیت](advanced-capabilities-audit.fa.md) و [گزارش اجرا و اعتبارسنجی](expansion-v5-implementation.fa.md) مرجع تازه‌اند. اتصال بومی فاکتور/وصول/پیش‌بینی/سناریو/تطبیق/قواعد/کنترل/ابعاد/گزارش‌ساز، چک‌لیست و همکاری سند تکمیل شده است. توصیف‌های محدودتر مراحل قبلی در ادامه تاریخی‌اند؛ حدود واقعی و وابستگی‌های زنده در ممیزی تفکیک شده‌اند.
+
+قرارداد فعلی ۲۳۴ مسیر HTTP دارد؛ مرجع ماشینی `contracts/openapi.json` است. مسیرهای `/accounting/native-invoices`، `/native-forecasts`، `/reconciliation-native-groups`، `/accounting/discussions` و شاخه‌های بومی کنترل/قواعد/سناریو/گزارش‌ساز، منبع و هش صریح دارند. جزئیات snapshot/frozen export با عضویت جاری خوانده می‌شود؛ اختیارات تغییر و تأیید جدا در سرور کنترل می‌شوند.
+
+> وضعیت جاری ۲۰۲۶/۱۱/۰۲: [موج چهارم](expansion-v4-implementation.fa.md) ثبت نهایی با تأیید دقیق انسان، عملیات/اصلاح، اسناد دوره، گزارش بومی و تأیید مستقل، تأیید بات، قواعد تولید پیش‌نویس، تطبیق دستی چندبه‌چند، پیشنهاد حساب و دستیار وصول/دفتر اصلی را افزوده است. تصمیم D22 انتظار P27 را موقتاً برداشته؛ عبارت‌های قدیمی «ثبت غیرفعال/منتظر حسابدار» در ادامه، سابقهٔ مرحلهٔ قبلی‌اند. نتیجهٔ نهایی: ۴۶۶ آزمون API با PostgreSQL و ۱۱۵ آزمون وب موفق؛ محدودیت‌ها و شواهد در گزارش موج چهارم.
+
+> موج دوم ۲۰۲۶/۱۱/۰۲: سناریو، کنترل/وصول، گزارش‌ساز، قواعد و حافظه نگاشت افزوده شدند؛ شرح اجرا، آزمون‌ها و محدودیت‌ها در [گزارش موج دوم](expansion-v2-implementation.fa.md). این گزارش به معنی تکمیل کل دامنه نیست.
+
+## API اجرایی پیش‌نویس — ۲۰۲۶/۱۱/۰۱
+
+زیر `companies/{company_id}/accounting`: `GET capabilities`، `GET/POST accounts`، `PATCH accounts/{id}`، `GET/POST drafts`، `PATCH drafts/{id}`، `GET permissions` و `PATCH permissions/{membership_id}` ارائه می‌شوند. GET فهرست حساب/پیش‌نویس cursor دارد؛ تغییرها CSRF/idempotency و ویرایش‌ها If-Match دارند. ساخت/ویرایش پیش‌نویس ثبت قطعی نیست؛ `posting_available=false` و علت `pending_accountant_review` است و endpoint ثبت قطعی وجود ندارد. مجوز مؤثر مشاهده‌گر حتی پس از تغییر نقش خاموش است. [شرح اجرا](accounting-foundation-implementation.fa.md).
+
+تطبیق از سیاست `reconciliation-human-reference-2` استفاده می‌کند: پیشنهاد دقیق نیز نیازمند پذیرش انسانی است؛ `match_kind=reference_aggregate` برای یک بانک/چند ردیف و `ledger_total` به پاسخ افزوده شده‌اند. شکل قدیمی `bank_id`/`ledger_ids` حفظ شده؛ چند بانک در یک پیشنهاد هنوز پشتیبانی نمی‌شود.
+
+> دامنهٔ آینده — ۲۰۲۶/۱۱/۰۱: [تصمیم‌های مصوب پیشرفته](advanced-capabilities-decisions.fa.md) قرارداد محصول‌اند؛ endpoint ثبت/برگشت سند، تأیید گروهی، رسانهٔ بات، قواعد و تلفیق صرفاً با تصویب این سند به OpenAPI افزوده نشده‌اند. مرجع API موجود همچنان route/schema و OpenAPI جاری است.
+
 # قرارداد API ساخت تازه
 
 قرارداد ماشینی اجرای جاری در `/openapi.json` ارائه می‌شود. منبع routeها `apps/api/didban/api.py` و schema درخواست‌ها `apps/api/didban/schemas.py` است. جدول endpointهای قرارداد فنی نسخه ۰٫۱، مرجع دامنه است؛ صرف درج یک مسیر در آن جدول، اجرای فعلی آن مسیر را اثبات نمی‌کند.
@@ -24,3 +40,8 @@
 خطای دامنه دارای کد مشخص، پیام فارسی و status متناسب است. اطلاعات داخلی، مسیر فایل خصوصی، stacktrace و اسرار provider نباید به مرورگر بازگردند. حد صفحه‌بندی، خروجی دقیق هر route و enumها باید از نسخهٔ ماشینی قرارداد استخراج شوند.
 
 پیکربندی بودجه نصب در `/api/v1/admin/model-budget`، تعرفه و آمادگی شرکت در `companies/{id}/model-tariffs` و `model-status` و مصرف/درخواست‌ها در `usage` و `model-requests` ارائه می‌شوند. هزینه نامعلوم در `model-reservations` دیده و فقط مدیر نصبِ مجاز شرکت می‌تواند مرجع بررسی و مبلغ واقعی را در مسیر `model-reservations/{id}/reconciliations` ثبت کند. کلید و انتخاب ارائه‌دهنده از محیط سرور‌اند؛ هیچ route مرورگر مقدار کلید را بازنمی‌گرداند.
+
+
+## API موج سوم — ۲۰۲۶/۱۱/۰۲
+
+قرارداد تولیدی ۱۵۴ مسیر HTTP را ثبت می‌کند. مسیرهای company-scoped جدید برای accounting setup، reconciliation-groups، expense review، company groups/comparisons، dimensions، period locks، bot intakes/extractions/notifications، cheques و consolidation در OpenAPI موجودند. mutationها همچنان CSRF، عضویت، idempotency و نسخهٔ لازم را سرور کنترل می‌کند. هیچ endpoint ثبت نهایی دفتر یا تأیید نهایی تلفیق اضافه نشده است. [حدود اجرا](expansion-v3-implementation.fa.md).

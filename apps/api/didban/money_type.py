@@ -1,4 +1,5 @@
 """Exact canonical IRR storage: PostgreSQL numeric(38,6), SQLite text."""
+
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -24,7 +25,9 @@ class Money(TypeDecorator[str]):
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(Numeric(38, 6, asdecimal=True) if dialect.name == "postgresql" else Text())
+        return dialect.type_descriptor(
+            Numeric(38, 6, asdecimal=True) if dialect.name == "postgresql" else Text()
+        )
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -34,3 +37,11 @@ class Money(TypeDecorator[str]):
 
     def process_result_value(self, value, _dialect):
         return None if value is None else canonical_money(value)
+
+
+def aggregate_money(value: Decimal) -> str:
+    """Exact JSON totals may exceed the NUMERIC limit of one stored money field."""
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise ValueError("Aggregate money requires a finite Decimal")
+    text = format(value, "f")
+    return "0" if value == 0 else text.rstrip("0").rstrip(".") if "." in text else text

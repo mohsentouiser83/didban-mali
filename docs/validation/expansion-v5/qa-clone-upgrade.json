@@ -1,0 +1,15 @@
+{
+  "original_qa_database_untouched": "/tmp/didban-wave4-qa.db",
+  "new_qa_clone": "/tmp/didban-wave5-finalqa.db",
+  "normal_or_legacy_database_changed": false,
+  "prototype_metadata_upgraded_in_clone_only": {
+    "native_invoices": {
+      "rows_preserved": 6,
+      "exact_row_comparison": true
+    },
+    "native_invoice_allocations": {
+      "rows_preserved": 5,
+      "exact_row_comparison": true
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "runtime_platform": "Linux",
+  "architecture": "aarch64",
+  "uid": 10001,
+  "pillow_version": "12.3.0",
+  "poppler": "pdftoppm version 25.03.0",
+  "tables": 109,
+  "http_paths": 234,
+  "openapi_http_status": 200,
+  "network": "none",
+  "database": "ephemeral SQLite",
+  "provider_calls": false,
+  "is_production_install_acceptance": false
+}

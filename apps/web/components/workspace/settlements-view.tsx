@@ -55,6 +55,7 @@ export function SettlementsView() {
         title="دریافت و پرداخت"
         action={
           <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/settlements/cheques" variant="secondary">چک‌ها</ButtonLink>
             <ButtonLink href="/settlements/plans" variant="secondary">
               برنامه پرداخت
             </ButtonLink>

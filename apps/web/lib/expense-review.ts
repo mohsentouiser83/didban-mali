@@ -1,0 +1,2 @@
+export interface ExpenseChange {account:string;current:string;previous:string;difference:string;percent:string|null;percent_reason:string|null;current_evidence_refs:string[];previous_evidence_refs:string[]}
+export interface ExpenseChanges {manifest_id:string;previous_manifest_id:string|null;current_period:{name:string;start:string;end:string};previous_period:{name:string;start:string;end:string}|null;status:string;reason:string|null;current_total:string|null;previous_total:string|null;difference:string|null;rows:ExpenseChange[];risk_assessment:'not_calibrated'}

@@ -49,7 +49,15 @@ def options(db, company):
 
 
 def public_run(db, run):
+    from .group_match_service import latest as latest_groups
+
     latest = latest_decisions(db, run.company_id)
+    grouped_banks = {
+        bank_id: decision
+        for decision in latest_groups(db, run.company_id).values()
+        if decision.decision == "accepted"
+        for bank_id in decision.bank_ids
+    }
     result = serialize_fact(run)
     candidates = []
     for candidate in run.candidates:
@@ -62,11 +70,27 @@ def public_run(db, run):
                 provenance=decision.provenance,
                 reason=decision.reason,
             )
+        group = grouped_banks.get(candidate["bank_id"])
+        if group:
+            value.update(
+                single_status=value["status"],
+                status="accepted_in_group",
+                group_state="accepted",
+                group_decision_id=group.id,
+                group_candidate_key=group.candidate_key,
+                group_version=group.version,
+                group_basis=group.snapshot.get("basis", "imported_ledger"),
+                group_ledger_account=group.snapshot.get("ledger_account"),
+                group_native_statement_id=group.snapshot.get("native_statement_id"),
+            )
         candidates.append(value)
     return result | {"candidates": candidates}
 
 
 def _capacity(db, company, bank_id, ledger_ids, latest):
+    from .group_match_service import check_group_capacity
+
+    check_group_capacity(db, company, [bank_id], ledger_ids)
     for decision in latest.values():
         if decision.decision == "accepted" and decision.bank_id != bank_id:
             require(
@@ -101,52 +125,13 @@ def create_run(db, company, user, manifest_id, mapping):
         manifest_id=manifest_id,
         bank_to_ledger=mapping,
         candidates=candidates,
+        policy_version="reconciliation-human-reference-2",
     )
     db.add(run)
     db.flush()
-    prior = latest_decisions(db, company)
-    for candidate in candidates:
-        previous = prior.get(candidate["bank_id"])
-        # Re-running automation never replaces an existing human decision.
-        if previous or candidate["status"] != "exact_proposal":
-            continue
-        _capacity(db, company, candidate["bank_id"], candidate["ledger_ids"], prior)
-        controls = {
-            "same_company": True,
-            "mapped_account": True,
-            "equal_signed_amount": True,
-            "shared_reference": True,
-            "same_date": True,
-            "unique_candidate": True,
-        }
-        decision = ReconciliationDecision(
-            company_id=company,
-            run_id=run.id,
-            proposal_id=candidate["id"],
-            bank_id=candidate["bank_id"],
-            ledger_ids=candidate["ledger_ids"],
-            decision="accepted",
-            version=1,
-            reason="مرجع، حساب، مبلغ و تاریخ یکسان؛ نامزد یکتا",
-            actor_id=None,
-            provenance="validated_automatic",
-            controls=controls,
-        )
-        db.add(decision)
-        prior[candidate["bank_id"]] = decision
-        audit(
-            db,
-            company,
-            None,
-            "reconciliation.accepted_automatically",
-            candidate["id"],
-            {
-                "run_id": run.id,
-                "controls": controls,
-                "evidence_refs": candidate["evidence_refs"],
-                "policy_version": run.policy_version,
-            },
-        )
+    # P14 requires human acceptance, including exact one-to-one matches.
+    # Existing immutable automatic/human decisions remain historical evidence;
+    # rerunning proposals never manufactures a new acceptance.
     audit(
         db,
         company,
@@ -184,7 +169,14 @@ def decide(db, company, user, proposal_id, data):
             "ثبت دفتر متناظر مشخص نیست.",
             409,
         )
-        require(len(ids) == 1, "ambiguous_reconciliation", "نامزد تطبیق یکتا نیست.", 409)
+        require(
+            len(ids) == len(set(ids))
+            and (len(ids) == 1 or candidate.get("match_kind") == "reference_aggregate")
+            and "multiple_ledger_candidates" not in candidate.get("reason_codes", []),
+            "ambiguous_reconciliation",
+            "نامزد تطبیق یکتا نیست.",
+            409,
+        )
         _capacity(db, company, candidate["bank_id"], ids, previous)
         manifest = get_entity(db, ResultManifest, company, run.manifest_id)
         rows = set(manifest.selection["row_ids"])
@@ -202,8 +194,24 @@ def decide(db, company, user, proposal_id, data):
             "حساب‌های متناظر تغییر کرده‌اند.",
             409,
         )
+        require(
+            bool(bank.reference) and all(row.reference == bank.reference for row in ledger),
+            "reconciliation_reference",
+            "مرجع مشترک ثبت‌ها معتبر نیست.",
+            409,
+        )
         with localcontext() as context:
             context.prec = 50
+            if len(ids) > 1:
+                require(
+                    all(
+                        (Decimal(row.debit) - Decimal(row.credit)) * Decimal(bank.amount) > 0
+                        for row in ledger
+                    ),
+                    "reconciliation_direction",
+                    "جهت ثبت‌های تجمیعی یکسان نیست.",
+                    409,
+                )
             total = sum((Decimal(row.debit) - Decimal(row.credit) for row in ledger), Decimal(0))
             require(
                 total == Decimal(bank.amount), "reconciliation_amount", "مبلغ و جهت ثبت‌ها برابر نیست.", 409

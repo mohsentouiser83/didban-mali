@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type {
   ReconciliationCandidate,
   ReconciliationOptions,
@@ -19,6 +19,9 @@ export function useReconciliation() {
     { allowMissing: true },
   );
   const command = useCommand();
+  const scope = `${workspace.user?.id}:${workspace.company?.id}:${latest.data?.id}`;
+  const live = useRef({scope, canWrite: workspace.canWrite});
+  useLayoutEffect(() => { live.current = {scope, canWrite: workspace.canWrite}; }, [scope, workspace.canWrite]);
   const [mapping, setMappingState] = useState<{
     manifestId?: string;
     values: Record<string, string>;
@@ -59,13 +62,21 @@ export function useReconciliation() {
       () => latest.refresh(),
       "تطبیق انجام شد.",
     );
+  const isGrouped = (candidate: ReconciliationCandidate) => {
+    const current = latest.data?.candidates.find(item => item.id === candidate.id);
+    const item = current || candidate;
+    return item.group_state === "accepted" || item.status === "accepted_in_group";
+  };
+  const groupDetails = (candidate: ReconciliationCandidate) => latest.data?.candidates.find(item => item.id === candidate.id) || candidate;
   const decide = (
     candidate: ReconciliationCandidate,
     decision: "accepted" | "rejected",
     reason: string,
     onDone: () => void,
-  ) =>
-    command.run(
+  ) => {
+    if (!workspace.canWrite || !live.current.canWrite || live.current.scope !== scope
+      || !latest.data || !reason.trim() || (decision === "accepted" && isGrouped(candidate))) return;
+    return command.run(
       workspace.companyPath(
         `reconciliation-proposals/${candidate.id}/decisions`,
       ),
@@ -79,11 +90,13 @@ export function useReconciliation() {
         version: candidate.version,
       },
       () => {
+        if (live.current.scope !== scope) return;
         latest.refresh();
         onDone();
       },
       "تصمیم تطبیق ثبت شد.",
     );
+  };
   return {
     workspace,
     latest,
@@ -93,6 +106,13 @@ export function useReconciliation() {
     setMapping,
     create,
     decide,
+    isGrouped,
+    groupDetails,
+    nativeGroupExport: (candidate: ReconciliationCandidate) => {
+      const item = groupDetails(candidate);
+      return item.group_basis === "native_book" && item.group_native_statement_id
+        ? `/api/v1${workspace.companyPath(`accounting/statements/${item.group_native_statement_id}/export`)}` : undefined;
+    },
     candidates,
     page,
     total: latest.data?.candidates.length || 0,

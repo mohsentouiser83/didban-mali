@@ -1,0 +1,24 @@
+{
+  "synthetic_company": true,
+  "os_preference_initial": false,
+  "os_preference_temporarily_enabled": true,
+  "browser_match_media_during_test": true,
+  "metric_animation_names": [
+    "none",
+    "none",
+    "none",
+    "none"
+  ],
+  "metric_animation_durations": [
+    "0s",
+    "0s",
+    "0s",
+    "0s"
+  ],
+  "confirmation_dialog_animation": "none",
+  "confirmation_dialog_duration": "0s",
+  "explicit_native_statement_approval_succeeded": true,
+  "browser_match_media_after_restore": false,
+  "os_preference_restored_to_initial": true,
+  "os_preference_final": false
+}

@@ -54,7 +54,11 @@ export function useResource<T>(
       clearTimeout(timer);
     };
   }, [path, revision, allowMissing, poll]);
+  const replace = useCallback((data: T) => {
+    if (path) setSnapshot({ path, data, loaded: true });
+  }, [path]);
   return {
+    replace,
     data: snapshot.path === path ? snapshot.data : undefined,
     error: snapshot.path === path ? snapshot.error : undefined,
     loading: !!path && (snapshot.path !== path || !snapshot.loaded),

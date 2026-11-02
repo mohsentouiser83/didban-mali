@@ -74,7 +74,10 @@ class Company(Entity, Versioned, Base):
 
 class Membership(Entity, Versioned, Base):
     __tablename__ = "memberships"
-    __table_args__ = (UniqueConstraint("company_id", "user_id"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "user_id"),
+        UniqueConstraint("company_id", "id"),
+    )
     company_id: Mapped[str] = mapped_column(ForeignKey("companies.id"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     role: Mapped[str] = mapped_column(String(30))
@@ -540,23 +543,23 @@ ReconciliationDecision.__table__.append_constraint(
 )
 
 
-# PostgreSQL NUMERIC permits NaN; finite bounds remain a database invariant too.
-for financial_type, money_fields in [
-    (JournalLine, ("debit", "credit")),
-    (BankMovement, ("amount", "balance")),
-    (Invoice, ("amount", "tax")),
-    (Settlement, ("amount",)),
-    (InvoiceSnapshot, ("amount", "tax")),
-    (PlannedPayment, ("amount",)),
-    (Allocation, ("amount",)),
-]:
-    for money_field in money_fields:
-        financial_type.__table__.append_constraint(
-            CheckConstraint(
-                f"{money_field} > -100000000000000000000000000000000 AND {money_field} < 100000000000000000000000000000000",
-                name=f"finite_{financial_type.__tablename__}_{money_field}",
-            ).ddl_if(dialect="postgresql")
-        )
+def register_money_constraints() -> None:
+    """Every Money column, including late imported modules, gets finite PG bounds."""
+    for table in Base.metadata.tables.values():
+        existing = {constraint.name for constraint in table.constraints}
+        for column in table.c:
+            if not isinstance(column.type, Money):
+                continue
+            name = f"finite_{table.name}_{column.name}"
+            if name in existing:
+                continue
+            table.append_constraint(
+                CheckConstraint(
+                    f"{column.name} > -100000000000000000000000000000000 AND {column.name} < 100000000000000000000000000000000",
+                    name=name,
+                ).ddl_if(dialect="postgresql")
+            )
+            existing.add(name)
 
 
 Period.__table__.append_constraint(
@@ -570,6 +573,7 @@ ReconciliationDecision.__table__.append_constraint(UniqueConstraint("company_id"
 
 class CompanyModule(Entity, Tenant, Versioned, Base):
     """Mutable company preferences; financial evidence is retained independently."""
+
     __tablename__ = "company_modules"
     __table_args__ = (UniqueConstraint("company_id", "key"),)
     key: Mapped[str] = mapped_column(String(40))
@@ -578,10 +582,13 @@ class CompanyModule(Entity, Tenant, Versioned, Base):
 
 class PersonnelRecord(Fact, Base):
     """Immutable source-backed personnel/payroll row; never a bank settlement."""
+
     __tablename__ = "personnel_records"
     __table_args__ = (
         ForeignKeyConstraint(["company_id", "source_row_id"], ["source_rows.company_id", "source_rows.id"]),
-        ForeignKeyConstraint(["company_id", "session_id"], ["processing_sessions.company_id", "processing_sessions.id"]),
+        ForeignKeyConstraint(
+            ["company_id", "session_id"], ["processing_sessions.company_id", "processing_sessions.id"]
+        ),
         UniqueConstraint("company_id", "source_row_id"),
     )
     kind: Mapped[str] = mapped_column(String(20))
@@ -599,6 +606,7 @@ class BotConnection(Entity, Versioned, Base):
     Only the binding service accesses this table; every operation checks ownership
     and current membership before accessing any company-scoped financial data.
     """
+
     __tablename__ = "bot_connections"
     provider: Mapped[str] = mapped_column(String(12), index=True)
     company_ref: Mapped[str] = mapped_column(ForeignKey("companies.id"), index=True)
@@ -612,9 +620,48 @@ class BotConnection(Entity, Versioned, Base):
 
 class BotUpdate(Entity, Base):
     """Global replay journal without message text or financial responses."""
+
     __tablename__ = "bot_updates"
     __table_args__ = (UniqueConstraint("provider", "update_id"),)
     provider: Mapped[str] = mapped_column(String(12))
     update_id: Mapped[str] = mapped_column(String(30))
     connection_id: Mapped[str | None] = mapped_column(ForeignKey("bot_connections.id"), index=True)
     state: Mapped[str] = mapped_column(String(30), default="claimed")
+
+
+# Imported last: accounting entities depend on the base entities above.
+from . import accounting_models as accounting_models  # noqa: E402,F401
+from . import report_builder_models as report_builder_models  # noqa: E402,F401
+from . import scenario_models as scenario_models  # noqa: E402,F401
+
+Finding.__table__.append_constraint(UniqueConstraint("company_id", "id"))
+from . import accounting_setup_models as accounting_setup_models  # noqa: E402,F401
+from . import automation_models as automation_models  # noqa: E402,F401
+from . import bot_extraction_models as bot_extraction_models  # noqa: E402,F401
+from . import bot_intake_models as bot_intake_models  # noqa: E402,F401
+from . import bot_notification_models as bot_notification_models  # noqa: E402,F401
+from . import bot_posting_models as bot_posting_models  # noqa: E402,F401
+from . import cheque_models as cheque_models  # noqa: E402,F401
+from . import closing_models as closing_models  # noqa: E402,F401
+from . import company_group_models as company_group_models  # noqa: E402,F401
+from . import consolidation_approval_models as consolidation_approval_models  # noqa: E402,F401
+from . import consolidation_models as consolidation_models  # noqa: E402,F401
+from . import control_models as control_models  # noqa: E402,F401
+from . import dimensions_models as dimensions_models  # noqa: E402,F401
+from . import document_thread_models as document_thread_models  # noqa: E402,F401
+from . import group_match_models as group_match_models  # noqa: E402,F401
+from . import manual_group_models as manual_group_models  # noqa: E402,F401
+from . import native_automation_models as native_automation_models  # noqa: E402,F401
+from . import native_bank_match_models as native_bank_match_models  # noqa: E402,F401
+from . import native_control_models as native_control_models  # noqa: E402,F401
+from . import native_forecast_models as native_forecast_models  # noqa: E402,F401
+from . import native_invoice_models as native_invoice_models  # noqa: E402,F401
+from . import native_reporting_models as native_reporting_models  # noqa: E402,F401
+from . import native_scenario_models as native_scenario_models  # noqa: E402,F401
+from . import operation_learning_models as operation_learning_models  # noqa: E402,F401
+from . import operation_models as operation_models  # noqa: E402,F401
+from . import period_checklist_models as period_checklist_models  # noqa: E402,F401
+from . import period_lock_models as period_lock_models  # noqa: E402,F401
+from . import posting_models as posting_models  # noqa: E402,F401
+
+register_money_constraints()

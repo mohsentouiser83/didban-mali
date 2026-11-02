@@ -1,7 +1,6 @@
 """Periods HTTP routes."""
 
 from fastapi import APIRouter, Request
-from sqlalchemy import select
 
 from .. import models as m
 from .. import schemas as s
@@ -47,11 +46,7 @@ def delete_period(company_id: str, period_id: str, request: Request):
     def apply(db, user):
         period = service.get_entity(db, m.Period, company_id, period_id)
         service.check_version(period, expected(request))
-        used = db.scalar(
-            select(m.ProcessingSession.id)
-            .where(m.ProcessingSession.company_id == company_id, m.ProcessingSession.period_id == period_id)
-            .limit(1)
-        )
+        used = service.period_has_dependencies(db, company_id, period_id)
         require(not used, "period_in_use", "دوره استفاده‌شده قابل حذف نیست.", 409)
         db.delete(period)
         audit(db, company_id, user.id, "period.deleted", period_id)

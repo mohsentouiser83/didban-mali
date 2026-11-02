@@ -1,0 +1,34 @@
+{
+  "environment": "isolated synthetic SQLite; no real company financial actions",
+  "browser": "Codex built-in IAB",
+  "desktop": [
+    1280,
+    720
+  ],
+  "mobile": [
+    390,
+    844
+  ],
+  "checked": [
+    "service operation draft and explicit versioned posting",
+    "immutable native journal and reversal dialog",
+    "account role assignment",
+    "unavailable opening balance and explicit zero attestation",
+    "fixed native statement and independent report approval",
+    "automation draft-template form",
+    "manual two-bank/two-ledger preview and acceptance",
+    "accepted group status projected to both parent rows",
+    "100-percent selected intercompany elimination report approval",
+    "explicit operation account suggestion and management dialog",
+    "collections priority with valid and missing history",
+    "editable reminder draft and Escape focus return",
+    "native assistant exact fixed statement amount and PDF evidence",
+    "read-only assistant mutation rejection",
+    "gear search for opening routes to existing financial periods",
+    "period closing/opening route"
+  ],
+  "reduced_motion": "live OS preference tested; initial preference restored; see reduced-motion-verification.json",
+  "viewport_override_reset": true,
+  "live_external_calls": false,
+  "limitations": "Does not cover every failure state, browser/device combination, live provider, media quality, bot delivery or production acceptance."
+}

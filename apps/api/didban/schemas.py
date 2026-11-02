@@ -125,6 +125,18 @@ class AssistantMessage(InputModel):
 
 
 class AssistantInput(InputModel):
-    manifest_id: str | None = None
+    manifest_id: str | None = Field(default=None, min_length=1, max_length=36)
+    native_statement_id: str | None = Field(default=None, min_length=1, max_length=36)
+    context_type: Literal["imported_manifest", "native_statement"] | None = None
     question: str = Field(min_length=1, max_length=1000)
     history: list[AssistantMessage] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def exclusive_context(self):
+        if self.manifest_id and self.native_statement_id:
+            raise ValueError("Select one report context")
+        if (self.context_type == "native_statement" and self.manifest_id) or (
+            self.context_type == "imported_manifest" and self.native_statement_id
+        ):
+            raise ValueError("Report context and identifier differ")
+        return self

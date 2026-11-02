@@ -1,0 +1,17 @@
+{
+  "decision_id": "D22",
+  "decision_date": "2026-11-02",
+  "approval_type": "user_provisional",
+  "user_instruction_fa": "فعلا فرض کن تایید اگر لازم بود تغییر میدیم ادامه بده تا تمومش کن",
+  "supersedes": "P27 prerequisite to wait for a named accountant before implementation and activation",
+  "reference_file": "docs/validation/accounting-v1/reference.json",
+  "reference_sha256": "a49989224d4c1ae4ae1f7d75ab4b3aebd6f1cc8c690768e474f85c8f9ea99041",
+  "actual_accountant_review_performed": false,
+  "each_journal_exact_version_human_approval_required": true,
+  "live_company_posting_authority_required": true,
+  "final_journals_immutable": true,
+  "historical_reports_immutable": true,
+  "statutory_rates_or_filings_authorized": false,
+  "agent_authorized_to_post_user_company_financial_data": false,
+  "validation_data": "isolated synthetic fixtures only"
+}

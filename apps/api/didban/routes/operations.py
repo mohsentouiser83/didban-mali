@@ -1,7 +1,7 @@
 """Operations HTTP routes."""
 
 from fastapi import APIRouter, Request
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_
 
 from .. import models as m
 from .. import schemas as s
@@ -26,11 +26,23 @@ def voice_status(company_id: str, request: Request):
         return {"enabled": voice_available()}
 
 
-@router.post(C + "/assistant/transcriptions", openapi_extra={
-    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
-        "type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}
-    }}}}
-})
+@router.post(
+    C + "/assistant/transcriptions",
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["file"],
+                        "properties": {"file": {"type": "string", "format": "binary"}},
+                    }
+                }
+            },
+        }
+    },
+)
 async def voice_transcription(company_id: str, request: Request):
     from starlette.datastructures import UploadFile
     from starlette.formparsers import MultiPartException, MultiPartParser
@@ -45,8 +57,13 @@ async def voice_transcription(company_id: str, request: Request):
     # before a temporary upload can be spooled. Bound the file read separately.
     length = request.headers.get("content-length")
     if length is not None:
-        require(length.isdecimal() and int(length) <= settings.voice_max_bytes + 16384,
-                "voice_size_invalid", "ویس باید کمتر از ۱۰ مگابایت باشد.", 413)
+        require(
+            length.isdecimal() and int(length) <= settings.voice_max_bytes + 16384,
+            "voice_size_invalid",
+            "ویس باید کمتر از ۱۰ مگابایت باشد.",
+            413,
+        )
+
     async def bounded_stream():
         received = 0
         async for chunk in request.stream():
@@ -56,14 +73,19 @@ async def voice_transcription(company_id: str, request: Request):
                 raise MultiPartException("voice_upload_limit")
             yield chunk
 
-    require(request.headers.get("content-type", "").startswith("multipart/form-data"),
-            "voice_file_required", "فایل ویس لازم است.")
+    require(
+        request.headers.get("content-type", "").startswith("multipart/form-data"),
+        "voice_file_required",
+        "فایل ویس لازم است.",
+    )
     try:
         form = await MultiPartParser(request.headers, bounded_stream(), max_files=1, max_fields=0).parse()
     except MultiPartException as error:
         from ..errors import DomainError
 
-        raise DomainError("voice_upload_invalid", "فایل ویس معتبر و کمتر از ۱۰ مگابایت لازم است.", 413) from error
+        raise DomainError(
+            "voice_upload_invalid", "فایل ویس معتبر و کمتر از ۱۰ مگابایت لازم است.", 413
+        ) from error
     try:
         file = form.get("file")
         require(isinstance(file, UploadFile), "voice_file_required", "فایل ویس لازم است.")
@@ -108,33 +130,45 @@ def budget(company_id: str, data: s.BudgetInput, request: Request):
 
 @router.post(C + "/assistant/questions")
 async def assistant(company_id: str, data: s.AssistantInput, request: Request):
-    from fastapi.encoders import jsonable_encoder
-
     from ..assistant_service import respond
+    from ..native_assistant_service import select_context
 
     key = request.headers.get("idempotency-key", "")
     require(1 <= len(key) <= 128, "idempotency_key_required", "شناسه درخواست لازم است.", 428)
     with access(request, company_id) as (db, user, _member):
-        manifest = (
-            service.get_entity(db, m.ResultManifest, company_id, data.manifest_id)
-            if data.manifest_id
-            else db.scalar(
-                select(m.ResultManifest)
-                .where(m.ResultManifest.company_id == company_id)
-                .order_by(m.ResultManifest.created_at.desc(), m.ResultManifest.id.desc())
-                .limit(1)
-            )
+        selected = select_context(
+            db,
+            company_id,
+            user,
+            context_type=data.context_type,
+            manifest_id=data.manifest_id,
+            native_statement_id=data.native_statement_id,
         )
-        frozen = jsonable_encoder(serialize_fact(manifest)) if manifest else None
         actor_id = user.id
     # Any external model call is outside the database transaction.
     response = await respond(
-        manifest=frozen, question=data.question, company_id=company_id, actor_id=actor_id, request_key=key,
-        history=[message.model_dump() for message in data.history]
+        manifest=selected["frozen"],
+        question=data.question,
+        company_id=company_id,
+        actor_id=actor_id,
+        request_key=key,
+        history=[message.model_dump() for message in data.history],
+        missing_answer=selected["missing_answer"],
     )
     with access(request, company_id) as (_db, current_user, _member):
         require(current_user.id == actor_id, "session_changed", "نشست تغییر کرده؛ دوباره وارد شوید.", 401)
-    return response
+    identity = {
+        name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
+    }
+    return response | identity
+
+
+@router.get(C + "/assistant/context")
+def assistant_context(company_id: str, request: Request):
+    from ..native_assistant_service import default_context_descriptor
+
+    with access(request, company_id) as (db, user, _member):
+        return default_context_descriptor(db, company_id, user)
 
 
 @router.patch(C + "/notifications/{notification_id}")

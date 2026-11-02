@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { BotNotificationsPanel } from "./bot-notifications-panel";
+import { BotIntakesPanel } from "./bot-intakes-panel";
 import { BotProviderPanel } from "./bot-provider-panel";
 import { NoCompany, PageHeader } from "./page-parts";
 
@@ -29,6 +31,8 @@ function BotConnectionsContent({ view }: { view: ReturnType<typeof useBotConnect
         onConfirm={connection => void view.confirm(connection)} onDisconnect={connection => { view.clearError(); setDisconnect(connection); }} />)}
     </div>}
     {!disconnect && <div className="mt-4"><FormMessage error>{view.operationError?.message}</FormMessage></div>}
+    <BotIntakesPanel />
+    <BotNotificationsPanel key={view.cards.map(card=>`${card.provider}:${card.active?.id||""}:${card.active?.version||0}`).join("|")} />
     <ConfirmDialog open={!!disconnect} onOpenChange={open => { if (!open) setDisconnect(undefined); }}
       title={disconnect?.state === "active" ? "قطع اتصال حساب" : "لغو اتصال ناتمام"} busy={view.busy}
       onConfirm={() => { if (disconnect) void view.revoke(disconnect).then(success => { if (success) setDisconnect(undefined); }); }}>

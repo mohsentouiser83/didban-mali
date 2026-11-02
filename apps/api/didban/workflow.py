@@ -249,6 +249,9 @@ def answer_issue(
             "invalid_period",
             "یک دوره مالی شرکت را انتخاب کنید.",
         )
+        from .period_lock_service import require_open_period
+
+        require_open_period(db, session.company_id, period.id)
         session.period_id = period.id
     elif code == "coverage":
         require(
@@ -916,6 +919,9 @@ def process(db: Session, job: Job) -> None:
     row_ids = list(dict.fromkeys(parent_rows + selected_rows))
     period = db.get(Period, session.period_id)
     assert period
+    from .period_lock_service import require_open_period
+
+    require_open_period(db, session.company_id, period.id)
     period_values = {"id": period.id, "start": period.start.isoformat(), "end": period.end.isoformat()}
     forecast_context = prepare_forecast(db, session, period_values, coverage, row_ids, candidates, parent)
     if forecast_context["blocked"]:
@@ -1098,6 +1104,9 @@ def process(db: Session, job: Job) -> None:
     session.state = "completed" if all(reporting_scope.values()) else "completed_limited"
     session.completed_steps, session.version, job.state = 4, session.version + 1, "done"
     db.add(Notification(company_id=session.company_id, title="گزارش تازه آماده است", href="/reports"))
+    from .automation_service import on_manifest
+
+    on_manifest(db, session.company_id, manifest)
     audit(
         db,
         session.company_id,

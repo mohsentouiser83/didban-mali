@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Synthetic, isolated local capacity smoke benchmark; never a production SLA."""
 
+import argparse
 import json
 import os
 import subprocess
@@ -63,11 +64,18 @@ parallel_seconds=perf_counter()-started
 rss=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 print(json.dumps({'synthetic':True,'files':10,'total_data_rows':20000,'active_readers':5,'upload_seconds':round(upload_seconds,3),'processing_seconds':round(processing_seconds,3),'report_read_seconds':round(read_seconds,3),'five_reads_wall_seconds':round(parallel_seconds,3),'read_latencies_seconds':[round(x,3) for x in latencies],'process_peak_rss_native_units':rss,'platform':__import__('sys').platform,'response_bytes':len(result.content),'cash_irr':metrics['cash']['value'],'database':'SQLite development','scanner':'not configured; development unscanned','is_production_benchmark':False},indent=2))
 """
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--output", type=Path, default=ROOT / "docs/validation/capacity-smoke-2026-11-01.json")
+args = parser.parse_args()
 with tempfile.TemporaryDirectory(prefix="didban-capacity-") as tmp:
     env = os.environ | {
         "PYTHONPATH": str(ROOT / "apps/api"),
         "DIDBAN_DATABASE_URL": "sqlite:///" + tmp + "/capacity.db",
         "DIDBAN_STORAGE": tmp + "/files",
+        "DIDBAN_MODEL_ENABLED": "false",
+        "DIDBAN_BOTS_ENABLED": "false",
+        "DIDBAN_VOICE_ENABLED": "false",
+        "DIDBAN_MEDIA_EXTRACTION_ENABLED": "false",
     }
     result = subprocess.run(
         [sys.executable, "-c", CODE],
@@ -80,7 +88,7 @@ with tempfile.TemporaryDirectory(prefix="didban-capacity-") as tmp:
     if result.returncode:
         raise SystemExit(result.stderr[-4000:])
     data = json.loads(result.stdout)
-    target = ROOT / "docs/validation/capacity-smoke-2026-11-01.json"
-    target.parent.mkdir(exist_ok=True)
+    target = args.output
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps(data, ensure_ascii=False, indent=2))

@@ -55,11 +55,13 @@ export function StatCard({
   label,
   metricKey,
   icon,
+  showComparison = true,
 }: {
   metric?: Metric;
   label: string;
   metricKey?: string;
   icon?: Icon;
+  showComparison?: boolean;
 }) {
   const { unit } = useWorkspace();
   const IconComponent =
@@ -90,7 +92,7 @@ export function StatCard({
         <p className="mt-2 text-sm leading-7 text-muted">
           {metric?.reason || metric?.action || "منبع مالی این شاخص موجود نیست."}
         </p>
-      ) : metric.comparison?.percent != null ? (
+      ) : !showComparison ? null : metric.comparison?.percent != null ? (
         <p className="mt-2 text-xs text-muted">
           {amount(metric.comparison.percent)}٪ نسبت به دوره مقایسه
         </p>
@@ -103,7 +105,9 @@ export function StatCard({
 export function StatCards({
   metrics,
   items,
+  showComparison = true,
 }: {
+  showComparison?: boolean;
   metrics: Metric[];
   items: { key: string; label: string; icon?: Icon }[];
 }) {
@@ -113,6 +117,7 @@ export function StatCards({
         <StatCard
           key={item.key}
           label={item.label}
+          showComparison={showComparison}
           metricKey={item.key}
           icon={item.icon}
           metric={metrics.find((metric) => metric.metric_key === item.key)}

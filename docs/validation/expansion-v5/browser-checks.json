@@ -1,0 +1,35 @@
+{
+  "synthetic_only": true,
+  "browser": "Codex in-app browser",
+  "desktop": {
+    "native_dashboard": true,
+    "native_dimensions_allocation": true,
+    "native_manual_scenario": true,
+    "native_bank_many_to_many_acceptance": true,
+    "native_bank_reuse_rejected": true,
+    "native_invoice_terms_allocation": true,
+    "native_document_activity": true,
+    "native_collection_history": true,
+    "native_forecast_question_close_reload_resume": true,
+    "native_forecast_limited_projection": true,
+    "native_invoice_builder_fixed_pdf": true,
+    "native_controls_fixed_run": true,
+    "native_period_required_task_then_completion": true,
+    "existing_gear_categories": true
+  },
+  "mobile": {
+    "dashboard": true,
+    "bank_reconciliation": true,
+    "invoice_replacement_adoption": true,
+    "forecast": {
+      "viewport_width": 390,
+      "page_scroll_width": 390,
+      "chart_width": 308,
+      "chart_height": 256
+    }
+  },
+  "live_reduced_motion_retest": false,
+  "all_possible_states_tested": false,
+  "source_files_preserved": true,
+  "live_provider_calls": false
+}

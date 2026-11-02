@@ -11,6 +11,7 @@ import { useWorkspace } from "@/hooks/workspace";
 import { BuildingsIcon, PlusIcon, UserIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { PageHeader, Panel } from "./page-parts";
+import { CompanyAccountingSetup } from "./company-accounting-setup";
 import { CompanyList } from "./company-list";
 
 const roles = [
@@ -122,6 +123,7 @@ export function CompanyView() {
         </Panel>
       )}
       </div>
+      {workspace.company && <CompanyAccountingSetup key={workspace.company.id}/>}
       <Dialog title="ایجاد شرکت" open={creating} onOpenChange={setCreating}>
         <Form
           fieldErrors={command.error?.fields}

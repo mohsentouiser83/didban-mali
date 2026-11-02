@@ -1,0 +1,7 @@
+{
+  "exit_code": 0,
+  "passed": 542,
+  "total": 542,
+  "postgres_validation_enabled": true,
+  "live_provider_calls": false
+}

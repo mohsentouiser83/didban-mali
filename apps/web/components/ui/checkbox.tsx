@@ -7,12 +7,14 @@ export function Checkbox({
   onCheckedChange,
   label,
   disabled = false,
+  hideLabel = false,
 }: {
   id?: string;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
+  hideLabel?: boolean;
 }) {
   return (
     <label
@@ -30,7 +32,7 @@ export function Checkbox({
           <CheckIcon size={15} weight="bold" aria-hidden />
         </Primitive.Indicator>
       </Primitive.Root>
-      <span>{label}</span>
+      <span className={hideLabel ? "sr-only" : undefined}>{label}</span>
     </label>
   );
 }

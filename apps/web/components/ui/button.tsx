@@ -64,6 +64,7 @@ export function ButtonLink({
   onClick,
   target,
   rel,
+  ...props
 }: {
   href: string;
   children: React.ReactNode;
@@ -72,14 +73,17 @@ export function ButtonLink({
   onClick?: React.MouseEventHandler<HTMLAnchorElement>;
   target?: React.HTMLAttributeAnchorTarget;
   rel?: string;
+  "aria-label"?: string;
+  download?: boolean | string;
 }) {
   return (
     <Link
+      {...props}
       onClick={onClick}
       href={href}
       target={target}
       rel={target === "_blank" ? "noopener noreferrer" : rel}
-      prefetch={target === "_blank" ? false : undefined}
+      prefetch={props.download || target === "_blank" ? false : undefined}
       className={cn(
         buttonClass(variant),
         "cursor-pointer motion-safe:active:scale-[0.96]",

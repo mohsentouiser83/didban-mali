@@ -66,11 +66,23 @@ def access(request: Request, company: str | None = None, operation: str = "read"
 
             resource = request.url.path.removeprefix(f"/api/v1/companies/{company}/").split("/")[0]
             module = {
-                "planned-payments": "cashflow", "forecasts": "cashflow",
-                "allocations": "settlements", "reconciliation-options": "reconciliation",
-                "reconciliations": "reconciliation", "reconciliation-proposals": "reconciliation",
-                "employees": "employees", "payroll": "payroll", "employee-reports": "employee_reports",
-                "tax": "tax", "insurance": "insurance",
+                "planned-payments": "cashflow",
+                "forecasts": "cashflow",
+                "cashflow-scenarios": "cashflow",
+                "native-forecasts": "cashflow",
+                "cheques": "settlements",
+                "allocations": "settlements",
+                "reconciliation-options": "reconciliation",
+                "reconciliation-groups": "reconciliation",
+                "reconciliation-manual-groups": "reconciliation",
+                "reconciliation-native-groups": "reconciliation",
+                "reconciliations": "reconciliation",
+                "reconciliation-proposals": "reconciliation",
+                "employees": "employees",
+                "payroll": "payroll",
+                "employee-reports": "employee_reports",
+                "tax": "tax",
+                "insurance": "insurance",
             }.get(resource)
             if module:
                 require_module(db, company, module, ready=False)

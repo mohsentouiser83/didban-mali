@@ -11,65 +11,110 @@ CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (
 INSERT INTO didban_schema_version (id, version) VALUES (1, 1) ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE companies (
-	name VARCHAR(120) NOT NULL, 
-	timezone VARCHAR(50) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	version INTEGER NOT NULL, 
+	name VARCHAR(120) NOT NULL,
+	timezone VARCHAR(50) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	version INTEGER NOT NULL,
 	PRIMARY KEY (id)
 );
 
 CREATE TABLE login_attempts (
-	fingerprint VARCHAR(64) NOT NULL, 
-	succeeded BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+	fingerprint VARCHAR(64) NOT NULL,
+	succeeded BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	PRIMARY KEY (id)
 );
 
 CREATE INDEX ix_login_attempts_fingerprint ON login_attempts (fingerprint);
 
 CREATE TABLE users (
-	email VARCHAR(254) NOT NULL, 
-	name VARCHAR(100) NOT NULL, 
-	password_hash TEXT NOT NULL, 
-	installation_admin BOOLEAN NOT NULL, 
-	active BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
+	email VARCHAR(254) NOT NULL,
+	name VARCHAR(100) NOT NULL,
+	password_hash TEXT NOT NULL,
+	installation_admin BOOLEAN NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
 	UNIQUE (email)
 );
 
+CREATE TABLE account_import_previews (
+	actor_id VARCHAR(36) NOT NULL,
+	catalog_digest VARCHAR(64) NOT NULL,
+	rows JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_account_import_previews_company_id ON account_import_previews (company_id);
+
+CREATE TABLE accounting_accounts (
+	code VARCHAR(100) NOT NULL,
+	name VARCHAR(150) NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, code),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_accounting_accounts_company_id ON accounting_accounts (company_id);
+
 CREATE TABLE audit_events (
-	actor_id VARCHAR(36), 
-	action VARCHAR(80) NOT NULL, 
-	entity_id VARCHAR(36) NOT NULL, 
-	details JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
+	actor_id VARCHAR(36),
+	action VARCHAR(80) NOT NULL,
+	entity_id VARCHAR(36) NOT NULL,
+	details JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_audit_events_company_id ON audit_events (company_id);
 
+CREATE TABLE automation_rules (
+	name VARCHAR(120) NOT NULL,
+	enabled BOOLEAN NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	definition JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_automation_rules_company_id ON automation_rules (company_id);
+
 CREATE TABLE bot_connections (
-	provider VARCHAR(12) NOT NULL, 
-	company_ref VARCHAR(36) NOT NULL, 
-	user_id VARCHAR(36) NOT NULL, 
-	token_hash VARCHAR(64), 
-	expires_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	sender_id VARCHAR(30), 
-	chat_id VARCHAR(30), 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_ref) REFERENCES companies (id), 
-	FOREIGN KEY(user_id) REFERENCES users (id), 
+	provider VARCHAR(12) NOT NULL,
+	company_ref VARCHAR(36) NOT NULL,
+	user_id VARCHAR(36) NOT NULL,
+	token_hash VARCHAR(64),
+	expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	sender_id VARCHAR(30),
+	chat_id VARCHAR(30),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_ref) REFERENCES companies (id),
+	FOREIGN KEY(user_id) REFERENCES users (id),
 	UNIQUE (token_hash)
 );
 
@@ -79,265 +124,1001 @@ CREATE INDEX ix_bot_connections_provider ON bot_connections (provider);
 
 CREATE INDEX ix_bot_connections_user_id ON bot_connections (user_id);
 
+CREATE TABLE bot_posting_reviews (
+	user_id VARCHAR(36) NOT NULL,
+	connection_id VARCHAR(36) NOT NULL,
+	connection_version INTEGER NOT NULL,
+	token_hash VARCHAR(64) NOT NULL,
+	expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	items JSON NOT NULL,
+	snapshots JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (token_hash),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_posting_reviews_company_id ON bot_posting_reviews (company_id);
+
 CREATE TABLE budget_policies (
-	cap VARCHAR(80) NOT NULL, 
-	currency VARCHAR(20) NOT NULL, 
-	period VARCHAR(20) NOT NULL, 
-	actor_id VARCHAR(36) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
+	cap VARCHAR(80) NOT NULL,
+	currency VARCHAR(20) NOT NULL,
+	period VARCHAR(20) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_budget_policies_company_id ON budget_policies (company_id);
 
+CREATE TABLE cheques (
+	direction VARCHAR(12) NOT NULL,
+	number VARCHAR(100) NOT NULL,
+	bank_name VARCHAR(120) NOT NULL,
+	bank_account VARCHAR(100) NOT NULL,
+	party_id VARCHAR(100) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	original_unit VARCHAR(10) NOT NULL,
+	issue_date DATE NOT NULL,
+	due_date DATE NOT NULL,
+	state VARCHAR(20) NOT NULL,
+	endorsed_to VARCHAR(100),
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, direction, bank_account, number),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_cheques_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_cheques_company_id ON cheques (company_id);
+
+CREATE TABLE company_accounting_setup (
+	company_id VARCHAR(36) NOT NULL,
+	mode VARCHAR(20) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (company_id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE TABLE company_groups (
+	name VARCHAR(120) NOT NULL,
+	company_ids JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_company_groups_company_id ON company_groups (company_id);
+
 CREATE TABLE company_modules (
-	key VARCHAR(40) NOT NULL, 
-	enabled BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, key), 
+	key VARCHAR(40) NOT NULL,
+	enabled BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, key),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_company_modules_company_id ON company_modules (company_id);
 
+CREATE TABLE financial_dimensions (
+	kind VARCHAR(20) NOT NULL,
+	code VARCHAR(80) NOT NULL,
+	name VARCHAR(120) NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, kind, code),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_financial_dimensions_company_id ON financial_dimensions (company_id);
+
 CREATE TABLE financial_periods (
-	previous_period_id VARCHAR(36), 
-	name VARCHAR(120) NOT NULL, 
-	start DATE NOT NULL, 
-	"end" DATE NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	UNIQUE (company_id, id), 
+	previous_period_id VARCHAR(36),
+	name VARCHAR(120) NOT NULL,
+	start DATE NOT NULL,
+	"end" DATE NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	UNIQUE (company_id, id),
 	FOREIGN KEY(company_id, previous_period_id) REFERENCES financial_periods (company_id, id)
 );
 
 CREATE INDEX ix_financial_periods_company_id ON financial_periods (company_id);
 
 CREATE TABLE idempotency_keys (
-	actor_id VARCHAR(36) NOT NULL, 
-	key VARCHAR(128) NOT NULL, 
-	fingerprint VARCHAR(64) NOT NULL, 
-	response JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, actor_id, key), 
+	actor_id VARCHAR(36) NOT NULL,
+	key VARCHAR(128) NOT NULL,
+	fingerprint VARCHAR(64) NOT NULL,
+	response JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, actor_id, key),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_idempotency_keys_company_id ON idempotency_keys (company_id);
 
 CREATE TABLE installation_audit_events (
-	actor_id VARCHAR(36), 
-	actor_label VARCHAR(150) NOT NULL, 
-	action VARCHAR(80) NOT NULL, 
-	entity_id VARCHAR(36) NOT NULL, 
-	details JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
+	actor_id VARCHAR(36),
+	actor_label VARCHAR(150) NOT NULL,
+	action VARCHAR(80) NOT NULL,
+	entity_id VARCHAR(36) NOT NULL,
+	details JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
 	FOREIGN KEY(actor_id) REFERENCES users (id)
 );
 
 CREATE TABLE installation_idempotency_keys (
-	actor_id VARCHAR(36) NOT NULL, 
-	key VARCHAR(128) NOT NULL, 
-	fingerprint VARCHAR(64) NOT NULL, 
-	response JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (actor_id, key), 
+	actor_id VARCHAR(36) NOT NULL,
+	key VARCHAR(128) NOT NULL,
+	fingerprint VARCHAR(64) NOT NULL,
+	response JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (actor_id, key),
 	FOREIGN KEY(actor_id) REFERENCES users (id)
 );
 
 CREATE TABLE installation_model_budgets (
-	period VARCHAR(7) NOT NULL, 
-	cap VARCHAR(80) NOT NULL, 
-	per_session_cap VARCHAR(80), 
-	used VARCHAR(80) NOT NULL, 
-	reserved VARCHAR(80) NOT NULL, 
-	actor_id VARCHAR(36) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (period), 
+	period VARCHAR(7) NOT NULL,
+	cap VARCHAR(80) NOT NULL,
+	per_session_cap VARCHAR(80),
+	used VARCHAR(80) NOT NULL,
+	reserved VARCHAR(80) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (period),
 	FOREIGN KEY(actor_id) REFERENCES users (id)
 );
 
+CREATE TABLE learning_patterns (
+	name VARCHAR(120) NOT NULL,
+	fingerprint VARCHAR(64) NOT NULL,
+	enabled BOOLEAN NOT NULL,
+	interpretation_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	payload JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, fingerprint),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_learning_patterns_company_id ON learning_patterns (company_id);
+
 CREATE TABLE login_sessions (
-	user_id VARCHAR(36) NOT NULL, 
-	token_hash VARCHAR(64) NOT NULL, 
-	csrf VARCHAR(100) NOT NULL, 
-	expires_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(user_id) REFERENCES users (id), 
+	user_id VARCHAR(36) NOT NULL,
+	token_hash VARCHAR(64) NOT NULL,
+	csrf VARCHAR(100) NOT NULL,
+	expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(user_id) REFERENCES users (id),
 	UNIQUE (token_hash)
 );
 
 CREATE TABLE memberships (
-	company_id VARCHAR(36) NOT NULL, 
-	user_id VARCHAR(36) NOT NULL, 
-	role VARCHAR(30) NOT NULL, 
-	approve_financial_report BOOLEAN NOT NULL, 
-	active BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, user_id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	company_id VARCHAR(36) NOT NULL,
+	user_id VARCHAR(36) NOT NULL,
+	role VARCHAR(30) NOT NULL,
+	approve_financial_report BOOLEAN NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, user_id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	FOREIGN KEY(user_id) REFERENCES users (id)
 );
 
 CREATE INDEX ix_memberships_company_id ON memberships (company_id);
 
 CREATE TABLE model_tariffs (
-	model VARCHAR(60) NOT NULL, 
-	price_version VARCHAR(60) NOT NULL, 
-	currency VARCHAR(10) NOT NULL, 
-	input_per_million VARCHAR(80) NOT NULL, 
-	cached_input_per_million VARCHAR(80) NOT NULL, 
-	cache_write_per_million VARCHAR(80) NOT NULL, 
-	output_per_million VARCHAR(80) NOT NULL, 
-	max_input_tokens INTEGER NOT NULL, 
-	max_output_tokens INTEGER NOT NULL, 
-	effective_from TIMESTAMP WITH TIME ZONE NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	UNIQUE (company_id, model, price_version), 
+	model VARCHAR(60) NOT NULL,
+	price_version VARCHAR(60) NOT NULL,
+	currency VARCHAR(10) NOT NULL,
+	input_per_million VARCHAR(80) NOT NULL,
+	cached_input_per_million VARCHAR(80) NOT NULL,
+	cache_write_per_million VARCHAR(80) NOT NULL,
+	output_per_million VARCHAR(80) NOT NULL,
+	max_input_tokens INTEGER NOT NULL,
+	max_output_tokens INTEGER NOT NULL,
+	effective_from TIMESTAMP WITH TIME ZONE NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, model, price_version),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_model_tariffs_company_id ON model_tariffs (company_id);
 
+CREATE TABLE native_automation_previews (
+	actor_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	source_digest VARCHAR(64) NOT NULL,
+	definition JSON NOT NULL,
+	result JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_automation_previews_company_id ON native_automation_previews (company_id);
+
+CREATE TABLE native_book_report_runs (
+	actor_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_book_report_runs_company_id ON native_book_report_runs (company_id);
+
+CREATE TABLE native_control_runs (
+	period_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	trigger VARCHAR(40) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, digest),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_control_runs_company_id ON native_control_runs (company_id);
+
+CREATE TABLE native_invoice_snapshots (
+	as_of DATE NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	payload JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoice_snapshots_company_id ON native_invoice_snapshots (company_id);
+
+CREATE TABLE native_statement_runs (
+	actor_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_statement_runs_company_id ON native_statement_runs (company_id);
+
 CREATE TABLE notifications (
-	title VARCHAR(150) NOT NULL, 
-	href VARCHAR(200) NOT NULL, 
-	read BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
+	title VARCHAR(150) NOT NULL,
+	href VARCHAR(200) NOT NULL,
+	read BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_notifications_company_id ON notifications (company_id);
 
+CREATE TABLE report_builder_definitions (
+	name VARCHAR(120) NOT NULL,
+	spec JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_report_builder_definitions_company_id ON report_builder_definitions (company_id);
+
+CREATE TABLE accounting_drafts (
+	period_id VARCHAR(36) NOT NULL,
+	date DATE NOT NULL,
+	description VARCHAR(500) NOT NULL,
+	lines JSON NOT NULL,
+	original_unit VARCHAR(10) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_accounting_drafts_company_id ON accounting_drafts (company_id);
+
+CREATE TABLE accounting_permissions (
+	membership_id VARCHAR(36) NOT NULL,
+	post_journal BOOLEAN NOT NULL,
+	reopen_period BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, membership_id),
+	FOREIGN KEY(company_id, membership_id) REFERENCES memberships (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_accounting_permissions_company_id ON accounting_permissions (company_id);
+
+CREATE TABLE bot_notification_preferences (
+	user_id VARCHAR(36) NOT NULL,
+	provider VARCHAR(12) NOT NULL,
+	connection_id VARCHAR(36),
+	connection_version INTEGER,
+	enabled BOOLEAN NOT NULL,
+	events JSON NOT NULL,
+	quiet_enabled BOOLEAN NOT NULL,
+	quiet_start VARCHAR(5) NOT NULL,
+	quiet_end VARCHAR(5) NOT NULL,
+	summary_time VARCHAR(5) NOT NULL,
+	enabled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, user_id, provider),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(user_id) REFERENCES users (id),
+	FOREIGN KEY(connection_id) REFERENCES bot_connections (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_notification_preferences_company_id ON bot_notification_preferences (company_id);
+
+CREATE TABLE bot_posting_dispatches (
+	review_id VARCHAR(36) NOT NULL,
+	state VARCHAR(24) NOT NULL,
+	sent_message_id VARCHAR(30),
+	result JSON,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (review_id),
+	FOREIGN KEY(company_id, review_id) REFERENCES bot_posting_reviews (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_posting_dispatches_company_id ON bot_posting_dispatches (company_id);
+
 CREATE TABLE bot_updates (
-	provider VARCHAR(12) NOT NULL, 
-	update_id VARCHAR(30) NOT NULL, 
-	connection_id VARCHAR(36), 
-	state VARCHAR(30) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (provider, update_id), 
+	provider VARCHAR(12) NOT NULL,
+	update_id VARCHAR(30) NOT NULL,
+	connection_id VARCHAR(36),
+	state VARCHAR(30) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (provider, update_id),
 	FOREIGN KEY(connection_id) REFERENCES bot_connections (id)
 );
 
 CREATE INDEX ix_bot_updates_connection_id ON bot_updates (connection_id);
 
+CREATE TABLE cheque_events (
+	cheque_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	action VARCHAR(20) NOT NULL,
+	previous_state VARCHAR(20),
+	new_state VARCHAR(20) NOT NULL,
+	event_date DATE NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	reason TEXT NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_cheque_events_company_id ON cheque_events (company_id);
+
+CREATE TABLE company_comparison_runs (
+	group_id VARCHAR(36) NOT NULL,
+	group_version INTEGER NOT NULL,
+	snapshot JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, group_id) REFERENCES company_groups (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_company_comparison_runs_company_id ON company_comparison_runs (company_id);
+
+CREATE TABLE intercompany_mappings (
+	group_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	left_company VARCHAR(36) NOT NULL,
+	right_company VARCHAR(36) NOT NULL,
+	left_party_id VARCHAR(100) NOT NULL,
+	right_party_id VARCHAR(100) NOT NULL,
+	ownership_declaration JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, group_id, left_company, right_company, version),
+	FOREIGN KEY(company_id, group_id) REFERENCES company_groups (company_id, id),
+	FOREIGN KEY(left_company) REFERENCES companies (id),
+	FOREIGN KEY(right_company) REFERENCES companies (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_intercompany_mappings_company_id ON intercompany_mappings (company_id);
+
+CREATE TABLE native_account_roles (
+	account_id VARCHAR(36) NOT NULL,
+	role VARCHAR(40),
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, account_id),
+	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_account_roles_company_id ON native_account_roles (company_id);
+
+CREATE TABLE native_cash_scenarios (
+	series_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	name VARCHAR(120) NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	baseline JSON NOT NULL,
+	changes JSON NOT NULL,
+	comparison JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, series_id, version),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_cash_scenarios_company_id ON native_cash_scenarios (company_id);
+
+CREATE TABLE native_dimension_report_runs (
+	native_statement_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_dimension_report_runs_company_id ON native_dimension_report_runs (company_id);
+
+CREATE TABLE native_forecast_plans (
+	native_statement_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	source_digest VARCHAR(64) NOT NULL,
+	snapshot JSON NOT NULL,
+	answers JSON NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	obligations_complete BOOLEAN NOT NULL,
+	forecast_run_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_forecast_plans_company_id ON native_forecast_plans (company_id);
+
+CREATE TABLE native_invoice_builder_runs (
+	definition_id VARCHAR(36) NOT NULL,
+	definition_version INTEGER NOT NULL,
+	native_invoice_snapshot_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, definition_id) REFERENCES report_builder_definitions (company_id, id),
+	FOREIGN KEY(company_id, native_invoice_snapshot_id) REFERENCES native_invoice_snapshots (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoice_builder_runs_company_id ON native_invoice_builder_runs (company_id);
+
+CREATE TABLE native_journals (
+	draft_id VARCHAR(36) NOT NULL,
+	draft_version INTEGER NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	date DATE NOT NULL,
+	sequence INTEGER NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	snapshot JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	permission_provenance JSON NOT NULL,
+	reversal_of VARCHAR(36),
+	replacement_of VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, sequence),
+	UNIQUE (company_id, draft_id),
+	UNIQUE (company_id, reversal_of),
+	UNIQUE (company_id, replacement_of),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, reversal_of) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id, replacement_of) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_journals_company_id ON native_journals (company_id);
+
+CREATE TABLE native_report_builder_runs (
+	definition_id VARCHAR(36) NOT NULL,
+	definition_version INTEGER NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, definition_id) REFERENCES report_builder_definitions (company_id, id),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_report_builder_runs_company_id ON native_report_builder_runs (company_id);
+
+CREATE TABLE native_statement_approvals (
+	run_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	actor_name VARCHAR(100) NOT NULL,
+	permission_provenance JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, run_id, actor_id),
+	FOREIGN KEY(company_id, run_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_statement_approvals_company_id ON native_statement_approvals (company_id);
+
+CREATE TABLE native_zero_opening_evidence (
+	period_id VARCHAR(36) NOT NULL,
+	reason VARCHAR(1000) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	permission_provenance JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_zero_opening_evidence_company_id ON native_zero_opening_evidence (company_id);
+
+CREATE TABLE period_accounting_drafts (
+	draft_id VARCHAR(36) NOT NULL,
+	source_period_id VARCHAR(36) NOT NULL,
+	target_period_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	reason VARCHAR(1000) NOT NULL,
+	source_journal_ids JSON NOT NULL,
+	selection JSON NOT NULL,
+	draft_digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, draft_id),
+	FOREIGN KEY(company_id, source_period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, target_period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_period_accounting_drafts_company_id ON period_accounting_drafts (company_id);
+
+CREATE TABLE period_checklist_items (
+	period_id VARCHAR(36) NOT NULL,
+	title VARCHAR(200) NOT NULL,
+	required BOOLEAN NOT NULL,
+	responsible_member_id VARCHAR(36),
+	due_date DATE,
+	active BOOLEAN NOT NULL,
+	completed BOOLEAN NOT NULL,
+	completed_at TIMESTAMP WITH TIME ZONE,
+	completed_by VARCHAR(36),
+	completion_reason TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, responsible_member_id) REFERENCES memberships (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_period_checklist_items_company_id ON period_checklist_items (company_id);
+
+CREATE TABLE period_lock_events (
+	period_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	action VARCHAR(20) NOT NULL,
+	reason TEXT NOT NULL,
+	checklist JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_period_lock_events_company_id ON period_lock_events (company_id);
+
+CREATE TABLE period_locks (
+	period_id VARCHAR(36) NOT NULL,
+	closed BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, period_id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_period_locks_company_id ON period_locks (company_id);
+
 CREATE TABLE processing_sessions (
-	period_id VARCHAR(36), 
-	actor_id VARCHAR(36) NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	policy_version VARCHAR(50) NOT NULL, 
-	completed_steps INTEGER NOT NULL, 
-	error_code VARCHAR(60), 
-	error_message TEXT, 
-	parent_id VARCHAR(36), 
-	result_id VARCHAR(36), 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(period_id) REFERENCES financial_periods (id), 
-	FOREIGN KEY(actor_id) REFERENCES users (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	period_id VARCHAR(36),
+	actor_id VARCHAR(36) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	policy_version VARCHAR(50) NOT NULL,
+	completed_steps INTEGER NOT NULL,
+	error_code VARCHAR(60),
+	error_message TEXT,
+	parent_id VARCHAR(36),
+	result_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(period_id) REFERENCES financial_periods (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id)
 );
 
 CREATE INDEX ix_processing_sessions_company_id ON processing_sessions (company_id);
 
+CREATE TABLE accounting_operations (
+	draft_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(40) NOT NULL,
+	source_reference VARCHAR(120) NOT NULL,
+	payload JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	policy_version VARCHAR(60) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, kind, source_reference),
+	UNIQUE (company_id, draft_id),
+	FOREIGN KEY(draft_id) REFERENCES accounting_drafts (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_accounting_operations_company_id ON accounting_operations (company_id);
+
+CREATE TABLE draft_consolidation_runs (
+	comparison_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(comparison_id) REFERENCES company_comparison_runs (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_draft_consolidation_runs_company_id ON draft_consolidation_runs (company_id);
+
+CREATE TABLE journal_correction_drafts (
+	draft_id VARCHAR(36) NOT NULL,
+	original_journal_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	reason VARCHAR(1000) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, draft_id),
+	FOREIGN KEY(company_id, original_journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_journal_correction_drafts_company_id ON journal_correction_drafts (company_id);
+
+CREATE TABLE native_automation_runs (
+	rule_id VARCHAR(36) NOT NULL,
+	rule_version INTEGER NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	source_digest VARCHAR(64) NOT NULL,
+	definition JSON NOT NULL,
+	result JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, rule_id, rule_version, journal_id, source_digest),
+	FOREIGN KEY(company_id, rule_id) REFERENCES automation_rules (company_id, id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_automation_runs_company_id ON native_automation_runs (company_id);
+
+CREATE TABLE native_dimension_allocations (
+	line_id VARCHAR(36) NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	line_index INTEGER NOT NULL,
+	source_role VARCHAR(40) NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	version INTEGER NOT NULL,
+	method VARCHAR(20) NOT NULL,
+	shares JSON NOT NULL,
+	review_reason VARCHAR(500) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, line_id, kind, version),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_dimension_allocations_company_id ON native_dimension_allocations (company_id);
+
+CREATE TABLE native_document_threads (
+	draft_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	assignee_membership_id VARCHAR(36),
+	due_date DATE,
+	state VARCHAR(24) NOT NULL,
+	next_action VARCHAR(500) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, draft_id),
+	FOREIGN KEY(company_id, draft_id) REFERENCES accounting_drafts (company_id, id),
+	FOREIGN KEY(company_id, assignee_membership_id) REFERENCES memberships (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_document_threads_company_id ON native_document_threads (company_id);
+
+CREATE TABLE native_forecast_runs (
+	plan_id VARCHAR(36) NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, plan_id),
+	FOREIGN KEY(company_id, plan_id) REFERENCES native_forecast_plans (company_id, id),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_forecast_runs_company_id ON native_forecast_runs (company_id);
+
+CREATE TABLE native_opening_evidence (
+	journal_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	journal_digest VARCHAR(64) NOT NULL,
+	reason VARCHAR(1000) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	permission_provenance JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, journal_id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_opening_evidence_company_id ON native_opening_evidence (company_id);
+
 CREATE TABLE outbox_jobs (
-	session_id VARCHAR(36) NOT NULL, 
-	generation INTEGER NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	attempts INTEGER NOT NULL, 
-	fence INTEGER NOT NULL, 
-	leased_until TIMESTAMP WITH TIME ZONE, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, session_id, generation), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
+	session_id VARCHAR(36) NOT NULL,
+	generation INTEGER NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	attempts INTEGER NOT NULL,
+	fence INTEGER NOT NULL,
+	leased_until TIMESTAMP WITH TIME ZONE,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, session_id, generation),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
 	UNIQUE (company_id, id)
 );
 
 CREATE INDEX ix_outbox_jobs_company_id ON outbox_jobs (company_id);
 
 CREATE TABLE result_manifests (
-	session_id VARCHAR(36) NOT NULL, 
-	period_id VARCHAR(36) NOT NULL, 
-	digest VARCHAR(64) NOT NULL, 
-	selection JSON NOT NULL, 
-	metrics JSON NOT NULL, 
-	details JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	UNIQUE (company_id, session_id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id), 
+	session_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	selection JSON NOT NULL,
+	metrics JSON NOT NULL,
+	details JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, session_id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
 	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id)
 );
 
 CREATE INDEX ix_result_manifests_company_id ON result_manifests (company_id);
 
 CREATE TABLE source_files (
-	session_id VARCHAR(36) NOT NULL, 
-	name VARCHAR(255) NOT NULL, 
-	sha256 VARCHAR(64) NOT NULL, 
-	size INTEGER NOT NULL, 
-	storage_key VARCHAR(36) NOT NULL, 
-	state VARCHAR(40) NOT NULL, 
-	scan_status VARCHAR(40) NOT NULL, 
-	row_count INTEGER NOT NULL, 
-	archived BOOLEAN NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
+	session_id VARCHAR(36) NOT NULL,
+	name VARCHAR(255) NOT NULL,
+	sha256 VARCHAR(64) NOT NULL,
+	size INTEGER NOT NULL,
+	storage_key VARCHAR(36) NOT NULL,
+	state VARCHAR(40) NOT NULL,
+	scan_status VARCHAR(40) NOT NULL,
+	row_count INTEGER NOT NULL,
+	archived BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
@@ -345,412 +1126,959 @@ CREATE INDEX ix_source_files_company_id ON source_files (company_id);
 
 CREATE INDEX ix_source_files_sha256 ON source_files (sha256);
 
+CREATE TABLE automation_previews (
+	actor_id VARCHAR(36) NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	definition JSON NOT NULL,
+	result JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_automation_previews_company_id ON automation_previews (company_id);
+
+CREATE TABLE automation_runs (
+	rule_id VARCHAR(36) NOT NULL,
+	rule_version INTEGER NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	definition JSON NOT NULL,
+	result JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, rule_id, rule_version, manifest_id),
+	FOREIGN KEY(company_id, rule_id) REFERENCES automation_rules (company_id, id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_automation_runs_company_id ON automation_runs (company_id);
+
+CREATE TABLE bot_intakes (
+	provider VARCHAR(12) NOT NULL,
+	update_id VARCHAR(30) NOT NULL,
+	connection_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	name VARCHAR(255) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	storage_key VARCHAR(36) NOT NULL,
+	sha256 VARCHAR(64) NOT NULL,
+	size INTEGER NOT NULL,
+	scan_status VARCHAR(40) NOT NULL,
+	state VARCHAR(40) NOT NULL,
+	source_file_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, provider, update_id),
+	FOREIGN KEY(company_id, source_file_id) REFERENCES source_files (company_id, id),
+	FOREIGN KEY(connection_id) REFERENCES bot_connections (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_intakes_company_id ON bot_intakes (company_id);
+
+CREATE TABLE bot_notification_deliveries (
+	preference_id VARCHAR(36) NOT NULL,
+	preference_version INTEGER NOT NULL,
+	connection_id VARCHAR(36) NOT NULL,
+	connection_version INTEGER NOT NULL,
+	user_id VARCHAR(36) NOT NULL,
+	provider VARCHAR(12) NOT NULL,
+	event_type VARCHAR(30) NOT NULL,
+	event_id VARCHAR(80) NOT NULL,
+	event_version INTEGER NOT NULL,
+	manifest_id VARCHAR(36),
+	dedupe_key VARCHAR(64) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	due_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	claimed_at TIMESTAMP WITH TIME ZONE,
+	completed_at TIMESTAMP WITH TIME ZONE,
+	provider_message_id VARCHAR(40),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, dedupe_key),
+	FOREIGN KEY(company_id, preference_id) REFERENCES bot_notification_preferences (company_id, id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(preference_id) REFERENCES bot_notification_preferences (id),
+	FOREIGN KEY(connection_id) REFERENCES bot_connections (id),
+	FOREIGN KEY(user_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_notification_deliveries_company_id ON bot_notification_deliveries (company_id);
+
+CREATE TABLE cash_scenarios (
+	series_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	name VARCHAR(120) NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	baseline JSON NOT NULL,
+	changes JSON NOT NULL,
+	comparison JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, series_id, version),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_cash_scenarios_company_id ON cash_scenarios (company_id);
+
+CREATE TABLE consolidation_approvals (
+	draft_id VARCHAR(36) NOT NULL,
+	draft_digest VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	permission_provenance VARCHAR(150) NOT NULL,
+	policy_version VARCHAR(80) NOT NULL,
+	scope VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, draft_id, actor_id, draft_digest),
+	FOREIGN KEY(draft_id) REFERENCES draft_consolidation_runs (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_consolidation_approvals_company_id ON consolidation_approvals (company_id);
+
+CREATE TABLE dimension_report_runs (
+	manifest_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_dimension_report_runs_company_id ON dimension_report_runs (company_id);
+
 CREATE TABLE findings (
-	manifest_id VARCHAR(36) NOT NULL, 
-	code VARCHAR(60) NOT NULL, 
-	title VARCHAR(150) NOT NULL, 
-	evidence JSON NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	decision JSON, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id)
+	manifest_id VARCHAR(36) NOT NULL,
+	code VARCHAR(60) NOT NULL,
+	title VARCHAR(150) NOT NULL,
+	evidence JSON NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	decision JSON,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	UNIQUE (company_id, id)
 );
 
 CREATE INDEX ix_findings_company_id ON findings (company_id);
 
+CREATE TABLE group_match_decisions (
+	candidate_key VARCHAR(64) NOT NULL,
+	version INTEGER NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	decision VARCHAR(20) NOT NULL,
+	bank_ids JSON NOT NULL,
+	ledger_ids JSON NOT NULL,
+	snapshot JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	reason TEXT NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, candidate_key, version),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_group_match_decisions_company_id ON group_match_decisions (company_id);
+
 CREATE TABLE interpretations (
-	file_id VARCHAR(36) NOT NULL, 
-	sheet VARCHAR(100) NOT NULL, 
-	family VARCHAR(40) NOT NULL, 
-	mapping JSON NOT NULL, 
-	unit VARCHAR(20), 
-	calendar VARCHAR(20), 
-	provenance VARCHAR(40) NOT NULL, 
-	evidence JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, file_id) REFERENCES source_files (company_id, id), 
+	file_id VARCHAR(36) NOT NULL,
+	sheet VARCHAR(100) NOT NULL,
+	family VARCHAR(40) NOT NULL,
+	mapping JSON NOT NULL,
+	unit VARCHAR(20),
+	calendar VARCHAR(20),
+	provenance VARCHAR(40) NOT NULL,
+	evidence JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, file_id) REFERENCES source_files (company_id, id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_interpretations_company_id ON interpretations (company_id);
 
+CREATE TABLE manual_group_previews (
+	run_id VARCHAR(36) NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	candidate_key VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_manual_group_previews_company_id ON manual_group_previews (company_id);
+
 CREATE TABLE model_requests (
-	actor_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36), 
-	session_version INTEGER, 
-	job_id VARCHAR(36), 
-	fence INTEGER, 
-	request_key VARCHAR(128) NOT NULL, 
-	input_hash VARCHAR(64) NOT NULL, 
-	purpose VARCHAR(50) NOT NULL, 
-	model VARCHAR(60) NOT NULL, 
-	prompt_version VARCHAR(40) NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	attempts INTEGER NOT NULL, 
-	next_attempt_at TIMESTAMP WITH TIME ZONE, 
-	error_code VARCHAR(60), 
-	dispatch_deadline TIMESTAMP WITH TIME ZONE, 
-	provider_response_id VARCHAR(100), 
-	usage JSON, 
-	proposal JSON, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	UNIQUE (company_id, request_key), 
-	FOREIGN KEY(actor_id) REFERENCES users (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
+	actor_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36),
+	session_version INTEGER,
+	job_id VARCHAR(36),
+	fence INTEGER,
+	request_key VARCHAR(128) NOT NULL,
+	input_hash VARCHAR(64) NOT NULL,
+	purpose VARCHAR(50) NOT NULL,
+	model VARCHAR(60) NOT NULL,
+	prompt_version VARCHAR(40) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	attempts INTEGER NOT NULL,
+	next_attempt_at TIMESTAMP WITH TIME ZONE,
+	error_code VARCHAR(60),
+	dispatch_deadline TIMESTAMP WITH TIME ZONE,
+	provider_response_id VARCHAR(100),
+	usage JSON,
+	proposal JSON,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, request_key),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
 	FOREIGN KEY(company_id, job_id) REFERENCES outbox_jobs (company_id, id)
 );
 
 CREATE INDEX ix_model_requests_company_id ON model_requests (company_id);
 
+CREATE TABLE native_bank_match_previews (
+	bank_manifest_id VARCHAR(36) NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	candidate_key VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, bank_manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_bank_match_previews_company_id ON native_bank_match_previews (company_id);
+
+CREATE TABLE native_document_activities (
+	thread_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(30) NOT NULL,
+	message VARCHAR(2000) NOT NULL,
+	context JSON NOT NULL,
+	data JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, thread_id) REFERENCES native_document_threads (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_document_activities_company_id ON native_document_activities (company_id);
+
+CREATE TABLE native_invoices (
+	operation_id VARCHAR(36) NOT NULL,
+	direction VARCHAR(10) NOT NULL,
+	source JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, operation_id),
+	FOREIGN KEY(company_id, operation_id) REFERENCES accounting_operations (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoices_company_id ON native_invoices (company_id);
+
+CREATE TABLE operation_learning_corrections (
+	operation_id VARCHAR(36) NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	journal_digest VARCHAR(64) NOT NULL,
+	approved_draft_version INTEGER NOT NULL,
+	accounts JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	reason VARCHAR(1000) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, operation_id, journal_id),
+	FOREIGN KEY(operation_id) REFERENCES accounting_operations (id),
+	FOREIGN KEY(journal_id) REFERENCES native_journals (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_operation_learning_corrections_company_id ON operation_learning_corrections (company_id);
+
+CREATE TABLE operation_learning_patterns (
+	operation_id VARCHAR(36) NOT NULL,
+	name VARCHAR(120) NOT NULL,
+	enabled BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, operation_id),
+	FOREIGN KEY(operation_id) REFERENCES accounting_operations (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_operation_learning_patterns_company_id ON operation_learning_patterns (company_id);
+
 CREATE TABLE processing_issues (
-	session_id VARCHAR(36) NOT NULL, 
-	file_id VARCHAR(36), 
-	code VARCHAR(60) NOT NULL, 
-	question TEXT NOT NULL, 
-	choices JSON NOT NULL, 
-	evidence JSON NOT NULL, 
-	answer JSON, 
-	answered_by VARCHAR(36), 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	FOREIGN KEY(answered_by) REFERENCES users (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	session_id VARCHAR(36) NOT NULL,
+	file_id VARCHAR(36),
+	code VARCHAR(60) NOT NULL,
+	question TEXT NOT NULL,
+	choices JSON NOT NULL,
+	evidence JSON NOT NULL,
+	answer JSON,
+	answered_by VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	FOREIGN KEY(answered_by) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	FOREIGN KEY(company_id, file_id) REFERENCES source_files (company_id, id)
 );
 
 CREATE INDEX ix_processing_issues_company_id ON processing_issues (company_id);
 
 CREATE TABLE reconciliation_runs (
-	manifest_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	actor_id VARCHAR(36) NOT NULL, 
-	bank_to_ledger JSON NOT NULL, 
-	candidates JSON NOT NULL, 
-	policy_version VARCHAR(50) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id), 
-	FOREIGN KEY(actor_id) REFERENCES users (id), 
+	manifest_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	bank_to_ledger JSON NOT NULL,
+	candidates JSON NOT NULL,
+	policy_version VARCHAR(50) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_reconciliation_runs_company_id ON reconciliation_runs (company_id);
 
+CREATE TABLE report_builder_runs (
+	definition_id VARCHAR(36) NOT NULL,
+	definition_version INTEGER NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	snapshot JSON NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, definition_id) REFERENCES report_builder_definitions (company_id, id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_report_builder_runs_company_id ON report_builder_runs (company_id);
+
 CREATE TABLE reports (
-	manifest_id VARCHAR(36) NOT NULL, 
-	title VARCHAR(150) NOT NULL, 
-	version INTEGER NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id), 
-	UNIQUE (manifest_id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	manifest_id VARCHAR(36) NOT NULL,
+	title VARCHAR(150) NOT NULL,
+	version INTEGER NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	UNIQUE (manifest_id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	UNIQUE (company_id, id)
 );
 
 CREATE INDEX ix_reports_company_id ON reports (company_id);
 
 CREATE TABLE source_rows (
-	file_id VARCHAR(36) NOT NULL, 
-	sheet VARCHAR(100) NOT NULL, 
-	row_number INTEGER NOT NULL, 
-	values JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(company_id, file_id) REFERENCES source_files (company_id, id), 
+	file_id VARCHAR(36) NOT NULL,
+	sheet VARCHAR(100) NOT NULL,
+	row_number INTEGER NOT NULL,
+	values JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, file_id) REFERENCES source_files (company_id, id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_source_rows_company_id ON source_rows (company_id);
 
 CREATE TABLE bank_movements (
-	account VARCHAR(100) NOT NULL, 
-	date DATE NOT NULL, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	reference VARCHAR(100) NOT NULL, 
-	party_id VARCHAR(100) NOT NULL, 
-	kind VARCHAR(30) NOT NULL, 
-	balance NUMERIC(38, 6), 
-	anchor_cutoff VARCHAR(30), 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	CONSTRAINT finite_bank_movements_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000), 
+	account VARCHAR(100) NOT NULL,
+	date DATE NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	reference VARCHAR(100) NOT NULL,
+	party_id VARCHAR(100) NOT NULL,
+	kind VARCHAR(30) NOT NULL,
+	balance NUMERIC(38, 6),
+	anchor_cutoff VARCHAR(30),
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	CONSTRAINT finite_bank_movements_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000),
 	CONSTRAINT finite_bank_movements_balance CHECK (balance > -100000000000000000000000000000000 AND balance < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_bank_movements_company_id ON bank_movements (company_id);
 
+CREATE TABLE bot_extraction_attempts (
+	intake_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	request_key VARCHAR(64) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, request_key),
+	FOREIGN KEY(intake_id) REFERENCES bot_intakes (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_extraction_attempts_company_id ON bot_extraction_attempts (company_id);
+
 CREATE TABLE budget_reservations (
-	request_id VARCHAR(36) NOT NULL, 
-	tariff_id VARCHAR(36) NOT NULL, 
-	installation_budget_id VARCHAR(36) NOT NULL, 
-	period VARCHAR(7) NOT NULL, 
-	attempt INTEGER NOT NULL, 
-	amount VARCHAR(80) NOT NULL, 
-	actual_cost VARCHAR(80), 
-	state VARCHAR(20) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, request_id, attempt), 
-	FOREIGN KEY(company_id, request_id) REFERENCES model_requests (company_id, id), 
-	FOREIGN KEY(company_id, tariff_id) REFERENCES model_tariffs (company_id, id), 
-	FOREIGN KEY(installation_budget_id) REFERENCES installation_model_budgets (id), 
+	request_id VARCHAR(36) NOT NULL,
+	tariff_id VARCHAR(36) NOT NULL,
+	installation_budget_id VARCHAR(36) NOT NULL,
+	period VARCHAR(7) NOT NULL,
+	attempt INTEGER NOT NULL,
+	amount VARCHAR(80) NOT NULL,
+	actual_cost VARCHAR(80),
+	state VARCHAR(20) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, request_id, attempt),
+	FOREIGN KEY(company_id, request_id) REFERENCES model_requests (company_id, id),
+	FOREIGN KEY(company_id, tariff_id) REFERENCES model_tariffs (company_id, id),
+	FOREIGN KEY(installation_budget_id) REFERENCES installation_model_budgets (id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_budget_reservations_company_id ON budget_reservations (company_id);
 
 CREATE TABLE invoice_snapshots (
-	party_id VARCHAR(100), 
-	reference VARCHAR(100) NOT NULL, 
-	tax_id VARCHAR(100) NOT NULL, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	tax NUMERIC(38, 6), 
-	date DATE NOT NULL, 
-	direction VARCHAR(20) NOT NULL, 
-	state VARCHAR(30) NOT NULL, 
-	parent_reference VARCHAR(100), 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	CONSTRAINT finite_invoice_snapshots_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000), 
+	party_id VARCHAR(100),
+	reference VARCHAR(100) NOT NULL,
+	tax_id VARCHAR(100) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	tax NUMERIC(38, 6),
+	date DATE NOT NULL,
+	direction VARCHAR(20) NOT NULL,
+	state VARCHAR(30) NOT NULL,
+	parent_reference VARCHAR(100),
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	CONSTRAINT finite_invoice_snapshots_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000),
 	CONSTRAINT finite_invoice_snapshots_tax CHECK (tax > -100000000000000000000000000000000 AND tax < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_invoice_snapshots_company_id ON invoice_snapshots (company_id);
 
 CREATE TABLE invoices (
-	reference VARCHAR(100) NOT NULL, 
-	party_id VARCHAR(100) NOT NULL, 
-	date DATE NOT NULL, 
-	due_date DATE, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	direction VARCHAR(20) NOT NULL, 
-	tax_id VARCHAR(100), 
-	tax NUMERIC(38, 6), 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (company_id, id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	CONSTRAINT finite_invoices_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000), 
+	reference VARCHAR(100) NOT NULL,
+	party_id VARCHAR(100) NOT NULL,
+	date DATE NOT NULL,
+	due_date DATE,
+	amount NUMERIC(38, 6) NOT NULL,
+	direction VARCHAR(20) NOT NULL,
+	tax_id VARCHAR(100),
+	tax NUMERIC(38, 6),
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	CONSTRAINT finite_invoices_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000),
 	CONSTRAINT finite_invoices_tax CHECK (tax > -100000000000000000000000000000000 AND tax < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_invoices_company_id ON invoices (company_id);
 
 CREATE TABLE journal_lines (
-	entry_id VARCHAR(100) NOT NULL, 
-	date DATE NOT NULL, 
-	account VARCHAR(100) NOT NULL, 
-	role VARCHAR(60) NOT NULL, 
-	party_id VARCHAR(100) NOT NULL, 
-	debit NUMERIC(38, 6) NOT NULL, 
-	credit NUMERIC(38, 6) NOT NULL, 
-	entry_type VARCHAR(30) NOT NULL, 
-	reference VARCHAR(100) NOT NULL, 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	CONSTRAINT finite_journal_lines_debit CHECK (debit > -100000000000000000000000000000000 AND debit < 100000000000000000000000000000000), 
+	entry_id VARCHAR(100) NOT NULL,
+	date DATE NOT NULL,
+	account VARCHAR(100) NOT NULL,
+	role VARCHAR(60) NOT NULL,
+	party_id VARCHAR(100) NOT NULL,
+	debit NUMERIC(38, 6) NOT NULL,
+	credit NUMERIC(38, 6) NOT NULL,
+	entry_type VARCHAR(30) NOT NULL,
+	reference VARCHAR(100) NOT NULL,
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	CONSTRAINT finite_journal_lines_debit CHECK (debit > -100000000000000000000000000000000 AND debit < 100000000000000000000000000000000),
 	CONSTRAINT finite_journal_lines_credit CHECK (credit > -100000000000000000000000000000000 AND credit < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_journal_lines_company_id ON journal_lines (company_id);
 
+CREATE TABLE native_invoice_allocations (
+	invoice_id VARCHAR(36) NOT NULL,
+	operation_id VARCHAR(36) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	date DATE NOT NULL,
+	source JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, operation_id) REFERENCES accounting_operations (company_id, id),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES native_invoices (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_native_invoice_allocations_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_native_invoice_allocations_company_id ON native_invoice_allocations (company_id);
+
+CREATE TABLE native_invoice_source_revisions (
+	version INTEGER NOT NULL,
+	invoice_id VARCHAR(36) NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	effective_date DATE NOT NULL,
+	source JSON NOT NULL,
+	reason TEXT NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, invoice_id, journal_id),
+	UNIQUE (company_id, invoice_id, version),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES native_invoices (company_id, id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoice_source_revisions_company_id ON native_invoice_source_revisions (company_id);
+
+CREATE TABLE native_invoice_terms (
+	invoice_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	effective_date DATE NOT NULL,
+	payload JSON NOT NULL,
+	reason TEXT NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, invoice_id, version),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES native_invoices (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoice_terms_company_id ON native_invoice_terms (company_id);
+
+CREATE TABLE operation_learning_events (
+	operation_id VARCHAR(36) NOT NULL,
+	pattern_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	before JSON NOT NULL,
+	after JSON NOT NULL,
+	source_proof JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(operation_id) REFERENCES accounting_operations (id),
+	FOREIGN KEY(pattern_id) REFERENCES operation_learning_patterns (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_operation_learning_events_company_id ON operation_learning_events (company_id);
+
 CREATE TABLE personnel_records (
-	kind VARCHAR(20) NOT NULL, 
-	employee_id VARCHAR(100) NOT NULL, 
-	employee_name VARCHAR(150) NOT NULL, 
-	date DATE NOT NULL, 
-	values JSON NOT NULL, 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	UNIQUE (company_id, source_row_id), 
+	kind VARCHAR(20) NOT NULL,
+	employee_id VARCHAR(100) NOT NULL,
+	employee_name VARCHAR(150) NOT NULL,
+	date DATE NOT NULL,
+	values JSON NOT NULL,
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	UNIQUE (company_id, source_row_id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
 CREATE INDEX ix_personnel_records_company_id ON personnel_records (company_id);
 
 CREATE TABLE planned_payments (
-	label VARCHAR(120) NOT NULL, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	due_date DATE NOT NULL, 
-	obligation_id VARCHAR(100) NOT NULL, 
-	invoice_reference VARCHAR(100), 
-	state VARCHAR(20) NOT NULL, 
-	source_row_id VARCHAR(36), 
-	session_id VARCHAR(36), 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
+	label VARCHAR(120) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	due_date DATE NOT NULL,
+	obligation_id VARCHAR(100) NOT NULL,
+	invoice_reference VARCHAR(100),
+	state VARCHAR(20) NOT NULL,
+	source_row_id VARCHAR(36),
+	session_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
 	CONSTRAINT finite_planned_payments_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_planned_payments_company_id ON planned_payments (company_id);
 
 CREATE TABLE report_approvals (
-	report_id VARCHAR(36) NOT NULL, 
-	report_version INTEGER NOT NULL, 
-	actor_id VARCHAR(36) NOT NULL, 
-	permission_provenance VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	UNIQUE (report_id, actor_id), 
-	FOREIGN KEY(report_id) REFERENCES reports (id), 
-	FOREIGN KEY(actor_id) REFERENCES users (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	report_id VARCHAR(36) NOT NULL,
+	report_version INTEGER NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	permission_provenance VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (report_id, actor_id),
+	FOREIGN KEY(report_id) REFERENCES reports (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	FOREIGN KEY(company_id, report_id) REFERENCES reports (company_id, id)
 );
 
 CREATE INDEX ix_report_approvals_company_id ON report_approvals (company_id);
 
 CREATE TABLE settlements (
-	bank_account VARCHAR(100), 
-	bank_reference VARCHAR(100), 
-	reference VARCHAR(100) NOT NULL, 
-	invoice_reference VARCHAR(100) NOT NULL, 
-	date DATE NOT NULL, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	direction VARCHAR(20) NOT NULL, 
-	source_row_id VARCHAR(36) NOT NULL, 
-	session_id VARCHAR(36) NOT NULL, 
-	original_unit VARCHAR(20) NOT NULL, 
-	original_amount VARCHAR(80) NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id), 
-	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id), 
+	bank_account VARCHAR(100),
+	bank_reference VARCHAR(100),
+	reference VARCHAR(100) NOT NULL,
+	invoice_reference VARCHAR(100) NOT NULL,
+	date DATE NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	direction VARCHAR(20) NOT NULL,
+	source_row_id VARCHAR(36) NOT NULL,
+	session_id VARCHAR(36) NOT NULL,
+	original_unit VARCHAR(20) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, source_row_id) REFERENCES source_rows (company_id, id),
+	FOREIGN KEY(company_id, session_id) REFERENCES processing_sessions (company_id, id),
 	CONSTRAINT finite_settlements_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_settlements_company_id ON settlements (company_id);
 
 CREATE TABLE allocations (
-	bank_id VARCHAR(36) NOT NULL, 
-	invoice_id VARCHAR(36) NOT NULL, 
-	amount NUMERIC(38, 6) NOT NULL, 
-	actor_id VARCHAR(36) NOT NULL, 
-	reversed_at TIMESTAMP WITH TIME ZONE, 
-	reversed_by VARCHAR(36), 
-	reversal_reason TEXT, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	version INTEGER NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id), 
-	FOREIGN KEY(company_id, invoice_id) REFERENCES invoices (company_id, id), 
-	FOREIGN KEY(actor_id) REFERENCES users (id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
+	bank_id VARCHAR(36) NOT NULL,
+	invoice_id VARCHAR(36) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	reversed_at TIMESTAMP WITH TIME ZONE,
+	reversed_by VARCHAR(36),
+	reversal_reason TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES invoices (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_allocations_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_allocations_company_id ON allocations (company_id);
 
+CREATE TABLE bot_extraction_proposals (
+	attempt_id VARCHAR(36) NOT NULL,
+	intake_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	source_sha256 VARCHAR(64) NOT NULL,
+	model_request_id VARCHAR(36),
+	method VARCHAR(20) NOT NULL,
+	proposal JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (attempt_id),
+	FOREIGN KEY(attempt_id) REFERENCES bot_extraction_attempts (id),
+	FOREIGN KEY(intake_id) REFERENCES bot_intakes (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_extraction_proposals_company_id ON bot_extraction_proposals (company_id);
+
+CREATE TABLE cheque_clearances (
+	cheque_id VARCHAR(36) NOT NULL,
+	bank_id VARCHAR(36) NOT NULL,
+	event_id VARCHAR(36) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, cheque_id, bank_id),
+	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
+	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_cheque_clearances_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_cheque_clearances_company_id ON cheque_clearances (company_id);
+
+CREATE TABLE control_cases (
+	finding_id VARCHAR(36),
+	invoice_id VARCHAR(36),
+	assignee_membership_id VARCHAR(36),
+	due_date DATE,
+	state VARCHAR(20) NOT NULL,
+	next_action VARCHAR(500) NOT NULL,
+	resolution_reason TEXT,
+	source_snapshot JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, finding_id),
+	UNIQUE (company_id, invoice_id),
+	CONSTRAINT control_one_subject CHECK ((finding_id IS NOT NULL AND invoice_id IS NULL) OR (finding_id IS NULL AND invoice_id IS NOT NULL)),
+	FOREIGN KEY(company_id, finding_id) REFERENCES findings (company_id, id),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES invoices (company_id, id),
+	FOREIGN KEY(company_id, assignee_membership_id) REFERENCES memberships (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_control_cases_company_id ON control_cases (company_id);
+
+CREATE TABLE dimension_allocations (
+	line_id VARCHAR(36) NOT NULL,
+	manifest_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	version INTEGER NOT NULL,
+	method VARCHAR(20) NOT NULL,
+	shares JSON NOT NULL,
+	review_reason VARCHAR(500) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, line_id, kind, version),
+	FOREIGN KEY(company_id, manifest_id) REFERENCES result_manifests (company_id, id),
+	FOREIGN KEY(line_id) REFERENCES journal_lines (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_dimension_allocations_company_id ON dimension_allocations (company_id);
+
+CREATE TABLE native_invoice_allocation_reversals (
+	allocation_id VARCHAR(36) NOT NULL,
+	date DATE NOT NULL,
+	reason TEXT NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, allocation_id),
+	FOREIGN KEY(company_id, allocation_id) REFERENCES native_invoice_allocations (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_invoice_allocation_reversals_company_id ON native_invoice_allocation_reversals (company_id);
+
 CREATE TABLE reconciliation_decisions (
-	run_id VARCHAR(36) NOT NULL, 
-	proposal_id VARCHAR(36) NOT NULL, 
-	bank_id VARCHAR(36) NOT NULL, 
-	ledger_ids JSON NOT NULL, 
-	decision VARCHAR(30) NOT NULL, 
-	version INTEGER NOT NULL, 
-	reason TEXT NOT NULL, 
-	actor_id VARCHAR(36), 
-	provenance VARCHAR(40) NOT NULL, 
-	controls JSON NOT NULL, 
-	id VARCHAR(36) NOT NULL, 
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL, 
-	company_id VARCHAR(36) NOT NULL, 
-	PRIMARY KEY (id), 
-	FOREIGN KEY(company_id, run_id) REFERENCES reconciliation_runs (company_id, id), 
-	FOREIGN KEY(company_id) REFERENCES companies (id), 
-	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id), 
+	run_id VARCHAR(36) NOT NULL,
+	proposal_id VARCHAR(36) NOT NULL,
+	bank_id VARCHAR(36) NOT NULL,
+	ledger_ids JSON NOT NULL,
+	decision VARCHAR(30) NOT NULL,
+	version INTEGER NOT NULL,
+	reason TEXT NOT NULL,
+	actor_id VARCHAR(36),
+	provenance VARCHAR(40) NOT NULL,
+	controls JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, run_id) REFERENCES reconciliation_runs (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id),
 	UNIQUE (company_id, bank_id, version)
 );
 
 CREATE INDEX ix_reconciliation_decisions_company_id ON reconciliation_decisions (company_id);
 
 CREATE INDEX ix_reconciliation_decisions_proposal_id ON reconciliation_decisions (proposal_id);
+
+CREATE TABLE bot_extraction_reviews (
+	proposal_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	source_file_id VARCHAR(36) NOT NULL,
+	reviewed JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (proposal_id),
+	FOREIGN KEY(proposal_id) REFERENCES bot_extraction_proposals (id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(source_file_id) REFERENCES source_files (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_bot_extraction_reviews_company_id ON bot_extraction_reviews (company_id);
+
+CREATE TABLE control_activities (
+	case_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(30) NOT NULL,
+	message TEXT NOT NULL,
+	data JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, case_id) REFERENCES control_cases (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_control_activities_case_id ON control_activities (case_id);
+
+CREATE INDEX ix_control_activities_company_id ON control_activities (company_id);
+
+ALTER TABLE account_import_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE account_import_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON account_import_previews;
+
+CREATE POLICY tenant_isolation ON account_import_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE accounting_accounts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE accounting_accounts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON accounting_accounts;
+
+CREATE POLICY tenant_isolation ON accounting_accounts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
@@ -760,6 +2088,22 @@ DROP POLICY IF EXISTS tenant_isolation ON audit_events;
 
 CREATE POLICY tenant_isolation ON audit_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE automation_rules ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE automation_rules FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON automation_rules;
+
+CREATE POLICY tenant_isolation ON automation_rules USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_posting_reviews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_posting_reviews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_posting_reviews;
+
+CREATE POLICY tenant_isolation ON bot_posting_reviews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE budget_policies ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE budget_policies FORCE ROW LEVEL SECURITY;
@@ -768,6 +2112,30 @@ DROP POLICY IF EXISTS tenant_isolation ON budget_policies;
 
 CREATE POLICY tenant_isolation ON budget_policies USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE cheques ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cheques FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cheques;
+
+CREATE POLICY tenant_isolation ON cheques USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE company_accounting_setup ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE company_accounting_setup FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON company_accounting_setup;
+
+CREATE POLICY tenant_isolation ON company_accounting_setup USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE company_groups ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE company_groups FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON company_groups;
+
+CREATE POLICY tenant_isolation ON company_groups USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE company_modules ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE company_modules FORCE ROW LEVEL SECURITY;
@@ -775,6 +2143,14 @@ ALTER TABLE company_modules FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON company_modules;
 
 CREATE POLICY tenant_isolation ON company_modules USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE financial_dimensions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE financial_dimensions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON financial_dimensions;
+
+CREATE POLICY tenant_isolation ON financial_dimensions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE financial_periods ENABLE ROW LEVEL SECURITY;
 
@@ -792,6 +2168,14 @@ DROP POLICY IF EXISTS tenant_isolation ON idempotency_keys;
 
 CREATE POLICY tenant_isolation ON idempotency_keys USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE learning_patterns ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE learning_patterns FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON learning_patterns;
+
+CREATE POLICY tenant_isolation ON learning_patterns USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE memberships ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE memberships FORCE ROW LEVEL SECURITY;
@@ -808,6 +2192,46 @@ DROP POLICY IF EXISTS tenant_isolation ON model_tariffs;
 
 CREATE POLICY tenant_isolation ON model_tariffs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE native_automation_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_automation_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_automation_previews;
+
+CREATE POLICY tenant_isolation ON native_automation_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_book_report_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_book_report_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_book_report_runs;
+
+CREATE POLICY tenant_isolation ON native_book_report_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_control_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_control_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_control_runs;
+
+CREATE POLICY tenant_isolation ON native_control_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_snapshots ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_snapshots FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_snapshots;
+
+CREATE POLICY tenant_isolation ON native_invoice_snapshots USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_statement_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_statement_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_statement_runs;
+
+CREATE POLICY tenant_isolation ON native_statement_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
@@ -816,6 +2240,174 @@ DROP POLICY IF EXISTS tenant_isolation ON notifications;
 
 CREATE POLICY tenant_isolation ON notifications USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE report_builder_definitions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE report_builder_definitions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON report_builder_definitions;
+
+CREATE POLICY tenant_isolation ON report_builder_definitions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE accounting_drafts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE accounting_drafts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON accounting_drafts;
+
+CREATE POLICY tenant_isolation ON accounting_drafts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE accounting_permissions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE accounting_permissions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON accounting_permissions;
+
+CREATE POLICY tenant_isolation ON accounting_permissions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_notification_preferences ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_notification_preferences FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_notification_preferences;
+
+CREATE POLICY tenant_isolation ON bot_notification_preferences USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_posting_dispatches ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_posting_dispatches FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_posting_dispatches;
+
+CREATE POLICY tenant_isolation ON bot_posting_dispatches USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE cheque_events ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cheque_events FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cheque_events;
+
+CREATE POLICY tenant_isolation ON cheque_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE company_comparison_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE company_comparison_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON company_comparison_runs;
+
+CREATE POLICY tenant_isolation ON company_comparison_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE intercompany_mappings ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE intercompany_mappings FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON intercompany_mappings;
+
+CREATE POLICY tenant_isolation ON intercompany_mappings USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_account_roles ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_account_roles FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_account_roles;
+
+CREATE POLICY tenant_isolation ON native_account_roles USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_cash_scenarios ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_cash_scenarios FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_cash_scenarios;
+
+CREATE POLICY tenant_isolation ON native_cash_scenarios USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_dimension_report_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_dimension_report_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_dimension_report_runs;
+
+CREATE POLICY tenant_isolation ON native_dimension_report_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_forecast_plans ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_forecast_plans FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_forecast_plans;
+
+CREATE POLICY tenant_isolation ON native_forecast_plans USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_builder_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_builder_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_builder_runs;
+
+CREATE POLICY tenant_isolation ON native_invoice_builder_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_journals ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_journals FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_journals;
+
+CREATE POLICY tenant_isolation ON native_journals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_report_builder_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_report_builder_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_report_builder_runs;
+
+CREATE POLICY tenant_isolation ON native_report_builder_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_statement_approvals ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_statement_approvals FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_statement_approvals;
+
+CREATE POLICY tenant_isolation ON native_statement_approvals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_zero_opening_evidence ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_zero_opening_evidence FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_zero_opening_evidence;
+
+CREATE POLICY tenant_isolation ON native_zero_opening_evidence USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE period_accounting_drafts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE period_accounting_drafts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON period_accounting_drafts;
+
+CREATE POLICY tenant_isolation ON period_accounting_drafts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE period_checklist_items ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE period_checklist_items FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON period_checklist_items;
+
+CREATE POLICY tenant_isolation ON period_checklist_items USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE period_lock_events ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE period_lock_events FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON period_lock_events;
+
+CREATE POLICY tenant_isolation ON period_lock_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE period_locks ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE period_locks FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON period_locks;
+
+CREATE POLICY tenant_isolation ON period_locks USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE processing_sessions ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE processing_sessions FORCE ROW LEVEL SECURITY;
@@ -823,6 +2415,70 @@ ALTER TABLE processing_sessions FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON processing_sessions;
 
 CREATE POLICY tenant_isolation ON processing_sessions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE accounting_operations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE accounting_operations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON accounting_operations;
+
+CREATE POLICY tenant_isolation ON accounting_operations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE draft_consolidation_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE draft_consolidation_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON draft_consolidation_runs;
+
+CREATE POLICY tenant_isolation ON draft_consolidation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE journal_correction_drafts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE journal_correction_drafts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON journal_correction_drafts;
+
+CREATE POLICY tenant_isolation ON journal_correction_drafts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_automation_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_automation_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_automation_runs;
+
+CREATE POLICY tenant_isolation ON native_automation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_dimension_allocations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_dimension_allocations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_dimension_allocations;
+
+CREATE POLICY tenant_isolation ON native_dimension_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_document_threads ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_document_threads FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_document_threads;
+
+CREATE POLICY tenant_isolation ON native_document_threads USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_forecast_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_forecast_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_forecast_runs;
+
+CREATE POLICY tenant_isolation ON native_forecast_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_opening_evidence ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_opening_evidence FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_opening_evidence;
+
+CREATE POLICY tenant_isolation ON native_opening_evidence USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE outbox_jobs ENABLE ROW LEVEL SECURITY;
 
@@ -848,6 +2504,62 @@ DROP POLICY IF EXISTS tenant_isolation ON source_files;
 
 CREATE POLICY tenant_isolation ON source_files USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE automation_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE automation_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON automation_previews;
+
+CREATE POLICY tenant_isolation ON automation_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE automation_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE automation_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON automation_runs;
+
+CREATE POLICY tenant_isolation ON automation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_intakes ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_intakes FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_intakes;
+
+CREATE POLICY tenant_isolation ON bot_intakes USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_notification_deliveries ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_notification_deliveries FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_notification_deliveries;
+
+CREATE POLICY tenant_isolation ON bot_notification_deliveries USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE cash_scenarios ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cash_scenarios FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cash_scenarios;
+
+CREATE POLICY tenant_isolation ON cash_scenarios USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE consolidation_approvals ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE consolidation_approvals FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON consolidation_approvals;
+
+CREATE POLICY tenant_isolation ON consolidation_approvals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE dimension_report_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE dimension_report_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON dimension_report_runs;
+
+CREATE POLICY tenant_isolation ON dimension_report_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE findings ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE findings FORCE ROW LEVEL SECURITY;
@@ -855,6 +2567,14 @@ ALTER TABLE findings FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON findings;
 
 CREATE POLICY tenant_isolation ON findings USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE group_match_decisions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE group_match_decisions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON group_match_decisions;
+
+CREATE POLICY tenant_isolation ON group_match_decisions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE interpretations ENABLE ROW LEVEL SECURITY;
 
@@ -864,6 +2584,14 @@ DROP POLICY IF EXISTS tenant_isolation ON interpretations;
 
 CREATE POLICY tenant_isolation ON interpretations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE manual_group_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE manual_group_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON manual_group_previews;
+
+CREATE POLICY tenant_isolation ON manual_group_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE model_requests ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE model_requests FORCE ROW LEVEL SECURITY;
@@ -871,6 +2599,46 @@ ALTER TABLE model_requests FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON model_requests;
 
 CREATE POLICY tenant_isolation ON model_requests USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_bank_match_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_bank_match_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_bank_match_previews;
+
+CREATE POLICY tenant_isolation ON native_bank_match_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_document_activities ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_document_activities FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_document_activities;
+
+CREATE POLICY tenant_isolation ON native_document_activities USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoices ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoices FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoices;
+
+CREATE POLICY tenant_isolation ON native_invoices USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE operation_learning_corrections ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE operation_learning_corrections FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON operation_learning_corrections;
+
+CREATE POLICY tenant_isolation ON operation_learning_corrections USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE operation_learning_patterns ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE operation_learning_patterns FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON operation_learning_patterns;
+
+CREATE POLICY tenant_isolation ON operation_learning_patterns USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE processing_issues ENABLE ROW LEVEL SECURITY;
 
@@ -887,6 +2655,14 @@ ALTER TABLE reconciliation_runs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON reconciliation_runs;
 
 CREATE POLICY tenant_isolation ON reconciliation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE report_builder_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE report_builder_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON report_builder_runs;
+
+CREATE POLICY tenant_isolation ON report_builder_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 
@@ -911,6 +2687,14 @@ ALTER TABLE bank_movements FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON bank_movements;
 
 CREATE POLICY tenant_isolation ON bank_movements USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_extraction_attempts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_extraction_attempts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_extraction_attempts;
+
+CREATE POLICY tenant_isolation ON bot_extraction_attempts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE budget_reservations ENABLE ROW LEVEL SECURITY;
 
@@ -943,6 +2727,38 @@ ALTER TABLE journal_lines FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON journal_lines;
 
 CREATE POLICY tenant_isolation ON journal_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_allocations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_allocations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_allocations;
+
+CREATE POLICY tenant_isolation ON native_invoice_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_source_revisions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_source_revisions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_source_revisions;
+
+CREATE POLICY tenant_isolation ON native_invoice_source_revisions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_terms ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_terms FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_terms;
+
+CREATE POLICY tenant_isolation ON native_invoice_terms USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE operation_learning_events ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE operation_learning_events FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON operation_learning_events;
+
+CREATE POLICY tenant_isolation ON operation_learning_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE personnel_records ENABLE ROW LEVEL SECURITY;
 
@@ -984,6 +2800,46 @@ DROP POLICY IF EXISTS tenant_isolation ON allocations;
 
 CREATE POLICY tenant_isolation ON allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE bot_extraction_proposals ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_extraction_proposals FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_extraction_proposals;
+
+CREATE POLICY tenant_isolation ON bot_extraction_proposals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE cheque_clearances ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cheque_clearances FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cheque_clearances;
+
+CREATE POLICY tenant_isolation ON cheque_clearances USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE control_cases ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE control_cases FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON control_cases;
+
+CREATE POLICY tenant_isolation ON control_cases USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE dimension_allocations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE dimension_allocations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON dimension_allocations;
+
+CREATE POLICY tenant_isolation ON dimension_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_invoice_allocation_reversals ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_invoice_allocation_reversals FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_invoice_allocation_reversals;
+
+CREATE POLICY tenant_isolation ON native_invoice_allocation_reversals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE reconciliation_decisions ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE reconciliation_decisions FORCE ROW LEVEL SECURITY;
@@ -991,6 +2847,22 @@ ALTER TABLE reconciliation_decisions FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON reconciliation_decisions;
 
 CREATE POLICY tenant_isolation ON reconciliation_decisions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE bot_extraction_reviews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE bot_extraction_reviews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON bot_extraction_reviews;
+
+CREATE POLICY tenant_isolation ON bot_extraction_reviews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE control_activities ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE control_activities FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON control_activities;
+
+CREATE POLICY tenant_isolation ON control_activities USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 DROP POLICY IF EXISTS own_membership ON memberships;
 
@@ -1061,5 +2933,199 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reports FOR EACH ROW EX
 DROP TRIGGER IF EXISTS immutable_fact ON report_approvals;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_journals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_journals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_statement_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_statement_approvals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_opening_evidence;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_zero_opening_evidence;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_zero_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON period_accounting_drafts;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON period_accounting_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON bot_posting_reviews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_posting_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_book_report_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_book_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON journal_correction_drafts;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON journal_correction_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON accounting_operations;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON accounting_operations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_events;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON operation_learning_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON intercompany_mappings;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON intercompany_mappings FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON draft_consolidation_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON draft_consolidation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON consolidation_approvals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON consolidation_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON cheque_events;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON cheque_clearances;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_clearances FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON cash_scenarios;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cash_scenarios FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON report_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_report_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_document_activities;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_document_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_control_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_control_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_terms;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_terms FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_source_revisions;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_source_revisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocations;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocation_reversals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocation_reversals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_snapshots;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_snapshots FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_forecast_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_forecast_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_bank_match_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_bank_match_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_automation_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_automation_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_automation_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_automation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_cash_scenarios;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_cash_scenarios FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON control_activities;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON control_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON automation_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON automation_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON group_match_decisions;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON group_match_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON manual_group_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON manual_group_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON account_import_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON account_import_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON company_comparison_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON company_comparison_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON dimension_allocations;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_dimension_allocations;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_dimension_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_dimension_report_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_corrections;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON operation_learning_corrections FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON dimension_report_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON period_lock_events;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON period_lock_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_proposals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_proposals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_reviews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+CREATE OR REPLACE FUNCTION deny_native_invoice_source_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; IF NEW.id IS DISTINCT FROM OLD.id OR NEW.company_id IS DISTINCT FROM OLD.company_id OR NEW.operation_id IS DISTINCT FROM OLD.operation_id OR NEW.direction IS DISTINCT FROM OLD.direction OR NEW.source::jsonb IS DISTINCT FROM OLD.source::jsonb OR NEW.actor_id IS DISTINCT FROM OLD.actor_id OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; RETURN NEW; END $$;
+
+DROP TRIGGER IF EXISTS immutable_native_invoice_source ON native_invoices;
+
+CREATE TRIGGER immutable_native_invoice_source BEFORE UPDATE OR DELETE ON native_invoices FOR EACH ROW EXECUTE FUNCTION deny_native_invoice_source_change();
 
 COMMIT;

@@ -1,0 +1,7 @@
+{
+  "database": "isolated QA clone only",
+  "prototype_table_rows_before": 0,
+  "version_column_added_if_missing": true,
+  "financial_rows_deleted": false,
+  "normal_or_legacy_database_changed": false
+}

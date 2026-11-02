@@ -56,3 +56,40 @@ def test_one_rial_difference_at_29_digits_is_never_an_exact_proposal():
     result = propose([ledger(debit="99999999999999999999999999999")], [bank(amount="100000000000000000000000000000")], {"bank_to_ledger": {"A": "1101"}})
     assert result[0]["status"] == "needs_review"
     assert result[0]["reason_codes"] == ["amount_mismatch"]
+
+
+def test_shared_reference_aggregate_requires_exact_sum_direction_and_human_review():
+    mapping = {"bank_to_ledger": {"A": "1101"}}
+    rows = [ledger("L1", debit="60"), ledger("L2", debit="40")]
+    candidate = propose(rows, [bank()], mapping)[0]
+    assert candidate["status"] == "exact_proposal"
+    assert candidate["match_kind"] == "reference_aggregate"
+    assert candidate["ledger_total"] == "100"
+    assert candidate["ledger_ids"] == ["L1", "L2"]
+    assert candidate["evidence_refs"] == ["B", "L1", "L2"]
+    assert candidate["requires_human_review"] is True
+    assert propose([ledger()], [bank()], mapping)[0]["requires_human_review"] is True
+    assert propose([*rows, ledger("L3", debit="1")], [bank()], mapping)[0]["ledger_ids"] == []
+    mixed = [ledger("L1", debit="120"), ledger("L2", debit="0", credit="20")]
+    assert propose(mixed, [bank()], mapping)[0]["ledger_ids"] == []
+
+
+def test_aggregate_does_not_cross_references_accounts_or_silently_ignore_dates():
+    mapping = {"bank_to_ledger": {"A": "1101"}}
+    rows = [ledger("L1", debit="60"), ledger("L2", debit="40", date="2026-09-06")]
+    candidate = propose(rows, [bank()], mapping)[0]
+    assert candidate["status"] == "needs_review"
+    assert candidate["reason_codes"] == ["date_mismatch"]
+    for changes in ({"reference": "OTHER"}, {"account": "OTHER"}):
+        rows[1] = ledger("L2", debit="40", **changes)
+        assert propose(rows, [bank()], mapping)[0]["ledger_ids"] == []
+
+
+def test_aggregate_preserves_large_amounts_and_competing_capacity():
+    mapping = {"bank_to_ledger": {"A": "1101"}}
+    rows = [ledger("L1", debit="99999999999999999999999999999"), ledger("L2", debit="1")]
+    candidate = propose(rows, [bank(amount="100000000000000000000000000000")], mapping)[0]
+    assert candidate["ledger_total"] == "100000000000000000000000000000"
+    assert candidate["status"] == "exact_proposal"
+    proposals = propose(rows, [bank("B1", amount=candidate["amount"]), bank("B2", amount=candidate["amount"])], mapping)
+    assert all("competing_bank_candidates" in item["reason_codes"] for item in proposals)

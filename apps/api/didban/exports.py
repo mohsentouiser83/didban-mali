@@ -105,7 +105,7 @@ class RTLText(Flowable):
     def __init__(self, text: Any, size: float = 10, font: str = FONT_REGULAR,
                  color=INK, leading: float | None = None):
         super().__init__()
-        self.logical_text = str(text)
+        self.logical_text = str(text).translate({code: "-" for code in (0x2010, 0x2011, 0x2012, 0x2013, 0x2014)})
         self.size = size
         self.font = font
         self.color = color

@@ -1,0 +1,6 @@
+{
+  "exit_code": 0,
+  "passed": 466,
+  "postgres_validation_enabled": true,
+  "provider_calls": "mocked or disabled; no live provider acceptance"
+}

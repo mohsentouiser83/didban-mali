@@ -1,0 +1,7 @@
+{
+  "qa_api_stopped": true,
+  "normal_api_restored": "127.0.0.1:8000 using normal application settings",
+  "dedicated_postgres_validation_container": "stopped; restored initial state",
+  "legacy_database_reset": false,
+  "synthetic_qa_data": "preserved only in separate /tmp QA database; not served by normal API"
+}

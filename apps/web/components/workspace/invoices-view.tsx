@@ -1,8 +1,12 @@
 "use client";
 import { ReceiptIcon as HeaderIcon } from "@phosphor-icons/react";
+import { Select } from "@/components/ui/select";
+import { useInvoiceBasis } from "@/hooks/use-invoice-basis";
+import { NativeInvoicesView } from "./native-invoices-view";
+import { PageHeader } from "./page-parts";
 import { DetailField } from "@/components/ui/field-layout";
 import { StatusBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   ErrorState,
   LoadingState,
@@ -41,7 +45,6 @@ import { useRef, useState } from "react";
 import {
   NoCompany,
   NoResult,
-  PageHeader,
   Panel,
   PeriodFilter,
 } from "./page-parts";
@@ -54,7 +57,7 @@ const detailIcons: Record<string, Icon> = {
   "مبلغ فاکتور": CoinsIcon,
   مانده: WalletIcon,
 };
-export function InvoicesView({
+function ImportedInvoicesWorkspace({
   direction,
 }: {
   direction: "sales" | "purchases";
@@ -67,7 +70,6 @@ export function InvoicesView({
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon} title={receivable ? "مطالبات" : "بدهی‌ها"} />
       <PeriodFilter />
       {view.loading ? (
         <LoadingState />
@@ -245,4 +247,13 @@ export function InvoicesView({
       </Drawer>
     </>
   );
+}
+
+export function InvoicesView({direction}:{direction:"sales"|"purchases"}) {
+  const view=useInvoiceBasis();
+  if(!view.workspace.company)return <NoCompany/>;
+  return <><PageHeader icon={HeaderIcon} title={direction==="sales"?"مطالبات":"بدهی‌ها"} action={direction==="sales"&&<ButtonLink href="/receivables/followups" variant="secondary">پیگیری وصول</ButtonLink>}/>
+    <div className="mb-5"><Field id="invoice-data-basis" label="مبنای فاکتورها"><Select id="invoice-data-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_invoice",label:"فاکتور خدمات دفتر دیدبان"},{value:"imported_invoice",label:"فاکتور واردشده از فایل"}]}/></Field></div>
+    {view.setup.loading?<LoadingState/>:view.setup.error?<ErrorState message={view.setup.error.message} onRetry={view.setup.refresh}/>:view.basis==="native_invoice"?<NativeInvoicesView key={`${view.scope}:${direction}`} direction={direction==="sales"?"sale":"purchase"}/>:<ImportedInvoicesWorkspace key={`${view.scope}:${direction}`} direction={direction}/>}
+  </>;
 }

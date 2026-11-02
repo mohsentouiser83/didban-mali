@@ -15,13 +15,19 @@ vi.mock("@/lib/api", async (original) => ({
   ...(await original<typeof import("@/lib/api")>()),
   api: vi.fn(),
 }));
+const importedContext = {
+  context_type: "imported_manifest", manifest_id: "manifest-1", native_statement_id: null, available: true,
+};
+const missingContext = {
+  context_type: "imported_manifest", manifest_id: null, native_statement_id: null, available: false,
+};
 beforeEach(() => {
   vi.mocked(api).mockReset();
   replace.mockReset();
 });
 it("retries the same question against the same immutable manifest and request key without duplicating user messages", async () => {
   vi.mocked(api)
-    .mockResolvedValueOnce({ id: "manifest-1" })
+    .mockResolvedValueOnce(importedContext)
     .mockRejectedValueOnce(
       new ApiError(0, "ارتباط برقرار نشد.", "network_error"),
     )
@@ -50,6 +56,7 @@ it("retries the same question against the same immutable manifest and request ke
     .mock.calls.filter(([, options]) => options?.method === "POST");
   expect(posts).toHaveLength(2);
   expect(posts[0][1]?.body).toEqual({
+    context_type: "imported_manifest", native_statement_id: null,
     manifest_id: "manifest-1",
     question: "مانده نقد چقدر است؟",
     history: [],
@@ -60,7 +67,7 @@ it("retries the same question against the same immutable manifest and request ke
 });
 it("clears financial conversation and closes the floating panel when the session expires", async () => {
   vi.mocked(api)
-    .mockResolvedValueOnce({ id: "manifest-1" })
+    .mockResolvedValueOnce(importedContext)
     .mockRejectedValueOnce(
       new ApiError(401, "دوباره وارد شوید.", "session_expired"),
     );
@@ -76,7 +83,7 @@ it("clears financial conversation and closes the floating panel when the session
 });
 it("lets the server answer a greeting when an authorized company has no report yet", async () => {
   vi.mocked(api)
-    .mockRejectedValueOnce(new ApiError(404, "گزارش پیدا نشد.", "not_found"))
+    .mockResolvedValueOnce(missingContext)
     .mockResolvedValueOnce({
       answer: "سلام، چه کمکی می‌توانم بکنم؟",
       facts: [],
@@ -92,6 +99,7 @@ it("lets the server answer a greeting when an authorized company has no report y
     ),
   );
   expect(vi.mocked(api).mock.calls[1][1]?.body).toEqual({
+    context_type: "imported_manifest", native_statement_id: null,
     manifest_id: null,
     question: "سلام",
     history: [],
@@ -101,9 +109,9 @@ it("lets the server answer a greeting when an authorized company has no report y
 });
 it("includes prior conversation when continuing free chat without a report", async () => {
   vi.mocked(api)
-    .mockRejectedValueOnce(new ApiError(404, "گزارش پیدا نشد.", "not_found"))
+    .mockResolvedValueOnce(missingContext)
     .mockResolvedValueOnce({ answer: "سلام! چطوری؟", mode: "chat", facts: [] })
-    .mockRejectedValueOnce(new ApiError(404, "گزارش پیدا نشد.", "not_found"))
+    .mockResolvedValueOnce(missingContext)
     .mockResolvedValueOnce({ answer: "خوشحالم!", mode: "chat", facts: [] });
   const { result } = renderHook(useFloatingAssistant);
   act(() => result.current.setDraft("سلام خوبی چه خبر؟"));
@@ -113,6 +121,7 @@ it("includes prior conversation when continuing free chat without a report", asy
   act(() => result.current.send());
   await waitFor(() => expect(result.current.messages[3]?.text).toBe("خوشحالم!"));
   expect(vi.mocked(api).mock.calls[3][1]?.body).toEqual({
+    context_type: "imported_manifest", native_statement_id: null,
     manifest_id: null,
     question: "منم خوبم",
     history: [
@@ -120,4 +129,37 @@ it("includes prior conversation when continuing free chat without a report", asy
       { role: "assistant", text: "سلام! چطوری؟" },
     ],
   });
+});
+
+it("pins native statement identity across a retry without falling back to imported results", async () => {
+  const context = {context_type: "native_statement", manifest_id: null, native_statement_id: "native-old", available: true};
+  vi.mocked(api).mockResolvedValueOnce(context)
+    .mockRejectedValueOnce(new ApiError(0, "ارتباط برقرار نشد.", "network_error"))
+    .mockResolvedValueOnce({answer: "مطالبات طبق دفتر", native_statement_id: "native-old", manifest_id: null, facts: []});
+  const {result} = renderHook(useFloatingAssistant);
+  act(() => result.current.setDraft("مطالبات؟"));
+  act(() => result.current.send());
+  await waitFor(() => expect(result.current.messages[1]?.error).toBe("ارتباط برقرار نشد."));
+  act(() => result.current.retry(result.current.messages[1].id));
+  await waitFor(() => expect(result.current.messages[1]?.reply?.native_statement_id).toBe("native-old"));
+  expect(vi.mocked(api).mock.calls[0][0]).toBe("/companies/company-a/assistant/context");
+  const posts = vi.mocked(api).mock.calls.filter(([,options]) => options?.method === "POST");
+  expect(posts[0][1]?.body).toMatchObject({context_type: "native_statement", native_statement_id: "native-old", manifest_id: null});
+  expect(posts[1][1]?.body).toEqual(posts[0][1]?.body);
+  expect(posts[1][1]?.key).toBe(posts[0][1]?.key);
+  expect(vi.mocked(api).mock.calls.filter(([path]) => String(path).includes("assistant/context"))).toHaveLength(1);
+});
+it("retains an explicitly missing native context on retry instead of adopting a newly generated report", async () => {
+  vi.mocked(api).mockResolvedValueOnce({context_type:"native_statement", manifest_id:null, native_statement_id:null, available:false})
+    .mockRejectedValueOnce(new ApiError(0, "ارتباط برقرار نشد.", "network_error"))
+    .mockResolvedValueOnce({answer:"گزارش مالی را ذخیره کنید.", facts:[], manifest_id:null, native_statement_id:null});
+  const {result}=renderHook(useFloatingAssistant);
+  act(() => result.current.setDraft("موجودی بانک؟"));
+  act(() => result.current.send());
+  await waitFor(() => expect(result.current.messages[1]?.error).toBeDefined());
+  act(() => result.current.retry(result.current.messages[1].id));
+  await waitFor(() => expect(result.current.messages[1]?.text).toBe("گزارش مالی را ذخیره کنید."));
+  const posts=vi.mocked(api).mock.calls.filter(([,options]) => options?.method === "POST");
+  expect(posts[1][1]?.body).toMatchObject({context_type:"native_statement", native_statement_id:null, manifest_id:null});
+  expect(vi.mocked(api).mock.calls.filter(([path]) => String(path).includes("assistant/context"))).toHaveLength(1);
 });

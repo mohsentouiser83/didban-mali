@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError, type Manifest, type Metric } from "@/lib/api";
+import { api, ApiError, type Metric } from "@/lib/api";
 import { useWorkspace } from "./workspace";
 import { useAssistantVoice } from "./use-assistant-voice";
 export interface AssistantReply {
@@ -10,6 +10,8 @@ export interface AssistantReply {
   facts?: Metric[];
   evidence_refs?: string[];
   manifest_id?: string | null;
+  native_statement_id?: string | null;
+  context_type?: "imported_manifest" | "native_statement";
   as_of_date?: string;
   mode?: "facts" | "model_facts" | "chat";
   model_state?: string;
@@ -23,11 +25,19 @@ export interface ConversationMessage {
   error?: string;
   reply?: AssistantReply;
 }
+export interface AssistantContext {
+  context_type: "imported_manifest" | "native_statement";
+  manifest_id: string | null;
+  native_statement_id: string | null;
+  available: boolean;
+  reason_code?: string | null;
+  action?: string | null;
+}
 interface Intent {
   replyId: string;
   question: string;
   key: string;
-  manifestId?: string | null;
+  context?: AssistantContext;
   history: { role: "user" | "assistant"; text: string }[];
 }
 export function useFloatingAssistant() {
@@ -55,25 +65,18 @@ export function useFloatingAssistant() {
       ),
     );
     try {
-      if (intent.manifestId === undefined) {
-        try {
-          const manifest = await api<Manifest>(
-            workspace.companyPath("results/latest?view=summary")!,
-            { signal: abort.signal },
-          );
-          intent.manifestId = manifest.id;
-        } catch (error) {
-          if (error instanceof ApiError && error.status === 404)
-            intent.manifestId = null;
-          else throw error;
-        }
+      if (intent.context === undefined) {
+        intent.context = await api<AssistantContext>(
+          workspace.companyPath("assistant/context")!, { signal: abort.signal });
       }
       const reply = await api<AssistantReply>(
         workspace.companyPath("assistant/questions")!,
         {
           method: "POST",
           body: {
-            manifest_id: intent.manifestId ?? null,
+            context_type: intent.context.context_type,
+            manifest_id: intent.context.manifest_id,
+            native_statement_id: intent.context.native_statement_id,
             question: intent.question,
             history: intent.history,
           },
@@ -110,11 +113,7 @@ export function useFloatingAssistant() {
                 ...message,
                 pending: false,
                 error:
-                  error instanceof ApiError && error.status === 404
-                    ? "گزارشی برای این شرکت موجود نیست."
-                    : error instanceof Error
-                      ? error.message
-                      : "پاسخ دریافت نشد.",
+                  error instanceof Error ? error.message : "پاسخ دریافت نشد.",
               }
             : message,
         ),

@@ -71,6 +71,9 @@ def run_once() -> int:
                     )
                     # No cell content or exception text (which may contain financial values) in logs.
                     log.error("Processing failure type=%s job=%s", type(error).__name__, job.id)
+    from .bot_notification_service import run_notifications_once
+
+    asyncio.run(run_notifications_once())
     return count
 
 

@@ -1,0 +1,7 @@
+{
+  "normal_api_restored": true,
+  "qa_database_kept_separate": true,
+  "validation_postgres_stopped": true,
+  "browser_viewport_override_reset": true,
+  "live_provider_calls": false
+}

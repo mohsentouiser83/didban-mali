@@ -1,0 +1,47 @@
+$ next build
+▲ Next.js 16.3.5 (Turbopack)
+✓ Running next.config.ts took 67ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 892ms
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- include was updated to add '.next-wave4-build/types/**/*.ts'
+  	- include was updated to add '.next-wave4-build/dev/types/**/*.ts'
+
+  Finished TypeScript in 2.6s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/18) ...
+  Generating static pages using 9 workers (4/18) 
+  Generating static pages using 9 workers (8/18) 
+  Generating static pages using 9 workers (13/18) 
+✓ Generating static pages using 9 workers (18/18) in 202ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├ ƒ /[[...path]]
+├ ○ /accounting/journals
+├ ○ /accounting/operations
+├ ○ /accounting/period-end
+├ ○ /cashflow/scenarios
+├ ○ /login
+├ ○ /reports/builder
+├ ○ /reports/companies
+├ ○ /reports/consolidation
+├ ○ /reports/dimensions
+├ ○ /reports/native
+├ ○ /review/expense-changes
+├ ○ /settings/account-roles
+├ ○ /settings/dimensions
+├ ○ /settings/learning
+├ ○ /settings/rules
+└ ○ /settlements/cheques
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

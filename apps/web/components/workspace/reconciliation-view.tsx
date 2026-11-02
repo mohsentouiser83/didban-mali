@@ -9,7 +9,7 @@ import {
 import type { ReconciliationCandidate } from "@/lib/api";
 import { useReconciliation } from "@/hooks/use-reconciliation";
 import { Pagination } from "@/components/ui/pagination";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -20,6 +20,7 @@ import {
   LoadingState,
   ErrorState,
   EmptyState,
+  StatusMessage,
 } from "@/components/ui/content-states";
 import {
   Table,
@@ -33,8 +34,11 @@ import {
 } from "@/components/ui/table";
 import { PageHeader, Panel, NoCompany } from "./page-parts";
 import { EvidenceList } from "./evidence-list";
-import { amount, displayDate } from "@/lib/utils";
-export function ReconciliationView() {
+import { GroupMatchesPanel } from "./group-matches-panel";
+import { amount, displayDate, persian } from "@/lib/utils";
+import { useReconciliationBasis } from "@/hooks/use-reconciliation-basis";
+import { NativeBankMatchesPanel } from "./native-bank-matches-panel";
+function ImportedReconciliationWorkspace() {
   const view = useReconciliation();
   const [selected, setSelected] = useState<ReconciliationCandidate | null>(
     null,
@@ -44,7 +48,6 @@ export function ReconciliationView() {
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
       {view.options.loading ? (
         <LoadingState />
       ) : view.options.error ? (
@@ -136,7 +139,12 @@ export function ReconciliationView() {
                       {candidate.reference || "—"}
                     </TableRowHeader>
                     <TableCell>{candidate.bank_account}</TableCell>
-                    <TableCell>{candidate.ledger_account || "—"}</TableCell>
+                    <TableCell>
+                      {candidate.group_basis === "native_book" ? <>
+                        <p>{candidate.group_ledger_account || "—"}</p>
+                        <p className="text-xs text-muted">دفتر دیدبان</p>
+                      </> : candidate.ledger_account || "—"}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {displayDate(candidate.date)}
                     </TableCell>
@@ -153,6 +161,7 @@ export function ReconciliationView() {
                         aria-label="بررسی شواهد تطبیق"
                         onClick={() => {
                           setSelected(candidate);
+                          setDecision("accepted");
                           setReason("");
                           view.command.clearError();
                         }}
@@ -175,6 +184,7 @@ export function ReconciliationView() {
           onNext={view.nextPage}
         />
       </Panel>
+      {view.latest.data && <GroupMatchesPanel key={view.workspace.company?.id + view.latest.data.id} runId={view.latest.data.id} onDecided={view.latest.refresh} />}
       <Drawer
         open={!!selected}
         onOpenChange={(open) => {
@@ -184,9 +194,19 @@ export function ReconciliationView() {
       >
         {selected && (
           <div className="space-y-5">
-            <StatusBadge status={selected.status} />
+            <StatusBadge status={view.groupDetails(selected).status} />
+            {view.isGrouped(selected) && (
+              <StatusMessage>این گردش در یک گروه {view.groupDetails(selected).group_basis === "native_book" ? "دفتر دیدبان " : ""}پذیرفته شده؛ تغییر تصمیم از همان گروه انجام می‌شود.</StatusMessage>
+            )}
+            {view.nativeGroupExport(selected) && <ButtonLink download href={view.nativeGroupExport(selected)!} variant="secondary">نسخهٔ ثابت دفتر دیدبان</ButtonLink>}
+            {selected.ledger_ids.length > 1 && (
+              <StatusMessage tone="primary">
+                {persian(selected.ledger_ids.length)} ردیف دفتر برای یک گردش بانک
+              </StatusMessage>
+            )}
             <EvidenceList evidence={selected.evidence_refs} />
             {view.workspace.canWrite &&
+              !view.isGrouped(selected) &&
               selected.ledger_ids.length > 0 &&
               ["needs_review", "exact_proposal"].includes(selected.status) && (
                 <Form
@@ -234,4 +254,15 @@ export function ReconciliationView() {
       </Drawer>
     </>
   );
+}
+
+
+export function ReconciliationView() {
+  const view = useReconciliationBasis();
+  if (!view.workspace.company) return <NoCompany />;
+  return <>
+    <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
+    <Panel className="mb-5"><Field id="reconciliation-book-basis" label="مبنای دفتر برای تطبیق"><Select id="reconciliation-book-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_book",label:"دفتر دیدبان"},{value:"imported_ledger",label:"دفتر واردشده از نرم‌افزار مبدأ"}]}/></Field></Panel>
+    {view.basis === "native_book" ? <NativeBankMatchesPanel key={view.scope+":native"}/> : <ImportedReconciliationWorkspace key={view.scope+":imported"}/>}
+  </>;
 }
