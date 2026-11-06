@@ -210,6 +210,7 @@ def inspect_xlsx(archive: ZipFile) -> None:
     """Reject executable parts and hostile XML before opening workbook objects."""
     files = archive.infolist()
     names = [part.filename.replace("\\", "/").casefold() for part in files]
+    used_extensions = {Path(name).suffix.removeprefix(".") for name in names}
     forbidden = ("vbaproject", "externallinks/", "xl/macrosheets/", "xl/dialogsheets/", "xl/embeddings/", "xl/activex/", "xl/ctrlprops/", "customui/")
     require(len(names) == len(set(names)) and not any(part.flag_bits & 1 for part in files), "unsafe_workbook", "Excel رمزدار یا دارای بخش تکراری مجاز نیست.", 415)
     require(not any(name.startswith("/") or "../" in name or any(marker in name for marker in forbidden) for name in names), "unsafe_workbook", "ماکرو، پیوند خارجی یا شیء اجرایی Excel مجاز نیست.", 415)
@@ -219,6 +220,14 @@ def inspect_xlsx(archive: ZipFile) -> None:
         with archive.open(part) as source:
             for _event, element in safe_xml_events(source, events=("end",), forbid_dtd=True, forbid_entities=True, forbid_external=True):
                 content_type = element.attrib.get("ContentType", "").casefold()
+                # Exporters may declare unused default types (including XLSB).
+                # A declaration applies only when the archive contains that extension.
+                if (
+                    part.filename == "[Content_Types].xml"
+                    and element.tag == "{http://schemas.openxmlformats.org/package/2006/content-types}Default"
+                    and element.attrib.get("Extension", "").casefold() not in used_extensions
+                ):
+                    content_type = ""
                 relationship_type = element.attrib.get("Type", "").casefold()
                 require(not any(marker in content_type for marker in ("macroenabled", "macrosheet", "activex", "oleobject")) and not any(marker in relationship_type for marker in ("vbaproject", "macrosheet", "activex", "oleobject", "/control")), "unsafe_workbook", "ماکرو یا شیء اجرایی Excel مجاز نیست.", 415)
                 element.clear()

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     storage: Path = ROOT / "var/private"
     web_origin: str = "http://127.0.0.1:3000"
     production: bool = False
+    embedded_worker: bool = True
     max_file_bytes: int = 20 * 1024 * 1024
     max_unpacked_bytes: int = 100 * 1024 * 1024
     max_rows: int = 20000

@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/input";
@@ -39,7 +39,7 @@ export function OperationCorrectionLearning({ c }: { c: Controller }) {
         </div>
       )}
       <CursorPagination {...c.corrections} />
-      <Dialog
+      <Drawer
         title="یادگیری از اصلاح حساب‌ها"
         open={!!current}
         onOpenChange={(open) => {
@@ -102,7 +102,7 @@ export function OperationCorrectionLearning({ c }: { c: Controller }) {
             </Button>
           </Form>
         )}
-      </Dialog>
+      </Drawer>
     </>
   );
 }

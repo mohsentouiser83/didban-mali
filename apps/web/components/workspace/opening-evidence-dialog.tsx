@@ -1,5 +1,5 @@
 "use client";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -13,7 +13,7 @@ export function OpeningEvidenceDialog({
 }) {
   const kind = c.target?.kind;
   return (
-    <Dialog
+    <Drawer
       title={
         kind === "zero"
           ? "اعلام مانده اولیه صفر"
@@ -61,6 +61,6 @@ export function OpeningEvidenceDialog({
           ثبت تأیید صریح
         </Button>
       </Form>
-    </Dialog>
+    </Drawer>
   );
 }

@@ -1,4 +1,8 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableRowHeader } from "@/components/ui/table";
+import { amount, persian } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
+
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -6,7 +10,7 @@ import { AmountInput, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { ErrorState } from "@/components/ui/content-states";
+import { StatusMessage, ErrorState } from "@/components/ui/content-states";
 import {
   type RuleCondition,
   type RuleDefinition,
@@ -14,10 +18,11 @@ import {
 } from "@/lib/automation";
 import type { AutomationController } from "@/hooks/use-automation-rules";
 import { Panel } from "./page-parts";
+import { Drawer } from "@/components/ui/drawer";
 import { RuleDraftTemplate } from "./rule-draft-template";
 export function AutomationRuleForm({ c }: { c: AutomationController }) {
   return (
-    <Panel title={c.local.item ? "ویرایش قاعده" : "قاعده جدید"}>
+    <Drawer open={c.editorOpen} onOpenChange={open => { if (!open) c.closeEditor(); }} className="sm:max-w-2xl" title={c.local.item ? "ویرایش قاعده" : "قاعده جدید"}>
       <Form
         fieldErrors={c.command.error?.fields}
         onSubmit={(e) => {
@@ -225,6 +230,51 @@ export function AutomationRuleForm({ c }: { c: AutomationController }) {
           ذخیره قاعده
         </Button>
       </Form>
-    </Panel>
+        {c.preview && (
+          <Panel title="پیش‌نمایش اثر">
+            <StatusMessage tone="primary">
+              {persian(c.preview.match_count)} مورد مطابق؛{" "}
+              {persian(c.preview.unavailable_count)} مورد با دادهٔ ناموجود.
+              پیش‌نمایش اقدامی انجام نمی‌دهد.
+            </StatusMessage>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>مورد</TableHead>
+                  <TableHead>
+                    {c.nativeScope
+                      ? "گردش ردیف‌های منطبق (ریال)"
+                      : "مبلغ (ریال)"}
+                  </TableHead>
+                  {c.local.definition.action === "prepare_draft" && (
+                    <TableHead>آمادگی پیش‌نویس</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {c.previewRows.map((item, index) => (
+                  <TableRow key={`${item.subject_id}-${index}`}>
+                    <TableRowHeader>{item.reference}</TableRowHeader>
+                    <TableCell>{amount(item.value)}</TableCell>
+                    {c.local.definition.action === "prepare_draft" && (
+                      <TableCell>
+                        {item.draft_eligible
+                          ? "قابل تهیه؛ نیازمند تأیید سند"
+                          : item.blocked_message || "نیازمند بررسی"}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Pagination
+              page={c.previewPage}
+              total={c.preview.match_count}
+              onNext={c.nextPreviewPage}
+              onPrevious={c.previousPreviewPage}
+            />
+          </Panel>
+        )}
+    </Drawer>
   );
 }

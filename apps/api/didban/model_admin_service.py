@@ -11,6 +11,7 @@ from .errors import require
 from .model_accounting import has_installation_tariff
 from .model_gateway import MODEL, exact, usd
 from .models import (
+    AuditEvent,
     BudgetPolicy,
     BudgetReservation,
     Company,
@@ -130,3 +131,25 @@ def company_usage(db: Session, company_id: str, actor: User, period: str | None 
 
 def public_model_request(request: ModelRequest) -> dict:
     return {key: getattr(request, key) for key in ("id", "created_at", "purpose", "model", "prompt_version", "state", "attempts", "error_code", "usage", "next_attempt_at")}
+
+
+def model_response_evidence(db: Session, company_id: str, actor: User, reservation_id: str) -> dict:
+    """Only the current installation admin may inspect provider tracking metadata."""
+    require(actor.active and actor.installation_admin, "permission_denied", "بررسی مصرف با مدیر نصب است.", 403)
+    reservation = db.scalar(select(BudgetReservation).where(
+        BudgetReservation.company_id == company_id, BudgetReservation.id == reservation_id,
+    ))
+    require(reservation is not None, "not_found", "درخواست پیدا نشد.", 404)
+    receipt = db.scalar(select(AuditEvent).where(
+        AuditEvent.company_id == company_id,
+        AuditEvent.entity_id == reservation_id,
+        AuditEvent.action == "model.response_received",
+    ).order_by(AuditEvent.created_at, AuditEvent.id))
+    return {
+        "reservation_id": reservation.id,
+        "request_id": reservation.request_id,
+        "attempt": reservation.attempt,
+        "available": receipt is not None,
+        "received_at": receipt.created_at if receipt else None,
+        "evidence": receipt.details if receipt else None,
+    }

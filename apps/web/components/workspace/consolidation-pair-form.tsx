@@ -1,4 +1,5 @@
 "use client";
+import { DrawerAction } from "@/components/ui/drawer-action";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -12,7 +13,7 @@ export function ConsolidationPairForm({
   view: ReturnType<typeof useConsolidation>;
 }) {
   return (
-    <Form
+    <DrawerAction title="پیش‌نویس حذف درون‌گروهی" action="ثبت زوج‌های حذف" busy={view.command.busy}><Form
       fieldErrors={view.command.error?.fields}
       onSubmit={(event) => {
         event.preventDefault();
@@ -93,6 +94,6 @@ export function ConsolidationPairForm({
       <Button type="submit" busy={view.command.busy} disabled={!view.canDraft}>
         ذخیره پیش‌نویس حذف
       </Button>
-    </Form>
+    </Form></DrawerAction>
   );
 }

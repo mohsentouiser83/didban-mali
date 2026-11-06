@@ -177,3 +177,12 @@ This section records legacy implementation history only. It does not establish i
 - Use `FieldError` and `FieldDescription` from `components/ui/field.tsx` for field errors and helper text, and `FormMessage` for operation errors, success, or information inside a form. Keep `ErrorState` for failed content requests and `StatusMessage`/`Alert` for broader notices. Never display an empty error or announce historical errors as new failures.
 - UI constraint checks are not domain validation: preserve financial rules and server validation in controllers/services. Do not submit invalid or whitespace-only required values. Keep values after a failed operation and do not auto-dismiss success before the user can read it.
 - Test invalid submission, correction, field associations, first-error focus, dates, notification dismissal and desktop/mobile layouts in the built-in browser. Use non-sending previews or mocked services for success/error notifications when a real action would send a ticket, create business data, or confirm financial figures.
+
+## فرم افزودن در فهرست‌ها — تصمیم کاربر ۲۰۲۶/۱۱/۰۲
+
+- ثبت و ویرایش رکوردهای فهرست‌ها و جدول‌ها باید در `Drawer` مشترک انجام شود؛ فرم افزودن همیشه‌باز زیر یا کنار جدول، یا دیالوگ وسط صفحه برای این کار استفاده نشود.
+- دکمهٔ افزودن در سربرگ صفحه/فهرست یا حالت خالی قرار بگیرد و کشوی همان کار را باز کند. این قاعده در همهٔ بخش‌ها، از شرکت و اعضا تا حساب‌ها، دوره‌ها، قواعد، سناریوها و ثبت‌های وابسته به گزارش اعمال شود.
+- تأیید حذف/برگشت/ثبت حساس از جریان تأیید اختصاصی پیروی کند. فیلترها و صفحات مستقلِ انجام عملیات چندمرحله‌ای به‌صرف این قاعده به کشو منتقل نشوند.
+- اعتبارسنجی و خطای ثبت داخل کشو قابل مشاهده بماند؛ خطا کشو را نبندد. اختیار جاری شرکت و کنترل نسخه تغییر نکنند.
+
+تأکید دوبارهٔ کاربر: منظور «کشوی کناری از لبهٔ صفحه» است، نه مودال وسط صفحه. برای فرم افزودن از `Drawer` استفاده شود؛ تغییر نام یک Dialog وسط صفحه به کشو کافی نیست.

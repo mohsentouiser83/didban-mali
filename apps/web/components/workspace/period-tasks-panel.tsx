@@ -2,7 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input, Textarea } from "@/components/ui/input";
@@ -101,7 +101,7 @@ export function PeriodTasksPanel({
           </TableBody>
         </Table>
       )}
-      <Dialog
+      <Drawer
         open={c.open}
         onOpenChange={c.setOpen}
         title={c.editing ? "ویرایش مورد چک‌لیست" : "مورد تازهٔ چک‌لیست"}
@@ -192,7 +192,7 @@ export function PeriodTasksPanel({
             ذخیره مورد
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </section>
   );
 }

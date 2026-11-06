@@ -31,6 +31,7 @@ from .db import transaction
 from .document_extraction_schema import DocumentProposal
 from .errors import DomainError, require
 from .ingestion import ALIASES, REQUIRED
+from .model_response_evidence import provider_identifier, response_evidence, usage_counters
 from .models import (
     BudgetPolicy,
     BudgetReservation,
@@ -404,25 +405,43 @@ class ModelGateway:
             request_id, reservation_id = request.id, reservation.id
             audit(db, company_id, actor_id, "model.budget_reserved", reservation.id, {"request_id": request.id, "tariff_id": tariff.id, "amount": exact(maximum), "attempt": request.attempts, "budget_mode": "unlimited" if self.config.budget_unlimited else "capped"})
         # No database lock or transaction is held across the provider call.
-        envelope, error_code, retryable, known_rejected = await self._send(body)
+        envelope, error_code, retryable, known_rejected, transport_evidence = await self._send(body)
         with transaction(company_id) as db:
             request = db.get(ModelRequest, request_id)
-            reservation = db.get(BudgetReservation, reservation_id)
+            reservation = db.scalar(select(BudgetReservation).where(
+                BudgetReservation.company_id == company_id,
+                BudgetReservation.id == reservation_id,
+            ).with_for_update())
             if reservation.state not in ("held", "unknown"):
+                audit(db, company_id, actor_id, "model.response_received", reservation.id,
+                      {"request_id": request.id, "attempt": reservation.attempt,
+                       "provider": self.config.provider,
+                       "response": response_evidence(envelope, transport_evidence, "reservation_already_resolved")})
                 return _request_result(request)
             budget = db.scalar(select(InstallationModelBudget).where(InstallationModelBudget.id == reservation.installation_budget_id).with_for_update())
             usage = envelope.get("usage") if isinstance(envelope, dict) else None
             known_cost = None
+            cost_reason = error_code or "model_response_missing"
             if isinstance(envelope, dict) and envelope.get("model") == MODEL and envelope.get("service_tier") == "default" and no_billable_tools(envelope.get("tool_usage")):
                 try:
                     known_cost = cost_for_usage(usage, prices)
-                except DomainError:
-                    pass
+                    cost_reason = None
+                except DomainError as invalid:
+                    cost_reason = invalid.code
+            elif isinstance(envelope, dict):
+                cost_reason = (
+                    "model_identity_mismatch" if envelope.get("model") != MODEL
+                    else "model_service_tier_unknown" if envelope.get("service_tier") != "default"
+                    else "model_tool_usage_unknown"
+                )
+            receipt = response_evidence(envelope, transport_evidence, cost_reason)
+            audit(db, company_id, actor_id, "model.response_received", reservation.id,
+                  {"request_id": request.id, "attempt": reservation.attempt,
+                   "provider": self.config.provider, "response": receipt})
             if known_cost is not None:
                 reservation.state, reservation.actual_cost = "settled", exact(known_cost)
                 budget.reserved = exact(Decimal(budget.reserved) - Decimal(reservation.amount))
                 budget.used = exact(Decimal(budget.used) + known_cost)
-                request.usage = {"input_tokens": usage["input_tokens"], "input_tokens_details": {"cached_tokens": usage["input_tokens_details"]["cached_tokens"], "cache_write_tokens": usage["input_tokens_details"]["cache_write_tokens"]}, "output_tokens": usage["output_tokens"]}
                 audit(db, company_id, actor_id, "model.budget_settled", reservation.id, {"actual_cost": exact(known_cost), "tariff_id": reservation.tariff_id})
             elif known_rejected:
                 reservation.state, reservation.actual_cost = "released", "0"
@@ -434,7 +453,11 @@ class ModelGateway:
             if request.attempts != reservation.attempt:
                 audit(db, company_id, actor_id, "model.stale_attempt_ignored", reservation.id, {"attempt": reservation.attempt})
                 return _request_result(request)
-            request.provider_response_id = envelope["id"][:100] if isinstance(envelope, dict) and isinstance(envelope.get("id"), str) else None
+            # The immutable receipt owns full IDs; the legacy short column must
+            # never contain an incomplete identifier that looks usable for lookup.
+            response_id = receipt["provider_response_id"]
+            request.provider_response_id = response_id if response_id and len(response_id) <= 100 else None
+            request.usage = usage_counters(usage)
             request.version += 1
             try:
                 _guard(db, company_id, actor_id, purpose, session_id, session_version, job_id, fence)
@@ -465,28 +488,34 @@ class ModelGateway:
             audit(db, company_id, actor_id, "model.request_completed", request.id, {"state": request.state, "error_code": request.error_code, "purpose": purpose, "prompt_version": prompt_version})
             return _request_result(request)
 
-    async def _send(self, body: dict) -> tuple[dict | None, str | None, bool, bool]:
+    async def _send(self, body: dict) -> tuple[dict | None, str | None, bool, bool, dict]:
+        transport_evidence = {"http_status": None, "provider_request_id": None, "http_request_id": None}
         try:
             async with httpx.AsyncClient(transport=self.transport, timeout=self.config.timeout_seconds) as client:
                 response = await client.post(ENDPOINTS[self.config.provider], headers={"authorization": "Bearer " + (self.config.api_key or ""), "content-type": "application/json"}, json=body)
+            transport_evidence = {
+                "http_status": response.status_code,
+                "provider_request_id": provider_identifier(response.headers.get("avalai-request-id")),
+                "http_request_id": provider_identifier(response.headers.get("x-request-id")),
+            }
             if response.status_code == 429:
-                return None, "model_rate_limited", True, True
+                return None, "model_rate_limited", True, True, transport_evidence
             if response.status_code in (400, 401, 403, 404, 422):
-                return None, "model_request_rejected", False, True
+                return None, "model_request_rejected", False, True, transport_evidence
             if response.status_code >= 400:
-                return None, "model_unavailable", True, False
+                return None, "model_unavailable", True, False, transport_evidence
             if len(response.content) > 2 * 1024 * 1024:
-                return None, "model_response_invalid", False, False
+                return None, "model_response_invalid", False, False, transport_evidence
             envelope = response.json()
             if not isinstance(envelope, dict):
-                return None, "model_response_invalid", False, False
+                return None, "model_response_invalid", False, False, transport_evidence
             if envelope.get("status") != "completed":
-                return envelope, "model_response_incomplete", False, False
-            return envelope, None, False, False
+                return envelope, "model_response_incomplete", False, False, transport_evidence
+            return envelope, None, False, False, transport_evidence
         except (httpx.TimeoutException, httpx.NetworkError, httpx.ProtocolError):
-            return None, "model_unavailable", True, False
+            return None, "model_unavailable", True, False, transport_evidence
         except (ValueError, TypeError):
-            return None, "model_response_invalid", False, False
+            return None, "model_response_invalid", False, False, transport_evidence
 
     @staticmethod
     def _extract(envelope: dict) -> dict:

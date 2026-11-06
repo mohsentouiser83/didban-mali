@@ -12,7 +12,7 @@ import { listItems } from "@/lib/api";
 import { useModelAdministration } from "@/hooks/use-model-administration";
 import { amount, persian } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { ConditionalRegion } from "@/components/ui/conditional-region";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -112,7 +112,7 @@ export function InstallationBudgetPanel({
           </ConditionalRegion>
         )}
       </Panel>
-      <Dialog open={open} onOpenChange={setOpen} title="بودجه کل نصب">
+      <Drawer open={open} onOpenChange={setOpen} title="بودجه کل نصب">
         <Form
           fieldErrors={budgetCommand.error?.fields}
           onSubmit={(event) => {
@@ -169,7 +169,7 @@ export function InstallationBudgetPanel({
             ذخیره سقف
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

@@ -108,6 +108,9 @@ export function useAutomationRules() {
   const previewPage =
     previewPageState.key === fingerprint ? previewPageState.page : 0;
   const command = useCommand();
+  const [editorScope, setEditorScope] = useState<string | null>(null);
+  const editorOpen = editorScope === scope;
+  const closeEditor = () => { if (!command.busy) setEditorScope(null); };
   const set = (patch: Partial<typeof local>) =>
     setState({ ...local, ...patch, scope });
   const setDefinition = (patch: Partial<RuleDefinition>) => {
@@ -123,6 +126,7 @@ export function useAutomationRules() {
     set({ definition });
   };
   const load = (item: AutomationRule | null) => {
+    setEditorScope(scope);
     command.clearError();
     setPreview(null);
     setState({
@@ -221,6 +225,7 @@ export function useAutomationRules() {
       },
       (result) => {
         load(result);
+        setEditorScope(null);
         rules.refresh();
       },
       "قاعده ذخیره شد.",
@@ -233,6 +238,8 @@ export function useAutomationRules() {
       "اجرای قاعده بررسی شد.",
     );
   return {
+    editorOpen,
+    closeEditor,
     previewPage,
     previewRows:
       preview?.matches.slice(previewPage * 25, (previewPage + 1) * 25) || [],

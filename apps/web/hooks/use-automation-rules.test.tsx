@@ -154,3 +154,22 @@ it("uses native-book preview independently of imported manifests and resets sour
     result.current.fieldOptions.some((row) => row.value === "account_id"),
   ).toBe(false);
 });
+
+it("keeps the editor closed until requested, preserves failed input and closes after saving", async () => {
+  const { result, rerender } = renderHook(useAutomationRules);
+  expect(result.current.editorOpen).toBe(false);
+  act(() => result.current.load(null));
+  expect(result.current.editorOpen).toBe(true);
+  act(() => result.current.set({ name: "قاعده آزمایش" }));
+  vi.mocked(api).mockRejectedValueOnce(new Error("offline"));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.editorOpen).toBe(true);
+  expect(result.current.local.name).toBe("قاعده آزمایش");
+  vi.mocked(api).mockResolvedValueOnce({ id: "rule-1", name: "قاعده آزمایش", enabled: false, definition: result.current.local.definition });
+  await act(async () => { await result.current.save(); });
+  expect(result.current.editorOpen).toBe(false);
+  act(() => result.current.load(null));
+  financial.workspace.company.id = "b";
+  rerender();
+  expect(result.current.editorOpen).toBe(false);
+});

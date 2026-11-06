@@ -1,4 +1,7 @@
 "use client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableRowHeader } from "@/components/ui/table";
+import { amount } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -14,13 +17,14 @@ import type {
 } from "@/lib/automation";
 import { actionLabels } from "@/lib/automation";
 import { Panel } from "./page-parts";
+import { Drawer } from "@/components/ui/drawer";
 export function RuleBuilder({
   controller: c,
 }: {
   controller: AutomationController;
 }) {
   return (
-    <Panel title={c.local.item ? "ویرایش قاعده" : "قاعده تازه"}>
+    <Drawer open={c.editorOpen} onOpenChange={open => { if (!open) c.closeEditor(); }} className="sm:max-w-2xl" title={c.local.item ? "ویرایش قاعده" : "قاعده تازه"}>
       <Form
         onSubmit={(e) => {
           e.preventDefault();
@@ -212,6 +216,37 @@ export function RuleBuilder({
           <FormMessage error>{c.command.error.message}</FormMessage>
         )}
       </Form>
-    </Panel>
+        {c.preview && (
+          <Panel title="اثر قاعده روی گزارش">
+            <StatusMessage>
+              {c.preview.status === "unavailable"
+                ? "داده لازم برای ارزیابی قاعده موجود نیست."
+                : `${c.preview.match_count.toLocaleString("fa-IR")} مورد مطابق شرط‌ها؛ ${c.preview.unavailable_count.toLocaleString("fa-IR")} مورد فاقد داده لازم`}
+            </StatusMessage>
+            {c.preview.matches.length > 0 && (
+              <Table aria-label="موارد مطابق قاعده">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>مورد</TableHead>
+                    <TableHead>مبلغ (ریال)</TableHead>
+                    <TableHead>شاهد</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {c.preview.matches.map((item, index) => (
+                    <TableRow key={`${item.subject_id}:${index}`}>
+                      <TableRowHeader>{item.reference}</TableRowHeader>
+                      <TableCell>{amount(item.value, "IRR")}</TableCell>
+                      <TableCell>
+                        {item.evidence_refs.length.toLocaleString("fa-IR")}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </Panel>
+        )}
+    </Drawer>
   );
 }

@@ -19,7 +19,7 @@ services:
       retries: 20
     restart: unless-stopped
   scanner:
-    image: clamav/clamav:stable
+    image: clamav/clamav-debian:1.5.4
     volumes:
       - fresh_clamav:/var/lib/clamav
     healthcheck:
@@ -35,10 +35,11 @@ services:
       dockerfile: apps/api/Dockerfile
     environment: &api_environment
       DIDBAN_DATABASE_URL: postgresql+psycopg://didban_app:${DIDBAN_APP_DB_PASSWORD:?Set DIDBAN_APP_DB_PASSWORD}@postgres:5432/didban_fresh
-      DIDBAN_PRODUCTION: "true"
+      DIDBAN_PRODUCTION: ${DIDBAN_PRODUCTION:-true}
+      DIDBAN_EMBEDDED_WORKER: "false"
       DIDBAN_STORAGE: /app/var/private
       DIDBAN_FONTS: /app/apps/web/public/fonts
-      DIDBAN_WEB_ORIGIN: ${DIDBAN_WEB_ORIGIN:?Set the HTTPS origin of the TLS reverse proxy}
+      DIDBAN_WEB_ORIGIN: ${DIDBAN_WEB_ORIGIN:?Set DIDBAN_WEB_ORIGIN}
       DIDBAN_SCANNER_HOST: scanner
       DIDBAN_SCANNER_PORT: "3310"
       DIDBAN_MODEL_BUDGET_UNLIMITED: ${DIDBAN_MODEL_BUDGET_UNLIMITED:-false}
@@ -87,10 +88,15 @@ services:
       DIDBAN_API_URL: http://api:8000
       NEXT_TELEMETRY_DISABLED: "1"
     ports:
-      - 127.0.0.1:3010:3010
+      - 127.0.0.1:${DIDBAN_WEB_PORT:-3000}:3010
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3010/api/v1/health', {signal: AbortSignal.timeout(3000)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 volumes:
   fresh_postgres:

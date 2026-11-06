@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -116,7 +116,7 @@ function AccountsWorkspace() {
           </>
         )}
       </Panel>
-      <Dialog
+      <Drawer
         title={view.editing ? "ویرایش حساب" : "حساب جدید"}
         open={view.editing !== undefined}
         onOpenChange={(open) => {
@@ -163,7 +163,7 @@ function AccountsWorkspace() {
             ذخیره حساب
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

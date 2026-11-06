@@ -3,7 +3,8 @@ import { CalendarBlankIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Select } from "@/components/ui/select";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { ConfirmDialog, Dialog } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -180,7 +181,7 @@ function PeriodWorkspace() {
           </>
         )}
       </Panel>
-      <Dialog
+      <Drawer
         title={locking?.name || "قفل دوره"}
         open={!!locking}
         onOpenChange={(open) => {
@@ -193,8 +194,8 @@ function PeriodWorkspace() {
             periodId={locking.id}
           />
         )}
-      </Dialog>
-      <Dialog
+      </Drawer>
+      <Drawer
         title={editing ? "ویرایش دوره مالی" : "دوره مالی جدید"}
         open={editing !== undefined}
         onOpenChange={(open) => {
@@ -272,7 +273,7 @@ function PeriodWorkspace() {
             ذخیره دوره
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
       <ConfirmDialog
         title="دوره مالی حذف شود؟"
         open={!!deleting}

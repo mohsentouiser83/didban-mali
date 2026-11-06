@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input, AmountInput } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import type { ChequeController } from "@/hooks/use-cheques";
 export function ChequeForm({ c }: { c: ChequeController }) {
   return (
-    <Dialog
+    <Drawer
       title="ثبت چک"
       open={c.creating}
       onOpenChange={(open) => {
@@ -148,6 +148,6 @@ export function ChequeForm({ c }: { c: ChequeController }) {
           ثبت اطلاعات چک
         </Button>
       </Form>
-    </Dialog>
+    </Drawer>
   );
 }

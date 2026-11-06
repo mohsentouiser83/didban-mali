@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
@@ -38,7 +38,7 @@ function Discussion({ subjectKind, subjectId, label }: { subjectKind: DocumentSu
   const view = useDocumentDiscussion(subjectKind, subjectId, open);
   return <>
     <Button variant="secondary" onClick={() => setOpen(true)}>{label}</Button>
-    <Dialog title="گفت‌وگو و پیگیری سند" open={open} onOpenChange={value => { if (!view.command.busy) setOpen(value); }}>
+    <Drawer title="گفت‌وگو و پیگیری سند" open={open} onOpenChange={value => { if (!view.command.busy) setOpen(value); }}>
       {view.resource.loading ? <LoadingState label="در حال دریافت گفت‌وگوی سند"/> : view.resource.error ? <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh}/> : view.resource.data && <div className="space-y-5">
         <p className="font-medium">{view.resource.data.subject.description}</p>
         <p className="text-sm text-muted">نسخه سند {persian(view.resource.data.subject.version)}</p>
@@ -52,7 +52,7 @@ function Discussion({ subjectKind, subjectId, label }: { subjectKind: DocumentSu
         <FormMessage error>{view.command.error?.message}</FormMessage>
         {view.blocked && <Button variant="secondary" onClick={view.refresh}>بازخوانی سند و گفتگو</Button>}
       </div>}
-    </Dialog>
+    </Drawer>
   </>;
 }
 export function DocumentDiscussionButton({ subjectKind, subjectId, label = "گفت‌وگو و پیگیری" }: { subjectKind: DocumentSubjectKind; subjectId: string; label?: string }) {

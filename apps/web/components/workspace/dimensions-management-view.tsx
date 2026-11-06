@@ -1,7 +1,7 @@
 'use client';
 import { BooksIcon } from '@phosphor-icons/react';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
+import { Drawer } from "@/components/ui/drawer";
 import { Form } from '@/components/ui/form';
 import { Field, FormMessage } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -44,7 +44,7 @@ function Workspace() {
 </Table>
 <CursorPagination {...view.resource}/>
 </>}</Panel>
-    <Dialog title={view.editing ? 'ویرایش بُعد' : 'بُعد جدید'} open={view.editing !== undefined} onOpenChange={open => { if (!open)
+    <Drawer title={view.editing ? 'ویرایش بُعد' : 'بُعد جدید'} open={view.editing !== undefined} onOpenChange={open => { if (!open)
         view.close(); }}>
 <Form fieldErrors={view.command.error?.fields} onSubmit={event => { event.preventDefault(); view.save(); }}>
 <Field id="dimension-kind" label="نوع">
@@ -60,6 +60,6 @@ function Workspace() {
 <FormMessage error>{view.command.error?.message}</FormMessage>
 <Button type="submit" busy={view.command.busy}>ذخیره</Button>
 </Form>
-</Dialog>
+</Drawer>
 </>;
 }

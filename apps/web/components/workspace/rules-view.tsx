@@ -6,7 +6,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  StatusMessage,
 } from "@/components/ui/content-states";
 import {
   Table,
@@ -20,7 +19,7 @@ import {
 import { Select } from "@/components/ui/select";
 import { useAutomationRules } from "@/hooks/use-automation-rules";
 import { actionLabels } from "@/lib/automation";
-import { amount, displayDate } from "@/lib/utils";
+import { displayDate } from "@/lib/utils";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { RuleBuilder } from "./rule-builder";
 export function RulesView() {
@@ -121,37 +120,7 @@ export function RulesView() {
           )}
         </Panel>
         {c.capabilities.data?.can_manage && <RuleBuilder controller={c} />}
-        {c.preview && (
-          <Panel title="اثر قاعده روی گزارش">
-            <StatusMessage>
-              {c.preview.status === "unavailable"
-                ? "داده لازم برای ارزیابی قاعده موجود نیست."
-                : `${c.preview.match_count.toLocaleString("fa-IR")} مورد مطابق شرط‌ها؛ ${c.preview.unavailable_count.toLocaleString("fa-IR")} مورد فاقد داده لازم`}
-            </StatusMessage>
-            {c.preview.matches.length > 0 && (
-              <Table aria-label="موارد مطابق قاعده">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>مورد</TableHead>
-                    <TableHead>مبلغ (ریال)</TableHead>
-                    <TableHead>شاهد</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {c.preview.matches.map((item, index) => (
-                    <TableRow key={`${item.subject_id}:${index}`}>
-                      <TableRowHeader>{item.reference}</TableRowHeader>
-                      <TableCell>{amount(item.value, "IRR")}</TableCell>
-                      <TableCell>
-                        {item.evidence_refs.length.toLocaleString("fa-IR")}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </Panel>
-        )}
+
         <Panel title="سابقه اجرای داخلی">
           {c.runs.loading ? (
             <LoadingState />

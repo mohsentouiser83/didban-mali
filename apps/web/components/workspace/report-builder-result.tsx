@@ -1,4 +1,5 @@
 "use client";
+import { DrawerAction } from "@/components/ui/drawer-action";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -125,7 +126,7 @@ export function ReportBuilderResult({
         </div>
       ) : (
         c.workspace.canWrite && (
-          <Form
+          <DrawerAction title="ذخیره گزارش" busy={c.command.busy}><Form
             className="mt-5"
             onSubmit={(event) => {
               event.preventDefault();
@@ -144,7 +145,7 @@ export function ReportBuilderResult({
             <Button type="submit" busy={c.command.busy}>
               {c.definition ? "ذخیرهٔ نسخهٔ تازه" : "ذخیرهٔ گزارش"}
             </Button>
-          </Form>
+          <FormMessage error>{c.command.error?.message}</FormMessage></Form></DrawerAction>
         )
       )}
     </Panel>

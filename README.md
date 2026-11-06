@@ -10,7 +10,7 @@
 
 ## اجرای توسعه
 
-نیازمندی‌ها: Python 3.12 و Node.js 22 با pnpm 10.
+نیازمندی‌ها: Python 3.12 و Node.js 22 با pnpm 12.16.1.
 
 ```sh
 python3.12 -m venv .venv
@@ -25,17 +25,35 @@ cp .env.example .env
 در دو ترمینال جدا (worker توسعه در فرآیند API اجرا می‌شود):
 
 ```sh
-PYTHONPATH=apps/api .venv/bin/python -m uvicorn didban.api:app --host 127.0.0.1 --port 8000
-npm run dev:web
+pnpm dev:api
+pnpm dev:web
 ```
 
-در توسعه، worker همراه API اجرا می‌شود؛ در Compose سرویس worker جداست.
+در توسعه، worker همراه API اجرا می‌شود؛ در Compose سرویس worker جداست. کانتینرهای قدیمی `didban-mali-*` متعلق به نسخهٔ پیشین‌اند؛ اجرای دوبارهٔ آن‌ها با کد فعلی پشتیبانی نمی‌شود و API قدیمی پورت ۸۰۰۰ را اشغال می‌کند. سرویس‌های Compose فعلی با نام `didban-fresh` ساخته می‌شوند؛ داده و volumeهای قدیمی را حذف نکنید.
 
 رابط توسعه در [127.0.0.1:3000](http://127.0.0.1:3000) و API در [127.0.0.1:8000](http://127.0.0.1:8000) اجرا می‌شوند. پیش از اجرا، سرویس قدیمی اشغال‌کنندهٔ پورت ۸۰۰۰ را متوقف کنید؛ پایگاه و فضای ذخیره‌سازی ساخت تازه مستقل می‌مانند. SQLite فقط برای توسعه است. در حالت توسعه بدون تنظیم اسکنر، فایل با وضعیت `development_unscanned` ثبت می‌شود؛ این حالت برای نصب عملیاتی مناسب نیست.
 
-## نصب خصوصی با Docker Compose
+## اجرای محلی با Docker Compose
 
-دو رمز مستقل تصادفی در `.env` برای `DIDBAN_POSTGRES_ADMIN_PASSWORD` و `DIDBAN_APP_DB_PASSWORD` تنظیم کنید؛ برای رمز متصل به URL از کاراکترهای URL-safe استفاده کنید. مقدار `DIDBAN_WEB_ORIGIN` را به دامنه HTTPS نصب، مانند `https://finance.example.org` تغییر دهید و reverse proxy دارای TLS را به وب روی پورت ۳۰۱۰ متصل کنید. نشست نصب عملیاتی کوکی Secure دارد؛ ورود آن از HTTP محلی پشتیبانی نمی‌شود. سپس:
+در `.env`، مقدارهای `DIDBAN_PRODUCTION=false` و `DIDBAN_WEB_ORIGIN=http://127.0.0.1:3000` را قرار دهید و دو رمز مستقل URL-safe برای `DIDBAN_POSTGRES_ADMIN_PASSWORD` و `DIDBAN_APP_DB_PASSWORD` تنظیم کنید. نمونهٔ تنظیمات در `.env.example` است. پیش از تغییر از اجرای مستقیم به Docker، فرآیندهای محلی وب/API روی پورت‌های ۳۰۰۰ و ۸۰۰۰ را متوقف کنید.
+
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+وب در [127.0.0.1:3000](http://127.0.0.1:3000) باز می‌شود. در Docker Desktop، گروه `didban-fresh` شامل PostgreSQL، scanner، API، worker و web است. worker فقط در سرویس جدا اجرا می‌شود. این نصب پایگاه و فایل‌های مستقل دارد؛ کاربران و دادهٔ SQLite توسعه به‌طور خودکار منتقل نمی‌شوند. برای ساخت اولین حساب:
+
+```sh
+docker compose exec api python scripts/bootstrap.py --email admin@example.local --name 'مدیر نصب' --admin --company 'شرکت من'
+```
+
+رمز حساب در ترمینال دریافت می‌شود. برای توقف بدون حذف داده‌ها، `docker compose stop` و برای مشاهدهٔ خطاها، `docker compose logs --tail=100 api worker web` را اجرا کنید. گروه قدیمی `didban-mali` را برای این نسخه اجرا نکنید.
+
+## نصب خصوصی عملیاتی با Docker Compose
+
+مقدار `DIDBAN_PRODUCTION=true` را صریحاً تنظیم کنید. دو رمز مستقل تصادفی در `.env` برای `DIDBAN_POSTGRES_ADMIN_PASSWORD` و `DIDBAN_APP_DB_PASSWORD` تنظیم کنید؛ برای رمز متصل به URL از کاراکترهای URL-safe استفاده کنید. مقدار `DIDBAN_WEB_ORIGIN` را به دامنه HTTPS نصب، مانند `https://finance.example.org` تغییر دهید و reverse proxy دارای TLS را به وب روی پورت ۳۰۰۰ متصل کنید. نشست نصب عملیاتی کوکی Secure دارد؛ ورود آن از HTTP محلی پشتیبانی نمی‌شود. سپس:
 
 ```sh
 docker compose config --quiet

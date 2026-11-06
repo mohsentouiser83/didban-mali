@@ -1,5 +1,5 @@
 "use client";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
@@ -13,7 +13,7 @@ export function ConsolidationMappingForm({
   view: ReturnType<typeof useConsolidation>;
 }) {
   return (
-    <Dialog
+    <Drawer
       title="نگاشت طرف‌های درون‌گروهی"
       open={view.mappingOpen}
       onOpenChange={(open) => {
@@ -103,6 +103,6 @@ export function ConsolidationMappingForm({
           ثبت نگاشت و اظهار
         </Button>
       </Form>
-    </Dialog>
+    </Drawer>
   );
 }

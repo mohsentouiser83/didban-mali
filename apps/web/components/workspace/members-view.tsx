@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -221,7 +221,7 @@ export function MembersView() {
         key={workspace.company.id}
         members={resource.data}
       />
-      <Dialog title="افزودن عضو شرکت" open={open} onOpenChange={setOpen}>
+      <Drawer title="افزودن عضو شرکت" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={command.error?.fields}
           onSubmit={(event) => {
@@ -277,8 +277,8 @@ export function MembersView() {
             افزودن عضو
           </Button>
         </Form>
-      </Dialog>
-      <Dialog
+      </Drawer>
+      <Drawer
         title="ایجاد حساب سازمانی"
         open={accountOpen}
         onOpenChange={setAccountOpen}
@@ -336,7 +336,7 @@ export function MembersView() {
             ایجاد حساب
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

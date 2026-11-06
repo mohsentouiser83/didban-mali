@@ -65,7 +65,7 @@ from .routes import (
 async def lifespan(_app: FastAPI):
     initialize()
     stop = threading.Event()
-    if not settings.production:
+    if not settings.production and settings.embedded_worker:
         from .worker import run
 
         thread = threading.Thread(target=run, args=(stop,), daemon=True, name="didban-worker")

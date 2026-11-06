@@ -14663,6 +14663,52 @@
         "summary": "Reconcile Cost"
       }
     },
+    "/api/v1/companies/{company_id}/model-reservations/{reservation_id}/response-evidence": {
+      "get": {
+        "operationId": "response_evidence_api_v1_companies__company_id__model_reservations__reservation_id__response_evidence_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "reservation_id",
+            "required": true,
+            "schema": {
+              "title": "Reservation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Response Evidence"
+      }
+    },
     "/api/v1/companies/{company_id}/model-status": {
       "get": {
         "operationId": "status_api_v1_companies__company_id__model_status_get",

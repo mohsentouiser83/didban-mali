@@ -34,9 +34,13 @@ export function useLearningPatterns() {
       ? state
       : { scope, item: null, candidateId: "", name: "", enabled: true };
   const command = useCommand();
+  const [editorScope, setEditorScope] = useState<string | null>(null);
+  const editorOpen = editorScope === scope;
+  const closeEditor = () => { if (!command.busy) setEditorScope(null); };
   const set = (patch: Partial<typeof local>) =>
     setState({ ...local, ...patch, scope });
   const load = (item: LearningPattern | null) => {
+    setEditorScope(scope);
     command.clearError();
     setState({
       scope,
@@ -64,12 +68,15 @@ export function useLearningPatterns() {
       },
       (item) => {
         load(item);
+        setEditorScope(null);
         patterns.refresh();
         candidates.refresh();
       },
       "الگو ذخیره شد.",
     );
   return {
+    editorOpen,
+    closeEditor,
     workspace,
     capabilities,
     patterns,

@@ -5,6 +5,7 @@ import { useAllocationChoices } from "@/hooks/use-allocation-choices";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { Drawer } from "@/components/ui/drawer";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -151,7 +152,7 @@ export function SettlementsView() {
           </>
         )}
       </Panel>
-      <Dialog title="تخصیص پرداخت به فاکتور" open={open} onOpenChange={setOpen}>
+      <Drawer title="تخصیص پرداخت به فاکتور" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={command.error?.fields}
           onSubmit={(event) => {
@@ -227,7 +228,7 @@ export function SettlementsView() {
             ثبت تخصیص
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
       <Dialog
         title="برگشت تخصیص"
         open={!!reversing}

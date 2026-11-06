@@ -2,7 +2,7 @@
 import { BuildingsIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/content-states";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -124,7 +124,7 @@ export function CompanyView() {
       )}
       </div>
       {workspace.company && <CompanyAccountingSetup key={workspace.company.id}/>}
-      <Dialog title="ایجاد شرکت" open={creating} onOpenChange={setCreating}>
+      <Drawer title="ایجاد شرکت" open={creating} onOpenChange={setCreating}>
         <Form
           fieldErrors={command.error?.fields}
           onSubmit={(event) => {
@@ -154,7 +154,7 @@ export function CompanyView() {
             ایجاد شرکت
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

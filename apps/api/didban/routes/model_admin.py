@@ -102,3 +102,9 @@ def model_reservations(company_id: str, request: Request, limit: int = 50, curso
 @router.post(C + "/model-reservations/{reservation_id}/reconciliations")
 def reconcile_cost(company_id: str, reservation_id: str, data: CostReconciliationInput, request: Request):
     return mutate(request, company_id, data.model_dump(), "read", lambda db, actor: reconcile_unknown_cost_in(db, company_id=company_id, actor_id=actor.id, reservation_id=reservation_id, **data.model_dump()))
+
+
+@router.get(C + "/model-reservations/{reservation_id}/response-evidence")
+def response_evidence(company_id: str, reservation_id: str, request: Request):
+    with access(request, company_id) as (db, user, _member):
+        return service.model_response_evidence(db, company_id, user, reservation_id)

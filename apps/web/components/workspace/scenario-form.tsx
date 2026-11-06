@@ -24,7 +24,7 @@ export interface ScenarioFormController {
   addHypothetical: () => void;
 }
 import { amount, displayDate } from "@/lib/utils";
-import { Panel } from "./page-parts";
+import { DrawerAction } from "@/components/ui/drawer-action";
 export function ScenarioForm({
   controller: c,
   showShifts = true,
@@ -33,7 +33,7 @@ export function ScenarioForm({
   showShifts?: boolean;
 }) {
   return (
-    <Panel title={c.local.item ? "ویرایش فرض‌ها" : "سناریوی تازه"}>
+    <DrawerAction title={c.local.item ? "ویرایش فرض‌ها" : "سناریوی تازه"} busy={c.command.busy}>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -176,6 +176,6 @@ export function ScenarioForm({
           {c.command.busy ? "در حال محاسبه…" : "محاسبه و ذخیره"}
         </Button>
       </Form>
-    </Panel>
+    </DrawerAction>
   );
 }

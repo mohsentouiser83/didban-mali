@@ -18,11 +18,11 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { useChartSetup } from "@/hooks/use-accounting-setup";
 import { persian } from "@/lib/utils";
-import { Panel } from "./page-parts";
+import { DrawerAction } from "@/components/ui/drawer-action";
 export function ChartSetupPanel({ onImported }: { onImported: () => void }) {
   const c = useChartSetup(onImported);
   return (
-    <Panel title="الگو و ورود کدینگ" className="mb-5">
+    <div className="mb-5"><DrawerAction title="الگو و ورود کدینگ" action="ورود کدینگ" busy={c.command.busy}>
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -125,6 +125,6 @@ export function ChartSetupPanel({ onImported }: { onImported: () => void }) {
           </div>
         )}
       </Form>
-    </Panel>
+    </DrawerAction></div>
   );
 }

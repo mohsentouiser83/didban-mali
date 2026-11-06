@@ -1,4 +1,5 @@
 "use client";
+import { Drawer } from "@/components/ui/drawer";
 import { BrainIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -85,7 +86,7 @@ function LearningWorkspace() {
           )}
         </Panel>
         {c.capabilities.data?.can_learn && (
-          <Panel
+          <Drawer open={c.editorOpen} onOpenChange={open => { if (!open) c.closeEditor(); }}
             title={c.local.item ? "ویرایش الگو" : "یادگیری از اصلاح معتبر"}
           >
             <Form
@@ -150,7 +151,7 @@ function LearningWorkspace() {
                 {c.command.busy ? "در حال ذخیره…" : "ذخیره الگو"}
               </Button>
             </Form>
-          </Panel>
+          </Drawer>
         )}
         {(c.local.item || c.candidate) && (
           <Panel title="نگاشت و منشأ الگو">

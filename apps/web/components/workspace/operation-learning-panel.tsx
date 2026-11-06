@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -126,7 +126,7 @@ function SuggestionTable({ c }: { c: Controller }) {
 }
 function SuggestionEditor({ c }: { c: Controller }) {
   return (
-    <Dialog
+    <Drawer
       title="مدیریت پیشنهاد حساب"
       open={!!c.editor}
       onOpenChange={(open) => {
@@ -165,6 +165,6 @@ function SuggestionEditor({ c }: { c: Controller }) {
           ذخیره پیشنهاد
         </Button>
       </Form>
-    </Dialog>
+    </Drawer>
   );
 }

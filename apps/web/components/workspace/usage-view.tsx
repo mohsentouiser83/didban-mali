@@ -1,4 +1,5 @@
 "use client";
+import { DrawerAction } from "@/components/ui/drawer-action";
 import { ChartBarIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
@@ -85,7 +86,7 @@ export function UsageView() {
               <p className="mb-6 text-muted">سقف هزینه تعیین نشده است.</p>
             )}
             {workspace.user?.installation_admin && resource.data?.budget_mode !== "unlimited" && (
-              <Form
+              <DrawerAction title="سقف هزینه شرکت" action="تعیین سقف هزینه" busy={command.busy}><Form
                 fieldErrors={command.error?.fields}
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -132,7 +133,7 @@ export function UsageView() {
                 <Button type="submit" busy={command.busy}>
                   ذخیره سقف
                 </Button>
-              </Form>
+              </Form></DrawerAction>
             )}
           </Panel>
         </div>

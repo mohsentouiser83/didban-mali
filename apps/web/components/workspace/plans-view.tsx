@@ -3,7 +3,8 @@ import { CalendarCheckIcon as HeaderIcon } from "@phosphor-icons/react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { ConfirmDialog, Dialog } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { AmountInput, Input } from "@/components/ui/input";
@@ -136,7 +137,7 @@ export function PlansView() {
           </>
         )}
       </Panel>
-      <Dialog
+      <Drawer
         title={editing ? "ویرایش برنامه پرداخت" : "پرداخت برنامه‌ای"}
         open={editing !== undefined}
         onOpenChange={(open) => {
@@ -230,7 +231,7 @@ export function PlansView() {
             ذخیره برنامه
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
       <ConfirmDialog
         title="برنامه پرداخت لغو شود؟"
         open={!!deleting}

@@ -13,7 +13,7 @@ import { useModelAdministration } from "@/hooks/use-model-administration";
 import { listItems } from "@/lib/api";
 import { amount, displayDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { ConditionalRegion } from "@/components/ui/conditional-region";
 import { Form } from "@/components/ui/form";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -114,7 +114,7 @@ export function ModelTariffPanel({
           </ConditionalRegion>
         )}
       </Panel>
-      <Dialog title="ثبت نسخه تعرفه" open={open} onOpenChange={setOpen}>
+      <Drawer title="ثبت نسخه تعرفه" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={tariffCommand.error?.fields}
           onSubmit={(event) => {
@@ -263,7 +263,7 @@ export function ModelTariffPanel({
             ثبت تعرفه
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

@@ -6,9 +6,8 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  StatusMessage,
 } from "@/components/ui/content-states";
-import { CursorPagination, Pagination } from "@/components/ui/pagination";
+import { CursorPagination } from "@/components/ui/pagination";
 import {
   Table,
   TableHeader,
@@ -22,7 +21,7 @@ import {
 import { useAutomationRules } from "@/hooks/use-automation-rules";
 import { useWorkspace } from "@/hooks/workspace";
 import { actionLabels } from "@/lib/automation";
-import { amount, displayDate, persian } from "@/lib/utils";
+import { displayDate, persian } from "@/lib/utils";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { AutomationRuleForm } from "./automation-rule-form";
 function RulesWorkspace() {
@@ -116,51 +115,7 @@ function RulesWorkspace() {
         {!c.nativeScope && c.view.error && (
           <ErrorState message={c.view.error.message} onRetry={c.view.refresh} />
         )}
-        {c.preview && (
-          <Panel title="پیش‌نمایش اثر">
-            <StatusMessage tone="primary">
-              {persian(c.preview.match_count)} مورد مطابق؛{" "}
-              {persian(c.preview.unavailable_count)} مورد با دادهٔ ناموجود.
-              پیش‌نمایش اقدامی انجام نمی‌دهد.
-            </StatusMessage>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>مورد</TableHead>
-                  <TableHead>
-                    {c.nativeScope
-                      ? "گردش ردیف‌های منطبق (ریال)"
-                      : "مبلغ (ریال)"}
-                  </TableHead>
-                  {c.local.definition.action === "prepare_draft" && (
-                    <TableHead>آمادگی پیش‌نویس</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {c.previewRows.map((item, index) => (
-                  <TableRow key={`${item.subject_id}-${index}`}>
-                    <TableRowHeader>{item.reference}</TableRowHeader>
-                    <TableCell>{amount(item.value)}</TableCell>
-                    {c.local.definition.action === "prepare_draft" && (
-                      <TableCell>
-                        {item.draft_eligible
-                          ? "قابل تهیه؛ نیازمند تأیید سند"
-                          : item.blocked_message || "نیازمند بررسی"}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Pagination
-              page={c.previewPage}
-              total={c.preview.match_count}
-              onNext={c.nextPreviewPage}
-              onPrevious={c.previousPreviewPage}
-            />
-          </Panel>
-        )}
+
         <Panel title={c.nativeScope ? "سابقه اجرای دفتر اصلی" : "سابقه اجرا"}>
           {c.runs.loading ? (
             <LoadingState />

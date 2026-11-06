@@ -53,3 +53,26 @@ def test_disguised_macro_content_type_is_rejected_even_without_vba_filename():
     with pytest.raises(DomainError) as error:
         read_file("disguised.xlsx", modified_workbook("[Content_Types].xml", payload))
     assert error.value.code == "unsafe_workbook"
+
+
+@pytest.mark.parametrize("binary_present", [False, True])
+def test_macro_default_type_applies_only_to_existing_parts(binary_present):
+    output = io.BytesIO()
+    with ZipFile(io.BytesIO(workbook_bytes())) as source, ZipFile(output, "w", ZIP_DEFLATED) as target:
+        for part in source.infolist():
+            payload = source.read(part)
+            if part.filename == "[Content_Types].xml":
+                payload = payload.replace(
+                    b"</Types>",
+                    b'<Default Extension="bin" ContentType="application/vnd.ms-excel.sheet.binary.macroEnabled.main"/></Types>',
+                )
+            target.writestr(part.filename, payload)
+        if binary_present:
+            target.writestr("xl/hidden.bin", b"binary payload")
+    if binary_present:
+        with pytest.raises(DomainError) as error:
+            read_file("export.xlsx", output.getvalue())
+        assert error.value.code == "unsafe_workbook"
+    else:
+        sheets = read_file("export.xlsx", output.getvalue())
+        assert sheets[0].rows[0][1]["amount"] == "100"
