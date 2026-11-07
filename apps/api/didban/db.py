@@ -9,6 +9,7 @@ from sqlalchemy.schema import AddConstraint
 
 from .config import settings
 from .models import Base, register_money_constraints
+from .schema_readiness import require_current_schema
 
 engine = create_engine(
     settings.database_url,
@@ -248,6 +249,7 @@ def initialize() -> None:
                 )
             )
         Base.metadata.create_all(conn)
+        require_current_schema(conn, Base.metadata)
         if engine.dialect.name == "postgresql":
             install_missing_money_constraints(conn)
             for statement in postgres_security_statements():

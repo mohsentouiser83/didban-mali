@@ -26,7 +26,14 @@ from .models import (
 )
 from .normalization import normalize
 from .security import membership
-from .workflow import audit, issue, latest_interpretations, open_issues, question_code
+from .workflow import (
+    audit,
+    issue,
+    latest_interpretations,
+    open_issues,
+    processing_interpretations,
+    question_code,
+)
 
 
 def _current(db, company_id: str, job_id: str, fence: int):
@@ -70,7 +77,7 @@ def _park(company_id: str, job_id: str, fence: int, result: dict) -> None:
 def _family_control(family: str, source: SourceFile, interpretation: Interpretation, records: list) -> bool:
     label = normalized(source.name + " " + interpretation.sheet)
     if family == "ledger":
-        if not records or not all(isinstance(item, JournalLine) for item in records):
+        if not records or not all(isinstance(item, JournalLine) and item.entry_id for item in records):
             return False
         balances = {}
         with localcontext() as context:
@@ -135,7 +142,7 @@ async def prepare_model_interpretations(company_id: str, job_id: str, fence: int
             candidate = None
             files = db.scalars(select(SourceFile).where(SourceFile.company_id == company_id, SourceFile.session_id == session.id, SourceFile.state != "excluded_overlap").order_by(SourceFile.created_at, SourceFile.id))
             for source in files:
-                for interpretation in latest_interpretations(db, company_id, source.id):
+                for interpretation in processing_interpretations(db, source):
                     if interpretation.family in REQUIRED and set(REQUIRED[interpretation.family]) <= set(interpretation.mapping):
                         continue
                     candidate = (source, interpretation)

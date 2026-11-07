@@ -857,7 +857,9 @@ def validate() -> dict:
             bank_id=a["bank"],
             ledger_ids=[],
             decision="accepted",
-            version=1,
+            # Version 1 already exists for this bank in the valid fixture.
+            # Avoid a unique-key collision masking the foreign-key check.
+            version=2,
             reason="synthetic",
             actor_id=actor_id,
             provenance="synthetic_test",

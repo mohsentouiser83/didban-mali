@@ -97,7 +97,12 @@ export function EmptyState({
         compact ? "py-8" : "py-14",
       )}
     >
-      <span className="grid size-14 place-items-center rounded-panel bg-primary-soft text-primary">
+      <span className={cn(
+        "grid size-14 place-items-center rounded-panel",
+        compact
+          ? "bg-primary-soft text-primary"
+          : "border border-lilac/70 bg-lilac-soft text-lilac",
+      )}>
         <FolderOpenIcon size={26} aria-hidden />
       </span>
       <div>

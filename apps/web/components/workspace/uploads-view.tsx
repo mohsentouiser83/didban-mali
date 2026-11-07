@@ -1,7 +1,9 @@
 "use client";
 import { UploadSimpleIcon as HeaderIcon } from "@phosphor-icons/react";
 import { StatusBadge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { useState } from "react";
+import { Drawer } from "@/components/ui/drawer";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { ConditionalRegion } from "@/components/ui/conditional-region";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -18,9 +20,8 @@ import {
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
-import { usePagedResource } from "@/hooks/use-paged-resource";
-import { useUpload } from "@/hooks/use-upload";
-import { listItems, type ProcessingSession } from "@/lib/api";
+import { useWorkspace } from "@/hooks/workspace";
+import { useUploadWorkspace } from "@/hooks/use-upload-workspace";
 import { displayDate, persian } from "@/lib/utils";
 import {
   ArrowUpLeftIcon,
@@ -29,35 +30,44 @@ import {
   CircleNotchIcon,
   ClockIcon,
   FileTextIcon,
-  FilesIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
-export function UploadsView() {
-  const upload = useUpload();
-  const sessions = usePagedResource<ProcessingSession>(
-    upload.companyPath("processing-sessions"),
-  );
+function UploadsWorkspace() {
+  const upload = useUploadWorkspace();
+  const [open, setOpen] = useState(false);
+  const sessions = upload.sessions;
   if (!upload.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="اسناد و پردازش"
         action={
-          <ButtonLink href="/sources" variant="secondary">
-            <FilesIcon size={18} className="text-primary" aria-hidden />
-            منابع و اصل اسناد
-          </ButtonLink>
+          upload.canWrite && (
+            <Button onClick={() => setOpen(true)}>بارگذاری جدید</Button>
+          )
         }
       />
       {upload.canWrite && (
-        <Panel title="اسناد را اضافه کنید">
+        <Drawer
+          title="بارگذاری جدید"
+          open={open}
+          onOpenChange={(value) => {
+            if (!upload.busy) setOpen(value);
+          }}
+        >
           <div className="mb-5 max-w-sm">
-            <Field id="upload-period" label="دوره مالی" icon={CalendarBlankIcon}>
+            <Field
+              id="upload-period"
+              label="دوره مالی"
+              icon={CalendarBlankIcon}
+            >
               <Select
                 id="upload-period"
                 value={upload.periodId || "ask"}
+                disabled={upload.busy}
                 onValueChange={(id) =>
                   upload.setPeriodId(id === "ask" ? "" : id)
                 }
@@ -87,7 +97,11 @@ export function UploadsView() {
                 className="flex items-center justify-between gap-3 py-3"
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <FileTextIcon size={18} className="shrink-0 text-primary" aria-hidden />
+                  <FileTextIcon
+                    size={18}
+                    className="shrink-0 text-primary"
+                    aria-hidden
+                  />
                   <span className="truncate">{file.name}</span>
                 </span>
                 <span
@@ -134,9 +148,9 @@ export function UploadsView() {
               بازکردن پرونده
             </ButtonLink>
           </ConditionalRegion>
-        </Panel>
+        </Drawer>
       )}
-      <Panel title="نوبت‌های پردازش" className="mt-5">
+      <Panel>
         {sessions.loading ? (
           <LoadingState />
         ) : sessions.error ? (
@@ -159,11 +173,11 @@ export function UploadsView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {listItems(sessions.data).length ? (
-                  listItems(sessions.data).map((session, index) => (
+                {upload.sessionRows.length ? (
+                  upload.sessionRows.map((session) => (
                     <TableRow key={session.id}>
                       <TableRowHeader>
-                        پردازش {persian(index + 1)}
+                        پردازش {persian(session.position)}
                       </TableRowHeader>
                       <TableCell className="whitespace-nowrap">
                         {displayDate(session.created_at)}
@@ -171,11 +185,7 @@ export function UploadsView() {
                       <TableCell>
                         <StatusBadge status={session.state} />
                       </TableCell>
-                      <TableCell>
-                        {upload.periods.find(
-                          (period) => period.id === session.period_id,
-                        )?.name || "انتخاب نشده"}
-                      </TableCell>
+                      <TableCell>{session.periodName}</TableCell>
                       <TableCell>
                         <ButtonLink
                           href={`/uploads/${session.id}`}
@@ -198,5 +208,12 @@ export function UploadsView() {
         )}
       </Panel>
     </>
+  );
+}
+
+export function UploadsView() {
+  const workspace = useWorkspace();
+  return (
+    <UploadsWorkspace key={`${workspace.user?.id}:${workspace.company?.id}`} />
   );
 }

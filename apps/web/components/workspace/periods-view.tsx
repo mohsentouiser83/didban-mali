@@ -20,73 +20,39 @@ import {
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
-import { useCommand } from "@/hooks/use-command";
-import { usePagedResource } from "@/hooks/use-paged-resource";
+import { usePeriodManagement } from "@/hooks/use-period-management";
 import { useWorkspace } from "@/hooks/workspace";
-import { listItems, type Period } from "@/lib/api";
+import { listItems } from "@/lib/api";
 import { displayDate } from "@/lib/utils";
-import {
-  CalendarBlankIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  TextAaIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
-import { useState } from "react";
+import { CalendarBlankIcon, PlusIcon, TextAaIcon } from "@phosphor-icons/react";
 import { PeriodLockPanel } from "./period-lock-panel";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 function PeriodWorkspace() {
-  const workspace = useWorkspace();
-  const resource = usePagedResource<Period>(
-    workspace.companyPath("financial-periods"),
-  );
-  const command = useCommand();
-  const [editing, setEditing] = useState<Period | null | undefined>();
-  const [locking, setLocking] = useState<Period | null>(null);
-  const [deleting, setDeleting] = useState<Period | null>(null);
-  const [name, setName] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [previousPeriodId, setPreviousPeriodId] = useState("");
-  const comparisonOptions = workspace.periods.filter(
-    (period) => period.id !== editing?.id && !!start && period.end < start,
-  );
-  const comparisonInvalid =
-    !!previousPeriodId &&
-    !comparisonOptions.some((period) => period.id === previousPeriodId);
-  function open(period: Period | null) {
-    setEditing(period);
-    setName(period?.name || "");
-    setStart(period?.start || "");
-    setEnd(period?.end || "");
-    setPreviousPeriodId(period?.previous_period_id || "");
-    command.clearError();
-  }
-  function save() {
-    if (!name.trim() || !start || !end) return;
-    void command.run(
-      workspace.companyPath(
-        "financial-periods" + (editing ? `/${editing.id}` : ""),
-      ),
-      {
-        method: editing ? "PATCH" : "POST",
-        body: {
-          name: name.trim(),
-          start,
-          end,
-          previous_period_id: previousPeriodId || null,
-        },
-        version: editing?.version,
-      },
-      () => {
-        setEditing(undefined);
-        resource.refresh();
-        workspace.refreshPeriods();
-      },
-      "دوره مالی ذخیره شد.",
-    );
-  }
+  const {
+    workspace,
+    resource,
+    command,
+    editing,
+    locking,
+    deleting,
+    name,
+    start,
+    end,
+    previousPeriodId,
+    comparisonOptions,
+    comparisonInvalid,
+    setEditing,
+    setLocking,
+    setDeleting,
+    setName,
+    setStart,
+    setEnd,
+    setPreviousPeriodId,
+    open,
+    save,
+    remove,
+  } = usePeriodManagement();
   if (!workspace.company) return <NoCompany />;
   return (
     <>
@@ -95,9 +61,6 @@ function PeriodWorkspace() {
         title="دوره‌های مالی"
         action={
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/period-end" variant="secondary">
-              اسناد پایان و آغاز دوره
-            </ButtonLink>
             {workspace.canWrite && (
               <Button onClick={() => open(null)}>
                 <PlusIcon size={18} aria-hidden />
@@ -144,31 +107,8 @@ function PeriodWorkspace() {
                           variant="secondary"
                           onClick={() => setLocking(period)}
                         >
-                          آمادگی و قفل دوره
+                          مشاهده و مدیریت
                         </Button>
-                        {workspace.canWrite && (
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              className="size-11 p-0"
-                              aria-label={`ویرایش ${period.name}`}
-                              onClick={() => open(period)}
-                            >
-                              <PencilSimpleIcon size={18} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="size-11 p-0 text-danger"
-                              aria-label={`حذف ${period.name}`}
-                              onClick={() => {
-                                setDeleting(period);
-                                command.clearError();
-                              }}
-                            >
-                              <TrashIcon size={18} />
-                            </Button>
-                          </div>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -189,10 +129,40 @@ function PeriodWorkspace() {
         }}
       >
         {locking && (
-          <PeriodLockPanel
-            key={`${workspace.company.id}:${locking.id}`}
-            periodId={locking.id}
-          />
+          <div className="space-y-5">
+            <div className="flex flex-wrap gap-2">
+              {workspace.canWrite && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      open(locking);
+                      setLocking(null);
+                    }}
+                  >
+                    ویرایش
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setDeleting(locking);
+                      setLocking(null);
+                      command.clearError();
+                    }}
+                  >
+                    حذف دوره
+                  </Button>
+                </>
+              )}
+              <ButtonLink href="/accounting/period-end" variant="secondary">
+                اسناد پایان و آغاز دوره
+              </ButtonLink>
+            </div>
+            <PeriodLockPanel
+              key={`${workspace.company.id}:${locking.id}`}
+              periodId={locking.id}
+            />
+          </div>
         )}
       </Drawer>
       <Drawer
@@ -281,18 +251,7 @@ function PeriodWorkspace() {
           if (!open) setDeleting(null);
         }}
         busy={command.busy}
-        onConfirm={() => {
-          if (deleting)
-            void command.run(
-              workspace.companyPath(`financial-periods/${deleting.id}`),
-              { method: "DELETE", version: deleting.version },
-              () => {
-                setDeleting(null);
-                resource.refresh();
-              },
-              "دوره حذف شد.",
-            );
-        }}
+        onConfirm={remove}
       >
         <p>{deleting?.name}</p>
         <FormMessage error>{command.error?.message}</FormMessage>

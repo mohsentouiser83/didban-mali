@@ -85,12 +85,10 @@ export function useAutomationRules() {
           enabled: false,
           definition: blankDefinition(),
         };
+  const [historyRule, setHistoryRule] = useState<AutomationRule | null>(null);
   const runs = usePagedResource<AutomationRun>(
-    base
-      ? base +
-          (local.definition.scope === "native_journal"
-            ? "/native-runs"
-            : "/runs")
+    base && historyRule
+      ? `${base}/${historyRule.definition.scope === "native_journal" ? "native-runs" : "runs"}?rule_id=${encodeURIComponent(historyRule.id)}`
       : null,
   );
   const [previewState, setPreview] = useState<{
@@ -110,7 +108,9 @@ export function useAutomationRules() {
   const command = useCommand();
   const [editorScope, setEditorScope] = useState<string | null>(null);
   const editorOpen = editorScope === scope;
-  const closeEditor = () => { if (!command.busy) setEditorScope(null); };
+  const closeEditor = () => {
+    if (!command.busy) setEditorScope(null);
+  };
   const set = (patch: Partial<typeof local>) =>
     setState({ ...local, ...patch, scope });
   const setDefinition = (patch: Partial<RuleDefinition>) => {
@@ -238,6 +238,9 @@ export function useAutomationRules() {
       "اجرای قاعده بررسی شد.",
     );
   return {
+    historyRule,
+    openHistory: (rule: AutomationRule) => setHistoryRule(rule),
+    closeHistory: () => setHistoryRule(null),
     editorOpen,
     closeEditor,
     previewPage,

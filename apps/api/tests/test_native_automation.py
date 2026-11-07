@@ -236,6 +236,13 @@ assert command(owner,'POST',path+'/rules/'+rule.json()['id']+'/execute',{},key=k
 assert command(owner,'POST',path+'/rules/'+rule.json()['id']+'/execute',{}).json()['action_count']==0
 post('30')
 assert len(viewer.get(path+'/native-runs').json()['items'])==2
+filtered=viewer.get(path+'/native-runs',params={'rule_id':rule.json()['id'],'limit':1}).json()
+assert len(filtered['items'])==1 and filtered['items'][0]['rule_id']==rule.json()['id']
+assert filtered['next_cursor']
+second=viewer.get(path+'/native-runs',params={'rule_id':rule.json()['id'],'limit':1,'cursor':filtered['next_cursor']}).json()
+assert len(second['items'])==1 and second['items'][0]['rule_id']==rule.json()['id']
+assert viewer.get(path+'/native-runs',params={'rule_id':'missing'}).json()['items']==[]
+assert outsider.get(path+'/native-runs',params={'rule_id':rule.json()['id']}).status_code==404
 assert outsider.get(path+'/native-runs').status_code==404
 assert command(owner,'POST',path+'/rules',body).status_code==409
 for table in (NativeAutomationPreview,NativeAutomationRun):

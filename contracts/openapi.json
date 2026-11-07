@@ -5223,6 +5223,22 @@
               ],
               "title": "Period Id"
             }
+          },
+          {
+            "in": "query",
+            "name": "draft_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Draft Id"
+            }
           }
         ],
         "responses": {
@@ -9180,6 +9196,22 @@
               ],
               "title": "Cursor"
             }
+          },
+          {
+            "in": "query",
+            "name": "rule_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule Id"
+            }
           }
         ],
         "responses": {
@@ -9499,6 +9531,22 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rule_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule Id"
             }
           }
         ],
@@ -18046,6 +18094,16 @@
               "title": "View",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "allow_missing",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Allow Missing",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -18056,6 +18114,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "204": {
+            "description": "No result exists when allow_missing is true"
           },
           "422": {
             "content": {

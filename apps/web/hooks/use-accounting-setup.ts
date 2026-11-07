@@ -25,6 +25,11 @@ export function useCompanyAccountingSetup() {
   return {
     resource,
     command,
+    postingStatus: resource.data?.posting_available
+      ? "ثبت نهایی با تأیید انسان دارای مجوز انجام می‌شود."
+      : resource.data?.posting_reason === "primary_accounting_required"
+        ? "ثبت نهایی فقط در حالت حسابداری اصلی در دسترس است."
+        : "ثبت نهایی برای کاربرد فعلی در دسترس نیست.",
     mode: selected ?? resource.data?.mode ?? "analysis",
     setMode: setSelected,
     save: () =>

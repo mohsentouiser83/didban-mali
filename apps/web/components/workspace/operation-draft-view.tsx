@@ -17,30 +17,45 @@ import {
   operationAmountLabels,
 } from "@/hooks/use-operation-drafts";
 import { useWorkspace } from "@/hooks/workspace";
-import { PageHeader, Panel, NoCompany } from "./page-parts";
+import { PageHeader, NoCompany } from "./page-parts";
 import { OperationLearningPanel } from "./operation-learning-panel";
-export function OperationDraftView() {
+export function OperationDraftView({
+  embedded = false,
+  onCreated,
+}: { embedded?: boolean; onCreated?: () => void } = {}) {
   const w = useWorkspace();
   return w.company ? (
-    <Workspace key={`${w.user?.id}:${w.company.id}`} />
+    <Workspace
+      key={`${w.user?.id}:${w.company.id}`}
+      embedded={embedded}
+      onCreated={onCreated}
+    />
   ) : (
     <NoCompany />
   );
 }
-function Workspace() {
-  const c = useOperationDrafts();
+function Workspace({
+  embedded,
+  onCreated,
+}: {
+  embedded: boolean;
+  onCreated?: () => void;
+}) {
+  const c = useOperationDrafts(onCreated);
   return (
     <>
-      <PageHeader
-        title="عملیات مالی"
-        icon={ReceiptIcon}
-        action={
-          <ButtonLink href="/accounting" variant="secondary">
-            اسناد حسابداری
-          </ButtonLink>
-        }
-      />
-      <Panel>
+      {!embedded && (
+        <PageHeader
+          title="عملیات مالی"
+          icon={ReceiptIcon}
+          action={
+            <ButtonLink href="/accounting" variant="secondary">
+              اسناد حسابداری
+            </ButtonLink>
+          }
+        />
+      )}
+      <div>
         {c.catalogue.loading || c.accounts.loading ? (
           <LoadingState />
         ) : c.catalogue.error || c.accounts.error ? (
@@ -199,7 +214,7 @@ function Workspace() {
             </Form>
           </div>
         )}
-      </Panel>
+      </div>
     </>
   );
 }

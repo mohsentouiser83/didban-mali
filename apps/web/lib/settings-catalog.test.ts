@@ -14,18 +14,18 @@ it("shows only real authorized settings and does not reveal owner or installatio
   expect(
     viewer.flatMap((group) => group.items.map((item) => item.href)),
   ).toEqual([
-    "/settings/connections",
-    "/employees",
-    "/settings/modules",
     "/accounting",
     "/settings/accounts",
-    "/settings/rules",
-    "/settings/learning",
+    "/settings/periods",
+    "/settings/dimensions",
     "/uploads",
     "/sources",
-    "/settings/dimensions",
+    "/settings/rules",
+    "/settings/learning",
     "/settings/company",
-    "/settings/periods",
+    "/employees",
+    "/settings/modules",
+    "/settings/connections",
     "/settings/usage",
   ]);
   expect(searchSettings(viewer, "اعضا")).toEqual([]);
@@ -70,23 +70,31 @@ it("offers only company creation to an installation administrator without a comp
   ).toEqual(["/settings/company"]);
 });
 
-it("keeps accounting destinations inside the existing documents gear category", () => {
+it("separates accounting, source files, automation and company management with independent links last", () => {
   const categories = visibleSettingsCategories({
     hasCompany: true,
     role: "owner",
-    installationAdmin: false,
+    installationAdmin: true,
   });
-  const documents = categories.find(
-    (category) => category.key === "documents",
-  )!;
-  expect(documents.items.map((item) => item.href)).toEqual([
-    "/accounting",
-    "/settings/accounts",
-    "/settings/rules",
-    "/settings/learning",
-    "/uploads",
-    "/sources",
+  expect(categories.map((category) => [category.key, category.items.map((item) => item.href)])).toEqual([
+    ["accounting", ["/accounting", "/settings/accounts", "/settings/periods", "/settings/dimensions"]],
+    ["documents", ["/uploads", "/sources"]],
+    ["automation", ["/settings/rules", "/settings/learning", "/settings/model"]],
+    ["company-access", ["/settings/company", "/settings/members", "/employees", "/settings/modules"]],
+    ["connections", ["/settings/connections"]],
+    ["usage", ["/settings/usage"]],
   ]);
-  expect(settingsCategoryDestination(documents)).toBe("/settings/documents");
-  expect(searchSettings(categories, "کدینگ")[0].href).toBe("/settings/accounts");
+  expect(categories.filter((category) => category.standalone).map((category) => category.key))
+    .toEqual(["connections", "usage"]);
+  expect(categories.map(settingsCategoryDestination)).toEqual([
+    "/settings/accounting", "/settings/documents", "/settings/automation",
+    "/settings/company-access", "/settings/connections", "/settings/usage",
+  ]);
+  expect(searchSettings(categories, "کدینگ")[0].categoryTitle).toBe("حسابداری");
+  expect(searchSettings(categories, "حافظه اصلاحات")[0].categoryTitle).toBe("خودکارسازی و هوش مصنوعی");
+  expect(searchSettings(categories, "منابع و اصل اسناد")[0].categoryTitle).toBe("فایل‌ها و منابع");
+  const accounting = categories.find((category) => category.key === "accounting")!;
+  expect(isSettingsCategoryActive(accounting, "/settings/periods")).toBe(true);
+  expect(isSettingsCategoryActive(accounting, "/settings/dimensions")).toBe(true);
+  expect(isSettingsCategoryActive(accounting, "/sources")).toBe(false);
 });

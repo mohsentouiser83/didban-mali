@@ -44,10 +44,7 @@ export function CompanyAccountingSetup() {
               ]}
             />
           </Field>
-          <StatusMessage>
-            تغییر کاربرد، داده‌ها و گزارش‌های قبلی را تغییر نمی‌دهد؛ ثبت قطعی
-            هنوز فعال نیست.
-          </StatusMessage>
+          <StatusMessage>{c.postingStatus}</StatusMessage>
           <FormMessage error>{c.command.error?.message}</FormMessage>
           {c.resource.data?.can_manage && (
             <Button type="submit" busy={c.command.busy}>

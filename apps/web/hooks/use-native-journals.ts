@@ -8,6 +8,7 @@ import type { PostingPreview } from "./use-posting";
 import type { AccountingCapabilities } from "@/lib/accounting";
 export interface NativeJournal {
   id: string;
+  draft_id: string;
   digest: string;
   sequence: number;
   date: string;

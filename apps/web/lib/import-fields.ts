@@ -14,7 +14,7 @@ export const familyOptions = [
 export const requiredFields: Record<string, string[]> = {
   employees: ["employee_id", "employee_name", "date"],
   payroll: ["employee_id", "employee_name", "date", "gross_pay", "net_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions"],
-  ledger: ["entry_id", "date", "account", "debit", "credit"],
+  ledger: ["date", "account", "debit", "credit"],
   bank: ["date", "amount", "reference"],
   sales: ["invoice_id", "party_id", "date", "amount"],
   purchases: ["invoice_id", "party_id", "date", "amount"],
@@ -39,7 +39,7 @@ export const requiredFields: Record<string, string[]> = {
   ],
 };
 export const optionalFields: Record<string, string[]> = {
-  ledger: ["role", "entry_type"],
+  ledger: ["entry_id", "role", "entry_type"],
   settlements: ["bank_reference", "bank_account"],
 };
 export const fieldLabels: Record<string, string> = {

@@ -36,7 +36,7 @@ export function SourcesView() {
   return (
     <>
       <PageHeader icon={HeaderIcon}
-        title="منابع و اصل اسناد"
+        title="فایل‌ها و مدارک"
         action={
           <ButtonLink href="/uploads" variant="secondary">
             <ClockCounterClockwiseIcon size={18} aria-hidden className="text-primary" />نوبت‌های پردازش

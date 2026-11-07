@@ -32,6 +32,13 @@ const metricIcons: Record<string, Icon> = {
   ap_invoice: ReceiptIcon,
   ap_difference: ScalesIcon,
 };
+const metricAccentClasses: Record<string, string> = {
+  cash: "bg-analytical-soft text-analytical group-hover/metric:bg-analytical/15",
+  cash_inflow: "bg-analytical-soft text-analytical group-hover/metric:bg-analytical/15",
+  revenue: "bg-analytical-soft text-analytical group-hover/metric:bg-analytical/15",
+  net_profit: "bg-lilac-soft text-primary group-hover/metric:bg-lilac/40",
+  pre_tax_profit: "bg-lilac-soft text-primary group-hover/metric:bg-lilac/40",
+};
 export function MetricCardFrame({
   children,
   className,
@@ -70,7 +77,11 @@ export function StatCard({
     <MetricCardFrame>
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary transition-[background-color,transform,scale] duration-200 ease-interface group-hover/metric:bg-primary/15 motion-safe:group-hover/metric:scale-105 motion-reduce:transition-none">
+          <span className={cn(
+            "grid size-10 shrink-0 place-items-center rounded-control transition-[background-color,transform,scale] duration-200 ease-interface motion-safe:group-hover/metric:scale-105 motion-reduce:transition-none",
+            metricAccentClasses[metricKey || metric?.metric_key || ""] ||
+              "bg-primary-soft text-primary group-hover/metric:bg-primary/15",
+          )}>
             <IconComponent size={22} weight="duotone" aria-hidden />
           </span>
           <h2 className="text-sm font-medium text-muted">{label}</h2>

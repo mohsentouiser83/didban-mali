@@ -43,7 +43,7 @@ export function NativeDashboardView() {
         </Panel>
       ) : (
         <>
-          <MetricCardFrame className="mb-5 rounded-summary bg-linear-115 from-primary-soft/80 via-surface to-success-soft/70 sm:p-7">
+          <MetricCardFrame className="mb-5 rounded-summary border-lilac/70 bg-linear-115 from-primary-soft/80 via-surface to-lilac-soft sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <h2 className="mb-2 flex items-center gap-2 text-sm text-muted">

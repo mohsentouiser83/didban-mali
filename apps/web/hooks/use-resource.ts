@@ -48,7 +48,11 @@ export function useResource<T>(
       )
         timer = setTimeout(load, 2500);
     };
-    void load();
+    // Strict Mode replays effects before this microtask. Skip requests whose
+    // consumer was already removed, while retaining aborts for real navigation.
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) void load();
+    });
     return () => {
       controller.abort();
       clearTimeout(timer);

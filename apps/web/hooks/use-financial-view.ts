@@ -25,7 +25,7 @@ export function useFinancialView(
   const resource = useResource<Manifest>(
     path
       ? path +
-          `?view=${projection}` +
+          `?view=${projection}&allow_missing=true` +
           (workspace.periodId ? `&period_id=${workspace.periodId}` : "")
       : null,
     { allowMissing: true },

@@ -1,5 +1,6 @@
 "use client";
 import { FlowArrowIcon } from "@phosphor-icons/react";
+import { Drawer } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -71,6 +72,12 @@ function RulesWorkspace() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="secondary"
+                              onClick={() => c.openHistory(item)}
+                            >
+                              جزئیات
+                            </Button>
                             {c.capabilities.data?.can_manage ? (
                               <Button
                                 variant="secondary"
@@ -112,11 +119,14 @@ function RulesWorkspace() {
           )}
         </Panel>
         {c.capabilities.data?.can_manage && <AutomationRuleForm c={c} />}
-        {!c.nativeScope && c.view.error && (
-          <ErrorState message={c.view.error.message} onRetry={c.view.refresh} />
-        )}
-
-        <Panel title={c.nativeScope ? "سابقه اجرای دفتر اصلی" : "سابقه اجرا"}>
+        <Drawer
+          title={`جزئیات قاعده · ${c.historyRule?.name || ""}`}
+          open={!!c.historyRule}
+          onOpenChange={(open) => {
+            if (!open) c.closeHistory();
+          }}
+        >
+          <h3 className="mb-4 text-sm font-medium">سابقه اجرای همین قاعده</h3>
           {c.runs.loading ? (
             <LoadingState />
           ) : c.runs.error ? (
@@ -161,7 +171,7 @@ function RulesWorkspace() {
               <CursorPagination {...c.runs} />
             </>
           )}
-        </Panel>
+        </Drawer>
       </div>
     </>
   );

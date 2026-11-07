@@ -23,6 +23,7 @@ export interface SettingsDestination {
   label: string;
   icon: Icon;
   permission: Permission;
+  description?: string;
   keywords?: string[];
 }
 export interface SettingsCategory {
@@ -31,6 +32,7 @@ export interface SettingsCategory {
   description: string;
   icon: Icon;
   hub?: string;
+  standalone?: boolean;
   items: SettingsDestination[];
   keywords?: string[];
 }
@@ -48,63 +50,17 @@ export interface SettingsSearchResult {
 }
 export const settingsCatalog: SettingsCategory[] = [
   {
-    key: "connections",
-    title: "اتصال‌ها",
-    description: "حساب تلگرام و بله",
-    icon: PlugsConnectedIcon,
-    items: [
-      {
-        key: "connections",
-        href: "/settings/connections",
-        label: "اتصال‌ها",
-        icon: PlugsConnectedIcon,
-        permission: "company",
-        keywords: ["تلگرام", "بله", "بات", "ربات", "telegram", "bale"],
-      },
-    ],
-  },
-  {
-    key: "employees",
-    title: "کارکنان",
-    description: "مدیریت اطلاعات کارمندان",
-    icon: UsersThreeIcon,
-    items: [
-      {
-        key: "employees",
-        href: "/employees",
-        label: "کارمندان",
-        icon: UsersThreeIcon,
-        permission: "company",
-      },
-    ],
-  },
-  {
-    key: "modules",
-    title: "ماژول‌های شرکت",
-    description: "فعال‌سازی بخش‌ها برای این شرکت",
-    icon: SquaresFourIcon,
-    items: [
-      {
-        key: "modules",
-        href: "/settings/modules",
-        label: "ماژول‌های شرکت",
-        icon: SquaresFourIcon,
-        permission: "company",
-        keywords: ["فعال", "غیرفعال", "حقوق", "بیمه", "مالیات"],
-      },
-    ],
-  },
-  {
-    key: "documents",
-    title: "اسناد",
-    description: "اسناد حسابداری و منابع",
-    icon: FilesIcon,
-    hub: "/settings/documents",
+    key: "accounting",
+    title: "حسابداری",
+    description: "اسناد، حساب‌ها، دوره‌ها و ابعاد مالی",
+    icon: BooksIcon,
+    hub: "/settings/accounting",
     items: [
       {
         key: "accounting",
         href: "/accounting",
         label: "اسناد حسابداری",
+        description: "پیش‌نویس، ثبت نهایی و اصلاح سند",
         icon: BooksIcon,
         permission: "company",
         keywords: [
@@ -121,87 +77,16 @@ export const settingsCatalog: SettingsCategory[] = [
         key: "accounts",
         href: "/settings/accounts",
         label: "کدینگ حساب‌ها",
+        description: "تعریف و مدیریت حساب‌های شرکت",
         icon: BooksIcon,
         permission: "company",
         keywords: ["کدینگ", "حساب", "دفتر", "نقش حساب", "طبقه‌بندی"],
       },
       {
-        key: "automation-rules",
-        href: "/settings/rules",
-        label: "قواعد خودکار",
-        icon: BooksIcon,
-        permission: "company",
-        keywords: ["قاعده", "خودکار", "قانون"],
-      },
-      {
-        key: "learning",
-        href: "/settings/learning",
-        label: "حافظه اصلاحات",
-        icon: BooksIcon,
-        permission: "company",
-        keywords: ["یادگیری", "نگاشت", "الگو"],
-      },
-      {
-        key: "uploads",
-        href: "/uploads",
-        label: "بارگذاری و پردازش منابع",
-        icon: UploadSimpleIcon,
-        permission: "company",
-        keywords: ["فایل", "بارگذاری", "Excel", "CSV"],
-      },
-      {
-        key: "sources",
-        href: "/sources",
-        label: "منابع و اصل اسناد",
-        icon: FilesIcon,
-        permission: "company",
-        keywords: ["بایگانی", "فایل", "دانلود"],
-      },
-    ],
-  },
-  {
-    key: "company-access",
-    title: "شرکت و دسترسی",
-    description: "اطلاعات شرکت، اعضا و مجوزها",
-    icon: BuildingsIcon,
-    hub: "/settings/company-access",
-    items: [
-      {
-        key: "dimensions",
-        href: "/settings/dimensions",
-        label: "پروژه، شعبه و مرکز هزینه",
-        icon: BuildingsIcon,
-        permission: "company",
-        keywords: ["پروژه", "شعبه", "مرکز هزینه"],
-      },
-      {
-        key: "company",
-        href: "/settings/company",
-        label: "شرکت",
-        icon: BuildingsIcon,
-        permission: "company_or_admin",
-        keywords: ["سازمان"],
-      },
-      {
-        key: "members",
-        href: "/settings/members",
-        label: "اعضا و دسترسی",
-        icon: UsersThreeIcon,
-        permission: "owner",
-        keywords: ["مجوز", "تأیید گزارش", "حساب کاربری"],
-      },
-    ],
-  },
-  {
-    key: "periods",
-    title: "دوره‌های مالی",
-    description: "مدیریت بازه‌های گزارش",
-    icon: CalendarBlankIcon,
-    items: [
-      {
         key: "periods",
         href: "/settings/periods",
         label: "دوره‌های مالی",
+        description: "تعریف، قفل و بستن دوره‌های مالی",
         icon: CalendarBlankIcon,
         permission: "company",
         keywords: [
@@ -213,6 +98,139 @@ export const settingsCatalog: SettingsCategory[] = [
           "اسناد پایان",
         ],
       },
+      {
+        key: "dimensions",
+        href: "/settings/dimensions",
+        label: "پروژه، شعبه و مرکز هزینه",
+        description: "مدیریت پروژه‌ها، شعبه‌ها و مراکز هزینه",
+        icon: BuildingsIcon,
+        permission: "company",
+        keywords: ["پروژه", "شعبه", "مرکز هزینه"],
+      },
+    ],
+  },
+  {
+    key: "documents",
+    title: "فایل‌ها و منابع",
+    description: "بارگذاری، پردازش و نگهداری مدارک",
+    icon: FilesIcon,
+    hub: "/settings/documents",
+    items: [
+      {
+        key: "uploads",
+        href: "/uploads",
+        label: "بارگذاری و پردازش منابع",
+        description: "ورود فایل و پیگیری مراحل پردازش",
+        icon: UploadSimpleIcon,
+        permission: "company",
+        keywords: ["فایل", "بارگذاری", "Excel", "CSV"],
+      },
+      {
+        key: "sources",
+        href: "/sources",
+        label: "فایل‌ها و مدارک",
+        description: "مشاهده، دریافت و بایگانی اصل فایل‌ها",
+        icon: FilesIcon,
+        permission: "company",
+        keywords: ["بایگانی", "فایل", "دانلود", "منابع و اصل اسناد"],
+      },
+    ],
+  },
+  {
+    key: "automation",
+    title: "خودکارسازی و هوش مصنوعی",
+    description: "قواعد، الگوها و تنظیمات مدل",
+    icon: CpuIcon,
+    hub: "/settings/automation",
+    items: [
+      {
+        key: "automation-rules",
+        href: "/settings/rules",
+        label: "قواعد خودکار",
+        description: "تعریف شرط و اقدام برای پردازش اطلاعات مالی",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: ["قاعده", "خودکار", "قانون"],
+      },
+      {
+        key: "learning",
+        href: "/settings/learning",
+        label: "الگوهای آموخته‌شده",
+        description: "استفاده دوباره از اصلاحات معتبر",
+        icon: BooksIcon,
+        permission: "company",
+        keywords: ["یادگیری", "نگاشت", "الگو", "حافظه اصلاحات"],
+      },
+      {
+        key: "model",
+        href: "/settings/model",
+        label: "مدل هوش مصنوعی",
+        description: "اتصال و تنظیم مدل هوش مصنوعی",
+        icon: CpuIcon,
+        permission: "installation_admin",
+        keywords: ["تعرفه", "مدل", "model", "کلید اتصال", "بودجه نصب"],
+      },
+    ],
+  },
+  {
+    key: "company-access",
+    title: "شرکت و کاربران",
+    description: "اطلاعات شرکت، کاربران و ماژول‌ها",
+    icon: BuildingsIcon,
+    hub: "/settings/company-access",
+    items: [
+      {
+        key: "company",
+        href: "/settings/company",
+        label: "شرکت",
+        description: "مدیریت اطلاعات شرکت",
+        icon: BuildingsIcon,
+        permission: "company_or_admin",
+        keywords: ["سازمان"],
+      },
+      {
+        key: "members",
+        href: "/settings/members",
+        label: "اعضا و دسترسی",
+        description: "مدیریت کاربران و مجوزهای شرکت",
+        icon: UsersThreeIcon,
+        permission: "owner",
+        keywords: ["مجوز", "تأیید گزارش", "حساب کاربری"],
+      },
+      {
+        key: "employees",
+        href: "/employees",
+        label: "کارمندان",
+        description: "مدیریت اطلاعات کارکنان",
+        icon: UsersThreeIcon,
+        permission: "company",
+      },
+      {
+        key: "modules",
+        href: "/settings/modules",
+        label: "ماژول‌های شرکت",
+        description: "فعال یا غیرفعال‌کردن بخش‌های شرکت",
+        icon: SquaresFourIcon,
+        permission: "company",
+        keywords: ["فعال", "غیرفعال", "حقوق", "بیمه", "مالیات"],
+      },
+    ],
+  },
+  {
+    key: "connections",
+    title: "اتصال‌ها",
+    description: "حساب تلگرام و بله",
+    icon: PlugsConnectedIcon,
+    standalone: true,
+    items: [
+      {
+        key: "connections",
+        href: "/settings/connections",
+        label: "اتصال‌ها",
+        icon: PlugsConnectedIcon,
+        permission: "company",
+        keywords: ["تلگرام", "بله", "بات", "ربات", "telegram", "bale"],
+      },
     ],
   },
   {
@@ -220,6 +238,7 @@ export const settingsCatalog: SettingsCategory[] = [
     title: "مصرف و هزینه",
     description: "مصرف و سقف هزینه شرکت",
     icon: CoinsIcon,
+    standalone: true,
     items: [
       {
         key: "usage",
@@ -228,22 +247,6 @@ export const settingsCatalog: SettingsCategory[] = [
         icon: CoinsIcon,
         permission: "company",
         keywords: ["بودجه", "سقف شرکت"],
-      },
-    ],
-  },
-  {
-    key: "model",
-    title: "مدل هوش مصنوعی",
-    description: "اتصال، تعرفه و بودجه نصب",
-    icon: CpuIcon,
-    items: [
-      {
-        key: "model",
-        href: "/settings/model",
-        label: "مدل هوش مصنوعی",
-        icon: CpuIcon,
-        permission: "installation_admin",
-        keywords: ["تعرفه", "مدل", "model", "کلید اتصال", "بودجه نصب"],
       },
     ],
   },

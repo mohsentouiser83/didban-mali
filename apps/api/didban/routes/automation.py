@@ -95,9 +95,10 @@ def execute(company_id: str, rule_id: str, request: Request):
 
 
 @router.get(A + "/runs")
-def runs(company_id: str, request: Request, limit: int = 25, cursor: str | None = None):
+def runs(company_id: str, request: Request, limit: int = 25, cursor: str | None = None, rule_id: str | None = None):
     with access(request, company_id) as (db, _u, _m):
-        return paginate(db, AutomationRun, company_id, limit, cursor)
+        filters = [AutomationRun.rule_id == rule_id] if rule_id else []
+        return paginate(db, AutomationRun, company_id, limit, cursor, filters)
 
 
 @router.get(A + "/learning")

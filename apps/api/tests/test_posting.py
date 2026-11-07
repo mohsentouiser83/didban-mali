@@ -209,6 +209,12 @@ assert posted.status_code==201,posted.text
 assert command(manager,"POST",path+"/postings",payload,key=key).json()==posted.json()
 assert command(manager,"POST",path+"/postings",payload).status_code==409
 journal=posted.json()["items"][0]
+# The unified document list resolves the exact final journal without paging through other documents.
+listed=manager.get(path+"/journals",params={"draft_id":draft["id"]})
+assert listed.status_code==200,listed.text
+assert [item["id"] for item in listed.json()["items"]]==[journal["id"]]
+assert manager.get(path+"/journals",params={"draft_id":"nonexistent"}).json()["items"]==[]
+assert outsider.get(path+"/journals",params={"draft_id":draft["id"]}).status_code==404
 assert journal["snapshot"]["lines"][0]["debit"]=="90071992547409930"
 report=command(manager,"POST",path+"/trial-balance/runs",{"period_id":period_id})
 assert report.status_code==201,report.text

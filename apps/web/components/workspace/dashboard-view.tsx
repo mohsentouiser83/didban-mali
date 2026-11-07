@@ -55,7 +55,7 @@ function ImportedDashboardView() {
         <NoResult />
       ) : (
         <>
-          <section className="mb-5 overflow-hidden rounded-summary border border-border bg-linear-115 from-primary-soft/80 via-surface to-success-soft/70 p-5 sm:p-7">
+          <section className="mb-5 overflow-hidden rounded-summary border border-lilac/70 bg-linear-115 from-primary-soft/80 via-surface to-lilac-soft p-5 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <div className="mb-2 flex items-center gap-2 text-muted">

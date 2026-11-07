@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .errors import DomainError, require
-from .ingestion import FAMILY_LABELS, REQUIRED
+from .ingestion import FAMILY_LABELS, REQUIRED, Sheet, interpret
 from .models import (
     AuditEvent,
     BankMovement,
@@ -32,7 +32,7 @@ from .models import (
     SourceRow,
     User,
 )
-from .normalization import ENTRY_TYPES, ROLES, normalize
+from .normalization import ENTRY_TYPES, ROLES, journal_entry_type_key, normalize
 
 FACTS = {
     "personnel": PersonnelRecord,
@@ -164,11 +164,48 @@ def latest_interpretations(db: Session, company: str, file: str) -> list[Interpr
     return list(latest.values())
 
 
+def processing_interpretations(db: Session, source: SourceFile) -> list[Interpretation]:
+    """Recognize older uploads without changing their rows or earlier interpretations."""
+    items = latest_interpretations(db, source.company_id, source.id)
+    for index, current in enumerate(items):
+        headers = current.evidence.get("headers", [])
+        if (
+            current.provenance != "validated_header_rules"
+            or current.family != "unknown"
+        ):
+            continue
+        detected = interpret(Sheet(current.sheet, headers, []), source.name)
+        if detected["family"] not in {"ledger", "moadian_sales", "moadian_purchases"}:
+            continue
+        rows = db.execute(
+            select(SourceRow.row_number, SourceRow.values)
+            .where(
+                SourceRow.company_id == source.company_id,
+                SourceRow.file_id == source.id,
+                SourceRow.sheet == current.sheet,
+            )
+            .order_by(SourceRow.row_number)
+        ).all()
+        proposal = interpret(Sheet(current.sheet, headers, [(number, values) for number, values in rows]), source.name)
+        proposal["evidence"]["source_interpretation_id"] = current.id
+        updated = Interpretation(
+            company_id=source.company_id,
+            file_id=source.id,
+            sheet=current.sheet,
+            provenance="validated_header_rules",
+            **proposal,
+        )
+        db.add(updated)
+        db.flush()
+        items[index] = updated
+    return items
+
+
 def check_interpretations(db: Session, session: ProcessingSession, files: list[SourceFile]) -> bool:
     for source in files:
         if source.state == "excluded_overlap":
             continue
-        for interpretation in latest_interpretations(db, session.company_id, source.id):
+        for interpretation in processing_interpretations(db, source):
             family = interpretation.family
             evidence = {**interpretation.evidence, "filename": source.name, "sheet": interpretation.sheet}
             missing = [k for k in REQUIRED.get(family, []) if k not in interpretation.mapping]
@@ -293,6 +330,7 @@ def answer_issue(
                 <= set(current.mapping)
                 | set(REQUIRED[family])
                 | {
+                    "entry_id",
                     "currency",
                     "tax",
                     "tax_id",
@@ -668,7 +706,7 @@ def process(db: Session, job: Job) -> None:
                     entry_date = parsed_date(
                         row.values.get(current.mapping.get("date", ""), ""), current.calendar
                     ).isoformat()
-                    entry_key = entry_id + "|" + entry_date
+                    entry_key = journal_entry_type_key(entry_id, entry_date, row.id)
                     labels = {
                         "regular": "سند عادی",
                         "opening": "افتتاحیه",
@@ -683,7 +721,7 @@ def process(db: Session, job: Job) -> None:
                         db,
                         session,
                         question_code("entry_type", entry_key),
-                        "نوع این سند چیست؟",
+                        "نوع این سند چیست؟" if entry_id else "نوع ثبت این ردیف چیست؟",
                         [{"value": key, "label": label} for key, label in labels.items()],
                         {**evidence, "entry_id": entry_id, "entry_date": entry_date, "entry_key": entry_key},
                         source.id,
@@ -709,24 +747,30 @@ def process(db: Session, job: Job) -> None:
     current_rows = source_rows_for(db, session.company_id, selected_rows)
     seen = {}
     journal_sources = {}
+    journal_files_by_date = {}
+    unnumbered_files_by_date = {}
     for item in candidates:
         if isinstance(item, JournalLine):
             source = current_rows[item.source_row_id]
             identity = (item.entry_id, item.date)
-            previous_file = journal_sources.get(identity)
-            if previous_file and previous_file != source.file_id:
+            previous_file = journal_sources.get(identity) if item.entry_id else None
+            same_document = previous_file and previous_file != source.file_id
+            possible_overlap = unnumbered_files_by_date if item.entry_id else journal_files_by_date
+            other_files = possible_overlap.get(item.date, set()) - {source.file_id}
+            if same_document or other_files:
                 issue(
                     db,
                     session,
                     "overlap_current",
-                    "شماره سند در دو فایل این نوبت مشترک است.",
+                    "شماره سند در دو فایل این نوبت مشترک است."
+                    if same_document else "فایل‌های دفتر در یک تاریخ مشترک‌اند و بعضی ردیف‌ها شماره سند ندارند.",
                     [
                         {"value": "exclude", "label": "ادامه بدون این فایل"},
                         {"value": "cancel", "label": "لغو نوبت"},
                     ],
                     {
                         "filename": db.get(SourceFile, source.file_id).name,
-                        "conflicting_file_id": previous_file,
+                        "conflicting_file_id": previous_file if same_document else min(other_files),
                         "entry_id": item.entry_id,
                         "date": item.date.isoformat(),
                     },
@@ -734,7 +778,11 @@ def process(db: Session, job: Job) -> None:
                 )
                 job.state = "done"
                 return
-            journal_sources[identity] = source.file_id
+            journal_files_by_date.setdefault(item.date, set()).add(source.file_id)
+            if item.entry_id:
+                journal_sources[identity] = source.file_id
+            else:
+                unnumbered_files_by_date.setdefault(item.date, set()).add(source.file_id)
             continue
         key = logical_key(item)
         source = current_rows[item.source_row_id]
@@ -768,9 +816,15 @@ def process(db: Session, job: Job) -> None:
     parent_row_map = source_rows_for(db, session.company_id, parent_rows)
     old_records = records_for(db, session.company_id, parent_rows)
     old_keys = {}
+    old_journal_rows_by_date = {}
+    old_unnumbered_rows_by_date = {}
     for key, cls in FACTS.items():
         for values in old_records[key]:
             item = cls(**values)
+            if isinstance(item, JournalLine):
+                old_journal_rows_by_date.setdefault(item.date, set()).add(item.source_row_id)
+                if not item.entry_id:
+                    old_unnumbered_rows_by_date.setdefault(item.date, set()).add(item.source_row_id)
             identity = (
                 ("journal_document", item.entry_id, item.date)
                 if isinstance(item, JournalLine)
@@ -796,9 +850,13 @@ def process(db: Session, job: Job) -> None:
             if isinstance(item, JournalLine)
             else logical_key(item)
         )
-        if identity in old_keys:
+        matching_rows = old_keys.get(identity, set())
+        if isinstance(item, JournalLine):
+            by_date = old_unnumbered_rows_by_date if item.entry_id else old_journal_rows_by_date
+            matching_rows = matching_rows | by_date.get(item.date, set())
+        if matching_rows:
             source = current_rows[item.source_row_id]
-            overlap_files.setdefault(source.file_id, set()).update(old_keys[identity])
+            overlap_files.setdefault(source.file_id, set()).update(matching_rows)
     for file_id, old_row_ids in overlap_files.items():
         answer = db.scalar(
             select(ProcessingIssue).where(
@@ -853,7 +911,7 @@ def process(db: Session, job: Job) -> None:
             old_files = answer.evidence["old_file_ids"]
             parent_rows = [rid for rid in parent_rows if parent_row_map[rid].file_id not in old_files]
     # A document's balance cannot be repaired by another file or another date.
-    journals = [v for v in candidates if isinstance(v, JournalLine)]
+    journals = [v for v in candidates if isinstance(v, JournalLine) and v.entry_id]
     entries = {}
     with localcontext() as context:
         context.prec = 50

@@ -164,8 +164,8 @@ export function useNativeCashScenarios() {
       },
     );
   };
-  const save = async () => {
-    if (!baseline || !workspace.canWrite) return;
+  const save = async (onSaved?: () => void) => {
+    if (!baseline || !workspace.canWrite || !local.name.trim()) return;
     const stamp = ++generation.current;
     await command.run<NativeScenario>(
       base + (local.item ? `/${local.item.id}` : ""),
@@ -191,6 +191,7 @@ export function useNativeCashScenarios() {
         if (stamp === generation.current) {
           loadItem(item);
           list.refresh();
+          onSaved?.();
         }
       },
       "سناریو ذخیره شد.",

@@ -483,3 +483,27 @@ def test_draft_preview_mapping_changes_and_revoked_actor_do_not_create_drafts(wo
     result = execute(db, "c", db.get(AutomationRule, saved["id"]), manifest)
     assert result["result"]["action_state"] == "actor_access_revoked"
     assert db.scalar(select(Draft.id)) is None
+
+
+def test_imported_rule_history_is_filtered_before_pagination(workspace, monkeypatch):
+    from contextlib import contextmanager
+
+    from didban.routes import automation as routes
+
+    db, owner, _, manifest = workspace
+    first = enabled_rule(db, owner)
+    second = enabled_rule(db, owner)
+    from didban.automation_models import AutomationRule
+    execute(db, "c", db.get(AutomationRule, first["id"]), manifest)
+    execute(db, "c", db.get(AutomationRule, second["id"]), manifest)
+
+    @contextmanager
+    def access(*_args):
+        yield db, owner, None
+
+    monkeypatch.setattr(routes, "access", access)
+    result = routes.runs("c", None, limit=1, rule_id=first["id"])
+    assert len(result["items"]) == 1
+    assert result["items"][0]["rule_id"] == first["id"]
+    assert result["next_cursor"] is None
+    assert routes.runs("other", None, rule_id=first["id"])["items"] == []

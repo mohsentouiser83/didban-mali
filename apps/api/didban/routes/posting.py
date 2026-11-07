@@ -51,9 +51,12 @@ def journals(
     limit: int = 25,
     cursor: str | None = None,
     period_id: str | None = None,
+    draft_id: str | None = None,
 ):
     with access(request, company_id) as (db, _user, _member):
         filters = []
+        if draft_id:
+            filters.append(NativeJournal.draft_id == draft_id)
         if period_id:
             from ..models import Period
 

@@ -1,10 +1,12 @@
 "use client";
-import { BooksIcon, GearSixIcon, PlusIcon } from "@phosphor-icons/react";
+import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormMessage } from "@/components/ui/field";
+import { useJournalDetails } from "@/hooks/use-journal-details";
+import { JournalDetailsDrawer } from "./journal-details-drawer";
 import { usePosting } from "@/hooks/use-posting";
 import { PostingReviewDialog } from "./posting-review-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -38,41 +40,26 @@ export function AccountingView() {
 function JournalWorkspace() {
   const view = useJournalDrafts();
   const posting = usePosting(view.refresh);
+  const details = useJournalDetails(view.refresh);
+  const canSelect = !!view.capabilities.data?.can_post && view.capabilities.data.posting_available;
   return (
     <>
       <PageHeader
         title="اسناد حسابداری"
         icon={BooksIcon}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/period-end" variant="secondary">
-              اسناد پایان دوره
-            </ButtonLink>
-            <ButtonLink href="/accounting/journals" variant="secondary">
-              دفتر اصلی
-            </ButtonLink>
-            <ButtonLink href="/accounting/operations" variant="secondary">
-              عملیات مالی
-            </ButtonLink>
-            <ButtonLink href="/settings/accounts" variant="secondary">
-              <GearSixIcon size={18} aria-hidden />
-              کدینگ حساب‌ها
-            </ButtonLink>
-            {view.canPrepare && (
-              <Button
-                onClick={() => view.open(null)}
-                disabled={!view.canCreateDraft}
-              >
-                <PlusIcon size={18} aria-hidden />
-                پیش‌نویس جدید
-              </Button>
-            )}
-          </div>
+          view.canPrepare && (
+            <Button onClick={() => view.open(null)} disabled={view.loading}>
+              <PlusIcon size={18} aria-hidden />
+              سند جدید
+            </Button>
+          )
         }
       />
       <Panel>
         {view.capabilities.data?.can_post &&
-          view.capabilities.data.posting_available && (
+          view.capabilities.data.posting_available &&
+          posting.selected.length > 0 && (
             <Button
               className="mb-4"
               disabled={!posting.selected.length}
@@ -84,7 +71,7 @@ function JournalWorkspace() {
           )}
         <FormMessage error>{posting.error?.message}</FormMessage>
         {view.loading ? (
-          <LoadingState label="در حال دریافت پیش‌نویس‌ها" variant="panels" />
+          <LoadingState label="در حال دریافت اسناد" variant="panels" />
         ) : view.error ? (
           <ErrorState message={view.error.message} onRetry={view.refresh} />
         ) : (
@@ -92,7 +79,7 @@ function JournalWorkspace() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>انتخاب</TableHead>
+                  {canSelect && <TableHead>انتخاب</TableHead>}
                   <TableHead>شرح سند</TableHead>
                   <TableHead>تاریخ</TableHead>
                   <TableHead>بدهکار (ریال)</TableHead>
@@ -106,7 +93,7 @@ function JournalWorkspace() {
                 {view.rows.length ? (
                   view.rows.map((draft) => (
                     <TableRow key={draft.id}>
-                      <TableCell>
+                      {canSelect && <TableCell>
                         {draft.state === "draft" &&
                           view.capabilities.data?.can_post &&
                           view.capabilities.data.posting_available && (
@@ -119,7 +106,7 @@ function JournalWorkspace() {
                               }
                             />
                           )}
-                      </TableCell>
+                      </TableCell>}
                       <TableRowHeader>
                         <span className="block max-w-sm break-words">
                           {draft.description}
@@ -148,13 +135,31 @@ function JournalWorkspace() {
                         <div className="flex flex-wrap gap-2">
                           <Button
                             variant="secondary"
-                            onClick={() => view.open(draft)}
+                            onClick={() =>
+                              draft.state === "posted"
+                                ? details.open(draft)
+                                : view.open(draft)
+                            }
                           >
                             {view.canPrepare && draft.state === "draft"
                               ? "بررسی و ویرایش"
                               : "مشاهده"}
                           </Button>
-                          <DocumentDiscussionButton subjectKind="draft" subjectId={draft.id} />
+                          {draft.state === "draft" &&
+                            view.capabilities.data?.can_post &&
+                            view.capabilities.data.posting_available && (
+                              <Button
+                                variant="secondary"
+                                disabled={posting.loading}
+                                onClick={() => void posting.review([draft.id])}
+                              >
+                                ثبت نهایی
+                              </Button>
+                            )}
+                          <DocumentDiscussionButton
+                            subjectKind="draft"
+                            subjectId={draft.id}
+                          />
                           {view.canPrepare && draft.state === "draft" && (
                             <Button
                               variant="ghost"
@@ -169,8 +174,8 @@ function JournalWorkspace() {
                   ))
                 ) : (
                   <TableEmptyCell
-                    colSpan={6}
-                    title="پیش‌نویسی ثبت نشده"
+                    colSpan={canSelect ? 6 : 5}
+                    title="سندی ثبت نشده"
                     action={
                       view.requiresAccounts ? (
                         <ButtonLink href="/settings/accounts">
@@ -192,6 +197,7 @@ function JournalWorkspace() {
       </Panel>
       <JournalDraftForm view={view} />
       <PostingReviewDialog view={posting} />
+      <JournalDetailsDrawer view={details} drafts={view} />
       <ConfirmDialog
         title="کنارگذاشتن پیش‌نویس"
         open={!!view.discarding}

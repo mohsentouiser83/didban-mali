@@ -64,12 +64,12 @@ def session_job(db, user, company, period, *, parent=None, coverage=True):
     return session, job
 
 
-def source(db, session, family, rows, *, unit="IRR", sheet="حساب الف"):
+def source(db, session, family, rows, *, unit="IRR", sheet="حساب الف", provenance="validated_automatic"):
     item = SourceFile(company_id=session.company_id, session_id=session.id, name=uid()+".csv", sha256=uid(), size=100, storage_key=uid(), state="ready", scan_status="development_unscanned", row_count=len(rows))
     db.add(item)
     db.flush()
     mapping = {key: key for row in rows for key in row}
-    db.add(Interpretation(company_id=session.company_id, file_id=item.id, sheet=sheet, family=family, mapping=mapping, unit=unit, calendar="gregorian", provenance="validated_automatic", evidence={"headers": list(mapping), "sheet": sheet, "sample": rows[:1]}))
+    db.add(Interpretation(company_id=session.company_id, file_id=item.id, sheet=sheet, family=family, mapping=mapping, unit=unit, calendar="gregorian", provenance=provenance, evidence={"headers": list(mapping), "sheet": sheet, "sample": rows[:1]}))
     for number, row in enumerate(rows, 2):
         db.add(SourceRow(company_id=session.company_id, file_id=item.id, sheet=sheet, row_number=number, values=row))
     db.flush()
@@ -89,6 +89,54 @@ def invoice_rows():
 
 def metric(manifest, key):
     return next(row for row in manifest.metrics if row["metric_key"] == key)
+
+
+def test_existing_portal_upload_is_recognized_without_overwriting_evidence(db):
+    user, company, period = seed(db)
+    session, job = session_job(db, user, company, period)
+    original = {
+        "نقش مودی (نقش فروشنده)": "عادی",
+        "شماره مالیاتی صورت‌حساب": "ORIGINAL",
+        "تاریخ صدور صورت‌حساب": "1405/06/15 09:30",
+        "مجموع صورت‌حساب": "110",
+        "مالیات بر ارزش افزوده": "10",
+        "موضوع صورت‌حساب": "اصلی",
+        "وضعیت صورت‌حساب": "تأیید شده",
+        "شماره مالیاتی صورت‌حساب مرجع": "",
+        "مجموع بهای کالا و خدمات صورت‌حساب بدون مالیات‌ها و عوارض (ریال)": "100",
+    }
+    rejected = {**original, "شماره مالیاتی صورت‌حساب": "REJECTED", "وضعیت صورت‌حساب": "رد شده"}
+    cancellation = {
+        **original,
+        "شماره مالیاتی صورت‌حساب": "CANCELLATION",
+        "موضوع صورت‌حساب": "ابطالی",
+        "شماره مالیاتی صورت‌حساب مرجع": "ORIGINAL",
+        "مالیات بر ارزش افزوده": "",
+    }
+    file = source(
+        db, session, "unknown", [original, rejected, cancellation], unit=None,
+        provenance="validated_header_rules",
+    )
+    previous = db.scalar(select(Interpretation).where(Interpretation.file_id == file.id))
+
+    process(db, job)
+    db.flush()
+
+    assert session.state == "completed_limited"
+    assert previous.family == "unknown"
+    versions = list(db.scalars(select(Interpretation).where(Interpretation.file_id == file.id)))
+    assert len(versions) == 2
+    upgraded = next(item for item in versions if item.id != previous.id)
+    assert upgraded.evidence["source_interpretation_id"] == previous.id
+    assert (upgraded.family, upgraded.unit, upgraded.calendar) == ("moadian_sales", "IRR", "jalali")
+    report = db.get(ResultManifest, session.result_id).details["moadian"]
+    sales = {row["tax_id"]: row for row in report["sales"]}
+    assert sales["ORIGINAL"]["status"] == "portal_only"
+    assert sales["REJECTED"]["reason_codes"] == ["portal_status_review_required"]
+    assert sales["CANCELLATION"]["reason_codes"] == ["reference_chain_review_required", "tax_missing"]
+    assert sales["CANCELLATION"]["tax"] is None
+    assert not report["purchases"]
+    assert db.scalar(select(Invoice)) is None
 
 
 def test_question_barrier_prevents_all_facts_until_valid_answer_and_survives_commit(db):
@@ -170,6 +218,30 @@ def test_journal_imbalances_cannot_cancel_across_dates(db):
     assert question.file_id == source_file.id
     assert len(question.evidence["unbalanced_entries"]) == 2
     assert session.result_id is None
+
+
+def test_unnumbered_ledger_keeps_rows_and_blocks_overlapping_file(db):
+    user, company, period = seed(db)
+    session, job = session_job(db, user, company, period)
+    row = {"account": "A", "role": "revenue", "entry_type": "regular", "date": "2026-09-02",
+           "debit": "0", "credit": "10"}
+    offset = {**row, "account": "B", "role": "capital", "date": "2026-09-03", "debit": "20", "credit": "0"}
+    original = source(db, session, "ledger", [row, row, offset])
+    process(db, job)
+    db.flush()
+    manifest = db.get(ResultManifest, session.result_id)
+    assert metric(manifest, "revenue")["value"] == "20"
+
+    revision, revision_job = session_job(db, user, company, period, parent=manifest.id)
+    replacement = source(db, revision, "ledger", [
+        {**row, "entry_id": "E"},
+        {**row, "entry_id": "E", "account": "B", "role": "capital", "debit": "10", "credit": "0"},
+    ])
+    process(db, revision_job)
+    question = db.scalar(select(ProcessingIssue).where(ProcessingIssue.code == "overlap"))
+    assert question.file_id == replacement.id
+    assert question.evidence["old_file_ids"] == [original.id]
+    assert revision.result_id is None
 
 
 def test_manual_allocation_uses_effective_bank_date_and_freezes_old_snapshot(db):

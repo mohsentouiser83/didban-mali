@@ -21,6 +21,7 @@ def preview(company_id: str, data: NativeRulePreview, request: Request):
 
 
 @router.get(P + "/native-runs")
-def runs(company_id: str, request: Request, limit: int = 25, cursor: str | None = None):
+def runs(company_id: str, request: Request, limit: int = 25, cursor: str | None = None, rule_id: str | None = None):
     with access(request, company_id) as (db, _user, _member):
-        return paginate(db, NativeAutomationRun, company_id, limit, cursor)
+        filters = [NativeAutomationRun.rule_id == rule_id] if rule_id else []
+        return paginate(db, NativeAutomationRun, company_id, limit, cursor, filters)

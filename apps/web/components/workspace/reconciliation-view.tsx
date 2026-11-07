@@ -40,6 +40,7 @@ import { useReconciliationBasis } from "@/hooks/use-reconciliation-basis";
 import { NativeBankMatchesPanel } from "./native-bank-matches-panel";
 function ImportedReconciliationWorkspace() {
   const view = useReconciliation();
+  const [mappingOpen, setMappingOpen] = useState(false);
   const [selected, setSelected] = useState<ReconciliationCandidate | null>(
     null,
   );
@@ -48,65 +49,22 @@ function ImportedReconciliationWorkspace() {
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      {view.options.loading ? (
-        <LoadingState />
-      ) : view.options.error ? (
-        <ErrorState
-          message={view.options.error.message}
-          onRetry={view.options.refresh}
-        />
-      ) : !view.options.data ? (
-        <Panel>
-          <EmptyState
-            title="منابع تطبیق موجود نیست"
-            description="گردش بانک و دفتر حسابداری لازم است."
-          />
-        </Panel>
-      ) : (
-        <Panel title="ارتباط حساب‌های بانک و دفتر">
-          <Form
-            fieldErrors={view.command.error?.fields}
-            onSubmit={(event) => {
-              event.preventDefault();
-              void view.create();
-            }}
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              {view.options.data.bank_accounts.map((bank) => (
-                <Field
-                  key={bank}
-                  id={`bank-map-${bank}`}
-                  label={bank}
-                  icon={ArrowsLeftRightIcon}
-                >
-                  <Select
-                    id={`bank-map-${bank}`}
-                    value={view.selectedMapping[bank] || "none"}
-                    onValueChange={(account) =>
-                      view.setMapping(bank, account === "none" ? "" : account)
-                    }
-                    options={[
-                      { value: "none", label: "بدون ارتباط" },
-                      ...view.options.data!.ledger_accounts.map((account) => ({
-                        value: account.account,
-                        label: account.account,
-                      })),
-                    ]}
-                    disabled={!view.workspace.canWrite || view.command.busy}
-                  />
-                </Field>
-              ))}
-            </div>
-            <FormMessage error>{view.command.error?.message}</FormMessage>
-            {view.workspace.canWrite && (
-              <Button type="submit" busy={view.command.busy}>
-                اجرای تطبیق
-              </Button>
-            )}
-          </Form>
-        </Panel>
-      )}
-      <Panel title="نتیجه تطبیق" className="mt-5">
+      <Panel
+        title="نتیجه تطبیق"
+        action={
+          (view.workspace.canWrite || !!view.options.data) && (
+            <Button
+              disabled={view.command.busy}
+              onClick={() => {
+                view.command.clearError();
+                setMappingOpen(true);
+              }}
+            >
+              {view.workspace.canWrite ? "تطبیق جدید" : "مشاهده ارتباط حساب‌ها"}
+            </Button>
+          )
+        }
+      >
         {view.latest.loading ? (
           <LoadingState />
         ) : view.latest.error ? (
@@ -140,10 +98,14 @@ function ImportedReconciliationWorkspace() {
                     </TableRowHeader>
                     <TableCell>{candidate.bank_account}</TableCell>
                     <TableCell>
-                      {candidate.group_basis === "native_book" ? <>
-                        <p>{candidate.group_ledger_account || "—"}</p>
-                        <p className="text-xs text-muted">دفتر دیدبان</p>
-                      </> : candidate.ledger_account || "—"}
+                      {candidate.group_basis === "native_book" ? (
+                        <>
+                          <p>{candidate.group_ledger_account || "—"}</p>
+                          <p className="text-xs text-muted">دفتر دیدبان</p>
+                        </>
+                      ) : (
+                        candidate.ledger_account || "—"
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {displayDate(candidate.date)}
@@ -184,11 +146,85 @@ function ImportedReconciliationWorkspace() {
           onNext={view.nextPage}
         />
       </Panel>
-      {view.latest.data && <GroupMatchesPanel key={view.workspace.company?.id + view.latest.data.id} runId={view.latest.data.id} onDecided={view.latest.refresh} />}
+      <Drawer
+        title="ارتباط حساب‌های بانک و دفتر"
+        open={mappingOpen}
+        onOpenChange={(open) => {
+          if (!view.command.busy) setMappingOpen(open);
+        }}
+      >
+        {view.options.loading ? (
+          <LoadingState />
+        ) : view.options.error ? (
+          <ErrorState
+            message={view.options.error.message}
+            onRetry={view.options.refresh}
+          />
+        ) : !view.options.data ? (
+          <Panel>
+            <EmptyState
+              title="منابع تطبیق موجود نیست"
+              description="گردش بانک و دفتر حسابداری لازم است."
+            />
+          </Panel>
+        ) : (
+          <div>
+            <Form
+              fieldErrors={view.command.error?.fields}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void view.create(() => setMappingOpen(false));
+              }}
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                {view.options.data.bank_accounts.map((bank) => (
+                  <Field
+                    key={bank}
+                    id={`bank-map-${bank}`}
+                    label={bank}
+                    icon={ArrowsLeftRightIcon}
+                  >
+                    <Select
+                      id={`bank-map-${bank}`}
+                      value={view.selectedMapping[bank] || "none"}
+                      onValueChange={(account) =>
+                        view.setMapping(bank, account === "none" ? "" : account)
+                      }
+                      options={[
+                        { value: "none", label: "بدون ارتباط" },
+                        ...view.options.data!.ledger_accounts.map(
+                          (account) => ({
+                            value: account.account,
+                            label: account.account,
+                          }),
+                        ),
+                      ]}
+                      disabled={!view.workspace.canWrite || view.command.busy}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <FormMessage error>{view.command.error?.message}</FormMessage>
+              {view.workspace.canWrite && (
+                <Button type="submit" busy={view.command.busy}>
+                  اجرای تطبیق
+                </Button>
+              )}
+            </Form>
+          </div>
+        )}
+      </Drawer>
+      {view.latest.data && (
+        <GroupMatchesPanel
+          key={view.workspace.company?.id + view.latest.data.id}
+          runId={view.latest.data.id}
+          onDecided={view.latest.refresh}
+        />
+      )}
       <Drawer
         open={!!selected}
         onOpenChange={(open) => {
-          if (!open) setSelected(null);
+          if (!open && !view.command.busy) setSelected(null);
         }}
         title="شواهد تطبیق"
       >
@@ -196,12 +232,27 @@ function ImportedReconciliationWorkspace() {
           <div className="space-y-5">
             <StatusBadge status={view.groupDetails(selected).status} />
             {view.isGrouped(selected) && (
-              <StatusMessage>این گردش در یک گروه {view.groupDetails(selected).group_basis === "native_book" ? "دفتر دیدبان " : ""}پذیرفته شده؛ تغییر تصمیم از همان گروه انجام می‌شود.</StatusMessage>
+              <StatusMessage>
+                این گردش در یک گروه{" "}
+                {view.groupDetails(selected).group_basis === "native_book"
+                  ? "دفتر دیدبان "
+                  : ""}
+                پذیرفته شده؛ تغییر تصمیم از همان گروه انجام می‌شود.
+              </StatusMessage>
             )}
-            {view.nativeGroupExport(selected) && <ButtonLink download href={view.nativeGroupExport(selected)!} variant="secondary">نسخهٔ ثابت دفتر دیدبان</ButtonLink>}
+            {view.nativeGroupExport(selected) && (
+              <ButtonLink
+                download
+                href={view.nativeGroupExport(selected)!}
+                variant="secondary"
+              >
+                نسخهٔ ثابت دفتر دیدبان
+              </ButtonLink>
+            )}
             {selected.ledger_ids.length > 1 && (
               <StatusMessage tone="primary">
-                {persian(selected.ledger_ids.length)} ردیف دفتر برای یک گردش بانک
+                {persian(selected.ledger_ids.length)} ردیف دفتر برای یک گردش
+                بانک
               </StatusMessage>
             )}
             <EvidenceList evidence={selected.evidence_refs} />
@@ -256,13 +307,33 @@ function ImportedReconciliationWorkspace() {
   );
 }
 
-
 export function ReconciliationView() {
   const view = useReconciliationBasis();
   if (!view.workspace.company) return <NoCompany />;
-  return <>
-    <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
-    <Panel className="mb-5"><Field id="reconciliation-book-basis" label="مبنای دفتر برای تطبیق"><Select id="reconciliation-book-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_book",label:"دفتر دیدبان"},{value:"imported_ledger",label:"دفتر واردشده از نرم‌افزار مبدأ"}]}/></Field></Panel>
-    {view.basis === "native_book" ? <NativeBankMatchesPanel key={view.scope+":native"}/> : <ImportedReconciliationWorkspace key={view.scope+":imported"}/>}
-  </>;
+  return (
+    <>
+      <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
+      <Panel className="mb-5">
+        <Field id="reconciliation-book-basis" label="مبنای دفتر برای تطبیق">
+          <Select
+            id="reconciliation-book-basis"
+            value={view.basis}
+            onValueChange={view.select}
+            options={[
+              { value: "native_book", label: "دفتر دیدبان" },
+              {
+                value: "imported_ledger",
+                label: "دفتر واردشده از نرم‌افزار مبدأ",
+              },
+            ]}
+          />
+        </Field>
+      </Panel>
+      {view.basis === "native_book" ? (
+        <NativeBankMatchesPanel key={view.scope + ":native"} />
+      ) : (
+        <ImportedReconciliationWorkspace key={view.scope + ":imported"} />
+      )}
+    </>
+  );
 }

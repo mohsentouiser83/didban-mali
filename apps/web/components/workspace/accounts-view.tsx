@@ -1,7 +1,10 @@
 "use client";
+import { useState } from "react";
+import { Select } from "@/components/ui/select";
+import { AccountRoleField } from "./account-role-field";
 import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
@@ -31,6 +34,7 @@ export function AccountsView() {
 }
 function AccountsWorkspace() {
   const view = useLedgerAccounts();
+  const [method, setMethod] = useState("manual");
   const editable = !!view.capabilities.data?.can_manage_accounts;
   const error = view.resource.error || view.capabilities.error;
   return (
@@ -39,23 +43,19 @@ function AccountsWorkspace() {
         title="کدینگ حساب‌ها"
         icon={BooksIcon}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/settings/account-roles" variant="secondary">
-              نقش حساب‌ها
-            </ButtonLink>
-            <ButtonLink href="/accounting" variant="secondary">
-              اسناد حسابداری
-            </ButtonLink>
-            {editable && (
-              <Button onClick={() => view.open(null)}>
-                <PlusIcon size={18} aria-hidden />
-                حساب جدید
-              </Button>
-            )}
-          </div>
+          editable && (
+            <Button
+              onClick={() => {
+                setMethod("manual");
+                view.open(null);
+              }}
+            >
+              <PlusIcon size={18} aria-hidden />
+              حساب جدید
+            </Button>
+          )
         }
       />
-      {editable && <ChartSetupPanel onImported={view.resource.refresh} />}
       <Panel>
         {view.resource.loading || view.capabilities.loading ? (
           <LoadingState label="در حال دریافت حساب‌ها" variant="panels" />
@@ -96,14 +96,14 @@ function AccountsWorkspace() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {editable && (
+                        {
                           <Button
                             variant="secondary"
                             onClick={() => view.open(account)}
                           >
-                            ویرایش
+                            {editable ? "ویرایش" : "مشاهده"}
                           </Button>
-                        )}
+                        }
                       </TableCell>
                     </TableRow>
                   ))
@@ -123,46 +123,70 @@ function AccountsWorkspace() {
           if (!open && !view.command.busy) view.close();
         }}
       >
-        <Form
-          fieldErrors={view.command.error?.fields}
-          onSubmit={(event) => {
-            event.preventDefault();
-            view.save();
-          }}
-        >
-          <Field id="ledger-code" name="code" label="کد حساب">
-            <Input
-              id="ledger-code"
-              required
-              dir="ltr"
-              maxLength={100}
-              value={view.value.code}
-              disabled={view.command.busy}
-              onChange={(event) => view.change({ code: event.target.value })}
-            />
-          </Field>
-          <Field id="ledger-name" name="name" label="نام حساب">
-            <Input
-              id="ledger-name"
-              required
-              maxLength={150}
-              value={view.value.name}
-              disabled={view.command.busy}
-              onChange={(event) => view.change({ name: event.target.value })}
-            />
-          </Field>
-          <Checkbox
-            id="ledger-active"
-            label="حساب فعال"
-            checked={view.value.active}
-            disabled={view.command.busy}
-            onCheckedChange={(active) => view.change({ active })}
+        {!view.editing && editable && (
+          <Select
+            label="روش افزودن حساب"
+            value={method}
+            onValueChange={setMethod}
+            options={[
+              { value: "manual", label: "تعریف دستی" },
+              { value: "import", label: "استفاده از فایل یا الگوی حساب‌ها" },
+            ]}
           />
-          <FormMessage error>{view.command.error?.message}</FormMessage>
-          <Button type="submit" busy={view.command.busy}>
-            ذخیره حساب
-          </Button>
-        </Form>
+        )}
+        {method === "import" && !view.editing ? (
+          <ChartSetupPanel
+            embedded
+            onImported={() => {
+              view.close();
+              view.resource.refresh();
+            }}
+          />
+        ) : (
+          <Form
+            fieldErrors={view.command.error?.fields}
+            onSubmit={(event) => {
+              event.preventDefault();
+              view.save();
+            }}
+          >
+            <Field id="ledger-code" name="code" label="کد حساب">
+              <Input
+                id="ledger-code"
+                required
+                dir="ltr"
+                maxLength={100}
+                value={view.value.code}
+                disabled={!editable || view.command.busy}
+                onChange={(event) => view.change({ code: event.target.value })}
+              />
+            </Field>
+            <Field id="ledger-name" name="name" label="نام حساب">
+              <Input
+                id="ledger-name"
+                required
+                maxLength={150}
+                value={view.value.name}
+                disabled={!editable || view.command.busy}
+                onChange={(event) => view.change({ name: event.target.value })}
+              />
+            </Field>
+            <Checkbox
+              id="ledger-active"
+              label="حساب فعال"
+              checked={view.value.active}
+              disabled={!editable || view.command.busy}
+              onCheckedChange={(active) => view.change({ active })}
+            />
+            {view.editing && <AccountRoleField accountId={view.editing.id} />}
+            <FormMessage error>{view.command.error?.message}</FormMessage>
+            {editable && (
+              <Button type="submit" busy={view.command.busy}>
+                ذخیره حساب
+              </Button>
+            )}
+          </Form>
+        )}
       </Drawer>
     </>
   );

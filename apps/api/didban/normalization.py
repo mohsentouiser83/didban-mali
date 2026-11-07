@@ -3,7 +3,7 @@
 from decimal import Decimal, localcontext
 
 from .errors import DomainError, require
-from .ingestion import money, parsed_date
+from .ingestion import money, normalized, parsed_date
 from .models import (
     BankMovement,
     Interpretation,
@@ -47,6 +47,22 @@ ENTRY_TYPES = {
     "adjustment",
     "real_cogs_adjustment",
 }
+
+
+def journal_entry_type_key(entry_id: str, date: str, row_id: str) -> str:
+    return f"{entry_id}|{date}" if entry_id else f"row:{row_id}"
+
+
+def moadian_portal_state(subject: str, status: str) -> str:
+    subject = normalized(subject)
+    if subject == "اصلی":
+        status = normalized(status).replace("تأیید", "تایید")
+        return "original" if status in {"تایید شده", "تایید سیستمی"} else "portal_status_review"
+    return {
+        "اصلاحی": "correction",
+        "ابطالی": "cancellation",
+        "برگشت از فروش": "return",
+    }.get(subject, "portal_subject_review")
 
 
 def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -> object | None:
@@ -118,14 +134,15 @@ def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -
                                employee_name=name, date=date, values=values)
     if family == "ledger":
         require(
-            bool(get("entry_id") and get("account")),
+            bool(get("account")),
             "journal_identity_missing",
-            "شماره سند و حساب باید مشخص باشند.",
+            "حساب باید مشخص باشد.",
         )
         role = interpretation.evidence.get("role_overrides", {}).get(get("account")) or get("role")
         valid_role = role in ROLES or role.startswith("bank_")
         require(valid_role, "account_role_ambiguous", "نقش حساب روشن نیست؛ فایل با نقش معتبر تکمیل شود.")
-        entry_key = get("entry_id") + "|" + date.isoformat()
+        entry_id = get("entry_id")
+        entry_key = journal_entry_type_key(entry_id, date.isoformat(), row.id)
         entry_type = interpretation.evidence.get("entry_type_overrides", {}).get(entry_key) or get(
             "entry_type"
         )
@@ -138,7 +155,7 @@ def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -
         )
         return JournalLine(
             **base,
-            entry_id=get("entry_id"),
+            entry_id=entry_id,
             date=date,
             account=get("account"),
             role=role,
@@ -228,6 +245,9 @@ def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -
             direction=direction,
         )
     if family.startswith("moadian_"):
+        state = get("kind")
+        if "portal_status" in mapping:
+            state = moadian_portal_state(state, get("portal_status"))
         return InvoiceSnapshot(
             **base,
             party_id=get("party_id") or None,
@@ -237,7 +257,7 @@ def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -
             tax=money(get("tax"), unit) if get("tax") else None,
             date=date,
             direction="purchases" if family.endswith("purchases") else "sales",
-            state=get("kind"),
+            state=state,
             parent_reference=get("parent_reference") or None,
         )
     if family == "plans":

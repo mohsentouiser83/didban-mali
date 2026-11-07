@@ -37,11 +37,18 @@ export function useNativeBankMatches(){
  function remove(side:"bank"|"ledger",id:string){if(!valid()||command.busy)return;revision.current++;const key=side==="bank"?"banks":"ledgers";setEditor(previous=>{const value=previous.scope===scope?previous:blank(scope);return {...value,[key]:value[key].filter(item=>item.id!==id),preview:null,reason:""};});command.clearError();}
  const canPreview=workspace.canWrite&&!command.busy&&!sources.loading&&!sources.error&&!!sources.data?.bank_manifest_id&&!!current.statementId&&!!current.bankAccount&&!!current.ledgerAccount&&!!current.banks.length&&!!current.ledgers.length;
  function preview(){if(!canPreview||!valid())return;const requestRevision=++revision.current;change({preview:null,reason:""});void command.run<NativePreview>(base?`${base}/previews`:null,{body:{bank_manifest_id:sources.data!.bank_manifest_id,native_statement_id:current.statementId,bank_account:current.bankAccount,ledger_account:current.ledgerAccount,bank_ids:current.banks.map(row=>row.id),ledger_ids:current.ledgers.map(row=>row.id)}},result=>{if(live.current.scope!==scope||revision.current!==requestRevision)return;change({preview:result});history.refresh();});}
+ function startNew() {
+   revision.current++;
+   setEditor(blank(scope));
+   setQuery({scope, bank:"", ledger:""});
+   setPagination({bankScope:"",ledgerScope:"",bank:0,ledger:0});
+   command.clearError();
+ }
  function view(item:NativePreview){if(command.busy)return;const requestRevision=++revision.current;change({preview:null,reason:""});void command.run<NativePreview>(base?`${base}/previews/${item.id}`:null,{method:"GET"},result=>{if(live.current.scope!==scope||revision.current!==requestRevision)return;change({preview:result,statementId:result.native_statement_id,bankAccount:result.snapshot.bank_account,ledgerAccount:result.snapshot.ledger_account,banks:result.snapshot.banks,ledgers:result.snapshot.ledgers,reason:""});});}
  const canDecide=!!current.preview&&workspace.canWrite&&!command.busy&&!!current.reason.trim()&&command.error?.code!=="version_conflict";const canAccept=canDecide&&!!current.preview?.current&&!!current.preview?.snapshot.can_accept;
  function decide(decision:"accepted"|"rejected"){if(!valid()||!canDecide||!current.preview||(decision==="accepted"&&!canAccept))return;const selected=current.preview;const requestRevision=++revision.current;void command.run<NativePreview>(base?`${base}/previews/${selected.id}/decisions`:null,{version:selected.version,body:{expected_digest:selected.digest,expected_version:selected.version,decision,reason:current.reason.trim()}},result=>{if(live.current.scope!==scope||revision.current!==requestRevision)return;change({preview:result,reason:""});history.refresh();},"تصمیم تطبیق با دفتر دیدبان ثبت شد.");}
  const choices=(side:"bank"|"ledger")=>{const selected=new Set((side==="bank"?current.banks:current.ledgers).map(row=>row.id));return ((side==="bank"?bankOptions:ledgerOptions).data?.items||[]).filter(row=>!selected.has(row.id)).map(row=>({value:row.id,label:`${row.reference||"بدون مرجع"} · ${displayDate(row.date)} · ${amount(row.amount)} ریال · ${row.party_id||"طرف نامشخص"}`}));};
- return {workspace,command,current,statements,sources,history,bankOptions,ledgerOptions,bankPage,ledgerPage,queries,canPreview,canDecide,canAccept,add,remove,preview,view,decide,
+ return {workspace,command,current,statements,sources,history,bankOptions,ledgerOptions,bankPage,ledgerPage,queries,canPreview,canDecide,canAccept,add,remove,preview,view,decide,startNew,
    statementChoices:(statements.data?.items||[]).map(item=>({value:item.id,label:`${item.snapshot.period.name} · ${displayDate(item.snapshot.as_of)} · ${item.digest.slice(0,8)}`})),
    bankAccountChoices:(sources.data?.bank_accounts||[]).map(value=>({value,label:value})),ledgerAccountChoices:(sources.data?.ledger_accounts||[]).map(value=>({value,label:value})),
    bankChoices:choices("bank"),ledgerChoices:choices("ledger"),

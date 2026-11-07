@@ -119,7 +119,8 @@ def _ledger(ledger: list[dict], period: dict, coverage: dict) -> tuple[list[dict
     unknown = [row for row in through_end if row.get("role", "") not in known and not str(row.get("role", "")).startswith("bank_")]
     entries: dict[tuple[str, date], Decimal] = defaultdict(lambda: ZERO)
     for row in through_end:
-        entries[(str(row.get("entry_id", row.get("source_row_id", ""))), day(row["date"]))] += amount(row.get("debit", "0")) - amount(row.get("credit", "0"))
+        if entry_id := row.get("entry_id"):
+            entries[(str(entry_id), day(row["date"]))] += amount(row.get("debit", "0")) - amount(row.get("credit", "0"))
     unbalanced = [key for key, balance in entries.items() if balance != 0]
     reasons = []
     if not ledger:
@@ -331,6 +332,7 @@ def _moadian(invoices: list[dict], snapshots: list[dict], period: dict) -> dict:
     for direction, aliases in (("sales", SALES_DIRECTIONS), ("purchases", PURCHASE_DIRECTIONS)):
         internal = [row for row in invoices if row.get("direction") in aliases and start <= day(row["date"]) <= end]
         portal = [row for row in snapshots if row.get("direction") in aliases and start <= day(row["date"]) <= end]
+        known_ids = {str(row["tax_id"]) for row in snapshots if row.get("direction") in aliases and row.get("tax_id")}
         ids = {str(row.get("tax_id")) for row in [*internal, *portal] if row.get("tax_id")}
         for tax_id in sorted(ids):
             left = [row for row in internal if str(row.get("tax_id")) == tax_id]
@@ -339,11 +341,23 @@ def _moadian(invoices: list[dict], snapshots: list[dict], period: dict) -> dict:
             status = "matched"
             if len(left) > 1 or len(right) > 1:
                 status, reasons = "needs_review", ["identity_ambiguous"]
-            if any(row.get("state", "original") not in ("original", "normal", "active") for row in right):
+            states_needing_review = {
+                "portal_status_review": "portal_status_review_required",
+                "portal_subject_review": "portal_subject_review_required",
+            }
+            for state, reason in states_needing_review.items():
+                if any(row.get("state") == state for row in right):
+                    status = "needs_review"
+                    reasons.append(reason)
+            chain_rows = [
+                row for row in right
+                if row.get("state", "original") not in ("original", "normal", "active")
+                and row.get("state") not in states_needing_review
+            ]
+            if chain_rows:
                 status = "needs_review"
                 reasons.append("reference_chain_review_required")
-                known_ids = {str(row.get("tax_id")) for row in snapshots}
-                if any(not row.get("parent_reference") or str(row["parent_reference"]) not in known_ids for row in right if row.get("state", "original") not in ("original", "normal", "active")):
+                if any(not row.get("parent_reference") or str(row["parent_reference"]) not in known_ids for row in chain_rows):
                     reasons.append("reference_missing")
             if any(row.get("tax") is None or row.get("tax") == "" for row in [*left, *right]):
                 status = "needs_review"

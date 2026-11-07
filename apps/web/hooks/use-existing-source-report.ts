@@ -12,7 +12,7 @@ export function useExistingSourceReport() {
   const keys = useRef(new Map<string, string>());
   const latest = useResource<Manifest>(
     workspace.periodId && workspace.canWrite
-      ? workspace.companyPath("results/latest?view=summary")
+      ? workspace.companyPath("results/latest?view=summary&allow_missing=true")
       : null,
     { allowMissing: true },
   );

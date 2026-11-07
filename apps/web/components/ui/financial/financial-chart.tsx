@@ -144,7 +144,7 @@ export function CashChart({
       <Line
         dataKey="value"
         type="monotone"
-        stroke="var(--color-primary)"
+        stroke="var(--color-analytical)"
         strokeWidth={2.5}
         connectNulls={false}
         dot={

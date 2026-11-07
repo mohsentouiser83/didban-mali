@@ -48,8 +48,9 @@ export function useReconciliation() {
         [bank]: account,
       },
     }));
-  const create = () =>
-    command.run<ReconciliationRun>(
+  const create = (onDone?: () => void) => {
+    if (!options.data || live.current.scope !== scope || !live.current.canWrite) return;
+    return command.run<ReconciliationRun>(
       workspace.companyPath("reconciliations"),
       {
         body: {
@@ -59,9 +60,14 @@ export function useReconciliation() {
           ),
         },
       },
-      () => latest.refresh(),
+      () => {
+        if (live.current.scope !== scope) return;
+        latest.refresh();
+        onDone?.();
+      },
       "تطبیق انجام شد.",
     );
+  };
   const isGrouped = (candidate: ReconciliationCandidate) => {
     const current = latest.data?.candidates.find(item => item.id === candidate.id);
     const item = current || candidate;

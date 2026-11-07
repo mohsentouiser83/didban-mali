@@ -1,5 +1,13 @@
 "use client";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableRowHeader } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableRowHeader,
+} from "@/components/ui/table";
 import { amount, persian } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -22,7 +30,17 @@ import { Drawer } from "@/components/ui/drawer";
 import { RuleDraftTemplate } from "./rule-draft-template";
 export function AutomationRuleForm({ c }: { c: AutomationController }) {
   return (
-    <Drawer open={c.editorOpen} onOpenChange={open => { if (!open) c.closeEditor(); }} className="sm:max-w-2xl" title={c.local.item ? "ویرایش قاعده" : "قاعده جدید"}>
+    <Drawer
+      open={c.editorOpen}
+      onOpenChange={(open) => {
+        if (!open) c.closeEditor();
+      }}
+      className="sm:max-w-2xl"
+      title={c.local.item ? "ویرایش قاعده" : "قاعده جدید"}
+    >
+      {!c.nativeScope && c.view.error && (
+        <ErrorState message={c.view.error.message} onRetry={c.view.refresh} />
+      )}
       <Form
         fieldErrors={c.command.error?.fields}
         onSubmit={(e) => {
@@ -230,51 +248,49 @@ export function AutomationRuleForm({ c }: { c: AutomationController }) {
           ذخیره قاعده
         </Button>
       </Form>
-        {c.preview && (
-          <Panel title="پیش‌نمایش اثر">
-            <StatusMessage tone="primary">
-              {persian(c.preview.match_count)} مورد مطابق؛{" "}
-              {persian(c.preview.unavailable_count)} مورد با دادهٔ ناموجود.
-              پیش‌نمایش اقدامی انجام نمی‌دهد.
-            </StatusMessage>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>مورد</TableHead>
-                  <TableHead>
-                    {c.nativeScope
-                      ? "گردش ردیف‌های منطبق (ریال)"
-                      : "مبلغ (ریال)"}
-                  </TableHead>
+      {c.preview && (
+        <Panel title="پیش‌نمایش اثر">
+          <StatusMessage tone="primary">
+            {persian(c.preview.match_count)} مورد مطابق؛{" "}
+            {persian(c.preview.unavailable_count)} مورد با دادهٔ ناموجود.
+            پیش‌نمایش اقدامی انجام نمی‌دهد.
+          </StatusMessage>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>مورد</TableHead>
+                <TableHead>
+                  {c.nativeScope ? "گردش ردیف‌های منطبق (ریال)" : "مبلغ (ریال)"}
+                </TableHead>
+                {c.local.definition.action === "prepare_draft" && (
+                  <TableHead>آمادگی پیش‌نویس</TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {c.previewRows.map((item, index) => (
+                <TableRow key={`${item.subject_id}-${index}`}>
+                  <TableRowHeader>{item.reference}</TableRowHeader>
+                  <TableCell>{amount(item.value)}</TableCell>
                   {c.local.definition.action === "prepare_draft" && (
-                    <TableHead>آمادگی پیش‌نویس</TableHead>
+                    <TableCell>
+                      {item.draft_eligible
+                        ? "قابل تهیه؛ نیازمند تأیید سند"
+                        : item.blocked_message || "نیازمند بررسی"}
+                    </TableCell>
                   )}
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {c.previewRows.map((item, index) => (
-                  <TableRow key={`${item.subject_id}-${index}`}>
-                    <TableRowHeader>{item.reference}</TableRowHeader>
-                    <TableCell>{amount(item.value)}</TableCell>
-                    {c.local.definition.action === "prepare_draft" && (
-                      <TableCell>
-                        {item.draft_eligible
-                          ? "قابل تهیه؛ نیازمند تأیید سند"
-                          : item.blocked_message || "نیازمند بررسی"}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Pagination
-              page={c.previewPage}
-              total={c.preview.match_count}
-              onNext={c.nextPreviewPage}
-              onPrevious={c.previousPreviewPage}
-            />
-          </Panel>
-        )}
+              ))}
+            </TableBody>
+          </Table>
+          <Pagination
+            page={c.previewPage}
+            total={c.preview.match_count}
+            onNext={c.nextPreviewPage}
+            onPrevious={c.previousPreviewPage}
+          />
+        </Panel>
+      )}
     </Drawer>
   );
 }

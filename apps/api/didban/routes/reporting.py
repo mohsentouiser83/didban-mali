@@ -21,12 +21,13 @@ from ..workflow import (
 router = APIRouter()
 
 
-@router.get(C + "/results/latest")
+@router.get(C + "/results/latest", responses={204: {"description": "No result exists when allow_missing is true"}})
 def latest_result(
     company_id: str,
     request: Request,
     period_id: str | None = None,
     view: Literal["full", "summary", "invoices", "moadian", "forecast"] = "full",
+    allow_missing: bool = False,
 ):
     with access(request, company_id) as (db, _user, _member):
         query = select(m.ResultManifest).where(m.ResultManifest.company_id == company_id)
@@ -35,6 +36,8 @@ def latest_result(
         manifest = db.scalar(
             query.order_by(m.ResultManifest.created_at.desc(), m.ResultManifest.id.desc()).limit(1)
         )
+        if manifest is None and allow_missing:
+            return Response(status_code=204)
         require(manifest is not None, "no_result", "هنوز نتیجه‌ای برای این دوره تولید نشده است.", 404)
         return project_manifest(manifest, view)
 

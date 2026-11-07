@@ -2,6 +2,10 @@ import { AccountingView } from "@/components/workspace/accounting-view";
 import { AccountsView } from "@/components/workspace/accounts-view";
 import { CollectionFollowupsView } from "@/components/workspace/collection-followups-view";
 import { ModulesView } from "@/components/workspace/modules-view";
+import {
+  BotConnectionDocumentsView,
+  BotConnectionNotificationsView,
+} from "@/components/workspace/bot-connection-pages";
 import { BotConnectionsView } from "@/components/workspace/bot-connections-view";
 import { PeopleView } from "@/components/workspace/people-view";
 import {
@@ -65,6 +69,8 @@ export default async function Page({
     reports: <ReportsView />,
     "settings/modules": <ModulesView />,
     "settings/connections": <BotConnectionsView />,
+    "settings/connections/documents": <BotConnectionDocumentsView />,
+    "settings/connections/notifications": <BotConnectionNotificationsView />,
     employees: <PeopleView kind="employees" />,
     "employee-reports": <PeopleView kind="employee-reports" />,
     settings: <SettingsOverviewView />,
@@ -72,6 +78,8 @@ export default async function Page({
       <SettingsOverviewView categoryKey="company-access" />
     ),
     "settings/documents": <SettingsOverviewView categoryKey="documents" />,
+    "settings/accounting": <SettingsOverviewView categoryKey="accounting" />,
+    "settings/automation": <SettingsOverviewView categoryKey="automation" />,
     "settings/periods": <PeriodsView />,
     "settings/company": <CompanyView />,
     "settings/members": <MembersView />,

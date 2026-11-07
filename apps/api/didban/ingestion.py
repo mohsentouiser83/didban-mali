@@ -34,8 +34,8 @@ ALIASES = {
     "other_deductions": ["other_deductions", "سایر کسورات"],
     "date": ["date", "issued_on", "تاریخ", "تاریخ سند", "تاریخ تراکنش", "تاریخ فاکتور"],
     "amount": ["amount", "gross", "مبلغ", "مبلغ کل", "جمع کل"],
-    "debit": ["debit", "بدهکار", "مبلغ بدهکار"],
-    "credit": ["credit", "بستانکار", "مبلغ بستانکار"],
+    "debit": ["debit", "بدهکار", "مبلغ بدهکار", "مبلغ بدهکار (ریال)"],
+    "credit": ["credit", "بستانکار", "مبلغ بستانکار", "مبلغ بستانکار (ریال)"],
     "account": ["account", "کد حساب", "حساب", "bank_account", "bank account", "حساب بانکی", "شناسه حساب بانکی"],
     "bank_account": ["bank_account", "bank account", "حساب بانکی", "شناسه حساب بانکی"],
     "bank_reference": ["bank_reference", "bank reference", "bankreference", "شماره پیگیری", "شماره پیگیری بانک", "پیگیری بانکی", "مرجع بانکی"],
@@ -66,7 +66,7 @@ ALIASES = {
 REQUIRED = {
     "employees": ["employee_id", "employee_name", "date"],
     "payroll": ["employee_id", "employee_name", "date", "gross_pay", "net_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions"],
-    "ledger": ["entry_id", "date", "account", "debit", "credit"],
+    "ledger": ["date", "account", "debit", "credit"],
     "bank": ["date", "amount", "reference"],
     "sales": ["invoice_id", "party_id", "date", "amount"],
     "purchases": ["invoice_id", "party_id", "date", "amount"],
@@ -320,6 +320,44 @@ def read_file(name: str, content: bytes) -> list[Sheet]:
         raise DomainError("invalid_file", "ساختار فایل معتبر نیست.", 415) from exc
 
 
+def moadian_portal_mapping(headers: list[str]) -> tuple[str, dict[str, str]] | None:
+    """Identify the rial-denominated portal export from its headers, not its filename."""
+    columns = {normalized(header): header for header in headers}
+    if len(columns) != len(headers):
+        return None
+    directions = {
+        "moadian_sales": ("فروشنده", "خریدار"),
+        "moadian_purchases": ("خریدار", "فروشنده"),
+    }
+    fields = {
+        "tax_id": "شماره مالیاتی صورت‌حساب",
+        "invoice_id": "شماره مالیاتی صورت‌حساب",
+        "date": "تاریخ صدور صورت‌حساب",
+        "amount": "مجموع صورت‌حساب",
+        "tax": "مالیات بر ارزش افزوده",
+        "kind": "موضوع صورت‌حساب",
+        "portal_status": "وضعیت صورت‌حساب",
+        "parent_reference": "شماره مالیاتی صورت‌حساب مرجع",
+    }
+    rial_header = "مجموع بهای کالا و خدمات صورت‌حساب بدون مالیات‌ها و عوارض (ریال)"
+    if not all(normalized(header) in columns for header in (*fields.values(), rial_header)):
+        return None
+    matched = [
+        (family, counterpart)
+        for family, (role, counterpart) in directions.items()
+        if f"نقش مودی (نقش {role})" in columns
+    ]
+    if len(matched) != 1:
+        return None
+    family, counterpart = matched[0]
+    mapping = {field: columns[normalized(header)] for field, header in fields.items()}
+    party_prefix = f"شناسه هویتی {counterpart}/"
+    party_columns = [header for key, header in columns.items() if key.startswith(party_prefix)]
+    if len(party_columns) == 1:
+        mapping["party_id"] = party_columns[0]
+    return family, mapping
+
+
 def interpret(sheet: Sheet, filename: str) -> dict:
     mapping = {
         key: header
@@ -327,6 +365,11 @@ def interpret(sheet: Sheet, filename: str) -> dict:
         for header in sheet.headers
         if normalized(header) in aliases
     }
+    if "account" not in mapping:
+        for header in sheet.headers:
+            if normalized(header) == "کد حساب کل":
+                mapping["account"] = header
+                break
     keys = set(mapping)
     label = normalized(sheet.name + " " + filename)
     family = "unknown"
@@ -334,7 +377,7 @@ def interpret(sheet: Sheet, filename: str) -> dict:
         family = "payroll"
     elif {"employee_id", "employee_name"} <= keys:
         family = "employees"
-    elif {"entry_id", "debit", "credit", "account"} <= keys:
+    elif set(REQUIRED["ledger"]) <= keys:
         family = "ledger"
     elif {"plan_id", "obligation_id", "total_obligation"} <= keys:
         family = "plans"
@@ -360,6 +403,12 @@ def interpret(sheet: Sheet, filename: str) -> dict:
         )
     elif {"amount", "balance", "reference"} <= keys:
         family = "bank"
+    portal = moadian_portal_mapping(sheet.headers)
+    if portal:
+        family, portal_fields = portal
+        if "currency" in mapping:
+            portal_fields["currency"] = mapping["currency"]
+        mapping = portal_fields
     units = (
         {row[mapping["currency"]] for _, row in sheet.rows if row.get(mapping.get("currency", ""))}
         if "currency" in mapping
@@ -377,6 +426,12 @@ def interpret(sheet: Sheet, filename: str) -> dict:
     )
     if "currency" in mapping and any(not row.get(mapping["currency"]) for _, row in sheet.rows):
         unit = None
+    elif portal and "currency" not in mapping:
+        unit = "IRR"
+    elif family == "ledger" and "currency" not in mapping and all(
+        normalized(mapping[field]).endswith("(ریال)") for field in ("debit", "credit")
+    ):
+        unit = "IRR"
     dates = [
         row.get(mapping.get("date", ""), row.get(mapping.get("paid_on", ""), "")) for _, row in sheet.rows
     ]
@@ -397,6 +452,7 @@ def interpret(sheet: Sheet, filename: str) -> dict:
             "headers": sheet.headers,
             "sample": [row for _, row in sheet.rows[:3]],
             "sheet": sheet.name,
+            **({"source_format": "moadian_portal_v1"} if portal else {}),
         },
     }
 

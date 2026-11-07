@@ -23,7 +23,7 @@ export const operationAmountLabels: Record<string, string> = {
   other_deductions: "سایر کسورات",
   net_pay: "خالص حقوق",
 };
-export function useOperationDrafts() {
+export function useOperationDrafts(onCreated?: () => void) {
   const workspace = useWorkspace();
   const catalogue = useResource<{ items: Template[] }>(
     workspace.companyPath("accounting/operations/catalogue"),
@@ -90,12 +90,19 @@ export function useOperationDrafts() {
               : null,
         },
       },
-      (result) => setCreated(result.draft.id),
+      (result) => {
+        setCreated(result.draft.id);
+        onCreated?.();
+      },
       "پیش‌نویس عملیات ساخته شد.",
     );
   }
-  const learning = useOperationLearning(workspace, form, template?.roles || [],
-    (accounts) => change({ accounts }));
+  const learning = useOperationLearning(
+    workspace,
+    form,
+    template?.roles || [],
+    (accounts) => change({ accounts }),
+  );
   return {
     workspace,
     catalogue,

@@ -1,9 +1,10 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useFinancialView } from "./use-financial-view";
+import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
-import type { Metric, ResourceList } from "@/lib/api";
+import type { Metric } from "@/lib/api";
 import type {
   CashScenario,
   FrozenForecast,
@@ -15,16 +16,7 @@ export function useCashScenarios() {
   const view = useFinancialView("forecast");
   const base = view.workspace.companyPath("cashflow-scenarios");
   const scope = view.workspace.company?.id || "";
-  const [page, setPage] = useState<{ scope: string; cursor: string | null }>({
-    scope: "",
-    cursor: null,
-  });
-  const cursor = page.scope === scope ? page.cursor : null;
-  const list = useResource<ResourceList<CashScenario>>(
-    base
-      ? base + (cursor ? `?cursor=${encodeURIComponent(cursor)}` : "")
-      : null,
-  );
+  const list = usePagedResource<CashScenario>(base);
   const [editing, setEditing] = useState<{
     scope: string;
     item: CashScenario | null;
@@ -62,8 +54,8 @@ export function useCashScenarios() {
       hypothetical: item?.changes.hypothetical || [],
     });
   };
-  const save = async () => {
-    if (!baseline) return;
+  const save = async (onSaved?: () => void) => {
+    if (!baseline || !view.workspace.canWrite || !local.name.trim()) return;
     await command.run<CashScenario>(
       base + (local.item ? `/${local.item.id}` : ""),
       {
@@ -83,6 +75,7 @@ export function useCashScenarios() {
         if (view.workspace.company?.id !== scope) return;
         load(result);
         list.refresh();
+        onSaved?.();
       },
       "سناریو ذخیره شد.",
     );
@@ -128,9 +121,7 @@ export function useCashScenarios() {
     save,
     load,
     set,
-    next: () => setPage({ scope, cursor: list.data?.next_cursor || null }),
-    first: () => setPage({ scope, cursor: null }),
-    canWrite: view.workspace.company?.role !== "viewer",
+    canWrite: view.workspace.canWrite,
     updateHypothetical: (index: number, patch: Partial<Hypothetical>) =>
       set({
         hypothetical: local.hypothetical.map((row, i) =>

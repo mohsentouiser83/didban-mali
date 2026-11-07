@@ -125,3 +125,13 @@ export function useAccountRoles() {
     ],
   };
 }
+
+export function useAccountRoleField(accountId: string) {
+  const view = useAccountRoles();
+  return {
+    ...view,
+    row: view.resource.data?.items.find(
+      (item) => item.account_id === accountId,
+    ),
+  };
+}

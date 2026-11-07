@@ -209,52 +209,16 @@ export function GearMenu({
               aria-label="دسته‌های تنظیمات"
               className="grid grid-cols-1 gap-2 sm:grid-cols-2"
             >
-              {categories.map((category) => {
-                const active = isSettingsCategoryActive(category, pathname);
-                return (
-                  <Link
-                    key={category.key}
-                    href={settingsCategoryDestination(category)}
-                    onClick={onNavigate}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "group flex min-h-18 items-start gap-2.5 rounded-xl border p-2.5 text-start outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none",
-                      active
-                        ? "border-primary bg-primary-soft/70 text-primary-hover shadow-xs ring-1 ring-primary/20"
-                        : "border-border/70 bg-surface/90 hover:border-border hover:bg-canvas/80 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary/30",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-9 shrink-0 place-items-center rounded-xl shadow-2xs transition-all duration-300 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none",
-                        active
-                          ? "bg-primary text-white ring-2 ring-primary-soft"
-                          : "bg-primary-soft text-primary-hover group-hover:bg-primary group-hover:text-white",
-                      )}
-                    >
-                      <category.icon size={16} aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-medium leading-snug group-hover:text-primary-hover">
-                          {category.title}
-                        </span>
-                        <CaretLeftIcon
-                          size={13}
-                          className="shrink-0 translate-x-1 text-border opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:text-primary group-hover:opacity-100 motion-reduce:transform-none"
-                          aria-hidden
-                        />
-                      </span>
-                      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-relaxed text-muted">
-                        {category.key === "company-access" &&
-                        category.items.length === 1
-                          ? "اطلاعات شرکت"
-                          : category.description}
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })}
+              {categories.filter((category) => !category.standalone).map((category) => (
+                <GearCategoryLink key={category.key} category={category} pathname={pathname} onNavigate={onNavigate} />
+              ))}
+              {categories.some((category) => category.standalone) && (
+                <div className="col-span-full grid gap-2 border-t border-border pt-2 sm:grid-cols-2">
+                  {categories.filter((category) => category.standalone).map((category) => (
+                    <GearCategoryLink key={category.key} category={category} pathname={pathname} onNavigate={onNavigate} />
+                  ))}
+                </div>
+              )}
             </nav>
           )}
         </div>
@@ -267,7 +231,7 @@ export function GearMenu({
           </span>
           <div className="flex shrink-0 items-center gap-2">
             <span className="hidden text-[10px] font-medium text-muted sm:inline-block">
-              {persian(categories.length)} دسته
+              {persian(categories.length)} بخش
             </span>
             <Button
               variant="ghost"
@@ -283,4 +247,60 @@ export function GearMenu({
       </PopoverContent>
     </Popover>
   );
+}
+
+function GearCategoryLink({
+  category,
+  pathname,
+  onNavigate,
+}: {
+  category: SettingsCategory;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const active = isSettingsCategoryActive(category, pathname);
+  return (
+    <Link
+      key={category.key}
+      href={settingsCategoryDestination(category)}
+      onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group flex min-h-18 items-start gap-2.5 rounded-xl border p-2.5 text-start outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none",
+        active
+          ? "border-primary bg-primary-soft/70 text-primary-hover shadow-xs ring-1 ring-primary/20"
+          : "border-border/70 bg-surface/90 hover:border-border hover:bg-canvas/80 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary/30",
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-xl shadow-2xs transition-all duration-300 group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none",
+          active
+            ? "bg-primary text-white ring-2 ring-primary-soft"
+            : "bg-primary-soft text-primary-hover group-hover:bg-primary group-hover:text-white",
+        )}
+      >
+        <category.icon size={16} aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-1">
+          <span className="text-xs font-medium leading-snug group-hover:text-primary-hover">
+            {category.title}
+          </span>
+          <CaretLeftIcon
+            size={13}
+            className="shrink-0 translate-x-1 text-border opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:text-primary group-hover:opacity-100 motion-reduce:transform-none"
+            aria-hidden
+          />
+        </span>
+        <span className="mt-0.5 line-clamp-1 block text-[11px] leading-relaxed text-muted">
+          {category.key === "company-access" &&
+          category.items.length === 1
+            ? "اطلاعات شرکت"
+            : category.description}
+        </span>
+      </span>
+    </Link>
+  );
+
 }
