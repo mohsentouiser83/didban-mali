@@ -12,7 +12,7 @@ from . import models as m
 from .errors import DomainError, require
 from .module_service import require_module
 from .money_type import aggregate_money, canonical_money
-from .native_invoice_evidence import KINDS, _access, _proof, _today
+from .native_invoice_evidence import INVOICE_KINDS, KINDS, _access, _proof, _today
 from .native_invoice_models import (
     NativeInvoice,
     NativeInvoiceAllocation,
@@ -207,17 +207,24 @@ def _capacity(db: Session, company: str, source: dict) -> str:
 
 
 def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
-    require(kind in KINDS, "native_invoice_kind", "نوع عملیات معتبر نیست.")
-    _access(db, company, user, "sale" if kind in ("sale_service", "receipt") else "purchase", authoring=True)
-    if kind in ("receipt", "payment"):
+    require(kind in KINDS or kind in INVOICE_KINDS, "native_invoice_kind", "نوع عملیات معتبر نیست.")
+    _access(
+        db,
+        company,
+        user,
+        "sale" if kind in ("sale", "receipt", *INVOICE_KINDS["sale"]) else "purchase",
+        authoring=True,
+    )
+    settlement = kind in ("receipt", "payment")
+    if settlement:
         require_module(db, company, "settlements", ready=False)
     items = []
     for op in db.scalars(
         select(OperationDraft)
-        .where(OperationDraft.company_id == company, OperationDraft.kind == kind)
+        .where(OperationDraft.company_id == company, OperationDraft.kind.in_(INVOICE_KINDS.get(kind, (kind,))))
         .order_by(OperationDraft.created_at.desc())
     ):
-        if kind.endswith("_service") and db.scalar(
+        if not settlement and db.scalar(
             select(NativeInvoice.id).where(
                 NativeInvoice.company_id == company, NativeInvoice.operation_id == op.id
             )
@@ -225,7 +232,7 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
             continue
         proofs = (
             replacement_candidates(db, company, op.id, _today(db, company))
-            if kind in ("receipt", "payment")
+            if settlement
             else []
         )
         try:
@@ -238,7 +245,7 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
                     proof
                     | {
                         "remaining_capacity": _capacity(db, company, proof)
-                        if kind in ("receipt", "payment")
+                        if settlement
                         else proof["amount"]
                     }
                 )
@@ -298,12 +305,8 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
     data = InvoiceInput.model_validate(data).model_dump()
     _lock(db, company)
     proof = _proof(db, company, data["operation_id"], _today(db, company))
-    require(
-        proof["kind"] in ("sale_service", "purchase_service"),
-        "native_invoice_kind",
-        "فاکتور فقط از عملیات خدمات ساخته می‌شود.",
-    )
-    direction = "sale" if proof["kind"] == "sale_service" else "purchase"
+    direction = next((key for key, kinds in INVOICE_KINDS.items() if proof["kind"] in kinds), None)
+    require(direction is not None, "native_invoice_kind", "فاکتور فقط از عملیات فروش یا خرید ساخته می‌شود.")
     _access(db, company, user, direction, True)
     require(
         proof["journal_digest"] == data["journal_digest"],
@@ -379,6 +382,18 @@ def allocate(db: Session, company: str, user: m.User, invoice_id: str, data: dic
         "native_invoice_allocation_party",
         "نوع دریافت/پرداخت یا طرف حساب یکسان نیست.",
     )
+    trade_account_id = status["source"].get("trade_account_id")
+    if trade_account_id:
+        from .posting_models import NativeJournal
+
+        journal = get_entity(db, NativeJournal, company, source["journal_id"])
+        trade_line = journal.snapshot["lines"][1 if source["kind"] == "receipt" else 0]
+        require(
+            trade_line["account_id"] == trade_account_id,
+            "native_invoice_allocation_account",
+            "حساب تجاری دریافت یا پرداخت باید با حساب فاکتور کالا یکسان باشد.",
+            409,
+        )
     require(
         source["journal_digest"] == data["journal_digest"],
         "native_invoice_stale_source",

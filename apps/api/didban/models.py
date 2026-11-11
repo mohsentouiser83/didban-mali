@@ -39,6 +39,11 @@ class Entity:
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class ImmutableFact:
+    """Declarative marker for immutable financial facts."""
+    __immutable_fact__ = True
+
+
 class Versioned:
     version: Mapped[int] = mapped_column(Integer, default=1)
 
@@ -650,7 +655,9 @@ from . import control_models as control_models  # noqa: E402,F401
 from . import dimensions_models as dimensions_models  # noqa: E402,F401
 from . import document_thread_models as document_thread_models  # noqa: E402,F401
 from . import group_match_models as group_match_models  # noqa: E402,F401
+from . import inventory_models as inventory_models  # noqa: E402,F401
 from . import manual_group_models as manual_group_models  # noqa: E402,F401
+from . import moadian_models as moadian_models  # noqa: E402,F401
 from . import native_automation_models as native_automation_models  # noqa: E402,F401
 from . import native_bank_match_models as native_bank_match_models  # noqa: E402,F401
 from . import native_control_models as native_control_models  # noqa: E402,F401

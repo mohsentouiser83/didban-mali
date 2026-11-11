@@ -20,6 +20,7 @@ export interface JournalDraft {
   description: string;
   lines: JournalDraftLine[];
   state: string;
+  inventory_origin?: boolean;
   version: number;
   original_unit: "IRR" | "TOMAN";
 }

@@ -101,7 +101,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const company = companies.find((item) => item.id === companyId);
   const modules = useResource<CompanyModules>(companyId ? `/companies/${companyId}/modules` : null);
   const refreshModules = modules.refresh;
-  useEffect(() => { refreshModules(); }, [pathname, refreshModules]);
+  const isModuleView = pathname.includes("/settings/modules");
+  useEffect(() => {
+    if (isModuleView) refreshModules();
+  }, [isModuleView, refreshModules]);
   const periodsResource = usePeriodOptions(companyId);
   const periods = periodsResource.data;
   const setCompany = useCallback((id: string) => {

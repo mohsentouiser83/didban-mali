@@ -95,14 +95,14 @@ function Workspace() {
                                 >
                                   تهیه برگشت
                                 </Button>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() =>
-                                    drafts.prepareReplacement(item)
-                                  }
-                                >
-                                  تهیه جایگزین
-                                </Button>
+                                {!item.snapshot.inventory && (
+                                  <Button
+                                    variant="secondary"
+                                    onClick={() => drafts.prepareReplacement(item)}
+                                  >
+                                    تهیه جایگزین
+                                  </Button>
+                                )}
                               </>
                             )}
                         </div>

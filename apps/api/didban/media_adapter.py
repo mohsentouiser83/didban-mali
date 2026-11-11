@@ -35,16 +35,19 @@ def bounded_process(arguments: list[str], timeout: int) -> tuple[int, bytes]:
             if sys.platform == "darwin" and time.monotonic() >= next_memory_check:
                 # macOS does not permit lowering RLIMIT_AS. Monitor child RSS;
                 # Linux production additionally has the hard address-space cap.
-                check = subprocess.run(
-                    ["ps", "-o", "rss=", "-p", str(process.pid)], capture_output=True, timeout=2
-                )
-                rss = check.stdout.strip()
-                require(
-                    not rss or (rss.isdigit() and int(rss) <= 1048576),
-                    "media_memory_limit",
-                    "حافظهٔ مورد نیاز PDF بیش از حد مجاز است.",
-                    413,
-                )
+                try:
+                    check = subprocess.run(
+                        ["ps", "-o", "rss=", "-p", str(process.pid)], capture_output=True, timeout=2
+                    )
+                    rss = check.stdout.strip()
+                    require(
+                        not rss or (rss.isdigit() and int(rss) <= 1048576),
+                        "media_memory_limit",
+                        "حافظهٔ مورد نیاز PDF بیش از حد مجاز است.",
+                        413,
+                    )
+                except (PermissionError, FileNotFoundError, subprocess.SubprocessError):
+                    pass
                 next_memory_check = time.monotonic() + 0.5
             require(time.monotonic() < deadline, "media_render_timeout", "خواندن PDF به پایان نرسید.", 503)
             events = selector.select(min(0.5, max(0, deadline - time.monotonic())))

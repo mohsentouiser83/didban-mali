@@ -17,6 +17,26 @@ export function ModuleGate({ children }: { children: React.ReactNode }) {
   if (["/settlements/cheques", "/cashflow/scenarios", "/cashflow/forecast"].includes(pathname) && item?.enabled && item.status === "waiting_sources") return children;
   if (["/receivables", "/payables", "/receivables/followups"].includes(pathname) && item?.enabled && item.status === "waiting_sources" && item.source_basis === "native_invoice") return children;
   if (pathname === "/reconciliation" && item?.enabled && item.status === "waiting_sources" && item.source_basis === "native_book") return children;
+  if (key === "moadian" && item?.enabled && item.status === "waiting_sources") return children;
+  if (key === "moadian" && item?.status === "disabled")
+    return (
+      <>
+        <CurrentPageHeader />
+        <Panel>
+          <EmptyState
+            title="ماژول مؤدیان خاموش است"
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <ButtonLink href="/settings/modules">تنظیم ماژول‌ها</ButtonLink>
+                <ButtonLink href="/moadian/transmissions" variant="secondary">
+                  سوابق ارسال صورتحساب
+                </ButtonLink>
+              </div>
+            }
+          />
+        </Panel>
+      </>
+    );
   if (!item?.available) return <><CurrentPageHeader /><Panel><EmptyState title={item ? `${item.label}؛ ${moduleStatusLabels[item.status]}` : "ماژول در دسترس نیست"} description={item?.enabled && item.missing_sources.length ? `اسناد لازم: ${missingSourceLabels(item.missing_sources)}` : undefined} action={<ButtonLink href={item?.enabled ? "/uploads" : "/settings/modules"}>{item?.enabled ? "بارگذاری اسناد" : "تنظیم ماژول‌ها"}</ButtonLink>} /></Panel></>;
   return children;
 }

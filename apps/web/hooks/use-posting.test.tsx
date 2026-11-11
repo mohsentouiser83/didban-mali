@@ -103,3 +103,27 @@ it("stale confirmation preserves reviewed content and exposes server rejection w
   expect(result.current.reviews).toHaveLength(1);
   expect(complete).not.toHaveBeenCalled();
 });
+
+it("requires separate exact previews when two stock drafts draw on the same item and warehouse", async () => {
+  const complete = vi.fn();
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.endsWith("/postings")) return { items: [] };
+    const item = preview(path.split("/").at(-2)!);
+    item.snapshot.inventory = { item_id: "sku", warehouse_id: "main", quantity: -1, value_irr: "-300" };
+    return item;
+  });
+  const { result } = renderHook(() => usePosting(complete));
+  await act(() => result.current.review(["sale-a", "sale-b"]));
+  expect(result.current.error?.code).toBe("inventory_batch_overlap");
+  expect(result.current.reviews).toEqual([]);
+  act(() => result.current.post());
+  expect(complete).not.toHaveBeenCalled();
+
+  await act(() => result.current.review(["sale-a"]));
+  expect(result.current.reviews[0].snapshot.inventory).toMatchObject({ quantity: -1, value_irr: "-300" });
+  act(() => result.current.post());
+  await waitFor(() => expect(complete).toHaveBeenCalledOnce());
+  expect(vi.mocked(api).mock.calls.at(-1)?.[1]?.body).toEqual({
+    items: [{ draft_id: "sale-a", expected_version: 3, digest: "a".repeat(64) }],
+  });
+});

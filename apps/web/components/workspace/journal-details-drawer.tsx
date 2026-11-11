@@ -89,15 +89,17 @@ export function JournalDetailsDrawer({
               <Button variant="secondary" onClick={view.openReversal}>
                 برگشت سند
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  view.close();
-                  drafts.prepareReplacement(journal);
-                }}
-              >
-                اصلاح با سند جایگزین
-              </Button>
+              {!journal.snapshot.inventory && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    view.close();
+                    drafts.prepareReplacement(journal);
+                  }}
+                >
+                  اصلاح با سند جایگزین
+                </Button>
+              )}
             </div>
           )}
           {view.correcting && (

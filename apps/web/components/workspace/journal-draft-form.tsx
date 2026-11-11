@@ -27,11 +27,11 @@ export function JournalDraftForm({
   const [method, setMethod] = useState("manual");
   const editable =
     !!view.capabilities.data?.can_prepare &&
-    (!view.editing || view.editing.state === "draft");
+    (!view.editing || (view.editing.state === "draft" && !view.editing.inventory_origin));
   const unitLabel = view.value.unit === "IRR" ? "ریال" : "تومان";
   return (
     <Drawer
-      title={view.editing ? "مشاهده و ویرایش سند" : "سند جدید"}
+      title={view.editing ? (editable ? "مشاهده و ویرایش سند" : "مشاهده سند") : "سند جدید"}
       open={view.editing !== undefined}
       onOpenChange={(open) => {
         if (!open && !view.command.busy) view.close();

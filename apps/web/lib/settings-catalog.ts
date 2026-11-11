@@ -69,6 +69,8 @@ export const settingsCatalog: SettingsCategory[] = [
           "دفتر",
           "ثبت نهایی",
           "عملیات مالی",
+          "کالا",
+          "انبار",
           "برگشت",
           "جایگزین",
         ],

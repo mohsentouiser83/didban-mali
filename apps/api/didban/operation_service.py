@@ -81,9 +81,9 @@ def _require_operation_module(db: Session, company: str, kind: str) -> None:
         "payroll"
         if kind in ("payroll", "payroll_payment")
         else "receivables"
-        if kind == "sale_service"
+        if kind in ("sale_service", "sale_goods")
         else "payables"
-        if kind == "purchase_service"
+        if kind in ("purchase_service", "purchase_goods")
         else "settlements"
     )
     # Preparation is an input workflow, so source availability is not required.

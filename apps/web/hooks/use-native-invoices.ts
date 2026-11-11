@@ -23,6 +23,7 @@ import {
 export function useNativeInvoices(
   direction: InvoiceDirection,
   followups = false,
+  preferredOperationId?: string,
 ) {
   const workspace = useWorkspace();
   const scope = `${workspace.user?.id}:${workspace.company?.id}:${direction}`;
@@ -44,9 +45,7 @@ export function useNativeInvoices(
       : null,
   );
   const candidates = useResource<{ items: NativeInvoiceCandidate[] }>(
-    base
-      ? `${base}/candidates?kind=${direction === "sale" ? "sale_service" : "purchase_service"}`
-      : null,
+    base ? `${base}/candidates?kind=${direction}` : null,
   );
   const payments = useResource<{ items: NativeInvoiceCandidate[] }>(
     base
@@ -106,13 +105,21 @@ export function useNativeInvoices(
       setTermsEditor({ ...editor, terms: { ...editor.terms, ...patch } });
     command.clearError();
   };
+  const preferredInvoice = preferredOperationId
+    ? report.data?.items.find((row) =>
+        [row.source.operation_id, row.original_source?.operation_id].includes(preferredOperationId),
+      )
+    : undefined;
+  const preferredCandidate = preferredOperationId
+    ? candidates.data?.items.find((row) => row.operation_id === preferredOperationId)
+    : undefined;
   function openTerms(invoice?: NativeInvoice) {
     if (!valid()) return;
     setTermsEditor({
       scope,
       id: invoice?.id || null,
       expectedVersion: invoice?.version || 1,
-      operationId: invoice?.source.operation_id || "",
+      operationId: invoice?.source.operation_id || preferredCandidate?.operation_id || "",
       terms: invoice?.terms
         ? {
             ...invoice.terms,
@@ -467,6 +474,8 @@ export function useNativeInvoices(
       label: `${row.reference} · ${row.party_id} · ${amount(row.amount)} ریال`,
     })),
     selectedCandidate,
+    preferredInvoice,
+    preferredCandidate,
     direction,
     openTerms,
     changeTerms,

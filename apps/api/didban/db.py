@@ -50,6 +50,11 @@ IMMUTABLE += (
     "native_book_report_runs",
     "journal_correction_drafts",
     "accounting_operations",
+    "inventory_items",
+    "inventory_warehouses",
+    "inventory_movements",
+    "moadian_transmissions",
+    "moadian_transmission_events",
     "operation_learning_events",
     "intercompany_mappings",
     "draft_consolidation_runs",
@@ -89,6 +94,17 @@ IMMUTABLE += (
     "bot_extraction_reviews",
 )
 
+def resolve_immutable_tables() -> tuple[str, ...]:
+    """Resolve all tables marked immutable either via registry mixin or canonical list."""
+    names = set(IMMUTABLE)
+    for mapper in Base.registry.mappers:
+        cls = getattr(mapper, "class_", None)
+        if cls and getattr(cls, "__immutable_fact__", False):
+            if hasattr(mapper, "local_table") and mapper.local_table is not None:
+                names.add(mapper.local_table.name)
+    return tuple(sorted(names))
+
+
 if engine.dialect.name == "sqlite":
 
     @event.listens_for(engine, "connect")
@@ -119,7 +135,7 @@ def postgres_security_statements() -> list[str]:
     statements.append(
         "CREATE OR REPLACE FUNCTION deny_fact_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'immutable fact'; END $$"
     )
-    for name in IMMUTABLE:
+    for name in resolve_immutable_tables():
         statements.extend(
             [
                 f"DROP TRIGGER IF EXISTS immutable_fact ON {name}",
@@ -255,7 +271,7 @@ def initialize() -> None:
             for statement in postgres_security_statements():
                 conn.execute(text(statement))
         else:
-            for name in IMMUTABLE:
+            for name in resolve_immutable_tables():
                 for operation in ("UPDATE", "DELETE"):
                     conn.execute(
                         text(

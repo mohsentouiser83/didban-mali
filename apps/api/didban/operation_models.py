@@ -19,3 +19,9 @@ class OperationDraft(Entity, Tenant, Base):
     payload: Mapped[dict] = mapped_column(JSON)
     actor_id: Mapped[str] = mapped_column(String(36))
     policy_version: Mapped[str] = mapped_column(String(60), default="user-provisional-2026-11-02-v1")
+
+    @property
+    def business_reference(self) -> str:
+        if self.kind in ("purchase_goods", "sale_goods"):
+            return self.payload["source_reference"]
+        return self.source_reference

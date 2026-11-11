@@ -82,13 +82,18 @@ def normalize_action(provider: str, payload: object) -> Action | None:
 def safe_draft(db: Session, company: str, draft: Draft) -> bool:
     """Only known non-personnel operation provenance can leave the application."""
     from .operation_models import OperationDraft
+    from .operation_service import LABELS
 
     operation = db.scalar(
         select(OperationDraft).where(
             OperationDraft.company_id == company, OperationDraft.draft_id == draft.id
         )
     )
-    if operation is None or operation.kind in ("payroll", "payroll_payment"):
+    if (
+        operation is None
+        or operation.kind not in LABELS
+        or operation.kind in ("payroll", "payroll_payment")
+    ):
         return False
     from .accounting_models import Account
 

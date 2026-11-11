@@ -10,6 +10,8 @@ import { Select } from "@/components/ui/select";
 import { useWorkspace } from "@/hooks/workspace";
 import {
   BuildingsIcon,
+  PackageIcon,
+  StorefrontIcon,
   CalendarBlankIcon,
   UploadSimpleIcon,
   FilesIcon,
@@ -17,6 +19,7 @@ import {
   BellIcon,
   ChatCircleIcon,
   GearIcon,
+  ReceiptIcon,
 } from "@phosphor-icons/react";
 import { PageTitle } from "@/components/ui/page-title";
 import type { Icon } from "@phosphor-icons/react";
@@ -54,8 +57,12 @@ export function PageHeader({
 export function CurrentPageHeader() {
   const pathname = usePathname();
   const extra: Record<string, { title: string; icon: Icon }> = {
+    "/accounting/inventory": { title: "موجودی و گردش کالا", icon: PackageIcon },
+    "/accounting/inventory/items": { title: "کالاها", icon: PackageIcon },
+    "/accounting/inventory/warehouses": { title: "انبارها", icon: StorefrontIcon },
     "/cashflow/scenarios": { title: "سناریوی نقدینگی", icon: FilesIcon },
     "/receivables/followups": { title: "پیگیری وصول", icon: UsersThreeIcon },
+    "/moadian/transmissions": { title: "ارسال و استعلام صورتحساب", icon: ReceiptIcon },
     "/review/expense-changes": { title: "تغییرات هزینه", icon: FilesIcon },
     "/reports/companies": { title: "مقایسه شرکت‌ها", icon: FilesIcon },
     "/reports/dimensions": { title: "گزارش پروژه و مرکز هزینه", icon: FilesIcon },

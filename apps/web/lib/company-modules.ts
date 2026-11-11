@@ -25,7 +25,7 @@ export const moduleStatusLabels = {
   available: "آماده", not_implemented: "در انتظار تکمیل قابلیت",
 };
 
-const sourceLabels: Record<string, string> = { ledger: "دفتر", bank: "بانک", native_service_invoices: "فاکتور خدمات دفتر دیدبان",
+const sourceLabels: Record<string, string> = { ledger: "دفتر", bank: "بانک", native_service_invoices: "فاکتور دفتر دیدبان",
   native_bank_ledger: "نسخهٔ ثابت دفتر دیدبان با حساب بانکی", sales: "فروش", purchases: "خرید", settlements: "تسویه", moadian_sales: "فروش مؤدیان", moadian_purchases: "خرید مؤدیان", payroll: "حقوق و دستمزد", employees: "کارمندان" };
 export function missingSourceLabels(groups: string[][]) {
   return groups.map(group => group.map(key => sourceLabels[key] || key).join(" یا ")).join("، ");

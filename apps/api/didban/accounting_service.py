@@ -125,6 +125,12 @@ def save_draft(
     if draft_id:
         check_version(item, version)
         require(item.state == "draft", "draft_not_editable", "پیش‌نویس قابل تغییر نیست.", 409)
+        require(
+            draft_id not in inventory_draft_ids(db, company, [draft_id]),
+            "inventory_draft_changed",
+            "پیش‌نویس کالا را کنار بگذارید و دوباره از گردش کالا تهیه کنید.",
+            409,
+        )
         item.version += 1
     item.period_id = period.id
     item.date = data["date"]
@@ -136,6 +142,23 @@ def save_draft(
     audit(db, company, user.id, "accounting.draft_saved", item.id, {"version": item.version})
     ability = capabilities(db, company, user)
     return serialize_fact(item) | {key: ability[key] for key in ("posting_available", "posting_reason")}
+
+
+def inventory_draft_ids(db: Session, company: str, ids: list[str]) -> set[str]:
+    from .inventory_service import GOODS_KINDS
+    from .operation_models import OperationDraft
+
+    if not ids:
+        return set()
+    return set(
+        db.scalars(
+            select(OperationDraft.draft_id).where(
+                OperationDraft.company_id == company,
+                OperationDraft.draft_id.in_(ids),
+                OperationDraft.kind.in_(GOODS_KINDS),
+            )
+        )
+    )
 
 
 def permissions(db: Session, company: str, user: m.User) -> dict[str, Any]:

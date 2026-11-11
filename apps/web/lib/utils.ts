@@ -6,6 +6,11 @@ export function cn(...values: ClassValue[]) {
 export function persian(value: string | number) {
   return String(value).replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 }
+export function asciiDigits(value: string) {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+}
 export function amount(
   value: string | null | undefined,
   unit: "IRR" | "TOMAN" = "IRR",

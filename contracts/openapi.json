@@ -1420,6 +1420,165 @@
         "title": "InterpretReportInput",
         "type": "object"
       },
+      "InventoryDraftInput": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Account Id"
+          },
+          "counterparty_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Counterparty Account Id",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "purchase_goods",
+              "sale_goods"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "party_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Party Id",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "revenue_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Account Id"
+          },
+          "source_reference": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Unit Price"
+          },
+          "warehouse_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "item_id",
+          "warehouse_id",
+          "quantity",
+          "unit_price",
+          "unit",
+          "period_id",
+          "date",
+          "description",
+          "source_reference",
+          "party_id",
+          "counterparty_account_id"
+        ],
+        "title": "InventoryDraftInput",
+        "type": "object"
+      },
+      "InventoryItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "inventory_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Inventory Account Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "inventory_account_id"
+        ],
+        "title": "InventoryItemInput",
+        "type": "object"
+      },
       "InvoiceInput": {
         "additionalProperties": false,
         "properties": {
@@ -1710,6 +1869,166 @@
           }
         },
         "title": "MemberPatch",
+        "type": "object"
+      },
+      "MoadianConfirmation": {
+        "additionalProperties": false,
+        "properties": {
+          "buyer_tax_number": {
+            "pattern": "^(?:[0-9]{11}|[0-9]{14})$",
+            "title": "Buyer Tax Number",
+            "type": "string"
+          },
+          "buyer_type": {
+            "enum": [
+              "natural",
+              "legal"
+            ],
+            "title": "Buyer Type",
+            "type": "string"
+          },
+          "digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Digest",
+            "type": "string"
+          },
+          "invoice_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "invoice_version": {
+            "minimum": 1.0,
+            "title": "Invoice Version",
+            "type": "integer"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "item_tax_id": {
+            "pattern": "^[0-9]{13}$",
+            "title": "Item Tax Id",
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
+            "title": "Tax Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[0-9]{1,8}$",
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "vat_evidence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Vat Evidence",
+            "type": "string"
+          },
+          "vat_treatment": {
+            "enum": [
+              "exempt",
+              "zero_rated"
+            ],
+            "title": "Vat Treatment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "invoice_version",
+          "tax_id",
+          "issued_at",
+          "buyer_type",
+          "buyer_tax_number",
+          "item_tax_id",
+          "unit_code",
+          "vat_treatment",
+          "vat_evidence",
+          "digest"
+        ],
+        "title": "MoadianConfirmation",
+        "type": "object"
+      },
+      "MoadianInvoiceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "buyer_tax_number": {
+            "pattern": "^(?:[0-9]{11}|[0-9]{14})$",
+            "title": "Buyer Tax Number",
+            "type": "string"
+          },
+          "buyer_type": {
+            "enum": [
+              "natural",
+              "legal"
+            ],
+            "title": "Buyer Type",
+            "type": "string"
+          },
+          "invoice_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "invoice_version": {
+            "minimum": 1.0,
+            "title": "Invoice Version",
+            "type": "integer"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "item_tax_id": {
+            "pattern": "^[0-9]{13}$",
+            "title": "Item Tax Id",
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
+            "title": "Tax Id",
+            "type": "string"
+          },
+          "unit_code": {
+            "pattern": "^[0-9]{1,8}$",
+            "title": "Unit Code",
+            "type": "string"
+          },
+          "vat_evidence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Vat Evidence",
+            "type": "string"
+          },
+          "vat_treatment": {
+            "enum": [
+              "exempt",
+              "zero_rated"
+            ],
+            "title": "Vat Treatment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "invoice_id",
+          "invoice_version",
+          "tax_id",
+          "issued_at",
+          "buyer_type",
+          "buyer_tax_number",
+          "item_tax_id",
+          "unit_code",
+          "vat_treatment",
+          "vat_evidence"
+        ],
+        "title": "MoadianInvoiceInput",
         "type": "object"
       },
       "ModuleInput": {
@@ -3572,6 +3891,29 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "WarehouseInput": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "WarehouseInput",
+        "type": "object"
+      },
       "ZeroOpeningInput": {
         "additionalProperties": false,
         "properties": {
@@ -5167,6 +5509,184 @@
           }
         },
         "summary": "Preview"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory": {
+      "get": {
+        "operationId": "summary_api_v1_companies__company_id__accounting_inventory_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Summary"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/drafts": {
+      "post": {
+        "operationId": "create_draft_api_v1_companies__company_id__accounting_inventory_drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryDraftInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Draft"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/items": {
+      "post": {
+        "operationId": "add_item_api_v1_companies__company_id__accounting_inventory_items_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryItemInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Item"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/warehouses": {
+      "post": {
+        "operationId": "add_warehouse_api_v1_companies__company_id__accounting_inventory_warehouses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarehouseInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Warehouse"
       }
     },
     "/api/v1/companies/{company_id}/accounting/journals": {
@@ -14527,6 +15047,290 @@
           }
         },
         "summary": "Update Member"
+      }
+    },
+    "/api/v1/companies/{company_id}/moadian/transmissions": {
+      "get": {
+        "operationId": "history_api_v1_companies__company_id__moadian_transmissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "History"
+      },
+      "post": {
+        "operationId": "submit_api_v1_companies__company_id__moadian_transmissions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoadianConfirmation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit"
+      }
+    },
+    "/api/v1/companies/{company_id}/moadian/transmissions/candidates": {
+      "get": {
+        "operationId": "candidates_api_v1_companies__company_id__moadian_transmissions_candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Candidates"
+      }
+    },
+    "/api/v1/companies/{company_id}/moadian/transmissions/preview": {
+      "post": {
+        "operationId": "preview_api_v1_companies__company_id__moadian_transmissions_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoadianInvoiceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview"
+      }
+    },
+    "/api/v1/companies/{company_id}/moadian/transmissions/{transmission_id}/inquiry": {
+      "post": {
+        "operationId": "inquiry_api_v1_companies__company_id__moadian_transmissions__transmission_id__inquiry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transmission_id",
+            "required": true,
+            "schema": {
+              "title": "Transmission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inquiry"
+      }
+    },
+    "/api/v1/companies/{company_id}/moadian/transmissions/{transmission_id}/retry": {
+      "post": {
+        "operationId": "retry_api_v1_companies__company_id__moadian_transmissions__transmission_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transmission_id",
+            "required": true,
+            "schema": {
+              "title": "Transmission Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry"
       }
     },
     "/api/v1/companies/{company_id}/model-requests": {

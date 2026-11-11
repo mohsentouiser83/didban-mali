@@ -176,3 +176,22 @@ it("does not replace a historical detail with the mutation response for today's 
  act(()=>result.current.saveTerms());await waitFor(()=>expect(result.current.editor).toBeNull());
  expect(result.current.detail.data?.as_of).toBe("2026-09-30");expect(result.current.detail.data?.terms_history).toHaveLength(1);
 });
+
+it("selects a linked stock operation from the combined invoice candidates of the current company", async () => {
+  const stock = { ...candidate, operation_id: "stock-op", journal_digest: "stock-digest", reference: "STOCK-01" };
+  const request = vi.mocked(api).getMockImplementation()!;
+  vi.mocked(api).mockImplementation(async (path, options) =>
+    path.endsWith("/candidates?kind=purchase") ? { items: [candidate, stock] } : request(path, options),
+  );
+  const { result } = renderHook(() => useNativeInvoices("purchase", false, "stock-op"));
+  await waitFor(() => expect(result.current.preferredCandidate).toEqual(stock));
+  act(() => result.current.openTerms());
+  expect(result.current.editor?.operationId).toBe("stock-op");
+  expect(result.current.canSaveTerms).toBe(false);
+  act(() => result.current.changeTerms({ due_unknown: true, expected_unknown: true, expected_mode: "unknown" }));
+  act(() => result.current.saveTerms());
+  await waitFor(() => expect(result.current.editor).toBeNull());
+  expect(vi.mocked(api).mock.calls.find(([, options]) => options?.method === "POST")?.[1]?.body).toMatchObject({
+    operation_id: "stock-op", journal_digest: "stock-digest", reference: "STOCK-01",
+  });
+});

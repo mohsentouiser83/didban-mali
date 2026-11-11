@@ -37,11 +37,13 @@ import { NativeInvoiceDetail } from "./native-invoice-detail";
 export function NativeInvoicesView({
   direction,
   followups = false,
+  operationId,
 }: {
   direction: InvoiceDirection;
   followups?: boolean;
+  operationId?: string;
 }) {
-  const view = useNativeInvoices(direction, followups);
+  const view = useNativeInvoices(direction, followups, operationId);
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -52,11 +54,23 @@ export function NativeInvoicesView({
             onChange={view.setAsOf}
           />
         </Field>
-        {view.workspace.canWrite && (
-          <Button onClick={() => view.openTerms()}>
-            تکمیل شرایط سند خدمات
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {view.preferredInvoice && (
+            <Button
+              variant="secondary"
+              onClick={() => view.select(view.preferredInvoice!.id)}
+            >
+              مشاهده فاکتور {view.preferredInvoice.reference}
+            </Button>
+          )}
+          {view.workspace.canWrite && (
+            <Button onClick={() => view.openTerms()}>
+              {view.preferredCandidate
+                ? `تکمیل شرایط فاکتور ${view.preferredCandidate.reference}`
+                : "تکمیل شرایط فاکتور"}
+            </Button>
+          )}
+        </div>
       </div>
       <PeriodFilter />
       {followups && (
@@ -109,8 +123,8 @@ export function NativeInvoicesView({
                   key: direction === "sale" ? "ar_invoice" : "ap_invoice",
                   label:
                     direction === "sale"
-                      ? "مانده فاکتورهای فروش خدمات"
-                      : "مانده فاکتورهای خرید خدمات",
+                      ? "مانده فاکتورهای فروش"
+                      : "مانده فاکتورهای خرید",
                 },
               ]}
             />
@@ -119,7 +133,7 @@ export function NativeInvoicesView({
             <StatusMessage>{view.ledger.error.message}</StatusMessage>
           )}
           <Panel
-            title="فاکتورهای خدمات دفتر دیدبان"
+            title="فاکتورهای دفتر دیدبان"
             className="mt-5"
             action={
               <ButtonLink href="/accounting" variant="secondary">

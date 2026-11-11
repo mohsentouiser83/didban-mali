@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { draftValidation } from "@/lib/accounting";
+import type { InventoryPostingEvidence } from "@/lib/inventory";
 import { api, ApiError } from "@/lib/api";
 import { useWorkspace } from "./workspace";
 import { useCommand } from "./use-command";
@@ -13,6 +14,7 @@ export interface PostingPreview {
   snapshot: {
     description: string;
     date: string;
+    inventory?: InventoryPostingEvidence;
     lines: {
       account_id: string;
       code: string;
@@ -43,6 +45,18 @@ export function usePosting(onPosted: () => void) {
           ),
         ),
       );
+      const stockBuckets = result.flatMap(({ snapshot }) => snapshot.inventory
+        ? [`${snapshot.inventory.item_id}:${snapshot.inventory.warehouse_id}`]
+        : [],
+      );
+      if (new Set(stockBuckets).size !== stockBuckets.length) {
+        setError(new ApiError(
+          409,
+          "سندهای یک کالا در یک انبار را جداگانه تأیید کنید.",
+          "inventory_batch_overlap",
+        ));
+        return;
+      }
       setReviews(result);
     } catch (e) {
       setError(

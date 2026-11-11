@@ -71,7 +71,7 @@ def _source(db: Session, company: str, journal: NativeJournal) -> dict:
                     "party_id": line.get("party_id") or None,
                     "date": journal.date.isoformat(),
                     "status": status,
-                    "reference": origin.source_reference if origin else None,
+                    "reference": origin.business_reference if origin else None,
                 }
             )
     return {

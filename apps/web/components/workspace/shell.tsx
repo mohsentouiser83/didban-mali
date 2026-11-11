@@ -33,9 +33,10 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
               const companyModule = modules.data?.items.find(value => value.key === moduleRoutes[item.href]);
               const current =
                 pathname === item.href ||
-                (item.href === "/review" && (pathname.startsWith("/review/") || pathname === "/accounting")) ||
+                (item.href === "/review" && (pathname.startsWith("/review/") || pathname === "/accounting" || pathname.startsWith("/accounting/"))) ||
                 (item.href === "/cashflow/forecast" && pathname === "/cashflow/scenarios") ||
                 (item.href === "/receivables" && pathname === "/receivables/followups") ||
+                (item.href === "/moadian" && pathname.startsWith("/moadian/")) ||
                 (item.href === "/reports" && pathname.startsWith("/reports/")) ||
                 (item.href === "/reports" && pathname === "/employee-reports") ||
                 (item.href === "/settlements" &&

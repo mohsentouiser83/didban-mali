@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DIDBAN_", env_file=ROOT / ".env", extra="ignore")
     database_url: str = "sqlite:///" + str(ROOT / "var/didban.db")
     storage: Path = ROOT / "var/private"
+    moadian_profiles_file: Path | None = None
     web_origin: str = "http://127.0.0.1:3000"
     production: bool = False
     embedded_worker: bool = True

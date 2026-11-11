@@ -20,7 +20,11 @@ from .posting_models import NativeJournal
 from .security import membership
 from .services import get_entity
 
-KINDS = {"sale_service", "purchase_service", "receipt", "payment"}
+INVOICE_KINDS = {
+    "sale": ("sale_service", "sale_goods"),
+    "purchase": ("purchase_service", "purchase_goods"),
+}
+KINDS = {kind for kinds in INVOICE_KINDS.values() for kind in kinds} | {"receipt", "payment"}
 ACCOUNT_ROLES = {
     "trade_receivable": "trade_receivable",
     "trade_payable": "trade_payable",
@@ -59,6 +63,8 @@ def _access(
 
 
 def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id: str | None = None) -> dict:
+    from .inventory_service import GOODS_KINDS
+
     op = get_entity(db, OperationDraft, company, operation_id)
     require(
         op.kind in KINDS and op.policy_version == POLICY,
@@ -72,6 +78,12 @@ def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id
         )
     )
     if journal_id is not None and journal is not None and journal_id != journal.id:
+        require(
+            op.kind not in GOODS_KINDS,
+            "native_invoice_replacement_unsupported",
+            "برای اصلاح فاکتور کالا، گردش اصلاح‌شدهٔ انبار را ثبت کنید.",
+            409,
+        )
         return _replacement_proof(db, company, op, journal, journal_id, as_of)
     require(
         journal is not None and not journal.reversal_of,
@@ -115,6 +127,25 @@ def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id
         "تاریخ، دوره یا واحد سند تغییر کرده است.",
         409,
     )
+    if op.kind in GOODS_KINDS:
+        stock = journal.snapshot.get("inventory")
+        require(
+            stock and stock == data.get("stock") and stock.get("operation_id") == op.id,
+            "native_invoice_source_changed",
+            "گردش انبار با سند تأییدشده برابر نیست.",
+            409,
+        )
+        return _source(op, journal, data, stock["amount_irr"]) | {
+            "item_id": stock["item_id"],
+            "item_code": stock["item_code"],
+            "item_name": stock["item_name"],
+            "warehouse_id": stock["warehouse_id"],
+            "warehouse_code": stock["warehouse_code"],
+            "warehouse_name": stock["warehouse_name"],
+            "quantity": abs(stock["quantity"]),
+            "unit_price": stock["unit_price"],
+            "trade_account_id": data["counterparty_account_id"],
+        }
     with localcontext() as ctx:
         ctx.prec = 60
         factor = 10 if data["unit"] == "TOMAN" else 1
@@ -154,13 +185,17 @@ def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id
                 409,
             )
         amount = canonical_money(Decimal(data["amounts"]["amount"]) * factor)
+    return _source(op, journal, data, amount)
+
+
+def _source(op: OperationDraft, journal: NativeJournal, data: dict, amount: str) -> dict:
     return {
         "operation_id": op.id,
         "kind": op.kind,
         "journal_id": journal.id,
         "journal_digest": journal.digest,
         "approved_draft_version": journal.draft_version,
-        "reference": op.source_reference,
+        "reference": op.business_reference,
         "party_id": data["party_id"],
         "date": data["date"].isoformat(),
         "amount": amount,

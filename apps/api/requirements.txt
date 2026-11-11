@@ -17,3 +17,4 @@ ruff==0.15.5
 olefile==0.47
 defusedxml==0.7.1
 Pillow==12.3.0
+cryptography==50.0.2

@@ -310,6 +310,20 @@ CREATE TABLE installation_model_budgets (
 	FOREIGN KEY(actor_id) REFERENCES users (id)
 );
 
+CREATE TABLE inventory_warehouses (
+	code VARCHAR(100) NOT NULL,
+	name VARCHAR(150) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, code),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_inventory_warehouses_company_id ON inventory_warehouses (company_id);
+
 CREATE TABLE learning_patterns (
 	name VARCHAR(120) NOT NULL,
 	fingerprint VARCHAR(64) NOT NULL,
@@ -632,6 +646,22 @@ CREATE TABLE intercompany_mappings (
 );
 
 CREATE INDEX ix_intercompany_mappings_company_id ON intercompany_mappings (company_id);
+
+CREATE TABLE inventory_items (
+	code VARCHAR(100) NOT NULL,
+	name VARCHAR(150) NOT NULL,
+	inventory_account_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, code),
+	FOREIGN KEY(company_id, inventory_account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_inventory_items_company_id ON inventory_items (company_id);
 
 CREATE TABLE native_account_roles (
 	account_id VARCHAR(36) NOT NULL,
@@ -1333,6 +1363,36 @@ CREATE TABLE interpretations (
 
 CREATE INDEX ix_interpretations_company_id ON interpretations (company_id);
 
+CREATE TABLE inventory_movements (
+	item_id VARCHAR(36) NOT NULL,
+	warehouse_id VARCHAR(36) NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	operation_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	date DATE NOT NULL,
+	sequence BIGINT NOT NULL,
+	quantity BIGINT NOT NULL,
+	value_irr NUMERIC(38, 6) NOT NULL,
+	evidence JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, journal_id),
+	UNIQUE (company_id, sequence),
+	FOREIGN KEY(company_id, item_id) REFERENCES inventory_items (company_id, id),
+	FOREIGN KEY(company_id, warehouse_id) REFERENCES inventory_warehouses (company_id, id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id, operation_id) REFERENCES accounting_operations (company_id, id),
+	CONSTRAINT inventory_movement_kind_quantity CHECK ((kind = 'purchase_goods' AND quantity > 0) OR (kind = 'sale_goods' AND quantity < 0) OR (kind = 'reversal' AND quantity <> 0)),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_inventory_movements_value_irr CHECK (value_irr > -100000000000000000000000000000000 AND value_irr < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_inventory_movements_bucket_sequence ON inventory_movements (company_id, item_id, warehouse_id, sequence);
+
+CREATE INDEX ix_inventory_movements_company_id ON inventory_movements (company_id);
+
 CREATE TABLE manual_group_previews (
 	run_id VARCHAR(36) NOT NULL,
 	manifest_id VARCHAR(36) NOT NULL,
@@ -1714,6 +1774,34 @@ CREATE TABLE journal_lines (
 
 CREATE INDEX ix_journal_lines_company_id ON journal_lines (company_id);
 
+CREATE TABLE moadian_transmissions (
+	invoice_id VARCHAR(36) NOT NULL,
+	invoice_version INTEGER NOT NULL,
+	invoice_reference VARCHAR(120) NOT NULL,
+	tax_id VARCHAR(22) NOT NULL,
+	uid VARCHAR(36) NOT NULL,
+	memory_id VARCHAR(6) NOT NULL,
+	serial VARCHAR(10) NOT NULL,
+	seller_tax_number VARCHAR(20) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	payload JSON NOT NULL,
+	input JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, invoice_id),
+	UNIQUE (company_id, tax_id),
+	UNIQUE (company_id, memory_id, serial),
+	UNIQUE (company_id, uid),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES native_invoices (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_moadian_transmissions_company_id ON moadian_transmissions (company_id);
+
 CREATE TABLE native_invoice_allocations (
 	invoice_id VARCHAR(36) NOT NULL,
 	operation_id VARCHAR(36) NOT NULL,
@@ -1987,6 +2075,28 @@ CREATE TABLE dimension_allocations (
 
 CREATE INDEX ix_dimension_allocations_company_id ON dimension_allocations (company_id);
 
+CREATE TABLE moadian_transmission_events (
+	transmission_id VARCHAR(36) NOT NULL,
+	sequence INTEGER NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	reference_number VARCHAR(100),
+	error_codes JSON NOT NULL,
+	evidence_digest VARCHAR(64),
+	request_key VARCHAR(128) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, transmission_id, sequence),
+	UNIQUE (company_id, transmission_id, kind, request_key),
+	FOREIGN KEY(company_id, transmission_id) REFERENCES moadian_transmissions (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_moadian_transmission_events_company_id ON moadian_transmission_events (company_id);
+
 CREATE TABLE native_invoice_allocation_reversals (
 	allocation_id VARCHAR(36) NOT NULL,
 	date DATE NOT NULL,
@@ -2168,6 +2278,14 @@ DROP POLICY IF EXISTS tenant_isolation ON idempotency_keys;
 
 CREATE POLICY tenant_isolation ON idempotency_keys USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE inventory_warehouses ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE inventory_warehouses FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON inventory_warehouses;
+
+CREATE POLICY tenant_isolation ON inventory_warehouses USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE learning_patterns ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE learning_patterns FORCE ROW LEVEL SECURITY;
@@ -2303,6 +2421,14 @@ ALTER TABLE intercompany_mappings FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON intercompany_mappings;
 
 CREATE POLICY tenant_isolation ON intercompany_mappings USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE inventory_items FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON inventory_items;
+
+CREATE POLICY tenant_isolation ON inventory_items USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE native_account_roles ENABLE ROW LEVEL SECURITY;
 
@@ -2584,6 +2710,14 @@ DROP POLICY IF EXISTS tenant_isolation ON interpretations;
 
 CREATE POLICY tenant_isolation ON interpretations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE inventory_movements ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE inventory_movements FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON inventory_movements;
+
+CREATE POLICY tenant_isolation ON inventory_movements USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE manual_group_previews ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE manual_group_previews FORCE ROW LEVEL SECURITY;
@@ -2728,6 +2862,14 @@ DROP POLICY IF EXISTS tenant_isolation ON journal_lines;
 
 CREATE POLICY tenant_isolation ON journal_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE moadian_transmissions ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE moadian_transmissions FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON moadian_transmissions;
+
+CREATE POLICY tenant_isolation ON moadian_transmissions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE native_invoice_allocations ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE native_invoice_allocations FORCE ROW LEVEL SECURITY;
@@ -2832,6 +2974,14 @@ DROP POLICY IF EXISTS tenant_isolation ON dimension_allocations;
 
 CREATE POLICY tenant_isolation ON dimension_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE moadian_transmission_events ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE moadian_transmission_events FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON moadian_transmission_events;
+
+CREATE POLICY tenant_isolation ON moadian_transmission_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE native_invoice_allocation_reversals ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE native_invoice_allocation_reversals FORCE ROW LEVEL SECURITY;
@@ -2870,185 +3020,137 @@ CREATE POLICY own_membership ON memberships FOR SELECT USING (user_id = current_
 
 CREATE OR REPLACE FUNCTION deny_fact_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'immutable fact'; END $$;
 
-DROP TRIGGER IF EXISTS immutable_fact ON personnel_records;
+DROP TRIGGER IF EXISTS immutable_fact ON account_import_previews;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON personnel_records FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON reconciliation_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reconciliation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON reconciliation_decisions;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reconciliation_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON model_tariffs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON model_tariffs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON installation_audit_events;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON installation_audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON source_rows;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON source_rows FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON interpretations;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON interpretations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON audit_events;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON journal_lines;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON journal_lines FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON bank_movements;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bank_movements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON invoices;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON invoices FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON settlements;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON settlements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON invoice_snapshots;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON invoice_snapshots FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON result_manifests;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON result_manifests FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON reports;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reports FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON report_approvals;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_journals;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_journals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_statement_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_statement_approvals;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_opening_evidence;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_zero_opening_evidence;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_zero_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON period_accounting_drafts;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON period_accounting_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON bot_posting_reviews;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_posting_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON native_book_report_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_book_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON journal_correction_drafts;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON journal_correction_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON account_import_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON accounting_operations;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON accounting_operations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_events;
+DROP TRIGGER IF EXISTS immutable_fact ON audit_events;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON operation_learning_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON intercompany_mappings;
+DROP TRIGGER IF EXISTS immutable_fact ON automation_previews;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON intercompany_mappings FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON draft_consolidation_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON automation_runs;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON draft_consolidation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON consolidation_approvals;
+DROP TRIGGER IF EXISTS immutable_fact ON bank_movements;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON consolidation_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bank_movements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON cheque_events;
+DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_proposals;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_proposals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON cheque_clearances;
+DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_reviews;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_clearances FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON bot_posting_reviews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_posting_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON cash_scenarios;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cash_scenarios FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON report_builder_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON cheque_clearances;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_clearances FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_report_builder_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON cheque_events;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_builder_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON company_comparison_runs;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON company_comparison_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_document_activities;
+DROP TRIGGER IF EXISTS immutable_fact ON consolidation_approvals;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_document_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON consolidation_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_control_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON control_activities;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_control_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON control_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_terms;
+DROP TRIGGER IF EXISTS immutable_fact ON dimension_allocations;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_terms FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_source_revisions;
+DROP TRIGGER IF EXISTS immutable_fact ON dimension_report_runs;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_source_revisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocations;
+DROP TRIGGER IF EXISTS immutable_fact ON draft_consolidation_runs;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON draft_consolidation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocation_reversals;
+DROP TRIGGER IF EXISTS immutable_fact ON group_match_decisions;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocation_reversals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON group_match_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_snapshots;
+DROP TRIGGER IF EXISTS immutable_fact ON installation_audit_events;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_snapshots FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON installation_audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_forecast_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON intercompany_mappings;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_forecast_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON intercompany_mappings FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON native_bank_match_previews;
+DROP TRIGGER IF EXISTS immutable_fact ON interpretations;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_bank_match_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON interpretations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON inventory_items;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_items FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON inventory_movements;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_movements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON inventory_warehouses;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_warehouses FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON invoice_snapshots;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON invoice_snapshots FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON invoices;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON invoices FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON journal_correction_drafts;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON journal_correction_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON journal_lines;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON journal_lines FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON manual_group_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON manual_group_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON moadian_transmission_events;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON moadian_transmission_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON moadian_transmissions;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON moadian_transmissions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON model_tariffs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON model_tariffs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON native_automation_previews;
 
@@ -3058,41 +3160,21 @@ DROP TRIGGER IF EXISTS immutable_fact ON native_automation_runs;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_automation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
+DROP TRIGGER IF EXISTS immutable_fact ON native_bank_match_previews;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_bank_match_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_book_report_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_book_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
 DROP TRIGGER IF EXISTS immutable_fact ON native_cash_scenarios;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_cash_scenarios FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON control_activities;
+DROP TRIGGER IF EXISTS immutable_fact ON native_control_runs;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON control_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON automation_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON automation_previews;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON automation_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON group_match_decisions;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON group_match_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON manual_group_previews;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON manual_group_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON account_import_previews;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON account_import_previews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON company_comparison_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON company_comparison_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON dimension_allocations;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_control_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON native_dimension_allocations;
 
@@ -3102,25 +3184,113 @@ DROP TRIGGER IF EXISTS immutable_fact ON native_dimension_report_runs;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
+DROP TRIGGER IF EXISTS immutable_fact ON native_document_activities;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_document_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_forecast_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_forecast_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocation_reversals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocation_reversals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_allocations;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_allocations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_snapshots;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_snapshots FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_source_revisions;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_source_revisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_terms;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_terms FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_journals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_journals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_opening_evidence;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_report_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_statement_approvals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_statement_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_zero_opening_evidence;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_zero_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
 DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_corrections;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON operation_learning_corrections FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON dimension_report_runs;
+DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_events;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON operation_learning_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON period_accounting_drafts;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON period_accounting_drafts FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON period_lock_events;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON period_lock_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_proposals;
+DROP TRIGGER IF EXISTS immutable_fact ON personnel_records;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_proposals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON personnel_records FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON bot_extraction_reviews;
+DROP TRIGGER IF EXISTS immutable_fact ON reconciliation_decisions;
 
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON bot_extraction_reviews FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reconciliation_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON reconciliation_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reconciliation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON report_approvals;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON report_builder_runs;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON report_builder_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON reports;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON reports FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON result_manifests;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON result_manifests FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON settlements;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON settlements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON source_rows;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON source_rows FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 CREATE OR REPLACE FUNCTION deny_native_invoice_source_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; IF NEW.id IS DISTINCT FROM OLD.id OR NEW.company_id IS DISTINCT FROM OLD.company_id OR NEW.operation_id IS DISTINCT FROM OLD.operation_id OR NEW.direction IS DISTINCT FROM OLD.direction OR NEW.source::jsonb IS DISTINCT FROM OLD.source::jsonb OR NEW.actor_id IS DISTINCT FROM OLD.actor_id OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; RETURN NEW; END $$;
 

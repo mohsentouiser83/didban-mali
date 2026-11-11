@@ -249,11 +249,17 @@ function ImportedInvoicesWorkspace({
   );
 }
 
-export function InvoicesView({direction}:{direction:"sales"|"purchases"}) {
+export function InvoicesView({
+  direction,
+  operationId,
+}: {
+  direction: "sales" | "purchases";
+  operationId?: string;
+}) {
   const view=useInvoiceBasis();
   if(!view.workspace.company)return <NoCompany/>;
   return <><PageHeader icon={HeaderIcon} title={direction==="sales"?"مطالبات":"بدهی‌ها"} action={direction==="sales"&&<ButtonLink href="/receivables/followups" variant="secondary">پیگیری وصول</ButtonLink>}/>
-    <div className="mb-5"><Field id="invoice-data-basis" label="مبنای فاکتورها"><Select id="invoice-data-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_invoice",label:"فاکتور خدمات دفتر دیدبان"},{value:"imported_invoice",label:"فاکتور واردشده از فایل"}]}/></Field></div>
-    {view.setup.loading?<LoadingState/>:view.setup.error?<ErrorState message={view.setup.error.message} onRetry={view.setup.refresh}/>:view.basis==="native_invoice"?<NativeInvoicesView key={`${view.scope}:${direction}`} direction={direction==="sales"?"sale":"purchase"}/>:<ImportedInvoicesWorkspace key={`${view.scope}:${direction}`} direction={direction}/>}
+    <div className="mb-5"><Field id="invoice-data-basis" label="مبنای فاکتورها"><Select id="invoice-data-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_invoice",label:"فاکتور دفتر دیدبان"},{value:"imported_invoice",label:"فاکتور واردشده از فایل"}]}/></Field></div>
+    {view.setup.loading?<LoadingState/>:view.setup.error?<ErrorState message={view.setup.error.message} onRetry={view.setup.refresh}/>:view.basis==="native_invoice"?<NativeInvoicesView key={`${view.scope}:${direction}`} direction={direction==="sales"?"sale":"purchase"} operationId={operationId}/>:<ImportedInvoicesWorkspace key={`${view.scope}:${direction}`} direction={direction}/>}
   </>;
 }

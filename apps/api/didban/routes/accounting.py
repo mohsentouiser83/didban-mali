@@ -50,7 +50,12 @@ def update_account(company_id: str, account_id: str, data: s.AccountInput, reque
 @router.get(A + "/drafts")
 def drafts(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
     with access(request, company_id) as (db, _user, _member):
-        return paginate(db, Draft, company_id, limit, cursor)
+        page = paginate(db, Draft, company_id, limit, cursor)
+        inventory_ids = service.inventory_draft_ids(db, company_id, [item["id"] for item in page["items"]])
+        for item in page["items"]:
+            if item["id"] in inventory_ids:
+                item["inventory_origin"] = True
+        return page
 
 
 @router.post(A + "/drafts", status_code=201)

@@ -8,19 +8,34 @@ export interface NativeInvoiceAllocation {
   id: string; operation_id: string; journal_id: string; journal_digest: string;
   amount: string; date: string; status: string; reversed: boolean;
 }
+interface NativeInvoiceSource {
+  operation_id: string;
+  journal_id: string;
+  journal_digest: string;
+  approved_draft_version: number;
+  kind?: string;
+  item_id?: string;
+  item_code?: string;
+  item_name?: string;
+  warehouse_id?: string;
+  warehouse_code?: string;
+  warehouse_name?: string;
+  quantity?: number;
+  unit_price?: string;
+  unit?: string;
+}
 export interface NativeInvoice {
   as_of?: string;
   id: string; version: number; direction: InvoiceDirection; reference: string;
   party_id: string; date: string; amount: string; remaining: string | null;
   status: string; reason: string | null; unit: string;
   original_source?: NativeInvoiceCandidate; source_history?: {id:string;source:NativeInvoiceCandidate;reason:string;effective_date:string;created_at:string;actor_id:string}[];
-  source: { operation_id: string; journal_id: string; journal_digest: string; approved_draft_version: number };
+  source: NativeInvoiceSource;
   terms: NativeInvoiceTerms | null; allocations: NativeInvoiceAllocation[];
   history_lag_days?: number | null; history_event_count?: number; history_reason?: string | null; overdue_days?: number | null;
   terms_history: NativeInvoiceTerms[];
 }
-export interface NativeInvoiceCandidate {
-  operation_id: string; journal_id: string; journal_digest: string; approved_draft_version: number;
+export interface NativeInvoiceCandidate extends NativeInvoiceSource {
   reference: string; party_id: string; date: string; amount: string; unit: string; remaining_capacity: string; replacement_of?: string | null;
 }
 export interface NativeInvoiceReport { basis: "native_invoice"; as_of: string; direction?: InvoiceDirection | null; items: NativeInvoice[]; priority_formula?: string; history_policy?: {window_start:string;window_end:string;minimum_events:number;lookback_days:number} }

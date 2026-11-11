@@ -68,7 +68,7 @@ def statement_source(db: Session, company: str, statement_id: str) -> dict:
     rows = []
     for journal in journals:
         operation = operations.get(journal.draft_id)
-        reference = operation.source_reference if operation else None
+        reference = operation.business_reference if operation else None
         for index, item in enumerate(journal.snapshot["lines"]):
             role = roles.get(item["account_id"])
             entry_type = (

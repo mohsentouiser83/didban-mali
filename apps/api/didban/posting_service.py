@@ -37,6 +37,7 @@ def _correction(db: Session, company: str, draft_id: str) -> JournalCorrectionDr
 
 def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
     from .closing_models import PeriodAccountingDraft
+    from .inventory_service import validate_posting as validate_inventory_posting
 
     draft = get_entity(db, Draft, company, draft_id)
     require(draft.state == "draft", "draft_not_postable", "این پیش‌نویس آمادهٔ ثبت نیست.", 409)
@@ -135,6 +136,25 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
             "reason": period_origin.reason,
             "scope": "explicit_selected_accounts",
         }
+    inventory = validate_inventory_posting(db, company, draft, correction or {})
+    if inventory is not None:
+        if correction and correction["kind"] == "reversal":
+            from .native_invoice_models import NativeInvoice
+            from .native_invoice_revisions import active_allocations
+
+            invoice_id = db.scalar(
+                select(NativeInvoice.id).where(
+                    NativeInvoice.company_id == company,
+                    NativeInvoice.operation_id == inventory["operation_id"],
+                )
+            )
+            require(
+                not invoice_id or not active_allocations(db, company, invoice_id=invoice_id),
+                "native_invoice_release_old_allocations",
+                "پیش از برگشت سند کالا، تخصیص‌های فاکتور را برگشت دهید.",
+                409,
+            )
+        snapshot["inventory"] = inventory
     digest = sha256(
         json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -197,6 +217,7 @@ def _posting_authority(db: Session, company: str, user: m.User) -> dict:
 
 def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> dict[str, Any]:
     from .closing_service import validate_posting as validate_period_posting
+    from .inventory_service import add_posted_movement
     from .operation_service import validate_posting
 
     provenance = _posting_authority(db, company, user)
@@ -206,6 +227,7 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
     prepared = []
     correction_keys = []
     cheque_ids = []
+    stock_buckets = []
     has_period_draft = False
     for item in items:
         draft = get_entity(db, Draft, company, item["draft_id"])
@@ -224,6 +246,9 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         link = current["snapshot"]["correction"]
         if link:
             correction_keys.append((link["kind"], link["original_journal_id"]))
+        stock = current["snapshot"].get("inventory")
+        if stock:
+            stock_buckets.append((stock["item_id"], stock["warehouse_id"]))
         prepared.append((draft, current))
     require(
         len(correction_keys) == len(set(correction_keys)),
@@ -241,6 +266,12 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         not has_period_draft or len(items) == 1,
         "period_draft_post_alone",
         "پیش‌نویس بستن یا انتقال مانده را جداگانه تأیید کنید.",
+        409,
+    )
+    require(
+        len(stock_buckets) == len(set(stock_buckets)),
+        "inventory_batch_overlap",
+        "سندهای یک کالا در یک انبار را جداگانه تأیید کنید.",
         409,
     )
     sequence = (
@@ -272,6 +303,8 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         draft.state = "posted"
         draft.version += 1
         db.flush()
+        if "inventory" in journal.snapshot:
+            add_posted_movement(db, company, journal, journal.snapshot["inventory"])
         audit(
             db,
             company,
@@ -347,6 +380,12 @@ def create_reversal(db: Session, company: str, user: m.User, journal_id: str, da
 def create_replacement(db: Session, company: str, user: m.User, journal_id: str, data: dict) -> dict:
     original = get_entity(db, NativeJournal, company, journal_id)
     require(not original.reversal_of, "cannot_replace_reversal", "سند برگشت جایگزین نمی‌شود.", 409)
+    require(
+        "inventory" not in original.snapshot,
+        "inventory_replacement_required",
+        "عملیات اصلاح‌شده را از گردش انبار تهیه کنید.",
+        409,
+    )
     require(
         db.scalar(
             select(NativeJournal.id).where(

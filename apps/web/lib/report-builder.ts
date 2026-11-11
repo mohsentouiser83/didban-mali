@@ -83,7 +83,7 @@ export const nativeMetricOptions = [
 export const sourceOptions = [
   { value: "imported_manifest", label: "دادهٔ واردشده" },
   { value: "native_statement", label: "دفتر اصلی دیدبان" },
-  { value: "native_invoice", label: "فاکتور خدمات دفتر دیدبان" },
+  { value: "native_invoice", label: "فاکتور دفتر دیدبان" },
 ];
 export const basisOptions = [
   { value: "ledger", label: "دفتر" },
