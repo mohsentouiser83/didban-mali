@@ -59,3 +59,73 @@ def test_development_backup_restores_sources_snapshots_and_permissions(tmp_path)
     with sqlite3.connect(source_db) as source:
         assert source.execute("SELECT digest FROM result_manifests").fetchone()[0] == reports[0][2]
     assert len(list(storage.iterdir())) == 8
+
+    # Test verified restore script into a fresh isolated location
+    target_db = tmp_path / "restored" / "target.db"
+    target_storage = tmp_path / "restored" / "storage"
+    restore = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/restore.py"),
+            "--backup-dir",
+            str(output),
+            "--target-db",
+            str(target_db),
+            "--target-storage",
+            str(target_storage),
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert restore.returncode == 0, restore.stdout + restore.stderr
+    assert "Restore succeeded" in restore.stdout
+
+    # Verify target db is functional and provenance is intact
+    with sqlite3.connect(target_db) as rconn:
+        assert rconn.execute("SELECT COUNT(*) FROM source_files").fetchone()[0] == 8
+        assert rconn.execute("SELECT COUNT(*) FROM result_manifests").fetchone()[0] == 1
+
+
+def test_restore_script_rejects_corrupted_backup(tmp_path):
+    backup_dir = tmp_path / "bad_backup"
+    backup_dir.mkdir()
+    (backup_dir / "database.sqlite3").write_bytes(b"corrupted")
+    manifest = {
+        "schema": "didban-backup-1",
+        "created_at": "2026-11-13T00:00:00Z",
+        "mode": "sqlite",
+        "files": [{"path": "database.sqlite3", "bytes": 9, "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}],
+    }
+    (backup_dir / "manifest.json").write_text(json.dumps(manifest))
+
+    res = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/restore.py"), "--backup-dir", str(backup_dir), "--verify-only"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode != 0
+    assert "Checksum mismatch" in res.stderr or "Checksum mismatch" in res.stdout
+
+
+def test_restore_script_rejects_path_traversal(tmp_path):
+    backup_dir = tmp_path / "traversal_backup"
+    backup_dir.mkdir()
+    manifest = {
+        "schema": "didban-backup-1",
+        "created_at": "2026-11-13T00:00:00Z",
+        "mode": "sqlite",
+        "files": [{"path": "../../../etc/passwd", "bytes": 10, "sha256": "abc"}],
+    }
+    (backup_dir / "manifest.json").write_text(json.dumps(manifest))
+
+    res = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/restore.py"), "--backup-dir", str(backup_dir), "--verify-only"],
+        capture_output=True,
+        text=True,
+    )
+    assert res.returncode != 0
+    assert "Path traversal" in res.stderr or "Path traversal" in res.stdout
+

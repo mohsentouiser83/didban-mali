@@ -264,6 +264,18 @@ def initialize() -> None:
                     "CREATE UNIQUE INDEX IF NOT EXISTS native_invoice_snapshot_tenant_key ON native_invoice_snapshots (company_id, id)"
                 )
             )
+        if inspect(conn).has_table("inventory_items"):
+            cols = {c["name"] for c in inspect(conn).get_columns("inventory_items")}
+            if "active" not in cols:
+                conn.execute(text("ALTER TABLE inventory_items ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
+            if "version" not in cols:
+                conn.execute(text("ALTER TABLE inventory_items ADD COLUMN version INTEGER NOT NULL DEFAULT 1"))
+        if inspect(conn).has_table("inventory_warehouses"):
+            cols = {c["name"] for c in inspect(conn).get_columns("inventory_warehouses")}
+            if "active" not in cols:
+                conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
+            if "version" not in cols:
+                conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN version INTEGER NOT NULL DEFAULT 1"))
         Base.metadata.create_all(conn)
         require_current_schema(conn, Base.metadata)
         if engine.dialect.name == "postgresql":

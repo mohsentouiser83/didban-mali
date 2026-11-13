@@ -1,146 +1,55 @@
-# دستورالعمل‌های عملیاتی و راهنمای مدیریت حوادث دیدبان مالی (Production Runbooks)
+> طبقه‌بندی مستند — ۲۰۲۶/۱۱/۱۳: مرجع جاری؛ تصمیم مصوب، اجرای موجود و پذیرش آزموده‌شده یکسان نیستند. [وضعیت جاری](current-implementation.fa.md) و [کارهای باز](../todo.md) حدود و وابستگی‌ها را مشخص می‌کنند.
 
-این سند مرجع رسمی تیم مهندسی، امنیت و پشتیبانی دیدبان مالی جهت مدیریت حوادث، پایداری زیرساخت و حفظ ایزولاسیون چندمستأجری (Multi-Tenant Isolation) در محیط عملیاتی است.
+# راهنمای عملیاتی نصب جاری
 
----
+بازبینی مستند: ۲۰۲۶/۱۱/۱۳. این راهنما برای `didban-fresh` است؛ اجرای تمرین بازیابی/بار/حادثه در این بازبینی انجام نشده. دستورهای Redis/Celery/MinIO و نام DB قدیمی دیگر راهنمای این نصب نیستند. [نصب](../README.md)، [قرارداد فنی](rebuild-technical-contract.fa.md)، [کارهای عملیاتی باز](../todo.md#8-operational-readiness-and-release-acceptance).
 
-## ۱. سطوح بحران و زمان پاسخگویی (SLA & Severities)
+## معماری و مالکیت
 
-| سطح | تعریف | حداکثر زمان واکنش (MTTA) | حداکثر زمان حل (MTTR) | مسئول اصلی |
-| :--- | :--- | :--- | :--- | :--- |
-| **P1 - بحرانی** | نقض ایزولاسیون داده، خطای یکپارچگی مالی، قطعی کامل سامانه | ۱۵ دقیقه | ۱ ساعت | تیم امنیت و مهندس ارشد |
-| **P2 - عمده** | از کار افتادن صف نرمال‌سازی یا آنتی‌ویروس، افزایش تاخیر به بالای ۲ ثانیه | ۳۰ دقیقه | ۴ ساعت | تیم زیرساخت |
-| **P3 - جزئی** | خطاهای مقطعی در گزارش‌گیری منفرد، کندی غیراساسی | ۲ ساعت | ۲۴ ساعت | تیم توسعه |
+Compose جاری پنج سرویس PostgreSQL، scanner، api، worker و web دارد. صف در DB/outbox، فایل‌ها در fresh_private و پایگاه didban_fresh هستند. کاربر برنامه didban_app محدود است. مدیر نصب باید مسئول اسرار، پشتیبان، بررسی هزینه نامعلوم و حادثه را مشخص کند؛ تیم، شیفت یا SLA انجام‌شده از این سند نتیجه نمی‌شود.
 
----
+## مشاهده و توقف ایمن
 
-## ۲. ران‌بوک‌های وضعیت بحرانی (P1 Runbooks)
+از ریشه همین مخزن:
 
-### ران‌بوک P1-01: هشدار نشت داده میان‌مستأجری (Cross-Tenant Data Leak Alert)
-- **علائم:** دریافت خطای ۴۰۳/۴۰۴ غیرمنتظره، مشاهده داده یک شرکت توسط شرکت دیگر در گزارش‌ها، یا ثبت شناسه شرکت نادرست در `audit_events`.
-- **اقدامات فوری:**
-  1. اگر تهدید فعال وجود دارد، فوراً ترافیک کاربر مهاجم را در لایه WAF یا با دستور ابطال نشست‌ها قطع کنید:
-     ```bash
-     docker compose exec postgres psql -U didban_admin -d didban_mali -c \
-       "UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = '<COMPROMISED_USER_ID>';"
-     ```
-  2. بررسی فعال بودن RLS روی تمامی جداول حساس:
-     ```bash
-     docker compose exec postgres psql -U didban_admin -d didban_mali -c \
-       "SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind = 'r';"
-     ```
-  3. اجرای تست ایزولاسیون مستأجر در محیط محلی یا سرور:
-     ```bash
-     RUN_INTEGRATION_TESTS=1 .venv/bin/pytest apps/api/tests/test_tenant_isolation.py
-     ```
-  4. استخراج لاگ‌های ممیزی مربوط به درخواست مشکوک:
-     ```bash
-     docker compose exec postgres psql -U didban_admin -d didban_mali -c \
-       "SELECT * FROM audit_events WHERE company_id = '<TARGET_COMPANY_ID>' ORDER BY occurred_at DESC LIMIT 50;"
-     ```
+```sh
+docker compose ps
+docker compose logs --tail=100 api worker scanner web
+```
 
----
+بررسی `/api/v1/health` و healthcheck Compose فقط دامنه همان کنترل‌ها را می‌پوشاند؛ آمادگی تمام اتصال‌ها و صف از پاسخ زنده API نتیجه نمی‌شود. مسیر `/health/metrics` یا Redis queue در اجرای جاری فرض نشود. ابتدا شناسه درخواست/job و کد خطای غیرمحرمانه را جمع کنید؛ متن مالی/اسرار را در پرونده عمومی ثبت نکنید.
 
-### ران‌بوک P1-02: انباشت صف و توقف پردازشگرهای پس‌زمینه (Worker Outage)
-- **علائم:** افزایش مقدار `queue_depth` در `/api/v1/health/metrics`، معلق ماندن فایل‌ها در وضعیت `queued`.
-- **اقدامات:**
-  1. بررسی عمق صف Redis:
-     ```bash
-     docker compose exec redis redis-cli -n 1 llen celery
-     ```
-  2. بررسی لاگ‌های کانتینر کارگر:
-     ```bash
-     docker compose logs --tail=100 -f worker
-     ```
-  3. بازنشانی و مقیاس‌دهی کانتینر کارگر:
-     ```bash
-     docker compose restart worker
-     # یا افزایش تعداد پردازشگرها
-     docker compose up -d --scale worker=3
-     ```
-  4. استعلام سلامت کارگرها از طریق ابزار بازرسی Celery:
-     ```bash
-     docker compose exec worker celery -A app.core.celery_app inspect active
-     ```
+برای توقف بدون حذف داده:
 
----
+```sh
+docker compose stop
+```
 
-### ران‌بوک P1-03: پر شدن استخر اتصالات پایگاه داده (Connection Pool Exhaustion)
-- **علائم:** کندی شدید API و دریافت خطای `TimeoutError: QueuePool limit of size 20 overflow 10 reached`.
-- **اقدامات:**
-  1. بررسی اتصالات فعال پایگاه داده:
-     ```bash
-     docker compose exec postgres psql -U didban_admin -d didban_mali -c \
-       "SELECT pid, client_addr, state, wait_event_type, query FROM pg_stat_activity WHERE datname = 'didban_mali';"
-     ```
-  2. متوقف ساختن کوئری‌های معلق یا طولانی‌تر از ۶۰ ثانیه:
-     ```bash
-     docker compose exec postgres psql -U didban_admin -d didban_mali -c \
-       "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'didban_mali' AND state = 'active' AND now() - query_start > interval '60 seconds';"
-     ```
-  3. بررسی تنظیمات استخر در `apps/api/app/core/database.py` (مقادیر مصوب: `pool_size=20`, `max_overflow=10`, `pool_recycle=1800`, `pool_pre_ping=True`).
+پس از بررسی علت و تنظیم درست، راه‌اندازی با `docker compose up -d` از همان مخزن انجام می‌شود. `down -v`، reset، جایگزینی DB و دستورهای SQL حذف/ویرایش مالی، ابزار عادی رفع حادثه نیستند. کار یا سند نامعلوم را دوباره نسازید؛ نسخه، idempotency و سابقه اثر را بررسی کنید.
 
----
+## خرابی وابستگی‌ها
 
-### ران‌بوک P1-04: بازیابی اضطراری از نسخه پشتیبان (Disaster Recovery & Restore)
-- **سناریو:** تخریب دیسک یا پاک شدن داده‌های مالی.
-- **مراحل اجرا:**
-  1. یافتن آخرین نسخه پشتیبان تایید شده:
-     ```bash
-     ls -lt /tmp/didban_backups/*.dump.gz
-     ```
-  2. اجرای اسکریپت بازگردانی با تایید رسمی:
-     ```bash
-     ./scripts/restore_database.sh /tmp/didban_backups/<BACKUP_FILE>.dump.gz --confirm
-     ```
-  3. راه‌اندازی مجدد سرویس API و Worker جهت اتصال مجدد استخر:
-     ```bash
-     docker compose restart api worker
-     ```
-  4. اعتبارسنجی سلامت کامل با تست پایشگر:
-     ```bash
-     curl -s http://localhost:8000/api/v1/health/ready
-     RUN_INTEGRATION_TESTS=1 .venv/bin/pytest apps/api/tests/test_tenant_isolation.py
-     ```
+- اسکنر: سلامت scanner و تنظیم host/port را بررسی کنید؛ در نصب عملیاتی فایل اسکن‌نشده را مجاز نکنید.
+- worker/DB: سلامت اتصال و سرویس worker، وضعیت job/lease/fence و سؤال باز را بررسی کنید. waiting_input خرابی worker نیست. تغییر دستی وضعیت job می‌تواند قرارداد تکرارپذیری را نقض کند.
+- مدل: enabled/key-present، تعرفه/بودجه و هزینه نامعلوم را از کنترل مجاز نصب بررسی کنید. هزینه timeout را خودکار صفر/آزاد نکنید؛ افزایش سقف یا تغییر مدل تصمیم صریح نصب است.
+- بات/مؤدیان: وضعیت نامعلوم ارسال را تحویل موفق یا مجوز ارسال مجدد فرض نکنید. قبل اقدام، شناسه اصلی و شواهد پاسخ/استعلام را بررسی کنید.
+- نقض مالی/دسترسی: عملیات مشکوک را محدود و شواهد را حفظ کنید. سند نهایی را با UPDATE اصلاح نکنید؛ اصلاح از workflow برگشت/جایگزین مجاز است.
 
----
+## پشتیبان
 
-## ۳. ران‌بوک‌های وضعیت عمده (P2 Runbooks)
+مسیر خروجی باید پوشه تازه خارج مخزن و با دسترسی محدود باشد:
 
-### ران‌بوک P2-01: خطای آنتی‌ویروس ClamAV
-- **علائم:** رد شدن بارگذاری فایل‌ها با خطای `CLAMD_UNAVAILABLE`.
-- **اقدامات:**
-  1. بررسی سلامت کانتینر ClamAV:
-     ```bash
-     docker compose ps clamav
-     docker compose logs --tail=50 clamav
-     ```
-  2. ارسال دستور پینگ به دیمن clamd:
-     ```bash
-     docker compose exec clamav clamdscan --version
-     ```
-  3. در صورت نیاز به راه‌اندازی مجدد:
-     ```bash
-     docker compose restart clamav
-     ```
+```sh
+.venv/bin/python scripts/backup.py --mode sqlite --output /path/outside/repo/new-backup
+.venv/bin/python scripts/backup.py --mode compose --output /path/outside/repo/new-backup
+```
 
----
+SQLite حین snapshot قفل نوشتن نگه می‌دارد. Compose سرویس‌های فعال api/worker را موقتاً متوقف می‌کند، DB و اصل فایل‌ها را می‌گیرد و دوباره شروع می‌کند؛ زمان اجرای آن باید با استفاده‌کنندگان هماهنگ باشد. `.env` در صورت وجود کپی می‌شود؛ manifest شامل hash/اندازه است و INCOMPLETE نشانه شکست است. نگهداری خارج دیسک اصلی و کنترل دسترسی لازم است؛ retention خودکار انجام نمی‌شود.
 
-### ران‌بوک P2-02: فعال شدن محدودکننده نرخ درخواست (Rate Limiting)
-- **علائم:** دریافت پاسخ HTTP 429 توسط کلاینت‌ها.
-- **اقدامات:**
-  1. بررسی لاگ‌های ریت‌لیمیت: کلاینت از طریق هدرهای `X-RateLimit-Limit` و `Retry-After` زمان آزادسازی را دریافت می‌کند.
-  2. در صورت حملات DoS روی مسیرهای احراز هویت، کلیدهای موقت در ردیس قابل بررسی هستند:
-     ```bash
-     docker compose exec redis redis-cli keys "rate_limit:*"
-     ```
+پروفایل/کلید/گواهی مؤدیان که بیرون مخزن mount شده‌اند با کپی .env پشتیبان نمی‌شوند؛ فهرست و روش بازیابی محدود/رمزشده آن‌ها باید جدا تکمیل شود. token و PEM در گزارش حادثه یا چت درج نشوند.
 
----
+## بازیابی و پذیرش
 
-## ۴. چک‌لیست پایش مستمر روزانه (Daily Ops Checklist)
+اسکریپت عمومی restore تأییدشده فعلاً ارائه نشده؛ اسکریپت تاریخی `restore_database.sh` را موجود فرض نکنید. بازیابی ابتدا در نصب مستقل با نسخه سازگار انجام شود: صحت manifest/hash، DB، اصل فایل، تنظیمات، نقش‌ها/RLS، triggerهای ثابت، عضویت/مجوز، گزارش‌های قدیمی و گردش بعدی کنترل شوند. داده تولیدی و legacy هرگز برای آزمون reset نشود.
 
-- [ ] بررسی وضعیت `/api/v1/health/ready` و `/api/v1/health/metrics`
-- [ ] اجرای موفق نسخه پشتیبان خودکار شبانه با تولید فایل `.sha256`
-- [ ] بررسی عدم وجود صف معلق (`queue_depth == 0`)
-- [ ] مانیتورینگ فضای دیسک داکر (`docker system df`)
-- [ ] اطمینان از اعمال اصل حداقل دسترسی (`didban_app` فاقد دسترسی UPDATE روی جداول داده خام و حسابرسی)
+زمان بازیابی/RPO/RTO، ظرفیت، پایش کامل صف و پذیرش امنیت/HTTPS هنوز نیازمند اندازه‌گیری و ثبت‌اند؛ هدف‌های تاریخی SLA تعهد عملیاتی محسوب نمی‌شوند. OPS-01 تا OPS-05 در todo.md معیارهای تکمیل را تعیین می‌کنند.

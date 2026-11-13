@@ -648,6 +648,7 @@ from . import bot_notification_models as bot_notification_models  # noqa: E402,F
 from . import bot_posting_models as bot_posting_models  # noqa: E402,F401
 from . import cheque_models as cheque_models  # noqa: E402,F401
 from . import closing_models as closing_models  # noqa: E402,F401
+from . import commercial_models as commercial_models  # noqa: E402,F401
 from . import company_group_models as company_group_models  # noqa: E402,F401
 from . import consolidation_approval_models as consolidation_approval_models  # noqa: E402,F401
 from . import consolidation_models as consolidation_models  # noqa: E402,F401

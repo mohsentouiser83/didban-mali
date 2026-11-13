@@ -14,8 +14,13 @@ router = APIRouter()
 @router.get(C + "/employee-reports")
 @router.get(C + "/tax")
 @router.get(C + "/insurance")
-def personnel(company_id: str, request: Request, period_id: str | None = None):
+def personnel(
+    company_id: str,
+    request: Request,
+    period_id: str | None = None,
+    basis: str | None = None,
+):
     area = request.url.path.rsplit("/", 1)[-1]
     with access(request, company_id) as (db, _user, _member):
         require_module(db, company_id, area.replace("-", "_"))
-        return personnel_result(db, company_id, area, period_id)
+        return personnel_result(db, company_id, area, period_id, basis=basis)

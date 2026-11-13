@@ -248,7 +248,8 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
             correction_keys.append((link["kind"], link["original_journal_id"]))
         stock = current["snapshot"].get("inventory")
         if stock:
-            stock_buckets.append((stock["item_id"], stock["warehouse_id"]))
+            wh_id = stock.get("warehouse_id") or stock.get("source_warehouse_id")
+            stock_buckets.append((stock["item_id"], wh_id))
         prepared.append((draft, current))
     require(
         len(correction_keys) == len(set(correction_keys)),

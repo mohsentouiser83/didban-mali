@@ -24,3 +24,10 @@ class BotNotificationInput(StrictInput):
         if self.quiet_enabled and self.quiet_start == self.quiet_end:
             raise ValueError("Quiet boundaries must differ")
         return self
+
+
+class DeliverDocumentInput(StrictInput):
+    provider: Literal["telegram", "bale"]
+    export_type: Literal["report_builder", "native_statement", "financial_report"]
+    export_id: str = Field(min_length=1, max_length=64)
+    caption: str | None = Field(default=None, max_length=1024)

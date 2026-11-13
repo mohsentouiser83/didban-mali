@@ -1,47 +1,41 @@
-> وضعیت جاری موج پنجم — ۲۰۲۶/۱۱/۰۲: [ممیزی هر ۱۵ قابلیت](advanced-capabilities-audit.fa.md) و [گزارش اجرا و اعتبارسنجی](expansion-v5-implementation.fa.md) مرجع تازه‌اند. اتصال بومی فاکتور/وصول/پیش‌بینی/سناریو/تطبیق/قواعد/کنترل/ابعاد/گزارش‌ساز، چک‌لیست و همکاری سند تکمیل شده است. توصیف‌های محدودتر مراحل قبلی در ادامه تاریخی‌اند؛ حدود واقعی و وابستگی‌های زنده در ممیزی تفکیک شده‌اند.
+> طبقه‌بندی مستند — ۲۰۲۶/۱۱/۱۳: مرجع جاری؛ تصمیم مصوب، اجرای موجود و پذیرش آزموده‌شده یکسان نیستند. [وضعیت جاری](current-implementation.fa.md) و [کارهای باز](../todo.md) حدود و وابستگی‌ها را مشخص می‌کنند.
 
-موج پنجم: قرارداد تولیدشده ۱۰۹ جدول دارد. `native_invoices` سرآیند با اصل ثابت و نسخهٔ قابل تغییر؛ terms/allocations/reversals/source_revisions/snapshots رویدادهای تغییرناپذیرند. `native_forecast_plans` برنامهٔ نسخه‌دار و `native_forecast_runs` خروجی ثابت است. کنترل، پیش‌نمایش/اجرای قاعده، سناریو، تخصیص مدیریتی و اجراهای بومی گزارش‌ساز شواهد مستقل با FK شرکتی دارند. `native_invoice_builder_runs` به snapshot واقعی فاکتور متصل است و manifest وارداتی جعل نمی‌کند. `period_checklist_items` و `native_document_threads` وضعیت جاریِ نسخه‌دار/ممیزی‌شده دارند؛ فعالیت‌های سند تغییرناپذیرند.
+# مدل داده جاری
 
-> وضعیت جاری ۲۰۲۶/۱۱/۰۲: [موج چهارم](expansion-v4-implementation.fa.md) ثبت نهایی با تأیید دقیق انسان، عملیات/اصلاح، اسناد دوره، گزارش بومی و تأیید مستقل، تأیید بات، قواعد تولید پیش‌نویس، تطبیق دستی چندبه‌چند، پیشنهاد حساب و دستیار وصول/دفتر اصلی را افزوده است. تصمیم D22 انتظار P27 را موقتاً برداشته؛ عبارت‌های قدیمی «ثبت غیرفعال/منتظر حسابدار» در ادامه، سابقهٔ مرحلهٔ قبلی‌اند. نتیجهٔ نهایی: ۴۶۶ آزمون API با PostgreSQL و ۱۱۵ آزمون وب موفق؛ محدودیت‌ها و شواهد در گزارش موج چهارم.
+بازبینی: ۲۰۲۶/۱۱/۱۳. مرجع اجرایی `apps/api/didban/models.py` و مدل‌های importشده آن؛ مرجع DDL: `database/schema.sql`. مدل فعلی ۱۱۴ جدول دارد؛ DDL علاوه بر آن‌ها جدول زیرساختی `didban_schema_version` را دارد و در مجموع ۱۱۵ دستور CREATE TABLE شامل می‌شود. شمارش جدول شاهد تکمیل محصول نیست.
 
-> موج دوم ۲۰۲۶/۱۱/۰۲: سناریو، کنترل/وصول، گزارش‌ساز، قواعد و حافظه نگاشت افزوده شدند؛ شرح اجرا، آزمون‌ها و محدودیت‌ها در [گزارش موج دوم](expansion-v2-implementation.fa.md). این گزارش به معنی تکمیل کل دامنه نیست.
-
-## افزودهٔ اجرایی مرحلهٔ اول حسابداری — ۲۰۲۶/۱۱/۰۱
-
-`accounting_accounts` کدینگ نسخه‌دار شرکت، `accounting_drafts` پیش‌نویس بی‌اثر مالی و `accounting_permissions` اعطای مستقل ثبت/بازگشایی را نگهداری می‌کنند. ارتباط مجوز به عضویت و ارتباط پیش‌نویس به دوره، company-qualified هستند. خطوط JSON پیش‌نویس به حساب‌های همان شرکت در service کنترل می‌شوند؛ سند نهایی/دفتر جدیدی ساخته نشده است. [وضعیت و حدود](accounting-foundation-implementation.fa.md).
-
-> دامنهٔ آینده — ۲۰۲۶/۱۱/۰۱: [D10–D20 و P01–P28](advanced-capabilities-decisions.fa.md) به مدل‌های تازهٔ کدینگ، پیش‌نویس/سند، تأیید، بستن دوره، چک، رسانه، سناریو و تلفیق نیاز دارند. جدول‌های اجرای فعلی زیر اثبات وجود این مدل‌های آینده نیستند؛ schema و migration باید جدا طراحی و آزموده شوند.
-
-# مدل دادهٔ ساخت تازه
-
-مرجع قابل اجرا: `apps/api/didban/models.py`. این مدل مستقل از schema نسخه قدیمی است؛ کاربران، داده و migrationهای نسخه قدیمی وارد آن نمی‌شوند. تعداد جدول یا آزمون ثبت‌شده برای مخزن جداگانه در سند تحویل تاریخی، برای این پیاده‌سازی ادعایی ایجاد نمی‌کند.
-
-| حوزه | جدول‌های پیاده‌سازی تازه | مسئولیت |
+| حوزه | مدل‌ها/جدول‌های شاخص | مسئولیت |
 |---|---|---|
-| هویت نصب | `users`، `login_sessions`، `login_attempts`، `installation_audit_events` | حساب‌های مدیریت‌شده، نشست hash‌شده، محدودیت تلاش ورود و ممیزی مدیریت نصب |
-| مسیریابی بات | `bot_connections`، `bot_updates` | اتصال دومرحله‌ای حساب موجود و دفتر دریافت تکرارناپذیر بدون متن پیام یا پاسخ مالی |
-| شرکت | `companies`، `memberships` | عضویت فعال و نقش شرکت؛ مجوز صریح تأیید مستقل از مالکیت |
-| دوره | `financial_periods` | بازه مالی مستقل و نسخه‌دار |
-| ورودی | `processing_sessions`، `source_files`، `source_rows`، `interpretations` | نوبت، اصل فایل خصوصی، ردیف خام ثابت و تفسیر نسخه‌دار |
-| هماهنگی | `processing_issues`، `outbox_jobs`، `idempotency_keys` | سؤال پایدار و مانع سراسری، کار پایدار و تکرارپذیری درخواست |
-| دفتر/بانک | `journal_lines`، `bank_movements` | مبانی مستقل ثبت دفتر و حرکت/مانده بانک با منشأ ردیف |
-| فاکتور/تسویه | `invoices`، `settlements`، `allocations`، `planned_payments` | فاکتور، رویداد تاریخ‌دار، ارتباط ظرفیت‌دار و برنامه آینده |
-| مؤدیان | `invoice_snapshots` | داده مقایسه‌ای مستقل؛ منشأ ثبت مالی یا وصول نیست |
-| خروجی | `result_manifests`، `reports`، `report_approvals`، `findings` | انتخاب ثابت ورودی، شاخص و جزئیات ثابت، تأیید همان نسخه و یافته‌ها |
-| عملیات | `audit_events`، `notifications`، `budget_policies` | ممیزی شرکت، اعلان داخلی و سیاست سقف نسخه‌دار |
-| مدل/هزینه | `installation_model_budgets`، `model_tariffs`، `model_requests`، `budget_reservations` | سقف نصب/نوبت، تعرفه ثابت، درخواست و تعهد هزینه هر تلاش |
+| نصب و هویت | users، login_sessions، installation_audit_events | حساب مدیریت‌شده، نشست و ممیزی نصب |
+| شرکت | companies، memberships، company_modules، accounting_permissions | عضویت و اختیارهای مستقل شرکت و وضعیت ماژول |
+| منابع | processing_sessions، source_files، source_rows، interpretations، processing_issues | اصل ثابت، تفسیر نسخه‌دار، سؤال پایدار |
+| اجرا | outbox_jobs، idempotency_keys | lease، fence، generation و replay |
+| واردات مالی | journal_lines، bank_movements، invoices، settlements، allocations، invoice_snapshots | facts واردشده با مبنای منبع مستقل |
+| دفتر بومی | accounting_accounts، accounting_drafts، accounting_operations، native_journals، journal_correction_drafts | پیش‌نویس/ثبت، نسخه دقیق، برگشت و جایگزین |
+| فاکتور بومی | native_invoices، native_invoice_terms، native_invoice_allocations، native_invoice_allocation_reversals، native_invoice_source_revisions، native_invoice_snapshots | اصل ثابت، شرایط، تسویه، پذیرش جایگزین و گزارش تاریخی |
+| انبار | inventory_items، inventory_warehouses، inventory_movements | هویت کالا/انبار و گردش متصل به سند، شواهد FIFO |
+| مؤدیان مستقیم | moadian_transmissions، moadian_transmission_events | نسخه تأییدشده، شناسه درخواست و سابقه ارسال/استعلام؛ PEM در DB نیست |
+| دوره | financial_periods، period_locks، period_lock_events، period_checklist_items، period_accounting_drafts | مدیریت/قفل/چک‌لیست/اسناد دوره |
+| گزارش بومی | native_account_roles، native_opening_evidence، native_zero_opening_evidence، native_statement_runs، native_statement_approvals | نقش صریح، افتتاح معتبر، صورت مالی و تأیید دقیق |
+| پیش‌بینی و سناریو | native_forecast_plans، native_forecast_runs، native_cash_scenarios، cash_scenarios | برنامه نسخه‌دار، سؤال و نتیجه ثابت بدون اثر سند |
+| کنترل و تطبیق | native_control_runs، control_cases، native_bank_match_previews، group_match_decisions، manual_group_previews | مبنای ثابت، ظرفیت مشترک و پیگیری |
+| قواعد و یادگیری | automation_rules، native_automation_previews/runs، learning_patterns، operation_learning_patterns/corrections/events | قواعد محدود و پیشنهاد از شواهد شرکت |
+| مدیریت و گروه | financial_dimensions، native_dimension_allocations/report_runs، company_groups، company_comparison_runs، intercompany_mappings، draft_consolidation_runs، consolidation_approvals | تخصیص و گزارش مستقل، حذف منتخب شرکت‌های ۱۰۰٪ |
+| همکاری | native_document_threads، native_document_activities، control_activities | نظر، مسئول، مهلت و سابقه سند |
+| کارکنان | personnel_records | facts مالی کارکنان/حقوق از فایل؛ محاسبه قانونی نیست |
+| بات/رسانه | bot_connections، bot_updates، bot_intakes، bot_extraction_*، bot_posting_*، bot_notification_* | اتصال شخصی، دریافت/بررسی، تأیید مستقل و اعلان |
+| AI | model_requests، model_tariffs، budget_reservations، installation_model_budgets | درخواست، تعرفه ثابت، تعهد/هزینه و شواهد پاسخ |
+| خروجی | result_manifests، reports، report_approvals، report_builder_definitions/runs، native_report_builder_runs، native_invoice_builder_runs | snapshots و اجراهای قابل ردیابی با مبنای صریح |
 
-مبلغ کانونیکال در PostgreSQL از نوع `numeric(38,6)` و در SQLite توسعه به‌صورت متن دقیق است. نوع مشترک `Money` ورودی float/bool، مقدار نامتناهی و دقت یا بزرگی خارج از دامنه را رد و مقدار API را رشتهٔ دقیق برمی‌گرداند. واحد خام و مبلغ خام جدا حفظ می‌شوند. هزینه دلاری مدل، دفتر ریالی نیست و در جدول‌های هزینه با رشتهٔ Decimal دقیق نگهداری می‌شود. تاریخ مالی از نوع `date` و زمان ثبت UTC است.
+فهرست کامل ستون‌ها، FK، index و trigger از DDL خوانده شود؛ علامت `/` یا `*` در جدول بالا گروه‌بندی توضیحی است، نام یک جدول تازه نیست.
 
-پیوندهای ردیف منبع و facts با کلید خارجی مرکب شرکت/شناسه محافظت می‌شوند. جداسازی درخواست در service اعمال می‌شود؛ نصب PostgreSQL سیاست RLS اجباری شرکت دارد. نقش برنامه مجاز به superuser یا BYPASSRLS نیست. SQLite فقط محیط توسعه است و RLS PostgreSQL را شبیه‌سازی نمی‌کند.
+## قیود مشترک
 
-جدول‌های مسیریابی بات مانند هویت نصب سراسری‌اند: `company_ref` برای تعیین شرکت ورودی webhook است و مشمول RLS خودکار `company_id` نیست. کنترل API فقط اتصال‌های همان کاربر/شرکت را برمی‌گرداند؛ سرویس بات قبل از خواندن facts و ارسال پاسخ عضویت جاری را بررسی می‌کند. این جدول‌ها محل ذخیرهٔ متن سؤال، پاسخ مالی یا جزئیات کارکنان نیستند. توکن اتصال فقط hash می‌شود و کد اولیه یک بار به کاربر احرازشده نشان داده می‌شود؛ در idempotency ذخیره نمی‌شود.
+- مبلغ کانونیکال IRR دقیق با numeric(38,6)؛ خام/واحد اصلی حفظ و تومان دقیقاً ×۱۰ می‌شود. هزینه USD مدل حسابداری ریالی نیست.
+- FKهای company-qualified و RLS اجباری با نقش فاقد superuser/BYPASSRLS؛ کنترل service برای JSON خطوط و اختیار جاری برقرار است.
+- جدول‌های سراسری هویت/مسیریابی بات با کنترل actor/عضویت محافظت می‌شوند؛ وجود company_ref به‌تنهایی RLS مالی نیست.
+- اصل فایل، رویداد، سند نهایی و snapshot مالی بازنویسی نمی‌شوند؛ برگشت، revision و جایگزینی سابقه را حفظ می‌کنند.
+- خاموشی ماژول یا تغییر کاربرد شرکت حق خواندن مجاز تاریخچه را حذف نمی‌کند.
+- تغییر مدل باید migration صریح و آزمون ارتقای داده‌دار داشته باشد؛ نسخه schema و create_all کافی نیستند.
 
-اصل ردیف، تفسیر، رویداد ممیزی، fact مالی و snapshot نتیجه/گزارش با trigger تغییرناپذیر نگه داشته می‌شوند. تغییر مالی با ورودی یا تصمیم جبرانی و گزارش تازه انجام می‌شود. بایگانی فایل، انتخاب تاریخی manifest یا مبلغ گزارش قبلی را تغییر نمی‌دهد. حذف فایل دارای شواهد/وابستگی مالی مسدود است.
-
-سیاست D09 برای حداقل ۳ وصول تاریخ‌دار همان مشتری در ۱۸۰ روز گذشته نهایی شده است. رزرو هزینه مدل و انتظار/بررسی هزینه با MockTransport آزموده شده‌اند؛ اتصال زنده، ارزیابی کیفیت تفسیر، تأیید حسابدار و پذیرش نصب/بازیابی همچنان دروازه‌های جدا هستند.
-
-
-## مدل‌های موج سوم — ۲۰۲۶/۱۱/۰۲
-
-مدل‌های جدید شامل تنظیم کاربرد/پیش‌نمایش کدینگ، تصمیم تطبیق گروهی، گروه و snapshot مقایسه شرکت‌ها، ابعاد/تخصیص/گزارش ابعاد، قفل و رویداد دوره، صف فایل بات و پیشنهاد/بررسی استخراج، تنظیم و صف اعلان، چک/رویداد/شاهد وصول و نگاشت متقابل/پیش‌نویس تلفیق‌اند. شواهد، پیشنهادها، تصمیم‌ها و اجراهای گزارش به‌صورت append-only محافظت می‌شوند؛ masterهای عملیاتی نسخه‌دارند. DDL تولیدی `database/schema.sql` از ۷۲ جدول مرجع ساختار دقیق است؛ وجود جدول اثبات پذیرش مالی نیست. [وضعیت و محدودیت‌ها](expansion-v3-implementation.fa.md).
+[قرارداد مالی](rebuild-financial-contract.fa.md)، [اجرای جاری](current-implementation.fa.md)، [کارهای باز](../todo.md).

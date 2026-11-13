@@ -113,3 +113,163 @@ def test_personnel_report_uses_selected_rows_and_exact_totals():
         assert len(result["items"]) == 1
         assert result["totals"]["gross_pay"] == "9007199254740993"
         assert personnel_result(db, "c", "employees", "p")["totals"] is None
+
+
+def test_native_payroll_and_employee_reports_acc_07():
+    """ACC-07: Employee financial reports from supported native payroll operations and journals."""
+    from datetime import date
+    from uuid import uuid4
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from didban import models as m
+    from didban.accounting_setup_models import CompanyAccountingSetup
+    from didban.operation_models import OperationDraft
+    from didban.personnel_service import personnel_result
+    from didban.posting_models import NativeJournal
+
+    engine = create_engine("sqlite://")
+    m.Base.metadata.create_all(engine)
+
+    with Session(engine) as db:
+        c_id = f"c-pay-{uuid4().hex[:6]}"
+        p_id = f"p-pay-{uuid4().hex[:6]}"
+        db.add(m.Company(id=c_id, name="شرکت تست حقوق نیتیو"))
+        db.add(CompanyAccountingSetup(company_id=c_id, mode="primary"))
+        db.add(m.Period(id=p_id, company_id=c_id, name="دوره مالی", start=date(2026, 1, 1), end=date(2026, 12, 29)))
+
+        # 1. Add posted payroll journal for Employee EMP-101
+        draft_1 = str(uuid4())
+        j_1 = NativeJournal(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_1,
+            draft_version=1,
+            period_id=p_id,
+            date=date(2026, 5, 1),
+            sequence=1,
+            digest="d1",
+            snapshot={},
+            actor_id="u1",
+            permission_provenance={"actor_id": "u1"},
+        )
+        op_1 = OperationDraft(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_1,
+            kind="payroll",
+            source_reference="PAY-001",
+            payload={
+                "party_id": "EMP-101",
+                "party_name": "علی رضایی",
+                "amounts": {
+                    "gross": "50000000",
+                    "employee_insurance": "3500000",
+                    "employer_insurance": "11500000",
+                    "payroll_tax": "2000000",
+                    "other_deductions": "500000",
+                    "net_pay": "44000000",
+                },
+            },
+            actor_id="u1",
+            policy_version="user-provisional-2026-11-02-v1",
+        )
+
+        # 2. Add aggregate unassigned payroll journal
+        draft_agg = str(uuid4())
+        j_agg = NativeJournal(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_agg,
+            draft_version=1,
+            period_id=p_id,
+            date=date(2026, 5, 2),
+            sequence=2,
+            digest="d2",
+            snapshot={},
+            actor_id="u1",
+            permission_provenance={"actor_id": "u1"},
+        )
+        op_agg = OperationDraft(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_agg,
+            kind="payroll",
+            source_reference="PAY-AGG-001",
+            payload={
+                "party_id": "",
+                "amounts": {
+                    "gross": "100000000",
+                    "employee_insurance": "7000000",
+                    "employer_insurance": "23000000",
+                    "payroll_tax": "4000000",
+                    "other_deductions": "1000000",
+                    "net_pay": "88000000",
+                },
+            },
+            actor_id="u1",
+            policy_version="user-provisional-2026-11-02-v1",
+        )
+
+        # 3. Add payroll_payment journal paying EMP-101
+        draft_pay = str(uuid4())
+        j_pay = NativeJournal(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_pay,
+            draft_version=1,
+            period_id=p_id,
+            date=date(2026, 5, 5),
+            sequence=3,
+            digest="d3",
+            snapshot={},
+            actor_id="u1",
+            permission_provenance={"actor_id": "u1"},
+        )
+        op_pay = OperationDraft(
+            id=str(uuid4()),
+            company_id=c_id,
+            draft_id=draft_pay,
+            kind="payroll_payment",
+            source_reference="PAY-DISB-001",
+            payload={"party_id": "EMP-101", "amounts": {"amount": "44000000"}},
+            actor_id="u1",
+            policy_version="user-provisional-2026-11-02-v1",
+        )
+
+        db.add_all([j_1, op_1, j_agg, op_agg, j_pay, op_pay])
+        db.flush()
+
+        # Query native payroll report
+        payroll_rep = personnel_result(db, c_id, "payroll", p_id, basis="native")
+        assert payroll_rep["basis"] == "native"
+        assert payroll_rep["status"] == "available"
+        assert len(payroll_rep["items"]) == 2
+
+        emp_item = next(it for it in payroll_rep["items"] if it["employee_id"] == "EMP-101")
+        assert emp_item["employee_name"] == "علی رضایی"
+        assert emp_item["values"]["gross_pay"] == "50000000"
+        assert emp_item["values"]["net_pay"] == "44000000"
+        assert emp_item["payment_status"] == "paid"
+        assert emp_item["is_unassigned_aggregate"] is False
+
+        agg_item = next(it for it in payroll_rep["items"] if it["employee_id"] == "unassigned_aggregate")
+        assert agg_item["is_unassigned_aggregate"] is True
+        assert agg_item["employee_name"] == "حقوق تجمیعی ثبت‌شده"
+        assert agg_item["payment_status"] == "unpaid"
+
+        # Verify totals
+        assert payroll_rep["totals"]["gross_pay"] == "150000000"
+        assert payroll_rep["totals"]["payroll_tax"] == "6000000"
+
+        # Query employees directory
+        emp_dir = personnel_result(db, c_id, "employees", p_id, basis="native")
+        assert len(emp_dir["items"]) == 1  # Only named employee, aggregate excluded from directory
+        assert emp_dir["items"][0]["employee_id"] == "EMP-101"
+
+        # Query imported basis returns unavailable (no imported manifest) - strict separation
+        imp_rep = personnel_result(db, c_id, "payroll", p_id, basis="imported")
+        assert imp_rep["basis"] == "imported"
+        assert imp_rep["status"] == "unavailable"
+

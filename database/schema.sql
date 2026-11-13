@@ -185,6 +185,28 @@ CREATE TABLE cheques (
 
 CREATE INDEX ix_cheques_company_id ON cheques (company_id);
 
+CREATE TABLE commercial_counterparties (
+	code VARCHAR(100) NOT NULL,
+	name VARCHAR(200) NOT NULL,
+	national_id VARCHAR(20),
+	economic_code VARCHAR(20),
+	phone VARCHAR(50),
+	address VARCHAR(500),
+	credit_limit_irr NUMERIC(38, 6),
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, code),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_commercial_counterparties_credit_limit_irr CHECK (credit_limit_irr > -100000000000000000000000000000000 AND credit_limit_irr < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_commercial_counterparties_company_id ON commercial_counterparties (company_id);
+
 CREATE TABLE company_accounting_setup (
 	company_id VARCHAR(36) NOT NULL,
 	mode VARCHAR(20) NOT NULL,
@@ -313,9 +335,11 @@ CREATE TABLE installation_model_budgets (
 CREATE TABLE inventory_warehouses (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(150) NOT NULL,
+	active BOOLEAN NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (company_id, id),
 	UNIQUE (company_id, code),
@@ -480,6 +504,34 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX ix_notifications_company_id ON notifications (company_id);
+
+CREATE TABLE proforma_invoices (
+	number VARCHAR(100) NOT NULL,
+	direction VARCHAR(10) NOT NULL,
+	date DATE NOT NULL,
+	expiry_date DATE,
+	party_id VARCHAR(100) NOT NULL,
+	currency VARCHAR(10) NOT NULL,
+	lines JSON NOT NULL,
+	total_amount NUMERIC(38, 6) NOT NULL,
+	total_amount_irr NUMERIC(38, 6) NOT NULL,
+	terms VARCHAR(1000),
+	status VARCHAR(20) NOT NULL,
+	converted_operation_id VARCHAR(36),
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, number),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_proforma_invoices_total_amount CHECK (total_amount > -100000000000000000000000000000000 AND total_amount < 100000000000000000000000000000000),
+	CONSTRAINT finite_proforma_invoices_total_amount_irr CHECK (total_amount_irr > -100000000000000000000000000000000 AND total_amount_irr < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_proforma_invoices_company_id ON proforma_invoices (company_id);
 
 CREATE TABLE report_builder_definitions (
 	name VARCHAR(120) NOT NULL,
@@ -651,9 +703,11 @@ CREATE TABLE inventory_items (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(150) NOT NULL,
 	inventory_account_id VARCHAR(36) NOT NULL,
+	active BOOLEAN NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (company_id, id),
 	UNIQUE (company_id, code),
@@ -1368,7 +1422,7 @@ CREATE TABLE inventory_movements (
 	warehouse_id VARCHAR(36) NOT NULL,
 	journal_id VARCHAR(36) NOT NULL,
 	operation_id VARCHAR(36) NOT NULL,
-	kind VARCHAR(20) NOT NULL,
+	kind VARCHAR(30) NOT NULL,
 	date DATE NOT NULL,
 	sequence BIGINT NOT NULL,
 	quantity BIGINT NOT NULL,
@@ -1378,13 +1432,13 @@ CREATE TABLE inventory_movements (
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (id),
-	UNIQUE (company_id, journal_id),
+	UNIQUE (company_id, journal_id, warehouse_id, kind),
 	UNIQUE (company_id, sequence),
 	FOREIGN KEY(company_id, item_id) REFERENCES inventory_items (company_id, id),
 	FOREIGN KEY(company_id, warehouse_id) REFERENCES inventory_warehouses (company_id, id),
 	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
 	FOREIGN KEY(company_id, operation_id) REFERENCES accounting_operations (company_id, id),
-	CONSTRAINT inventory_movement_kind_quantity CHECK ((kind = 'purchase_goods' AND quantity > 0) OR (kind = 'sale_goods' AND quantity < 0) OR (kind = 'reversal' AND quantity <> 0)),
+	CONSTRAINT inventory_movement_kind_quantity CHECK ((kind = 'purchase_goods' AND quantity > 0) OR (kind = 'sale_goods' AND quantity < 0) OR (kind = 'opening_stock' AND quantity > 0) OR (kind = 'transfer_in' AND quantity > 0) OR (kind = 'transfer_out' AND quantity < 0) OR (kind = 'adjustment' AND quantity <> 0) OR (kind = 'reversal' AND quantity <> 0)),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_inventory_movements_value_irr CHECK (value_irr > -100000000000000000000000000000000 AND value_irr < 100000000000000000000000000000000)
 );
@@ -2230,6 +2284,14 @@ DROP POLICY IF EXISTS tenant_isolation ON cheques;
 
 CREATE POLICY tenant_isolation ON cheques USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE commercial_counterparties ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE commercial_counterparties FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON commercial_counterparties;
+
+CREATE POLICY tenant_isolation ON commercial_counterparties USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE company_accounting_setup ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE company_accounting_setup FORCE ROW LEVEL SECURITY;
@@ -2357,6 +2419,14 @@ ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON notifications;
 
 CREATE POLICY tenant_isolation ON notifications USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE proforma_invoices ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE proforma_invoices FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON proforma_invoices;
+
+CREATE POLICY tenant_isolation ON proforma_invoices USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE report_builder_definitions ENABLE ROW LEVEL SECURITY;
 

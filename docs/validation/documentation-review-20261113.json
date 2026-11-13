@@ -1,0 +1,489 @@
+{
+  "reviewed_on": "2026-11-13",
+  "timezone": "Asia/Tehran",
+  "baseline_commit": "e472d69775ddb2ebcb158698ab4d85c5fe43fede",
+  "application_code_changed": false,
+  "test_execution_scope": "Immediately preceding code review in the same conversation, before documentation-only changes. No new test run is claimed for editing Markdown.",
+  "checks": [
+    {
+      "command": "../../.venv/bin/python -m pytest",
+      "cwd": "apps/api",
+      "passed": 581,
+      "skipped": 1,
+      "duration_seconds": 247.0,
+      "exit_code": 0,
+      "postgres_test": "skipped: isolated PostgreSQL validation URL not configured"
+    },
+    {
+      "command": "pnpm --filter @didban/web test",
+      "passed": 174,
+      "test_files_passed": 51,
+      "exit_code": 0
+    },
+    {
+      "command": "pnpm --filter @didban/web typecheck",
+      "exit_code": 0
+    },
+    {
+      "command": "pnpm --filter @didban/web lint",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m ruff check apps/api scripts",
+      "exit_code": 0
+    }
+  ],
+  "code_inventory": {
+    "model_tables": 114,
+    "openapi_paths": 244,
+    "http_operations": 289,
+    "code_matches_openapi_snapshot": true,
+    "method": "Imported application OpenAPI and SQLAlchemy metadata without schema/data mutation; compared with contracts/openapi.json during documentation review.",
+    "ddl_create_table_statements": 115,
+    "ddl_extra_infrastructure_table": "didban_schema_version"
+  },
+  "not_performed": [
+    "new build",
+    "live browser QA",
+    "live provider evaluation",
+    "Telegram/Bale webhook or delivery",
+    "real Moadian submission",
+    "customer financial data processing",
+    "accountant acceptance",
+    "production workload benchmark",
+    "restore drill",
+    "new PostgreSQL validation"
+  ],
+  "documentation_inventory": [
+    {
+      "path": "docs/accounting-foundation-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/accounting-reference-review.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/advanced-capabilities-audit.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/advanced-capabilities-decisions.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/api-contract.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/bot-connections-ui-review.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/bots.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/current-implementation.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/customer-success-records.fa.md",
+      "classification": "legacy_unverified",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/data-model.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/demo-and-recovery-runbook.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/design-system-v1.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/design-system-v2.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/dialog-design-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/drawer-design-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/drawer-entry-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/expansion-v2-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/expansion-v3-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/expansion-v4-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/expansion-v5-implementation.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/features/bank-invoice-settlements.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/features/inventory.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/features/moadian-comparison.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/features/moadian-direct.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/features/settlement-import.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/financial-assistant-v1.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/financial-periods-v1.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/gear-chat-review.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/README.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/api-contract.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/bots.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/current-implementation.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/data-model.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/financial-assistant-v1.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/implemented-features-complete.en.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/implemented-features-current.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/media-extraction-review.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/personnel-modules.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/production-runbooks.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/rebuild-financial-contract.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/rebuild-spec.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/rebuild-technical-contract.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/pre-doc-refresh-20261113/workflow-contract.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/history/rebuild-handoff-20261025.fa.md",
+      "classification": "archive",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/implementation-status.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/implemented-features-complete.en.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/implemented-features-current.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/media-extraction-review.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/model-gateway.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/mvp-exception-first-build-plan.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/mvp-technical-spec-v0.1.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/page-form-design-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/personnel-modules.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/phase-6-validation-report.fa.md",
+      "classification": "legacy_unverified",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/phase-7-scale-report.fa.md",
+      "classification": "legacy_unverified",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/phase-8-product-operating-system.fa.md",
+      "classification": "legacy_unverified",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/pricing-and-packaging-validation.fa.md",
+      "classification": "legacy_unverified",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/product-guidance-code-map.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/production-runbooks.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/rebuild-decision-review.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/rebuild-financial-contract.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/rebuild-handoff.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/rebuild-spec.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/rebuild-technical-contract.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/redesign-coverage.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/settings-menu-review.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-charts-and-content-states-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-form-controls-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-navigation-feedback-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-overlays-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-table-interactions-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/shared-tables-and-metrics-audit.fa.md",
+      "classification": "legacy",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/ui-motion-review.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/ui-theme-review.fa.md",
+      "classification": "stage_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/validation/rebuild-v1/README.fa.md",
+      "classification": "fixture_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/validation/rebuild-v1/validation-report.fa.md",
+      "classification": "fixture_record",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/workflow-contract.fa.md",
+      "classification": "current",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "AGENTS.md",
+      "classification": "current_instructions",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "README.md",
+      "classification": "current_entry",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "design.md",
+      "classification": "approved_design",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "apps/web/AGENTS.md",
+      "classification": "generated_framework_instructions",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "apps/web/CLAUDE.md",
+      "classification": "instruction_pointer",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "todo.md",
+      "classification": "execution_backlog",
+      "reviewed_on": "2026-11-13"
+    },
+    {
+      "path": "docs/README.md",
+      "classification": "documentation_index",
+      "reviewed_on": "2026-11-13"
+    }
+  ],
+  "documentation_validation": {
+    "todo_task_count": 44,
+    "task_ids_unique": true,
+    "all_tasks_have_priority_status_acceptance": true,
+    "local_markdown_links": "all checked; no missing local target files",
+    "whitespace_check": "git diff --check passed",
+    "application_code_changed": false,
+    "external_links": "retained as historical/protocol references; not reverified online",
+    "notes": "Archived documents are labeled non-current; generated framework instructions and CLAUDE pointer reviewed and preserved."
+  }
+}

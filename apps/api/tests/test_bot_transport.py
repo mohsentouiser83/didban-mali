@@ -105,3 +105,55 @@ def test_httpx_info_logs_do_not_expose_bot_tokens(caplog, provider):
             await client.get("https://example.test/status")
     asyncio.run(ordinary_request())
     assert "https://example.test/status" in caplog.text
+
+
+@pytest.mark.parametrize("provider,host", [("telegram", "api.telegram.org"), ("bale", "tapi.bale.ai")])
+def test_send_document_to_fixed_origin(provider, host):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.url.host == host and request.url.scheme == "https"
+        assert request.url.path.endswith("/sendDocument")
+        assert b"report.pdf" in request.content
+        assert b"%PDF-1.4" in request.content
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 99}})
+
+    adapter = BotTransport(provider, SecretStr("synthetic:token"), transport=httpx.MockTransport(handler))
+    msg_id = asyncio.run(
+        adapter.send_document("12", b"%PDF-1.4 synthetic content", "report.pdf", caption="صورت وضعیت")
+    )
+    assert msg_id == "99"
+    assert len(calls) == 1
+
+
+def test_send_document_validations_and_sanitized_errors():
+    adapter = BotTransport("telegram", SecretStr("synthetic:token"))
+
+    # Invalid filename or extension
+    with pytest.raises(DomainError):
+        asyncio.run(adapter.send_document("12", b"data", "malicious.sh"))
+    with pytest.raises(DomainError):
+        asyncio.run(adapter.send_document("12", b"data", "../escape.pdf"))
+
+    # Invalid chat id
+    with pytest.raises(DomainError):
+        asyncio.run(adapter.send_document("-1", b"%PDF", "valid.pdf"))
+
+    # Empty document bytes
+    with pytest.raises(DomainError):
+        asyncio.run(adapter.send_document("12", b"", "empty.pdf"))
+
+    # Oversize document
+    with pytest.raises(DomainError):
+        asyncio.run(adapter.send_document("12", b"x" * 100, "large.pdf", max_bytes=50))
+
+    # Error handling
+    def fail_handler(request):
+        return httpx.Response(500, json={"error": "internal"})
+
+    fail_adapter = BotTransport("bale", SecretStr("synthetic:token"), transport=httpx.MockTransport(fail_handler))
+    with pytest.raises(DomainError) as err:
+        asyncio.run(fail_adapter.send_document("12", b"%PDF", "doc.pdf"))
+    assert err.value.code == "bot_delivery_unconfirmed"
+    assert "synthetic" not in str(err.value)

@@ -451,3 +451,149 @@ def test_cheque_due_opt_in_dedupe_and_stale_clearance_cancel(environment):
         db.flush()
         service.queue_events(db, "c", STAMP)
         assert len(list(db.scalars(select(Delivery)))) == 1
+
+
+def test_native_book_notification_delivery_and_summary(db_session):
+    from didban.accounting_setup_models import CompanyAccountingSetup
+    from didban.native_reporting_models import NativeStatementRun
+
+    db = db_session
+    company_id = "c-native-bot"
+    user_id = "u-native-bot"
+    user = m.User(id=user_id, email="nbot@test.local", name="کاربر بومی", password_hash="test")
+    company = m.Company(id=company_id, name="شرکت دفتر بومی")
+    conn = m.BotConnection(
+        id="conn-1", company_ref=company_id, user_id=user_id, provider="telegram",
+        sender_id="12345", chat_id="12345", state="active", version=1,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+    )
+    stamp = datetime(2026, 11, 13, 5, 30, tzinfo=timezone.utc)  # 09:00 in Tehran
+    member = m.Membership(company_id=company_id, user_id=user_id, role="viewer", active=True)
+    pref = Preference(
+        company_id=company_id, user_id=user_id, provider="telegram",
+        enabled=True, enabled_at=stamp - timedelta(hours=1),
+        events=["daily_summary", "report_ready"],
+        connection_id="conn-1", connection_version=1,
+        quiet_enabled=False, summary_time="09:00"
+    )
+    setup = CompanyAccountingSetup(company_id=company_id, mode="primary")
+    db.add_all([user, company, member, conn, pref, setup])
+    db.flush()
+    stmt = NativeStatementRun(
+        id="stmt-bot-1",
+        company_id=company_id,
+        actor_id=user_id,
+        digest="7" * 64,
+        created_at=stamp,
+        snapshot={
+            "as_of": "2026-11-13",
+            "metrics": [
+                {"metric_key": "bank_balance", "value": "1500000", "status": "available"},
+                {"metric_key": "trade_receivable_balance", "value": "2000000", "status": "available"},
+                {"metric_key": "trade_payable_balance", "value": "800000", "status": "available"},
+            ],
+        },
+    )
+    db.add(stmt)
+    db.flush()
+
+    queued = service.queue_events(db, company_id, stamp)
+    assert queued >= 1
+
+    deliveries = list(db.scalars(select(Delivery).where(Delivery.company_id == company_id)))
+    assert len(deliveries) >= 1
+    assert deliveries[0].manifest_id == stmt.id
+
+    # Check rendered notification text
+    text = service._text(db, deliveries[0])
+    assert text is not None
+    assert "دفتر اصلی" in text
+    assert "موجودی نقد" in text
+    assert "۱٬۵۰۰٬۰۰۰ ریال" in text
+
+
+def test_bot_02_deliver_snapshot_pdf_to_bot(environment):
+    from didban.native_reporting_models import NativeStatementRun
+
+    with environment() as db:
+        user = db.get(m.User, "u")
+
+        # Add active Telegram connection for user 'u'
+        conn = m.BotConnection(
+            id="conn-pdf-1", company_ref="c", user_id="u", provider="telegram",
+            chat_id="12345678", state="active", expires_at=STAMP + timedelta(days=365)
+        )
+        db.add(conn)
+        db.flush()
+
+        # Add native statement run
+        stmt = NativeStatementRun(
+            id="stmt-pdf-test",
+            company_id="c",
+            actor_id="u",
+            digest="8" * 64,
+            created_at=STAMP,
+            snapshot={
+                "title": "صورت وضعیت مالی",
+                "company_name": "شرکت تست",
+                "period_id": "p",
+                "period": {"id": "p", "start": "2026-11-01", "end": "2026-11-30"},
+                "as_of": "2026-11-13",
+                "metrics": [
+                    {
+                        "metric_key": "bank_balance",
+                        "label": "موجودی نقد",
+                        "value": "1000000",
+                        "unit": "IRR",
+                        "status": "available",
+                        "reason_codes": [],
+                    },
+                ],
+                "items": [],
+                "role_assignments": [],
+                "opening_evidence": {"status": "available", "evidence": []},
+                "journal_ids": [],
+                "profit_journal_ids": [],
+                "movement_journal_ids": [],
+            },
+        )
+        db.add(stmt)
+        db.flush()
+
+        calls = []
+
+        def transport_factory(provider, token):
+            def handler(request):
+                calls.append(request)
+                assert request.url.path.endswith("/sendDocument")
+                assert b"%PDF" in request.content
+                return httpx.Response(200, json={"ok": True, "result": {"message_id": 777}})
+
+            return BotTransport(provider, token, transport=httpx.MockTransport(handler))
+
+        res = asyncio.run(
+            service.deliver_snapshot_pdf_to_bot(
+                db,
+                "c",
+                user,
+                provider="telegram",
+                export_type="native_statement",
+                export_id=stmt.id,
+                caption="صورت وضعیت",
+                transport_factory=transport_factory,
+            )
+        )
+        assert res["status"] == "sent"
+        assert res["provider_message_id"] == "777"
+        assert res["filename"].startswith("statement_")
+        assert len(calls) == 1
+
+        # Attempting to deliver with unconnected provider fails
+        with pytest.raises(DomainError) as err:
+            asyncio.run(
+                service.deliver_snapshot_pdf_to_bot(
+                    db, "c", user, provider="bale", export_type="native_statement", export_id=stmt.id
+                )
+            )
+        assert err.value.code == "bot_not_connected"
+

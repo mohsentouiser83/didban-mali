@@ -337,12 +337,40 @@ def _interpret_imported(question: str, period_id: str) -> dict:
     # Only narrowly supported utterances are accepted. Company/period/party never inferred.
     if any(
         word in text
-        for word in ("مشتری", "طرف حساب", "پروژه", "شعبه", "مالیات", "کارمند", "حقوق", "ماه قبل", "سال قبل")
+        for word in (
+            "مشتری",
+            "طرف حساب",
+            "پروژه",
+            "شعبه",
+            "مالیات",
+            "کارمند",
+            "حقوق",
+            "ماه قبل",
+            "سال قبل",
+            "هفته قبل",
+            "هفته آینده",
+            "فردا",
+            "دیروز",
+            "ثبت",
+            "ایجاد",
+            "ویرایش",
+            "حذف",
+            "تغییر",
+            "بیشتر از",
+            "کمتر از",
+            "بزرگتر",
+            "کوچکتر",
+        )
     ):
+        msg = (
+            "تنظیمات گزارش فقط برای ساخت و مشاهده گزارش‌های خواندنی است."
+            if any(w in text for w in ("ثبت", "ایجاد", "ویرایش", "حذف", "تغییر"))
+            else "نوع گزارش و فیلتر طرف حساب را از کنترل‌ها انتخاب کنید."
+        )
         return {
             "status": "needs_selection",
             "choices": ["شاخص‌های مالی", "فاکتورهای فروش", "فاکتورهای خرید"],
-            "message": "نوع گزارش و فیلتر طرف حساب را از کنترل‌ها انتخاب کنید.",
+            "message": msg,
         }
     allowed = {
         "گزارش",
@@ -352,6 +380,7 @@ def _interpret_imported(question: str, period_id: str) -> dict:
         "مطالبات",
         "بدهی",
         "بدهیها",
+        "بدهی‌ها",
         "فروش",
         "خرید",
         "سررسیدگذشته",
@@ -360,19 +389,57 @@ def _interpret_imported(question: str, period_id: str) -> dict:
         "این",
         "دوره",
         "درآمد",
+        "درآمدها",
+        "درآمدهای",
         "هزینه",
+        "هزینه‌ها",
+        "هزینه‌های",
+        "هزینهها",
         "سود",
+        "زیان",
         "خالص",
+        "پیش",
+        "از",
         "و",
         "نقد",
         "مانده",
         "بانک",
+        "موجودی",
+        "نقدینگی",
         "ها",
         "را",
         "رو",
+        "به",
         "نشان",
         "بده",
         "بدهید",
+        "نمایش",
+        "لطفا",
+        "لطفاً",
+        "میخواهم",
+        "می‌خواهم",
+        "میخوام",
+        "می‌خوام",
+        "لیست",
+        "صورت",
+        "جدول",
+        "مشاهده",
+        "بررسی",
+        "ریز",
+        "خلاصه",
+        "معوق",
+        "پرداخت",
+        "نشده",
+        "تسویه",
+        "تمام",
+        "کلیه",
+        "همه",
+        "شرکت",
+        "صادره",
+        "وارده",
+        "دریافتنی",
+        "پرداختنی",
+        "کل",
     }
     if any(word not in allowed for word in text.split()):
         return {
@@ -380,13 +447,13 @@ def _interpret_imported(question: str, period_id: str) -> dict:
             "choices": ["شاخص‌های مالی", "فاکتورهای فروش", "فاکتورهای خرید"],
             "message": "برای این درخواست، نوع گزارش و فیلترها را مشخص کنید.",
         }
-    ledger_requested = any(word in text for word in ("درآمد", "هزینه", "سود"))
-    bank_requested = "نقد" in text or "بانک" in text
-    invoice_requested = "فاکتور" in text
+    ledger_requested = any(word in text for word in ("درآمد", "هزینه", "سود", "زیان"))
+    bank_requested = any(w in text for w in ("نقد", "بانک", "نقدینگی", "موجودی"))
+    invoice_requested = "فاکتور" in text or any(w in text for w in ("صادره", "وارده"))
     if (
         sum((ledger_requested, bank_requested, invoice_requested)) > 1
-        or ("سود" in text and "سود خالص" not in text)
-        or (not invoice_requested and "سررسید" in text)
+        or ("سود" in text and "سود خالص" not in text and "سود و زیان" not in text)
+        or (not invoice_requested and ("سررسید" in text or "معوق" in text or "پرداخت نشده" in text))
     ):
         return {
             "status": "needs_selection",
@@ -401,13 +468,17 @@ def _interpret_imported(question: str, period_id: str) -> dict:
             "choices": ["مطالبات دفتر", "مطالبات فاکتور", "بدهی دفتر", "بدهی فاکتور"],
             "message": "مبنای دفتر یا فاکتور را از کنترل‌ها مشخص کنید.",
         }
-    if "فاکتور" in text:
+    if invoice_requested:
         direction = (
             "sales"
-            if "فروش" in text or "مطالبات" in text
+            if any(w in text for w in ("فروش", "مطالبات", "صادره", "دریافتنی"))
             else "purchases"
-            if "خرید" in text or "بدهی" in text
+            if any(w in text for w in ("خرید", "بدهی", "وارده", "پرداختنی"))
             else "all"
+        )
+        overdue = any(
+            w in text
+            for w in ("سررسیدگذشته", "سررسید گذشته", "معوق", "پرداخت نشده", "تسویه نشده")
         )
         spec = ReportSpec(
             period_id=period_id,
@@ -415,20 +486,45 @@ def _interpret_imported(question: str, period_id: str) -> dict:
             basis="invoice",
             metric_keys=[],
             columns=["reference", "party_id", "amount", "remaining", "status"],
-            filters={"direction": direction, "overdue_only": "سررسیدگذشته" in text or "سررسید گذشته" in text},
+            filters={"direction": direction, "overdue_only": overdue},
         )
         return {"status": "proposed", "spec": spec.model_dump()}
-    matched = [
-        key
-        for words, key in [(("درآمد",), "revenue"), (("هزینه",), "expense"), (("سود خالص",), "net_profit")]
-        if any(word in text for word in words)
-    ]
+
+    if "سود و زیان" in text or "صورت سود و زیان" in text:
+        return {
+            "status": "proposed",
+            "spec": ReportSpec(
+                period_id=period_id,
+                metric_keys=["revenue", "expense", "net_profit"],
+            ).model_dump(),
+        }
+
+    matched = []
+    if "درآمد" in text:
+        matched.append("revenue")
+    if "هزینه" in text:
+        matched.append("expense")
+    if "سود خالص" in text:
+        matched.append("net_profit")
     if matched:
         return {
             "status": "proposed",
             "spec": ReportSpec(period_id=period_id, metric_keys=matched).model_dump(),
         }
-    if text in ("نقد", "مانده بانک", "مانده بانک ها", "گزارش نقد"):
+    if any(
+        w in text
+        for w in (
+            "نقد",
+            "مانده بانک",
+            "مانده بانک ها",
+            "مانده بانک‌ها",
+            "موجودی بانک",
+            "موجودی نقد",
+            "نقد و بانک",
+            "نقدینگی",
+            "گزارش نقد",
+        )
+    ):
         return {
             "status": "proposed",
             "spec": ReportSpec(period_id=period_id, basis="bank", metric_keys=["cash"]).model_dump(),
@@ -449,13 +545,18 @@ def interpret(question: str, period_id: str, source: str = "imported_manifest") 
             proposal["spec"]["source"] = "native_invoice"
         return proposal
     text = normalized(question)
-    if text in ("سود پیش از مالیات", "گزارش سود پیش از مالیات"):
+    if "سود و زیان" in text or "صورت سود و زیان" in text:
+        keys = ["revenue", "expense", "pre_tax_profit"]
+    elif text in ("سود پیش از مالیات", "گزارش سود پیش از مالیات"):
         keys = ["pre_tax_profit"]
     elif text in ("مطالبات", "گزارش مطالبات", "مطالبات دفتر"):
         keys = ["ar_ledger"]
     elif text in ("بدهی", "بدهی دفتر", "گزارش بدهی"):
         keys = ["ap_trade_ledger"]
-    elif text in ("نقد", "مانده بانک", "گزارش نقد"):
+    elif any(
+        w in text
+        for w in ("نقد", "مانده بانک", "موجودی بانک", "موجودی نقد", "گزارش نقد", "نقدینگی")
+    ):
         keys = ["cash"]
     else:
         proposal = _interpret_imported(question, period_id)

@@ -22,6 +22,12 @@ class OperationDraft(Entity, Tenant, Base):
 
     @property
     def business_reference(self) -> str:
-        if self.kind in ("purchase_goods", "sale_goods"):
-            return self.payload["source_reference"]
+        if self.kind in (
+            "purchase_goods",
+            "sale_goods",
+            "opening_stock",
+            "transfer_goods",
+            "stock_adjustment",
+        ):
+            return self.payload.get("source_reference", self.source_reference)
         return self.source_reference

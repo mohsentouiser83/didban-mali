@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     ForeignKeyConstraint,
@@ -14,11 +15,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .models import Base, Entity, Tenant
+from .models import Base, Entity, Tenant, Versioned
 from .money_type import Money
 
 
-class InventoryItem(Entity, Tenant, Base):
+class InventoryItem(Entity, Tenant, Versioned, Base):
     __tablename__ = "inventory_items"
     __table_args__ = (
         UniqueConstraint("company_id", "id"),
@@ -31,9 +32,10 @@ class InventoryItem(Entity, Tenant, Base):
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(150))
     inventory_account_id: Mapped[str] = mapped_column(String(36))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
-class InventoryWarehouse(Entity, Tenant, Base):
+class InventoryWarehouse(Entity, Tenant, Versioned, Base):
     __tablename__ = "inventory_warehouses"
     __table_args__ = (
         UniqueConstraint("company_id", "id"),
@@ -41,12 +43,13 @@ class InventoryWarehouse(Entity, Tenant, Base):
     )
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(150))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class InventoryMovement(Entity, Tenant, Base):
     __tablename__ = "inventory_movements"
     __table_args__ = (
-        UniqueConstraint("company_id", "journal_id"),
+        UniqueConstraint("company_id", "journal_id", "warehouse_id", "kind"),
         UniqueConstraint("company_id", "sequence"),
         ForeignKeyConstraint(["company_id", "item_id"], ["inventory_items.company_id", "inventory_items.id"]),
         ForeignKeyConstraint(
@@ -60,7 +63,12 @@ class InventoryMovement(Entity, Tenant, Base):
         ),
         CheckConstraint(
             "(kind = 'purchase_goods' AND quantity > 0) OR "
-            "(kind = 'sale_goods' AND quantity < 0) OR (kind = 'reversal' AND quantity <> 0)",
+            "(kind = 'sale_goods' AND quantity < 0) OR "
+            "(kind = 'opening_stock' AND quantity > 0) OR "
+            "(kind = 'transfer_in' AND quantity > 0) OR "
+            "(kind = 'transfer_out' AND quantity < 0) OR "
+            "(kind = 'adjustment' AND quantity <> 0) OR "
+            "(kind = 'reversal' AND quantity <> 0)",
             name="inventory_movement_kind_quantity",
         ),
         Index("ix_inventory_movements_bucket_sequence", "company_id", "item_id", "warehouse_id", "sequence"),
@@ -69,7 +77,7 @@ class InventoryMovement(Entity, Tenant, Base):
     warehouse_id: Mapped[str] = mapped_column(String(36))
     journal_id: Mapped[str] = mapped_column(String(36))
     operation_id: Mapped[str] = mapped_column(String(36))
-    kind: Mapped[str] = mapped_column(String(20))
+    kind: Mapped[str] = mapped_column(String(30))
     date: Mapped[date] = mapped_column(Date)
     sequence: Mapped[int] = mapped_column(BigInteger)
     quantity: Mapped[int] = mapped_column(BigInteger)

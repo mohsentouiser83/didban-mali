@@ -167,6 +167,79 @@ class BotTransport:
             raise DomainError("bot_delivery_unconfirmed", "ارسال پیام تأیید نشد.", 503)
         raise DomainError("bot_delivery_unconfirmed", "ارسال پیام تأیید نشد.", 503)
 
+    async def send_document(
+        self,
+        chat_id: str,
+        document_bytes: bytes,
+        filename: str,
+        *,
+        caption: str | None = None,
+        max_bytes: int = 20 * 1024 * 1024,
+    ) -> str:
+        require(
+            isinstance(chat_id, str) and re.fullmatch(r"[1-9][0-9]{0,18}", chat_id) is not None,
+            "bot_chat_invalid",
+            "گفت‌وگوی خصوصی معتبر نیست.",
+        )
+        require(
+            isinstance(filename, str)
+            and 1 <= len(filename) <= 100
+            and re.fullmatch(r"[A-Za-z0-9_.-]+", filename) is not None
+            and not filename.startswith(".")
+            and filename.lower().endswith((".pdf", ".xlsx")),
+            "bot_filename_invalid",
+            "نام فایل معتبر نیست.",
+        )
+        require(
+            isinstance(document_bytes, (bytes, bytearray))
+            and 0 < len(document_bytes) <= max_bytes,
+            "bot_file_size_invalid",
+            "حجم فایل معتبر نیست.",
+        )
+        if caption is not None:
+            require(
+                isinstance(caption, str) and len(caption) <= 1024,
+                "bot_caption_invalid",
+                "توضیحات فایل بیش از حد مجاز است.",
+            )
+        data = {"chat_id": chat_id}
+        if caption:
+            data["caption"] = caption
+        endpoint = f"{ORIGINS[self.provider]}/bot{self._token.get_secret_value()}/sendDocument"
+        failed = False
+        mime_type = (
+            "application/pdf"
+            if filename.lower().endswith(".pdf")
+            else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(20, connect=5),
+                follow_redirects=False,
+                transport=self._transport,
+                trust_env=False,
+            ) as client:
+                files = {"document": (filename, bytes(document_bytes), mime_type)}
+                response = await client.post(endpoint, data=data, files=files)
+                if response.status_code != 200 or len(response.content) > 65536:
+                    failed = True
+                else:
+                    body = response.json()
+                    result = body.get("result") if isinstance(body, dict) else None
+                    if (
+                        isinstance(body, dict)
+                        and body.get("ok") is True
+                        and isinstance(result, dict)
+                        and _integer(result.get("message_id"))
+                    ):
+                        return str(result["message_id"])
+                    failed = True
+        except (httpx.HTTPError, ValueError):
+            failed = True
+        if failed:
+            raise DomainError("bot_delivery_unconfirmed", "ارسال سند تأیید نشد.", 503)
+        raise DomainError("bot_delivery_unconfirmed", "ارسال سند تأیید نشد.", 503)
+
     async def answer_callback(self, callback_id: str) -> None:
         require(
             isinstance(callback_id, str) and re.fullmatch(r"[!-~]{1,256}", callback_id) is not None,

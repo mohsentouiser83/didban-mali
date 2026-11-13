@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models as m
+from .accounting_setup_models import CompanyAccountingSetup
 from .bot_notification_models import (
     BotNotificationDelivery as Delivery,
 )
@@ -23,6 +24,7 @@ from .db import transaction
 from .errors import require
 from .module_service import module_state
 from .money_type import canonical_money
+from .native_reporting_models import NativeStatementRun
 from .security import membership
 from .workflow import audit, serialize_fact
 
@@ -240,15 +242,28 @@ def queue_events(db: Session, company: str, stamp: datetime) -> int:
             for draft in db.scalars(select(Draft).where(Draft.company_id == company, Draft.state == "draft")):
                 if _reviewable_draft(db, company, pref.user_id, draft):
                     _enqueue(db, pref, "draft_approval", draft.id, draft.version, None, stamp)
+        setup = db.get(CompanyAccountingSetup, company)
+        is_native = setup is not None and setup.mode == "primary"
+
         if "report_ready" in pref.events:
-            for report in db.scalars(
-                select(m.ResultManifest).where(
-                    m.ResultManifest.company_id == company,
-                    m.ResultManifest.created_at >= since,
-                    m.ResultManifest.created_at <= stamp,
-                )
-            ):
-                _enqueue(db, pref, "report_ready", report.id, 1, report.id, stamp)
+            if is_native:
+                for report in db.scalars(
+                    select(NativeStatementRun).where(
+                        NativeStatementRun.company_id == company,
+                        NativeStatementRun.created_at >= since,
+                        NativeStatementRun.created_at <= stamp,
+                    )
+                ):
+                    _enqueue(db, pref, "report_ready", report.id, 1, report.id, stamp)
+            else:
+                for report in db.scalars(
+                    select(m.ResultManifest).where(
+                        m.ResultManifest.company_id == company,
+                        m.ResultManifest.created_at >= since,
+                        m.ResultManifest.created_at <= stamp,
+                    )
+                ):
+                    _enqueue(db, pref, "report_ready", report.id, 1, report.id, stamp)
         if "question_open" in pref.events:
             for question in db.scalars(
                 select(m.ProcessingIssue).where(
@@ -272,14 +287,24 @@ def queue_events(db: Session, company: str, stamp: datetime) -> int:
         summary_hour, summary_minute = map(int, pref.summary_time.split(":"))
         scheduled = datetime.combine(local.date(), time(summary_hour, summary_minute), tzinfo=TEHRAN)
         if "daily_summary" in pref.events and stamp >= aware(scheduled) >= since:
-            manifest = db.scalar(
-                select(m.ResultManifest)
-                .where(m.ResultManifest.company_id == company, m.ResultManifest.created_at <= stamp)
-                .order_by(m.ResultManifest.created_at.desc(), m.ResultManifest.id.desc())
-                .limit(1)
-            )
-            if manifest:
-                _enqueue(db, pref, "daily_summary", local.date().isoformat(), 1, manifest.id, stamp)
+            if is_native:
+                native_stmt = db.scalar(
+                    select(NativeStatementRun)
+                    .where(NativeStatementRun.company_id == company, NativeStatementRun.created_at <= stamp)
+                    .order_by(NativeStatementRun.created_at.desc(), NativeStatementRun.id.desc())
+                    .limit(1)
+                )
+                if native_stmt:
+                    _enqueue(db, pref, "daily_summary", local.date().isoformat(), 1, native_stmt.id, stamp)
+            else:
+                manifest = db.scalar(
+                    select(m.ResultManifest)
+                    .where(m.ResultManifest.company_id == company, m.ResultManifest.created_at <= stamp)
+                    .order_by(m.ResultManifest.created_at.desc(), m.ResultManifest.id.desc())
+                    .limit(1)
+                )
+                if manifest:
+                    _enqueue(db, pref, "daily_summary", local.date().isoformat(), 1, manifest.id, stamp)
         count += 1
     db.flush()
     return count
@@ -337,7 +362,38 @@ def _text(db: Session, item: Delivery) -> str | None:
         )
     )
     if not manifest:
-        return None
+        native_stmt = db.scalar(
+            select(NativeStatementRun).where(
+                NativeStatementRun.company_id == item.company_id, NativeStatementRun.id == item.manifest_id
+            )
+        )
+        if not native_stmt:
+            return None
+        snapshot = native_stmt.snapshot or {}
+        stmt_metrics = snapshot.get("metrics", [])
+        as_of = snapshot.get("as_of") or "ناموجود"
+        lines = [
+            company.name,
+            "خلاصه روزانه (دفتر اصلی)" if item.event_type == "daily_summary" else "گزارش مالی دفتر اصلی آماده است",
+            f"تاریخ مبنا: {as_of}",
+        ]
+        NATIVE_METRICS = (
+            ("bank_balance", "موجودی نقد"),
+            ("trade_receivable_balance", "مطالبات تجاری"),
+            ("trade_payable_balance", "بدهی تجاری"),
+        )
+        for key, label in NATIVE_METRICS:
+            metric = next((row for row in stmt_metrics if row.get("metric_key") == key), None)
+            value = "ناموجود"
+            if metric and metric.get("value") is not None:
+                try:
+                    value = _display_amount(metric["value"]) + " ریال"
+                except (ValueError, TypeError):
+                    pass
+                if metric.get("status") == "limited":
+                    value += " (دامنه محدود)"
+            lines.append(label + ": " + value)
+        return "\n".join(lines)
     lines = [
         company.name,
         "خلاصه روزانه" if item.event_type == "daily_summary" else "گزارش تازه آماده است",
@@ -504,3 +560,69 @@ def delivery_history(
         return value
 
     return paginate(db, Delivery, company, limit, cursor, [Delivery.user_id == user.id], transform=public)
+
+
+async def deliver_snapshot_pdf_to_bot(
+    db: Session,
+    company: str,
+    user: m.User,
+    *,
+    provider: str,
+    export_type: str,
+    export_id: str,
+    caption: str | None = None,
+    transport_factory: Callable | None = None,
+) -> dict:
+    from .services import get_entity
+
+    membership(db, company, user)
+    connection = _connection(db, company, user.id, provider)
+    require(connection is not None, "bot_not_connected", "حساب پیام‌رسان متصل برای این شرکت یافت نشد.", 404)
+    token, _ = configured(provider)
+
+    if export_type == "report_builder":
+        from .report_builder_exports import pdf_run
+        from .report_builder_service import get_run
+
+        run = get_run(db, company, export_id)
+        pdf_bytes = pdf_run(serialize_fact(run))
+        filename = f"report_{export_id[:8]}.pdf"
+    elif export_type == "native_statement":
+        from .native_reporting_exports import pdf_run as pdf_native_run
+        from .native_reporting_models import NativeStatementRun
+
+        run = get_entity(db, NativeStatementRun, company, export_id)
+        pdf_bytes = pdf_native_run(serialize_fact(run))
+        filename = f"statement_{export_id[:8]}.pdf"
+    elif export_type == "financial_report":
+        from .exports import pdf_export
+
+        manifest = get_entity(db, m.ResultManifest, company, export_id)
+        pdf_bytes = pdf_export(manifest)
+        filename = f"manifest_{export_id[:8]}.pdf"
+    else:
+        require(False, "unsupported_export_type", "نوع خروجی پشتیبانی نمی‌شود.", 400)
+
+    transport = transport_factory(provider, token) if transport_factory else BotTransport(provider, token)
+    message_id = await transport.send_document(
+        connection.chat_id,
+        pdf_bytes,
+        filename,
+        caption=caption or f"نسخه چاپی ثابت {filename}",
+    )
+    audit(
+        db,
+        company,
+        user.id,
+        "bot.document_delivered",
+        export_id,
+        {"provider": provider, "export_type": export_type, "message_id": message_id},
+    )
+    return {
+        "status": "sent",
+        "provider": provider,
+        "export_type": export_type,
+        "export_id": export_id,
+        "filename": filename,
+        "provider_message_id": message_id,
+    }

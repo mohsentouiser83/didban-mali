@@ -158,6 +158,44 @@ def test_interpret_never_silently_drops_a_second_basis_or_unsupported_filter():
     ]
 
 
+def test_interpret_semantic_variations_and_native_statement():
+    # Semantic variations of profit and loss
+    res_pnl = interpret("صورت سود و زیان", "p")
+    assert res_pnl["status"] == "proposed"
+    assert res_pnl["spec"]["metric_keys"] == ["revenue", "expense", "net_profit"]
+
+    res_pnl2 = interpret("سود و زیان شرکت", "p")
+    assert res_pnl2["spec"]["metric_keys"] == ["revenue", "expense", "net_profit"]
+
+    # Phrasing with polite prefixes and natural words
+    res_inv = interpret("لطفا لیست فاکتورهای فروش معوق را نشان بده", "p")
+    assert res_inv["status"] == "proposed"
+    assert res_inv["spec"]["kind"] == "invoices"
+    assert res_inv["spec"]["filters"]["direction"] == "sales"
+    assert res_inv["spec"]["filters"]["overdue_only"] is True
+
+    # Purchases unpaid
+    res_pur = interpret("صورت فاکتورهای خرید پرداخت نشده", "p")
+    assert res_pur["status"] == "proposed"
+    assert res_pur["spec"]["filters"]["direction"] == "purchases"
+    assert res_pur["spec"]["filters"]["overdue_only"] is True
+
+    # Bank balance synonyms
+    res_bank = interpret("موجودی بانک", "p")
+    assert res_bank["status"] == "proposed"
+    assert res_bank["spec"]["basis"] == "bank"
+    assert res_bank["spec"]["metric_keys"] == ["cash"]
+
+    # Native statement interpretation
+    res_native = interpret("صورت سود و زیان", "p", source="native_statement")
+    assert res_native["status"] == "proposed"
+    assert res_native["spec"]["source"] == "native_statement"
+    assert res_native["spec"]["metric_keys"] == ["revenue", "expense", "pre_tax_profit"]
+
+    res_native_cash = interpret("موجودی نقد", "p", source="native_statement")
+    assert res_native_cash["spec"]["metric_keys"] == ["cash"]
+
+
 def test_exports_frozen_rows_exact_and_formula_safe():
     spec = ReportSpec(
         period_id="period",

@@ -145,6 +145,23 @@ async def assistant(company_id: str, data: s.AssistantInput, request: Request):
             native_statement_id=data.native_statement_id,
         )
         actor_id = user.id
+        from ..analytical_orchestrator import orchestrate_analysis
+
+        analytical_response = orchestrate_analysis(
+            db,
+            company_id,
+            user,
+            data.question,
+            selected["frozen"],
+            history=[message.model_dump() for message in data.history],
+        )
+
+    if analytical_response is not None:
+        identity = {
+            name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
+        }
+        return analytical_response | identity
+
     # Any external model call is outside the database transaction.
     response = await respond(
         manifest=selected["frozen"],
