@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
+import type { AccountNature } from "@/lib/accounting";
 export interface Setup {
   mode: "analysis" | "primary";
   version: number;
@@ -13,6 +14,7 @@ export interface Setup {
 export interface ChartRow {
   code: string;
   name: string;
+  nature?: AccountNature;
   active: boolean;
 }
 export function useCompanyAccountingSetup() {

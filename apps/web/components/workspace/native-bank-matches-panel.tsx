@@ -113,7 +113,8 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
           ) : !view.sources.data?.bank_accounts.length ? (
             <EmptyState
               title="گردش بانکی برای تطبیق موجود نیست"
-              action={<ButtonLink href="/uploads">ورود گردش بانک</ButtonLink>}
+              description="اسناد حسابداری بانک را ثبت کنید تا تطبیق انجام شود."
+              action={<ButtonLink href="/accounting">اسناد حسابداری</ButtonLink>}
             />
           ) : (
             view.current.statementId && (

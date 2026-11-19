@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/content-states";
 import { CashChart } from "@/components/ui/financial/financial-chart";
 import { StatCards } from "@/components/ui/financial/stat-cards";
-import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
 import { NativeDashboardView } from "./native-dashboard-view";
 import { useDashboard } from "@/hooks/use-financial-view";
@@ -30,7 +29,7 @@ import {
   PeriodFilter,
 } from "./page-parts";
 
-function ImportedDashboardView() {
+export function ImportedDashboardView() {
   const view = useDashboard();
   const { unit } = view.workspace;
   if (!view.workspace.company) return <NoCompany />;
@@ -217,22 +216,6 @@ function ImportedDashboardView() {
 
 export function DashboardView() {
   const workspace = useWorkspace();
-  const setup = useResource<{ mode: "analysis" | "primary" }>(
-    workspace.companyPath("accounting/setup"),
-  );
   if (!workspace.company) return <NoCompany />;
-  if (setup.loading)
-    return (
-      <>
-        <PageHeader title="خلاصه مالی" icon={HeaderIcon} />
-        <LoadingState />
-      </>
-    );
-  if (setup.error)
-    return <ErrorState message={setup.error.message} onRetry={setup.refresh} />;
-  return setup.data?.mode === "primary" ? (
-    <NativeDashboardView key={workspace.company.id} />
-  ) : (
-    <ImportedDashboardView key={workspace.company.id} />
-  );
+  return <NativeDashboardView key={workspace.company.id} />;
 }

@@ -8,7 +8,6 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useCompanyManagement } from "@/hooks/use-company-management";
 import { PageHeader, Panel } from "./page-parts";
-import { CompanyAccountingSetup } from "./company-accounting-setup";
 import { CompanyList } from "./company-list";
 export function CompanyView() {
   const c = useCompanyManagement();
@@ -80,11 +79,6 @@ export function CompanyView() {
                 </Button>
               )}
             </Form>
-            {!c.creating && c.selected && (
-              <CompanyAccountingSetup
-                key={`${c.workspace.user?.id}:${c.selected.id}`}
-              />
-            )}
           </div>
         )}
       </Drawer>

@@ -319,3 +319,34 @@ def latest_summary(db: Session, company: str, period_id: str | None = None) -> d
         "metrics": native_context(run)["metrics"],
         "created_at": run.created_at,
     }
+
+
+def financial_etag(db: Session, company: str, period_id: str | None = None) -> str:
+    """Sequence-based financial ETag and cache key.
+    Combines max(NativeJournal.sequence) + period.version + company.version.
+    Invalidates whenever a journal is posted, or period/company metadata changes.
+    """
+    from sqlalchemy import func
+
+    comp = db.get(m.Company, company)
+    comp_version = comp.version if comp else 1
+
+    if period_id:
+        period = db.get(m.Period, period_id)
+        period_version = period.version if period else 0
+    else:
+        period_version = (
+            db.scalar(
+                select(func.coalesce(func.max(m.Period.version), 0)).where(m.Period.company_id == company)
+            )
+            or 0
+        )
+
+    stmt = select(func.coalesce(func.max(NativeJournal.sequence), 0)).where(NativeJournal.company_id == company)
+    if period_id:
+        stmt = stmt.where(NativeJournal.period_id == period_id)
+    max_sequence = db.scalar(stmt) or 0
+
+    token = f"{company}:{period_id or 'all'}:{max_sequence}:{period_version}:{comp_version}"
+    digest = sha256(token.encode("utf-8")).hexdigest()
+    return f'"{max_sequence}-{period_version}-{comp_version}-{digest[:16]}"'

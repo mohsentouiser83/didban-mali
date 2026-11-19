@@ -1,7 +1,7 @@
 "use client";
-import { CalendarBlankIcon as HeaderIcon } from "@phosphor-icons/react";
-import { Select } from "@/components/ui/select";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { CalendarBlankIcon as HeaderIcon, CalendarBlankIcon, PlusIcon, TextAaIcon } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
@@ -20,12 +20,10 @@ import {
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
-import { usePeriodManagement } from "@/hooks/use-period-management";
+import { usePeriodManagement, isPeriodClosed } from "@/hooks/use-period-management";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems } from "@/lib/api";
 import { displayDate } from "@/lib/utils";
-import { CalendarBlankIcon, PlusIcon, TextAaIcon } from "@phosphor-icons/react";
-import { PeriodLockPanel } from "./period-lock-panel";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 function PeriodWorkspace() {
@@ -33,27 +31,23 @@ function PeriodWorkspace() {
     workspace,
     resource,
     command,
-    editing,
-    locking,
+    creating,
     deleting,
     name,
     start,
     end,
-    previousPeriodId,
-    comparisonOptions,
-    comparisonInvalid,
-    setEditing,
-    setLocking,
     setDeleting,
     setName,
     setStart,
     setEnd,
-    setPreviousPeriodId,
-    open,
+    openCreate,
+    closeCreate,
     save,
     remove,
   } = usePeriodManagement();
+
   if (!workspace.company) return <NoCompany />;
+
   return (
     <>
       <PageHeader
@@ -62,7 +56,7 @@ function PeriodWorkspace() {
         action={
           <div className="flex flex-wrap gap-2">
             {workspace.canWrite && (
-              <Button onClick={() => open(null)}>
+              <Button onClick={openCreate}>
                 <PlusIcon size={18} aria-hidden />
                 دوره جدید
               </Button>
@@ -70,6 +64,9 @@ function PeriodWorkspace() {
           </div>
         }
       />
+      <div className="mb-4 text-xs text-muted">
+        بستن دوره‌های مالی به‌صورت خودکار بر اساس تاریخ پایان دوره انجام می‌شود.
+      </div>
       <Panel>
         {resource.loading ? (
           <LoadingState />
@@ -86,6 +83,7 @@ function PeriodWorkspace() {
                   <TableHead>دوره</TableHead>
                   <TableHead>از تاریخ</TableHead>
                   <TableHead>تا تاریخ</TableHead>
+                  <TableHead>وضعیت دوره</TableHead>
                   <TableHead>
                     <span className="sr-only">عملیات</span>
                   </TableHead>
@@ -93,27 +91,65 @@ function PeriodWorkspace() {
               </TableHeader>
               <TableBody>
                 {listItems(resource.data).length ? (
-                  listItems(resource.data).map((period) => (
-                    <TableRow key={period.id}>
-                      <TableRowHeader>{period.name}</TableRowHeader>
-                      <TableCell className="whitespace-nowrap">
-                        {displayDate(period.start)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {displayDate(period.end)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="secondary"
-                          onClick={() => setLocking(period)}
-                        >
-                          مشاهده و مدیریت
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  listItems(resource.data).map((period) => {
+                    const closed = isPeriodClosed(period);
+                    return (
+                      <TableRow key={period.id}>
+                        <TableRowHeader>{period.name}</TableRowHeader>
+                        <TableCell className="whitespace-nowrap">
+                          {displayDate(period.start)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {displayDate(period.end)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge tone={closed ? "neutral" : "success"}>
+                              {closed ? "بسته شده (خودکار)" : "دوره جاری"}
+                            </Badge>
+                            {period.in_use && (
+                              <Badge tone="neutral" className="text-xs">
+                                دارای اطلاعات مالی
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {workspace.canWrite && (
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  setDeleting(period);
+                                  command.clearError();
+                                }}
+                                disabled={period.in_use}
+                                aria-label={
+                                  period.in_use
+                                    ? `دوره ${period.name} دارای اطلاعات است و قابل حذف نیست`
+                                    : `حذف ${period.name}`
+                                }
+                                title={
+                                  period.in_use
+                                    ? "این دوره دارای اطلاعات مالی است و قابل حذف نیست."
+                                    : undefined
+                                }
+                                className={
+                                  period.in_use
+                                    ? "cursor-not-allowed opacity-50"
+                                    : "text-danger hover:text-danger"
+                                }
+                              >
+                                حذف
+                              </Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
-                  <TableEmptyCell colSpan={4} title="دوره مالی تعریف نشده" />
+                  <TableEmptyCell colSpan={5} title="دوره مالی تعریف نشده" />
                 )}
               </TableBody>
             </Table>
@@ -121,55 +157,12 @@ function PeriodWorkspace() {
           </>
         )}
       </Panel>
+
       <Drawer
-        title={locking?.name || "قفل دوره"}
-        open={!!locking}
+        title="دوره مالی جدید"
+        open={creating}
         onOpenChange={(open) => {
-          if (!open) setLocking(null);
-        }}
-      >
-        {locking && (
-          <div className="space-y-5">
-            <div className="flex flex-wrap gap-2">
-              {workspace.canWrite && (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      open(locking);
-                      setLocking(null);
-                    }}
-                  >
-                    ویرایش
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setDeleting(locking);
-                      setLocking(null);
-                      command.clearError();
-                    }}
-                  >
-                    حذف دوره
-                  </Button>
-                </>
-              )}
-              <ButtonLink href="/accounting/period-end" variant="secondary">
-                اسناد پایان و آغاز دوره
-              </ButtonLink>
-            </div>
-            <PeriodLockPanel
-              key={`${workspace.company.id}:${locking.id}`}
-              periodId={locking.id}
-            />
-          </div>
-        )}
-      </Drawer>
-      <Drawer
-        title={editing ? "ویرایش دوره مالی" : "دوره مالی جدید"}
-        open={editing !== undefined}
-        onOpenChange={(open) => {
-          if (!open) setEditing(undefined);
+          if (!open) closeCreate();
         }}
       >
         <Form
@@ -203,47 +196,17 @@ function PeriodWorkspace() {
               />
             </Field>
           </div>
-          <Field
-            id="period-previous"
-            name="previous_period_id"
-            label="دوره مقایسه"
-            icon={CalendarBlankIcon}
-            error={
-              comparisonInvalid
-                ? "دوره مقایسه باید پیش از تاریخ آغاز باشد."
-                : undefined
-            }
-          >
-            <Select
-              id="period-previous"
-              value={comparisonInvalid ? "" : previousPeriodId || "none"}
-              onValueChange={(value) =>
-                setPreviousPeriodId(value === "none" ? "" : value)
-              }
-              options={[
-                { value: "none", label: "بدون مقایسه" },
-                ...comparisonOptions.map((period) => ({
-                  value: period.id,
-                  label: period.name,
-                })),
-              ]}
-            />
-          </Field>
-          {(!start || !end) && (
-            <p className="text-xs text-muted">
-              ابتدا و انتهای دوره را انتخاب کنید.
-            </p>
-          )}
           <FormMessage error>{command.error?.message}</FormMessage>
           <Button
             type="submit"
             busy={command.busy}
-            disabled={!start || !end || comparisonInvalid}
+            disabled={!start || !end}
           >
-            ذخیره دوره
+            ایجاد دوره مالی
           </Button>
         </Form>
       </Drawer>
+
       <ConfirmDialog
         title="دوره مالی حذف شود؟"
         open={!!deleting}
@@ -253,7 +216,16 @@ function PeriodWorkspace() {
         busy={command.busy}
         onConfirm={remove}
       >
-        <p>{deleting?.name}</p>
+        <p className="font-medium text-main">{deleting?.name}</p>
+        {deleting?.in_use ? (
+          <div className="rounded-lg bg-danger/10 p-3 text-xs text-danger">
+            این دوره دارای اسناد و اطلاعات مالی است و طبق اصول حسابداری قابل حذف نمی‌باشد.
+          </div>
+        ) : (
+          <p className="text-xs text-muted">
+            تنها دوره‌هایی که فاقد هرگونه سند، پیش‌نویس، گزارش یا اطلاعات مالی هستند قابل حذف می‌باشند.
+          </p>
+        )}
         <FormMessage error>{command.error?.message}</FormMessage>
       </ConfirmDialog>
     </>

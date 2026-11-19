@@ -13,6 +13,7 @@ class Account(Entity, Tenant, Versioned, Base):
     __table_args__ = (UniqueConstraint("company_id", "id"), UniqueConstraint("company_id", "code"))
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(150))
+    nature: Mapped[str] = mapped_column(String(20), default="debit")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

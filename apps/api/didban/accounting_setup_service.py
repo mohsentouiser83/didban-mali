@@ -21,11 +21,11 @@ from .services import check_version, get_entity
 from .workflow import audit
 
 TEMPLATE = [
-    {"code": "1101", "name": "بانک", "active": True},
-    {"code": "1201", "name": "مطالبات تجاری", "active": True},
-    {"code": "2101", "name": "بدهی تجاری", "active": True},
-    {"code": "4101", "name": "درآمد خدمات", "active": True},
-    {"code": "5101", "name": "هزینه خدمات", "active": True},
+    {"code": "1101", "name": "بانک", "nature": "debit", "active": True},
+    {"code": "1201", "name": "مطالبات تجاری", "nature": "debit", "active": True},
+    {"code": "2101", "name": "بدهی تجاری", "nature": "credit", "active": True},
+    {"code": "4101", "name": "درآمد خدمات", "nature": "credit", "active": True},
+    {"code": "5101", "name": "هزینه خدمات", "nature": "debit", "active": True},
 ]
 
 
@@ -70,7 +70,7 @@ def update_mode(db: Session, company: str, user: m.User, mode: str, version: int
 
 def _digest(db: Session, company: str) -> str:
     rows = [
-        (a.id, a.version, a.code, a.name, a.active)
+        (a.id, a.version, a.code, a.name, a.nature, a.active)
         for a in db.scalars(select(Account).where(Account.company_id == company).order_by(Account.id))
     ]
     return sha256(json.dumps(rows, ensure_ascii=False).encode()).hexdigest()
@@ -157,13 +157,17 @@ def parse_chart(name: str, content: bytes) -> dict:
                     )
         finally:
             workbook.close()
+    nature_header = next((h for h in sheet.headers if h in ("nature", "ماهیت", "ماهیت حساب")), None)
     rows = []
     for _, row in sheet.rows:
         active = row.get("active", "true").strip().lower()
         require(
             active in ("true", "false", "1", "0"), "invalid_account_active", "active باید true یا false باشد."
         )
-        rows.append({"code": row[code], "name": row[title], "active": active in ("true", "1")})
+        item: dict[str, Any] = {"code": row[code], "name": row[title], "active": active in ("true", "1")}
+        if nature_header and row.get(nature_header):
+            item["nature"] = row[nature_header]
+        rows.append(item)
     from .accounting_setup_schemas import ChartPreviewInput
 
     parsed = ChartPreviewInput.model_validate({"rows": rows})

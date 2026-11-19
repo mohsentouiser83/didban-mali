@@ -367,3 +367,9 @@ def period_has_dependencies(db: Session, company: str, period_id: str) -> bool:
         )
         is not None
     )
+
+
+def financial_etag(db: Session, company: str, period_id: str | None = None) -> str:
+    from .native_reporting_service import financial_etag as _etag
+
+    return _etag(db, company, period_id)

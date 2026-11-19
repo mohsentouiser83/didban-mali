@@ -15,6 +15,7 @@ from .analytical_explanations import (
     explain_cash_trajectory,
     explain_profit_change,
     explain_receivables_risk,
+    format_analytical_response,
 )
 from .financial_decomposition_service import (
     analyze_cash_trajectory,
@@ -94,7 +95,7 @@ def orchestrate_analysis(
                 {"metric_key": "expense", "value": decomp.get("delta_expense"), "label": "تغییر هزینه", "evidence_refs": evidence_refs[:4]},
             ]
 
-        return {
+        return format_analytical_response({
             "mode": "analytical_explanation",
             "intent": intent,
             "state": "complete" if decomp.get("status") == "available" else "limited",
@@ -107,7 +108,7 @@ def orchestrate_analysis(
             "analytical_facts": collected_facts,
             "steps_executed": step_count,
             "limitations": explanation.get("limitations", []),
-        }
+        })
 
     if intent == "receivables_analysis":
         step_count += 1
@@ -125,7 +126,7 @@ def orchestrate_analysis(
                 {"metric_key": "overdue_receivables", "value": risk_analysis.get("overdue_receivables"), "label": "مطالبات معوق", "evidence_refs": evidence_refs[:4]},
             ]
 
-        return {
+        return format_analytical_response({
             "mode": "analytical_explanation",
             "intent": intent,
             "state": "complete" if risk_analysis.get("status") == "available" else "limited",
@@ -138,7 +139,7 @@ def orchestrate_analysis(
             "analytical_facts": collected_facts,
             "steps_executed": step_count,
             "limitations": explanation.get("limitations", []),
-        }
+        })
 
     if intent == "cashflow_analysis":
         step_count += 1
@@ -155,7 +156,7 @@ def orchestrate_analysis(
                 {"metric_key": "min_projected_balance", "value": trajectory.get("min_projected_balance"), "label": "حداقل موجودی پیش‌بینی‌شده", "evidence_refs": evidence_refs[:4]},
             ]
 
-        return {
+        return format_analytical_response({
             "mode": "analytical_explanation",
             "intent": intent,
             "state": "complete" if trajectory.get("status") == "available" else "limited",
@@ -168,6 +169,6 @@ def orchestrate_analysis(
             "analytical_facts": collected_facts,
             "steps_executed": step_count,
             "limitations": explanation.get("limitations", []),
-        }
+        })
 
     return None

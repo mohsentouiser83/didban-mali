@@ -85,12 +85,33 @@ def test_duplicate_and_stale_catalog_rejected_all_or_none(data):
 def test_csv_preserves_codes_and_rejects_invalid_headers_and_blank_names():
     rows = parse_chart("chart.csv", b"code,name\n001,Bank\n002,Expense\n")["rows"]
     assert rows[0]["code"] == "001"
+    assert rows[0]["nature"] == "debit"
+
+    # CSV with nature column
+    with_nature = parse_chart(
+        "chart.csv", "code,name,ماهیت\n001,بانک,بدهکار\n002,بستانکاران,بستانکار\n003,جاری,شناور\n".encode("utf-8")
+    )["rows"]
+    assert with_nature[0]["nature"] == "debit"
+    assert with_nature[1]["nature"] == "credit"
+    assert with_nature[2]["nature"] == "floating"
+
     with pytest.raises(DomainError):
         parse_chart("chart.csv", b"wrong,name\n001,Bank\n")
     with pytest.raises(ValueError):
         parse_chart("chart.csv", b"code,name\n001,   \n")
     with pytest.raises(DomainError):
         parse_chart("chart.zip", b"bad")
+
+
+def test_template_includes_nature():
+    from didban.accounting_setup_service import TEMPLATE
+
+    natures = {item["code"]: item["nature"] for item in TEMPLATE}
+    assert natures["1101"] == "debit"
+    assert natures["1201"] == "debit"
+    assert natures["2101"] == "credit"
+    assert natures["4101"] == "credit"
+    assert natures["5101"] == "debit"
 
 
 def test_xlsx_text_codes_only_and_formulas_rejected():

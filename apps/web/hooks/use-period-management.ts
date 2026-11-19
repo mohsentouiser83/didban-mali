@@ -4,60 +4,62 @@ import { useWorkspace } from "./workspace";
 import { useCommand } from "./use-command";
 import { usePagedResource } from "./use-paged-resource";
 import { type Period } from "@/lib/api";
+
+export function isPeriodClosed(period: { end?: string }): boolean {
+  if (!period.end) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return period.end < today;
+}
+
 export function usePeriodManagement() {
   const workspace = useWorkspace();
   const resource = usePagedResource<Period>(
     workspace.companyPath("financial-periods"),
   );
   const command = useCommand();
-  const [editing, setEditing] = useState<Period | null | undefined>();
-  const [locking, setLocking] = useState<Period | null>(null);
+  const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Period | null>(null);
   const [name, setName] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [previousPeriodId, setPreviousPeriodId] = useState("");
-  const comparisonOptions = workspace.periods.filter(
-    (period) => period.id !== editing?.id && !!start && period.end < start,
-  );
-  const comparisonInvalid =
-    !!previousPeriodId &&
-    !comparisonOptions.some((period) => period.id === previousPeriodId);
-  function open(period: Period | null) {
-    setEditing(period);
-    setName(period?.name || "");
-    setStart(period?.start || "");
-    setEnd(period?.end || "");
-    setPreviousPeriodId(period?.previous_period_id || "");
+
+  function openCreate() {
+    setName("");
+    setStart("");
+    setEnd("");
+    setCreating(true);
     command.clearError();
   }
+
+  function closeCreate() {
+    setCreating(false);
+    command.clearError();
+  }
+
   function save() {
     if (!name.trim() || !start || !end) return;
     void command.run(
-      workspace.companyPath(
-        "financial-periods" + (editing ? `/${editing.id}` : ""),
-      ),
+      workspace.companyPath("financial-periods"),
       {
-        method: editing ? "PATCH" : "POST",
+        method: "POST",
         body: {
           name: name.trim(),
           start,
           end,
-          previous_period_id: previousPeriodId || null,
+          previous_period_id: null,
         },
-        version: editing?.version,
       },
       () => {
-        setEditing(undefined);
+        closeCreate();
         resource.refresh();
         workspace.refreshPeriods();
       },
-      "دوره مالی ذخیره شد.",
+      "دوره مالی جدید ایجاد شد.",
     );
   }
 
   function remove() {
-    if (!deleting) return;
+    if (!deleting || deleting.in_use) return;
     void command.run(
       workspace.companyPath(`financial-periods/${deleting.id}`),
       { method: "DELETE", version: deleting.version },
@@ -69,27 +71,23 @@ export function usePeriodManagement() {
       "دوره حذف شد.",
     );
   }
+
   return {
     workspace,
     resource,
     command,
-    editing,
-    locking,
+    creating,
     deleting,
     name,
     start,
     end,
-    previousPeriodId,
-    comparisonOptions,
-    comparisonInvalid,
-    setEditing,
-    setLocking,
+    setCreating,
     setDeleting,
     setName,
     setStart,
     setEnd,
-    setPreviousPeriodId,
-    open,
+    openCreate,
+    closeCreate,
     save,
     remove,
   };

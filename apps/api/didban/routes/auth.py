@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 
 from .. import models as m
@@ -144,6 +145,41 @@ def auth_me(request: Request):
     with access(request) as (db, user, _member):
         _, session = authenticate(db, request.cookies.get("didban_session"))
         return {"user": public_user(user), "csrf": session.csrf}
+
+
+class ProfileUpdateInput(BaseModel):
+    name: str | None = None
+    avatar: str | None = None
+
+
+@router.patch(P + "/auth/profile")
+def update_profile(data: ProfileUpdateInput, request: Request):
+    with access(request) as (db, user, _member):
+        if data.name is not None:
+            name = data.name.strip()
+            require(1 <= len(name) <= 100, "invalid_name", "نام باید بین ۱ تا ۱۰۰ نویسه باشد.")
+            user.name = name
+        if data.avatar is not None:
+            avatar = data.avatar.strip()
+            if not avatar or avatar == "remove":
+                user.avatar = None
+            else:
+                require(
+                    len(avatar) <= 2_500_000,
+                    "avatar_too_large",
+                    "حجم تصویر نمایه بیش از حد مجاز است (حداکثر ۲ مگابایت).",
+                    413,
+                )
+                require(
+                    avatar.startswith("data:image/") or avatar.startswith("https://") or avatar.startswith("http://"),
+                    "invalid_avatar_format",
+                    "فرمت تصویر باید تصویر معتبر باشد.",
+                    400,
+                )
+                user.avatar = avatar
+        db.add(user)
+        db.flush()
+        return {"user": public_user(user)}
 
 
 @router.post(P + "/auth/logout")

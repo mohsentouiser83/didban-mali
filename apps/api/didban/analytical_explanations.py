@@ -186,3 +186,99 @@ def explain_cash_trajectory(
         "evidence_links": evidence_refs,
         "limitations": [],
     }
+
+
+def format_analytical_response(
+    response: dict[str, Any],
+    *,
+    custom_action_cards: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Produces structured action cards from analytical findings.
+    Each action card contains:
+    - id: str
+    - title: str
+    - action_type: str ("navigate" | "filter" | "open_dialog")
+    - target_path: str
+    - payload: dict
+    - variant: str ("primary" | "secondary" | "warning" | "destructive" | "default")
+    """
+    res = dict(response)
+    if custom_action_cards is not None:
+        res["action_cards"] = custom_action_cards
+        return res
+
+    intent = res.get("intent")
+    action_cards: list[dict[str, Any]] = []
+
+    if intent == "profit_analysis":
+        action_cards.append({
+            "id": "card-review-expenses",
+            "title": "بررسی ریز سرفصل‌های هزینه",
+            "action_type": "navigate",
+            "target_path": "/reports/income-statement",
+            "payload": {"view": "detailed", "focus": "expenses"},
+            "variant": "primary",
+        })
+        action_cards.append({
+            "id": "card-dimensions-analysis",
+            "title": "تحلیل مراکز هزینه و پروژه‌ها",
+            "action_type": "navigate",
+            "target_path": "/reports/dimensions",
+            "payload": {},
+            "variant": "secondary",
+        })
+
+    elif intent == "receivables_analysis":
+        action_cards.append({
+            "id": "card-overdue-invoices",
+            "title": "مشاهده فاکتورهای معوق مشتریان",
+            "action_type": "navigate",
+            "target_path": "/invoices",
+            "payload": {"status": "overdue", "direction": "sale"},
+            "variant": "warning",
+        })
+        action_cards.append({
+            "id": "card-reconciliation",
+            "title": "تخصیص دریافت‌های بانکی",
+            "action_type": "navigate",
+            "target_path": "/reconciliation",
+            "payload": {},
+            "variant": "secondary",
+        })
+
+    elif intent == "cashflow_analysis":
+        has_deficit = (
+            res.get("has_deficit")
+            or any(d.get("value") == "دارد" for d in res.get("observed_drivers", []))
+            or "کسری" in res.get("answer", "")
+        )
+        action_cards.append({
+            "id": "card-cashflow-forecast",
+            "title": "مشاهده پیش‌بینی ۳۰ روزه نقدینگی",
+            "action_type": "navigate",
+            "target_path": "/forecast",
+            "payload": {},
+            "variant": "destructive" if has_deficit else "primary",
+        })
+        action_cards.append({
+            "id": "card-new-scenario",
+            "title": "تعریف سناریوی نقدینگی جدید",
+            "action_type": "navigate",
+            "target_path": "/scenarios",
+            "payload": {},
+            "variant": "secondary",
+        })
+
+    else:
+        for idx, act in enumerate(res.get("suggested_actions", [])[:3]):
+            action_cards.append({
+                "id": f"card-action-{idx + 1}",
+                "title": act,
+                "action_type": "navigate",
+                "target_path": "/reports",
+                "payload": {},
+                "variant": "default",
+            })
+
+    res["action_cards"] = action_cards
+    return res

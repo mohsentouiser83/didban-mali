@@ -1,7 +1,6 @@
 "use client";
 import { ReceiptIcon as HeaderIcon } from "@phosphor-icons/react";
-import { Select } from "@/components/ui/select";
-import { useInvoiceBasis } from "@/hooks/use-invoice-basis";
+import { useWorkspace } from "@/hooks/workspace";
 import { NativeInvoicesView } from "./native-invoices-view";
 import { PageHeader } from "./page-parts";
 import { DetailField } from "@/components/ui/field-layout";
@@ -57,7 +56,7 @@ const detailIcons: Record<string, Icon> = {
   "مبلغ فاکتور": CoinsIcon,
   مانده: WalletIcon,
 };
-function ImportedInvoicesWorkspace({
+export function ImportedInvoicesWorkspace({
   direction,
 }: {
   direction: "sales" | "purchases";
@@ -256,10 +255,27 @@ export function InvoicesView({
   direction: "sales" | "purchases";
   operationId?: string;
 }) {
-  const view=useInvoiceBasis();
-  if(!view.workspace.company)return <NoCompany/>;
-  return <><PageHeader icon={HeaderIcon} title={direction==="sales"?"مطالبات":"بدهی‌ها"} action={direction==="sales"&&<ButtonLink href="/receivables/followups" variant="secondary">پیگیری وصول</ButtonLink>}/>
-    <div className="mb-5"><Field id="invoice-data-basis" label="مبنای فاکتورها"><Select id="invoice-data-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_invoice",label:"فاکتور دفتر دیدبان"},{value:"imported_invoice",label:"فاکتور واردشده از فایل"}]}/></Field></div>
-    {view.setup.loading?<LoadingState/>:view.setup.error?<ErrorState message={view.setup.error.message} onRetry={view.setup.refresh}/>:view.basis==="native_invoice"?<NativeInvoicesView key={`${view.scope}:${direction}`} direction={direction==="sales"?"sale":"purchase"} operationId={operationId}/>:<ImportedInvoicesWorkspace key={`${view.scope}:${direction}`} direction={direction}/>}
-  </>;
+  const workspace = useWorkspace();
+  if (!workspace.company) return <NoCompany />;
+  const scope = `${workspace.user?.id}:${workspace.company?.id}`;
+  return (
+    <>
+      <PageHeader
+        icon={HeaderIcon}
+        title={direction === "sales" ? "مطالبات" : "بدهی‌ها"}
+        action={
+          direction === "sales" && (
+            <ButtonLink href="/receivables/followups" variant="secondary">
+              پیگیری وصول
+            </ButtonLink>
+          )
+        }
+      />
+      <NativeInvoicesView
+        key={`${scope}:${direction}`}
+        direction={direction === "sales" ? "sale" : "purchase"}
+        operationId={operationId}
+      />
+    </>
+  );
 }

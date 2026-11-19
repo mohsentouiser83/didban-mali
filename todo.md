@@ -138,6 +138,17 @@ Tasks with independent modules may run in parallel if repository instructions pe
 - Include ambiguous/missing sources, adversarial instructions in files, unsupported tasks, tenant boundaries and provider failures.
 - Measure numeric/evidence correctness, unsupported claims, correct abstention/questions, extraction field errors, mapping coverage, latency and token/cost distribution by task/template.
 - Record model/provider/prompt/schema/policy versions and repeated-run variance. Establish measured baselines and reviewable release thresholds; do not invent a universal accuracy percentage.
+
+### AI-11 — Conversational Operations & In-Chat Generative UI (ChatOps)
+
+**P0 · IMPLEMENTED & VALIDATED.**
+- Implemented in `apps/api/didban/operational_orchestrator.py`, `apps/web/components/workspace/floating-assistant.tsx`, and `apps/web/components/workspace/assistant-data-table.tsx`.
+- Daily operational drafts: expense, payment, receipt, sale_service, purchase_service, transfer.
+- Two-phase in-chat posting confirmation: Preview card with exact version and digest, confirmed via action button or text command ("تأیید کن").
+- Cheque lifecycle: registration (with Sayad extraction, Persian due dates), action transitions (deposit, clear, return, endorse, cancel), and inquiries.
+- Collections follow-up: overdue receivables detection and official Persian reminder generation.
+- In-chat Generative UI reporting data tables (`AssistantDataTable`): trial balance (4-column), ledger account statement, income statement summary, and top debtors ranking.
+- Validated with 9 comprehensive tests in `apps/api/tests/test_operational_ai.py` and frontend tests in `apps/web/components/workspace/floating-assistant.test.tsx`.
 - Run offline fixtures/mocks in routine CI; run live evaluation only on explicitly permitted data and configured budgets. Store redacted evidence, never credentials or unrestricted customer files.
 - **Acceptance:** another agent can reproduce the report, compare prompt/model versions and identify regressions; a two-row successful connection test cannot satisfy this gate.
 
@@ -165,11 +176,13 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-02 — Cash and mixed settlement
 
-**P1 · OPEN / IMPLEMENT; depends on supported commercial model.** Add explicit cash/on-account/mixed purchase and sale terms.
-
-- Reuse receipt/payment and invoice allocation services with explicit bank/account/party/date and amounts. Define whether the UI prepares linked drafts or one supported composite operation; make every posting effect reviewable.
-- Support partial settlement without manufacturing a receipt from an unchecked “paid” label. Prevent duplicate invoice recognition or cash movements.
-- **Acceptance:** invoice remaining = effective amount minus valid dated allocations; bank/ledger/invoice effects occur exactly once, rollback is atomic where promised, reversal preserves links and frees only valid capacity.
+**P1 · IMPLEMENTED & VALIDATED.**
+- Implemented in `apps/api/didban/operation_service.py` (`validate_and_build_settlement_lines`, `build`), `commercial_service.py` (`convert_proforma`), and `inventory_service.py` (`_stock_and_lines`).
+- Supports explicit `settlement_type`: `"cash"`, `"on_account"`, `"mixed"` across commercial purchases and sales.
+- Invariant: `cash_amount + cheque_amount + on_account_amount == total` strictly enforced with canonical integer money (no float).
+- Multi-legged balanced line generation: validates `cash_account_id` (role `cash_bank`/`bank`), `cheque_account_id` (role `notes_receivable`/`notes_payable`) with mandatory cheque metadata (`cheque_number`, `cheque_due_date`), and counterparty trade account.
+- Counterparty credit limit enforcement adjusts for settlement type: cash sales add 0 credit exposure; mixed sales only count the on-account portion.
+- Validated with 9 comprehensive tests in `apps/api/tests/test_mixed_settlement_and_anomalies.py`.
 
 ### ACC-03 — Nonfinancial proforma and conversion
 

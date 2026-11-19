@@ -12,6 +12,7 @@ import {
   draftPayload,
   draftValidation,
   emptyDraftLine,
+  type AccountNature,
   type AccountingCapabilities,
   type AccountingPermission,
   type DraftFormValue,
@@ -276,13 +277,23 @@ export function useLedgerAccounts() {
   );
   const command = useCommand();
   const [editing, setEditing] = useState<LedgerAccount | null | undefined>();
-  const [value, setValue] = useState({ code: "", name: "", active: true });
+  const [value, setValue] = useState<{
+    code: string;
+    name: string;
+    nature: AccountNature;
+    active: boolean;
+  }>({ code: "", name: "", nature: "debit", active: true });
   function open(account: LedgerAccount | null) {
     setEditing(account);
     setValue(
       account
-        ? { code: account.code, name: account.name, active: account.active }
-        : { code: "", name: "", active: true },
+        ? {
+            code: account.code,
+            name: account.name,
+            nature: account.nature ?? "debit",
+            active: account.active,
+          }
+        : { code: "", name: "", nature: "debit", active: true },
     );
     command.clearError();
   }
@@ -295,7 +306,12 @@ export function useLedgerAccounts() {
       {
         method: editing ? "PATCH" : "POST",
         version: editing?.version,
-        body: { ...value, code: value.code.trim(), name: value.name.trim() },
+        body: {
+          ...value,
+          code: value.code.trim(),
+          name: value.name.trim(),
+          nature: value.nature || "debit",
+        },
       },
       () => {
         setEditing(undefined);

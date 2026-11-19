@@ -34,7 +34,7 @@
   --radius-dialog: 24px;
   --shadow-action: 0 5px 14px #5556de15;
   --shadow-overlay: 0 16px 56px #20243f1a;
-  --animate-page-reveal: page-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-page-reveal: page-reveal 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-drawer-in: drawer-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-drawer-out: drawer-out 180ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-drawer-backdrop-out: fade-in 180ms ease-out reverse both;
@@ -44,7 +44,7 @@
 }
 @keyframes page-reveal {
   from {
-    opacity: 0.65;
+    opacity: 0;
     transform: translateY(5px);
   }
   to {

@@ -12,7 +12,6 @@ import {
   LoadingState,
   StatusMessage,
 } from "@/components/ui/content-states";
-import { Select } from "@/components/ui/select";
 import { useCashScenarios } from "@/hooks/use-cash-scenarios";
 import { NoCompany, PageHeader, Panel, PeriodFilter } from "./page-parts";
 import { ScenarioForm } from "./scenario-form";
@@ -113,7 +112,7 @@ export function ImportedScenariosWorkspace() {
 }
 
 export function ScenariosView() {
-  const { workspace: w, setup, scope, basis, select } = useScenarioSource();
+  const { workspace: w, scope } = useScenarioSource();
   if (!w.company) return <NoCompany />;
   return (
     <>
@@ -126,26 +125,7 @@ export function ScenariosView() {
           </ButtonLink>
         }
       />
-      <div className="mb-5">
-        <Select
-          label="مبنای سناریو"
-          value={basis}
-          onValueChange={select}
-          options={[
-            { value: "native_statement", label: "دفتر اصلی دیدبان" },
-            { value: "imported_manifest", label: "پیش‌بینی منابع واردشده" },
-          ]}
-        />
-      </div>
-      {setup.loading ? (
-        <LoadingState />
-      ) : setup.error ? (
-        <ErrorState message={setup.error.message} onRetry={setup.refresh} />
-      ) : basis === "native_statement" ? (
-        <NativeScenariosWorkspace key={scope} />
-      ) : (
-        <ImportedScenariosWorkspace key={scope} />
-      )}
+      <NativeScenariosWorkspace key={scope} />
     </>
   );
 }

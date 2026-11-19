@@ -79,6 +79,7 @@ export interface User {
   email: string;
   name: string;
   installation_admin: boolean;
+  avatar?: string | null;
 }
 export interface Company {
   id: string;
@@ -94,6 +95,7 @@ export interface Period {
   start: string;
   end: string;
   version: number;
+  in_use?: boolean;
 }
 export interface Metric {
   metric_key: string;
@@ -412,4 +414,29 @@ export interface ModelRequest {
   error_code: string | null;
   usage: Record<string, number | string> | null;
   next_attempt_at: string | null;
+}
+export interface NumberingRule {
+  id: string;
+  company_id: string;
+  entity_type: string;
+  entity_title: string;
+  prefix: string;
+  start_number: number;
+  current_number: number;
+  padding: number;
+  suffix: string;
+  sample: string;
+  description: string | null;
+  is_system: boolean;
+  active: boolean;
+  version: number;
+}
+export interface NumberingRuleInput {
+  prefix?: string;
+  start_number?: number;
+  current_number?: number;
+  padding?: number;
+  suffix?: string;
+  description?: string | null;
+  active?: boolean;
 }

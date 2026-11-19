@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
 import {
+  ACCOUNT_NATURE_OPTIONS,
+  accountNatureLabel,
   draftFormValue,
   draftPayload,
   draftValidation,
@@ -68,4 +70,18 @@ it("requires explicit period, date, account and nonblank description", () => {
   expect(errors["draft-date"]).toBeTruthy();
   expect(errors["draft-description"]).toBeTruthy();
   expect(errors["line-0-account"]).toBeTruthy();
+});
+it("provides correct account nature labels and valid options list", () => {
+  expect(ACCOUNT_NATURE_OPTIONS).toHaveLength(4);
+  expect(ACCOUNT_NATURE_OPTIONS.map((opt) => opt.value)).toEqual([
+    "debit",
+    "credit",
+    "floating",
+    "none",
+  ]);
+  expect(accountNatureLabel("debit")).toBe("بدهکار");
+  expect(accountNatureLabel("credit")).toBe("بستانکار");
+  expect(accountNatureLabel("floating")).toBe("شناور (دوگانه)");
+  expect(accountNatureLabel("none")).toBe("فاقد ماهیت / انتظامی");
+  expect(accountNatureLabel()).toBe("بدهکار");
 });

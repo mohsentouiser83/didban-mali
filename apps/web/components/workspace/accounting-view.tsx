@@ -1,5 +1,5 @@
 "use client";
-import { BooksIcon, PackageIcon, PlusIcon } from "@phosphor-icons/react";
+import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/input";
@@ -49,10 +49,6 @@ function JournalWorkspace() {
         icon={BooksIcon}
         action={
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/inventory" variant="secondary">
-              <PackageIcon size={18} aria-hidden />
-              کالا و انبار
-            </ButtonLink>
             {view.canPrepare && (
               <Button onClick={() => view.open(null)} disabled={view.loading}>
                 <PlusIcon size={18} aria-hidden />

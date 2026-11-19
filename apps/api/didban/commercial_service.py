@@ -342,14 +342,28 @@ def convert_proforma(
     if pf.expiry_date and pf.expiry_date < today:
         raise DomainError("proforma_expired", "مهلت اعتبار این پیش‌فاکتور منقضی شده است.", 409)
 
+    settlement_type = data.get("settlement_type", "on_account")
+    require(
+        settlement_type in ("on_account", "cash", "mixed"),
+        "invalid_settlement_type",
+        "نوع تسویه باید on_account، cash یا mixed باشد.",
+    )
+
     # Enforce credit limit on sale conversion
     if pf.direction == "sale":
+        if settlement_type == "cash":
+            credit_addition = "0"
+        elif settlement_type == "mixed" and data.get("on_account_amount") is not None:
+            factor = 10 if pf.currency == "TOMAN" else 1
+            credit_addition = canonical_money(Decimal(canonical_money(data["on_account_amount"])) * factor)
+        else:
+            credit_addition = pf.total_amount_irr
         check_credit_limit(
             db,
             company,
             user,
             pf.party_id,
-            pf.total_amount_irr,
+            credit_addition,
             allow_override=data.get("allow_credit_override", False),
             override_reason=data.get("credit_override_reason", ""),
         )
@@ -371,9 +385,17 @@ def convert_proforma(
         "description": f"تبدیل پیش‌فاکتور {pf.number}",
         "source_reference": data["source_reference"],
         "party_id": pf.party_id,
-        "counterparty_account_id": data["counterparty_account_id"],
+        "counterparty_account_id": data.get("counterparty_account_id"),
         "revenue_account_id": data.get("revenue_account_id"),
         "cost_account_id": data.get("cost_account_id"),
+        "settlement_type": settlement_type,
+        "cash_amount": data.get("cash_amount"),
+        "cheque_amount": data.get("cheque_amount"),
+        "on_account_amount": data.get("on_account_amount"),
+        "cash_account_id": data.get("cash_account_id"),
+        "cheque_account_id": data.get("cheque_account_id"),
+        "cheque_number": data.get("cheque_number"),
+        "cheque_due_date": data.get("cheque_due_date"),
     }
     operation = create_draft(db, company, user, draft_data)
 

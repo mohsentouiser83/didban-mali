@@ -5,7 +5,8 @@ import {
   settingsCategoryDestination,
   isSettingsCategoryActive,
 } from "./settings-catalog";
-it("shows only real authorized settings and does not reveal owner or installation administration through search", () => {
+
+it("shows access, accounts, periods, dimensions and numbering in gear settings catalog", () => {
   const viewer = visibleSettingsCategories({
     hasCompany: true,
     role: "viewer",
@@ -14,87 +15,87 @@ it("shows only real authorized settings and does not reveal owner or installatio
   expect(
     viewer.flatMap((group) => group.items.map((item) => item.href)),
   ).toEqual([
-    "/accounting",
+    "/settings/members",
     "/settings/accounts",
     "/settings/periods",
     "/settings/dimensions",
-    "/uploads",
-    "/sources",
-    "/settings/rules",
-    "/settings/learning",
-    "/settings/company",
-    "/employees",
-    "/settings/modules",
-    "/settings/connections",
-    "/settings/usage",
+    "/settings/numbering",
   ]);
-  expect(searchSettings(viewer, "اعضا")).toEqual([]);
-  expect(searchSettings(viewer, "تعرفه")).toEqual([]);
-  expect(searchSettings(viewer, "تلگرام")[0].href).toBe(
-    "/settings/connections",
+  expect(searchSettings(viewer, "دسترسی")[0].href).toBe("/settings/members");
+  expect(searchSettings(viewer, "اعضا")[0].href).toBe("/settings/members");
+  expect(searchSettings(viewer, "کدینگ")[0].href).toBe("/settings/accounts");
+  expect(searchSettings(viewer, "حساب‌ها")[0].href).toBe("/settings/accounts");
+  expect(searchSettings(viewer, "دوره")[0].href).toBe("/settings/periods");
+  expect(searchSettings(viewer, "ابعاد")[0].href).toBe("/settings/dimensions");
+  expect(searchSettings(viewer, "شماره‌گذاری")[0].href).toBe(
+    "/settings/numbering",
   );
-  expect(searchSettings(viewer, "بله")[0].href).toBe("/settings/connections");
+  expect(searchSettings(viewer, "001")[0].href).toBe("/settings/numbering");
   expect(
     settingsCategoryDestination(
-      viewer.find((category) => category.key === "company-access")!,
+      viewer.find((category) => category.key === "access")!,
     ),
-  ).toBe("/settings/company-access");
-});
-it("uses the company hub when both authorized destinations are available and searches the same catalog", () => {
-  const owner = visibleSettingsCategories({
-    hasCompany: true,
-    role: "owner",
-    installationAdmin: true,
-  });
+  ).toBe("/settings/members");
   expect(
     settingsCategoryDestination(
-      owner.find((category) => category.key === "company-access")!,
+      viewer.find((category) => category.key === "accounts")!,
     ),
-  ).toBe("/settings/company-access");
-  expect(searchSettings(owner, "اعضا")[0].href).toBe("/settings/members");
-  expect(searchSettings(owner, "تعرفه")[0].href).toBe("/settings/model");
+  ).toBe("/settings/accounts");
   expect(
-    isSettingsCategoryActive(
-      owner.find((category) => category.key === "company-access")!,
-      "/settings/members",
+    settingsCategoryDestination(
+      viewer.find((category) => category.key === "periods")!,
     ),
-  ).toBe(true);
+  ).toBe("/settings/periods");
+  expect(
+    settingsCategoryDestination(
+      viewer.find((category) => category.key === "dimensions")!,
+    ),
+  ).toBe("/settings/dimensions");
+  expect(
+    settingsCategoryDestination(
+      viewer.find((category) => category.key === "numbering")!,
+    ),
+  ).toBe("/settings/numbering");
 });
-it("offers only company creation to an installation administrator without a company", () => {
+
+it("offers no settings to a user without a company", () => {
   const categories = visibleSettingsCategories({
     hasCompany: false,
     installationAdmin: true,
   });
   expect(
     categories.flatMap((group) => group.items.map((item) => item.href)),
-  ).toEqual(["/settings/company"]);
+  ).toEqual([]);
 });
 
-it("separates accounting, source files, automation and company management with independent links last", () => {
+it("checks active state for settings destinations", () => {
   const categories = visibleSettingsCategories({
     hasCompany: true,
     role: "owner",
     installationAdmin: true,
   });
-  expect(categories.map((category) => [category.key, category.items.map((item) => item.href)])).toEqual([
-    ["accounting", ["/accounting", "/settings/accounts", "/settings/periods", "/settings/dimensions"]],
-    ["documents", ["/uploads", "/sources"]],
-    ["automation", ["/settings/rules", "/settings/learning", "/settings/model"]],
-    ["company-access", ["/settings/company", "/settings/members", "/employees", "/settings/modules"]],
-    ["connections", ["/settings/connections"]],
-    ["usage", ["/settings/usage"]],
+  expect(categories.map((c) => c.key)).toEqual([
+    "access",
+    "accounts",
+    "periods",
+    "dimensions",
+    "numbering",
   ]);
-  expect(categories.filter((category) => category.standalone).map((category) => category.key))
-    .toEqual(["connections", "usage"]);
-  expect(categories.map(settingsCategoryDestination)).toEqual([
-    "/settings/accounting", "/settings/documents", "/settings/automation",
-    "/settings/company-access", "/settings/connections", "/settings/usage",
-  ]);
-  expect(searchSettings(categories, "کدینگ")[0].categoryTitle).toBe("حسابداری");
-  expect(searchSettings(categories, "حافظه اصلاحات")[0].categoryTitle).toBe("خودکارسازی و هوش مصنوعی");
-  expect(searchSettings(categories, "منابع و اصل اسناد")[0].categoryTitle).toBe("فایل‌ها و منابع");
-  const accounting = categories.find((category) => category.key === "accounting")!;
-  expect(isSettingsCategoryActive(accounting, "/settings/periods")).toBe(true);
-  expect(isSettingsCategoryActive(accounting, "/settings/dimensions")).toBe(true);
-  expect(isSettingsCategoryActive(accounting, "/sources")).toBe(false);
+  const access = categories.find((c) => c.key === "access")!;
+  expect(isSettingsCategoryActive(access, "/settings/members")).toBe(true);
+  expect(isSettingsCategoryActive(access, "/settings/numbering")).toBe(false);
+
+  const accounts = categories.find((c) => c.key === "accounts")!;
+  expect(isSettingsCategoryActive(accounts, "/settings/accounts")).toBe(true);
+  expect(isSettingsCategoryActive(accounts, "/settings/members")).toBe(false);
+
+  const periods = categories.find((c) => c.key === "periods")!;
+  expect(isSettingsCategoryActive(periods, "/settings/periods")).toBe(true);
+
+  const dimensions = categories.find((c) => c.key === "dimensions")!;
+  expect(isSettingsCategoryActive(dimensions, "/settings/dimensions")).toBe(true);
+
+  const numbering = categories.find((c) => c.key === "numbering")!;
+  expect(isSettingsCategoryActive(numbering, "/settings/numbering")).toBe(true);
+  expect(isSettingsCategoryActive(numbering, "/settings/members")).toBe(false);
 });

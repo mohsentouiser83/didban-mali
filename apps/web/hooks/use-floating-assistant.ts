@@ -4,6 +4,29 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, type Metric } from "@/lib/api";
 import { useWorkspace } from "./workspace";
 import { useAssistantVoice } from "./use-assistant-voice";
+export interface AssistantActionCard {
+  id: string;
+  title: string;
+  action_type: string;
+  description?: string;
+  button_text?: string;
+  icon?: string;
+  target_path?: string;
+  payload?: Record<string, unknown>;
+  variant?: string;
+}
+export interface AssistantDataTableColumn {
+  key: string;
+  label: string;
+  align?: "start" | "center" | "end";
+}
+export interface AssistantDataTable {
+  title?: string;
+  columns: AssistantDataTableColumn[];
+  rows: Record<string, unknown>[];
+  summary?: Record<string, unknown>;
+  footer_text?: string;
+}
 export interface AssistantReply {
   answer?: string;
   explanation?: string;
@@ -16,6 +39,8 @@ export interface AssistantReply {
   mode?: "facts" | "model_facts" | "chat";
   model_state?: string;
   model_reason?: string;
+  action_cards?: AssistantActionCard[];
+  data_table?: AssistantDataTable;
 }
 export interface ConversationMessage {
   id: string;
@@ -24,7 +49,10 @@ export interface ConversationMessage {
   pending?: boolean;
   error?: string;
   reply?: AssistantReply;
+  action_cards?: AssistantActionCard[];
+  data_table?: AssistantDataTable;
 }
+export type AssistantMessage = ConversationMessage;
 export interface AssistantContext {
   context_type: "imported_manifest" | "native_statement";
   manifest_id: string | null;
@@ -40,10 +68,10 @@ interface Intent {
   context?: AssistantContext;
   history: { role: "user" | "assistant"; text: string }[];
 }
-export function useFloatingAssistant() {
+export function useFloatingAssistant(options?: { defaultOpen?: boolean }) {
   const workspace = useWorkspace();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(options?.defaultOpen ?? false);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -93,6 +121,8 @@ export function useFloatingAssistant() {
                   pending: false,
                   text: reply.answer || reply.explanation || "",
                   reply,
+                  action_cards: reply.action_cards,
+                  data_table: reply.data_table,
                 }
               : message,
           ),
@@ -137,8 +167,8 @@ export function useFloatingAssistant() {
       router.replace("/login");
     },
   });
-  const send = () => {
-    const question = draft.trim();
+  const send = (overrideText?: string) => {
+    const question = (overrideText ?? draft).trim();
     if (lock.current || !question || busy || !workspace.company || voice.phase !== "idle") return;
     const replyId = crypto.randomUUID();
     const intent: Intent = {
@@ -152,12 +182,20 @@ export function useFloatingAssistant() {
       { id: crypto.randomUUID(), role: "user", text: question },
       { id: replyId, role: "assistant", text: "", pending: true },
     ]);
-    setDraft("");
+    if (!overrideText) setDraft("");
     void execute(intent);
   };
   const retry = (id: string) => {
     const intent = intents.current.get(id);
     if (intent) void execute(intent);
+  };
+  const reset = () => {
+    currentAbort.current?.abort();
+    setMessages([]);
+    intents.current.clear();
+    setDraft("");
+    setBusy(false);
+    lock.current = false;
   };
   return {
     workspace,
@@ -172,6 +210,7 @@ export function useFloatingAssistant() {
     busy,
     send,
     retry,
+    reset,
     voice,
   };
 }

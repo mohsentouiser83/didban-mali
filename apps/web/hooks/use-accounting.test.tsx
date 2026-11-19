@@ -6,6 +6,7 @@ import {
   useAccountOptions,
   useJournalDrafts,
   useAccountingPermissions,
+  useLedgerAccounts,
 } from "./use-accounting";
 const workspace = vi.hoisted(() => ({
   company: { id: "company-a", role: "owner" },
@@ -174,4 +175,85 @@ it("allows draft creation only after setup loads and blocks it on a resource fai
   act(() => result.current.refresh());
   await waitFor(() => expect(result.current.error?.code).toBe("unavailable"));
   expect(result.current.canCreateDraft).toBe(false);
+});
+
+it("manages ledger accounts with nature in creation and editing", async () => {
+  vi.mocked(api).mockImplementation(async (path, options) => {
+    if (path.endsWith("capabilities")) return { can_manage_accounts: true };
+    if (path.endsWith("accounting/accounts") && options?.method === "POST") {
+      return { id: "new-acc", version: 1, ...(options.body as object) };
+    }
+    if (path.includes("accounting/accounts/acc-1") && options?.method === "PATCH") {
+      return { id: "acc-1", version: 2, ...(options.body as object) };
+    }
+    return {
+      items: [
+        { id: "acc-1", code: "101", name: "بانک", nature: "debit", active: true, version: 1 },
+      ],
+    };
+  });
+
+  const { result } = renderHook(useLedgerAccounts);
+
+  // Initial state for new account
+  act(() => result.current.open(null));
+  expect(result.current.value.nature).toBe("debit");
+  expect(result.current.value.code).toBe("");
+  expect(result.current.value.active).toBe(true);
+
+  // Change fields including nature
+  act(() => {
+    result.current.change({ code: "201", name: "بستانکاران", nature: "credit" });
+  });
+  expect(result.current.value.nature).toBe("credit");
+
+  // Save new account
+  act(() => result.current.save());
+  await waitFor(() => {
+    const postCall = vi
+      .mocked(api)
+      .mock.calls.find(
+        ([path, opts]) => path.endsWith("accounting/accounts") && opts?.method === "POST",
+      );
+    expect(postCall).toBeTruthy();
+    expect(postCall?.[1]?.body).toEqual({
+      code: "201",
+      name: "بستانکاران",
+      nature: "credit",
+      active: true,
+    });
+  });
+
+  // Open existing account for edit
+  act(() =>
+    result.current.open({
+      id: "acc-1",
+      code: "101",
+      name: "بانک",
+      nature: "debit",
+      active: true,
+      version: 1,
+    }),
+  );
+  expect(result.current.editing?.id).toBe("acc-1");
+  expect(result.current.value.nature).toBe("debit");
+
+  // Change nature to floating and save
+  act(() => result.current.change({ nature: "floating" }));
+  act(() => result.current.save());
+  await waitFor(() => {
+    const patchCall = vi
+      .mocked(api)
+      .mock.calls.find(
+        ([path, opts]) =>
+          path.includes("accounting/accounts/acc-1") && opts?.method === "PATCH",
+      );
+    expect(patchCall).toBeTruthy();
+    expect(patchCall?.[1]?.body).toEqual({
+      code: "101",
+      name: "بانک",
+      nature: "floating",
+      active: true,
+    });
+  });
 });

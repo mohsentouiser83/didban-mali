@@ -2,16 +2,16 @@
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
+import { PageTransition } from "@/components/ui/page-transition";
 import { Select } from "@/components/ui/select";
 import { useWorkspace } from "@/hooks/workspace";
-import { moduleRoutes } from "@/lib/company-modules";
 import { navigationGroups } from "@/lib/navigation-catalog";
 import { cn } from "@/lib/utils";
 import {
-  BellIcon,
   BuildingsIcon,
   ChartLineUpIcon,
   ListIcon,
+  UploadSimpleIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,59 +19,118 @@ import { useState } from "react";
 import { ModuleGate } from "./module-gate";
 import { FloatingAssistant } from "./floating-assistant";
 import { SettingsMenu } from "./settings-menu";
+import { NotificationsMenu } from "./notifications-menu";
 import { HeaderAccountMenu } from "./header-account-menu";
+function isCurrentNavItem(itemHref: string, pathname: string) {
+  if (pathname === itemHref) return true;
+  if (itemHref === "/accounting") {
+    return (
+      pathname.startsWith("/accounting/journals") ||
+      pathname.startsWith("/accounting/operations") ||
+      pathname.startsWith("/accounting/period-end")
+    );
+  }
+  if (itemHref === "/accounting/inventory") {
+    return pathname.startsWith("/accounting/inventory/");
+  }
+  if (itemHref === "/receivables") {
+    return pathname === "/receivables/followups";
+  }
+  if (itemHref === "/reports") {
+    return pathname.startsWith("/reports/") && pathname !== "/employee-reports";
+  }
+  if (itemHref === "/employee-reports") {
+    return (
+      pathname.startsWith("/employee-reports/") ||
+      pathname === "/employees" ||
+      pathname.startsWith("/employees/")
+    );
+  }
+  if (itemHref === "/settlements") {
+    return pathname.startsWith("/settlements/");
+  }
+  if (itemHref === "/moadian") {
+    return pathname.startsWith("/moadian/");
+  }
+  if (itemHref === "/cashflow") {
+    return pathname.startsWith("/cashflow/");
+  }
+  if (itemHref === "/assistant") {
+    return pathname.startsWith("/assistant/");
+  }
+  if (itemHref === "/review") {
+    return pathname.startsWith("/review/");
+  }
+  if (itemHref === "/sources") {
+    return pathname.startsWith("/sources/") || pathname.startsWith("/uploads");
+  }
+  if (itemHref.startsWith("/settings/")) {
+    return pathname.startsWith(itemHref + "/");
+  }
+  return false;
+}
+
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { modules } = useWorkspace();
+  const { user } = useWorkspace();
   return (
     <nav aria-label="ناوبری اصلی" className="space-y-6 text-xs">
-      {navigationGroups.map((group) => (
-        <div key={group.label}>
-          <p className="mb-2 px-3 text-[11px] text-muted">{group.label}</p>
-          <div className="space-y-1">
-            {group.items.map((item) => {
-              const companyModule = modules.data?.items.find(value => value.key === moduleRoutes[item.href]);
-              const current =
-                pathname === item.href ||
-                (item.href === "/review" && (pathname.startsWith("/review/") || pathname === "/accounting" || pathname.startsWith("/accounting/"))) ||
-                (item.href === "/cashflow/forecast" && pathname === "/cashflow/scenarios") ||
-                (item.href === "/receivables" && pathname === "/receivables/followups") ||
-                (item.href === "/moadian" && pathname.startsWith("/moadian/")) ||
-                (item.href === "/reports" && pathname.startsWith("/reports/")) ||
-                (item.href === "/reports" && pathname === "/employee-reports") ||
-                (item.href === "/settlements" &&
-                  pathname.startsWith("/settlements/"));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  aria-current={current ? "page" : undefined}
-                  className={cn(
-                    "group/nav flex min-h-11 items-center gap-3 rounded-control px-3 py-2 outline-none transition-colors duration-200 ease-interface focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none",
-                    current
-                      ? "bg-primary-soft font-medium text-primary"
-                      : "text-muted hover:bg-canvas hover:text-foreground",
-                  )}
-                >
-                  <item.icon
-                    size={20}
-                    className="shrink-0 text-primary transition-transform duration-200 ease-interface motion-safe:group-hover/nav:scale-110 motion-safe:group-focus-visible/nav:scale-110 motion-reduce:transition-none"
-                    weight={current ? "duotone" : "regular"}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1">{item.label}</span>{companyModule && !companyModule.available && <span className="text-[10px] text-muted">{companyModule.enabled ? "پوشش ناقص" : "خاموش"}</span>}
-                </Link>
-              );
-            })}
+      {navigationGroups.map((group) => {
+        const visibleItems = group.items.filter(
+          (item) => !item.adminOnly || user?.installation_admin,
+        );
+        if (!visibleItems.length) return null;
+        return (
+          <div key={group.label}>
+            <p className="mb-2 px-3 text-[11px] text-muted">{group.label}</p>
+            <div className="space-y-1">
+              {visibleItems.map((item) => {
+                const current = isCurrentNavItem(item.href, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={current ? "page" : undefined}
+                    className={cn(
+                      "group/nav flex min-h-11 items-center gap-3 rounded-control px-3 py-2 outline-none transition-colors duration-200 ease-interface focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none",
+                      current
+                        ? "bg-primary-soft font-medium text-primary"
+                        : "text-muted hover:bg-canvas hover:text-foreground",
+                    )}
+                  >
+                    <item.icon
+                      size={20}
+                      className="shrink-0 text-primary transition-transform duration-200 ease-interface motion-safe:group-hover/nav:scale-110 motion-safe:group-focus-visible/nav:scale-110 motion-reduce:transition-none"
+                      weight={current ? "duotone" : "regular"}
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">{item.label}</span>
+                    {item.badge && (
+                      <span
+                        className={cn(
+                          "rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide transition-colors duration-200",
+                          current
+                            ? "bg-primary text-white"
+                            : "bg-primary-soft text-primary group-hover/nav:bg-primary group-hover/nav:text-white",
+                        )}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }
 export function Shell({ children }: { children: React.ReactNode }) {
   const workspace = useWorkspace();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   if (workspace.loading || (!workspace.user && !workspace.error))
     return (
@@ -145,16 +204,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-              <SettingsMenu key={workspace.company?.id || "no-company"} />
               <Link
-                href="/notifications"
-                aria-label="اعلان‌ها"
+                href="/uploads"
+                aria-label="بارگذاری فایل‌ها"
+                title="بارگذاری و پردازش منابع"
                 className="grid size-11 place-items-center rounded-control text-primary outline-none transition-colors duration-200 ease-interface hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
               >
-                <BellIcon size={22} />
+                <UploadSimpleIcon size={20} />
               </Link>
+              <SettingsMenu key={workspace.company?.id || "no-company"} />
+              <NotificationsMenu key={workspace.company?.id || "no-company"} />
               <HeaderAccountMenu
                 name={workspace.user?.name || "حساب کاربری"}
+                avatar={workspace.user?.avatar}
                 onLogout={() => void workspace.logout()}
               />
             </div>
@@ -165,10 +227,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className="mx-auto min-w-0 max-w-400 p-5 focus:outline-none sm:p-7"
         >
-          <div key={workspace.company?.id || "no-company"}><ModuleGate>{children}</ModuleGate></div>
+          <div key={workspace.company?.id || "no-company"}>
+            <ModuleGate>
+              <PageTransition>{children}</PageTransition>
+            </ModuleGate>
+          </div>
         </main>
       </div>
-      <FloatingAssistant key={workspace.company?.id || "no-company"} />
+      {pathname !== "/assistant" && (
+        <FloatingAssistant key={workspace.company?.id || "no-company"} />
+      )}
       <Drawer title="دیدبان مالی" open={menuOpen} onOpenChange={setMenuOpen}>
         <Navigation onNavigate={() => setMenuOpen(false)} />
 

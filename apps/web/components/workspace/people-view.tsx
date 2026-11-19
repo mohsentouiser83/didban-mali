@@ -16,7 +16,7 @@ export function PeopleView({ kind }: { kind: PeopleKind }) {
   return <>
     <PageHeader title={view.config.title} icon={icons[kind]} action={<div className="flex flex-wrap gap-2">{kind !== "employee-reports" && <ButtonLink variant="secondary" href="/employee-reports">گزارش کارمندان</ButtonLink>}<ButtonLink variant="secondary" href={kind === "employees" ? "/templates/employees.csv" : "/templates/payroll.csv"}>قالب فایل</ButtonLink></div>} />
     <PeriodFilter />
-    {view.loading ? <LoadingState label={`در حال دریافت ${view.config.title}`} /> : view.error ? <ErrorState message={view.error.message} onRetry={view.refresh} /> : view.data?.status !== "available" ? <Panel><EmptyState title={view.data?.reason || "اسناد این بخش موجود نیست"} action={view.workspace.canWrite && <ButtonLink href="/uploads">بارگذاری اسناد</ButtonLink>} /></Panel> : <div className="space-y-5">
+    {view.loading ? <LoadingState label={`در حال دریافت ${view.config.title}`} /> : view.error ? <ErrorState message={view.error.message} onRetry={view.refresh} /> : view.data?.status !== "available" ? <Panel><EmptyState title={view.data?.reason || "اطلاعات این بخش برای دوره جاری ثبت نشده است"} description="اطلاعات کارمندان را در بخش مربوطه مدیریت کنید." action={view.workspace.canWrite && <ButtonLink href="/employee-reports">مدیریت کارمندان</ButtonLink>} /></Panel> : <div className="space-y-5">
       {kind === "tax" && <StatusMessage>مالیات حقوق ثبت‌شده در اسناد</StatusMessage>}
       {kind !== "employees" && <StatCards metrics={view.metrics} items={columns.map(key => ({key, label: payrollLabels[key], icon: icons[kind]}))} />}
       <Panel title="اطلاعات اسناد">

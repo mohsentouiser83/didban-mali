@@ -25,6 +25,11 @@ import {
 import { ChartSetupPanel } from "./chart-setup-panel";
 import { useLedgerAccounts } from "@/hooks/use-accounting";
 import { useWorkspace } from "@/hooks/workspace";
+import {
+  ACCOUNT_NATURE_OPTIONS,
+  accountNatureLabel,
+  type AccountNature,
+} from "@/lib/accounting";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 export function AccountsView() {
@@ -34,7 +39,7 @@ export function AccountsView() {
 }
 function AccountsWorkspace() {
   const view = useLedgerAccounts();
-  const [method, setMethod] = useState("manual");
+  const [importOpen, setImportOpen] = useState(false);
   const editable = !!view.capabilities.data?.can_manage_accounts;
   const error = view.resource.error || view.capabilities.error;
   return (
@@ -44,15 +49,18 @@ function AccountsWorkspace() {
         icon={BooksIcon}
         action={
           editable && (
-            <Button
-              onClick={() => {
-                setMethod("manual");
-                view.open(null);
-              }}
-            >
-              <PlusIcon size={18} aria-hidden />
-              حساب جدید
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setImportOpen(true)}
+              >
+                الگو و ورود کدینگ
+              </Button>
+              <Button onClick={() => view.open(null)}>
+                <PlusIcon size={18} aria-hidden />
+                حساب جدید
+              </Button>
+            </div>
           )
         }
       />
@@ -74,6 +82,7 @@ function AccountsWorkspace() {
                 <TableRow>
                   <TableHead>کد حساب</TableHead>
                   <TableHead>نام حساب</TableHead>
+                  <TableHead>ماهیت حساب</TableHead>
                   <TableHead>وضعیت</TableHead>
                   <TableHead>
                     <span className="sr-only">عملیات</span>
@@ -90,6 +99,21 @@ function AccountsWorkspace() {
                         </span>
                       </TableRowHeader>
                       <TableCell>{account.name}</TableCell>
+                      <TableCell>
+                        <Badge
+                          tone={
+                            account.nature === "credit"
+                              ? "success"
+                              : account.nature === "floating"
+                                ? "warning"
+                                : account.nature === "none"
+                                  ? "neutral"
+                                  : "primary"
+                          }
+                        >
+                          {accountNatureLabel(account.nature)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge tone={account.active ? "success" : "neutral"}>
                           {account.active ? "فعال" : "غیرفعال"}
@@ -108,7 +132,7 @@ function AccountsWorkspace() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={4} title="حسابی تعریف نشده" />
+                  <TableEmptyCell colSpan={5} title="حسابی تعریف نشده" />
                 )}
               </TableBody>
             </Table>
@@ -123,71 +147,78 @@ function AccountsWorkspace() {
           if (!open && !view.command.busy) view.close();
         }}
       >
-        {!view.editing && editable && (
-          <Select
-            label="روش افزودن حساب"
-            value={method}
-            onValueChange={setMethod}
-            options={[
-              { value: "manual", label: "تعریف دستی" },
-              { value: "import", label: "استفاده از فایل یا الگوی حساب‌ها" },
-            ]}
+        <Form
+          fieldErrors={view.command.error?.fields}
+          onSubmit={(event) => {
+            event.preventDefault();
+            view.save();
+          }}
+        >
+          <Field id="ledger-code" name="code" label="کد حساب">
+            <Input
+              id="ledger-code"
+              required
+              dir="ltr"
+              maxLength={100}
+              value={view.value.code}
+              disabled={!editable || view.command.busy}
+              onChange={(event) => view.change({ code: event.target.value })}
+            />
+          </Field>
+          <Field id="ledger-name" name="name" label="نام حساب">
+            <Input
+              id="ledger-name"
+              required
+              maxLength={150}
+              value={view.value.name}
+              disabled={!editable || view.command.busy}
+              onChange={(event) => view.change({ name: event.target.value })}
+            />
+          </Field>
+          <Field id="ledger-nature" name="nature" label="ماهیت حساب">
+            <Select
+              id="ledger-nature"
+              value={view.value.nature}
+              disabled={!editable || view.command.busy}
+              onValueChange={(nature) =>
+                view.change({ nature: nature as AccountNature })
+              }
+              options={ACCOUNT_NATURE_OPTIONS}
+            />
+          </Field>
+          <Checkbox
+            id="ledger-active"
+            label="حساب فعال"
+            checked={view.value.active}
+            disabled={!editable || view.command.busy}
+            onCheckedChange={(active) => view.change({ active })}
           />
-        )}
-        {method === "import" && !view.editing ? (
+          {view.editing && <AccountRoleField accountId={view.editing.id} />}
+          <FormMessage error>{view.command.error?.message}</FormMessage>
+          {editable && (
+            <Button type="submit" busy={view.command.busy}>
+              ذخیره حساب
+            </Button>
+          )}
+        </Form>
+      </Drawer>
+      {editable && (
+        <Drawer
+          title="الگو و ورود کدینگ حساب‌ها"
+          open={importOpen}
+          onOpenChange={(open) => {
+            if (!open) setImportOpen(false);
+          }}
+        >
           <ChartSetupPanel
             embedded
             onImported={() => {
-              view.close();
+              setImportOpen(false);
               view.resource.refresh();
             }}
           />
-        ) : (
-          <Form
-            fieldErrors={view.command.error?.fields}
-            onSubmit={(event) => {
-              event.preventDefault();
-              view.save();
-            }}
-          >
-            <Field id="ledger-code" name="code" label="کد حساب">
-              <Input
-                id="ledger-code"
-                required
-                dir="ltr"
-                maxLength={100}
-                value={view.value.code}
-                disabled={!editable || view.command.busy}
-                onChange={(event) => view.change({ code: event.target.value })}
-              />
-            </Field>
-            <Field id="ledger-name" name="name" label="نام حساب">
-              <Input
-                id="ledger-name"
-                required
-                maxLength={150}
-                value={view.value.name}
-                disabled={!editable || view.command.busy}
-                onChange={(event) => view.change({ name: event.target.value })}
-              />
-            </Field>
-            <Checkbox
-              id="ledger-active"
-              label="حساب فعال"
-              checked={view.value.active}
-              disabled={!editable || view.command.busy}
-              onCheckedChange={(active) => view.change({ active })}
-            />
-            {view.editing && <AccountRoleField accountId={view.editing.id} />}
-            <FormMessage error>{view.command.error?.message}</FormMessage>
-            {editable && (
-              <Button type="submit" busy={view.command.busy}>
-                ذخیره حساب
-              </Button>
-            )}
-          </Form>
-        )}
-      </Drawer>
+        </Drawer>
+      )}
     </>
   );
 }

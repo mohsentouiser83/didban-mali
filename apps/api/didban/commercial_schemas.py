@@ -52,9 +52,17 @@ class ProformaInput(StrictInput):
 class ConvertProformaInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     warehouse_id: str = Field(min_length=1, max_length=36)
-    counterparty_account_id: str = Field(min_length=1, max_length=36)
+    counterparty_account_id: str | None = Field(default=None, max_length=36)
     revenue_account_id: str | None = Field(default=None, min_length=1, max_length=36)
     cost_account_id: str | None = Field(default=None, min_length=1, max_length=36)
     source_reference: str = Field(min_length=1, max_length=120)
     allow_credit_override: bool = False
     credit_override_reason: str = ""
+    settlement_type: Literal["on_account", "cash", "mixed"] = "on_account"
+    cash_amount: Annotated[str, Field(max_length=80)] | StrictInt | None = None
+    cheque_amount: Annotated[str, Field(max_length=80)] | StrictInt | None = None
+    on_account_amount: Annotated[str, Field(max_length=80)] | StrictInt | None = None
+    cash_account_id: str | None = Field(default=None, max_length=36)
+    cheque_account_id: str | None = Field(default=None, max_length=36)
+    cheque_number: str | None = Field(default=None, max_length=100)
+    cheque_due_date: date | None = None

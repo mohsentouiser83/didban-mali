@@ -33,6 +33,7 @@ interface Workspace {
   setCompany: (id: string) => void;
   setPeriodId: (id: string) => void;
   setUnit: (unit: "IRR" | "TOMAN") => void;
+  updateUser: (patch: Partial<User>) => void;
   refreshCompanies: () => Promise<void>;
   refreshPeriods: () => void;
   logout: () => Promise<void>;
@@ -124,6 +125,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     },
     [user],
   );
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser((previous) => (previous ? { ...previous, ...patch } : previous));
+  }, []);
   const logout = async () => {
     await api("/auth/logout", { method: "POST" });
     setCsrf("");
@@ -144,6 +148,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         setCompany,
         setPeriodId,
         setUnit,
+        updateUser,
         refreshCompanies,
         refreshPeriods: periodsResource.refresh,
         logout,

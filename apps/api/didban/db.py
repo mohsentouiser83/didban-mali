@@ -276,6 +276,14 @@ def initialize() -> None:
                 conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
             if "version" not in cols:
                 conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN version INTEGER NOT NULL DEFAULT 1"))
+        if inspect(conn).has_table("accounting_accounts"):
+            cols = {c["name"] for c in inspect(conn).get_columns("accounting_accounts")}
+            if "nature" not in cols:
+                conn.execute(text("ALTER TABLE accounting_accounts ADD COLUMN nature VARCHAR(20) NOT NULL DEFAULT 'debit'"))
+        if inspect(conn).has_table("users"):
+            cols = {c["name"] for c in inspect(conn).get_columns("users")}
+            if "avatar" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN avatar TEXT"))
         Base.metadata.create_all(conn)
         require_current_schema(conn, Base.metadata)
         if engine.dialect.name == "postgresql":

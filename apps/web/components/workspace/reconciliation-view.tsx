@@ -38,7 +38,7 @@ import { GroupMatchesPanel } from "./group-matches-panel";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { useReconciliationBasis } from "@/hooks/use-reconciliation-basis";
 import { NativeBankMatchesPanel } from "./native-bank-matches-panel";
-function ImportedReconciliationWorkspace() {
+export function ImportedReconciliationWorkspace() {
   const view = useReconciliation();
   const [mappingOpen, setMappingOpen] = useState(false);
   const [selected, setSelected] = useState<ReconciliationCandidate | null>(
@@ -163,8 +163,9 @@ function ImportedReconciliationWorkspace() {
         ) : !view.options.data ? (
           <Panel>
             <EmptyState
-              title="منابع تطبیق موجود نیست"
-              description="گردش بانک و دفتر حسابداری لازم است."
+              title="اطلاعات لازم برای تطبیق موجود نیست"
+              description="سند حسابداری بانک را در دفتر ثبت کنید."
+              action={<ButtonLink href="/accounting">اسناد حسابداری</ButtonLink>}
             />
           </Panel>
         ) : (
@@ -313,27 +314,7 @@ export function ReconciliationView() {
   return (
     <>
       <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
-      <Panel className="mb-5">
-        <Field id="reconciliation-book-basis" label="مبنای دفتر برای تطبیق">
-          <Select
-            id="reconciliation-book-basis"
-            value={view.basis}
-            onValueChange={view.select}
-            options={[
-              { value: "native_book", label: "دفتر دیدبان" },
-              {
-                value: "imported_ledger",
-                label: "دفتر واردشده از نرم‌افزار مبدأ",
-              },
-            ]}
-          />
-        </Field>
-      </Panel>
-      {view.basis === "native_book" ? (
-        <NativeBankMatchesPanel key={view.scope + ":native"} />
-      ) : (
-        <ImportedReconciliationWorkspace key={view.scope + ":imported"} />
-      )}
+      <NativeBankMatchesPanel key={view.scope + ":native"} />
     </>
   );
 }

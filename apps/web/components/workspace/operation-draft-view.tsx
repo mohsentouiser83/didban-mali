@@ -18,7 +18,6 @@ import {
 } from "@/hooks/use-operation-drafts";
 import { useWorkspace } from "@/hooks/workspace";
 import { PageHeader, NoCompany } from "./page-parts";
-import { OperationLearningPanel } from "./operation-learning-panel";
 export function OperationDraftView({
   embedded = false,
   onCreated,
@@ -74,7 +73,6 @@ function Workspace({
           />
         ) : (
           <div className="space-y-5">
-            <OperationLearningPanel c={c.learning} />
             <Form
               onSubmit={(event) => {
                 event.preventDefault();

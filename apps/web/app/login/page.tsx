@@ -15,7 +15,7 @@ export default function Login() {
   const { email, setEmail, password, setPassword, busy, error, submit } =
     useLogin();
   return (
-    <main className="grid min-h-dvh place-items-center p-5">
+    <main className="grid min-h-dvh place-items-center p-5 motion-safe:animate-page-reveal">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center gap-3">
           <span className="grid size-12 place-items-center rounded-panel bg-primary text-white">

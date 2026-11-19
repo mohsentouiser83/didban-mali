@@ -1,3 +1,4 @@
+import { NavigationProgress } from "@/components/ui/navigation-progress";
 import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
@@ -40,6 +41,7 @@ export default function RootLayout({
       className={`${yekan.variable} ${anjoman.variable}`}
     >
       <body className="min-h-dvh bg-canvas font-body text-sm font-normal leading-7 text-foreground antialiased [font-synthesis:none] selection:bg-primary-soft selection:text-primary [&_*]:caret-primary">
+        <NavigationProgress />
         {children}
         <Toaster />
       </body>

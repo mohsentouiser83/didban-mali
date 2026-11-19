@@ -36,3 +36,12 @@ class OperationInput(StrictInput):
     amounts: dict[str, str] = Field(min_length=1, max_length=10)
     cheque_event_id: str | None = Field(default=None, max_length=36)
     endorsee_party_id: str | None = Field(default=None, min_length=1, max_length=100)
+    settlement_type: Literal["on_account", "cash", "mixed"] | None = "on_account"
+    cash_amount: str | None = None
+    cheque_amount: str | None = None
+    on_account_amount: str | None = None
+    cash_account_id: str | None = Field(default=None, max_length=36)
+    cheque_account_id: str | None = Field(default=None, max_length=36)
+    counterparty_account_id: str | None = Field(default=None, max_length=36)
+    cheque_number: str | None = Field(default=None, max_length=100)
+    cheque_due_date: date | None = None

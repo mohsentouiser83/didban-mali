@@ -20,6 +20,17 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "nature": {
+            "default": "debit",
+            "enum": [
+              "debit",
+              "credit",
+              "floating",
+              "none"
+            ],
+            "title": "Nature",
+            "type": "string"
           }
         },
         "required": [
@@ -744,6 +755,84 @@
             "title": "Allow Credit Override",
             "type": "boolean"
           },
+          "cash_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Account Id"
+          },
+          "cash_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount"
+          },
+          "cheque_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Account Id"
+          },
+          "cheque_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Amount"
+          },
+          "cheque_due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Due Date"
+          },
+          "cheque_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Number"
+          },
           "cost_account_id": {
             "anyOf": [
               {
@@ -758,15 +847,36 @@
             "title": "Cost Account Id"
           },
           "counterparty_account_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Counterparty Account Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Account Id"
           },
           "credit_override_reason": {
             "default": "",
             "title": "Credit Override Reason",
             "type": "string"
+          },
+          "on_account_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Account Amount"
           },
           "period_id": {
             "maxLength": 36,
@@ -787,6 +897,16 @@
             ],
             "title": "Revenue Account Id"
           },
+          "settlement_type": {
+            "default": "on_account",
+            "enum": [
+              "on_account",
+              "cash",
+              "mixed"
+            ],
+            "title": "Settlement Type",
+            "type": "string"
+          },
           "source_reference": {
             "maxLength": 120,
             "minLength": 1,
@@ -803,7 +923,6 @@
         "required": [
           "period_id",
           "warehouse_id",
-          "counterparty_account_id",
           "source_reference"
         ],
         "title": "ConvertProformaInput",
@@ -1634,6 +1753,84 @@
       "InventoryDraftInput": {
         "additionalProperties": false,
         "properties": {
+          "cash_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Account Id"
+          },
+          "cash_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount"
+          },
+          "cheque_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Account Id"
+          },
+          "cheque_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Amount"
+          },
+          "cheque_due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Due Date"
+          },
+          "cheque_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Number"
+          },
           "cost_account_id": {
             "anyOf": [
               {
@@ -1648,10 +1845,16 @@
             "title": "Cost Account Id"
           },
           "counterparty_account_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Counterparty Account Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Account Id"
           },
           "date": {
             "format": "date",
@@ -1678,9 +1881,24 @@
             "title": "Kind",
             "type": "string"
           },
+          "on_account_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Account Amount"
+          },
           "party_id": {
+            "default": "",
             "maxLength": 100,
-            "minLength": 1,
             "title": "Party Id",
             "type": "string"
           },
@@ -1708,6 +1926,16 @@
               }
             ],
             "title": "Revenue Account Id"
+          },
+          "settlement_type": {
+            "default": "on_account",
+            "enum": [
+              "on_account",
+              "cash",
+              "mixed"
+            ],
+            "title": "Settlement Type",
+            "type": "string"
           },
           "source_reference": {
             "maxLength": 120,
@@ -1753,9 +1981,7 @@
           "period_id",
           "date",
           "description",
-          "source_reference",
-          "party_id",
-          "counterparty_account_id"
+          "source_reference"
         ],
         "title": "InventoryDraftInput",
         "type": "object"
@@ -2665,6 +2891,60 @@
         "title": "NotificationInput",
         "type": "object"
       },
+      "NumberingRuleInput": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "current_number": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Current Number",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "padding": {
+            "default": 3,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Padding",
+            "type": "integer"
+          },
+          "prefix": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Prefix",
+            "type": "string"
+          },
+          "start_number": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Start Number",
+            "type": "integer"
+          },
+          "suffix": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Suffix",
+            "type": "string"
+          }
+        },
+        "title": "NumberingRuleInput",
+        "type": "object"
+      },
       "OpeningEvidenceInput": {
         "additionalProperties": false,
         "properties": {
@@ -2842,6 +3122,64 @@
             "title": "Amounts",
             "type": "object"
           },
+          "cash_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Account Id"
+          },
+          "cash_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount"
+          },
+          "cheque_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Account Id"
+          },
+          "cheque_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Amount"
+          },
+          "cheque_due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Due Date"
+          },
           "cheque_event_id": {
             "anyOf": [
               {
@@ -2853,6 +3191,30 @@
               }
             ],
             "title": "Cheque Event Id"
+          },
+          "cheque_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Number"
+          },
+          "counterparty_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Account Id"
           },
           "date": {
             "format": "date",
@@ -2899,6 +3261,17 @@
             "title": "Kind",
             "type": "string"
           },
+          "on_account_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Account Amount"
+          },
           "party_id": {
             "default": "",
             "maxLength": 100,
@@ -2910,6 +3283,23 @@
             "minLength": 1,
             "title": "Period Id",
             "type": "string"
+          },
+          "settlement_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "on_account",
+                  "cash",
+                  "mixed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "on_account",
+            "title": "Settlement Type"
           },
           "source_reference": {
             "maxLength": 120,
@@ -3282,6 +3672,34 @@
           "spec"
         ],
         "title": "PreviewInput",
+        "type": "object"
+      },
+      "ProfileUpdateInput": {
+        "properties": {
+          "avatar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "ProfileUpdateInput",
         "type": "object"
       },
       "ProformaInput": {
@@ -5245,6 +5663,42 @@
           }
         },
         "summary": "Auth Me"
+      }
+    },
+    "/api/v1/auth/profile": {
+      "patch": {
+        "operationId": "update_profile_api_v1_auth_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Profile"
       }
     },
     "/api/v1/auth/status": {
@@ -18425,6 +18879,243 @@
           }
         },
         "summary": "Notification Update"
+      }
+    },
+    "/api/v1/companies/{company_id}/numbering": {
+      "get": {
+        "operationId": "listing_api_v1_companies__company_id__numbering_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listing"
+      }
+    },
+    "/api/v1/companies/{company_id}/numbering/next/{entity_type}": {
+      "post": {
+        "operationId": "get_next_api_v1_companies__company_id__numbering_next__entity_type__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity_type",
+            "required": true,
+            "schema": {
+              "title": "Entity Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "consume",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Consume",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Next"
+      }
+    },
+    "/api/v1/companies/{company_id}/numbering/{rule_id}": {
+      "delete": {
+        "operationId": "delete_rule_api_v1_companies__company_id__numbering__rule_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Rule"
+      },
+      "get": {
+        "operationId": "get_rule_api_v1_companies__company_id__numbering__rule_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rule"
+      },
+      "patch": {
+        "operationId": "update_rule_api_v1_companies__company_id__numbering__rule_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "rule_id",
+            "required": true,
+            "schema": {
+              "title": "Rule Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NumberingRuleInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Rule"
       }
     },
     "/api/v1/companies/{company_id}/payroll": {

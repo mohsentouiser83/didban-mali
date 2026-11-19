@@ -1,4 +1,5 @@
-FROM node:22-bookworm-slim AS build
+ARG DIDBAN_NODE_IMAGE=node:22-bookworm-slim
+FROM ${DIDBAN_NODE_IMAGE} AS build
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@12.16.1 --activate
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -8,7 +9,7 @@ COPY apps/web apps/web
 ENV NEXT_TELEMETRY_DISABLED=1 DIDBAN_API_URL=http://api:8000
 RUN pnpm --dir apps/web build
 
-FROM node:22-bookworm-slim AS runtime
+FROM ${DIDBAN_NODE_IMAGE} AS runtime
 WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 WORKDIR /app/apps/web

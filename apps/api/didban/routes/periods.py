@@ -17,7 +17,12 @@ router = APIRouter()
 @router.get(C + "/financial-periods")
 def periods(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
     with access(request, company_id) as (db, _user, _member):
-        return paginate(db, m.Period, company_id, limit, cursor)
+        def transform(period):
+            data = service.serialize_fact(period)
+            data["in_use"] = service.period_has_dependencies(db, company_id, period.id)
+            return data
+
+        return paginate(db, m.Period, company_id, limit, cursor, transform=transform)
 
 
 @router.post(C + "/financial-periods", status_code=201)

@@ -18,7 +18,31 @@ class StrictInput(BaseModel):
 class AccountInput(StrictInput):
     code: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
+    nature: Literal["debit", "credit", "floating", "none"] = "debit"
     active: bool = True
+
+    @field_validator("nature", mode="before")
+    @classmethod
+    def normalize_nature(cls, value):
+        if not value:
+            return "debit"
+        if isinstance(value, str):
+            val = value.strip().lower()
+            aliases = {
+                "dual": "floating",
+                "both": "floating",
+                "neutral": "none",
+                "memorandum": "none",
+                "بدهکار": "debit",
+                "بستانکار": "credit",
+                "شناور": "floating",
+                "دوگانه": "floating",
+                "انتظامی": "none",
+                "فاقد ماهیت": "none",
+                "بدون ماهیت": "none",
+            }
+            return aliases.get(val, val)
+        return value
 
 
 class DraftLine(StrictInput):

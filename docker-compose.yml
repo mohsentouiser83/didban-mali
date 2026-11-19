@@ -30,9 +30,11 @@ services:
       start_period: 120s
     restart: unless-stopped
   api:
-    build:
+    build: &api_build
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        DIDBAN_PYTHON_IMAGE: ${DIDBAN_PYTHON_IMAGE:-python:3.12-slim}
     environment: &api_environment
       DIDBAN_DATABASE_URL: postgresql+psycopg://didban_app:${DIDBAN_APP_DB_PASSWORD:?Set DIDBAN_APP_DB_PASSWORD}@postgres:5432/didban_fresh
       DIDBAN_PRODUCTION: ${DIDBAN_PRODUCTION:-true}
@@ -76,9 +78,7 @@ services:
       retries: 10
     restart: unless-stopped
   worker:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    build: *api_build
     command: [python, -m, didban.worker]
     environment: *api_environment
     volumes:
@@ -91,6 +91,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        DIDBAN_NODE_IMAGE: ${DIDBAN_NODE_IMAGE:-node:22-bookworm-slim}
     environment:
       DIDBAN_API_URL: http://api:8000
       NEXT_TELEMETRY_DISABLED: "1"

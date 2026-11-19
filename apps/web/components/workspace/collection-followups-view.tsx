@@ -24,11 +24,10 @@ import { controlStateLabel } from "@/lib/control";
 import { amount, displayDate } from "@/lib/utils";
 import { ControlCasePanel } from "./control-case-panel";
 import { CollectionReminderDialog } from "./collection-reminder-dialog";
-import { useInvoiceBasis } from "@/hooks/use-invoice-basis";
 import { NativeInvoicesView } from "./native-invoices-view";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
-function ImportedCollectionFollowupsView() {
+export function ImportedCollectionFollowupsView() {
   const workspace = useWorkspace();
   if (!workspace.company) return <NoCompany />;
   return <CollectionWorkspace key={`${workspace.user?.id}:${workspace.company.id}`} />;
@@ -251,7 +250,21 @@ function CollectionWorkspace() {
 }
 
 export function CollectionFollowupsView() {
- const view=useInvoiceBasis();
- if(!view.workspace.company)return <NoCompany/>;
- return <><PageHeader icon={UsersThreeIcon} title="پیگیری وصول" action={<ButtonLink href="/receivables" variant="secondary">مطالبات</ButtonLink>}/><Panel><Field id="collection-data-basis" label="مبنای پیگیری وصول"><Select id="collection-data-basis" value={view.basis} onValueChange={view.select} options={[{value:"native_invoice",label:"فاکتور دفتر دیدبان"},{value:"imported_invoice",label:"فاکتور واردشده از فایل"}]}/></Field></Panel>{view.setup.loading?<LoadingState/>:view.setup.error?<ErrorState message={view.setup.error.message} onRetry={view.setup.refresh}/>:view.basis==="native_invoice"?<NativeInvoicesView key={view.scope} direction="sale" followups/>:<ImportedCollectionFollowupsView key={view.scope}/>}</>;
+  const workspace = useWorkspace();
+  if (!workspace.company) return <NoCompany />;
+  const scope = `${workspace.user?.id}:${workspace.company?.id}`;
+  return (
+    <>
+      <PageHeader
+        icon={UsersThreeIcon}
+        title="پیگیری وصول"
+        action={
+          <ButtonLink href="/receivables" variant="secondary">
+            مطالبات
+          </ButtonLink>
+        }
+      />
+      <NativeInvoicesView key={scope} direction="sale" followups />
+    </>
+  );
 }

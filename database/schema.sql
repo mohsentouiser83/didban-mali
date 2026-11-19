@@ -35,6 +35,7 @@ CREATE TABLE users (
 	password_hash TEXT NOT NULL,
 	installation_admin BOOLEAN NOT NULL,
 	active BOOLEAN NOT NULL,
+	avatar TEXT,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	PRIMARY KEY (id),
@@ -57,6 +58,7 @@ CREATE INDEX ix_account_import_previews_company_id ON account_import_previews (c
 CREATE TABLE accounting_accounts (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(150) NOT NULL,
+	nature VARCHAR(20) NOT NULL,
 	active BOOLEAN NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -504,6 +506,29 @@ CREATE TABLE notifications (
 );
 
 CREATE INDEX ix_notifications_company_id ON notifications (company_id);
+
+CREATE TABLE numbering_systems (
+	entity_type VARCHAR(60) NOT NULL,
+	entity_title VARCHAR(120) NOT NULL,
+	prefix VARCHAR(30) NOT NULL,
+	start_number INTEGER NOT NULL,
+	current_number INTEGER NOT NULL,
+	padding INTEGER NOT NULL,
+	suffix VARCHAR(30) NOT NULL,
+	description VARCHAR(255),
+	is_system BOOLEAN NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, entity_type),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_numbering_systems_company_id ON numbering_systems (company_id);
 
 CREATE TABLE proforma_invoices (
 	number VARCHAR(100) NOT NULL,
@@ -2419,6 +2444,14 @@ ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON notifications;
 
 CREATE POLICY tenant_isolation ON notifications USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE numbering_systems ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE numbering_systems FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON numbering_systems;
+
+CREATE POLICY tenant_isolation ON numbering_systems USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE proforma_invoices ENABLE ROW LEVEL SECURITY;
 

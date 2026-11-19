@@ -1,7 +1,32 @@
+export type AccountNature = "debit" | "credit" | "floating" | "none";
+
+export const ACCOUNT_NATURE_OPTIONS: { value: AccountNature; label: string }[] = [
+  { value: "debit", label: "بدهکار" },
+  { value: "credit", label: "بستانکار" },
+  { value: "floating", label: "شناور (دوگانه)" },
+  { value: "none", label: "فاقد ماهیت / انتظامی" },
+];
+
+export function accountNatureLabel(nature?: string): string {
+  switch (nature) {
+    case "debit":
+      return "بدهکار";
+    case "credit":
+      return "بستانکار";
+    case "floating":
+      return "شناور (دوگانه)";
+    case "none":
+      return "فاقد ماهیت / انتظامی";
+    default:
+      return nature || "بدهکار";
+  }
+}
+
 export interface LedgerAccount {
   id: string;
   code: string;
   name: string;
+  nature: AccountNature;
   active: boolean;
   version: number;
 }

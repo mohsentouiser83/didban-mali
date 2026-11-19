@@ -348,32 +348,62 @@ def _stock_and_lines(
     warehouse = get_entity(db, InventoryWarehouse, company, data["warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
     require(warehouse.active, "inactive_warehouse", "انبار انتخاب‌شده غیرفعال است.", 409)
+    settlement_type = data.get("settlement_type", "on_account")
     if purchase:
         require(
-            data["revenue_account_id"] is None and data["cost_account_id"] is None,
+            data.get("revenue_account_id") is None and data.get("cost_account_id") is None,
             "inventory_unexpected_account",
             "حساب درآمد و بهای فروش برای خرید کالا کاربرد ندارند.",
         )
-        roles = {"other_asset": item.inventory_account_id, "trade_payable": data["counterparty_account_id"]}
+        if settlement_type in ("cash", "mixed"):
+            roles = {"other_asset": item.inventory_account_id}
+            if data.get("cash_account_id"):
+                roles["bank"] = data["cash_account_id"]
+            if data.get("cheque_account_id"):
+                roles["notes_payable"] = data["cheque_account_id"]
+            if data.get("counterparty_account_id"):
+                roles["trade_payable"] = data["counterparty_account_id"]
+        else:
+            roles = {"other_asset": item.inventory_account_id, "trade_payable": data["counterparty_account_id"]}
     else:
         require(
-            bool(data["revenue_account_id"] and data["cost_account_id"]),
+            bool(data.get("revenue_account_id") and data.get("cost_account_id")),
             "inventory_sale_accounts_required",
             "حساب درآمد فروش و بهای تمام‌شده را انتخاب کنید.",
         )
-        roles = {
-            "trade_receivable": data["counterparty_account_id"],
-            "revenue": data["revenue_account_id"],
-            "expense": data["cost_account_id"],
-            "other_asset": item.inventory_account_id,
-        }
+        if settlement_type in ("cash", "mixed"):
+            roles = {
+                "revenue": data["revenue_account_id"],
+                "expense": data["cost_account_id"],
+                "other_asset": item.inventory_account_id,
+            }
+            if data.get("cash_account_id"):
+                roles["bank"] = data["cash_account_id"]
+            if data.get("cheque_account_id"):
+                roles["notes_receivable"] = data["cheque_account_id"]
+            if data.get("counterparty_account_id"):
+                roles["trade_receivable"] = data["counterparty_account_id"]
+        else:
+            roles = {
+                "trade_receivable": data["counterparty_account_id"],
+                "revenue": data["revenue_account_id"],
+                "expense": data["cost_account_id"],
+                "other_asset": item.inventory_account_id,
+            }
     require(
         len(set(roles.values())) == len(roles),
         "inventory_accounts_overlap",
         "حساب‌های گردش کالا باید متفاوت باشند.",
     )
     for role, account_id in roles.items():
-        _require_account(db, company, account_id, role)
+        expected_r = (
+            "other_liability"
+            if role == "notes_payable"
+            else "other_asset"
+            if role == "notes_receivable"
+            else role
+        )
+        _require_account(db, company, account_id, expected_r)
 
     quantity = data["quantity"]
     lots, latest = _lots(db, company, item.id, warehouse.id)
@@ -399,15 +429,53 @@ def _stock_and_lines(
             value_irr = _stock_money(-cost_irr)
             cost = _stock_money(cost_irr / factor)
             values = [amount, amount, cost, cost]
-    lines = [
-        {
-            "account_id": account_id,
-            "party_id": data["party_id"] if role in ("trade_receivable", "trade_payable", "revenue") else "",
-            "debit": value if index % 2 == 0 else "0",
-            "credit": value if index % 2 == 1 else "0",
-        }
-        for index, ((role, account_id), value) in enumerate(zip(roles.items(), values, strict=True))
-    ]
+
+    if settlement_type in ("cash", "mixed"):
+        from .operation_service import validate_and_build_settlement_lines
+
+        settle_lines = validate_and_build_settlement_lines(
+            direction="purchase" if purchase else "sale",
+            total_amount=amount,
+            settlement_type=settlement_type,
+            cash_amount=data.get("cash_amount", 0),
+            cheque_amount=data.get("cheque_amount", 0),
+            on_account_amount=data.get("on_account_amount", 0),
+            cash_account_id=data.get("cash_account_id"),
+            cheque_account_id=data.get("cheque_account_id"),
+            counterparty_account_id=data.get("counterparty_account_id"),
+            party_id=data.get("party_id", ""),
+            cheque_number=data.get("cheque_number"),
+            cheque_due_date=str(data.get("cheque_due_date")) if data.get("cheque_due_date") else None,
+            db=db,
+            company=company,
+        )
+        if purchase:
+            lines = [
+                {"account_id": item.inventory_account_id, "party_id": "", "debit": amount, "credit": "0"},
+                *settle_lines,
+            ]
+        else:
+            rev_line = {
+                "account_id": data["revenue_account_id"],
+                "party_id": data.get("party_id", ""),
+                "debit": "0",
+                "credit": amount,
+            }
+            cost_lines = [
+                {"account_id": data["cost_account_id"], "party_id": "", "debit": cost, "credit": "0"},
+                {"account_id": item.inventory_account_id, "party_id": "", "debit": "0", "credit": cost},
+            ]
+            lines = [*settle_lines, rev_line, *cost_lines]
+    else:
+        lines = [
+            {
+                "account_id": account_id,
+                "party_id": data["party_id"] if role in ("trade_receivable", "trade_payable", "revenue") else "",
+                "debit": value if index % 2 == 0 else "0",
+                "credit": value if index % 2 == 1 else "0",
+            }
+            for index, ((role, account_id), value) in enumerate(zip(roles.items(), values, strict=True))
+        ]
     return (
         {
             "kind": kind,

@@ -9,16 +9,16 @@ import { EmptyState } from "@/components/ui/content-states";
 import { Select } from "@/components/ui/select";
 import { useWorkspace } from "@/hooks/workspace";
 import {
+  BooksIcon,
   BuildingsIcon,
   PackageIcon,
   StorefrontIcon,
   CalendarBlankIcon,
-  UploadSimpleIcon,
   FilesIcon,
   UsersThreeIcon,
-  BellIcon,
   ChatCircleIcon,
   GearIcon,
+  HashIcon,
   ReceiptIcon,
 } from "@phosphor-icons/react";
 import { PageTitle } from "@/components/ui/page-title";
@@ -69,9 +69,9 @@ export function CurrentPageHeader() {
     "/reports/builder": { title: "گزارش‌ساز", icon: FilesIcon },
     "/employee-reports": { title: "گزارش کارمندان", icon: UsersThreeIcon },
     "/settlements/plans": { title: "برنامه پرداخت", icon: CalendarBlankIcon },
-    "/notifications": { title: "اعلان‌ها", icon: BellIcon },
     "/assistant": { title: "دستیار مالی", icon: ChatCircleIcon },
     "/settings": { title: "تنظیمات", icon: GearIcon },
+    "/settings/numbering": { title: "سیستم شماره‌گذاری", icon: HashIcon },
   };
   const fallback = pathname.startsWith("/uploads/")
     ? { title: "پرونده پردازش", icon: FilesIcon }
@@ -169,23 +169,28 @@ export function NoResult() {
         title={
           controller.available
             ? "گزارش این دوره آماده نیست"
-            : "تصویر مالی شما از اینجا شروع می‌شود"
+            : "اطلاعات مالی برای این دوره ثبت نشده است"
         }
         description={
           controller.available
             ? undefined
-            : "فایل‌های Excel و CSV را اضافه کنید."
+            : "برای مشاهده تحلیل‌ها و گزارش‌ها، اسناد حسابداری یا عملیات مالی دوره را ثبت کنید."
         }
         action={
           controller.available ? (
             <Button busy={controller.busy} onClick={controller.create}>
-              محاسبه با اسناد موجود
+              محاسبه گزارش
             </Button>
           ) : controller.workspace.canWrite ? (
-            <ButtonLink href="/uploads">
-              <UploadSimpleIcon size={18} aria-hidden />
-              بارگذاری اسناد
-            </ButtonLink>
+            <div className="flex flex-wrap justify-center gap-2">
+              <ButtonLink href="/accounting">
+                <BooksIcon size={18} aria-hidden />
+                اسناد حسابداری
+              </ButtonLink>
+              <ButtonLink href="/reports" variant="secondary">
+                گزارش‌ها
+              </ButtonLink>
+            </div>
           ) : (
             <ButtonLink href="/reports" variant="secondary">
               گزارش‌ها

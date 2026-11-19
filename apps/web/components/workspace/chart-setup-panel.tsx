@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form } from "@/components/ui/form";
 import { FormMessage } from "@/components/ui/field";
@@ -17,6 +18,10 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
 import { useChartSetup } from "@/hooks/use-accounting-setup";
+import {
+  ACCOUNT_NATURE_OPTIONS,
+  type AccountNature,
+} from "@/lib/accounting";
 import { persian } from "@/lib/utils";
 import { DrawerAction } from "@/components/ui/drawer-action";
 export function ChartSetupPanel({
@@ -63,6 +68,7 @@ export function ChartSetupPanel({
               <TableRow>
                 <TableHead>کد حساب</TableHead>
                 <TableHead>نام حساب</TableHead>
+                <TableHead>ماهیت حساب</TableHead>
                 <TableHead>فعال</TableHead>
               </TableRow>
             </TableHeader>
@@ -92,6 +98,19 @@ export function ChartSetupPanel({
                       onChange={(e) =>
                         c.change(row.index, { name: e.target.value })
                       }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      aria-label={`ماهیت حساب ردیف ${row.index + 1}`}
+                      value={row.nature ?? "debit"}
+                      disabled={c.command.busy}
+                      onValueChange={(nature) =>
+                        c.change(row.index, {
+                          nature: nature as AccountNature,
+                        })
+                      }
+                      options={ACCOUNT_NATURE_OPTIONS}
                     />
                   </TableCell>
                   <TableCell>

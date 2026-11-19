@@ -55,6 +55,7 @@ class User(Entity, Base):
     password_hash: Mapped[str] = mapped_column(Text)
     installation_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    avatar: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
 
 class LoginSession(Entity, Base):
@@ -666,6 +667,7 @@ from . import native_forecast_models as native_forecast_models  # noqa: E402,F40
 from . import native_invoice_models as native_invoice_models  # noqa: E402,F401
 from . import native_reporting_models as native_reporting_models  # noqa: E402,F401
 from . import native_scenario_models as native_scenario_models  # noqa: E402,F401
+from . import numbering_models as numbering_models  # noqa: E402,F401
 from . import operation_learning_models as operation_learning_models  # noqa: E402,F401
 from . import operation_models as operation_models  # noqa: E402,F401
 from . import period_checklist_models as period_checklist_models  # noqa: E402,F401

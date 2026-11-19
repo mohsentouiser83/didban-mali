@@ -9,7 +9,6 @@ import {
   StatusMessage,
 } from "@/components/ui/content-states";
 import { CashChart } from "@/components/ui/financial/financial-chart";
-import { Select } from "@/components/ui/select";
 import { useScenarioSource } from "@/hooks/use-scenario-source";
 import { NativeForecastWorkspace } from "./native-forecast-workspace";
 import { useFinancialView } from "@/hooks/use-financial-view";
@@ -22,7 +21,7 @@ import {
   PeriodFilter,
 } from "./page-parts";
 
-function ImportedForecastWorkspace() {
+export function ImportedForecastWorkspace() {
   const view = useFinancialView("forecast");
   const forecast = view.manifest?.details.forecast;
   const unit = view.workspace.unit;
@@ -105,7 +104,7 @@ function ImportedForecastWorkspace() {
 }
 
 export function ForecastView() {
-  const { workspace, setup, scope, basis, select } = useScenarioSource();
+  const { workspace, scope } = useScenarioSource();
   if (!workspace.company) return <NoCompany />;
   return (
     <>
@@ -123,26 +122,7 @@ export function ForecastView() {
           </div>
         }
       />
-      <div className="mb-5">
-        <Select
-          label="مبنای پیش‌بینی"
-          value={basis}
-          onValueChange={select}
-          options={[
-            { value: "native_statement", label: "دفتر اصلی دیدبان" },
-            { value: "imported_manifest", label: "منابع واردشده" },
-          ]}
-        />
-      </div>
-      {setup.loading ? (
-        <LoadingState />
-      ) : setup.error ? (
-        <ErrorState message={setup.error.message} onRetry={setup.refresh} />
-      ) : basis === "native_statement" ? (
-        <NativeForecastWorkspace key={scope} />
-      ) : (
-        <ImportedForecastWorkspace key={scope} />
-      )}
+      <NativeForecastWorkspace key={scope} />
     </>
   );
 }

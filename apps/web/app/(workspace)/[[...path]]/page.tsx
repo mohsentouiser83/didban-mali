@@ -1,12 +1,11 @@
 import { AccountingView } from "@/components/workspace/accounting-view";
 import { AccountsView } from "@/components/workspace/accounts-view";
 import { CollectionFollowupsView } from "@/components/workspace/collection-followups-view";
-import { ModulesView } from "@/components/workspace/modules-view";
+import { ProfileView } from "@/components/workspace/profile-view";
 import {
   BotConnectionDocumentsView,
   BotConnectionNotificationsView,
 } from "@/components/workspace/bot-connection-pages";
-import { BotConnectionsView } from "@/components/workspace/bot-connections-view";
 import { PeopleView } from "@/components/workspace/people-view";
 import {
   CashflowView,
@@ -17,7 +16,6 @@ import {
 } from "@/components/workspace/financial-views";
 import {
   AssistantView,
-  NotificationsView,
   PlansView,
   ReportsView,
   ReviewView,
@@ -28,11 +26,10 @@ import {
   CompanyView,
   MembersView,
   PeriodsView,
-  UsageView,
 } from "@/components/workspace/settings-views";
 import { SessionView, UploadsView } from "@/components/workspace/upload-views";
 import { ReconciliationView } from "@/components/workspace/reconciliation-view";
-import { ModelSettingsView } from "@/components/workspace/model-settings-view";
+import { NumberingSystemView } from "@/components/workspace/numbering-system-view";
 import { SettingsOverviewView } from "@/components/workspace/settings-overview-view";
 import { notFound, redirect } from "next/navigation";
 export default async function Page({
@@ -44,23 +41,19 @@ export default async function Page({
 }) {
   const { path = [] } = await params;
   const route = path.join("/");
-  if (["payroll", "tax", "insurance"].includes(route))
+  if (["payroll", "tax", "insurance", "employees"].includes(route))
     redirect("/employee-reports");
+  if (route === "notifications")
+    redirect("/");
   if (path.length === 2 && path[0] === "uploads")
-    return (
-      <div key={route} className="motion-safe:animate-page-reveal">
-        <SessionView id={path[1]} />
-      </div>
-    );
+    return <SessionView id={path[1]} />;
   if (route === "receivables" || route === "payables") {
     const { operation } = await searchParams;
     return (
-      <div key={route} className="motion-safe:animate-page-reveal">
-        <InvoicesView
-          direction={route === "receivables" ? "sales" : "purchases"}
-          operationId={typeof operation === "string" ? operation : undefined}
-        />
-      </div>
+      <InvoicesView
+        direction={route === "receivables" ? "sales" : "purchases"}
+        operationId={typeof operation === "string" ? operation : undefined}
+      />
     );
   }
   const routeRenderers: Record<string, () => React.ReactNode> = {
@@ -78,8 +71,9 @@ export default async function Page({
     settlements: () => <SettlementsView />,
     "settlements/plans": () => <PlansView />,
     reports: () => <ReportsView />,
-    "settings/modules": () => <ModulesView />,
-    "settings/connections": () => <BotConnectionsView />,
+    "settings/profile": () => <ProfileView />,
+    profile: () => <ProfileView />,
+    "settings/connections": () => <ProfileView />,
     "settings/connections/documents": () => <BotConnectionDocumentsView />,
     "settings/connections/notifications": () => (
       <BotConnectionNotificationsView />
@@ -96,22 +90,13 @@ export default async function Page({
     "settings/accounting": () => (
       <SettingsOverviewView categoryKey="accounting" />
     ),
-    "settings/automation": () => (
-      <SettingsOverviewView categoryKey="automation" />
-    ),
+    "settings/numbering": () => <NumberingSystemView />,
     "settings/periods": () => <PeriodsView />,
     "settings/company": () => <CompanyView />,
     "settings/members": () => <MembersView />,
-    "settings/usage": () => <UsageView />,
-    "settings/model": () => <ModelSettingsView />,
-    notifications: () => <NotificationsView />,
     assistant: () => <AssistantView />,
   };
   const renderer = routeRenderers[route];
   if (!renderer) notFound();
-  return (
-    <div key={route} className="motion-safe:animate-page-reveal">
-      {renderer()}
-    </div>
-  );
+  return renderer();
 }

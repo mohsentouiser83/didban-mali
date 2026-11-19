@@ -156,11 +156,29 @@ async def assistant(company_id: str, data: s.AssistantInput, request: Request):
             history=[message.model_dump() for message in data.history],
         )
 
+        from ..operational_orchestrator import orchestrate_operation
+
+        operational_response = None
+        if analytical_response is None:
+            operational_response = orchestrate_operation(
+                db,
+                company_id,
+                user,
+                data.question,
+                history=[message.model_dump() for message in data.history],
+            )
+
     if analytical_response is not None:
         identity = {
             name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
         }
         return analytical_response | identity
+
+    if operational_response is not None:
+        identity = {
+            name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
+        }
+        return operational_response | identity
 
     # Any external model call is outside the database transaction.
     response = await respond(

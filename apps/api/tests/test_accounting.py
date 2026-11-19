@@ -223,3 +223,49 @@ def test_owner_explicit_posting_permission_is_separate_and_revocable(workspace):
     assert db.get(m.Membership, "owner").approve_financial_report is False
     grant(db, "c", owner, "owner", {"post_journal": False, "reopen_period": False}, 2)
     assert capabilities(db, "c", owner)["can_post"] is False
+
+
+def test_account_nature_creation_update_and_validation(workspace):
+    db = workspace
+    owner = db.get(m.User, "owner")
+    from didban.accounting_schemas import AccountInput
+
+    # Default nature is debit
+    acc_def = save_account(db, "c", owner, {"code": "100", "name": "صندوق", "active": True})
+    assert acc_def["nature"] == "debit"
+
+    # Explicit nature credit
+    acc_cred = save_account(db, "c", owner, {"code": "200", "name": "بستانکاران", "nature": "credit", "active": True})
+    assert acc_cred["nature"] == "credit"
+
+    # Explicit nature floating
+    acc_float = save_account(
+        db, "c", owner, {"code": "300", "name": "جاری شرکا", "nature": "floating", "active": True}
+    )
+    assert acc_float["nature"] == "floating"
+
+    # Explicit nature none (memorandum)
+    acc_none = save_account(
+        db, "c", owner, {"code": "900", "name": "انتظامی", "nature": "none", "active": True}
+    )
+    assert acc_none["nature"] == "none"
+
+    # Update nature from credit to floating
+    updated = save_account(
+        db, "c", owner, {"code": "200", "name": "بستانکاران", "nature": "floating", "active": True}, acc_cred["id"], 1
+    )
+    assert updated["nature"] == "floating"
+    assert updated["version"] == 2
+
+    # Schema validation with aliases
+    validated_persian = AccountInput.model_validate({"code": "11", "name": "تست", "nature": "بدهکار"})
+    assert validated_persian.nature == "debit"
+
+    validated_dual = AccountInput.model_validate({"code": "12", "name": "تست", "nature": "dual"})
+    assert validated_dual.nature == "floating"
+
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        AccountInput.model_validate({"code": "13", "name": "تست", "nature": "invalid_nature"})
+

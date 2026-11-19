@@ -103,4 +103,5 @@ def public_user(user: User) -> dict:
         "email": user.email,
         "name": user.name,
         "installation_admin": user.installation_admin,
+        "avatar": getattr(user, "avatar", None),
     }
