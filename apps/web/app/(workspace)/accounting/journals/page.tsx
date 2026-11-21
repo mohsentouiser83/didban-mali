@@ -1,2 +1,5 @@
-import {NativeJournalsView} from '@/components/workspace/native-journals-view';
-export default function Page(){return <NativeJournalsView/>;}
+import { AccountingView } from "@/components/workspace/accounting-view";
+
+export default function Page() {
+  return <AccountingView />;
+}

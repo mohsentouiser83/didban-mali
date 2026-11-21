@@ -31,7 +31,6 @@ import { amount, displayDate, persian, cn } from "@/lib/utils";
 import { JournalDraftForm } from "./journal-draft-form";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { DocumentDiscussionButton } from "./document-discussion-button";
-import { NativeJournalsWorkspace } from "./native-journals-view";
 
 export function AccountingView() {
   const workspace = useWorkspace();
@@ -45,7 +44,6 @@ function JournalWorkspace() {
   const view = useJournalDrafts();
   const posting = usePosting(view.refresh);
   const details = useJournalDetails(view.refresh);
-  const [activeTab, setActiveTab] = useState<"drafts" | "posted">("drafts");
   const [filterState, setFilterState] = useState<"all" | "draft" | "posted" | "discarded">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -64,7 +62,7 @@ function JournalWorkspace() {
         title="اسناد حسابداری"
         icon={BooksIcon}
         action={
-          view.canPrepare && activeTab === "drafts" ? (
+          view.canPrepare ? (
             <Button onClick={() => view.open(null)} disabled={view.loading}>
               <PlusIcon size={18} aria-hidden />
               سند جدید
@@ -73,79 +71,50 @@ function JournalWorkspace() {
         }
       />
 
-      {/* Tabs navigation */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-control border border-border bg-canvas/90 p-1 text-xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab("drafts")}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-all",
-              activeTab === "drafts"
-                ? "bg-surface text-primary shadow-xs"
-                : "text-muted hover:text-foreground",
-            )}
-          >
-            <span>پیش‌نویس‌ها و اسناد در جریان</span>
-            {draftCount > 0 && (
-              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
-                {persian(draftCount)}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("posted")}
-            className={cn(
-              "rounded-md px-3.5 py-1.5 font-medium transition-all",
-              activeTab === "posted"
-                ? "bg-surface text-primary shadow-xs"
-                : "text-muted hover:text-foreground",
-            )}
-          >
-            دفتر روزنامه و اسناد نهایی
-          </button>
-        </div>
-      </div>
-
-      {activeTab === "posted" ? (
-        <NativeJournalsWorkspace hideHeader />
-      ) : (
-        <Panel>
-          {/* Action & Filter bar */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <SearchInput
-                label="جستجو در شرح اسناد"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-56 text-xs"
-              />
-              <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
-                {(
-                  [
-                    { key: "all", label: "همه" },
-                    { key: "draft", label: "در انتظار ثبت" },
-                    { key: "posted", label: "ثبت‌شده" },
-                    { key: "discarded", label: "کنارگذاشته" },
-                  ] as const
-                ).map((f) => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => setFilterState(f.key)}
-                    className={cn(
-                      "rounded px-2.5 py-1 text-xs transition-colors",
-                      filterState === f.key
-                        ? "bg-surface text-primary font-medium shadow-xs"
-                        : "text-muted hover:text-foreground",
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+      <Panel>
+        {/* Action & Filter bar */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput
+              label="جستجو در شرح اسناد"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-56 text-xs"
+            />
+            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
+              {(
+                [
+                  { key: "all", label: "همه" },
+                  { key: "draft", label: "در انتظار ثبت", count: draftCount },
+                  { key: "posted", label: "ثبت‌شده" },
+                  { key: "discarded", label: "کنارگذاشته" },
+                ] as Array<{
+                  key: "all" | "draft" | "posted" | "discarded";
+                  label: string;
+                  count?: number;
+                }>
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setFilterState(f.key)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors",
+                    filterState === f.key
+                      ? "bg-surface text-primary font-medium shadow-xs"
+                      : "text-muted hover:text-foreground",
+                  )}
+                >
+                  <span>{f.label}</span>
+                  {typeof f.count === "number" && f.count > 0 && (
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
+                      {persian(f.count)}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
+          </div>
 
             {view.capabilities.data?.can_post &&
               view.capabilities.data.posting_available &&
@@ -306,7 +275,6 @@ function JournalWorkspace() {
             </>
           )}
         </Panel>
-      )}
 
       <JournalDraftForm view={view} />
       <PostingReviewDialog view={posting} />
