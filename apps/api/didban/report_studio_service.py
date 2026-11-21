@@ -882,9 +882,57 @@ def _evaluate_widget(
 
 def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
     """Renders the entire Studio Layout by computing all section and widget data."""
-    period = get_entity(db, m.Period, company_id, spec.global_filters.period_id)
+    period = None
+    if spec.global_filters.period_id and spec.global_filters.period_id != "default-period":
+        period = db.scalar(
+            select(m.Period).where(
+                m.Period.company_id == company_id,
+                m.Period.id == spec.global_filters.period_id,
+            )
+        )
+    if not period:
+        # Fall back to latest active period for this company
+        period = db.scalar(
+            select(m.Period)
+            .where(m.Period.company_id == company_id)
+            .order_by(m.Period.created_at.desc())
+            .limit(1)
+        )
+
     company = db.get(m.Company, company_id)
     company_name = company.name if company else company_id
+
+    if not period:
+        return {
+            "title": spec.title,
+            "description": spec.description,
+            "period_title": "بدون دوره مالی",
+            "company_name": company_name,
+            "rendered_at": m.now().isoformat(),
+            "sections": [
+                {
+                    "id": section.id,
+                    "title": section.title,
+                    "description": section.description,
+                    "layout": section.layout,
+                    "widgets": [
+                        {
+                            "id": widget.id,
+                            "title": widget.title,
+                            "type": widget.type,
+                            "entity": widget.entity,
+                            "metric": widget.metric,
+                            "group_by": widget.group_by,
+                            "unit": widget.unit or spec.global_filters.unit,
+                            "color": widget.color or "primary",
+                            "data": {},
+                        }
+                        for widget in section.widgets
+                    ],
+                }
+                for section in spec.sections
+            ],
+        }
 
     invoices = _get_company_invoices(db, company_id, period)
     ledger_metrics = _get_company_ledger_metrics(db, company_id, period)

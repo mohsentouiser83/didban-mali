@@ -97,6 +97,19 @@ export function useReportStudio() {
   // Initial preview on load
   const periodId = spec.global_filters.period_id;
   useEffect(() => {
+    if (workspace.periodId && (!spec.global_filters.period_id || spec.global_filters.period_id === "default-period")) {
+      setSpec((prev) => {
+        const next = {
+          ...prev,
+          global_filters: { ...prev.global_filters, period_id: workspace.periodId },
+        };
+        fetchPreview(next);
+        return next;
+      });
+    }
+  }, [workspace.periodId]);
+
+  useEffect(() => {
     if (!companyId || !periodId) return;
     let active = true;
     const path = workspace.companyPath("report-studio/preview");

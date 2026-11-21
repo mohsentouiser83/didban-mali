@@ -35,6 +35,7 @@ services:
       dockerfile: apps/api/Dockerfile
       args:
         DIDBAN_PYTHON_IMAGE: ${DIDBAN_PYTHON_IMAGE:-python:3.12-slim}
+    command: ["uvicorn", "didban.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api"]
     environment: &api_environment
       DIDBAN_DATABASE_URL: postgresql+psycopg://didban_app:${DIDBAN_APP_DB_PASSWORD:?Set DIDBAN_APP_DB_PASSWORD}@postgres:5432/didban_fresh
       DIDBAN_PRODUCTION: ${DIDBAN_PRODUCTION:-true}
@@ -64,6 +65,9 @@ services:
       DIDBAN_VOICE_MODEL: ${DIDBAN_VOICE_MODEL:-}
     volumes:
       - fresh_private:/app/var/private
+      - ./apps/api:/app/apps/api
+      - ./apps/web/public/fonts:/app/apps/web/public/fonts
+      - ./scripts:/app/scripts
     ports:
       - 127.0.0.1:8000:8000
     depends_on:
@@ -83,6 +87,9 @@ services:
     environment: *api_environment
     volumes:
       - fresh_private:/app/var/private
+      - ./apps/api:/app/apps/api
+      - ./apps/web/public/fonts:/app/apps/web/public/fonts
+      - ./scripts:/app/scripts
     depends_on:
       api:
         condition: service_healthy
