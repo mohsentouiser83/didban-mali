@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
@@ -91,6 +91,7 @@ function ResizableCard({
 }: ResizableCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
 
   const defaultSpan =
@@ -102,6 +103,15 @@ function ResizableCard({
       : 6);
 
   const currentSpan = previewSpan || defaultSpan;
+
+  // Animated delete for this specific card
+  const handleDeleteCard = () => {
+    if (!onDelete) return;
+    setIsDeleting(true);
+    setTimeout(() => {
+      onDelete();
+    }, 260);
+  };
 
   // Mouse drag-to-resize handle for this individual card
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -162,7 +172,11 @@ function ResizableCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative ${spanClass} transition-all duration-300 ease-interface`}
+      className={`group relative ${spanClass} transition-all duration-300 ease-interface ${
+        isDeleting
+          ? "pointer-events-none -translate-y-3 scale-90 opacity-0 max-h-0 overflow-hidden py-0 my-0 border-transparent"
+          : "scale-100 opacity-100 animate-[scale-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+      }`}
     >
       {/* Live Mouse Resizing Indicator Badge */}
       {isResizing && (
@@ -196,7 +210,7 @@ function ResizableCard({
           <button
             type="button"
             onClick={cycleSpan}
-            className="rounded-full border border-border/80 bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-muted hover:border-primary hover:text-primary shadow-xs transition-colors"
+            className="rounded-full border border-border/80 bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-muted hover:border-primary hover:text-primary shadow-xs transition-transform active:scale-95"
             title="کلیک برای تغییر مرحله‌ای اندازه کارت (یا کشیدن لبه با ماوس)"
           >
             {getSpanLabel(currentSpan).split(" ")[0]}
@@ -204,13 +218,17 @@ function ResizableCard({
         </div>
       )}
 
-      {/* The Actual Widget Card */}
-      <div className={`h-full ${isResizing ? "ring-2 ring-primary/50 shadow-md" : ""}`}>
+      {/* The Actual Widget Card with subtle lift animation on hover */}
+      <div
+        className={`h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-action ${
+          isResizing ? "ring-2 ring-primary/50 shadow-md" : ""
+        }`}
+      >
         <WidgetRenderer
           widget={widget}
           readOnly={readOnly}
           onEdit={onEdit}
-          onDelete={onDelete}
+          onDelete={onDelete ? handleDeleteCard : undefined}
         />
       </div>
     </div>
@@ -236,7 +254,21 @@ export function SectionRenderer({
 
   // Animation states
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [hasMoved, setHasMoved] = useState(false);
+
+  const prevIndexRef = useRef(index);
+
+  // Trigger brief highlight pulse animation when section moves to a new position
+  useEffect(() => {
+    if (prevIndexRef.current !== index) {
+      prevIndexRef.current = index;
+      setHasMoved(true);
+      const timer = setTimeout(() => setHasMoved(false), 900);
+      return () => clearTimeout(timer);
+    }
+  }, [index]);
 
   // Animated delete
   const handleDelete = () => {
@@ -250,8 +282,14 @@ export function SectionRenderer({
   // Drag and Drop reordering of whole sections
   const handleDragStart = (e: React.DragEvent) => {
     if (readOnly) return;
+    setIsDragging(true);
     e.dataTransfer.setData("text/plain", String(index));
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setIsDraggingOver(false);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -268,6 +306,7 @@ export function SectionRenderer({
   const handleDrop = (e: React.DragEvent) => {
     if (readOnly) return;
     e.preventDefault();
+    setIsDragging(false);
     setIsDraggingOver(false);
     const sourceIndex = Number(e.dataTransfer.getData("text/plain"));
     if (!Number.isNaN(sourceIndex) && sourceIndex !== index && onReorder) {
@@ -282,13 +321,17 @@ export function SectionRenderer({
       onDrop={handleDrop}
       className={`group relative rounded-panel border bg-canvas/60 p-5 backdrop-blur-sm transition-all duration-300 ease-interface ${
         isDeleting
-          ? "pointer-events-none -translate-y-3 scale-95 border-transparent opacity-0 max-h-0 overflow-hidden py-0 my-0"
-          : "scale-100 opacity-100 max-h-[4000px] border-border/80"
+          ? "pointer-events-none -translate-y-4 scale-95 border-transparent opacity-0 max-h-0 overflow-hidden py-0 my-0"
+          : "scale-100 opacity-100 max-h-[4000px] border-border/80 animate-[slide-down_280ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+      } ${
+        isDragging
+          ? "opacity-40 scale-[0.98] border-dashed border-primary/70 rotate-[-0.5deg] shadow-xs"
+          : ""
       } ${
         isDraggingOver
-          ? "border-primary bg-primary-soft/30 ring-2 ring-primary ring-offset-2 scale-[1.01]"
+          ? "border-primary bg-primary-soft/40 ring-2 ring-primary ring-offset-4 shadow-action scale-[1.01]"
           : "hover:border-border"
-      }`}
+      } ${hasMoved ? "animate-[highlight-pulse_900ms_ease-out_both]" : ""}`}
     >
       {/* Section Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -299,7 +342,8 @@ export function SectionRenderer({
             <div
               draggable
               onDragStart={handleDragStart}
-              className="cursor-grab active:cursor-grabbing rounded-control p-1 text-muted hover:bg-surface hover:text-primary transition-colors"
+              onDragEnd={handleDragEnd}
+              className="cursor-grab active:cursor-grabbing rounded-control p-1 text-muted hover:bg-surface hover:text-primary active:scale-95 transition-all"
               title="برای جابه‌جایی کل سکشن، این آیکون را با ماوس بگیرید و بکشید"
             >
               <DotsSixVerticalIcon size={20} />
@@ -350,13 +394,13 @@ export function SectionRenderer({
               </div>
             )}
 
-            {/* Move Up / Down 1-step shortcuts */}
+            {/* Move Up / Down 1-step shortcuts with click bounce animation */}
             {onMoveUp && (
               <button
                 type="button"
                 onClick={onMoveUp}
                 disabled={index === 0}
-                className="rounded-control border border-border p-1.5 text-muted hover:bg-surface hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                className="rounded-control border border-border p-1.5 text-muted hover:bg-surface hover:text-foreground active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all"
                 title="انتقال یک ردیف به بالا"
               >
                 <ArrowUpIcon size={16} />
@@ -368,7 +412,7 @@ export function SectionRenderer({
                 type="button"
                 onClick={onMoveDown}
                 disabled={index === totalSections - 1}
-                className="rounded-control border border-border p-1.5 text-muted hover:bg-surface hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                className="rounded-control border border-border p-1.5 text-muted hover:bg-surface hover:text-foreground active:scale-90 disabled:opacity-30 disabled:pointer-events-none transition-all"
                 title="انتقال یک ردیف به پایین"
               >
                 <ArrowDownIcon size={16} />
@@ -377,7 +421,11 @@ export function SectionRenderer({
 
             {/* Add Widget */}
             {onAddWidget && (
-              <Button variant="soft" onClick={onAddWidget} className="gap-1.5 py-1 px-2.5 text-xs">
+              <Button
+                variant="soft"
+                onClick={onAddWidget}
+                className="gap-1.5 py-1 px-2.5 text-xs active:scale-95 transition-transform"
+              >
                 <PlusIcon size={16} />
                 افزودن ویجت
               </Button>
@@ -388,7 +436,7 @@ export function SectionRenderer({
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-control border border-border p-1.5 text-muted hover:border-danger/30 hover:bg-danger-soft hover:text-danger transition-colors"
+                className="rounded-control border border-border p-1.5 text-muted hover:border-danger/30 hover:bg-danger-soft hover:text-danger active:scale-90 transition-all"
                 title="حذف سکشن"
               >
                 <TrashIcon size={16} />
@@ -417,10 +465,14 @@ export function SectionRenderer({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-control border border-dashed border-border py-12 text-center transition-all">
+        <div className="flex flex-col items-center justify-center rounded-control border border-dashed border-border py-12 text-center transition-all animate-[fade-in_200ms_ease-out]">
           <p className="text-sm text-muted">این بخش هنوز هیچ ویجتی ندارد</p>
           {!readOnly && onAddWidget && (
-            <Button variant="ghost" onClick={onAddWidget} className="mt-3 gap-1 py-1 px-2.5 text-xs">
+            <Button
+              variant="ghost"
+              onClick={onAddWidget}
+              className="mt-3 gap-1 py-1 px-2.5 text-xs active:scale-95 transition-transform"
+            >
               <PlusIcon size={16} />
               افزودن اولین ویجت
             </Button>

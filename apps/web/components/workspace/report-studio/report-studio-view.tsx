@@ -35,7 +35,7 @@ export function ReportStudioView() {
 
   if (!workspace.company) return <NoCompany />;
 
-  const { spec, preview, busy, error } = studio;
+  const { spec, preview, busy, error, previewLoading } = studio;
 
   function openAddWidget(sectionId: string) {
     setTargetSectionId(sectionId);
@@ -174,8 +174,8 @@ export function ReportStudioView() {
         </Panel>
 
         {studio.aiMessage && (
-          <div className="flex items-center gap-2 rounded-panel border border-primary/20 bg-soft-accent/60 p-3 text-xs text-primary">
-            <SparkleIcon size={18} />
+          <div className="flex items-center gap-2 rounded-panel border border-primary/20 bg-soft-accent/60 p-3 text-xs text-primary animate-[slide-down_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
+            <SparkleIcon size={18} className="animate-pulse" />
             <span>{studio.aiMessage}</span>
           </div>
         )}
@@ -196,6 +196,11 @@ export function ReportStudioView() {
 
       {/* Sections Canvas */}
       <div className="space-y-6">
+        {previewLoading && (
+          <div className="relative h-1 w-full overflow-hidden rounded-full bg-primary-soft">
+            <div className="absolute inset-0 bg-primary animate-pulse" />
+          </div>
+        )}
         {preview && preview.sections.length > 0 ? (
           preview.sections.map((section, idx) => (
             <SectionRenderer
@@ -217,7 +222,7 @@ export function ReportStudioView() {
             />
           ))
         ) : (
-          <div className="flex flex-col items-center justify-center rounded-panel border border-dashed border-border bg-surface/50 py-16 text-center">
+          <div className="flex flex-col items-center justify-center rounded-panel border border-dashed border-border bg-surface/50 py-16 text-center animate-[scale-in_280ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
             <ChartBarIcon size={48} className="text-muted/60" />
             <h3 className="mt-4 font-heading text-base font-medium text-foreground">
               هنوز هیچ بخشی در این گزارش تعریف نشده است

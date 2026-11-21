@@ -91,7 +91,7 @@ export function WidgetRenderer({
               <button
                 type="button"
                 onClick={onEdit}
-                className="rounded-control p-1 text-muted transition-colors hover:bg-neutral-soft hover:text-foreground"
+                className="rounded-control p-1 text-muted transition-all active:scale-90 hover:bg-neutral-soft hover:text-foreground"
                 title="ویرایش ویجت"
               >
                 <PencilSimpleIcon size={16} />
@@ -101,7 +101,7 @@ export function WidgetRenderer({
               <button
                 type="button"
                 onClick={onDelete}
-                className="rounded-control p-1 text-muted transition-colors hover:bg-rose-soft hover:text-rose"
+                className="rounded-control p-1 text-muted transition-all active:scale-90 hover:bg-rose-soft hover:text-rose"
                 title="حذف ویجت"
               >
                 <TrashIcon size={16} />
@@ -139,7 +139,7 @@ function KpiCardContent({ data }: { data: KpiData | null }) {
   return (
     <div className="flex h-full flex-col justify-between py-2">
       <div className="flex items-baseline gap-2">
-        <span className="font-heading text-3xl font-medium tracking-tight text-foreground">
+        <span className="font-heading text-3xl font-medium tracking-tight text-foreground animate-[value-change_280ms_cubic-bezier(0.2,0.7,0.2,1)]">
           {data.formatted_value || "۰"}
         </span>
         <span className="text-xs font-medium text-muted">{data.unit || "ریال"}</span>
@@ -350,7 +350,7 @@ function AiSummaryContent({ data }: { data: AiData | null }) {
   if (!data) return null;
 
   return (
-    <div className="flex flex-col justify-between space-y-4 rounded-control bg-soft-accent/40 p-4 border border-primary/20">
+    <div className="flex flex-col justify-between space-y-4 rounded-control bg-soft-accent/40 p-4 border border-primary/20 animate-[fade-in_200ms_ease-out]">
       <p className="text-sm leading-relaxed text-foreground">{data.insight}</p>
       {Array.isArray(data.highlights) && data.highlights.length > 0 && (
         <ul className="space-y-2 border-t border-primary/10 pt-3">

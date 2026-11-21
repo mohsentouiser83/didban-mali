@@ -41,6 +41,9 @@
   --animate-dialog-in: dialog-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
   --animate-fade-in: fade-in 200ms ease-out;
   --animate-value-change: value-change 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-scale-in: scale-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-slide-down: slide-down 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-highlight-pulse: highlight-pulse 900ms ease-out both;
 }
 @keyframes page-reveal {
   from {
@@ -78,6 +81,48 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlight-pulse {
+  0% {
+    box-shadow: 0 0 0 4px rgba(85, 86, 222, 0.4);
+    background-color: rgba(238, 237, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

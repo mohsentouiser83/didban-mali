@@ -63,7 +63,7 @@ export function AiPromptDialog({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="مثلاً: یک داشبورد کامل فروش فصلی با روند ماهانه، بدهکاران عمده و فاکتورهای معوق بساز"
-            className="h-28 w-full rounded-control border border-border bg-surface p-3 text-sm text-foreground focus:border-primary focus:outline-none"
+            className="h-28 w-full rounded-control border border-border bg-surface p-3 text-sm text-foreground transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
             dir="rtl"
           />
         </Field>
@@ -76,7 +76,7 @@ export function AiPromptDialog({
                 key={idx}
                 type="button"
                 onClick={() => setPrompt(sample)}
-                className="rounded-control border border-border/80 bg-neutral-soft/50 px-2.5 py-1 text-right text-xs text-secondary transition-colors hover:border-primary/40 hover:bg-soft-accent hover:text-primary"
+                className="rounded-control border border-border/80 bg-neutral-soft/50 px-2.5 py-1 text-right text-xs text-secondary transition-all hover:scale-101 hover:border-primary/40 hover:bg-soft-accent hover:text-primary active:scale-95"
               >
                 {sample}
               </button>
