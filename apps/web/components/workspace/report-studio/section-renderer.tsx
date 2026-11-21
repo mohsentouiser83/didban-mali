@@ -92,6 +92,8 @@ function ResizableCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSettling, setIsSettling] = useState(false);
+  const [dragDelta, setDragDelta] = useState(0);
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
 
   const defaultSpan =
@@ -120,6 +122,7 @@ function ResizableCard({
     e.stopPropagation();
 
     setIsResizing(true);
+    setDragDelta(0);
     const startX = e.clientX;
     const cardRect = cardRef.current?.getBoundingClientRect();
     const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
@@ -129,6 +132,7 @@ function ResizableCard({
     const onMouseMove = (moveEvent: MouseEvent) => {
       // In RTL layout, dragging to the left increases the card width
       const deltaX = startX - moveEvent.clientX;
+      setDragDelta(deltaX);
       const targetWidth = Math.max(140, initialWidth + deltaX);
       const ratio = targetWidth / containerWidth;
 
@@ -147,12 +151,15 @@ function ResizableCard({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       setIsResizing(false);
+      setDragDelta(0);
       setPreviewSpan((finalSpan) => {
         if (finalSpan && finalSpan !== defaultSpan) {
           onResize(finalSpan);
         }
         return null;
       });
+      setIsSettling(true);
+      setTimeout(() => setIsSettling(false), 450);
     };
 
     window.addEventListener("mousemove", onMouseMove);
@@ -175,15 +182,85 @@ function ResizableCard({
       className={`group relative ${spanClass} transition-all duration-300 ease-interface ${
         isDeleting
           ? "pointer-events-none -translate-y-3 scale-90 opacity-0 max-h-0 overflow-hidden py-0 my-0 border-transparent"
+          : isSettling
+          ? "scale-[1.01] animate-[highlight-pulse_450ms_ease-out_both]"
           : "scale-100 opacity-100 animate-[scale-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
       }`}
     >
-      {/* Live Mouse Resizing Indicator Badge */}
+      {/* Live Animated Floating Resizing Indicator Badge */}
       {isResizing && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-white shadow-lg animate-pulse">
-          <ArrowsLeftRightIcon size={14} />
-          <span>عرض کارت: {getSpanLabel(currentSpan)}</span>
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute -top-4.5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-primary via-primary-hover to-primary px-3.5 py-1 text-xs font-medium text-white shadow-[0_8px_24px_rgba(85,86,222,0.5)] ring-2 ring-white/40 backdrop-blur-md animate-[badge-float_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+        >
+          {/* Animated Glowing Dot Indicator */}
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+          </span>
+
+          <ArrowsLeftRightIcon size={14} className="animate-pulse shrink-0" />
+
+          {/* Span label with animated pop on step change */}
+          <span
+            key={currentSpan}
+            className="animate-[value-change_200ms_cubic-bezier(0.2,0.7,0.2,1)] font-sans"
+          >
+            عرض زنده: {getSpanLabel(currentSpan)}
+          </span>
+
+          {/* Real-time dragging feedback direction badge */}
+          {dragDelta > 15 && (
+            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold text-white animate-[scale-in_150ms_ease-out]">
+              گسترش ◀
+            </span>
+          )}
+          {dragDelta < -15 && (
+            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold text-white animate-[scale-in_150ms_ease-out]">
+              ▶ کوچک‌تر
+            </span>
+          )}
         </div>
+      )}
+
+      {/* Animated Ghost Preview Overlay showing prospective dimensions */}
+      {isResizing && (
+        <div className="absolute -inset-1 rounded-panel border-2 border-dashed border-primary bg-primary-soft/30 z-30 pointer-events-none animate-[ghost-pulse_1.8s_ease-in-out_infinite] transition-all">
+          {/* 12-Column Segmented Visual Meter */}
+          <div className="absolute inset-x-3 bottom-2 flex flex-col gap-1 rounded-control bg-surface/95 p-2 shadow-action backdrop-blur-md border border-primary/25 pointer-events-none animate-[scale-in_200ms_cubic-bezier(0.2,0.7,0.2,1)]">
+            <div className="flex items-center justify-between text-[11px] font-medium text-foreground">
+              <span className="flex items-center gap-1.5 text-primary font-bold">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                </span>
+                پیش‌نمایش اندازه جدید:
+              </span>
+              <span className="text-primary font-bold font-sans">
+                {getSpanLabel(currentSpan)}
+              </span>
+            </div>
+            {/* 12-Segment Grid Meter Bar */}
+            <div className="grid grid-cols-12 gap-1 h-2 w-full pt-0.5">
+              {Array.from({ length: 12 }, (_, i) => (
+                <div
+                  key={i}
+                  className={`h-full rounded-xs transition-all duration-200 ${
+                    i < currentSpan
+                      ? "bg-primary shadow-[0_0_8px_rgba(85,86,222,0.7)] scale-y-110"
+                      : "bg-border/60"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Animated Vertical Drag Guide Line */}
+      {isResizing && (
+        <div className="absolute -top-3 -bottom-3 left-0 w-0.5 bg-primary shadow-[0_0_10px_rgba(85,86,222,0.9)] pointer-events-none z-40 animate-pulse" />
       )}
 
       {/* Mouse Drag-to-Resize Handle on the Left Edge of the Card */}
@@ -193,14 +270,23 @@ function ResizableCard({
           tabIndex={0}
           aria-label="تغییر عرض کارت با ماوس"
           onMouseDown={handleMouseDown}
-          className={`absolute top-2 bottom-2 left-0 z-20 w-3 cursor-ew-resize flex items-center justify-center rounded-l-panel transition-all ${
+          className={`absolute top-2 bottom-2 left-0 z-40 w-4 cursor-ew-resize flex items-center justify-center rounded-l-panel transition-all select-none ${
             isResizing
-              ? "bg-primary/40 text-primary opacity-100"
+              ? "opacity-100"
               : "opacity-0 group-hover:opacity-100 hover:bg-primary/20 text-muted/60 hover:text-primary"
           }`}
           title="برای تغییر عرض این کارت، با ماوس به چپ یا راست بکشید"
         >
-          <div className="h-8 w-1 rounded-full bg-border group-hover:bg-primary transition-colors" />
+          {isResizing ? (
+            <div className="relative flex flex-col items-center justify-center">
+              <div className="h-12 w-2 rounded-full bg-primary shadow-[0_0_16px_rgba(85,86,222,0.9)] animate-[handle-glow_1.2s_ease-in-out_infinite]" />
+              <div className="absolute -left-3.5 flex items-center text-[10px] text-primary font-bold drop-shadow-xs">
+                ◀▶
+              </div>
+            </div>
+          ) : (
+            <div className="h-8 w-1 rounded-full bg-border group-hover:bg-primary group-hover:scale-y-125 transition-all" />
+          )}
         </div>
       )}
 
@@ -221,7 +307,7 @@ function ResizableCard({
       {/* The Actual Widget Card with subtle lift animation on hover */}
       <div
         className={`h-full transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-action ${
-          isResizing ? "ring-2 ring-primary/50 shadow-md" : ""
+          isResizing ? "ring-2 ring-primary/60 shadow-lg scale-[0.995]" : ""
         }`}
       >
         <WidgetRenderer
