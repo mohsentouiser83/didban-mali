@@ -8,7 +8,6 @@ import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
-import { Tabs } from "@/components/ui/tabs";
 import { useInventoryOverview } from "@/hooks/use-inventory";
 import { useWorkspace } from "@/hooks/workspace";
 import { inventoryInvoicePath, inventoryTitle, type InventoryOperation } from "@/lib/inventory";
@@ -28,7 +27,6 @@ export function InventoryView() {
 
 function InventoryWorkspace() {
   const view = useInventoryOverview();
-  const [stockTab, setStockTab] = useState<"balance" | "movements">("balance");
   const [editor, setEditor] = useState<{ kind: InventoryOperation; open: boolean; generation: number }>();
   const openDraft = (kind: InventoryOperation) =>
     setEditor((previous) => ({ kind, open: true, generation: (previous?.generation ?? 0) + 1 }));
@@ -142,21 +140,10 @@ function InventoryWorkspace() {
               <FormMessage error>{view.posting.error?.message}</FormMessage>
             </Panel>
           )}
-          <div className="mb-2">
-            <Tabs
-              value={stockTab}
-              onChange={setStockTab}
-              items={[
-                { id: "balance", label: "موجودی ثبت‌شده کالا", icon: PackageIcon },
-                { id: "movements", label: "گردش نهایی کالا", icon: StorefrontIcon },
-              ]}
-            />
-          </div>
-          {stockTab === "balance" ? (
+          <div className="space-y-6">
             <InventoryBalanceTable view={view} />
-          ) : (
             <InventoryMovementTable view={view} />
-          )}
+          </div>
           {editor && (
             <InventoryDraftDrawer
               key={editor.generation}

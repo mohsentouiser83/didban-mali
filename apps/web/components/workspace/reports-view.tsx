@@ -1,10 +1,8 @@
 "use client";
 import {
-  BookmarkSimpleIcon,
   ChartLineUpIcon as HeaderIcon,
   ChartLineUpIcon,
   DownloadSimpleIcon,
-  FilesIcon,
   PlusIcon,
   ShieldCheckIcon,
 } from "@phosphor-icons/react";
@@ -24,7 +22,6 @@ import {
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
-import { Tabs } from "@/components/ui/tabs";
 import { useCommand } from "@/hooks/use-command";
 import { usePagedResource } from "@/hooks/use-paged-resource";
 import { useReportBuilder } from "@/hooks/use-report-builder";
@@ -33,6 +30,7 @@ import { listItems, type Report } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { ReportBuilderSaved } from "./report-builder-saved";
 
 export function ReportsView() {
   const workspace = useWorkspace();
@@ -40,7 +38,6 @@ export function ReportsView() {
   const builder = useReportBuilder();
   const command = useCommand();
   const [approving, setApproving] = useState<Report | null>(null);
-  const [tab, setTab] = useState<"system" | "definitions" | "runs">("system");
 
   if (!workspace.company) return <NoCompany />;
 
@@ -57,19 +54,7 @@ export function ReportsView() {
         }
       />
 
-      <div className="mb-4">
-        <Tabs
-          value={tab}
-          onChange={setTab}
-          items={[
-            { id: "system", label: "صورت‌های مالی سیستم", icon: FilesIcon },
-            { id: "definitions", label: "قالب‌های ذخیره‌شده گزارش‌ساز", icon: ChartLineUpIcon },
-            { id: "runs", label: "اجراهای ثابت ذخیره‌شده", icon: BookmarkSimpleIcon },
-          ]}
-        />
-      </div>
-
-      {tab === "system" && (
+      <div className="space-y-6">
         <Panel title="صورت‌های مالی و گزارش‌های رسمی">
           {resource.loading ? (
             <LoadingState />
@@ -155,128 +140,9 @@ export function ReportsView() {
             </>
           )}
         </Panel>
-      )}
 
-      {tab === "definitions" && (
-        <Panel
-          title="قالب‌های گزارش ذخیره‌شده"
-          action={
-            <ButtonLink href="/reports/studio" variant="secondary" className="gap-1.5">
-              <PlusIcon size={16} />
-              طراحی قالب جدید
-            </ButtonLink>
-          }
-        >
-          {builder.definitions.loading ? (
-            <LoadingState label="دریافت گزارش‌های ذخیره‌شده" />
-          ) : builder.definitions.error ? (
-            <ErrorState
-              message={builder.definitions.error.message}
-              onRetry={builder.definitions.refresh}
-            />
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>عنوان قالب گزارش</TableHead>
-                    <TableHead>نسخه</TableHead>
-                    <TableHead>عملیات</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {listItems(builder.definitions.data).length ? (
-                    listItems(builder.definitions.data).map((item) => (
-                      <TableRow key={item.id}>
-                        <TableRowHeader>{item.name}</TableRowHeader>
-                        <TableCell>{persian(item.version)}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <ButtonLink
-                              href="/reports/studio"
-                              variant="ghost"
-                            >
-                              باز کردن در گزارش جدید
-                            </ButtonLink>
-                            {workspace.canWrite && (
-                              <Button
-                                variant="soft"
-                                disabled={builder.command.busy}
-                                onClick={() => builder.rerun(item)}
-                              >
-                                اجرای دوباره
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableEmptyCell
-                      colSpan={3}
-                      title="قالب گزارش ذخیره‌شده‌ای موجود نیست"
-                      action={
-                        <ButtonLink href="/reports/studio">
-                          ایجاد اولین گزارش جدید
-                        </ButtonLink>
-                      }
-                    />
-                  )}
-                </TableBody>
-              </Table>
-              <CursorPagination {...builder.definitions} />
-            </>
-          )}
-        </Panel>
-      )}
-
-      {tab === "runs" && (
-        <Panel title="اجراهای ثابت و ثبت‌شده گزارش">
-          {builder.runs.loading ? (
-            <LoadingState label="دریافت اجراهای گزارش" />
-          ) : builder.runs.error ? (
-            <ErrorState
-              message={builder.runs.error.message}
-              onRetry={builder.runs.refresh}
-            />
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>عنوان گزارش</TableHead>
-                    <TableHead>تاریخ اجرا</TableHead>
-                    <TableHead>تعداد ردیف‌ها</TableHead>
-                    <TableHead>مشاهده</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {listItems(builder.runs.data).length ? (
-                    listItems(builder.runs.data).map((item) => (
-                      <TableRow key={item.id}>
-                        <TableRowHeader>{item.title}</TableRowHeader>
-                        <TableCell>{displayDate(item.created_at)}</TableCell>
-                        <TableCell>{persian(item.row_count || 0)}</TableCell>
-                        <TableCell>
-                          <ButtonLink
-                            href="/reports/studio"
-                            variant="ghost"
-                          >
-                            مشاهده در استودیو گزارش
-                          </ButtonLink>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableEmptyCell colSpan={4} title="اجرای ذخیره‌شده‌ای موجود نیست" />
-                  )}
-                </TableBody>
-              </Table>
-              <CursorPagination {...builder.runs} />
-            </>
-          )}
-        </Panel>
-      )}
+        <ReportBuilderSaved controller={builder} />
+      </div>
 
       <ConfirmDialog
         title="تأیید مالی این نسخه؟"

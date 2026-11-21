@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Pagination, CursorPagination } from "@/components/ui/pagination";
 import { StatCards } from "@/components/ui/financial/stat-cards";
-import { Tabs } from "@/components/ui/tabs";
+import { Drawer } from "@/components/ui/drawer";
 import {
   Table,
   TableHeader,
@@ -46,7 +46,7 @@ export function NativeInvoicesView({
   operationId?: string;
 }) {
   const view = useNativeInvoices(direction, followups, operationId);
-  const [tab, setTab] = useState<"invoices" | "snapshots">("invoices");
+  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -58,6 +58,12 @@ export function NativeInvoicesView({
           />
         </Field>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => setSnapshotsOpen(true)}
+          >
+            نسخه‌های ثابت فاکتورها
+          </Button>
           {view.preferredInvoice && (
             <Button
               variant="secondary"
@@ -134,32 +140,15 @@ export function NativeInvoicesView({
           {view.ledger.error && (
             <StatusMessage>{view.ledger.error.message}</StatusMessage>
           )}
-          <div className="mt-5 mb-3">
-            <Tabs
-              value={tab}
-              onChange={setTab}
-              items={[
-                {
-                  id: "invoices",
-                  label:
-                    direction === "sale"
-                      ? "فاکتورهای فروش دفتر دیدبان"
-                      : "فاکتورهای خرید دفتر دیدبان",
-                },
-                { id: "snapshots", label: "نسخه‌های ثابت فاکتورها" },
-              ]}
-            />
-          </div>
-          {tab === "invoices" ? (
-            <Panel
-              title={
-                direction === "sale"
-                  ? "فاکتورهای فروش دفتر دیدبان"
-                  : "فاکتورهای خرید دفتر دیدبان"
-              }
-              className="mt-3"
-            >
-              <Field id="native-invoice-query" label="فاکتور یا طرف حساب">
+          <Panel
+            title={
+              direction === "sale"
+                ? "فاکتورهای فروش دفتر دیدبان"
+                : "فاکتورهای خرید دفتر دیدبان"
+            }
+            className="mt-5"
+          >
+            <Field id="native-invoice-query" label="فاکتور یا طرف حساب">
                 <Input
                   id="native-invoice-query"
                   value={view.query}
@@ -273,83 +262,91 @@ export function NativeInvoicesView({
                 onNext={view.next}
               />
             </Panel>
-          ) : (
-            <Panel
-              title="نسخه‌های ثابت فاکتورها"
-              className="mt-3"
-              action={
-                view.workspace.canWrite && (
-                  <Button
-                    variant="secondary"
-                    onClick={view.saveSnapshot}
-                    busy={view.command.busy}
-                  >
-                    ذخیرهٔ نسخه تا تاریخ انتخابی
-                  </Button>
-                )
-              }
-            >
-              {view.snapshots.loading ? (
-                <LoadingState label="در حال دریافت نسخه‌های ثابت" />
-              ) : view.snapshots.error ? (
-                <ErrorState
-                  message={view.snapshots.error.message}
-                  onRetry={view.snapshots.refresh}
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>تاریخ مبنا</TableHead>
-                      <TableHead>زمان ذخیره</TableHead>
-                      <TableHead>مبنا</TableHead>
-                      <TableHead>عملیات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {view.snapshots.data?.items.length ? (
-                      view.snapshots.data.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableRowHeader>
-                            {displayDate(item.payload.as_of)}
-                          </TableRowHeader>
-                          <TableCell>{displayDate(item.created_at)}</TableCell>
-                          <TableCell>
-                            <Badge>
-                              {item.payload.direction === "sale"
-                                ? "فروش خدمات"
-                                : item.payload.direction === "purchase"
-                                  ? "خرید خدمات"
-                                  : "فروش و خرید خدمات"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              onClick={() => view.selectSnapshot(item.id)}
-                            >
-                              مشاهدهٔ نسخه
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableEmptyCell colSpan={4} title="هنوز نسخه‌ای ذخیره نشده است" />
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-              <CursorPagination {...view.snapshots} />
-              <FormMessage error>
-                {!view.editor &&
-                  !view.allocation &&
-                  !view.sourceRevision &&
-                  view.command.error?.message}
-              </FormMessage>
-            </Panel>
-          )}
         </>
       )}
+
+      {/* Snapshots Drawer */}
+      <Drawer
+        title="نسخه‌های ثابت فاکتورها"
+        open={snapshotsOpen}
+        onOpenChange={setSnapshotsOpen}
+        className="sm:max-w-2xl"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted">نسخه‌های ذخیره‌شده تا مقاطع تاریخی مختلف</p>
+            {view.workspace.canWrite && (
+              <Button
+                variant="secondary"
+                onClick={view.saveSnapshot}
+                busy={view.command.busy}
+              >
+                ذخیرهٔ نسخه تا تاریخ انتخابی
+              </Button>
+            )}
+          </div>
+          {view.snapshots.loading ? (
+            <LoadingState label="در حال دریافت نسخه‌های ثابت" />
+          ) : view.snapshots.error ? (
+            <ErrorState
+              message={view.snapshots.error.message}
+              onRetry={view.snapshots.refresh}
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>تاریخ مبنا</TableHead>
+                  <TableHead>زمان ذخیره</TableHead>
+                  <TableHead>مبنا</TableHead>
+                  <TableHead>عملیات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {view.snapshots.data?.items.length ? (
+                  view.snapshots.data.items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableRowHeader>
+                        {displayDate(item.payload.as_of)}
+                      </TableRowHeader>
+                      <TableCell>{displayDate(item.created_at)}</TableCell>
+                      <TableCell>
+                        <Badge>
+                          {item.payload.direction === "sale"
+                            ? "فروش خدمات"
+                            : item.payload.direction === "purchase"
+                              ? "خرید خدمات"
+                              : "فروش و خرید خدمات"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            view.selectSnapshot(item.id);
+                            setSnapshotsOpen(false);
+                          }}
+                        >
+                          مشاهدهٔ نسخه
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableEmptyCell colSpan={4} title="هنوز نسخه‌ای ذخیره نشده است" />
+                )}
+              </TableBody>
+            </Table>
+          )}
+          <CursorPagination {...view.snapshots} />
+          <FormMessage error>
+            {!view.editor &&
+              !view.allocation &&
+              !view.sourceRevision &&
+              view.command.error?.message}
+          </FormMessage>
+        </div>
+      </Drawer>
       <NativeInvoiceDetail view={view} />
       <NativeInvoiceSourceDialog view={view} />
       <NativeInvoiceSnapshot view={view} />
