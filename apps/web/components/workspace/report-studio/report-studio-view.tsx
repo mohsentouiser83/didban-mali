@@ -145,25 +145,6 @@ export function ReportStudioView() {
                   ]}
                 />
               </div>
-
-              {/* Basis Selector */}
-              <div className="w-44">
-                <label className="mb-1 block text-xs font-medium text-muted">مبنای استخراج</label>
-                <Select
-                  value={spec.global_filters.basis}
-                  onValueChange={(val) =>
-                    studio.updateGlobalFilters({
-                      basis: val as "all" | "ledger" | "invoice" | "bank",
-                    })
-                  }
-                  options={[
-                    { value: "all", label: "تمام منابع مالی" },
-                    { value: "ledger", label: "فقط اسناد دفتری" },
-                    { value: "invoice", label: "فقط فاکتورها" },
-                    { value: "bank", label: "فقط بانک و چک" },
-                  ]}
-                />
-              </div>
             </div>
 
             {/* Saved Templates Quick Bar */}
@@ -216,11 +197,15 @@ export function ReportStudioView() {
       {/* Sections Canvas */}
       <div className="space-y-6">
         {preview && preview.sections.length > 0 ? (
-          preview.sections.map((section) => (
+          preview.sections.map((section, idx) => (
             <SectionRenderer
               key={section.id}
               section={section}
+              index={idx}
+              totalSections={preview.sections.length}
               onUpdateLayout={(layout) => studio.updateSection(section.id, { layout })}
+              onUpdateBasis={(basis) => studio.updateSection(section.id, { basis })}
+              onReorder={(targetIdx) => studio.reorderSection(section.id, targetIdx)}
               onMoveUp={() => studio.moveSection(section.id, "up")}
               onMoveDown={() => studio.moveSection(section.id, "down")}
               onDeleteSection={() => studio.removeSection(section.id)}

@@ -70,6 +70,7 @@ class StudioSectionSpec(InputModel):
     title: str = Field(default="", max_length=120)
     description: str | None = Field(default=None, max_length=300)
     layout: LAYOUT_TYPES = "grid-2"
+    basis: Literal["all", "ledger", "invoice", "bank", "cheques", "payroll", "inventory"] = "all"
     widgets: list[StudioWidgetSpec] = Field(default_factory=list, max_length=12)
 
 

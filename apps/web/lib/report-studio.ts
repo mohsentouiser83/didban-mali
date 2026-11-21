@@ -53,11 +53,21 @@ export interface StudioWidgetSpec {
   color?: string;
 }
 
+export type StudioBasisType =
+  | "all"
+  | "ledger"
+  | "invoice"
+  | "bank"
+  | "cheques"
+  | "payroll"
+  | "inventory";
+
 export interface StudioSectionSpec {
   id: string;
   title: string;
   description?: string | null;
   layout: StudioLayoutType;
+  basis?: StudioBasisType;
   widgets: StudioWidgetSpec[];
 }
 
@@ -77,6 +87,7 @@ export interface RenderedSection {
   title: string;
   description?: string | null;
   layout: StudioLayoutType;
+  basis?: StudioBasisType;
   widgets: RenderedWidget[];
 }
 
@@ -128,6 +139,16 @@ export const LAYOUT_OPTIONS: { value: StudioLayoutType; label: string }[] = [
   { value: "grid-4", label: "چهار ستونه (کارت‌های شاخص)" },
   { value: "split-2-1", label: "دو سوم و یک سوم (۶۶٪ - ۳۳٪)" },
   { value: "split-1-2", label: "یک سوم و دو سوم (۳۳٪ - ۶۶٪)" },
+];
+
+export const BASIS_OPTIONS: { value: StudioBasisType; label: string }[] = [
+  { value: "all", label: "تمام منابع مالی" },
+  { value: "ledger", label: "فقط اسناد دفتری" },
+  { value: "invoice", label: "فقط فاکتورها" },
+  { value: "bank", label: "فقط بانک و چک" },
+  { value: "cheques", label: "چک‌های صیادی" },
+  { value: "payroll", label: "حقوق و دستمزد" },
+  { value: "inventory", label: "انبار و کالا" },
 ];
 
 export function createDefaultStudioSpec(periodId: string, unit: "IRR" | "TOMAN" = "IRR"): StudioLayoutSpec {

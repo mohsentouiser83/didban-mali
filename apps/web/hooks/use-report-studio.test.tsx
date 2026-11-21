@@ -120,6 +120,26 @@ it("allows adding, updating, and removing sections", async () => {
   expect(result.current.spec.sections.some((s) => s.id === lastSection.id)).toBe(false);
 });
 
+it("supports reordering sections by target index and setting basis per section", async () => {
+  const { result } = renderHook(() => useReportStudio());
+
+  act(() => {
+    result.current.addSection("grid-2", "bank");
+    result.current.addSection("grid-1", "payroll");
+  });
+
+  const secCount = result.current.spec.sections.length;
+  const targetId = result.current.spec.sections[secCount - 1].id;
+
+  // Move the last section to position 0 (order 1)
+  act(() => {
+    result.current.reorderSection(targetId, 0);
+  });
+
+  expect(result.current.spec.sections[0].id).toBe(targetId);
+  expect(result.current.spec.sections[0].basis).toBe("payroll");
+});
+
 it("handles AI prompt interpretation", async () => {
   const { result } = renderHook(() => useReportStudio());
 

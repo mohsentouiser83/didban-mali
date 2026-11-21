@@ -6,6 +6,7 @@ import { useCommand } from "./use-command";
 import { api } from "@/lib/api";
 import {
   createDefaultStudioSpec,
+  type StudioBasisType,
   type StudioDefinition,
   type StudioGlobalFilters,
   type StudioLayoutSpec,
@@ -142,15 +143,30 @@ export function useReportStudio() {
     });
   }
 
-  function addSection(layout: StudioLayoutType = "grid-2") {
+  function addSection(layout: StudioLayoutType = "grid-2", basis: StudioBasisType = "all") {
     const newSection: StudioSectionSpec = {
-      id: `sec-${Date.now()}`,
+      id: `sec-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       title: "سکشن جدید",
       layout,
+      basis,
       widgets: [],
     };
     setSpec((prev) => {
       const next = { ...prev, sections: [...prev.sections, newSection] };
+      fetchPreview(next);
+      return next;
+    });
+  }
+
+  function reorderSection(sectionId: string, targetIndex: number) {
+    setSpec((prev) => {
+      const currentIndex = prev.sections.findIndex((s) => s.id === sectionId);
+      if (currentIndex === -1 || targetIndex === currentIndex) return prev;
+      if (targetIndex < 0 || targetIndex >= prev.sections.length) return prev;
+      const newSections = [...prev.sections];
+      const [moved] = newSections.splice(currentIndex, 1);
+      newSections.splice(targetIndex, 0, moved);
+      const next = { ...prev, sections: newSections };
       fetchPreview(next);
       return next;
     });
@@ -321,6 +337,7 @@ export function useReportStudio() {
     removeSection,
     updateSection,
     moveSection,
+    reorderSection,
     addWidget,
     removeWidget,
     updateWidget,

@@ -543,6 +543,7 @@ def _evaluate_widget(
     global_filters: StudioGlobalFilters,
     invoices: list[dict],
     ledger_metrics: dict[str, Any],
+    section_basis: str = "all",
 ) -> dict:
     unit = widget.unit or global_filters.unit
     w_type = widget.type
@@ -939,6 +940,7 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
 
     rendered_sections = []
     for section in spec.sections:
+        sec_basis = getattr(section, "basis", "all")
         rendered_widgets = []
         for widget in section.widgets:
             data = _evaluate_widget(
@@ -949,6 +951,7 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
                 global_filters=spec.global_filters,
                 invoices=invoices,
                 ledger_metrics=ledger_metrics,
+                section_basis=sec_basis,
             )
             rendered_widgets.append(
                 {
@@ -970,6 +973,7 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
                 "title": section.title,
                 "description": section.description,
                 "layout": section.layout,
+                "basis": sec_basis,
                 "widgets": rendered_widgets,
             }
         )
