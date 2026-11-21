@@ -1,7 +1,6 @@
 "use client";
 import {
   ChartLineUpIcon as HeaderIcon,
-  ChartLineUpIcon,
   DownloadSimpleIcon,
   PlusIcon,
   ShieldCheckIcon,

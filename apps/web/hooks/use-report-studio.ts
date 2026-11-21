@@ -95,20 +95,22 @@ export function useReportStudio() {
       });
   }
 
+  // Synchronize spec with workspace.periodId if initial was default
+  const [prevPeriod, setPrevPeriod] = useState(workspace.periodId);
+  if (
+    workspace.periodId &&
+    workspace.periodId !== prevPeriod &&
+    (!spec.global_filters.period_id || spec.global_filters.period_id === "default-period")
+  ) {
+    setPrevPeriod(workspace.periodId);
+    setSpec((prev) => ({
+      ...prev,
+      global_filters: { ...prev.global_filters, period_id: workspace.periodId },
+    }));
+  }
+
   // Initial preview on load
   const periodId = spec.global_filters.period_id;
-  useEffect(() => {
-    if (workspace.periodId && (!spec.global_filters.period_id || spec.global_filters.period_id === "default-period")) {
-      setSpec((prev) => {
-        const next = {
-          ...prev,
-          global_filters: { ...prev.global_filters, period_id: workspace.periodId },
-        };
-        fetchPreview(next);
-        return next;
-      });
-    }
-  }, [workspace.periodId]);
 
   useEffect(() => {
     if (!companyId || !periodId) return;
@@ -285,19 +287,58 @@ export function useReportStudio() {
     );
   }
 
-  function saveTemplate(name: string) {
+  function saveTemplate(name: string, isDashboard?: boolean) {
     if (!name.trim() || !workspace.company) return;
-    void command.run<{ id: string; name: string }>(
+    void command.run<{ id: string; name: string; is_dashboard?: boolean }>(
       workspace.companyPath("report-studio/definitions"),
       {
         body: {
           name: name.trim(),
           spec,
+          is_dashboard: Boolean(isDashboard),
         },
       },
-      () => {
+      (res) => {
         loadDefinitions();
         setTemplateName("");
+        if (res && res.id) {
+          setSelectedDefinition({
+            id: res.id,
+            name: res.name,
+            version: 1,
+            is_dashboard: res.is_dashboard,
+            spec,
+          });
+        }
+      },
+    );
+  }
+
+  function setAsDashboard(definitionId?: string) {
+    const targetId = definitionId || selectedDefinition?.id;
+    if (!targetId || !workspace.company) return;
+    void command.run<{ id: string; name: string; is_dashboard: boolean }>(
+      workspace.companyPath(`report-studio/definitions/${targetId}/set-dashboard`),
+      { method: "POST" },
+      () => {
+        loadDefinitions();
+        setSelectedDefinition((prev) =>
+          prev ? { ...prev, is_dashboard: true } : prev,
+        );
+      },
+    );
+  }
+
+  function resetActiveDashboard() {
+    if (!workspace.company) return;
+    void command.run<{ has_custom_dashboard: boolean }>(
+      workspace.companyPath("report-studio/active-dashboard/reset"),
+      { method: "POST" },
+      () => {
+        loadDefinitions();
+        setSelectedDefinition((prev) =>
+          prev ? { ...prev, is_dashboard: false } : prev,
+        );
       },
     );
   }
@@ -344,6 +385,8 @@ export function useReportStudio() {
     fetchPreview,
     interpretPrompt,
     saveTemplate,
+    setAsDashboard,
+    resetActiveDashboard,
     loadTemplate,
     resetToDefault,
   };

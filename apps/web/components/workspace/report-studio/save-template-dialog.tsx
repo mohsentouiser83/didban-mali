@@ -1,27 +1,40 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 
 export function SaveTemplateDialog({
   open,
   onOpenChange,
   onSave,
   initialName = "",
+  defaultIsDashboard = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, isDashboard: boolean) => void;
   initialName?: string;
+  defaultIsDashboard?: boolean;
 }) {
   const [name, setName] = useState(initialName);
+  const [isDashboard, setIsDashboard] = useState(defaultIsDashboard);
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setName(initialName);
+      setIsDashboard(defaultIsDashboard);
+    }
+  }
 
   function handleSave() {
     if (!name.trim()) return;
-    onSave(name.trim());
+    onSave(name.trim(), isDashboard);
     onOpenChange(false);
   }
 
@@ -37,21 +50,37 @@ export function SaveTemplateDialog({
             انصراف
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={!name.trim()}>
-            ذخیره قالب
+            {isDashboard ? "ذخیره و تبدیل به داشبورد" : "ذخیره قالب"}
           </Button>
         </div>
       }
     >
-      <div className="py-2">
+      <div className="space-y-4 py-2">
         <Field id="template-name-input" label="نام قالب گزارش">
           <Input
             id="template-name-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="مثلاً: داشبورد هفتگی فروش و مطالبات"
+            placeholder="مثلاً: داشبورد جامع فروش و مطالبات"
             required
           />
         </Field>
+
+        <div className="flex items-center justify-between rounded-panel border border-border bg-canvas/60 p-3.5">
+          <div className="space-y-0.5">
+            <span className="text-sm font-medium text-foreground">
+              تنظیم به‌عنوان داشبورد اصلی شرکت
+            </span>
+            <p className="text-xs text-muted">
+              این گزارش بلافاصله در صفحه نخست (خلاصه مالی) شرکت نمایش داده خواهد شد.
+            </p>
+          </div>
+          <Switch
+            label="تنظیم به‌عنوان داشبورد اصلی"
+            checked={isDashboard}
+            onCheckedChange={setIsDashboard}
+          />
+        </div>
       </div>
     </Dialog>
   );

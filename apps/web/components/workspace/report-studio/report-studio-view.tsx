@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
@@ -9,11 +10,13 @@ import type { StudioWidgetSpec } from "@/lib/report-studio";
 import {
   ArrowClockwiseIcon,
   ChartBarIcon,
+  CheckCircleIcon,
   FilePdfIcon,
   FloppyDiskIcon,
   FolderOpenIcon,
   PlusIcon,
   SparkleIcon,
+  SquaresFourIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "../page-parts";
@@ -29,6 +32,7 @@ export function ReportStudioView() {
   // Modals state
   const [aiOpen, setAiOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [saveAsDashboard, setSaveAsDashboard] = useState(false);
   const [widgetModalOpen, setWidgetModalOpen] = useState(false);
   const [targetSectionId, setTargetSectionId] = useState<string | null>(null);
   const [editingWidget, setEditingWidget] = useState<StudioWidgetSpec | null>(null);
@@ -36,6 +40,15 @@ export function ReportStudioView() {
   if (!workspace.company) return <NoCompany />;
 
   const { spec, preview, busy, error, previewLoading } = studio;
+
+  function handleConvertToDashboard() {
+    if (studio.selectedDefinition) {
+      studio.setAsDashboard(studio.selectedDefinition.id);
+    } else {
+      setSaveAsDashboard(true);
+      setSaveOpen(true);
+    }
+  }
 
   function openAddWidget(sectionId: string) {
     setTargetSectionId(sectionId);
@@ -89,6 +102,23 @@ export function ReportStudioView() {
                 <FloppyDiskIcon size={18} />
                 ذخیره قالب
               </Button>
+
+              {studio.selectedDefinition?.is_dashboard ? (
+                <Badge tone="primary" className="gap-1.5 py-1.5 font-medium">
+                  <CheckCircleIcon size={16} />
+                  داشبورد فعال شرکت
+                </Badge>
+              ) : (
+                <Button
+                  variant="soft"
+                  onClick={handleConvertToDashboard}
+                  className="gap-1.5 border-primary/20 bg-primary/10 text-primary hover:bg-primary/15"
+                  title="تنظیم این گزارش به‌عنوان داشبورد اصلی شرکت در صفحه نخست"
+                >
+                  <SquaresFourIcon size={18} />
+                  تبدیل به داشبورد
+                </Button>
+              )}
 
               <Button
                 variant="soft"
@@ -254,9 +284,13 @@ export function ReportStudioView() {
 
       <SaveTemplateDialog
         open={saveOpen}
-        onOpenChange={setSaveOpen}
-        onSave={studio.saveTemplate}
-        initialName={spec.title}
+        onOpenChange={(open) => {
+          setSaveOpen(open);
+          if (!open) setSaveAsDashboard(false);
+        }}
+        onSave={(name, isDashboard) => studio.saveTemplate(name, isDashboard)}
+        initialName={studio.selectedDefinition?.name || spec.title}
+        defaultIsDashboard={saveAsDashboard}
       />
 
       <WidgetConfigDialog

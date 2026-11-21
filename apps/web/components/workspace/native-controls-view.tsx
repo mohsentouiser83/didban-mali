@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import { ChartLineUpIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, FormMessage } from "@/components/ui/field";

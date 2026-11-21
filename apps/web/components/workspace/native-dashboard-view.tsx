@@ -1,5 +1,5 @@
 "use client";
-import { SquaresFourIcon, WalletIcon } from "@phosphor-icons/react";
+import { ChartBarIcon, SquaresFourIcon, WalletIcon } from "@phosphor-icons/react";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,15 +22,25 @@ export function NativeDashboardView() {
         title="خلاصه مالی"
         icon={SquaresFourIcon}
         action={
-          c.data ? (
+          <div className="flex flex-wrap items-center gap-2">
             <ButtonLink
-              href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
-              variant="secondary"
-              download
+              href="/reports/studio"
+              variant="soft"
+              className="gap-1.5 text-xs text-primary"
             >
-              گزارش مبنا PDF
+              <ChartBarIcon size={16} />
+              طراحی داشبورد اختصاصی
             </ButtonLink>
-          ) : undefined
+            {c.data ? (
+              <ButtonLink
+                href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
+                variant="secondary"
+                download
+              >
+                گزارش مبنا PDF
+              </ButtonLink>
+            ) : undefined}
+          </div>
         }
       />
       {c.loading ? (

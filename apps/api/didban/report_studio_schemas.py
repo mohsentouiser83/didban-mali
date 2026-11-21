@@ -95,8 +95,10 @@ class StudioInterpretInput(InputModel):
 class StudioSaveDefinitionInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
     spec: StudioLayoutSpec
+    is_dashboard: bool = False
 
 
 class StudioUpdateDefinitionInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
     spec: StudioLayoutSpec
+    is_dashboard: bool | None = None

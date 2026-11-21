@@ -111,7 +111,17 @@ export interface StudioDefinition {
   name: string;
   version: number;
   created_at?: string;
+  is_dashboard?: boolean;
   spec: StudioLayoutSpec;
+}
+
+export interface ActiveDashboardResponse {
+  has_custom_dashboard: boolean;
+  definition_id?: string | null;
+  definition_name?: string | null;
+  spec?: StudioLayoutSpec | null;
+  dashboard?: StudioPreviewResult | null;
+  error?: string | null;
 }
 
 export const ENTITY_OPTIONS: { value: StudioEntityType; label: string }[] = [

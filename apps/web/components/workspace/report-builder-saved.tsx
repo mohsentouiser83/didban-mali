@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -17,6 +18,7 @@ import { Tabs } from "@/components/ui/tabs";
 import type { ReportBuilderController } from "@/hooks/use-report-builder";
 import { listItems } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
+import { CheckCircleIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { Panel } from "./page-parts";
 
 export function ReportBuilderSaved({
@@ -61,32 +63,71 @@ export function ReportBuilderSaved({
               </TableHeader>
               <TableBody>
                 {listItems(c.definitions.data).length ? (
-                  listItems(c.definitions.data).map((item) => (
-                    <TableRow key={item.id}>
-                      <TableRowHeader>{item.name}</TableRowHeader>
-                      <TableCell>{persian(item.version)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="ghost"
-                            disabled={c.command.busy}
-                            onClick={() => c.open(item)}
-                          >
-                            بررسی تعریف
-                          </Button>
-                          {c.workspace.canWrite && (
+                  listItems(c.definitions.data).map((item) => {
+                    const isDashboard = Boolean(
+                      item.spec &&
+                        typeof item.spec === "object" &&
+                        (item.spec as unknown as Record<string, unknown>)
+                          .is_dashboard,
+                    );
+                    return (
+                      <TableRow key={item.id}>
+                        <TableRowHeader>
+                          <div className="flex items-center gap-2">
+                            <span>{item.name}</span>
+                            {isDashboard && (
+                              <Badge tone="primary" className="gap-1 py-0.5 text-xs">
+                                <CheckCircleIcon size={12} />
+                                داشبورد فعال
+                              </Badge>
+                            )}
+                          </div>
+                        </TableRowHeader>
+                        <TableCell>{persian(item.version)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {c.workspace.canWrite && !isDashboard && (
+                              <Button
+                                variant="ghost"
+                                disabled={c.command.busy}
+                                onClick={() => {
+                                  void c.command.run(
+                                    c.workspace.companyPath(
+                                      `report-studio/definitions/${item.id}/set-dashboard`,
+                                    ),
+                                    { method: "POST" },
+                                    () => c.definitions.refresh(),
+                                    "گزارش به‌عنوان داشبورد اصلی شرکت تنظیم شد.",
+                                  );
+                                }}
+                                className="gap-1 text-xs text-primary hover:bg-primary-soft/40"
+                                title="تنظیم این گزارش به‌عنوان داشبورد اصلی شرکت"
+                              >
+                                <SquaresFourIcon size={15} />
+                                تعیین به‌عنوان داشبورد
+                              </Button>
+                            )}
                             <Button
-                              variant="soft"
+                              variant="ghost"
                               disabled={c.command.busy}
-                              onClick={() => c.rerun(item)}
+                              onClick={() => c.open(item)}
                             >
-                              اجرای دوباره
+                              بررسی تعریف
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                            {c.workspace.canWrite && (
+                              <Button
+                                variant="soft"
+                                disabled={c.command.busy}
+                                onClick={() => c.rerun(item)}
+                              >
+                                اجرای دوباره
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableEmptyCell colSpan={3} title="گزارش ذخیره‌شده‌ای نیست" />
                 )}

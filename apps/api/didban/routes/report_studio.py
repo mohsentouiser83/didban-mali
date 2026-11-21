@@ -68,3 +68,34 @@ def update_definition(
         "write",
         lambda db, user: service.save(db, company_id, user, data, definition_id, version),
     )
+
+
+@router.get(BASE + "/active-dashboard")
+def get_active_dashboard(company_id: str, request: Request, period_id: str | None = None):
+    """Retrieves the active custom dashboard and its evaluated widgets for this company, if set."""
+    with access(request, company_id) as (db, _user, _member):
+        return service.get_active_dashboard(db, company_id, period_id)
+
+
+@router.post(BASE + "/definitions/{definition_id}/set-dashboard")
+def set_active_dashboard(company_id: str, definition_id: str, request: Request):
+    """Designates a saved report as the company's active main dashboard."""
+    return mutate(
+        request,
+        company_id,
+        {"definition_id": definition_id},
+        "write",
+        lambda db, user: service.set_active_dashboard(db, company_id, user, definition_id),
+    )
+
+
+@router.post(BASE + "/active-dashboard/reset")
+def reset_active_dashboard(company_id: str, request: Request):
+    """Resets the company's dashboard back to the default Didban financial dashboard."""
+    return mutate(
+        request,
+        company_id,
+        {},
+        "write",
+        lambda db, user: service.reset_active_dashboard(db, company_id, user),
+    )

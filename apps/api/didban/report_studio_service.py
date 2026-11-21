@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from . import models as m
 from .cheque_models import Cheque
+from .errors import require
 from .ingestion import normalized
 from .native_invoice_models import NativeInvoiceSnapshot
 from .native_reporting_models import NativeStatementRun
@@ -1005,18 +1006,28 @@ def save(
 ) -> dict:
     """Saves or updates a Studio Dashboard definition."""
     layout_dict = data.spec.model_dump()
-    spec_payload = {
-        "layout_kind": "studio",
-        "studio_spec": layout_dict,
-    }
+    is_dashboard = bool(getattr(data, "is_dashboard", False))
 
     if definition_id:
         definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
         check_version(definition, expected_version)
         definition.name = data.name
+        if getattr(data, "is_dashboard", None) is None and isinstance(definition.spec, dict):
+            is_dashboard = bool(definition.spec.get("is_dashboard"))
+
+        spec_payload = {
+            "layout_kind": "studio",
+            "studio_spec": layout_dict,
+            "is_dashboard": is_dashboard,
+        }
         definition.spec = spec_payload
         definition.version += 1
     else:
+        spec_payload = {
+            "layout_kind": "studio",
+            "studio_spec": layout_dict,
+            "is_dashboard": is_dashboard,
+        }
         definition = SavedReportDefinition(
             company_id=company_id,
             name=data.name,
@@ -1026,18 +1037,32 @@ def save(
         db.add(definition)
 
     db.flush()
+    if is_dashboard:
+        all_defs = db.scalars(
+            select(SavedReportDefinition).where(
+                SavedReportDefinition.company_id == company_id,
+                SavedReportDefinition.id != definition.id,
+            )
+        ).all()
+        for d in all_defs:
+            if isinstance(d.spec, dict) and d.spec.get("is_dashboard"):
+                updated = dict(d.spec)
+                updated["is_dashboard"] = False
+                d.spec = updated
+        db.flush()
     audit(
         db,
         company_id,
         user.id,
         "report_studio.definition_saved",
         definition.id,
-        {"version": definition.version, "name": definition.name},
+        {"version": definition.version, "name": definition.name, "is_dashboard": is_dashboard},
     )
     return {
         "id": definition.id,
         "name": definition.name,
         "version": definition.version,
+        "is_dashboard": is_dashboard,
         "spec": data.spec.model_dump(),
     }
 
@@ -1060,6 +1085,7 @@ def list_definitions(db: Session, company_id: str) -> list[dict]:
                     "version": d.version,
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                     "spec": d.spec.get("studio_spec"),
+                    "is_dashboard": bool(d.spec.get("is_dashboard")),
                 }
             )
     return results
@@ -1075,4 +1101,194 @@ def get_definition(db: Session, company_id: str, definition_id: str) -> dict:
         "version": definition.version,
         "created_at": definition.created_at.isoformat() if definition.created_at else None,
         "spec": studio_spec,
+        "is_dashboard": bool(definition.spec.get("is_dashboard")) if isinstance(definition.spec, dict) else False,
     }
+
+
+def set_active_dashboard(
+    db: Session,
+    company_id: str,
+    user: m.User,
+    definition_id: str,
+) -> dict:
+    """Designates a saved report definition as the company's active dashboard."""
+    definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
+    require(isinstance(definition.spec, dict), "invalid_spec", "تعریف گزارش معتبر نیست.")
+
+    all_defs = db.scalars(
+        select(SavedReportDefinition).where(SavedReportDefinition.company_id == company_id)
+    ).all()
+    for d in all_defs:
+        if isinstance(d.spec, dict) and d.spec.get("is_dashboard"):
+            updated = dict(d.spec)
+            updated["is_dashboard"] = False
+            d.spec = updated
+
+    updated_spec = dict(definition.spec)
+    updated_spec["is_dashboard"] = True
+    definition.spec = updated_spec
+    definition.version += 1
+    db.flush()
+
+    audit(
+        db,
+        company_id,
+        user.id,
+        "report_studio.set_active_dashboard",
+        definition.id,
+        {"name": definition.name, "version": definition.version},
+    )
+    return {
+        "id": definition.id,
+        "name": definition.name,
+        "is_dashboard": True,
+        "version": definition.version,
+    }
+
+
+def reset_active_dashboard(
+    db: Session,
+    company_id: str,
+    user: m.User,
+) -> dict:
+    """Resets company dashboard back to the standard Didban financial dashboard."""
+    all_defs = db.scalars(
+        select(SavedReportDefinition).where(SavedReportDefinition.company_id == company_id)
+    ).all()
+    for d in all_defs:
+        if isinstance(d.spec, dict) and d.spec.get("is_dashboard"):
+            updated = dict(d.spec)
+            updated["is_dashboard"] = False
+            d.spec = updated
+
+    db.flush()
+    audit(
+        db,
+        company_id,
+        user.id,
+        "report_studio.reset_active_dashboard",
+        company_id,
+        {},
+    )
+    return {
+        "has_custom_dashboard": False,
+    }
+
+
+def get_active_dashboard(
+    db: Session,
+    company_id: str,
+    period_id: str | None = None,
+) -> dict:
+    """Returns the active custom dashboard and its evaluated preview if one is configured."""
+    all_defs = db.scalars(
+        select(SavedReportDefinition).where(SavedReportDefinition.company_id == company_id)
+    ).all()
+
+    active_def = None
+    for d in all_defs:
+        if isinstance(d.spec, dict) and d.spec.get("is_dashboard"):
+            active_def = d
+            break
+
+    if not active_def or not isinstance(active_def.spec, dict):
+        return {
+            "has_custom_dashboard": False,
+            "definition_id": None,
+            "definition_name": None,
+            "dashboard": None,
+        }
+
+    studio_spec_dict = active_def.spec.get("studio_spec")
+    if not studio_spec_dict:
+        classic_spec = active_def.spec
+        period_id_val = period_id or classic_spec.get("period_id") or "default-period"
+        kind = classic_spec.get("kind", "metrics")
+        basis = classic_spec.get("basis", "ledger")
+        basis_mapping = {
+            "ledger": "ledger",
+            "bank": "bank",
+            "invoice": "invoice",
+            "comparable_difference": "all",
+        }
+        studio_basis = basis_mapping.get(basis, "all")
+
+        widgets = []
+        if kind == "metrics":
+            metric_keys = classic_spec.get("metric_keys") or ["revenue", "expense", "net_profit"]
+            for m_key in metric_keys:
+                widgets.append(
+                    {
+                        "id": f"kpi-{m_key}",
+                        "title": m_key,
+                        "type": "kpi_card",
+                        "entity": "ledger",
+                        "metric": m_key,
+                        "group_by": "none",
+                        "limit": 1,
+                        "filters": {},
+                        "unit": "IRR",
+                        "color": "primary",
+                        "col_span": 4 if len(metric_keys) <= 3 else 3,
+                    }
+                )
+        else:
+            widgets.append(
+                {
+                    "id": "table-invoices",
+                    "title": "فاکتورها",
+                    "type": "data_table",
+                    "entity": "invoices",
+                    "metric": "total_amount",
+                    "group_by": "none",
+                    "limit": 15,
+                    "filters": {},
+                    "unit": "IRR",
+                    "color": "primary",
+                    "col_span": 12,
+                }
+            )
+
+        spec_data = {
+            "title": active_def.name,
+            "description": "داشبورد تبدیل‌شده از گزارش سازمانی",
+            "global_filters": {
+                "period_id": period_id_val,
+                "basis": studio_basis,
+                "unit": "IRR",
+            },
+            "sections": [
+                {
+                    "id": "section-main",
+                    "title": active_def.name,
+                    "description": None,
+                    "layout": "grid-2",
+                    "basis": studio_basis,
+                    "widgets": widgets,
+                }
+            ],
+        }
+    else:
+        spec_data = dict(studio_spec_dict)
+        if period_id and "global_filters" in spec_data:
+            spec_data["global_filters"] = dict(spec_data["global_filters"])
+            spec_data["global_filters"]["period_id"] = period_id
+
+    try:
+        spec_obj = StudioLayoutSpec.model_validate(spec_data)
+        rendered = preview(db, company_id, spec_obj)
+        return {
+            "has_custom_dashboard": True,
+            "definition_id": active_def.id,
+            "definition_name": active_def.name,
+            "spec": spec_obj.model_dump(),
+            "dashboard": rendered,
+        }
+    except Exception as e:
+        return {
+            "has_custom_dashboard": False,
+            "error": str(e),
+            "definition_id": active_def.id,
+            "definition_name": active_def.name,
+            "dashboard": None,
+        }

@@ -12,7 +12,16 @@ from didban.report_studio_schemas import (
     StudioSectionSpec,
     StudioWidgetSpec,
 )
-from didban.report_studio_service import get_definition, interpret, list_definitions, preview, save
+from didban.report_studio_service import (
+    get_active_dashboard,
+    get_definition,
+    interpret,
+    list_definitions,
+    preview,
+    reset_active_dashboard,
+    save,
+    set_active_dashboard,
+)
 
 
 def test_studio_interpret_sales_prompt():
@@ -185,10 +194,73 @@ def test_studio_crud_definition(book):
     assert one["spec"]["title"] == "قالب فروش"
 
 
+def test_studio_dashboard_conversion(book):
+    db = book
+    user = db.get(m.User, "owner")
+    period = m.Period(
+        id="p1",
+        company_id="c",
+        name="دوره مالی",
+        start=date(2026, 1, 1),
+        end=date(2026, 12, 29),
+    )
+    db.add(period)
+    db.flush()
+
+    layout1 = StudioLayoutSpec(
+        title="گزارش یک",
+        global_filters=StudioGlobalFilters(period_id="p1"),
+        sections=[],
+    )
+    layout2 = StudioLayoutSpec(
+        title="گزارش دو",
+        global_filters=StudioGlobalFilters(period_id="p1"),
+        sections=[],
+    )
+
+    # 1. Initially no active dashboard
+    active = get_active_dashboard(db, "c")
+    assert active["has_custom_dashboard"] is False
+
+    # 2. Save definition 1 without dashboard flag
+    def1 = save(db, "c", user, StudioSaveDefinitionInput(name="گزارش ۱", spec=layout1, is_dashboard=False))
+    assert def1["is_dashboard"] is False
+    assert get_active_dashboard(db, "c")["has_custom_dashboard"] is False
+
+    # 3. Save definition 2 with is_dashboard=True
+    def2 = save(db, "c", user, StudioSaveDefinitionInput(name="گزارش ۲", spec=layout2, is_dashboard=True))
+    assert def2["is_dashboard"] is True
+
+    active = get_active_dashboard(db, "c")
+    assert active["has_custom_dashboard"] is True
+    assert active["definition_id"] == def2["id"]
+    assert active["definition_name"] == "گزارش ۲"
+
+    # 4. Set definition 1 as dashboard explicitly
+    set_res = set_active_dashboard(db, "c", user, def1["id"])
+    assert set_res["is_dashboard"] is True
+
+    active = get_active_dashboard(db, "c")
+    assert active["has_custom_dashboard"] is True
+    assert active["definition_id"] == def1["id"]
+
+    # Verify definition 2 is no longer active dashboard
+    d2 = get_definition(db, "c", def2["id"])
+    assert d2["is_dashboard"] is False
+
+    # 5. Reset dashboard
+    reset_res = reset_active_dashboard(db, "c", user)
+    assert reset_res["has_custom_dashboard"] is False
+
+    active = get_active_dashboard(db, "c")
+    assert active["has_custom_dashboard"] is False
+
+
 def test_studio_api_routes():
     from uuid import uuid4
 
     from fastapi.testclient import TestClient
+    from sqlalchemy import text
 
     from didban.api import app
     from didban.config import settings
@@ -207,6 +279,7 @@ def test_studio_api_routes():
         db.add_all([user, company])
         db.flush()
 
+        db.execute(text(f"SET LOCAL didban.company_id = '{c_id}'"))
         member = m.Membership(company_id=c_id, user_id=u_id, role="owner", active=True)
         period = m.Period(
             id=p_id,
@@ -269,3 +342,30 @@ def test_studio_api_routes():
     )
     assert resp_get.status_code == 200, resp_get.text
     assert resp_get.json()["name"] == "قالب فروش تست"
+
+    # 6. Test Set Dashboard endpoint
+    mutate_dash = {**headers, "Idempotency-Key": str(uuid4())}
+    resp_set_dash = client.post(
+        f"/api/v1/companies/{c_id}/report-studio/definitions/{saved_def['id']}/set-dashboard",
+        headers=mutate_dash,
+    )
+    assert resp_set_dash.status_code == 200, resp_set_dash.text
+    assert resp_set_dash.json()["is_dashboard"] is True
+
+    # 7. Test Get Active Dashboard endpoint
+    resp_active = client.get(f"/api/v1/companies/{c_id}/report-studio/active-dashboard", headers=headers)
+    assert resp_active.status_code == 200, resp_active.text
+    active_data = resp_active.json()
+    assert active_data["has_custom_dashboard"] is True
+    assert active_data["definition_id"] == saved_def["id"]
+
+    # 8. Test Reset Active Dashboard endpoint
+    mutate_reset = {**headers, "Idempotency-Key": str(uuid4())}
+    resp_reset = client.post(f"/api/v1/companies/{c_id}/report-studio/active-dashboard/reset", headers=mutate_reset)
+    assert resp_reset.status_code == 200, resp_reset.text
+    assert resp_reset.json()["has_custom_dashboard"] is False
+
+    # Verify active dashboard is now cleared
+    resp_active2 = client.get(f"/api/v1/companies/{c_id}/report-studio/active-dashboard", headers=headers)
+    assert resp_active2.status_code == 200
+    assert resp_active2.json()["has_custom_dashboard"] is False

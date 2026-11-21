@@ -1,7 +1,14 @@
 "use client";
-import { SquaresFourIcon as HeaderIcon } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import {
+  ArrowCounterClockwiseIcon,
+  CheckCircleIcon,
+  PencilSimpleIcon,
+  SquaresFourIcon as HeaderIcon,
+  SquaresFourIcon,
+} from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -10,6 +17,10 @@ import {
 import { CashChart } from "@/components/ui/financial/financial-chart";
 import { StatCards } from "@/components/ui/financial/stat-cards";
 import { useWorkspace } from "@/hooks/workspace";
+import { useCommand } from "@/hooks/use-command";
+import { api } from "@/lib/api";
+import type { ActiveDashboardResponse } from "@/lib/report-studio";
+import { SectionRenderer } from "./report-studio/section-renderer";
 import { NativeDashboardView } from "./native-dashboard-view";
 import { useDashboard } from "@/hooks/use-financial-view";
 import { amount, displayDate } from "@/lib/utils";
@@ -208,6 +219,160 @@ export function ImportedDashboardView() {
 
 export function DashboardView() {
   const workspace = useWorkspace();
+  const command = useCommand();
+  const [activeDashboard, setActiveDashboard] =
+    useState<ActiveDashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"custom" | "native">("custom");
+
+  const companyId = workspace.company?.id;
+  const periodId = workspace.periodId;
+
+  useEffect(() => {
+    if (!companyId) return;
+    let active = true;
+    const path = workspace.companyPath("report-studio/active-dashboard");
+    if (!path) return;
+    api<ActiveDashboardResponse>(path)
+      .then((data) => {
+        if (active) {
+          setActiveDashboard(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setActiveDashboard(null);
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [companyId, periodId, workspace]);
+
+  function handleReset() {
+    if (!workspace.company) return;
+    void command.run(
+      workspace.companyPath("report-studio/active-dashboard/reset"),
+      { method: "POST" },
+      () => {
+        setActiveDashboard(null);
+        setViewMode("native");
+      },
+      "داشبورد اصلی به وضعیت پیش‌فرض دیدبان بازنشانی شد.",
+    );
+  }
+
   if (!workspace.company) return <NoCompany />;
-  return <NativeDashboardView key={workspace.company.id} />;
+
+  if (loading) {
+    return <LoadingState label="بارگذاری داشبورد مالی..." />;
+  }
+
+  const hasCustom = Boolean(
+    activeDashboard?.has_custom_dashboard && activeDashboard.dashboard,
+  );
+
+  if (hasCustom && viewMode === "custom" && activeDashboard?.dashboard) {
+    const dash = activeDashboard.dashboard;
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          icon={SquaresFourIcon}
+          title={
+            dash.title || activeDashboard.definition_name || "داشبورد اختصاصی"
+          }
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="primary" className="gap-1 font-medium">
+                <CheckCircleIcon size={14} />
+                داشبورد اختصاصی
+              </Badge>
+
+              <Button
+                variant="ghost"
+                onClick={() => setViewMode("native")}
+                className="gap-1.5 text-xs text-muted hover:text-foreground"
+                title="مشاهده داشبورد استاندارد دفتر کل دیدبان"
+              >
+                داشبورد استاندارد دیدبان
+              </Button>
+
+              <ButtonLink
+                href="/reports/studio"
+                variant="soft"
+                className="gap-1.5 text-xs text-primary hover:bg-primary-soft/50"
+              >
+                <PencilSimpleIcon size={15} />
+                ویرایش در استودیو
+              </ButtonLink>
+
+              {workspace.canWrite && (
+                <Button
+                  variant="ghost"
+                  disabled={command.busy}
+                  onClick={handleReset}
+                  className="gap-1 text-xs text-muted hover:text-destructive"
+                  title="حذف داشبورد اختصاصی و بازگشت به داشبورد پیش‌فرض"
+                >
+                  <ArrowCounterClockwiseIcon size={15} />
+                  بازنشانی به پیش‌فرض
+                </Button>
+              )}
+            </div>
+          }
+        >
+          {dash.description && (
+            <p className="mt-1 text-xs text-muted">{dash.description}</p>
+          )}
+        </PageHeader>
+
+        {dash.sections && dash.sections.length > 0 ? (
+          <div className="space-y-6">
+            {dash.sections.map((section, idx) => (
+              <SectionRenderer
+                key={section.id || idx}
+                section={section}
+                index={idx}
+                readOnly={true}
+              />
+            ))}
+          </div>
+        ) : (
+          <Panel>
+            <EmptyState
+              title="بخش یا ویجتی در این داشبورد تعریف نشده است"
+              action={
+                <ButtonLink href="/reports/studio">
+                  طراحی بخش‌ها در استودیو
+                </ButtonLink>
+              }
+            />
+          </Panel>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {hasCustom && (
+        <div className="mb-4 flex items-center justify-between rounded-panel border border-primary/20 bg-primary-soft/40 px-4 py-2.5 text-xs text-primary">
+          <div className="flex items-center gap-2">
+            <CheckCircleIcon size={16} />
+            <span>یک داشبورد اختصاصی برای این شرکت تنظیم شده است.</span>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => setViewMode("custom")}
+            className="px-2.5 py-1 text-xs text-primary hover:bg-primary/10"
+          >
+            مشاهده داشبورد اختصاصی
+          </Button>
+        </div>
+      )}
+      <NativeDashboardView key={workspace.company.id} />
+    </div>
+  );
 }

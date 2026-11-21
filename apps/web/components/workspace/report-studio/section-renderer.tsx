@@ -94,7 +94,6 @@ function ResizableCard({
   const [isSettling, setIsSettling] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
-  const [dragDelta, setDragDelta] = useState(0);
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
 
   const defaultSpan =
@@ -137,7 +136,6 @@ function ResizableCard({
     e.stopPropagation();
 
     setIsResizing(true);
-    setDragDelta(0);
     const startX = e.clientX;
     const cardRect = cardRef.current?.getBoundingClientRect();
     const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
@@ -148,7 +146,6 @@ function ResizableCard({
     const onMouseMove = (moveEvent: MouseEvent) => {
       // In RTL layout, dragging to the left increases the card width
       const deltaX = startX - moveEvent.clientX;
-      setDragDelta(deltaX);
       const targetWidth = Math.max(160, Math.min(containerWidth, initialWidth + deltaX));
       setDragWidth(targetWidth);
       const ratio = targetWidth / containerWidth;
@@ -168,7 +165,6 @@ function ResizableCard({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       setIsResizing(false);
-      setDragDelta(0);
       setDragWidth(null);
       setPreviewSpan((finalSpan) => {
         if (finalSpan && finalSpan !== defaultSpan) {
