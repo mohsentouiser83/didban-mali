@@ -1,6 +1,6 @@
 """Report Studio endpoints for dynamic dashboards, widgets, and AI report design."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 
 from .. import report_studio_service as service
 from ..http import C, access, expected, mutate
@@ -10,6 +10,7 @@ from ..report_studio_schemas import (
     StudioSaveDefinitionInput,
     StudioUpdateDefinitionInput,
 )
+from ..workflow import audit
 
 router = APIRouter()
 BASE = C + "/report-studio"
@@ -98,4 +99,44 @@ def reset_active_dashboard(company_id: str, request: Request):
         {},
         "write",
         lambda db, user: service.reset_active_dashboard(db, company_id, user),
+    )
+
+
+@router.get(BASE + "/definitions/{definition_id}/export")
+def export_definition(
+    company_id: str,
+    definition_id: str,
+    request: Request,
+    format: str = "pdf",
+    period_id: str | None = None,
+):
+    """Exports an evaluated report definition to a downloadable PDF document."""
+    with access(request, company_id) as (db, user, _member):
+        content = service.export_definition_pdf(db, company_id, definition_id, period_id)
+        audit(
+            db,
+            company_id,
+            user.id,
+            "report_studio.definition_exported",
+            definition_id,
+            {"format": format},
+        )
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="report-{definition_id}.pdf"'
+            },
+        )
+
+
+@router.post(BASE + "/reports/{report_id}/set-dashboard")
+def set_official_report_as_dashboard(company_id: str, report_id: str, request: Request):
+    """Converts an official Report into an active dashboard for this company."""
+    return mutate(
+        request,
+        company_id,
+        {"report_id": report_id},
+        "write",
+        lambda db, user: service.set_official_report_as_dashboard(db, company_id, user, report_id),
     )

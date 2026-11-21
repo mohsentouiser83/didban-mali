@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from . import models as m
 from .cheque_models import Cheque
+from .custom_reports.exports import export_custom_report_pdf
 from .errors import require
+from .exports import localized
 from .ingestion import normalized
 from .native_invoice_models import NativeInvoiceSnapshot
 from .native_reporting_models import NativeStatementRun
@@ -1292,3 +1294,204 @@ def get_active_dashboard(
             "definition_name": active_def.name,
             "dashboard": None,
         }
+
+
+def export_definition_pdf(
+    db: Session,
+    company_id: str,
+    definition_id: str,
+    period_id: str | None = None,
+) -> bytes:
+    """Renders a report definition into a downloadable PDF document."""
+    definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
+    company = db.get(m.Company, company_id)
+    company_name = company.name if company else company_id
+
+    if isinstance(definition.spec, dict) and definition.spec.get("layout_kind") == "studio":
+        studio_spec_dict = dict(definition.spec["studio_spec"])
+        if period_id and "global_filters" in studio_spec_dict:
+            studio_spec_dict["global_filters"] = dict(studio_spec_dict["global_filters"])
+            studio_spec_dict["global_filters"]["period_id"] = period_id
+
+        spec_obj = StudioLayoutSpec.model_validate(studio_spec_dict)
+        rendered = preview(db, company_id, spec_obj)
+
+        blocks_results = []
+        for sec in rendered.get("sections", []):
+            sec_title = sec.get("title") or "بخش گزارش"
+            kpis = []
+            for w in sec.get("widgets", []):
+                w_type = w.get("type")
+                w_title = w.get("title") or ""
+                w_data = w.get("data") or {}
+
+                if w_type == "kpi_card":
+                    kpis.append(
+                        {
+                            "title": w_title,
+                            "value": localized(w_data.get("value"), amount=True),
+                            "unit": "ریال" if w.get("unit") == "IRR" else "تومان",
+                        }
+                    )
+                elif w_type == "data_table":
+                    cols = w_data.get("columns", [])
+                    rows = w_data.get("rows", [])
+                    if cols and rows:
+                        blocks_results.append(
+                            {
+                                "title": f"{sec_title} - {w_title}",
+                                "columns": cols,
+                                "rows": rows,
+                            }
+                        )
+                elif "chart" in w_type:
+                    categories = w_data.get("categories") or []
+                    series = w_data.get("series") or []
+                    if categories and series and isinstance(series, list) and len(series) > 0:
+                        first_series = (
+                            series[0] if isinstance(series[0], dict) else {"data": series}
+                        )
+                        values = first_series.get("data") or []
+                        chart_rows = []
+                        for c_label, c_val in zip(categories, values, strict=False):
+                            chart_rows.append(
+                                {
+                                    "category": str(c_label),
+                                    "value": localized(c_val, amount=True),
+                                }
+                            )
+                        if chart_rows:
+                            blocks_results.append(
+                                {
+                                    "title": f"{sec_title} - {w_title}",
+                                    "columns": [
+                                        {"key": "category", "label_fa": "دسته‌بندی"},
+                                        {"key": "value", "label_fa": "مبلغ"},
+                                    ],
+                                    "rows": chart_rows,
+                                }
+                            )
+                elif w_type == "ai_summary":
+                    insight = w_data.get("insight")
+                    if insight:
+                        blocks_results.append(
+                            {
+                                "title": f"{sec_title} - {w_title}",
+                                "summary": insight,
+                            }
+                        )
+
+            if kpis:
+                blocks_results.insert(
+                    0,
+                    {
+                        "title": f"{sec_title} - شاخص‌های کلیدی",
+                        "columns": [
+                            {"key": "title", "label_fa": "عنوان شاخص"},
+                            {"key": "value", "label_fa": "مقدار"},
+                            {"key": "unit", "label_fa": "واحد"},
+                        ],
+                        "rows": kpis,
+                    },
+                )
+
+        return export_custom_report_pdf(company_name, definition.name, blocks_results)
+
+    # Classic Report Builder fallback
+    from . import report_builder_service
+    from .report_builder_exports import pdf_run
+    from .report_builder_schemas import ReportSpec
+
+    classic_spec = ReportSpec.model_validate(definition.spec)
+    preview_data = report_builder_service.preview(db, company_id, classic_spec)
+    return pdf_run({"snapshot": preview_data})
+
+
+def set_official_report_as_dashboard(
+    db: Session,
+    company_id: str,
+    user: m.User,
+    report_id: str,
+) -> dict:
+    """Creates and designates a dashboard definition from an official Report record."""
+    report = get_entity(db, m.Report, company_id, report_id)
+    manifest = db.get(m.ResultManifest, report.manifest_id)
+    require(manifest is not None, "manifest_not_found", "داده‌های محاسباتی این گزارش یافت نشد.")
+
+    metrics = manifest.metrics or []
+    kpi_widgets = []
+    for met in metrics:
+        m_key = met.get("metric_key") or "metric"
+        m_label = met.get("label") or m_key
+        m_val = met.get("value")
+        if m_val is not None:
+            kpi_widgets.append(
+                {
+                    "id": f"kpi-{m_key}",
+                    "title": m_label,
+                    "type": "kpi_card",
+                    "entity": "ledger",
+                    "metric": m_key,
+                    "group_by": "none",
+                    "limit": 1,
+                    "filters": {},
+                    "unit": met.get("unit") or "IRR",
+                    "color": "primary",
+                    "col_span": 3,
+                }
+            )
+
+    sections = [
+        {
+            "id": "section-official-kpis",
+            "title": report.title,
+            "description": "داشبورد تولیدشده از صورت مالی رسمی",
+            "layout": "grid-4",
+            "basis": "all",
+            "widgets": kpi_widgets[:8],
+        }
+    ]
+
+    invs = (manifest.details or {}).get("invoices") or []
+    if invs:
+        sections.append(
+            {
+                "id": "section-official-invoices",
+                "title": "فاکتورهای مرتبط با دوره",
+                "layout": "grid-1",
+                "basis": "invoice",
+                "widgets": [
+                    {
+                        "id": "widget-inv-table",
+                        "title": "فهرست فاکتورها",
+                        "type": "data_table",
+                        "entity": "invoices",
+                        "metric": "total_amount",
+                        "group_by": "none",
+                        "limit": 10,
+                        "filters": {},
+                        "unit": "IRR",
+                        "color": "primary",
+                        "col_span": 12,
+                    }
+                ],
+            }
+        )
+
+    layout_spec = {
+        "title": report.title,
+        "description": f"داشبورد مشتق‌شده از {report.title}",
+        "global_filters": {
+            "period_id": manifest.period_id,
+            "basis": "all",
+            "unit": "IRR",
+        },
+        "sections": sections,
+    }
+
+    save_input = StudioSaveDefinitionInput(
+        name=report.title,
+        spec=StudioLayoutSpec.model_validate(layout_spec),
+        is_dashboard=True,
+    )
+    return save(db, company_id, user, save_input)

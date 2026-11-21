@@ -13,6 +13,7 @@ from didban.report_studio_schemas import (
     StudioWidgetSpec,
 )
 from didban.report_studio_service import (
+    export_definition_pdf,
     get_active_dashboard,
     get_definition,
     interpret,
@@ -21,6 +22,7 @@ from didban.report_studio_service import (
     reset_active_dashboard,
     save,
     set_active_dashboard,
+    set_official_report_as_dashboard,
 )
 
 
@@ -254,6 +256,38 @@ def test_studio_dashboard_conversion(book):
 
     active = get_active_dashboard(db, "c")
     assert active["has_custom_dashboard"] is False
+
+    # 6. Test PDF export of report definition
+    pdf_bytes = export_definition_pdf(db, "c", def1["id"])
+    assert isinstance(pdf_bytes, bytes)
+    assert pdf_bytes.startswith(b"%PDF")
+
+    # 7. Test converting an official Report into a dashboard
+    manifest = m.ResultManifest(
+        id="man-official-1",
+        company_id="c",
+        period_id="p1",
+        session_id="sess-official-1",
+        digest="d-off-1",
+        selection={},
+        metrics=[{"metric_key": "revenue", "label": "درآمد کل", "value": "10000000", "unit": "IRR"}],
+        details={},
+    )
+    report = m.Report(
+        id="rep-official-1",
+        company_id="c",
+        manifest_id="man-official-1",
+        title="تراز آزمایشی رسمی",
+        version=1,
+    )
+    db.add_all([manifest, report])
+    db.flush()
+
+    official_dash = set_official_report_as_dashboard(db, "c", user, report.id)
+    assert official_dash["is_dashboard"] is True
+    active_now = get_active_dashboard(db, "c")
+    assert active_now["has_custom_dashboard"] is True
+    assert "تراز آزمایشی" in active_now["definition_name"]
 
 
 def test_studio_api_routes():

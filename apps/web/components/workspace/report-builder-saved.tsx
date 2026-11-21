@@ -18,7 +18,7 @@ import { Tabs } from "@/components/ui/tabs";
 import type { ReportBuilderController } from "@/hooks/use-report-builder";
 import { listItems } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
-import { CheckCircleIcon, SquaresFourIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, FilePdfIcon, SquaresFourIcon } from "@phosphor-icons/react";
 import { Panel } from "./page-parts";
 
 export function ReportBuilderSaved({
@@ -74,9 +74,9 @@ export function ReportBuilderSaved({
                       <TableRow key={item.id}>
                         <TableRowHeader>
                           <div className="flex items-center gap-2">
-                            <span>{item.name}</span>
+                            <span className="font-medium">{item.name}</span>
                             {isDashboard && (
-                              <Badge tone="primary" className="gap-1 py-0.5 text-xs">
+                              <Badge tone="primary" className="gap-1 py-0.5 text-xs font-medium">
                                 <CheckCircleIcon size={12} />
                                 داشبورد فعال
                               </Badge>
@@ -86,39 +86,64 @@ export function ReportBuilderSaved({
                         <TableCell>{persian(item.version)}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-2">
-                            {c.workspace.canWrite && !isDashboard && (
-                              <Button
-                                variant="ghost"
-                                disabled={c.command.busy}
-                                onClick={() => {
-                                  void c.command.run(
-                                    c.workspace.companyPath(
-                                      `report-studio/definitions/${item.id}/set-dashboard`,
-                                    ),
-                                    { method: "POST" },
-                                    () => c.definitions.refresh(),
-                                    "گزارش به‌عنوان داشبورد اصلی شرکت تنظیم شد.",
-                                  );
-                                }}
-                                className="gap-1 text-xs text-primary hover:bg-primary-soft/40"
-                                title="تنظیم این گزارش به‌عنوان داشبورد اصلی شرکت"
-                              >
-                                <SquaresFourIcon size={15} />
-                                تعیین به‌عنوان داشبورد
-                              </Button>
+                            {/* 1. تبدیل به داشبورد */}
+                            {isDashboard ? (
+                              <Badge tone="primary" className="gap-1 py-1 text-xs">
+                                <CheckCircleIcon size={13} />
+                                داشبورد فعال
+                              </Badge>
+                            ) : (
+                              c.workspace.canWrite && (
+                                <Button
+                                  variant="soft"
+                                  disabled={c.command.busy}
+                                  onClick={() => {
+                                    void c.command.run(
+                                      c.workspace.companyPath(
+                                        `report-studio/definitions/${item.id}/set-dashboard`,
+                                      ),
+                                      { method: "POST" },
+                                      () => c.definitions.refresh(),
+                                      "گزارش به‌عنوان داشبورد اصلی شرکت تنظیم شد.",
+                                    );
+                                  }}
+                                  className="gap-1.5 text-xs text-primary"
+                                  title="تنظیم این گزارش به‌عنوان داشبورد اصلی شرکت در صفحه نخست"
+                                >
+                                  <SquaresFourIcon size={15} />
+                                  تبدیل به داشبورد
+                                </Button>
+                              )
                             )}
+
+                            {/* 2. خروجی PDF */}
+                            <a
+                              href={`/api/v1${c.workspace.companyPath(
+                                `report-studio/definitions/${item.id}/export?format=pdf`,
+                              )}`}
+                              download
+                              className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-border bg-surface px-3 text-xs text-foreground outline-none transition-colors duration-200 hover:bg-canvas hover:text-primary focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+                              title="دریافت فایل PDF این گزارش"
+                            >
+                              <FilePdfIcon size={16} className="text-primary" />
+                              خروجی PDF
+                            </a>
+
+                            {/* 3. بررسی و اجرای دوباره */}
                             <Button
                               variant="ghost"
                               disabled={c.command.busy}
                               onClick={() => c.open(item)}
+                              className="text-xs"
                             >
                               بررسی تعریف
                             </Button>
                             {c.workspace.canWrite && (
                               <Button
-                                variant="soft"
+                                variant="ghost"
                                 disabled={c.command.busy}
                                 onClick={() => c.rerun(item)}
+                                className="text-xs text-muted hover:text-foreground"
                               >
                                 اجرای دوباره
                               </Button>
