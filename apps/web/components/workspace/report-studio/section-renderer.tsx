@@ -40,18 +40,18 @@ interface SectionRendererProps {
 function getColSpanClass(span: number): string {
   switch (span) {
     case 3:
-      return "col-span-12 md:col-span-3";
+      return "report-card-col report-col-3";
     case 4:
-      return "col-span-12 md:col-span-4";
+      return "report-card-col report-col-4";
     case 6:
-      return "col-span-12 md:col-span-6";
+      return "report-card-col report-col-6";
     case 8:
-      return "col-span-12 md:col-span-8";
+      return "report-card-col report-col-8";
     case 9:
-      return "col-span-12 md:col-span-9";
+      return "report-card-col report-col-9";
     case 12:
     default:
-      return "col-span-12";
+      return "report-card-col report-col-12";
   }
 }
 
@@ -93,6 +93,8 @@ function ResizableCard({
   const [isResizing, setIsResizing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [isExpanding, setIsExpanding] = useState(false);
+  const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
 
@@ -105,6 +107,20 @@ function ResizableCard({
       : 6);
 
   const currentSpan = previewSpan || defaultSpan;
+  const prevSpanRef = useRef(defaultSpan);
+
+  // Trigger glowing expansion wave animation when span increases
+  useEffect(() => {
+    if (widget.col_span && widget.col_span > prevSpanRef.current) {
+      setIsExpanding(true);
+      const timer = setTimeout(() => setIsExpanding(false), 600);
+      prevSpanRef.current = widget.col_span;
+      return () => clearTimeout(timer);
+    }
+    if (widget.col_span) {
+      prevSpanRef.current = widget.col_span;
+    }
+  }, [widget.col_span]);
 
   // Animated delete for this specific card
   const handleDeleteCard = () => {
@@ -128,12 +144,14 @@ function ResizableCard({
     const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
     const initialWidth = cardRect?.width || 260;
     const containerWidth = parentRect?.width || 1100;
+    setDragWidth(initialWidth);
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       // In RTL layout, dragging to the left increases the card width
       const deltaX = startX - moveEvent.clientX;
       setDragDelta(deltaX);
-      const targetWidth = Math.max(140, initialWidth + deltaX);
+      const targetWidth = Math.max(160, Math.min(containerWidth, initialWidth + deltaX));
+      setDragWidth(targetWidth);
       const ratio = targetWidth / containerWidth;
 
       let nextSpan = 3;
@@ -152,8 +170,13 @@ function ResizableCard({
       window.removeEventListener("mouseup", onMouseUp);
       setIsResizing(false);
       setDragDelta(0);
+      setDragWidth(null);
       setPreviewSpan((finalSpan) => {
         if (finalSpan && finalSpan !== defaultSpan) {
+          if (finalSpan > defaultSpan) {
+            setIsExpanding(true);
+            setTimeout(() => setIsExpanding(false), 600);
+          }
           onResize(finalSpan);
         }
         return null;
@@ -171,6 +194,10 @@ function ResizableCard({
     const spans = [3, 4, 6, 8, 12];
     const currentIndex = spans.indexOf(currentSpan);
     const nextSpan = spans[(currentIndex + 1) % spans.length];
+    if (nextSpan > currentSpan) {
+      setIsExpanding(true);
+      setTimeout(() => setIsExpanding(false), 600);
+    }
     onResize(nextSpan);
   };
 
@@ -179,9 +206,21 @@ function ResizableCard({
   return (
     <div
       ref={cardRef}
-      className={`group relative ${spanClass} transition-all duration-300 ease-interface ${
+      style={
+        isResizing && dragWidth !== null
+          ? {
+              width: `${dragWidth}px`,
+              flex: `0 0 ${dragWidth}px`,
+              maxWidth: "100%",
+              transition: "none",
+            }
+          : undefined
+      }
+      className={`group relative ${spanClass} ${
         isDeleting
           ? "pointer-events-none -translate-y-3 scale-90 opacity-0 max-h-0 overflow-hidden py-0 my-0 border-transparent"
+          : isExpanding
+          ? "animate-[width-expand_600ms_ease-out_both]"
           : isSettling
           ? "scale-[1.01] animate-[highlight-pulse_450ms_ease-out_both]"
           : "scale-100 opacity-100 animate-[scale-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
@@ -532,9 +571,9 @@ export function SectionRenderer({
         )}
       </div>
 
-      {/* 12-Column Responsive Grid: Each Card Can Be Resized Individually */}
+      {/* Responsive 12-Column Flex Layout: Each Card Can Be Resized Individually with Smooth Width Animations */}
       {widgets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 transition-all duration-300">
+        <div className="flex flex-wrap gap-5 transition-all duration-300">
           {widgets.map((widget) => (
             <ResizableCard
               key={widget.id}
