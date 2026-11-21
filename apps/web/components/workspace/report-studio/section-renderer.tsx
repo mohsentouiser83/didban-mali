@@ -13,7 +13,6 @@ import {
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  ArrowsLeftRightIcon,
   DatabaseIcon,
   DotsSixVerticalIcon,
   PlusIcon,
@@ -226,43 +225,6 @@ function ResizableCard({
           : "scale-100 opacity-100 animate-[scale-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
       }`}
     >
-      {/* Live Animated Floating Resizing Indicator Badge */}
-      {isResizing && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="absolute -top-4.5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-primary via-primary-hover to-primary px-3.5 py-1 text-xs font-medium text-white shadow-[0_8px_24px_rgba(85,86,222,0.5)] ring-2 ring-white/40 backdrop-blur-md animate-[badge-float_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
-        >
-          {/* Animated Glowing Dot Indicator */}
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-          </span>
-
-          <ArrowsLeftRightIcon size={14} className="animate-pulse shrink-0" />
-
-          {/* Span label with animated pop on step change */}
-          <span
-            key={currentSpan}
-            className="animate-[value-change_200ms_cubic-bezier(0.2,0.7,0.2,1)] font-sans"
-          >
-            عرض زنده: {getSpanLabel(currentSpan)}
-          </span>
-
-          {/* Real-time dragging feedback direction badge */}
-          {dragDelta > 15 && (
-            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold text-white animate-[scale-in_150ms_ease-out]">
-              گسترش ◀
-            </span>
-          )}
-          {dragDelta < -15 && (
-            <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold text-white animate-[scale-in_150ms_ease-out]">
-              ▶ کوچک‌تر
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Animated Ghost Preview Overlay showing prospective dimensions */}
       {isResizing && (
         <div className="absolute -inset-1 rounded-panel border-2 border-dashed border-primary bg-primary-soft/30 z-30 pointer-events-none animate-[ghost-pulse_1.8s_ease-in-out_infinite] transition-all">
