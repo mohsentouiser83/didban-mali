@@ -56,12 +56,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
       <PageHeader
         title={isItem ? "کالاها" : "انبارها"}
         icon={isItem ? PackageIcon : StorefrontIcon}
-        action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/inventory" variant="secondary">موجودی و گردش کالا</ButtonLink>
-            {addAction}
-          </div>
-        }
+        action={addAction}
       />
       <Panel>
         {view.inventory.loading || (isItem && view.accounts.loading) ? (

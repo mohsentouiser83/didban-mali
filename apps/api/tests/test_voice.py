@@ -26,16 +26,22 @@ def test_speech_upload_is_bounded_and_returns_only_editable_text(speech):
         assert b'filename="voice.webm"' in request.content
         return httpx.Response(200, json={"text": "  مانده بانک چقدر است؟  ", "secret": "ignored"})
 
-    assert asyncio.run(transcribe(b"\x1a\x45\xdf\xa3synthetic", "audio/webm;codecs=opus",
-                                   transport=httpx.MockTransport(send))) == {"text": "مانده بانک چقدر است؟"}
+    assert asyncio.run(
+        transcribe(
+            b"\x1a\x45\xdf\xa3synthetic", "audio/webm;codecs=opus", transport=httpx.MockTransport(send)
+        )
+    ) == {"text": "مانده بانک چقدر است؟"}
 
 
-@pytest.mark.parametrize("content,mime,code", [
-    (b"", "audio/webm", "voice_size_invalid"),
-    (b"x" * (10 * 1024 * 1024 + 1), "audio/webm", "voice_size_invalid"),
-    (b"<html>", "text/html", "voice_format_invalid"),
-    (b"not-a-webm", "audio/webm", "voice_format_invalid"),
-])
+@pytest.mark.parametrize(
+    "content,mime,code",
+    [
+        (b"", "audio/webm", "voice_size_invalid"),
+        (b"x" * (10 * 1024 * 1024 + 1), "audio/webm", "voice_size_invalid"),
+        (b"<html>", "text/html", "voice_format_invalid"),
+        (b"not-a-webm", "audio/webm", "voice_format_invalid"),
+    ],
+)
 def test_invalid_audio_never_calls_provider(speech, content, mime, code):
     def forbidden(_request):
         raise AssertionError("Invalid input reached provider")
@@ -45,14 +51,17 @@ def test_invalid_audio_never_calls_provider(speech, content, mime, code):
     assert error.value.code == code
 
 
-@pytest.mark.parametrize("response,code", [
-    (httpx.Response(401, text="provider-secret"), "voice_provider_unavailable"),
-    (httpx.Response(429), "voice_rate_limited"),
-    (httpx.Response(200, text="invalid-json"), "voice_response_invalid"),
-    (httpx.Response(200, json={"text": " "}), "voice_text_invalid"),
-    (httpx.Response(200, json={"text": "x" * 1001}), "voice_text_invalid"),
-    (httpx.Response(200, content=b"x" * 65537), "voice_response_invalid"),
-])
+@pytest.mark.parametrize(
+    "response,code",
+    [
+        (httpx.Response(401, text="provider-secret"), "voice_provider_unavailable"),
+        (httpx.Response(429), "voice_rate_limited"),
+        (httpx.Response(200, text="invalid-json"), "voice_response_invalid"),
+        (httpx.Response(200, json={"text": " "}), "voice_text_invalid"),
+        (httpx.Response(200, json={"text": "x" * 1001}), "voice_text_invalid"),
+        (httpx.Response(200, content=b"x" * 65537), "voice_response_invalid"),
+    ],
+)
 def test_provider_failures_are_safe_and_not_retried(speech, response, code):
     calls = []
 
@@ -68,7 +77,9 @@ def test_provider_failures_are_safe_and_not_retried(speech, response, code):
 
 
 def test_voice_route_authentication_csrf_scope_and_temporary_upload_cleanup(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from pydantic import SecretStr
 from didban import voice_service
 settings.voice_enabled = True
@@ -106,4 +117,5 @@ assert viewer.get(base+"/assistant/voice-status").json()=={"enabled":False}
 assert viewer.post(path,files=files).status_code==503
 assert len(calls)==1
 assert list(settings.storage.iterdir())==[]
-''')
+""",
+    )

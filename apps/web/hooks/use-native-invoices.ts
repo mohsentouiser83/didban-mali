@@ -39,9 +39,11 @@ export function useNativeInvoices(
       ? `${base}?direction=${direction}&as_of=${asOf}${followups ? `&priority=${priority}` : ""}`
       : null,
   );
+  const activePeriodId =
+    workspace.periodId || workspace.periods?.[0]?.id || "";
   const ledger = useResource<{ metrics: Metric[] }>(
-    workspace.periodId
-      ? `${workspace.companyPath("accounting/statements/preview")}?period_id=${workspace.periodId}&as_of=${asOf}`
+    activePeriodId
+      ? `${workspace.companyPath("accounting/statements/preview")}?period_id=${activePeriodId}&as_of=${asOf}`
       : null,
   );
   const candidates = useResource<{ items: NativeInvoiceCandidate[] }>(
@@ -390,9 +392,9 @@ export function useNativeInvoices(
         unit: "IRR",
         status: "unavailable",
         reason_codes: [
-          workspace.periodId ? "native_ledger_unavailable" : "period_missing",
+          activePeriodId ? "native_ledger_unavailable" : "period_missing",
         ],
-        reason: workspace.periodId
+        reason: activePeriodId
           ? ledger.error?.message || "ماندهٔ دفتر در این تاریخ موجود نیست."
           : "برای محاسبهٔ ماندهٔ دفتر، دوره را انتخاب کنید.",
       };

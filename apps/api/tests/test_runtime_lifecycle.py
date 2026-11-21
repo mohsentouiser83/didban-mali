@@ -1,4 +1,5 @@
 """Container API must leave job processing to its separate worker."""
+
 import os
 import subprocess
 import sys
@@ -14,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[3]
     [(False, True, 1), (False, False, 0), (True, True, 0)],
 )
 def test_worker_startup_mode(tmp_path, production, embedded, expected):
-    source = f'''
+    source = f"""
 import asyncio
 from unittest.mock import Mock, patch
 from didban.api import app, lifespan
@@ -36,7 +37,7 @@ async def check():
             assert stop.is_set()
 
 asyncio.run(check())
-'''
+"""
     env = os.environ | {
         "PYTHONPATH": str(ROOT / "apps/api"),
         "DIDBAN_DATABASE_URL": f"sqlite:///{tmp_path / 'runtime.db'}",
@@ -44,7 +45,11 @@ asyncio.run(check())
         "DIDBAN_PRODUCTION": "false",
     }
     result = subprocess.run(
-        [sys.executable, "-c", source], env=env, cwd=ROOT,
-        capture_output=True, text=True, timeout=30,
+        [sys.executable, "-c", source],
+        env=env,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr

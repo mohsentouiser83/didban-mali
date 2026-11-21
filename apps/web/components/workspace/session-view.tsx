@@ -60,16 +60,11 @@ export function SessionView({ id }: { id: string }) {
     return (
       <ErrorState message={resource.error.message} onRetry={resource.refresh} />
     );
-  if (!session) return <><PageHeader icon={HeaderIcon} title="پرونده پردازش" /><EmptyState title="پرونده پیدا نشد" /></>;
+  if (!session) return <><PageHeader icon={HeaderIcon} title="گزارش پردازش فایل" /><EmptyState title="فایل یا گزارش پردازش پیدا نشد" /></>;
   return (
     <>
       <PageHeader icon={HeaderIcon}
-        title="پرونده پردازش"
-        action={
-          <ButtonLink href="/uploads" variant="secondary">
-            همه نوبت‌ها
-          </ButtonLink>
-        }
+        title="گزارش پردازش فایل"
       />
       <Panel
         title={displayDate(session.created_at)}

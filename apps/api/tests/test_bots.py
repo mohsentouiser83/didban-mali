@@ -2,7 +2,7 @@
 
 from test_api_delivery import scenario
 
-SETUP = r'''
+SETUP = r"""
 import asyncio
 from datetime import timedelta
 from sqlalchemy import func
@@ -34,11 +34,14 @@ def pairing(client=owner, sender=77, identifier=1):
     response=command(client,"POST",path+"/"+pair["id"]+"/confirm",version=2)
     assert response.status_code==200,response.text
     return response.json()
-'''
+"""
 
 
 def test_bot_pairing_requires_web_confirmation_and_hashes_code(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 key=str(uuid4())
 response=command(owner,"POST",path,{"provider":"telegram"},key=key)
 assert response.status_code==201,response.text
@@ -61,11 +64,15 @@ assert item["state"]=="active" and item["sender_id"]=="77"
 assert client_for("outsider").get(path).status_code==404
 csrf=owner.headers.pop("x-csrf-token")
 assert command(owner,"POST",path,{"provider":"telegram"}).status_code==403
-''')
+""",
+    )
 
 
 def test_bot_ai_uses_filtered_manifest_and_duplicate_delivery_does_not_repeat(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 pair=pairing()
 calls=[]
 async def responder(**kwargs):
@@ -81,11 +88,15 @@ assert "گردش بانک موجود نیست" in transport.messages[0][1]
 assert command(owner,"DELETE",path+"/"+pair["id"],version=3).status_code==200
 ingress(3,"موجودی بانک",responder=responder)
 assert len(transport.messages)==1
-''')
+""",
+    )
 
 
 def test_bot_expiry_revocation_in_flight_and_rate_limit(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 pair=command(owner,"POST",path,{"provider":"telegram"}).json()
 with transaction() as db:
     db.get(m.BotConnection,pair["id"]).expires_at=m.now()-timedelta(seconds=1)
@@ -105,11 +116,15 @@ for index in range(4,20): ingress(index,"سلام",responder=responder)
 assert len(transport.messages)==9
 with transaction() as db:
     assert db.scalar(select(func.count()).select_from(m.BotUpdate).where(m.BotUpdate.state=="rate_limited"))>0
-''')
+""",
+    )
 
 
 def test_bot_webhook_disabled_secret_and_payload_guards(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 url="/api/v1/bots/telegram/webhook"
 assert owner.post(url,json=incoming(1,"سلام")).status_code==403
 assert owner.post(url,json=incoming(1,"سلام"),headers=[(b"x-telegram-bot-api-secret-token", "نامعتبر".encode("utf-8"))]).status_code==403
@@ -122,11 +137,15 @@ assert owner.post("/api/v1/bots/bale/webhook/نامعتبر",json=incoming(2,"س
 settings.bots_enabled=False
 assert owner.post(url,json=incoming(2,"سلام"),headers=headers).status_code==503
 assert owner.get(path).json()["providers"]["telegram"]["configured"] is False
-''')
+""",
+    )
 
 
 def test_consumed_pairing_expires_and_unconfirmed_delivery_is_not_retried(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 pair=command(owner,"POST",path,{"provider":"telegram"}).json()
 ingress(1,"/start "+pair["pairing_code"])
 with transaction() as db:
@@ -150,22 +169,30 @@ assert owner.get(path).json()["providers"]["telegram"]["configured"] is False
 settings.telegram_webhook_secret=SecretStr("a"*40)
 settings.telegram_bot_token=SecretStr("invalid token with spaces")
 assert command(owner,"POST",path,{"provider":"telegram"}).status_code==503
-''')
+""",
+    )
 
 
 def test_bot_default_responder_reuses_guarded_assistant_service(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 pair=pairing()
 ingress(2,"موجودی بانک")
 assert len(transport.messages)==1
 assert "گردش بانک موجود نیست" in transport.messages[0][1]
 assert "مدل اجرا نشده" in transport.messages[0][1]
 assert "0 ریال" not in transport.messages[0][1]
-''')
+""",
+    )
 
 
 def test_connection_metadata_exposes_only_public_bot_destination(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 settings.telegram_bot_username="company_test_bot"
 settings.bale_bot_username="company_bale_bot"
 response=owner.get(path)
@@ -176,11 +203,15 @@ assert body["providers"]["bale"]["username"]=="company_bale_bot"
 assert settings.telegram_bot_token.get_secret_value() not in response.text
 assert settings.telegram_webhook_secret.get_secret_value() not in response.text
 assert body["items"]==[]
-''')
+""",
+    )
 
 
 def test_pairing_expiry_retains_utc_after_database_reload(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 from datetime import datetime, timezone
 pair=command(owner,"POST",path,{"provider":"telegram"}).json()
 listed=owner.get(path).json()["items"][0]
@@ -188,4 +219,5 @@ assert datetime.fromisoformat(listed["expires_at"]).tzinfo is not None
 assert datetime.fromisoformat(listed["created_at"]).tzinfo is not None
 assert datetime.fromisoformat(listed["expires_at"])==datetime.fromisoformat(pair["expires_at"])
 assert datetime.fromisoformat(listed["expires_at"])>m.now()
-''')
+""",
+    )

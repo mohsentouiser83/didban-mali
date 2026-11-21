@@ -1,6 +1,6 @@
 "use client";
 import { ReceiptIcon } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState, ErrorState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -28,14 +28,9 @@ function ChequeWorkspace() {
         title="چک‌ها"
         icon={ReceiptIcon}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/settlements" variant="secondary">
-              دریافت و پرداخت
-            </ButtonLink>
-            {c.workspace.canWrite && (
-              <Button onClick={c.showCreate}>ثبت چک</Button>
-            )}
-          </div>
+          c.workspace.canWrite ? (
+            <Button onClick={c.showCreate}>ثبت چک</Button>
+          ) : undefined
         }
       />
       <Panel>
@@ -91,7 +86,7 @@ function ChequeWorkspace() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={7} title="چکی ثبت نشده" />
+                  <TableEmptyCell colSpan={7} title="هنوز چکی ثبت نشده است" />
                 )}
               </TableBody>
             </Table>

@@ -12,16 +12,26 @@ import {
   SparkleIcon,
   CheckCircleIcon,
   BankIcon,
+  PaperclipIcon,
 } from "@phosphor-icons/react";
 import { useFloatingAssistant, type AssistantActionCard } from "@/hooks/use-floating-assistant";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/input";
 import { EmptyState, LoadingState } from "@/components/ui/content-states";
 import { displayDate, cn } from "@/lib/utils";
 import { AssistantFacts } from "./assistant-facts";
 import { AssistantDataTableWidget } from "./assistant-data-table";
+import { assistantPromptItems, assistantSuggestions } from "./assistant-view";
 import { AssistantVoiceButton, AssistantVoiceControls } from "./assistant-voice-controls";
 export function FloatingAssistant() {
   const view = useFloatingAssistant();
@@ -76,6 +86,14 @@ export function FloatingAssistant() {
   useEffect(() => {
     if (view.open) end.current?.scrollIntoView?.({ block: "nearest" });
   }, [view.messages, view.open]);
+
+  useEffect(() => {
+    if (input.current) {
+      input.current.style.height = "auto";
+      const scrollHeight = input.current.scrollHeight;
+      input.current.style.height = `${Math.min(Math.max(scrollHeight, 40), 128)}px`;
+    }
+  }, [view.draft]);
   return (
     <div className="fixed bottom-4 left-4 z-40 sm:bottom-6 sm:left-6">
 
@@ -120,7 +138,36 @@ export function FloatingAssistant() {
                 }
               />
             ) : !view.messages.length ? (
-              <EmptyState compact title="پرسش خود را بنویسید" />
+              <div className="flex flex-col items-center justify-center py-6 text-center motion-safe:animate-fade-in">
+                <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary shadow-xs">
+                  <SparkleIcon size={26} weight="duotone" aria-hidden />
+                </span>
+                <h3 className="font-display text-base font-medium text-foreground">
+                  دستیار هوشمند مالی دیدبان
+                </h3>
+                <p className="mt-1.5 max-w-xs text-xs leading-5 text-muted">
+                  تحلیل دفاتر، وضعیت نقدینگی، سود و زیان و مطالبات را بپرسید:
+                </p>
+                <div className="mt-5 grid w-full gap-2">
+                  {assistantPromptItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        view.setDraft(item.prompt);
+                        input.current?.focus();
+                      }}
+                      className="flex items-center justify-between rounded-xl border border-border/80 bg-surface/80 p-2.5 text-start text-xs text-foreground transition-all hover:border-primary/50 hover:bg-primary-soft/40 active:scale-98"
+                    >
+                      <span className="flex items-center gap-2">
+                        <SparkleIcon size={14} className="text-primary shrink-0" />
+                        <span>{item.prompt}</span>
+                      </span>
+                      <ArrowLeftIcon size={13} className="text-muted shrink-0 ms-2" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : (
               view.messages.map((message) => (
                 <article
@@ -239,7 +286,28 @@ export function FloatingAssistant() {
             )}
             <div ref={end} />
           </div>
-          <div className="shrink-0 border-t border-border bg-surface p-2">
+          {view.workspace.company && (
+            <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto px-3 py-1.5 border-t border-border/60 bg-canvas/40 scrollbar-none">
+              <span className="text-[11px] text-muted shrink-0 flex items-center gap-1 font-medium">
+                <SparkleIcon size={12} className="text-primary" />
+                پرسش سریع:
+              </span>
+              {assistantPromptItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    view.setDraft(item.prompt);
+                    input.current?.focus();
+                  }}
+                  className="shrink-0 rounded-full border border-border/80 bg-surface px-2.5 py-0.5 text-[11px] text-foreground transition-colors hover:border-primary/50 hover:bg-primary-soft hover:text-primary active:scale-95"
+                >
+                  {item.shortLabel}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="shrink-0 border-t border-border bg-surface p-2 sm:p-2.5">
             <Form
               ref={form}
               onSubmit={(event) => {
@@ -248,44 +316,106 @@ export function FloatingAssistant() {
               }}
               className="space-y-2"
             >
-              <label htmlFor="floating-assistant-message" className="sr-only">
-                پیام به دستیار مالی
-              </label>
-              <div className="flex items-end gap-2">
-                <AssistantVoiceButton voice={view.voice} disabled={view.busy || !view.workspace.company} />
-              <Textarea
-                ref={input}
-                id="floating-assistant-message"
-                value={view.draft}
-                onChange={(event) => view.setDraft(event.target.value)}
-                placeholder="پیام شما…"
-                rows={1}
-                className="h-11 min-h-11 min-w-0 flex-1 resize-none"
-                disabled={view.busy || !view.workspace.company || view.voice.phase !== "idle"}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    form.current?.requestSubmit();
-                  }
-                }}
-              />
-                <Button
-                  type="submit"
-                  disabled={
-                    !view.workspace.company || !view.draft.trim() || view.busy || view.voice.phase !== "idle"
-                  }
-                  busy={view.busy}
-                  aria-label="ارسال پیام"
-                  className="size-11 shrink-0 p-0"
-                >
-                  <PaperPlaneTiltIcon size={17} aria-hidden />
-                </Button>
+              {(view.voice.phase !== "idle" || view.voice.error) && (
+                <div className="rounded-2xl border border-border/80 bg-canvas/80 p-2.5 shadow-xs backdrop-blur-sm">
+                  <AssistantVoiceControls voice={view.voice} />
+                </div>
+              )}
+
+              <div className="flex items-end gap-1.5 rounded-2xl border border-border/80 bg-canvas/60 p-1.5 shadow-xs transition-colors focus-within:border-primary/50 focus-within:bg-surface focus-within:ring-2 focus-within:ring-primary/10">
+                {/* 1. Attachment / Options (Start - Right in RTL) */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={view.busy || !view.workspace.company}
+                      className="size-10 sm:size-11 shrink-0 rounded-full p-0 text-muted hover:bg-surface hover:text-foreground active:scale-95"
+                      aria-label="امکانات و پرسش‌های پیشنهادی"
+                    >
+                      <PaperclipIcon size={18} className="scale-x-[-1]" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72">
+                    <DropdownMenuLabel className="flex items-center gap-1.5 font-medium text-foreground">
+                      <SparkleIcon size={14} className="text-primary" aria-hidden />
+                      <span>پرسش‌های پیشنهادی مالی</span>
+                    </DropdownMenuLabel>
+                    {assistantSuggestions.map((prompt) => (
+                      <DropdownMenuItem
+                        key={prompt}
+                        onClick={() => {
+                          view.setDraft(prompt);
+                          input.current?.focus();
+                        }}
+                        className="text-xs leading-5"
+                      >
+                        {prompt}
+                      </DropdownMenuItem>
+                    ))}
+                    {view.messages.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={view.reset}
+                          className="text-xs text-muted hover:text-danger"
+                        >
+                          <ArrowClockwiseIcon size={14} aria-hidden />
+                          <span>گفت‌وگوی جدید (پاک‌سازی چت)</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* 2. Text input (Center) */}
+                <label htmlFor="floating-assistant-message" className="sr-only">
+                  پیام به دستیار مالی
+                </label>
+                <Textarea
+                  ref={input}
+                  id="floating-assistant-message"
+                  value={view.draft}
+                  onChange={(event) => view.setDraft(event.target.value)}
+                  placeholder="پیام شما…"
+                  rows={1}
+                  className="h-10 min-h-10 max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-xs sm:text-sm leading-5 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 placeholder:text-muted"
+                  disabled={view.busy || !view.workspace.company || view.voice.phase === "recording"}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      form.current?.requestSubmit();
+                    }
+                  }}
+                />
+
+                {/* 3. Action button (End - Left in RTL): Send when text exists, Voice when empty */}
+                {view.draft.trim().length > 0 ? (
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={
+                      !view.workspace.company || !view.draft.trim() || view.busy || view.voice.phase !== "idle"
+                    }
+                    busy={view.busy}
+                    aria-label="ارسال پیام"
+                    className="size-10 sm:size-11 shrink-0 rounded-full p-0 shadow-action active:scale-95"
+                  >
+                    <span className="sr-only">ارسال پیام</span>
+                    <PaperPlaneTiltIcon size={17} className="scale-x-[-1]" aria-hidden />
+                  </Button>
+                ) : (
+                  <AssistantVoiceButton
+                    voice={view.voice}
+                    disabled={view.busy || !view.workspace.company}
+                    className="size-10 sm:size-11 shrink-0 rounded-full active:scale-95"
+                  />
+                )}
               </div>
-              <AssistantVoiceControls voice={view.voice} />
             </Form>
           </div>
         </Drawer>

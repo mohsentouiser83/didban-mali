@@ -47,3 +47,9 @@ def retry(company_id: str, transmission_id: str, request: Request):
 @router.post(P + "/{transmission_id}/inquiry")
 def inquiry(company_id: str, transmission_id: str, request: Request):
     return service.inquire(request, company_id, transmission_id)
+
+
+@router.get(C + "/moadian/reconciliation")
+def reconciliation(company_id: str, request: Request):
+    with access(request, company_id) as (db, user, member):
+        return service.reconciliation_summary(db, company_id, user, member)

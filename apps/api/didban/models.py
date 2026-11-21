@@ -41,6 +41,7 @@ class Entity:
 
 class ImmutableFact:
     """Declarative marker for immutable financial facts."""
+
     __immutable_fact__ = True
 
 
@@ -654,6 +655,7 @@ from . import company_group_models as company_group_models  # noqa: E402,F401
 from . import consolidation_approval_models as consolidation_approval_models  # noqa: E402,F401
 from . import consolidation_models as consolidation_models  # noqa: E402,F401
 from . import control_models as control_models  # noqa: E402,F401
+from . import counterparty_reconciliation_models as counterparty_reconciliation_models  # noqa: E402,F401
 from . import dimensions_models as dimensions_models  # noqa: E402,F401
 from . import document_thread_models as document_thread_models  # noqa: E402,F401
 from . import group_match_models as group_match_models  # noqa: E402,F401
@@ -670,6 +672,7 @@ from . import native_scenario_models as native_scenario_models  # noqa: E402,F40
 from . import numbering_models as numbering_models  # noqa: E402,F401
 from . import operation_learning_models as operation_learning_models  # noqa: E402,F401
 from . import operation_models as operation_models  # noqa: E402,F401
+from . import payroll_models as payroll_models  # noqa: E402,F401
 from . import period_checklist_models as period_checklist_models  # noqa: E402,F401
 from . import period_lock_models as period_lock_models  # noqa: E402,F401
 from . import posting_models as posting_models  # noqa: E402,F401

@@ -4,7 +4,9 @@ from test_api_delivery import scenario
 
 
 def test_optional_latest_result_preserves_scope_and_existing_reports(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner")
 outsider=client_for("outsider")
 empty="/api/v1/companies/company-b/results/latest"
@@ -23,4 +25,5 @@ period=command(owner,"POST",base+"/financial-periods",{"name":"بدون گزار
 assert period.status_code==201,period.text
 response=owner.get(base+"/results/latest",params={"period_id":period.json()["id"],"allow_missing":"true"})
 assert response.status_code==204,response.text
-''')
+""",
+    )

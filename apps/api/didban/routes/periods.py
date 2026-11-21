@@ -17,6 +17,7 @@ router = APIRouter()
 @router.get(C + "/financial-periods")
 def periods(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
     with access(request, company_id) as (db, _user, _member):
+
         def transform(period):
             data = service.serialize_fact(period)
             data["in_use"] = service.period_has_dependencies(db, company_id, period.id)

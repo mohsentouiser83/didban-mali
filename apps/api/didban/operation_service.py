@@ -76,15 +76,17 @@ PAYROLL_FIELDS = (
 
 
 def _require_operation_module(db: Session, company: str, kind: str) -> None:
+    if kind in ("sale_goods", "purchase_goods"):
+        return
     from .module_service import require_module
 
     module = (
         "payroll"
         if kind in ("payroll", "payroll_payment")
         else "receivables"
-        if kind in ("sale_service", "sale_goods")
+        if kind == "sale_service"
         else "payables"
-        if kind in ("purchase_service", "purchase_goods")
+        if kind == "purchase_service"
         else "settlements"
     )
     # Preparation is an input workflow, so source availability is not required.
@@ -133,9 +135,7 @@ def catalogue() -> dict:
     }
 
 
-def _require_settlement_role(
-    db: Session, company: str, account_id: str, expected_roles: list[str]
-) -> None:
+def _require_settlement_role(db: Session, company: str, account_id: str, expected_roles: list[str]) -> None:
     from .accounting_models import Account
     from .native_reporting_models import NativeAccountRole
     from .services import get_entity
@@ -263,18 +263,60 @@ def validate_and_build_settlement_lines(
     is_receivable = direction in ("sale", "sale_service", "sale_goods", "receivable")
     if is_receivable:
         if cash_dec > 0:
-            lines.append({"account_id": cash_account_id, "party_id": "", "debit": canonical_money(cash_dec), "credit": "0"})
+            lines.append(
+                {
+                    "account_id": cash_account_id,
+                    "party_id": "",
+                    "debit": canonical_money(cash_dec),
+                    "credit": "0",
+                }
+            )
         if cheque_dec > 0:
-            lines.append({"account_id": cheque_account_id, "party_id": party_id, "debit": canonical_money(cheque_dec), "credit": "0"})
+            lines.append(
+                {
+                    "account_id": cheque_account_id,
+                    "party_id": party_id,
+                    "debit": canonical_money(cheque_dec),
+                    "credit": "0",
+                }
+            )
         if on_account_dec > 0:
-            lines.append({"account_id": counterparty_account_id, "party_id": party_id, "debit": canonical_money(on_account_dec), "credit": "0"})
+            lines.append(
+                {
+                    "account_id": counterparty_account_id,
+                    "party_id": party_id,
+                    "debit": canonical_money(on_account_dec),
+                    "credit": "0",
+                }
+            )
     else:
         if cash_dec > 0:
-            lines.append({"account_id": cash_account_id, "party_id": "", "debit": "0", "credit": canonical_money(cash_dec)})
+            lines.append(
+                {
+                    "account_id": cash_account_id,
+                    "party_id": "",
+                    "debit": "0",
+                    "credit": canonical_money(cash_dec),
+                }
+            )
         if cheque_dec > 0:
-            lines.append({"account_id": cheque_account_id, "party_id": party_id, "debit": "0", "credit": canonical_money(cheque_dec)})
+            lines.append(
+                {
+                    "account_id": cheque_account_id,
+                    "party_id": party_id,
+                    "debit": "0",
+                    "credit": canonical_money(cheque_dec),
+                }
+            )
         if on_account_dec > 0:
-            lines.append({"account_id": counterparty_account_id, "party_id": party_id, "debit": "0", "credit": canonical_money(on_account_dec)})
+            lines.append(
+                {
+                    "account_id": counterparty_account_id,
+                    "party_id": party_id,
+                    "debit": "0",
+                    "credit": canonical_money(on_account_dec),
+                }
+            )
 
     return lines
 
@@ -348,9 +390,13 @@ def build(data: dict) -> list[dict]:
                 cash_amount=data.get("cash_amount", raw.get("cash_amount", 0)),
                 cheque_amount=data.get("cheque_amount", raw.get("cheque_amount", 0)),
                 on_account_amount=data.get("on_account_amount", raw.get("on_account_amount", 0)),
-                cash_account_id=data.get("cash_account_id") or accounts.get("cash_bank") or accounts.get("bank_a"),
-                cheque_account_id=data.get("cheque_account_id") or accounts.get("notes_receivable" if is_sale else "notes_payable"),
-                counterparty_account_id=data.get("counterparty_account_id") or accounts.get("trade_receivable" if is_sale else "trade_payable"),
+                cash_account_id=data.get("cash_account_id")
+                or accounts.get("cash_bank")
+                or accounts.get("bank_a"),
+                cheque_account_id=data.get("cheque_account_id")
+                or accounts.get("notes_receivable" if is_sale else "notes_payable"),
+                counterparty_account_id=data.get("counterparty_account_id")
+                or accounts.get("trade_receivable" if is_sale else "trade_payable"),
                 party_id=data.get("party_id", ""),
                 cheque_number=data.get("cheque_number"),
                 cheque_due_date=str(data.get("cheque_due_date")) if data.get("cheque_due_date") else None,
@@ -358,11 +404,27 @@ def build(data: dict) -> list[dict]:
             if is_sale:
                 rev_acc = accounts.get("service_revenue")
                 require(bool(rev_acc), "operation_account_missing", "حساب درآمد خدمات را انتخاب کنید.")
-                entries = [*settle_lines, {"account_id": rev_acc, "party_id": data.get("party_id", ""), "debit": "0", "credit": canonical_money(amounts["amount"])}]
+                entries = [
+                    *settle_lines,
+                    {
+                        "account_id": rev_acc,
+                        "party_id": data.get("party_id", ""),
+                        "debit": "0",
+                        "credit": canonical_money(amounts["amount"]),
+                    },
+                ]
             else:
                 exp_acc = accounts.get("service_expense")
                 require(bool(exp_acc), "operation_account_missing", "حساب هزینه خدمات را انتخاب کنید.")
-                entries = [{"account_id": exp_acc, "party_id": data.get("party_id", ""), "debit": canonical_money(amounts["amount"]), "credit": "0"}, *settle_lines]
+                entries = [
+                    {
+                        "account_id": exp_acc,
+                        "party_id": data.get("party_id", ""),
+                        "debit": canonical_money(amounts["amount"]),
+                        "credit": "0",
+                    },
+                    *settle_lines,
+                ]
         elif kind in PAIRS:
             left, right = PAIRS[kind]
             line(left, amounts["amount"], "debit")
@@ -394,7 +456,14 @@ def build(data: dict) -> list[dict]:
             raise DomainError("operation_kind_invalid", "نوع عملیات معتبر نیست.")
     allowed = {role["key"] for item in catalogue()["items"] if item["kind"] == kind for role in item["roles"]}
     if settlement_type in ("cash", "mixed"):
-        allowed |= {"cash_bank", "bank_a", "notes_receivable", "notes_payable", "trade_receivable", "trade_payable"}
+        allowed |= {
+            "cash_bank",
+            "bank_a",
+            "notes_receivable",
+            "notes_payable",
+            "trade_receivable",
+            "trade_payable",
+        }
     require(set(accounts) <= allowed, "operation_account_fields", "حساب اضافه برای این عملیات ارسال شده است.")
     # A same-account debit/credit hides the meaning of an operation.
     debits = {x["account_id"] for x in entries if x["debit"] != "0"}
@@ -432,7 +501,10 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
         require(
             not data.get("cheque_event_id"), "unexpected_cheque_event", "این عملیات به رویداد چک مربوط نیست."
         )
-    if data.get("settlement_type") in ("cash", "mixed") and data["kind"] in ("sale_service", "purchase_service"):
+    if data.get("settlement_type") in ("cash", "mixed") and data["kind"] in (
+        "sale_service",
+        "purchase_service",
+    ):
         is_sale = data["kind"] == "sale_service"
         validate_and_build_settlement_lines(
             direction="sale" if is_sale else "purchase",
@@ -441,9 +513,13 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
             cash_amount=data.get("cash_amount", data["amounts"].get("cash_amount", 0)),
             cheque_amount=data.get("cheque_amount", data["amounts"].get("cheque_amount", 0)),
             on_account_amount=data.get("on_account_amount", data["amounts"].get("on_account_amount", 0)),
-            cash_account_id=data.get("cash_account_id") or data["accounts"].get("cash_bank") or data["accounts"].get("bank_a"),
-            cheque_account_id=data.get("cheque_account_id") or data["accounts"].get("notes_receivable" if is_sale else "notes_payable"),
-            counterparty_account_id=data.get("counterparty_account_id") or data["accounts"].get("trade_receivable" if is_sale else "trade_payable"),
+            cash_account_id=data.get("cash_account_id")
+            or data["accounts"].get("cash_bank")
+            or data["accounts"].get("bank_a"),
+            cheque_account_id=data.get("cheque_account_id")
+            or data["accounts"].get("notes_receivable" if is_sale else "notes_payable"),
+            counterparty_account_id=data.get("counterparty_account_id")
+            or data["accounts"].get("trade_receivable" if is_sale else "trade_payable"),
             party_id=data.get("party_id", ""),
             cheque_number=data.get("cheque_number"),
             cheque_due_date=str(data.get("cheque_due_date")) if data.get("cheque_due_date") else None,

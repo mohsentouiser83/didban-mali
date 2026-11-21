@@ -73,7 +73,6 @@ def profit_report(
         return service.item_profit_report(db, company_id, user, from_date=from_date, to_date=to_date)
 
 
-
 @router.post(P + "/items", status_code=201)
 def add_item(company_id: str, data: InventoryItemInput, request: Request):
     payload = data.model_dump()
@@ -90,9 +89,7 @@ def update_item(company_id: str, item_id: str, data: UpdateInventoryItemInput, r
         company_id,
         payload,
         "read",
-        lambda db, user: service.update_item(
-            db, company_id, user, item_id, payload, expected(request)
-        ),
+        lambda db, user: service.update_item(db, company_id, user, item_id, payload, expected(request)),
     )
 
 

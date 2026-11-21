@@ -191,8 +191,7 @@ class BotTransport:
             "نام فایل معتبر نیست.",
         )
         require(
-            isinstance(document_bytes, (bytes, bytearray))
-            and 0 < len(document_bytes) <= max_bytes,
+            isinstance(document_bytes, (bytes, bytearray)) and 0 < len(document_bytes) <= max_bytes,
             "bot_file_size_invalid",
             "حجم فایل معتبر نیست.",
         )

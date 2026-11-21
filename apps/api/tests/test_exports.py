@@ -9,14 +9,37 @@ from didban.exports import localized, pdf_report, safe_csv, xlsx_report
 
 def sample():
     return {
-        "id": "result-test", "digest": "a" * 64, "period_id": "period-test",
+        "id": "result-test",
+        "digest": "a" * 64,
+        "period_id": "period-test",
         "period": {"start": "2026-09-01", "end": "2026-09-30"},
         "selection": {"rows": ["source-row-1"]},
         "metrics": [
-            {"metric_key": "revenue", "label": "درآمد دفتر", "basis": "ledger", "value": "123456789012345678901234567890.123456", "unit": "IRR", "status": "available", "evidence_refs": ["source-row-1"]},
-            {"metric_key": "cash", "label": "نقد", "basis": "bank", "value": None, "unit": "IRR", "status": "unavailable", "reason": "مانده مبنای بانک موجود نیست.", "reason_codes": ["bank_anchor_missing"], "evidence_refs": []},
+            {
+                "metric_key": "revenue",
+                "label": "درآمد دفتر",
+                "basis": "ledger",
+                "value": "123456789012345678901234567890.123456",
+                "unit": "IRR",
+                "status": "available",
+                "evidence_refs": ["source-row-1"],
+            },
+            {
+                "metric_key": "cash",
+                "label": "نقد",
+                "basis": "bank",
+                "value": None,
+                "unit": "IRR",
+                "status": "unavailable",
+                "reason": "مانده مبنای بانک موجود نیست.",
+                "reason_codes": ["bank_anchor_missing"],
+                "evidence_refs": [],
+            },
         ],
-        "details": {"invoices": [{"reference": "=HYPERLINK(\"bad\")", "amount": "100", "remaining": None}], "cash_movements": {"external_in": "100", "external_out": "0", "net": "100"}},
+        "details": {
+            "invoices": [{"reference": '=HYPERLINK("bad")', "amount": "100", "remaining": None}],
+            "cash_movements": {"external_in": "100", "external_out": "0", "net": "100"},
+        },
     }
 
 
@@ -38,7 +61,9 @@ def test_xlsx_preserves_exact_strings_null_and_formula_safety():
 
 
 def test_csv_does_not_execute_formula_cells():
-    data = safe_csv(["name", "amount"], [{"name": "  =1+1", "amount": "-100"}, {"name": "\t@command", "amount": None}]).decode("utf-8-sig")
+    data = safe_csv(
+        ["name", "amount"], [{"name": "  =1+1", "amount": "-100"}, {"name": "\t@command", "amount": None}]
+    ).decode("utf-8-sig")
     assert "'  =1+1" in data
     assert "'-100" in data
     assert "'\t@command" in data
@@ -72,6 +97,14 @@ def test_localized_null_is_not_zero_and_decimal_is_not_rounded():
 
 def test_bank_flow_labels_never_substitute_external_only_for_total():
     from didban.exports import bank_flow_summary
-    assert bank_flow_summary({"external_in": "100", "internal_in": "40", "external_out": "50", "internal_out": "40", "net": "50"}) == {"total_in": "140", "total_out": "90", "net": "50"}
+
+    assert bank_flow_summary(
+        {"external_in": "100", "internal_in": "40", "external_out": "50", "internal_out": "40", "net": "50"}
+    ) == {"total_in": "140", "total_out": "90", "net": "50"}
     assert bank_flow_summary({"external_in": "100", "external_out": "50", "net": "50"})["total_in"] is None
-    assert bank_flow_summary({"total_in": "0", "total_out": None, "external_out": "50", "internal_out": "40"})["total_out"] is None
+    assert (
+        bank_flow_summary({"total_in": "0", "total_out": None, "external_out": "50", "internal_out": "40"})[
+            "total_out"
+        ]
+        is None
+    )

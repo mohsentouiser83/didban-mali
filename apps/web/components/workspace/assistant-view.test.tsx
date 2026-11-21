@@ -12,11 +12,13 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/assistant",
 }));
 
+let mockDraft = "چک‌های سررسید ماه جاری";
+
 vi.mock("@/hooks/use-floating-assistant", () => ({
   useFloatingAssistant: () => ({
     open: true,
     setOpen: vi.fn(),
-    draft: "چک‌های سررسید ماه جاری",
+    draft: mockDraft,
     setDraft: setDraftMock,
     busy: false,
     send: sendMock,
@@ -59,10 +61,9 @@ describe("AssistantView", () => {
     setDraftMock.mockReset();
   });
 
-  it("renders page header and context banner", () => {
+  it("renders page header and chat messages", () => {
     render(<AssistantView />);
-    expect(screen.getByRole("heading", { name: "هوش مصنوعی" })).toBeInTheDocument();
-    expect(screen.getByText("شرکت نمونه")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "تحلیل با هوش مصنوعی" })).toBeInTheDocument();
     expect(screen.getByText("تحلیل وصول مطالبات و نقدینگی آماده است.")).toBeInTheDocument();
   });
 
@@ -87,5 +88,31 @@ describe("AssistantView", () => {
     });
     fireEvent.click(actionButton);
     expect(pushMock).toHaveBeenCalledWith("/companies/comp-1/invoices?status=overdue");
+  });
+
+  it("renders Telegram-style button layout: attachment at start, send at end when draft has text", () => {
+    mockDraft = "وضعیت سود و زیان";
+    render(<AssistantView />);
+
+    // Paperclip attachment button at start
+    const attachButton = screen.getByRole("button", {
+      name: "امکانات و پرسش‌های پیشنهادی",
+    });
+    expect(attachButton).toBeInTheDocument();
+
+    // Send button at end position
+    expect(screen.getByRole("button", { name: "ارسال پرسش" })).toBeInTheDocument();
+    // Voice button should not be displayed when draft has text (Telegram dynamic action button)
+    expect(screen.queryByRole("button", { name: "ضبط ویس" })).not.toBeInTheDocument();
+  });
+
+  it("renders Voice button at end position when draft is empty (Telegram behavior)", () => {
+    mockDraft = "";
+    render(<AssistantView />);
+
+    // Voice button is displayed at the trailing end
+    expect(screen.getByRole("button", { name: "ضبط ویس" })).toBeInTheDocument();
+    // Send button is not displayed
+    expect(screen.queryByRole("button", { name: "ارسال پرسش" })).not.toBeInTheDocument();
   });
 });

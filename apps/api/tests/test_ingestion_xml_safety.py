@@ -27,14 +27,25 @@ def modified_workbook(path: str, payload: bytes):
     return output.getvalue()
 
 
-@pytest.mark.parametrize("part", ["xl/workbook.xml", "xl/worksheets/sheet1.xml", "xl/_rels/workbook.xml.rels"])
+@pytest.mark.parametrize(
+    "part", ["xl/workbook.xml", "xl/worksheets/sheet1.xml", "xl/_rels/workbook.xml.rels"]
+)
 def test_malformed_xml_has_sanitized_file_error(part):
     with pytest.raises(DomainError) as error:
         read_file("broken.xlsx", modified_workbook(part, b"<root><broken"))
     assert error.value.code == "invalid_file" and error.value.status == 415
 
 
-@pytest.mark.parametrize("part", ["xl/macrosheets/sheet1.xml", "xl/embeddings/embedded.bin", "xl/activeX/control1.bin", "xl/ctrlProps/control.xml", "customUI/customUI.xml"])
+@pytest.mark.parametrize(
+    "part",
+    [
+        "xl/macrosheets/sheet1.xml",
+        "xl/embeddings/embedded.bin",
+        "xl/activeX/control1.bin",
+        "xl/ctrlProps/control.xml",
+        "customUI/customUI.xml",
+    ],
+)
 def test_macro_sheets_and_embedded_executable_controls_are_rejected(part):
     with pytest.raises(DomainError) as error:
         read_file("unsafe.xlsx", modified_workbook(part, b"<root/>"))

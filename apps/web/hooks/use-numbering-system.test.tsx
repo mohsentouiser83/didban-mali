@@ -36,6 +36,22 @@ const mockRules: NumberingRule[] = [
     active: true,
     version: 1,
   },
+  {
+    id: "r-3",
+    company_id: "c-1",
+    entity_type: "custom_contract",
+    entity_title: "قرارداد سفارشی",
+    prefix: "CTR-",
+    start_number: 1,
+    current_number: 1,
+    padding: 3,
+    suffix: "",
+    sample: "CTR-001",
+    description: "شماره‌گذاری قراردادها",
+    is_system: false,
+    active: true,
+    version: 1,
+  },
 ];
 
 const mockWorkspace = {
@@ -72,9 +88,9 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-it("loads default numbering rules all starting with 001", () => {
+it("loads default numbering rules", () => {
   const { result } = renderHook(() => useNumberingSystem());
-  expect(result.current.rules.length).toBe(2);
+  expect(result.current.rules.length).toBe(3);
   expect(result.current.rules[0].sample).toBe("001");
   expect(result.current.rules[1].sample).toBe("001");
 });
@@ -103,6 +119,60 @@ it("computes live formatted preview when editing fields", () => {
   });
 
   expect(result.current.livePreview).toBe("INV-0012/1403");
+});
+
+it("creates a new numbering rule via POST and refreshes", async () => {
+  vi.mocked(api).mockResolvedValueOnce({
+    id: "r-4",
+    company_id: "c-1",
+    entity_type: "delivery_slip",
+    entity_title: "برگه تحویل کالا",
+    prefix: "DLV-",
+    start_number: 1,
+    current_number: 1,
+    padding: 3,
+    suffix: "",
+    sample: "DLV-001",
+    description: null,
+    is_system: false,
+    active: true,
+    version: 1,
+  });
+
+  const { result } = renderHook(() => useNumberingSystem());
+
+  act(() => {
+    result.current.open(null);
+  });
+
+  expect(result.current.isCreating).toBe(true);
+
+  act(() => {
+    result.current.change({
+      entity_type: "delivery_slip",
+      entity_title: "برگه تحویل کالا",
+      prefix: "DLV-",
+    });
+  });
+
+  await act(async () => {
+    result.current.save();
+  });
+
+  expect(api).toHaveBeenCalledWith(
+    "/companies/c-1/numbering",
+    expect.objectContaining({
+      method: "POST",
+      body: expect.objectContaining({
+        entity_type: "delivery_slip",
+        entity_title: "برگه تحویل کالا",
+        prefix: "DLV-",
+      }),
+    }),
+  );
+
+  expect(refreshMock).toHaveBeenCalled();
+  expect(result.current.editing).toBeUndefined();
 });
 
 it("saves edited rule via PATCH with version check and refreshes", async () => {
@@ -139,8 +209,28 @@ it("saves edited rule via PATCH with version check and refreshes", async () => {
   expect(result.current.editing).toBeUndefined();
 });
 
-it("does not expose any delete operation", () => {
+it("deletes a custom rule via DELETE and refreshes", async () => {
+  vi.mocked(api).mockResolvedValueOnce({});
+
   const { result } = renderHook(() => useNumberingSystem());
-  expect((result.current as Record<string, unknown>).delete).toBeUndefined();
-  expect((result.current as Record<string, unknown>).remove).toBeUndefined();
+
+  act(() => {
+    result.current.setDeleting(mockRules[2]);
+  });
+
+  expect(result.current.deleting?.id).toBe("r-3");
+
+  await act(async () => {
+    result.current.remove();
+  });
+
+  expect(api).toHaveBeenCalledWith(
+    "/companies/c-1/numbering/r-3",
+    expect.objectContaining({
+      method: "DELETE",
+    }),
+  );
+
+  expect(refreshMock).toHaveBeenCalled();
+  expect(result.current.deleting).toBeNull();
 });

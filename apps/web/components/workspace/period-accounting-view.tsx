@@ -29,11 +29,6 @@ function Workspace() {
       <PageHeader
         title="اسناد پایان و آغاز دوره"
         icon={BooksIcon}
-        action={
-          <ButtonLink href="/settings/periods" variant="secondary">
-            دوره‌های مالی
-          </ButtonLink>
-        }
       />
       <Panel>
         {c.accounts.loading || c.roles.resource.loading ? (

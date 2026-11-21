@@ -374,7 +374,9 @@ def _text(db: Session, item: Delivery) -> str | None:
         as_of = snapshot.get("as_of") or "ناموجود"
         lines = [
             company.name,
-            "خلاصه روزانه (دفتر اصلی)" if item.event_type == "daily_summary" else "گزارش مالی دفتر اصلی آماده است",
+            "خلاصه روزانه (دفتر اصلی)"
+            if item.event_type == "daily_summary"
+            else "گزارش مالی دفتر اصلی آماده است",
             f"تاریخ مبنا: {as_of}",
         ]
         NATIVE_METRICS = (

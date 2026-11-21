@@ -26,7 +26,12 @@ def run_once() -> int:
                 select(Job)
                 .where(
                     Job.company_id == company,
-                    or_(and_(Job.state == "pending", or_(Job.leased_until.is_(None), Job.leased_until < now())), and_(Job.state == "running", Job.leased_until < now())),
+                    or_(
+                        and_(
+                            Job.state == "pending", or_(Job.leased_until.is_(None), Job.leased_until < now())
+                        ),
+                        and_(Job.state == "running", Job.leased_until < now()),
+                    ),
                 )
                 .order_by(Job.created_at, Job.id)
                 .limit(1)
@@ -39,6 +44,7 @@ def run_once() -> int:
             continue
         try:
             from .model_interpretation import prepare_model_interpretations
+
             if not asyncio.run(prepare_model_interpretations(company, claim[0], claim[1])):
                 continue
             with transaction(company) as db:

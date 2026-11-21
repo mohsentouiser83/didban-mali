@@ -10,8 +10,10 @@ from didban.schema_readiness import require_current_schema
 def test_current_layout_accepts_constraint_or_unique_index(unique_index):
     metadata = MetaData()
     Table(
-        "facts", metadata,
-        Column("id", String, primary_key=True), Column("company_id", String),
+        "facts",
+        metadata,
+        Column("id", String, primary_key=True),
+        Column("company_id", String),
         UniqueConstraint("company_id", "id"),
     )
     engine = create_engine("sqlite://")
@@ -27,9 +29,12 @@ def test_current_layout_accepts_constraint_or_unique_index(unique_index):
 def test_old_layout_reports_all_gaps_without_changing_data():
     metadata = MetaData()
     Table(
-        "facts", metadata,
-        Column("id", String, primary_key=True), Column("company_id", String),
-        Column("bank_reference", String), UniqueConstraint("company_id", "id"),
+        "facts",
+        metadata,
+        Column("id", String, primary_key=True),
+        Column("company_id", String),
+        Column("bank_reference", String),
+        UniqueConstraint("company_id", "id"),
     )
     engine = create_engine("sqlite://")
     with engine.begin() as conn:

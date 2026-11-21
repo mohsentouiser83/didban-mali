@@ -193,3 +193,43 @@ def test_api_numbering_endpoints(auth_context):
     assert next_res.status_code == 200
     assert next_res.json()["number"] == "001"
     assert next_res.json()["current_number"] == 2
+
+    # 5. Create custom numbering rule
+    create_res = client.post(
+        f"/api/v1/companies/{cid}/numbering",
+        json={
+            "entity_type": "custom_contract",
+            "entity_title": "قراردادهای پیمانکاری",
+            "prefix": "CTR-",
+            "start_number": 10,
+            "current_number": 10,
+            "padding": 4,
+            "suffix": "-1403",
+            "description": "شماره‌گذاری قراردادهای پیمانکاری",
+        },
+        headers=headers(),
+    )
+    assert create_res.status_code == 201, create_res.text
+    created = create_res.json()
+    assert created["entity_type"] == "custom_contract"
+    assert created["entity_title"] == "قراردادهای پیمانکاری"
+    assert created["sample"] == "CTR-0010-1403"
+    assert created["is_system"] is False
+
+    # 6. Duplicate entity_type should return 409
+    dup_res = client.post(
+        f"/api/v1/companies/{cid}/numbering",
+        json={
+            "entity_type": "custom_contract",
+            "entity_title": "قرارداد تکراری",
+        },
+        headers=headers(),
+    )
+    assert dup_res.status_code == 409
+
+    # 7. Delete custom rule should succeed
+    del_custom = client.delete(
+        f"/api/v1/companies/{cid}/numbering/{created['id']}",
+        headers=headers(),
+    )
+    assert del_custom.status_code == 200

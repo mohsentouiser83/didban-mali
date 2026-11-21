@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, LoadingState, StatusMessage } from "@/component
 import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
 import { StatCards } from "@/components/ui/financial/stat-cards";
-import { NoCompany, PageHeader, Panel, PeriodFilter } from "./page-parts";
+import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { amount, displayDate, persian } from "@/lib/utils";
 const icons = { employees: UsersThreeIcon, payroll: WalletIcon, tax: ReceiptIcon, insurance: ShieldCheckIcon, "employee-reports": UsersThreeIcon };
 export function PeopleView({ kind }: { kind: PeopleKind }) {
@@ -14,8 +14,7 @@ export function PeopleView({ kind }: { kind: PeopleKind }) {
   if (!view.workspace.company) return <NoCompany />;
   const columns = view.config.columns;
   return <>
-    <PageHeader title={view.config.title} icon={icons[kind]} action={<div className="flex flex-wrap gap-2">{kind !== "employee-reports" && <ButtonLink variant="secondary" href="/employee-reports">گزارش کارمندان</ButtonLink>}<ButtonLink variant="secondary" href={kind === "employees" ? "/templates/employees.csv" : "/templates/payroll.csv"}>قالب فایل</ButtonLink></div>} />
-    <PeriodFilter />
+    <PageHeader title={view.config.title} icon={icons[kind]} action={<ButtonLink variant="secondary" href={kind === "employees" ? "/templates/employees.csv" : "/templates/payroll.csv"}>قالب فایل</ButtonLink>} />
     {view.loading ? <LoadingState label={`در حال دریافت ${view.config.title}`} /> : view.error ? <ErrorState message={view.error.message} onRetry={view.refresh} /> : view.data?.status !== "available" ? <Panel><EmptyState title={view.data?.reason || "اطلاعات این بخش برای دوره جاری ثبت نشده است"} description="اطلاعات کارمندان را در بخش مربوطه مدیریت کنید." action={view.workspace.canWrite && <ButtonLink href="/employee-reports">مدیریت کارمندان</ButtonLink>} /></Panel> : <div className="space-y-5">
       {kind === "tax" && <StatusMessage>مالیات حقوق ثبت‌شده در اسناد</StatusMessage>}
       {kind !== "employees" && <StatCards metrics={view.metrics} items={columns.map(key => ({key, label: payrollLabels[key], icon: icons[kind]}))} />}

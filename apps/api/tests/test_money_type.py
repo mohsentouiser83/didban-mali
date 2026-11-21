@@ -17,7 +17,9 @@ def test_money_storage_uses_postgres_numeric38_6_and_sqlite_text():
     assert isinstance(Invoice.__table__.c.amount.type, Money)
 
 
-@pytest.mark.parametrize("invalid", ["NaN", "Infinity", "-Infinity", "100000000000000000000000000000000", "0.0000001", 0.1, True])
+@pytest.mark.parametrize(
+    "invalid", ["NaN", "Infinity", "-Infinity", "100000000000000000000000000000000", "0.0000001", 0.1, True]
+)
 def test_money_rejects_invalid_canonical_binds(invalid):
     with pytest.raises(ValueError):
         canonical_money(invalid)

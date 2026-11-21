@@ -1,4 +1,5 @@
 """Company-scoped module settings; changing preferences preserves financial facts."""
+
 from fastapi import APIRouter, Request
 from pydantic import StrictBool
 
@@ -21,6 +22,12 @@ def modules(company_id: str, request: Request):
 
 @router.patch(C + "/modules/{module_key}")
 def update_module(company_id: str, module_key: str, data: ModuleInput, request: Request):
-    return mutate(request, company_id, data.model_dump(), "owner",
-                  lambda db, user: service.update_module(db, company_id, user, module_key,
-                                                         data.enabled, expected(request)))
+    return mutate(
+        request,
+        company_id,
+        data.model_dump(),
+        "owner",
+        lambda db, user: service.update_module(
+            db, company_id, user, module_key, data.enabled, expected(request)
+        ),
+    )

@@ -119,19 +119,41 @@ def normalize(row: SourceRow, interpretation: Interpretation, session_id: str) -
     )
     if family in ("employees", "payroll"):
         employee_id, name = get("employee_id"), get("employee_name")
-        require(bool(employee_id and name) and len(employee_id) <= 100 and len(name) <= 150,
-                "employee_identity_missing", "کد و نام کارمند معتبر نیست.")
+        require(
+            bool(employee_id and name) and len(employee_id) <= 100 and len(name) <= 150,
+            "employee_identity_missing",
+            "کد و نام کارمند معتبر نیست.",
+        )
         values = {}
         if family == "payroll":
-            fields = ("gross_pay", "net_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions")
+            fields = (
+                "gross_pay",
+                "net_pay",
+                "payroll_tax",
+                "employee_insurance",
+                "employer_insurance",
+                "other_deductions",
+            )
             values = {field: money(get(field), unit) for field in fields}
-            require(all(Decimal(value) >= 0 for value in values.values()), "invalid_payroll", "مبلغ حقوق و کسورات نباید منفی باشد.")
+            require(
+                all(Decimal(value) >= 0 for value in values.values()),
+                "invalid_payroll",
+                "مبلغ حقوق و کسورات نباید منفی باشد.",
+            )
             with localcontext() as context:
                 context.prec = 50
-                expected_net = Decimal(values["gross_pay"]) - sum((Decimal(values[k]) for k in ("payroll_tax", "employee_insurance", "other_deductions")), Decimal(0))
-            require(expected_net == Decimal(values["net_pay"]), "payroll_not_balanced", "خالص حقوق با ناخالص و کسورات برابر نیست.")
-        return PersonnelRecord(**base, kind=family, employee_id=employee_id,
-                               employee_name=name, date=date, values=values)
+                expected_net = Decimal(values["gross_pay"]) - sum(
+                    (Decimal(values[k]) for k in ("payroll_tax", "employee_insurance", "other_deductions")),
+                    Decimal(0),
+                )
+            require(
+                expected_net == Decimal(values["net_pay"]),
+                "payroll_not_balanced",
+                "خالص حقوق با ناخالص و کسورات برابر نیست.",
+            )
+        return PersonnelRecord(
+            **base, kind=family, employee_id=employee_id, employee_name=name, date=date, values=values
+        )
     if family == "ledger":
         require(
             bool(get("account")),

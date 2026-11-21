@@ -1,4 +1,5 @@
 """Explicit model budget and tariff administration; secrets are environment-only."""
+
 from datetime import datetime
 from typing import Literal
 
@@ -53,14 +54,20 @@ class TariffInput(InputModel):
 def installation_budgets(request: Request):
     with access(request) as (db, user, _member):
         require(user.installation_admin, "permission_denied", "فقط مدیر نصب مجاز است.", 403)
-        budgets = db.scalars(select(m.InstallationModelBudget).order_by(m.InstallationModelBudget.period.desc()).limit(100))
+        budgets = db.scalars(
+            select(m.InstallationModelBudget).order_by(m.InstallationModelBudget.period.desc()).limit(100)
+        )
         return {"items": [service.public_installation_budget(budget) for budget in budgets]}
 
 
 @router.post(P + "/admin/model-budget")
 def save_installation_budget(data: InstallationBudgetInput, request: Request):
     version = expected(request) if request.headers.get("if-match") else None
-    return installation_mutate(request, data.model_dump(), lambda db, actor: service.configure_installation_budget(db, actor, data.model_dump(), version))
+    return installation_mutate(
+        request,
+        data.model_dump(),
+        lambda db, actor: service.configure_installation_budget(db, actor, data.model_dump(), version),
+    )
 
 
 @router.get(C + "/model-status")
@@ -77,7 +84,13 @@ def tariffs(company_id: str, request: Request, limit: int = 50, cursor: str | No
 
 @router.post(C + "/model-tariffs", status_code=201)
 def save_tariff(company_id: str, data: TariffInput, request: Request):
-    return mutate(request, company_id, data.model_dump(), "write", lambda db, actor: service.configure_tariff(db, company_id, actor, data.model_dump()))
+    return mutate(
+        request,
+        company_id,
+        data.model_dump(),
+        "write",
+        lambda db, actor: service.configure_tariff(db, company_id, actor, data.model_dump()),
+    )
 
 
 @router.get(C + "/model-requests")
@@ -94,14 +107,36 @@ class CostReconciliationInput(InputModel):
 @router.get(C + "/model-reservations")
 def model_reservations(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
     with access(request, company_id) as (db, _user, _member):
+
         def public(item):
-            return {key: getattr(item, key) for key in ("id", "created_at", "request_id", "period", "attempt", "amount", "actual_cost", "state")}
+            return {
+                key: getattr(item, key)
+                for key in (
+                    "id",
+                    "created_at",
+                    "request_id",
+                    "period",
+                    "attempt",
+                    "amount",
+                    "actual_cost",
+                    "state",
+                )
+            }
+
         return paginate(db, m.BudgetReservation, company_id, limit, cursor, transform=public)
 
 
 @router.post(C + "/model-reservations/{reservation_id}/reconciliations")
 def reconcile_cost(company_id: str, reservation_id: str, data: CostReconciliationInput, request: Request):
-    return mutate(request, company_id, data.model_dump(), "read", lambda db, actor: reconcile_unknown_cost_in(db, company_id=company_id, actor_id=actor.id, reservation_id=reservation_id, **data.model_dump()))
+    return mutate(
+        request,
+        company_id,
+        data.model_dump(),
+        "read",
+        lambda db, actor: reconcile_unknown_cost_in(
+            db, company_id=company_id, actor_id=actor.id, reservation_id=reservation_id, **data.model_dump()
+        ),
+    )
 
 
 @router.get(C + "/model-reservations/{reservation_id}/response-evidence")

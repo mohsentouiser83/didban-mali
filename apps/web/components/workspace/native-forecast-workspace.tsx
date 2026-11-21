@@ -106,7 +106,7 @@ export function NativeForecastWorkspace() {
         {c.plan?.state === "waiting_input" && (
           <div className="mt-4 space-y-3">
             <StatusMessage>
-              انتشار پیش‌بینی تا پاسخ به پرسش‌ها متوقف است.
+              برای محاسبه دقیق پیش‌بینی، لطفاً به پرسش‌ها پاسخ دهید.
             </StatusMessage>
             <Button variant="secondary" onClick={() => c.setDialogOpen(true)}>
               پاسخ به پرسش

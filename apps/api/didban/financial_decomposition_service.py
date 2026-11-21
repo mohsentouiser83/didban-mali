@@ -6,6 +6,7 @@ Provides hand-calculated-exact financial decompositions:
 - Receivables risk & overdue concentration analysis
 - Cash shortfall timing and trajectory decomposition
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -56,30 +57,34 @@ def decompose_profit_drivers(
     drivers = []
     # Revenue impact on profit
     if rev_delta != ZERO:
-        drivers.append({
-            "component": "revenue",
-            "label": "تغییرات درآمد فروش و خدمات",
-            "delta": text_amount(rev_delta),
-            "profit_impact": text_amount(rev_delta),
-            "impact_direction": "positive" if rev_delta > ZERO else "negative",
-            "relative_share": round(float(abs(rev_delta) / (abs(rev_delta) + abs(exp_delta)) * 100), 1)
-            if (abs(rev_delta) + abs(exp_delta)) > ZERO
-            else 0.0,
-        })
+        drivers.append(
+            {
+                "component": "revenue",
+                "label": "تغییرات درآمد فروش و خدمات",
+                "delta": text_amount(rev_delta),
+                "profit_impact": text_amount(rev_delta),
+                "impact_direction": "positive" if rev_delta > ZERO else "negative",
+                "relative_share": round(float(abs(rev_delta) / (abs(rev_delta) + abs(exp_delta)) * 100), 1)
+                if (abs(rev_delta) + abs(exp_delta)) > ZERO
+                else 0.0,
+            }
+        )
 
     # Expense impact on profit (expense increase reduces profit)
     if exp_delta != ZERO:
         expense_profit_impact = -exp_delta
-        drivers.append({
-            "component": "expense",
-            "label": "تغییرات هزینه‌های عملیاتی و غیرعملیاتی",
-            "delta": text_amount(exp_delta),
-            "profit_impact": text_amount(expense_profit_impact),
-            "impact_direction": "negative" if exp_delta > ZERO else "positive",
-            "relative_share": round(float(abs(exp_delta) / (abs(rev_delta) + abs(exp_delta)) * 100), 1)
-            if (abs(rev_delta) + abs(exp_delta)) > ZERO
-            else 0.0,
-        })
+        drivers.append(
+            {
+                "component": "expense",
+                "label": "تغییرات هزینه‌های عملیاتی و غیرعملیاتی",
+                "delta": text_amount(exp_delta),
+                "profit_impact": text_amount(expense_profit_impact),
+                "impact_direction": "negative" if exp_delta > ZERO else "positive",
+                "relative_share": round(float(abs(exp_delta) / (abs(rev_delta) + abs(exp_delta)) * 100), 1)
+                if (abs(rev_delta) + abs(exp_delta)) > ZERO
+                else 0.0,
+            }
+        )
 
     # Sort drivers by absolute magnitude of profit impact
     drivers.sort(key=lambda d: abs(amount(d["profit_impact"])), reverse=True)
@@ -88,12 +93,14 @@ def decompose_profit_drivers(
     top_expenses = []
     if breakdown_data and breakdown_data.get("status") == "available":
         for item in breakdown_data.get("expense_accounts", [])[:5]:
-            top_expenses.append({
-                "account_title": item["account_title"],
-                "account_code": item.get("account_code", ""),
-                "amount": item["amount"],
-                "share_percent": item["share_percent"],
-            })
+            top_expenses.append(
+                {
+                    "account_title": item["account_title"],
+                    "account_code": item.get("account_code", ""),
+                    "amount": item["amount"],
+                    "share_percent": item["share_percent"],
+                }
+            )
 
     return {
         "status": "available",
@@ -283,15 +290,17 @@ def detect_liquidity_cliff(
             daily_outflows[ch.due_date].append(ob)
             contributing_obligations.append(ob)
         elif ch.direction == "received":
-            daily_inflows[ch.due_date].append({
-                "type": "cheque_receivable",
-                "id": ch.id,
-                "number": ch.number,
-                "due_date": ch.due_date.isoformat(),
-                "amount_irr": text_amount(amt),
-                "party_id": ch.party_id,
-                "description": f"چک دریافتنی شماره {ch.number} از طرف حساب {ch.party_id}",
-            })
+            daily_inflows[ch.due_date].append(
+                {
+                    "type": "cheque_receivable",
+                    "id": ch.id,
+                    "number": ch.number,
+                    "due_date": ch.due_date.isoformat(),
+                    "amount_irr": text_amount(amt),
+                    "party_id": ch.party_id,
+                    "description": f"چک دریافتنی شماره {ch.number} از طرف حساب {ch.party_id}",
+                }
+            )
 
     # 3. Payroll obligations
     payroll_ops = list(
@@ -403,14 +412,16 @@ def detect_liquidity_cliff(
             continue
 
         if due_date and due_date < as_of:
-            overdue_invoices.append({
-                "invoice_id": inv.id,
-                "number": number,
-                "party_id": party_id,
-                "due_date": due_date.isoformat(),
-                "overdue_days": (as_of - due_date).days,
-                "remaining_irr": text_amount(remaining),
-            })
+            overdue_invoices.append(
+                {
+                    "invoice_id": inv.id,
+                    "number": number,
+                    "party_id": party_id,
+                    "due_date": due_date.isoformat(),
+                    "overdue_days": (as_of - due_date).days,
+                    "remaining_irr": text_amount(remaining),
+                }
+            )
 
         lookback_start = as_of - timedelta(days=180)
         customer_history_events = []
@@ -438,11 +449,13 @@ def detect_liquidity_cliff(
                     if o_terms and o_terms.payload and o_terms.payload.get("due_date"):
                         o_due_raw = o_terms.payload["due_date"]
                         o_due = date.fromisoformat(o_due_raw) if isinstance(o_due_raw, str) else o_due_raw
-                        customer_history_events.append({
-                            "paid_on": a_date,
-                            "due_date": o_due,
-                            "amount": Decimal(canonical_money(a.amount)),
-                        })
+                        customer_history_events.append(
+                            {
+                                "paid_on": a_date,
+                                "due_date": o_due,
+                                "amount": Decimal(canonical_money(a.amount)),
+                            }
+                        )
 
         expected_date = None
         if due_date:
@@ -456,13 +469,15 @@ def detect_liquidity_cliff(
                 expected_date = due_date
 
         if expected_date and as_of < expected_date <= end_date:
-            daily_inflows[expected_date].append({
-                "type": "customer_collection",
-                "invoice_id": inv.id,
-                "party_id": party_id,
-                "amount_irr": text_amount(remaining),
-                "description": f"وصول پیش‌بینی‌شده فاکتور {number} از {party_id}",
-            })
+            daily_inflows[expected_date].append(
+                {
+                    "type": "customer_collection",
+                    "invoice_id": inv.id,
+                    "party_id": party_id,
+                    "amount_irr": text_amount(remaining),
+                    "description": f"وصول پیش‌بینی‌شده فاکتور {number} از {party_id}",
+                }
+            )
 
     # 5. Computes projected 30-day daily cash path
     daily_path: list[dict[str, Any]] = []
@@ -487,16 +502,18 @@ def detect_liquidity_cliff(
             cliff_detected = True
             cliff_date = curr_d
 
-        daily_path.append({
-            "day": i,
-            "date": curr_d.isoformat(),
-            "starting_balance": text_amount(current_balance - day_in + day_out),
-            "inflows": text_amount(day_in),
-            "outflows": text_amount(day_out),
-            "projected_balance": text_amount(current_balance),
-            "inflow_count": len(inflow_items),
-            "outflow_count": len(outflow_items),
-        })
+        daily_path.append(
+            {
+                "day": i,
+                "date": curr_d.isoformat(),
+                "starting_balance": text_amount(current_balance - day_in + day_out),
+                "inflows": text_amount(day_in),
+                "outflows": text_amount(day_out),
+                "projected_balance": text_amount(current_balance),
+                "inflow_count": len(inflow_items),
+                "outflow_count": len(outflow_items),
+            }
+        )
 
     shortfall = max(Decimal(0), threshold_dec - min_projected) if cliff_detected else Decimal(0)
 
@@ -505,25 +522,29 @@ def detect_liquidity_cliff(
     if overdue_invoices:
         overdue_invoices.sort(key=lambda x: Decimal(canonical_money(x["remaining_irr"])), reverse=True)
         top_od = overdue_invoices[0]
-        recovery_recommendations.append({
-            "action_type": "accelerate_collections",
-            "priority": "high",
-            "title": f"پیگیری وصول مطالبات معوق از {top_od['party_id']}",
-            "amount_irr": top_od["remaining_irr"],
-            "details": f"فاکتور {top_od['number']} با مبلغ {top_od['remaining_irr']} ریال به مدت {top_od['overdue_days']} روز سررسیدگذشته است.",
-            "target_invoice_id": top_od["invoice_id"],
-        })
+        recovery_recommendations.append(
+            {
+                "action_type": "accelerate_collections",
+                "priority": "high",
+                "title": f"پیگیری وصول مطالبات معوق از {top_od['party_id']}",
+                "amount_irr": top_od["remaining_irr"],
+                "details": f"فاکتور {top_od['number']} با مبلغ {top_od['remaining_irr']} ریال به مدت {top_od['overdue_days']} روز سررسیدگذشته است.",
+                "target_invoice_id": top_od["invoice_id"],
+            }
+        )
     if cliff_detected and contributing_obligations:
         contributing_obligations.sort(key=lambda x: Decimal(canonical_money(x["amount_irr"])), reverse=True)
         top_ob = contributing_obligations[0]
-        recovery_recommendations.append({
-            "action_type": "defer_obligation",
-            "priority": "high",
-            "title": f"مذاکره جهت تمدید سررسید {top_ob.get('description', '')}",
-            "amount_irr": top_ob["amount_irr"],
-            "details": f"انتقال زمان پرداخت این تعهد به پس از تاریخ {cliff_date.isoformat() if cliff_date else ''} می‌تواند از کسری نقدینگی جلوگیری کند.",
-            "target_id": top_ob.get("id"),
-        })
+        recovery_recommendations.append(
+            {
+                "action_type": "defer_obligation",
+                "priority": "high",
+                "title": f"مذاکره جهت تمدید سررسید {top_ob.get('description', '')}",
+                "amount_irr": top_ob["amount_irr"],
+                "details": f"انتقال زمان پرداخت این تعهد به پس از تاریخ {cliff_date.isoformat() if cliff_date else ''} می‌تواند از کسری نقدینگی جلوگیری کند.",
+                "target_id": top_ob.get("id"),
+            }
+        )
 
     return {
         "cliff_detected": cliff_detected,
@@ -593,27 +614,29 @@ def detect_cogs_and_margin_anomalies(
                     diff_unit = unit_price - hist_avg
                     total_excess = diff_unit * qty_dec
                     severity = "critical" if unit_price > Decimal("1.50") * hist_avg else "high"
-                    anomalies.append({
-                        "anomaly_type": "purchase_price_spike",
-                        "item_id": item_id,
-                        "movement_id": mv.id,
-                        "journal_id": mv.journal_id,
-                        "date": mv.date.isoformat(),
-                        "severity": severity,
-                        "exact_amounts": {
-                            "unit_price_irr": text_amount(unit_price),
-                            "historical_average_irr": text_amount(hist_avg),
-                            "difference_irr": text_amount(diff_unit),
-                            "total_excess_irr": text_amount(total_excess),
-                            "spike_percentage": spike_pct,
-                            "quantity": qty_int,
-                        },
-                        "explanation": (
-                            f"جهش قیمت خرید: نرخ خرید هر واحد کالا ({text_amount(unit_price)} ریال) "
-                            f"به میزان {spike_pct}٪ بالاتر از میانگین خرید قبلی ({text_amount(hist_avg)} ریال) است "
-                            f"که منجر به افزایش مازاد {text_amount(total_excess)} ریال در بهای موجودی شده است."
-                        ),
-                    })
+                    anomalies.append(
+                        {
+                            "anomaly_type": "purchase_price_spike",
+                            "item_id": item_id,
+                            "movement_id": mv.id,
+                            "journal_id": mv.journal_id,
+                            "date": mv.date.isoformat(),
+                            "severity": severity,
+                            "exact_amounts": {
+                                "unit_price_irr": text_amount(unit_price),
+                                "historical_average_irr": text_amount(hist_avg),
+                                "difference_irr": text_amount(diff_unit),
+                                "total_excess_irr": text_amount(total_excess),
+                                "spike_percentage": spike_pct,
+                                "quantity": qty_int,
+                            },
+                            "explanation": (
+                                f"جهش قیمت خرید: نرخ خرید هر واحد کالا ({text_amount(unit_price)} ریال) "
+                                f"به میزان {spike_pct}٪ بالاتر از میانگین خرید قبلی ({text_amount(hist_avg)} ریال) است "
+                                f"که منجر به افزایش مازاد {text_amount(total_excess)} ریال در بهای موجودی شده است."
+                            ),
+                        }
+                    )
 
             history["cost"] += val_irr
             history["qty"] += qty_dec
@@ -650,25 +673,27 @@ def detect_cogs_and_margin_anomalies(
             if sale_unit_price > Decimal(0) and sale_unit_price < fifo_unit_cost:
                 loss_per_unit = fifo_unit_cost - sale_unit_price
                 total_loss = loss_per_unit * qty_abs
-                anomalies.append({
-                    "anomaly_type": "negative_gross_margin",
-                    "item_id": item_id,
-                    "movement_id": mv.id,
-                    "journal_id": mv.journal_id,
-                    "date": mv.date.isoformat(),
-                    "severity": "critical",
-                    "exact_amounts": {
-                        "sale_unit_price_irr": text_amount(sale_unit_price),
-                        "fifo_unit_cost_irr": text_amount(fifo_unit_cost),
-                        "loss_per_unit_irr": text_amount(loss_per_unit),
-                        "total_loss_irr": text_amount(total_loss),
-                        "quantity": int(qty_abs),
-                    },
-                    "explanation": (
-                        f"حاشیه سود ناخالص منفی: نرخ فروش هر واحد کالا ({text_amount(sale_unit_price)} ریال) "
-                        f"کمتر از بهای تمام‌شده فایفو ({text_amount(fifo_unit_cost)} ریال) است "
-                        f"و این معامله منجر به {text_amount(total_loss)} ریال زیان ناخالص شده است."
-                    ),
-                })
+                anomalies.append(
+                    {
+                        "anomaly_type": "negative_gross_margin",
+                        "item_id": item_id,
+                        "movement_id": mv.id,
+                        "journal_id": mv.journal_id,
+                        "date": mv.date.isoformat(),
+                        "severity": "critical",
+                        "exact_amounts": {
+                            "sale_unit_price_irr": text_amount(sale_unit_price),
+                            "fifo_unit_cost_irr": text_amount(fifo_unit_cost),
+                            "loss_per_unit_irr": text_amount(loss_per_unit),
+                            "total_loss_irr": text_amount(total_loss),
+                            "quantity": int(qty_abs),
+                        },
+                        "explanation": (
+                            f"حاشیه سود ناخالص منفی: نرخ فروش هر واحد کالا ({text_amount(sale_unit_price)} ریال) "
+                            f"کمتر از بهای تمام‌شده فایفو ({text_amount(fifo_unit_cost)} ریال) است "
+                            f"و این معامله منجر به {text_amount(total_loss)} ریال زیان ناخالص شده است."
+                        ),
+                    }
+                )
 
     return anomalies

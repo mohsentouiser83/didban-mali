@@ -164,10 +164,7 @@ def processing_interpretations(db: Session, source: SourceFile) -> list[Interpre
     items = latest_interpretations(db, source.company_id, source.id)
     for index, current in enumerate(items):
         headers = current.evidence.get("headers", [])
-        if (
-            current.provenance != "validated_header_rules"
-            or current.family != "unknown"
-        ):
+        if current.provenance != "validated_header_rules" or current.family != "unknown":
             continue
         detected = interpret(Sheet(current.sheet, headers, []), source.name)
         if detected["family"] not in {"ledger", "moadian_sales", "moadian_purchases"}:
@@ -181,7 +178,9 @@ def processing_interpretations(db: Session, source: SourceFile) -> list[Interpre
             )
             .order_by(SourceRow.row_number)
         ).all()
-        proposal = interpret(Sheet(current.sheet, headers, [(number, values) for number, values in rows]), source.name)
+        proposal = interpret(
+            Sheet(current.sheet, headers, [(number, values) for number, values in rows]), source.name
+        )
         proposal["evidence"]["source_interpretation_id"] = current.id
         updated = Interpretation(
             company_id=source.company_id,
@@ -220,7 +219,9 @@ def check_interpretations(db: Session, session: ProcessingSession, files: list[S
                     source.id,
                 )
                 return False
-            if interpretation.family != "employees" and (not interpretation.unit or interpretation.unit == "unsupported"):
+            if interpretation.family != "employees" and (
+                not interpretation.unit or interpretation.unit == "unsupported"
+            ):
                 if interpretation.unit == "unsupported":
                     issue(
                         db,
@@ -625,7 +626,9 @@ def process(db: Session, job: Job) -> None:
         job.state = "done"
         return
 
-    apply_excluded_source_coverage_drops(db, session, files, coverage, latest_interpretations, COVERAGE_FIELDS)
+    apply_excluded_source_coverage_drops(
+        db, session, files, coverage, latest_interpretations, COVERAGE_FIELDS
+    )
 
     row_ids = list(dict.fromkeys(parent_rows + selected_rows))
     period = db.get(Period, session.period_id)

@@ -3,7 +3,9 @@ from test_model_gateway import SETUP
 
 
 def test_installation_model_configuration_is_admin_only_and_secret_free_without_company(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from pydantic import SecretStr
 owner=client_for("owner");manager=client_for("finance_manager");viewer=client_for("viewer")
 path="/api/v1/admin/model-configuration"
@@ -23,11 +25,14 @@ settings.openai_api_key=None
 response=owner.get(path)
 assert response.json()["enabled"] is False and response.json()["key_configured"] is False
 assert command(owner,"POST",path,{"model":"arbitrary","enabled":True}).status_code==405
-''')
+""",
+    )
 
 
 def test_explicit_model_budget_and_tariff_administration_is_authorized_and_audited(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from datetime import datetime,timezone
 owner=client_for("owner");manager=client_for("finance_manager");viewer=client_for("viewer")
 body={"period":"2026-11","cap":"1","per_session_cap":"0.5"}
@@ -54,11 +59,15 @@ with transaction("company-a") as db:
     assert len(events)==2
     assert events[1].details["before"]["cap"]=="1" and events[1].details["after"]["cap"]=="2"
     assert db.scalar(select(m.AuditEvent).where(m.AuditEvent.action=="model.tariff_created"))
-''')
+""",
+    )
 
 
 def test_usage_is_actual_company_scoped_and_status_never_returns_key(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 from pydantic import SecretStr
 owner=client_for("owner");viewer=client_for("viewer");outsider=client_for("outsider")
 result=asyncio.run(configured(lambda request:httpx.Response(200,json=envelope())).invoke(**arguments))
@@ -76,11 +85,15 @@ settings.model_enabled=True;settings.openai_api_key=SecretStr("synthetic-key-nev
 status=viewer.get(base+"/model-status")
 assert status.json()["status"]=="configured_unverified" and status.json()["availability_verified"] is False,status.text
 assert "synthetic-key" not in status.text and status.json()["key_configured"] is True
-''')
+""",
+    )
 
 
 def test_budget_cannot_drop_below_unknown_commitments_and_usd_validation_is_independent(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 owner=client_for("owner")
 def timeout(request):
     raise httpx.ReadTimeout("synthetic",request=request)
@@ -94,11 +107,15 @@ assert command(owner,"POST",base+"/budget-policy",{"period":period,"cap":"-1"}).
 assert command(owner,"POST",base+"/budget-policy",{"period":period,"cap":"۱۲۳"}).status_code==422
 response=command(owner,"POST",base+"/budget-policy",{"period":period,"cap":"1.123456789"})
 assert response.status_code==200 and response.json()["cap"]=="1.123456789" and response.json()["currency"]=="USD",response.text
-''')
+""",
+    )
 
 
 def test_unknown_cost_reconciliation_requires_admin_and_keeps_audited_actual_cost(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 owner=client_for("owner");manager=client_for("finance_manager")
 def timeout(request):
     raise httpx.ReadTimeout("synthetic",request=request)
@@ -113,4 +130,5 @@ assert response.status_code==200 and response.json()["actual_cost"]=="0.005",res
 assert command(owner,"POST",path,body,key="cost-reconcile").json()==response.json()
 usage=owner.get(base+"/usage").json()
 assert Decimal(usage["used"])==Decimal("0.005") and Decimal(usage["reserved"])==0
-''')
+""",
+    )

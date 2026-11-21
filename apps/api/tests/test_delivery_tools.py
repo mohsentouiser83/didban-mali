@@ -1,4 +1,5 @@
 """CLI tools run against an isolated miniature installation, never workspace data."""
+
 import hashlib
 import json
 import os
@@ -13,14 +14,21 @@ ROOT = Path(__file__).resolve().parents[3]
 
 def installation(tmp_path):
     root = tmp_path / "installation"
-    shutil.copytree(ROOT / "apps/api/didban", root / "apps/api/didban", ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(
+        ROOT / "apps/api/didban", root / "apps/api/didban", ignore=shutil.ignore_patterns("__pycache__")
+    )
     (root / "scripts").mkdir()
     for name in ("bootstrap.py", "reset_password.py", "backup.py"):
         shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
     storage = root / "private"
     storage.mkdir(mode=0o700)
-    env = os.environ | {"DIDBAN_DATABASE_URL": f"sqlite:///{root / 'installation.db'}", "DIDBAN_STORAGE": str(storage),
-                        "DIDBAN_PRODUCTION": "false", "DIDBAN_MODEL_ENABLED": "false", "DIDBAN_OPENAI_API_KEY": ""}
+    env = os.environ | {
+        "DIDBAN_DATABASE_URL": f"sqlite:///{root / 'installation.db'}",
+        "DIDBAN_STORAGE": str(storage),
+        "DIDBAN_PRODUCTION": "false",
+        "DIDBAN_MODEL_ENABLED": "false",
+        "DIDBAN_OPENAI_API_KEY": "",
+    }
     return root, storage, env
 
 
@@ -33,7 +41,14 @@ def test_sqlite_backup_restores_exact_database_originals_and_private_manifest(tm
         db.execute("CREATE TABLE immutable_fixture (id TEXT PRIMARY KEY, amount TEXT)")
         db.execute("INSERT INTO immutable_fixture VALUES ('one','123.400')")
     destination = tmp_path / "protected-backup"
-    result = subprocess.run([sys.executable, str(root / "scripts/backup.py"), "--mode", "sqlite", "--output", str(destination)], env=env, cwd=root, capture_output=True, text=True, timeout=60)
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/backup.py"), "--mode", "sqlite", "--output", str(destination)],
+        env=env,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
     assert result.returncode == 0, result.stderr
     with sqlite3.connect(destination / "database.sqlite3") as restored:
         assert restored.execute("SELECT amount FROM immutable_fixture").fetchone() == ("123.400",)
@@ -50,7 +65,7 @@ def test_sqlite_backup_restores_exact_database_originals_and_private_manifest(tm
 
 def test_account_bootstrap_and_password_reset_are_audited_and_revoke_sessions(tmp_path):
     root, _storage, env = installation(tmp_path)
-    program = r'''
+    program = r"""
 import getpass,runpy,sys
 from datetime import timedelta
 from pathlib import Path
@@ -75,6 +90,8 @@ with transaction() as db:
     assert not list(db.scalars(select(LoginSession)))
     actions={event.action for event in db.scalars(select(InstallationAudit))}
     assert actions=={"user.bootstrap_created","user.password_reset"}
-'''
-    result = subprocess.run([sys.executable, "-c", program], env=env, cwd=root, capture_output=True, text=True, timeout=60)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", program], env=env, cwd=root, capture_output=True, text=True, timeout=60
+    )
     assert result.returncode == 0, result.stdout + result.stderr

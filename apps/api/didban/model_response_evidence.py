@@ -15,9 +15,17 @@ def usage_counters(value: object) -> dict | None:
     if not isinstance(value, dict):
         return None
     fields = {
-        "input_tokens", "output_tokens", "total_tokens", "cached_tokens",
-        "cache_write_tokens", "reasoning_tokens", "image_tokens", "text_tokens",
-        "num_requests", "ttl_12h_tokens", "ttl_30m_tokens",
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "cached_tokens",
+        "cache_write_tokens",
+        "reasoning_tokens",
+        "image_tokens",
+        "text_tokens",
+        "num_requests",
+        "ttl_12h_tokens",
+        "ttl_30m_tokens",
     }
     nested = {"input_tokens_details", "output_tokens_details", "cache_write_tokens_details"}
 
@@ -48,8 +56,8 @@ def response_evidence(envelope: dict | None, transport: dict, reason: str | None
         "status": provider_identifier(value.get("status")),
         "usage_present": "usage" in value,
         "usage": usage_counters(value.get("usage")),
-        "tool_usage": {
-            key: usage_counters(tools[key]) for key in ("web_search", "image_gen") if key in tools
-        } if isinstance(tools, dict) else None,
+        "tool_usage": {key: usage_counters(tools[key]) for key in ("web_search", "image_gen") if key in tools}
+        if isinstance(tools, dict)
+        else None,
         "cost_reason": reason,
     }

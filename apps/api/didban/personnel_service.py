@@ -129,7 +129,9 @@ def _native_personnel_result(db: Session, company: str, area: str, period_id: st
         payment_stmt = payment_stmt.where(journal.period_id == period_id)
 
     paid_parties = {
-        op.payload.get("party_id") for op in db.scalars(payment_stmt) if op.payload and op.payload.get("party_id")
+        op.payload.get("party_id")
+        for op in db.scalars(payment_stmt)
+        if op.payload and op.payload.get("party_id")
     }
 
     items = []
@@ -223,9 +225,7 @@ def personnel_result(
         return _imported_personnel_result(db, company, area, period_id)
 
     # If basis is not explicitly requested, check company accounting setup mode
-    mode = db.scalar(
-        select(CompanyAccountingSetup.mode).where(CompanyAccountingSetup.company_id == company)
-    )
+    mode = db.scalar(select(CompanyAccountingSetup.mode).where(CompanyAccountingSetup.company_id == company))
     if mode == "primary":
         native = _native_personnel_result(db, company, area, period_id)
         if native["status"] == "available":

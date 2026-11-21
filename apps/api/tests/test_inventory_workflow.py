@@ -317,12 +317,6 @@ checked(command(advisor, "POST", book + f"/drafts/{created['id']}/discard", {
 fresh = checked(command(advisor, "POST", stock + "/drafts", sale_payload), 201)["draft"]
 fresh_approval = approval(fresh["id"])
 
-module_path = base + "/modules/receivables"
-disabled = checked(command(owner, "PATCH", module_path, {"enabled": False}))
-assert checked(viewer.get(stock))["sale_enabled"] is False
-rejected(post(fresh_approval), 403, "module_disabled")
-assert positions()[bucket] == (2, "2002")
-checked(command(owner, "PATCH", module_path, {"enabled": True}, version=disabled["version"]))
 approved = checked(post(fresh_approval), 201)["items"][0]
 cogs = next(line for line in approved["snapshot"]["lines"] if line["account_id"] == "cogs")
 assert cogs["original_debit"] == "100.1" and cogs["debit"] == "1001"

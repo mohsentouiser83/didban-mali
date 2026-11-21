@@ -1,4 +1,5 @@
 """Immutable report exports: exact amounts, Persian shaping and no formula execution."""
+
 from __future__ import annotations
 
 import csv
@@ -47,19 +48,48 @@ STATUS_LABELS = {
     "portal_only": "فقط در مؤدیان",
 }
 FIELD_LABELS = {
-    "account": "حساب", "balance": "مانده", "status": "وضعیت", "reason": "محدودیت",
-    "reference": "مرجع", "party_id": "طرف حساب", "direction": "جهت", "date": "تاریخ",
-    "due_date": "سررسید", "amount": "مبلغ", "paid": "تسویه‌شده", "remaining": "مانده",
-    "overdue": "سررسیدگذشته", "tax_id": "شناسه مالیاتی", "internal_amount": "مبلغ فاکتور",
-    "portal_amount": "مبلغ مؤدیان", "difference": "اختلاف", "tax": "مالیات",
-    "inflow": "ورودی", "outflow": "خروجی", "net": "خالص", "evidence_refs": "شواهد",
-    "reason_codes": "علت‌ها", "id": "شناسه", "obligation_id": "شناسه تعهد",
-    "label": "عنوان", "state": "وضعیت", "unit": "واحد", "scope": "دامنه",
-    "basis": "مبنا", "formula_version": "نسخه فرمول", "as_of_date": "تاریخ مبنا",
-    "external_in": "سایر واریزهای بانک", "external_out": "سایر برداشت‌های بانک",
-    "total_in": "واریز بانک در دوره", "total_out": "برداشت بانک در دوره",
-    "internal_in": "انتقال داخلی ورودی", "internal_out": "انتقال داخلی خروجی",
-    "trade": "تجاری", "loan": "وام", "payroll": "حقوق", "other": "سایر",
+    "account": "حساب",
+    "balance": "مانده",
+    "status": "وضعیت",
+    "reason": "محدودیت",
+    "reference": "مرجع",
+    "party_id": "طرف حساب",
+    "direction": "جهت",
+    "date": "تاریخ",
+    "due_date": "سررسید",
+    "amount": "مبلغ",
+    "paid": "تسویه‌شده",
+    "remaining": "مانده",
+    "overdue": "سررسیدگذشته",
+    "tax_id": "شناسه مالیاتی",
+    "internal_amount": "مبلغ فاکتور",
+    "portal_amount": "مبلغ مؤدیان",
+    "difference": "اختلاف",
+    "tax": "مالیات",
+    "inflow": "ورودی",
+    "outflow": "خروجی",
+    "net": "خالص",
+    "evidence_refs": "شواهد",
+    "reason_codes": "علت‌ها",
+    "id": "شناسه",
+    "obligation_id": "شناسه تعهد",
+    "label": "عنوان",
+    "state": "وضعیت",
+    "unit": "واحد",
+    "scope": "دامنه",
+    "basis": "مبنا",
+    "formula_version": "نسخه فرمول",
+    "as_of_date": "تاریخ مبنا",
+    "external_in": "سایر واریزهای بانک",
+    "external_out": "سایر برداشت‌های بانک",
+    "total_in": "واریز بانک در دوره",
+    "total_out": "برداشت بانک در دوره",
+    "internal_in": "انتقال داخلی ورودی",
+    "internal_out": "انتقال داخلی خروجی",
+    "trade": "تجاری",
+    "loan": "وام",
+    "payroll": "حقوق",
+    "other": "سایر",
 }
 
 
@@ -102,10 +132,13 @@ def localized(value: Any, *, amount: bool = False) -> str:
 class RTLText(Flowable):
     """Wrap logical words first, then shape each visual line independently."""
 
-    def __init__(self, text: Any, size: float = 10, font: str = FONT_REGULAR,
-                 color=INK, leading: float | None = None):
+    def __init__(
+        self, text: Any, size: float = 10, font: str = FONT_REGULAR, color=INK, leading: float | None = None
+    ):
         super().__init__()
-        self.logical_text = str(text).translate({code: "-" for code in (0x2010, 0x2011, 0x2012, 0x2013, 0x2014)})
+        self.logical_text = str(text).translate(
+            {code: "-" for code in (0x2010, 0x2011, 0x2012, 0x2013, 0x2014)}
+        )
         self.size = size
         self.font = font
         self.color = color
@@ -150,14 +183,18 @@ class RTLText(Flowable):
         count = int(availHeight // self.leading)
         if count < 1 or count >= len(self.lines):
             return []
-        return [RTLText("\n".join(self.lines[:count]), self.size, self.font, self.color, self.leading),
-                RTLText("\n".join(self.lines[count:]), self.size, self.font, self.color, self.leading)]
+        return [
+            RTLText("\n".join(self.lines[:count]), self.size, self.font, self.color, self.leading),
+            RTLText("\n".join(self.lines[count:]), self.size, self.font, self.color, self.leading),
+        ]
 
     def draw(self) -> None:
         self.canv.setFillColor(self.color)
         self.canv.setFont(self.font, self.size)
         for index, line in enumerate(self.lines):
-            self.canv.drawRightString(self.width, self.height - (index + 1) * self.leading + self.size * 0.3, shaped(line))
+            self.canv.drawRightString(
+                self.width, self.height - (index + 1) * self.leading + self.size * 0.3, shaped(line)
+            )
 
 
 def section_heading(text: str, size: float = 12) -> RTLText:
@@ -169,38 +206,53 @@ def section_heading(text: str, size: float = 12) -> RTLText:
 
 def _table(rows: list[list[Any]], widths: list[float]) -> Table:
     table = Table(rows, colWidths=widths, repeatRows=1, hAlign="RIGHT")
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), SOFT),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.6, LINE),
-        ("LINEBELOW", (0, 1), (-1, -1), 0.4, LINE),
-        ("LEFTPADDING", (0, 0), (-1, -1), 9),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-        ("TOPPADDING", (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-    ]))
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), SOFT),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.6, LINE),
+                ("LINEBELOW", (0, 1), (-1, -1), 0.4, LINE),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
     return table
 
 
 def _metric_rows(metrics: Iterable[Mapping[str, Any]]) -> list[list[Any]]:
-    rows = [[RTLText("وضعیت و محدودیت", 9, FONT_MEDIUM), RTLText("مبلغ (ریال)", 9, FONT_MEDIUM), RTLText("شاخص", 9, FONT_MEDIUM)]]
+    rows = [
+        [
+            RTLText("وضعیت و محدودیت", 9, FONT_MEDIUM),
+            RTLText("مبلغ (ریال)", 9, FONT_MEDIUM),
+            RTLText("شاخص", 9, FONT_MEDIUM),
+        ]
+    ]
     for metric in metrics:
         state = STATUS_LABELS.get(str(metric.get("status")), "نامشخص")
         reason = metric.get("reason")
         if reason:
             state += "\n" + str(reason)
-        rows.append([
-            RTLText(state, 8.5, color=MUTED),
-            RTLText(localized(metric.get("value"), amount=True), 10, FONT_MEDIUM),
-            RTLText(metric.get("label") or metric.get("metric_key") or "شاخص", 10),
-        ])
+        rows.append(
+            [
+                RTLText(state, 8.5, color=MUTED),
+                RTLText(localized(metric.get("value"), amount=True), 10, FONT_MEDIUM),
+                RTLText(metric.get("label") or metric.get("metric_key") or "شاخص", 10),
+            ]
+        )
     return rows
 
 
 def bank_flow_summary(values: Mapping[str, Any]) -> dict[str, Any]:
     """Legacy snapshots need both components before a total can be displayed."""
     summary = {"net": values.get("net")}
-    for target, first, second in (("total_in", "external_in", "internal_in"), ("total_out", "external_out", "internal_out")):
+    for target, first, second in (
+        ("total_in", "external_in", "internal_in"),
+        ("total_out", "external_out", "internal_out"),
+    ):
         if target in values:
             summary[target] = values[target]
         elif values.get(first) is not None and values.get(second) is not None:
@@ -233,19 +285,50 @@ def forecast_sections(forecast: Mapping[str, Any], width: float) -> list[Flowabl
     events = forecast.get("events") or []
     with localcontext() as context:
         context.prec = 50
-        receipts = sum((Decimal(str(event["amount"])) for event in events if event.get("direction") == "receipt"), Decimal(0))
-        payments = sum((Decimal(str(event["amount"])) for event in events if event.get("direction") == "payment"), Decimal(0))
+        receipts = sum(
+            (Decimal(str(event["amount"])) for event in events if event.get("direction") == "receipt"),
+            Decimal(0),
+        )
+        payments = sum(
+            (Decimal(str(event["amount"])) for event in events if event.get("direction") == "payment"),
+            Decimal(0),
+        )
     rows = [[RTLText("مبلغ (ریال)", 9, FONT_MEDIUM), RTLText("عنوان", 9, FONT_MEDIUM)]]
-    for label, value in (("مانده آغاز", forecast.get("opening")), ("دریافت برآوردی", format(receipts, "f")), ("پرداخت برنامه‌ای", format(payments, "f")), ("مانده پایان ۳۰ روز", forecast.get("closing"))):
+    for label, value in (
+        ("مانده آغاز", forecast.get("opening")),
+        ("دریافت برآوردی", format(receipts, "f")),
+        ("پرداخت برنامه‌ای", format(payments, "f")),
+        ("مانده پایان ۳۰ روز", forecast.get("closing")),
+    ):
         rows.append([RTLText(localized(value, amount=True), 10, FONT_MEDIUM), RTLText(label, 10)])
-    section.extend([Spacer(1, 3 * mm), _table(rows, [width * .45, width * .55])])
+    section.extend([Spacer(1, 3 * mm), _table(rows, [width * 0.45, width * 0.55])])
     if events:
-        event_rows = [[RTLText("مبلغ (ریال)", 9, FONT_MEDIUM), RTLText("تعهد", 9, FONT_MEDIUM), RTLText("جهت", 9, FONT_MEDIUM), RTLText("تاریخ", 9, FONT_MEDIUM)]]
+        event_rows = [
+            [
+                RTLText("مبلغ (ریال)", 9, FONT_MEDIUM),
+                RTLText("تعهد", 9, FONT_MEDIUM),
+                RTLText("جهت", 9, FONT_MEDIUM),
+                RTLText("تاریخ", 9, FONT_MEDIUM),
+            ]
+        ]
         for event in events[:12]:
-            event_rows.append([RTLText(localized(event.get("amount"), amount=True), 9, FONT_MEDIUM), RTLText(event.get("obligation_id", ""), 8), RTLText("دریافت" if event.get("direction") == "receipt" else "پرداخت", 9), RTLText(display_date(event.get("date")), 9)])
-        section.extend([Spacer(1, 4 * mm), _table(event_rows, [width * .29, width * .27, width * .18, width * .26])])
+            event_rows.append(
+                [
+                    RTLText(localized(event.get("amount"), amount=True), 9, FONT_MEDIUM),
+                    RTLText(event.get("obligation_id", ""), 8),
+                    RTLText("دریافت" if event.get("direction") == "receipt" else "پرداخت", 9),
+                    RTLText(display_date(event.get("date")), 9),
+                ]
+            )
+        section.extend(
+            [Spacer(1, 4 * mm), _table(event_rows, [width * 0.29, width * 0.27, width * 0.18, width * 0.26])]
+        )
         if len(events) > 12:
-            section.append(RTLText(f"{localized(12)} رویداد از {localized(len(events))}؛ فهرست کامل در Excel", 8, color=MUTED))
+            section.append(
+                RTLText(
+                    f"{localized(12)} رویداد از {localized(len(events))}؛ فهرست کامل در Excel", 8, color=MUTED
+                )
+            )
     assumptions = forecast.get("assumptions") or []
     if assumptions:
         section.extend([Spacer(1, 4 * mm), section_heading("مبنای برآورد", 10)])
@@ -269,23 +352,44 @@ def forecast_sections(forecast: Mapping[str, Any], width: float) -> list[Flowabl
 def pdf_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_name: str) -> bytes:
     register_fonts()
     output = io.BytesIO()
-    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=20 * mm, leftMargin=20 * mm,
-                            topMargin=20 * mm, bottomMargin=20 * mm,
-                            title=str(report.get("title", "گزارش مالی")), author="دیدبان مالی", lang="fa-IR")
+    doc = SimpleDocTemplate(
+        output,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+        title=str(report.get("title", "گزارش مالی")),
+        author="دیدبان مالی",
+        lang="fa-IR",
+    )
     width = A4[0] - 40 * mm
-    story: list[Flowable] = [RTLText(report.get("title", "گزارش مالی"), 18, FONT_MEDIUM),
-                             Spacer(1, 5 * mm), RTLText(company_name, 12, FONT_MEDIUM),
-                             Spacer(1, 3 * mm), RTLText("تولیدشده سامانه", 9, color=BRAND)]
+    story: list[Flowable] = [
+        RTLText(report.get("title", "گزارش مالی"), 18, FONT_MEDIUM),
+        Spacer(1, 5 * mm),
+        RTLText(company_name, 12, FONT_MEDIUM),
+        Spacer(1, 3 * mm),
+        RTLText("تولیدشده سامانه", 9, color=BRAND),
+    ]
     period = manifest.get("period") or (manifest.get("selection") or {}).get("period", {})
     start = period.get("start") if isinstance(period, Mapping) else None
     end = period.get("end") if isinstance(period, Mapping) else None
     if start and end:
-        story.extend([Spacer(1, 2 * mm), RTLText(f"دوره: {display_date(start)} تا {display_date(end)}", 9, color=MUTED)])
+        story.extend(
+            [
+                Spacer(1, 2 * mm),
+                RTLText(f"دوره: {display_date(start)} تا {display_date(end)}", 9, color=MUTED),
+            ]
+        )
     approvals = report.get("approvals", [])
-    approval_text = "تأیید مالی: ثبت نشده" if not approvals else f"تأیید مالی: {localized(len(approvals))} تأیید برای همین نسخه"
+    approval_text = (
+        "تأیید مالی: ثبت نشده"
+        if not approvals
+        else f"تأیید مالی: {localized(len(approvals))} تأیید برای همین نسخه"
+    )
     story.extend([Spacer(1, 2 * mm), RTLText(approval_text, 9, color=MUTED), Spacer(1, 7 * mm)])
     metrics = manifest.get("metrics", [])
-    story.append(_table(_metric_rows(metrics), [width * .38, width * .28, width * .34]))
+    story.append(_table(_metric_rows(metrics), [width * 0.38, width * 0.28, width * 0.34]))
 
     details = manifest.get("details") or {}
     for key, heading in (("cash_movements", "گردش نقد دوره"), ("debt_components", "اجزای بدهی دفتر")):
@@ -294,15 +398,33 @@ def pdf_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_n
             values = bank_flow_summary(values)
         if isinstance(values, Mapping) and values:
             rows = [[RTLText("مبلغ (ریال)", 9, FONT_MEDIUM), RTLText("عنوان", 9, FONT_MEDIUM)]]
-            rows.extend([[RTLText(localized(value, amount=True), 10, FONT_MEDIUM), RTLText(FIELD_LABELS.get(str(label), str(label)), 10)] for label, value in values.items() if not isinstance(value, (list, dict))])
-            story.extend([Spacer(1, 7 * mm), section_heading(heading), _table(rows, [width * .45, width * .55])])
+            rows.extend(
+                [
+                    [
+                        RTLText(localized(value, amount=True), 10, FONT_MEDIUM),
+                        RTLText(FIELD_LABELS.get(str(label), str(label)), 10),
+                    ]
+                    for label, value in values.items()
+                    if not isinstance(value, (list, dict))
+                ]
+            )
+            story.extend(
+                [Spacer(1, 7 * mm), section_heading(heading), _table(rows, [width * 0.45, width * 0.55])]
+            )
 
     bank_balances = details.get("bank_balances")
     if isinstance(bank_balances, list) and bank_balances:
         rows = [[RTLText("مانده (ریال)", 9, FONT_MEDIUM), RTLText("حساب", 9, FONT_MEDIUM)]]
         for account in bank_balances[:30]:
-            rows.append([RTLText(localized(account.get("balance"), amount=True), 10, FONT_MEDIUM), RTLText(account.get("account", ""), 9)])
-        story.extend([Spacer(1, 7 * mm), section_heading("مانده حساب‌ها"), _table(rows, [width * .45, width * .55])])
+            rows.append(
+                [
+                    RTLText(localized(account.get("balance"), amount=True), 10, FONT_MEDIUM),
+                    RTLText(account.get("account", ""), 9),
+                ]
+            )
+        story.extend(
+            [Spacer(1, 7 * mm), section_heading("مانده حساب‌ها"), _table(rows, [width * 0.45, width * 0.55])]
+        )
 
     forecast = details.get("forecast")
     if isinstance(forecast, Mapping):
@@ -366,7 +488,14 @@ def safe_csv(headers: Sequence[str], rows: Iterable[Mapping[str, Any] | Sequence
     return ("\ufeff" + output.getvalue()).encode("utf-8")
 
 
-def _sheet(workbook: Workbook, title: str, headers: Sequence[str], rows: Iterable[Sequence[Any]], *, overflow: list[tuple] | None = None) -> None:
+def _sheet(
+    workbook: Workbook,
+    title: str,
+    headers: Sequence[str],
+    rows: Iterable[Sequence[Any]],
+    *,
+    overflow: list[tuple] | None = None,
+) -> None:
     """Stream literal cells and preserve every over-limit value in numbered chunks."""
     import base64
     from itertools import chain, islice
@@ -385,9 +514,14 @@ def _sheet(workbook: Workbook, title: str, headers: Sequence[str], rows: Iterabl
     maximum_columns = max([len(headers), *[len(row) for row in first]], default=1)
     for column in range(maximum_columns):
         sample = [_scalar(row[column]) for row in [headers, *first] if column < len(row)]
-        sheet.column_dimensions[get_column_letter(column + 1)].width = min(48, max(18, max(map(len, sample), default=0) + 2))
+        sheet.column_dimensions[get_column_letter(column + 1)].width = min(
+            48, max(18, max(map(len, sample), default=0) + 2)
+        )
     alignment = Alignment(horizontal="right", vertical="top", wrap_text=True)
-    fonts = {False: Font(name="IRANYekanX", size=11, color="20243F"), True: Font(name="IRANYekanX", size=11, bold=True, color="20243F")}
+    fonts = {
+        False: Font(name="IRANYekanX", size=11, color="20243F"),
+        True: Font(name="IRANYekanX", size=11, bold=True, color="20243F"),
+    }
     fill = PatternFill("solid", fgColor="EEEDFF")
     number = 0
     for number, values in enumerate(chain([headers], first, iterator), 1):
@@ -401,8 +535,19 @@ def _sheet(workbook: Workbook, title: str, headers: Sequence[str], rows: Iterabl
                 reference = f"{sheet.title}!{get_column_letter(column)}{number}"
                 encoding = "base64-utf8" if illegal else "text"
                 preserved = base64.b64encode(literal.encode("utf-8")).decode("ascii") if illegal else literal
-                chunks = [preserved[start:start + 16000] for start in range(0, len(preserved), 16000)]
-                continued.extend((reference, sheet.title, f"{get_column_letter(column)}{number}", part, len(chunks), encoding, chunk) for part, chunk in enumerate(chunks, 1))
+                chunks = [preserved[start : start + 16000] for start in range(0, len(preserved), 16000)]
+                continued.extend(
+                    (
+                        reference,
+                        sheet.title,
+                        f"{get_column_letter(column)}{number}",
+                        part,
+                        len(chunks),
+                        encoding,
+                        chunk,
+                    )
+                    for part, chunk in enumerate(chunks, 1)
+                )
                 literal = "متن کامل در برگه ادامه متن: " + reference
             target = WriteOnlyCell(sheet) if workbook.write_only else sheet.cell(number, column)
             target.value = literal
@@ -416,7 +561,13 @@ def _sheet(workbook: Workbook, title: str, headers: Sequence[str], rows: Iterabl
             sheet.append(cells)
     sheet.auto_filter.ref = f"A1:{get_column_letter(maximum_columns)}{max(number, 1)}"
     if own_overflow and continued:
-        _sheet(workbook, "ادامه متن", ["reference", "sheet", "cell", "part", "parts", "encoding", "text"], continued, overflow=[])
+        _sheet(
+            workbook,
+            "ادامه متن",
+            ["reference", "sheet", "cell", "part", "parts", "encoding", "text"],
+            continued,
+            overflow=[],
+        )
 
 
 def _records_sheet(workbook: Workbook, title: str, values: Any, overflow: list[tuple]) -> None:
@@ -426,7 +577,13 @@ def _records_sheet(workbook: Workbook, title: str, values: Any, overflow: list[t
     elif isinstance(values, list):
         if all(isinstance(row, Mapping) for row in values):
             headers = list(dict.fromkeys(str(field) for row in values for field in row)) or ["id"]
-            _sheet(workbook, title, headers, ([row.get(field) for field in headers] for row in values), overflow=overflow)
+            _sheet(
+                workbook,
+                title,
+                headers,
+                ([row.get(field) for field in headers] for row in values),
+                overflow=overflow,
+            )
         else:
             _sheet(workbook, title, ["value"], ([row] for row in values), overflow=overflow)
 
@@ -437,16 +594,34 @@ def xlsx_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_
     overflow: list[tuple] = []
     selection = manifest.get("selection") or {}
     metadata = [
-        ("شرکت", company_name), ("گزارش", report.get("title")), ("نسخه", report.get("version", 1)),
-        ("شناسه گزارش", report.get("id")), ("شناسه نتیجه", manifest.get("id", manifest.get("manifest_id"))),
+        ("شرکت", company_name),
+        ("گزارش", report.get("title")),
+        ("نسخه", report.get("version", 1)),
+        ("شناسه گزارش", report.get("id")),
+        ("شناسه نتیجه", manifest.get("id", manifest.get("manifest_id"))),
         ("SHA-256", manifest.get("digest")),
     ]
-    metadata.extend(("manifest." + key, value) for key, value in manifest.items() if key not in {"id", "manifest_id", "digest", "selection", "metrics", "details"})
-    metadata.extend(("report." + key, value) for key, value in report.items() if key not in {"id", "title", "version", "approvals"})
+    metadata.extend(
+        ("manifest." + key, value)
+        for key, value in manifest.items()
+        if key not in {"id", "manifest_id", "digest", "selection", "metrics", "details"}
+    )
+    metadata.extend(
+        ("report." + key, value)
+        for key, value in report.items()
+        if key not in {"id", "title", "version", "approvals"}
+    )
     selection_sections = {
-        "row_ids": "ردیف‌های ورودی", "files": "منابع ورودی", "excluded_files": "منابع کنارگذاشته",
-        "allocations": "تخصیص‌های مبنا", "plans": "برنامه‌های مبنا", "forecast_plans": "برنامه‌های پیش‌بینی",
-        "decisions": "پاسخ‌ها و تصمیم‌ها", "interpretation_ids": "نسخه‌های تفسیر", "coverage": "پوشش منابع", "period": "دوره مبنا",
+        "row_ids": "ردیف‌های ورودی",
+        "files": "منابع ورودی",
+        "excluded_files": "منابع کنارگذاشته",
+        "allocations": "تخصیص‌های مبنا",
+        "plans": "برنامه‌های مبنا",
+        "forecast_plans": "برنامه‌های پیش‌بینی",
+        "decisions": "پاسخ‌ها و تصمیم‌ها",
+        "interpretation_ids": "نسخه‌های تفسیر",
+        "coverage": "پوشش منابع",
+        "period": "دوره مبنا",
     }
     metadata.extend((key, value) for key, value in selection.items() if not isinstance(value, (list, dict)))
     _sheet(book, "مشخصات", ["عنوان", "مقدار"], metadata, overflow=overflow)
@@ -454,20 +629,73 @@ def xlsx_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_
     for key, title in selection_sections.items():
         if key in selection:
             _records_sheet(book, title, selection[key], overflow)
-    remaining_selection = {key: value for key, value in selection.items() if key not in selection_sections and isinstance(value, (list, dict))}
+    remaining_selection = {
+        key: value
+        for key, value in selection.items()
+        if key not in selection_sections and isinstance(value, (list, dict))
+    }
     if remaining_selection:
         _records_sheet(book, "سایر انتخاب‌های مبنا", remaining_selection, overflow)
     metrics = manifest.get("metrics", [])
-    metric_headers = ["metric_key", "label", "basis", "scope", "value", "unit", "status", "reason", "reason_codes", "action", "as_of_date", "period_id", "formula_version", "comparison", "evidence_count"]
-    metric_headers = list(dict.fromkeys([*metric_headers, *[key for metric in metrics for key in metric if key != "evidence_refs"]]))
-    _sheet(book, "شاخص‌ها", metric_headers, ([len(metric.get("evidence_refs", [])) if key == "evidence_count" else metric.get(key) for key in metric_headers] for metric in metrics), overflow=overflow)
-    _sheet(book, "شواهد شاخص‌ها", ["metric_key", "basis", "scope", "source_row_id"], ([metric.get("metric_key"), metric.get("basis"), metric.get("scope"), reference] for metric in metrics for reference in metric.get("evidence_refs", [])), overflow=overflow)
+    metric_headers = [
+        "metric_key",
+        "label",
+        "basis",
+        "scope",
+        "value",
+        "unit",
+        "status",
+        "reason",
+        "reason_codes",
+        "action",
+        "as_of_date",
+        "period_id",
+        "formula_version",
+        "comparison",
+        "evidence_count",
+    ]
+    metric_headers = list(
+        dict.fromkeys(
+            [*metric_headers, *[key for metric in metrics for key in metric if key != "evidence_refs"]]
+        )
+    )
+    _sheet(
+        book,
+        "شاخص‌ها",
+        metric_headers,
+        (
+            [
+                len(metric.get("evidence_refs", [])) if key == "evidence_count" else metric.get(key)
+                for key in metric_headers
+            ]
+            for metric in metrics
+        ),
+        overflow=overflow,
+    )
+    _sheet(
+        book,
+        "شواهد شاخص‌ها",
+        ["metric_key", "basis", "scope", "source_row_id"],
+        (
+            [metric.get("metric_key"), metric.get("basis"), metric.get("scope"), reference]
+            for metric in metrics
+            for reference in metric.get("evidence_refs", [])
+        ),
+        overflow=overflow,
+    )
     details = manifest.get("details") or {}
     sections = {
-        "bank_balances": "مانده بانک", "daily_cash": "گردش روزانه", "bank_transactions": "تراکنش‌های بانک",
-        "invoices": "فاکتورها", "cash_movements": "حرکت نقد", "debt_components": "اجزای بدهی",
-        "opposite_debt_balances": "مانده خلاف ماهیت بدهی", "receivable_credit_balances": "بستانکاری دریافتنی",
-        "ledger_parties": "مانده اشخاص دفتر", "ledger_controls": "کنترل‌های دفتر", "invoice_credits": "اعتبار فاکتورها",
+        "bank_balances": "مانده بانک",
+        "daily_cash": "گردش روزانه",
+        "bank_transactions": "تراکنش‌های بانک",
+        "invoices": "فاکتورها",
+        "cash_movements": "حرکت نقد",
+        "debt_components": "اجزای بدهی",
+        "opposite_debt_balances": "مانده خلاف ماهیت بدهی",
+        "receivable_credit_balances": "بستانکاری دریافتنی",
+        "ledger_parties": "مانده اشخاص دفتر",
+        "ledger_controls": "کنترل‌های دفتر",
+        "invoice_credits": "اعتبار فاکتورها",
     }
     for key, title in sections.items():
         if key in details:
@@ -478,8 +706,17 @@ def xlsx_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_
                 _sheet(book, title, ["value"], [[value]], overflow=overflow)
     forecast = details.get("forecast") or {}
     if isinstance(forecast, Mapping):
-        _records_sheet(book, "پیش‌بینی", {key: value for key, value in forecast.items() if key not in ("days", "events", "assumptions")}, overflow)
-        for key, title in (("days", "روزهای پیش‌بینی"), ("events", "رویدادهای پیش‌بینی"), ("assumptions", "فرض‌های پیش‌بینی")):
+        _records_sheet(
+            book,
+            "پیش‌بینی",
+            {key: value for key, value in forecast.items() if key not in ("days", "events", "assumptions")},
+            overflow,
+        )
+        for key, title in (
+            ("days", "روزهای پیش‌بینی"),
+            ("events", "رویدادهای پیش‌بینی"),
+            ("assumptions", "فرض‌های پیش‌بینی"),
+        ):
             if key in forecast:
                 _records_sheet(book, title, forecast[key], overflow)
     moadian = details.get("moadian") or {}
@@ -487,11 +724,21 @@ def xlsx_report(manifest: Mapping[str, Any], report: Mapping[str, Any], company_
         for direction, title in (("sales", "مؤدیان فروش"), ("purchases", "مؤدیان خرید")):
             if direction in moadian:
                 _records_sheet(book, title, moadian[direction], overflow)
-    other_details = {key: value for key, value in details.items() if key not in sections and key not in ("forecast", "moadian")}
+    other_details = {
+        key: value
+        for key, value in details.items()
+        if key not in sections and key not in ("forecast", "moadian")
+    }
     if other_details:
         _records_sheet(book, "سایر جزئیات", other_details, overflow)
     if overflow:
-        _sheet(book, "ادامه متن", ["reference", "sheet", "cell", "part", "parts", "encoding", "text"], overflow, overflow=[])
+        _sheet(
+            book,
+            "ادامه متن",
+            ["reference", "sheet", "cell", "part", "parts", "encoding", "text"],
+            overflow,
+            overflow=[],
+        )
     output = io.BytesIO()
     book.save(output)
     return output.getvalue()

@@ -1,6 +1,8 @@
 "use client";
-import { BuildingsIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { BuildingsIcon, ChartLineUpIcon, ArrowsLeftRightIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { Tabs } from "@/components/ui/tabs";
 import {
   ErrorState,
   LoadingState,
@@ -36,16 +38,12 @@ export function ConsolidationView() {
 }
 function Workspace() {
   const view = useConsolidation();
+  const [draftTab, setDraftTab] = useState<"metrics" | "pairs">("metrics");
   return (
     <>
       <PageHeader
         title="حذف‌های درون‌گروهی"
         icon={BuildingsIcon}
-        action={
-          <ButtonLink href="/reports/companies" variant="secondary">
-            مقایسه شرکت‌ها
-          </ButtonLink>
-        }
       />
       <Panel title="انتخاب نسخهٔ مقایسه">
         {view.history.loading ? (
@@ -167,59 +165,73 @@ function Workspace() {
               ? "دفتر اصلی دیدبان"
               : "دفتر واردشده"}
           </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>شاخص دفتر</TableHead>
-                <TableHead>جمع پیش از حذف پیشنهادی (ریال)</TableHead>
-                <TableHead>تعدیل پیشنهادی (ریال)</TableHead>
-                <TableHead>پس از حذف پیشنهادی (ریال)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {view.draft.snapshot.metrics.map((metric) => (
-                <TableRow key={metric.metric_key}>
-                  <TableRowHeader>{metric.label}</TableRowHeader>
-                  <TableCell>{amount(metric.before)}</TableCell>
-                  <TableCell>{amount(metric.adjustment)}</TableCell>
-                  <TableCell>
-                    {amount(metric.after)}
-                    {metric.reason && (
-                      <p className="text-xs text-muted">{metric.reason}</p>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="mt-5">
+          <div className="mb-4 mt-2">
+            <Tabs
+              value={draftTab}
+              onChange={setDraftTab}
+              items={[
+                { id: "metrics", label: "شاخص‌های دفتر و تلفیق", icon: ChartLineUpIcon },
+                { id: "pairs", label: "تراکنش‌های حذف پیشنهادی", icon: ArrowsLeftRightIcon },
+              ]}
+            />
+          </div>
+
+          {draftTab === "metrics" ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>مرجع</TableHead>
-                  <TableHead>تاریخ</TableHead>
-                  <TableHead>مبلغ حذف پیشنهادی (ریال)</TableHead>
-                  <TableHead>دلیل بررسی</TableHead>
+                  <TableHead>شاخص دفتر</TableHead>
+                  <TableHead>جمع پیش از حذف پیشنهادی (ریال)</TableHead>
+                  <TableHead>تعدیل پیشنهادی (ریال)</TableHead>
+                  <TableHead>پس از حذف پیشنهادی (ریال)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {view.pairRows.map((pair, index) => (
-                  <TableRow key={index}>
-                    <TableRowHeader>{pair.reference}</TableRowHeader>
-                    <TableCell>{displayDate(pair.date)}</TableCell>
-                    <TableCell>{amount(pair.amount)}</TableCell>
-                    <TableCell>{pair.review_reason}</TableCell>
+                {view.draft.snapshot.metrics.map((metric) => (
+                  <TableRow key={metric.metric_key}>
+                    <TableRowHeader>{metric.label}</TableRowHeader>
+                    <TableCell>{amount(metric.before)}</TableCell>
+                    <TableCell>{amount(metric.adjustment)}</TableCell>
+                    <TableCell>
+                      {amount(metric.after)}
+                      {metric.reason && (
+                        <p className="text-xs text-muted">{metric.reason}</p>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            <Pagination
-              page={view.page}
-              total={view.pairTotal}
-              onPrevious={view.previous}
-              onNext={view.next}
-            />
-          </div>
+          ) : (
+            <div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>مرجع</TableHead>
+                    <TableHead>تاریخ</TableHead>
+                    <TableHead>مبلغ حذف پیشنهادی (ریال)</TableHead>
+                    <TableHead>دلیل بررسی</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {view.pairRows.map((pair, index) => (
+                    <TableRow key={index}>
+                      <TableRowHeader>{pair.reference}</TableRowHeader>
+                      <TableCell>{displayDate(pair.date)}</TableCell>
+                      <TableCell>{amount(pair.amount)}</TableCell>
+                      <TableCell>{pair.review_reason}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Pagination
+                page={view.page}
+                total={view.pairTotal}
+                onPrevious={view.previous}
+                onNext={view.next}
+              />
+            </div>
+          )}
         </Panel>
       )}
       <Panel title="پیش‌نویس‌های ذخیره‌شده" className="mt-5">

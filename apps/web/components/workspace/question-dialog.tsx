@@ -98,7 +98,7 @@ export function QuestionDialog({
         open={open}
         onOpenChange={setOpen}
         title={issue.question}
-        description="کل نوبت تا ثبت پاسخ معتبر متوقف است."
+        description="برای ادامه پردازش فایل، لطفاً به این پرسش پاسخ دهید."
       >
         <Form
           onSubmit={(event) => {

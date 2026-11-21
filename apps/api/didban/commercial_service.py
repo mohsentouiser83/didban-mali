@@ -107,11 +107,7 @@ def list_counterparties(
             or_(CommercialCounterparty.name.ilike(term), CommercialCounterparty.code.ilike(term))
         )
     total = len(list(db.scalars(stmt)))
-    rows = list(
-        db.scalars(
-            stmt.order_by(CommercialCounterparty.code).offset(offset).limit(limit)
-        )
-    )
+    rows = list(db.scalars(stmt.order_by(CommercialCounterparty.code).offset(offset).limit(limit)))
     return {
         "total": total,
         "items": [serialize_fact(row) for row in rows],
@@ -200,17 +196,19 @@ def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str
             line_total_irr = line_total * factor
             total += line_total
             total_irr += line_total_irr
-            processed.append({
-                "line_id": str(idx + 1),
-                "item_id": line.get("item_id"),
-                "description": line["description"],
-                "quantity": qty,
-                "unit_price": canonical_money(price),
-                "unit_price_irr": canonical_money(unit_price_irr),
-                "discount": canonical_money(discount),
-                "total": canonical_money(line_total),
-                "total_irr": canonical_money(line_total_irr),
-            })
+            processed.append(
+                {
+                    "line_id": str(idx + 1),
+                    "item_id": line.get("item_id"),
+                    "description": line["description"],
+                    "quantity": qty,
+                    "unit_price": canonical_money(price),
+                    "unit_price_irr": canonical_money(unit_price_irr),
+                    "discount": canonical_money(discount),
+                    "total": canonical_money(line_total),
+                    "total_irr": canonical_money(line_total_irr),
+                }
+            )
     return processed, canonical_money(total), canonical_money(total_irr)
 
 
@@ -310,14 +308,14 @@ def get_proforma(db: Session, company: str, proforma_id: str) -> dict:
     return serialize_fact(pf)
 
 
-def list_proformas(
-    db: Session, company: str, user: m.User, limit: int = 50, offset: int = 0
-) -> dict:
+def list_proformas(db: Session, company: str, user: m.User, limit: int = 50, offset: int = 0) -> dict:
     membership(db, company, user)
     stmt = select(ProformaInvoice).where(ProformaInvoice.company_id == company)
     total = len(list(db.scalars(stmt)))
     rows = list(
-        db.scalars(stmt.order_by(ProformaInvoice.date.desc(), ProformaInvoice.id.desc()).offset(offset).limit(limit))
+        db.scalars(
+            stmt.order_by(ProformaInvoice.date.desc(), ProformaInvoice.id.desc()).offset(offset).limit(limit)
+        )
     )
     return {
         "total": total,
@@ -335,8 +333,15 @@ def convert_proforma(
 ) -> dict:
     pf = get_entity(db, ProformaInvoice, company, proforma_id)
     check_version(pf, expected_version)
-    require(pf.status == "issued", "proforma_not_convertible", "فقط پیش‌فاکتورهای صادرشده قابل تبدیل هستند.", 409)
-    require(pf.converted_operation_id is None, "proforma_already_converted", "این پیش‌فاکتور قبلاً تبدیل شده است.", 409)
+    require(
+        pf.status == "issued", "proforma_not_convertible", "فقط پیش‌فاکتورهای صادرشده قابل تبدیل هستند.", 409
+    )
+    require(
+        pf.converted_operation_id is None,
+        "proforma_already_converted",
+        "این پیش‌فاکتور قبلاً تبدیل شده است.",
+        409,
+    )
 
     today = datetime.now(ZoneInfo(db.get(m.Company, company).timezone)).date()
     if pf.expiry_date and pf.expiry_date < today:
@@ -453,30 +458,36 @@ def pdf_commercial_document(document: dict, *, company_name: str, doc_type: str 
     ]
     rows = [headers]
     for idx, line in enumerate(document.get("lines", [])):
-        rows.append([
-            RTLText(localized(line.get("total", 0), amount=True), 8),
-            RTLText(localized(line.get("discount", 0), amount=True), 8),
-            RTLText(localized(line.get("unit_price", 0), amount=True), 8),
-            RTLText(str(line.get("quantity", 0)), 8),
-            RTLText(line.get("description", "-"), 8),
-            RTLText(str(idx + 1), 8),
-        ])
+        rows.append(
+            [
+                RTLText(localized(line.get("total", 0), amount=True), 8),
+                RTLText(localized(line.get("discount", 0), amount=True), 8),
+                RTLText(localized(line.get("unit_price", 0), amount=True), 8),
+                RTLText(str(line.get("quantity", 0)), 8),
+                RTLText(line.get("description", "-"), 8),
+                RTLText(str(idx + 1), 8),
+            ]
+        )
 
     col_widths = [width * 0.20, width * 0.15, width * 0.20, width * 0.10, width * 0.28, width * 0.07]
     story.append(_table(rows, col_widths))
-    story.extend([
-        Spacer(1, 4 * mm),
-        RTLText(
-            f"مبلغ کل: {localized(document.get('total_amount', 0), amount=True)} {document.get('currency', 'IRR')}",
-            11,
-            FONT_MEDIUM,
-        ),
-    ])
-    if document.get("terms"):
-        story.extend([
+    story.extend(
+        [
             Spacer(1, 4 * mm),
-            RTLText(f"شرایط و توضیحات: {document['terms']}", 9, color=MUTED),
-        ])
+            RTLText(
+                f"مبلغ کل: {localized(document.get('total_amount', 0), amount=True)} {document.get('currency', 'IRR')}",
+                11,
+                FONT_MEDIUM,
+            ),
+        ]
+    )
+    if document.get("terms"):
+        story.extend(
+            [
+                Spacer(1, 4 * mm),
+                RTLText(f"شرایط و توضیحات: {document['terms']}", 9, color=MUTED),
+            ]
+        )
 
     doc.build(story)
     return output.getvalue()

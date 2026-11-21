@@ -463,18 +463,29 @@ def test_native_book_notification_delivery_and_summary(db_session):
     user = m.User(id=user_id, email="nbot@test.local", name="کاربر بومی", password_hash="test")
     company = m.Company(id=company_id, name="شرکت دفتر بومی")
     conn = m.BotConnection(
-        id="conn-1", company_ref=company_id, user_id=user_id, provider="telegram",
-        sender_id="12345", chat_id="12345", state="active", version=1,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1)
+        id="conn-1",
+        company_ref=company_id,
+        user_id=user_id,
+        provider="telegram",
+        sender_id="12345",
+        chat_id="12345",
+        state="active",
+        version=1,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
     )
     stamp = datetime(2026, 11, 13, 5, 30, tzinfo=timezone.utc)  # 09:00 in Tehran
     member = m.Membership(company_id=company_id, user_id=user_id, role="viewer", active=True)
     pref = Preference(
-        company_id=company_id, user_id=user_id, provider="telegram",
-        enabled=True, enabled_at=stamp - timedelta(hours=1),
+        company_id=company_id,
+        user_id=user_id,
+        provider="telegram",
+        enabled=True,
+        enabled_at=stamp - timedelta(hours=1),
         events=["daily_summary", "report_ready"],
-        connection_id="conn-1", connection_version=1,
-        quiet_enabled=False, summary_time="09:00"
+        connection_id="conn-1",
+        connection_version=1,
+        quiet_enabled=False,
+        summary_time="09:00",
     )
     setup = CompanyAccountingSetup(company_id=company_id, mode="primary")
     db.add_all([user, company, member, conn, pref, setup])
@@ -520,8 +531,13 @@ def test_bot_02_deliver_snapshot_pdf_to_bot(environment):
 
         # Add active Telegram connection for user 'u'
         conn = m.BotConnection(
-            id="conn-pdf-1", company_ref="c", user_id="u", provider="telegram",
-            chat_id="12345678", state="active", expires_at=STAMP + timedelta(days=365)
+            id="conn-pdf-1",
+            company_ref="c",
+            user_id="u",
+            provider="telegram",
+            chat_id="12345678",
+            state="active",
+            expires_at=STAMP + timedelta(days=365),
         )
         db.add(conn)
         db.flush()
@@ -596,4 +612,3 @@ def test_bot_02_deliver_snapshot_pdf_to_bot(environment):
                 )
             )
         assert err.value.code == "bot_not_connected"
-

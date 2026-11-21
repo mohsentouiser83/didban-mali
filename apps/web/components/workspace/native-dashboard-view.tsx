@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/financial/stat-cards";
 import { useNativeDashboard } from "@/hooks/use-native-dashboard";
 import { amount, displayDate } from "@/lib/utils";
-import { PageHeader, PeriodFilter, Panel } from "./page-parts";
+import { PageHeader, Panel } from "./page-parts";
 export function NativeDashboardView() {
   const c = useNativeDashboard();
   return (
@@ -22,12 +22,17 @@ export function NativeDashboardView() {
         title="خلاصه مالی"
         icon={SquaresFourIcon}
         action={
-          <ButtonLink href="/reports/native" variant="secondary">
-            صورت مالی دفتر دیدبان
-          </ButtonLink>
+          c.data ? (
+            <ButtonLink
+              href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
+              variant="secondary"
+              download
+            >
+              گزارش مبنا PDF
+            </ButtonLink>
+          ) : undefined
         }
       />
-      <PeriodFilter />
       {c.loading ? (
         <LoadingState />
       ) : c.error ? (
@@ -81,22 +86,6 @@ export function NativeDashboardView() {
               { key: "pre_tax_profit", label: "سود پیش از مالیات" },
             ]}
           />
-          <div className="mt-5 flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/journals" variant="secondary">
-              دفتر اصلی
-            </ButtonLink>
-            <ButtonLink href="/cashflow/scenarios" variant="secondary">سناریوی نقدینگی</ButtonLink>
-            <ButtonLink href="/review/native-controls" variant="secondary">
-              کنترل دفتر اصلی
-            </ButtonLink>
-            <ButtonLink
-              href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
-              variant="secondary"
-              download
-            >
-              گزارش مبنا PDF
-            </ButtonLink>
-          </div>
         </>
       )}
     </>

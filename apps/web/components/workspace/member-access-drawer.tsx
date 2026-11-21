@@ -87,9 +87,9 @@ export function MemberAccessDrawer({
                 c.saveAccess();
               }}
             >
-              <h3 className="text-sm font-medium">اختیارهای حسابداری</h3>
+              <h3 className="text-sm font-medium">دسترسی‌های حسابداری</h3>
               {c.permission.implicit_authority ? (
-                <Badge>اختیار مدیر مالی</Badge>
+                <Badge>دسترسی خودکار مدیر مالی</Badge>
               ) : (
                 <>
                   <Checkbox
@@ -139,7 +139,7 @@ export function MemberAccessDrawer({
                       c.selected?.role === "viewer"
                     }
                   >
-                    ذخیره اختیارهای حسابداری
+                    ذخیره دسترسی‌های حسابداری
                   </Button>
                 </>
               )}

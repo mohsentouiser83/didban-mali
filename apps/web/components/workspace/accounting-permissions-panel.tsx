@@ -25,7 +25,7 @@ export function AccountingPermissionsPanel({
   const view = useAccountingPermissions(members);
   if (!view.owner) return null;
   return (
-    <Panel title="اختیارهای حسابداری" className="mt-5">
+    <Panel title="دسترسی‌های حسابداری" className="mt-5">
       {view.resource.loading ? (
         <LoadingState
           variant="message"

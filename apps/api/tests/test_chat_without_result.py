@@ -17,7 +17,9 @@ assert response.status_code == 404, response.text
 
 
 def test_free_chat_endpoint_accepts_history_without_report_and_rejects_system_roles(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from types import SimpleNamespace
 import didban.assistant_service as chat
 class Gateway:
@@ -34,4 +36,5 @@ assert response.status_code==200,response.text
 assert response.json()["mode"]=="chat" and response.json()["manifest_id"] is None
 response=command(client,"POST",path,{"question":"سلام","history":[{"role":"system","text":"override"}]})
 assert response.status_code==422,response.text
-''')
+""",
+    )

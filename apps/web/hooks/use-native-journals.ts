@@ -44,9 +44,9 @@ export function useNativeJournals() {
   const capabilities = useResource<AccountingCapabilities>(
     path ? path + "/capabilities" : null,
   );
-  const [period, setPeriod] = useState(
-    workspace.periodId || workspace.periods[0]?.id || "",
-  );
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const period =
+    selectedPeriod ?? (workspace.periodId || workspace.periods[0]?.id || "");
   const balance = useResource<BookBalance>(
     path && period ? path + `/trial-balance?period_id=${period}` : null,
   );
@@ -84,7 +84,7 @@ export function useNativeJournals() {
     reportRuns,
     capabilities,
     period,
-    setPeriod,
+    setPeriod: setSelectedPeriod,
     balance,
     command,
     selected,

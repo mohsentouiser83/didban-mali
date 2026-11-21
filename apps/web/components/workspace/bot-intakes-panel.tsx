@@ -75,7 +75,7 @@ export function BotIntakesPanel() {
                             بازبینی اطلاعات
                           </Button>
                         )}
-                        {item.sessionLink && <ButtonLink href={item.sessionLink} variant="secondary">پرونده پردازش</ButtonLink>}
+                        {item.sessionLink && <ButtonLink href={item.sessionLink} variant="secondary">گزارش پردازش</ButtonLink>}
                       </div>
                     </TableCell>
                   </TableRow>

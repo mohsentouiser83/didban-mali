@@ -342,7 +342,9 @@ def financial_etag(db: Session, company: str, period_id: str | None = None) -> s
             or 0
         )
 
-    stmt = select(func.coalesce(func.max(NativeJournal.sequence), 0)).where(NativeJournal.company_id == company)
+    stmt = select(func.coalesce(func.max(NativeJournal.sequence), 0)).where(
+        NativeJournal.company_id == company
+    )
     if period_id:
         stmt = stmt.where(NativeJournal.period_id == period_id)
     max_sequence = db.scalar(stmt) or 0

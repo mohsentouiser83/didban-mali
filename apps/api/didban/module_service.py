@@ -114,9 +114,11 @@ def module_state(db: Session, company: str, key: str, families: set[str] | None 
             source_basis = "native_invoice"
             groups = (("native_service_invoices",),)
             direction = "sale" if key == "receivables" else "purchase"
-            if db.scalar(select(NativeInvoice.id).where(
-                NativeInvoice.company_id == company, NativeInvoice.direction == direction
-            ).limit(1)):
+            if db.scalar(
+                select(NativeInvoice.id)
+                .where(NativeInvoice.company_id == company, NativeInvoice.direction == direction)
+                .limit(1)
+            ):
                 families.add("native_service_invoices")
     if key == "reconciliation":
         from .accounting_setup_models import CompanyAccountingSetup

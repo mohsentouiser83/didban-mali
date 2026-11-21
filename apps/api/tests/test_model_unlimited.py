@@ -1,13 +1,26 @@
 """Uncapped mode removes spend ceilings while preserving financial safeguards."""
+
 from test_api_delivery import scenario
 from test_model_gateway import SETUP
 
 
 def test_unlimited_bootstraps_accounting_and_settles_usage_without_company_budget(tmp_path):
-    setup = "\n".join(line for line in SETUP.splitlines() if not any(
-        marker in line for marker in ("db.add(m.ModelTariff", "db.add(m.BudgetPolicy", "db.add(m.InstallationModelBudget")
-    ))
-    scenario(tmp_path, setup + r'''
+    setup = "\n".join(
+        line
+        for line in SETUP.splitlines()
+        if not any(
+            marker in line
+            for marker in (
+                "db.add(m.ModelTariff",
+                "db.add(m.BudgetPolicy",
+                "db.add(m.InstallationModelBudget",
+            )
+        )
+    )
+    scenario(
+        tmp_path,
+        setup
+        + r"""
 from pydantic import SecretStr
 from didban.config import settings
 from didban.model_admin_service import model_status, company_usage
@@ -41,11 +54,15 @@ with transaction("company-a") as db:
 capped=ModelGateway(GatewayConfig(enabled=True,api_key="synthetic"),httpx.MockTransport(handler))
 result=asyncio.run(capped.invoke(**(arguments|{"request_key":"capped-after-unlimited"})))
 assert result["reason_code"]=="model_budget_not_configured" and len(calls)==1
-''')
+""",
+    )
 
 
 def test_unlimited_ignores_all_spend_caps_but_preserves_authorization_and_unknown_cost(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 with transaction("company-a") as db:
     db.scalar(select(m.BudgetPolicy)).cap="0"
     budget=db.scalar(select(m.InstallationModelBudget))
@@ -68,15 +85,23 @@ with transaction("company-a") as db:
     reservation=db.scalar(select(m.BudgetReservation))
     assert reservation.state=="unknown" and Decimal(reservation.amount)>0
     assert db.scalar(select(m.InstallationModelBudget)).reserved==reservation.amount
-''')
+""",
+    )
 
 
 def test_avalai_zero_tool_usage_is_accepted_but_nonzero_or_unknown_tools_are_not():
     from didban.model_gateway import no_billable_tools
 
-    observed = {"image_gen": {"input_tokens": 0, "input_tokens_details": {"image_tokens": 0, "text_tokens": 0},
-                              "output_tokens": 0, "output_tokens_details": {"image_tokens": 0, "text_tokens": 0},
-                              "total_tokens": 0}, "web_search": {"num_requests": 0}}
+    observed = {
+        "image_gen": {
+            "input_tokens": 0,
+            "input_tokens_details": {"image_tokens": 0, "text_tokens": 0},
+            "output_tokens": 0,
+            "output_tokens_details": {"image_tokens": 0, "text_tokens": 0},
+            "total_tokens": 0,
+        },
+        "web_search": {"num_requests": 0},
+    }
     assert no_billable_tools(observed)
     assert not no_billable_tools({"web_search": {"num_requests": 1}})
     assert not no_billable_tools({"unknown_tool": {"num_requests": 0}})

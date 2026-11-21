@@ -1,4 +1,5 @@
-import { ReportBuilderView } from "@/components/workspace/report-builder-view";
+import { redirect } from "next/navigation";
+
 export default function Page() {
-  return <ReportBuilderView />;
+  redirect("/reports/studio");
 }

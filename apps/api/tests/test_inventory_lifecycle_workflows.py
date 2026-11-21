@@ -77,8 +77,12 @@ def inv_lifecycle_env(db_session):
     acc_ap = Account(id=f"acc-ap-{uuid4().hex[:6]}", company_id=c_id, code="20101", name="حسابهای پرداختنی")
     acc_rev = Account(id=f"acc-rev-{uuid4().hex[:6]}", company_id=c_id, code="40101", name="فروش")
     acc_cogs = Account(id=f"acc-cogs-{uuid4().hex[:6]}", company_id=c_id, code="50101", name="بهای تمام شده")
-    acc_adj_loss = Account(id=f"acc-adj-l-{uuid4().hex[:6]}", company_id=c_id, code="50201", name="کسری انبار")
-    acc_adj_gain = Account(id=f"acc-adj-g-{uuid4().hex[:6]}", company_id=c_id, code="40201", name="اضافه انبار")
+    acc_adj_loss = Account(
+        id=f"acc-adj-l-{uuid4().hex[:6]}", company_id=c_id, code="50201", name="کسری انبار"
+    )
+    acc_adj_gain = Account(
+        id=f"acc-adj-g-{uuid4().hex[:6]}", company_id=c_id, code="40201", name="اضافه انبار"
+    )
 
     db.add_all([acc_inv, acc_equity, acc_ar, acc_ap, acc_rev, acc_cogs, acc_adj_loss, acc_adj_gain])
     db.flush()

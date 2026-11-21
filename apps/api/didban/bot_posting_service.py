@@ -89,11 +89,7 @@ def safe_draft(db: Session, company: str, draft: Draft) -> bool:
             OperationDraft.company_id == company, OperationDraft.draft_id == draft.id
         )
     )
-    if (
-        operation is None
-        or operation.kind not in LABELS
-        or operation.kind in ("payroll", "payroll_payment")
-    ):
+    if operation is None or operation.kind not in LABELS or operation.kind in ("payroll", "payroll_payment"):
         return False
     from .accounting_models import Account
 

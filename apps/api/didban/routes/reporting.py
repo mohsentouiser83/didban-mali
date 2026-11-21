@@ -21,7 +21,9 @@ from ..workflow import (
 router = APIRouter()
 
 
-@router.get(C + "/results/latest", responses={204: {"description": "No result exists when allow_missing is true"}})
+@router.get(
+    C + "/results/latest", responses={204: {"description": "No result exists when allow_missing is true"}}
+)
 def latest_result(
     company_id: str,
     request: Request,

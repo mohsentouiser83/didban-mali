@@ -1,6 +1,5 @@
 "use client";
 import { BooksIcon } from "@phosphor-icons/react";
-import { ButtonLink } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -34,11 +33,6 @@ function Workspace() {
       <PageHeader
         title="نقش حساب‌های دفتر اصلی"
         icon={BooksIcon}
-        action={
-          <ButtonLink href="/settings/accounts" variant="secondary">
-            کدینگ حساب‌ها
-          </ButtonLink>
-        }
       />
       <Panel>
         {c.resource.loading ? (

@@ -89,7 +89,8 @@ def test_csv_preserves_codes_and_rejects_invalid_headers_and_blank_names():
 
     # CSV with nature column
     with_nature = parse_chart(
-        "chart.csv", "code,name,ماهیت\n001,بانک,بدهکار\n002,بستانکاران,بستانکار\n003,جاری,شناور\n".encode("utf-8")
+        "chart.csv",
+        "code,name,ماهیت\n001,بانک,بدهکار\n002,بستانکاران,بستانکار\n003,جاری,شناور\n".encode("utf-8"),
     )["rows"]
     assert with_nature[0]["nature"] == "debit"
     assert with_nature[1]["nature"] == "credit"

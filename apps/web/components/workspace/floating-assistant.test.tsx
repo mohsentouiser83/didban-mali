@@ -11,11 +11,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
+let mockDraft = "";
+
 vi.mock("@/hooks/use-floating-assistant", () => ({
   useFloatingAssistant: () => ({
     open: true,
     setOpen: setOpenMock,
-    draft: "",
+    draft: mockDraft,
     setDraft: setDraftMock,
     busy: false,
     send: sendMock,
@@ -175,5 +177,29 @@ describe("FloatingAssistant Action Cards", () => {
     expect(screen.getByText("بانک سامان")).toBeInTheDocument();
     expect(screen.getByText("کد حساب")).toBeInTheDocument();
     expect(screen.getByText("سرفصل حساب")).toBeInTheDocument();
+  });
+
+  it("renders Telegram-style input buttons: Paperclip at start, Voice at end when empty, Send at end when draft has text", () => {
+    // 1. Empty draft -> Paperclip at start, Voice at end
+    mockDraft = "";
+    const { unmount } = render(<FloatingAssistant />);
+
+    expect(
+      screen.getByRole("button", { name: "امکانات و پرسش‌های پیشنهادی" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ضبط ویس" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ارسال پیام" })).not.toBeInTheDocument();
+
+    unmount();
+
+    // 2. Draft has text -> Paperclip at start, Send replaces Voice at end
+    mockDraft = "سود خالص امسال چقدر است؟";
+    render(<FloatingAssistant />);
+
+    expect(
+      screen.getByRole("button", { name: "امکانات و پرسش‌های پیشنهادی" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ارسال پیام" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "ضبط ویس" })).not.toBeInTheDocument();
   });
 });

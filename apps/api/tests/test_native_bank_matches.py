@@ -24,13 +24,31 @@ def setup(db, company_id="c", period_id="p", user_id="finance_manager"):
     user = db.get(m.User, user_id)
     company = db.get(m.Company, company_id)
     period = db.get(m.Period, period_id)
-    accounts = list(db.scalars(select(Account).where(Account.company_id == company_id).order_by(Account.code)))
+    accounts = list(
+        db.scalars(select(Account).where(Account.company_id == company_id).order_by(Account.code))
+    )
     save_role(db, company_id, user, accounts[0].id, "bank", 1)
     save_role(db, company_id, user, accounts[1].id, "revenue", 1)
     for index, value in enumerate(("10", "20")):
-        draft = save_draft(db, company_id, user, {"period_id": period_id, "description": "نمونه", "unit": "IRR", "date": date(2026, 9, 5 + index), "lines": [{"account_id": accounts[0].id, "party_id": "customer", "debit": value, "credit": "0"}, {"account_id": accounts[1].id, "party_id": "customer", "debit": "0", "credit": value}]})
+        draft = save_draft(
+            db,
+            company_id,
+            user,
+            {
+                "period_id": period_id,
+                "description": "نمونه",
+                "unit": "IRR",
+                "date": date(2026, 9, 5 + index),
+                "lines": [
+                    {"account_id": accounts[0].id, "party_id": "customer", "debit": value, "credit": "0"},
+                    {"account_id": accounts[1].id, "party_id": "customer", "debit": "0", "credit": value},
+                ],
+            },
+        )
         checked = preview(db, company_id, user, draft["id"])
-        post_batch(db, company_id, user, [{key: checked[key] for key in ("draft_id", "expected_version", "digest")}])
+        post_batch(
+            db, company_id, user, [{key: checked[key] for key in ("draft_id", "expected_version", "digest")}]
+        )
     statement = save_statement(db, company_id, user, period_id, date(2026, 9, 30))
     session, job = session_job(db, user, company, period)
     source(
@@ -145,7 +163,12 @@ def test_native_changed_roles_or_new_journal_require_new_statement_but_old_accep
         service.decide(db, "c", user, item["id"], decision(accepted, decision="rejected"))["status"]
         == "rejected"
     )
-    assert next(row for row in statement["snapshot"]["role_assignments"] if row["account_id"] == accounts[0].id)["role"] == "bank"
+    assert (
+        next(row for row in statement["snapshot"]["role_assignments"] if row["account_id"] == accounts[0].id)[
+            "role"
+        ]
+        == "bank"
+    )
 
 
 def test_native_mismatch_stale_digest_permission_and_crosscompany_guards(book):
@@ -189,6 +212,7 @@ def test_native_bank_preview_has_frozen_proofs_and_no_imported_ledger(book):
 
 def test_primary_readiness_requires_native_bank_proof_and_preserves_other_modules(book):
     from didban.module_service import module_state
+
     db = book
     before = module_state(db, "c", "reconciliation", {"bank", "ledger"})
     assert before["source_basis"] == "native_book"
@@ -202,7 +226,10 @@ def test_primary_readiness_requires_native_bank_proof_and_preserves_other_module
 
 def test_http_native_preview_exact_approval_replay_read_isolation_and_immutability(tmp_path):
     from test_api_delivery import scenario
-    scenario(tmp_path, r"""
+
+    scenario(
+        tmp_path,
+        r"""
 import sys
 sys.path.insert(0,"apps/api/tests")
 from test_native_bank_matches import setup,decision
@@ -237,4 +264,5 @@ with transaction("company-a") as db:
     db.get(m.Membership,members["advisor"]).role="viewer"
 assert command(advisor,"POST",prefix+"/previews/"+item["id"]+"/decisions",body,key=key,version=1).status_code==403
 initialize()
-""")
+""",
+    )

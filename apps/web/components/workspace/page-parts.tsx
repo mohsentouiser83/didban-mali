@@ -6,8 +6,6 @@ import { useExistingSourceReport } from "@/hooks/use-existing-source-report";
 import { FormMessage } from "@/components/ui/field";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/content-states";
-import { Select } from "@/components/ui/select";
-import { useWorkspace } from "@/hooks/workspace";
 import {
   BooksIcon,
   BuildingsIcon,
@@ -16,14 +14,14 @@ import {
   CalendarBlankIcon,
   FilesIcon,
   UsersThreeIcon,
-  ChatCircleIcon,
+  SparkleIcon,
   GearIcon,
   HashIcon,
   ReceiptIcon,
 } from "@phosphor-icons/react";
 import { PageTitle } from "@/components/ui/page-title";
 import type { Icon } from "@phosphor-icons/react";
-import { cn, displayDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 export function PageHeader({
   title,
   icon,
@@ -36,7 +34,11 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const destination = navigationGroups.flatMap((group) => group.items)
+  const destination = navigationGroups
+    .flatMap((group) => [
+      ...group.items,
+      ...group.items.flatMap((item) => item.children || []),
+    ])
     .find((item) => item.href === pathname)
     || settingsCatalog.flatMap((category) => category.items)
       .find((item) => item.href === pathname);
@@ -63,19 +65,19 @@ export function CurrentPageHeader() {
     "/cashflow/scenarios": { title: "سناریوی نقدینگی", icon: FilesIcon },
     "/receivables/followups": { title: "پیگیری وصول", icon: UsersThreeIcon },
     "/moadian/transmissions": { title: "ارسال و استعلام صورتحساب", icon: ReceiptIcon },
-    "/review/expense-changes": { title: "تغییرات هزینه", icon: FilesIcon },
+    "/review/expense-changes": { title: "تحلیل تغییر هزینه‌ها", icon: FilesIcon },
     "/reports/companies": { title: "مقایسه شرکت‌ها", icon: FilesIcon },
     "/reports/dimensions": { title: "گزارش پروژه و مرکز هزینه", icon: FilesIcon },
     "/reports/builder": { title: "گزارش‌ساز", icon: FilesIcon },
-    "/employee-reports": { title: "گزارش کارمندان", icon: UsersThreeIcon },
+    "/employee-reports": { title: "حقوق و دستمزد", icon: UsersThreeIcon },
     "/settlements/plans": { title: "برنامه پرداخت", icon: CalendarBlankIcon },
-    "/assistant": { title: "دستیار مالی", icon: ChatCircleIcon },
+    "/assistant": { title: "تحلیل با هوش مصنوعی", icon: SparkleIcon },
     "/settings": { title: "تنظیمات", icon: GearIcon },
     "/settings/numbering": { title: "سیستم شماره‌گذاری", icon: HashIcon },
   };
   const fallback = pathname.startsWith("/uploads/")
-    ? { title: "پرونده پردازش", icon: FilesIcon }
-    : extra[pathname] || { title: "فضای مالی", icon: FilesIcon };
+    ? { title: "گزارش پردازش فایل", icon: FilesIcon }
+    : extra[pathname] || { title: "پیشخوان", icon: FilesIcon };
   return <PageHeader {...fallback} />;
 }
 export function Panel({
@@ -106,44 +108,9 @@ export function Panel({
     </section>
   );
 }
+/** @deprecated انتخاب دوره مالی به هدر اصلی منتقل شده است */
 export function PeriodFilter() {
-  const { periodId, setPeriodId, periods } = useWorkspace();
-  const current = periods.find((period) => period.id === periodId);
-  return (
-    <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-panel border border-border bg-surface p-4 sm:px-5">
-      <div className="flex w-full min-w-0 flex-wrap items-center gap-3 sm:w-auto">
-        <label
-          htmlFor="report-period"
-          className="flex items-center gap-2 text-sm text-muted"
-        >
-          <CalendarBlankIcon size={18} aria-hidden className="text-primary" />
-          دوره گزارش
-        </label>
-        <Select
-          id="report-period"
-          label="دوره گزارش"
-          value={periodId || "latest"}
-          onValueChange={(id) => setPeriodId(id === "latest" ? "" : id)}
-          options={[
-            { value: "latest", label: "آخرین نتیجه" },
-            ...periods.map((period) => ({
-              value: period.id,
-              label: period.name,
-            })),
-          ]}
-          className="min-w-0 flex-1 sm:w-52 sm:flex-none"
-        />
-      </div>
-      {current && (
-        <p
-          key={current.id}
-          className="text-xs text-muted motion-safe:animate-fade-in"
-        >
-          {displayDate(current.start)} تا {displayDate(current.end)}
-        </p>
-      )}
-    </div>
-  );
+  return null;
 }
 export function NoCompany() {
   return (

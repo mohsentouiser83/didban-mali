@@ -16,6 +16,27 @@ export const memberRoles = [
   { value: "advisor", label: "مشاور / حسابدار" },
   { value: "viewer", label: "مشاهده‌گر" },
 ];
+
+export const memberRoleFilterOptions = [
+  { value: "all", label: "همه نقش‌ها" },
+  ...memberRoles,
+];
+
+export const memberStatusFilterOptions = [
+  { value: "all", label: "همه وضعیت‌ها" },
+  { value: "active", label: "فعال" },
+  { value: "inactive", label: "غیرفعال" },
+];
+
+function normalized(value: string) {
+  return value
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\u200c/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 export function useMemberManagement() {
   const workspace = useWorkspace();
   const members = useResource<ResourceList<Member>>(
@@ -31,6 +52,10 @@ export function useMemberManagement() {
   );
   const command = useCommand(),
     accessCommand = useCommand();
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [validation, setValidation] = useState("");
   const [adding, setAdding] = useState(false);
   const [method, setMethod] = useState("existing");
@@ -166,7 +191,7 @@ export function useMemberManagement() {
         permissions.refresh();
         setSelected(null);
       },
-      "اختیارهای حسابداری ذخیره شد.",
+      "دسترسی‌های حسابداری ذخیره شد.",
     );
   }
   return {
@@ -188,16 +213,75 @@ export function useMemberManagement() {
     permission,
     membershipDirty,
     accessDirty,
-    rows: listItems(members.data).map((member) => ({
-      ...member,
-      roleLabel:
-        memberRoles.find((role) => role.value === member.role)?.label ||
-        "نامشخص",
-    })),
-    userOptions: listItems(users.data).map((user) => ({
-      value: user.id,
-      label: `${user.name} (${user.email})`,
-    })),
+    allRows: (() => {
+      const all = listItems(members.data).map((member) => ({
+        ...member,
+        roleLabel:
+          memberRoles.find((role) => role.value === member.role)?.label ||
+          "نامشخص",
+      }));
+      return all;
+    })(),
+    get rows() {
+      const all = listItems(members.data).map((member) => ({
+        ...member,
+        roleLabel:
+          memberRoles.find((role) => role.value === member.role)?.label ||
+          "نامشخص",
+      }));
+      return all.filter((member) => {
+        if (roleFilter !== "all" && member.role !== roleFilter) return false;
+        if (statusFilter === "active" && !member.active) return false;
+        if (statusFilter === "inactive" && member.active) return false;
+        if (query.trim()) {
+          const term = normalized(query);
+          const nameMatch = member.name
+            ? normalized(member.name).includes(term)
+            : false;
+          const emailMatch = member.email
+            ? normalized(member.email).includes(term)
+            : false;
+          const roleMatch = normalized(member.roleLabel).includes(term);
+          const idMatch = member.user_id
+            ? normalized(member.user_id).includes(term)
+            : false;
+          if (!nameMatch && !emailMatch && !roleMatch && !idMatch) return false;
+        }
+        return true;
+      });
+    },
+    query,
+    setQuery,
+    roleFilter,
+    setRoleFilter,
+    statusFilter,
+    setStatusFilter,
+    hasActiveFilters: Boolean(
+      query.trim() || roleFilter !== "all" || statusFilter !== "all",
+    ),
+    resetFilters: () => {
+      setQuery("");
+      setRoleFilter("all");
+      setStatusFilter("all");
+    },
+    totalMembers: listItems(members.data).length,
+    userSearchQuery,
+    setUserSearchQuery,
+    get userOptions() {
+      return listItems(users.data).map((user) => ({
+        value: user.id,
+        label: `${user.name} (${user.email})`,
+      }));
+    },
+    get filteredUserOptions() {
+      const options = listItems(users.data).map((user) => ({
+        value: user.id,
+        label: `${user.name} (${user.email})`,
+      }));
+      if (!userSearchQuery.trim()) return options;
+      const term = normalized(userSearchQuery);
+      return options.filter((opt) => normalized(opt.label).includes(term));
+    },
     canCreateAccount: !!workspace.user?.installation_admin,
     openAdd: () => {
       setValidation("");
@@ -205,6 +289,7 @@ export function useMemberManagement() {
       setAdding(true);
       setMethod("existing");
       setUserId("");
+      setUserSearchQuery("");
       setNewRole("viewer");
       setAccount({ name: "", email: "", password: "" });
     },

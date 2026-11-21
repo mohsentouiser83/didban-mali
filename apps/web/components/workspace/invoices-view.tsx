@@ -5,7 +5,7 @@ import { NativeInvoicesView } from "./native-invoices-view";
 import { PageHeader } from "./page-parts";
 import { DetailField } from "@/components/ui/field-layout";
 import { StatusBadge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   ErrorState,
   LoadingState,
@@ -45,7 +45,6 @@ import {
   NoCompany,
   NoResult,
   Panel,
-  PeriodFilter,
 } from "./page-parts";
 
 const detailIcons: Record<string, Icon> = {
@@ -69,7 +68,6 @@ export function ImportedInvoicesWorkspace({
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PeriodFilter />
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (
@@ -193,7 +191,7 @@ export function ImportedInvoicesWorkspace({
                     title={
                       view.query || view.overdue
                         ? "فاکتوری با این فیلتر پیدا نشد"
-                        : "فاکتوری در این نسخه موجود نیست"
+                        : "هنوز فاکتوری ثبت نشده است"
                     }
                   />
                 )}
@@ -263,13 +261,6 @@ export function InvoicesView({
       <PageHeader
         icon={HeaderIcon}
         title={direction === "sales" ? "مطالبات" : "بدهی‌ها"}
-        action={
-          direction === "sales" && (
-            <ButtonLink href="/receivables/followups" variant="secondary">
-              پیگیری وصول
-            </ButtonLink>
-          )
-        }
       />
       <NativeInvoicesView
         key={`${scope}:${direction}`}

@@ -1,8 +1,10 @@
 "use client";
-import { ChartBarIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { ChartBarIcon, ListDashesIcon, TableIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { Tabs } from "@/components/ui/tabs";
 import {
   ErrorState,
   LoadingState,
@@ -24,7 +26,7 @@ import { useDimensionReporting } from "@/hooks/use-dimensions";
 import { useWorkspace } from "@/hooks/workspace";
 import { dimensionKinds } from "@/lib/dimensions";
 import { amount, displayDate, persian } from "@/lib/utils";
-import { NoCompany, PageHeader, Panel, PeriodFilter } from "./page-parts";
+import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { DimensionAllocationForm } from "./dimension-allocation-form";
 export function DimensionReportView() {
   const workspace = useWorkspace();
@@ -36,18 +38,13 @@ export function DimensionReportView() {
 }
 function Workspace() {
   const view = useDimensionReporting();
+  const [tab, setTab] = useState<"summary" | "source_lines">("summary");
   return (
     <>
       <PageHeader
         title="درآمد و هزینه به تفکیک ابعاد"
         icon={ChartBarIcon}
-        action={
-          <ButtonLink href="/settings/dimensions" variant="secondary">
-            مدیریت ابعاد
-          </ButtonLink>
-        }
       />
-      <PeriodFilter />
       <Panel>
         <Field id="dimension-source" label="منبع گزارش">
           <Select
@@ -123,102 +120,117 @@ function Workspace() {
             {view.snapshot.reason && (
               <StatusMessage>{view.snapshot.reason}</StatusMessage>
             )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>بُعد</TableHead>
-                  <TableHead>درآمد تخصیص‌یافته (ریال)</TableHead>
-                  <TableHead>هزینه تخصیص‌یافته (ریال)</TableHead>
-                  <TableHead>خالص تخصیص‌یافته (ریال)</TableHead>
-                  <TableHead>سود کامل (ریال)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.bucketRows.map((bucket) => (
-                  <TableRow key={bucket.id}>
-                    <TableRowHeader>{bucket.name}</TableRowHeader>
-                    <TableCell>{amount(bucket.revenue)}</TableCell>
-                    <TableCell>{amount(bucket.expense)}</TableCell>
-                    <TableCell>{amount(bucket.assigned_net)}</TableCell>
-                    <TableCell>{amount(bucket.profit)}</TableCell>
-                  </TableRow>
-                ))}
-                <TableRow>
-                  <TableRowHeader>
-                    تخصیص‌نیافته ({persian(view.snapshot.unassigned.line_count)}{" "}
-                    ردیف)
-                  </TableRowHeader>
-                  <TableCell>
-                    {amount(view.snapshot.unassigned.revenue)}
-                  </TableCell>
-                  <TableCell>
-                    {amount(view.snapshot.unassigned.expense)}
-                  </TableCell>
-                  <TableCell>—</TableCell>
-                  <TableCell>—</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <Pagination
-              page={view.bucketPage}
-              total={view.bucketTotal}
-              onPrevious={view.previousBucket}
-              onNext={view.nextBucket}
-            />
+
+            <div className="mb-4">
+              <Tabs
+                value={tab}
+                onChange={setTab}
+                items={[
+                  { id: "summary", label: "خلاصه تفکیک ابعاد", icon: TableIcon },
+                  { id: "source_lines", label: "ردیف‌های تراکنش منبع", icon: ListDashesIcon },
+                ]}
+              />
+            </div>
+
+            {tab === "summary" ? (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>بُعد</TableHead>
+                      <TableHead>درآمد تخصیص‌یافته (ریال)</TableHead>
+                      <TableHead>هزینه تخصیص‌یافته (ریال)</TableHead>
+                      <TableHead>خالص تخصیص‌یافته (ریال)</TableHead>
+                      <TableHead>سود کامل (ریال)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {view.bucketRows.map((bucket) => (
+                      <TableRow key={bucket.id}>
+                        <TableRowHeader>{bucket.name}</TableRowHeader>
+                        <TableCell>{amount(bucket.revenue)}</TableCell>
+                        <TableCell>{amount(bucket.expense)}</TableCell>
+                        <TableCell>{amount(bucket.assigned_net)}</TableCell>
+                        <TableCell>{amount(bucket.profit)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableRowHeader>
+                        تخصیص‌نیافته ({persian(view.snapshot.unassigned.line_count)}{" "}
+                        ردیف)
+                      </TableRowHeader>
+                      <TableCell>
+                        {amount(view.snapshot.unassigned.revenue)}
+                      </TableCell>
+                      <TableCell>
+                        {amount(view.snapshot.unassigned.expense)}
+                      </TableCell>
+                      <TableCell>—</TableCell>
+                      <TableCell>—</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <Pagination
+                  page={view.bucketPage}
+                  total={view.bucketTotal}
+                  onPrevious={view.previousBucket}
+                  onNext={view.nextBucket}
+                />
+              </>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>حساب</TableHead>
+                      <TableHead>تاریخ</TableHead>
+                      <TableHead>مبلغ (ریال)</TableHead>
+                      <TableHead>تخصیص</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {view.rows.length ? (
+                      view.rows.map((line) => (
+                        <TableRow key={line.id}>
+                          <TableRowHeader>{line.account}</TableRowHeader>
+                          <TableCell>{displayDate(line.date)}</TableCell>
+                          <TableCell>{amount(line.amount)}</TableCell>
+                          <TableCell>
+                            {!view.saved && view.workspace.canWrite ? (
+                              <Button
+                                variant="secondary"
+                                onClick={() => view.open(line)}
+                              >
+                                {line.allocation ? "بازبینی تخصیص" : "تعیین بُعد"}
+                              </Button>
+                            ) : line.allocation ? (
+                              "تخصیص‌یافته"
+                            ) : (
+                              "تخصیص‌نیافته"
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableEmptyCell
+                        colSpan={4}
+                        title="ردیف درآمد یا هزینه‌ای موجود نیست"
+                      />
+                    )}
+                  </TableBody>
+                </Table>
+                <Pagination
+                  page={view.page}
+                  total={view.total}
+                  onPrevious={view.previous}
+                  onNext={view.next}
+                />
+              </>
+            )}
           </>
         )}
         <FormMessage error>{view.command.error?.message}</FormMessage>
       </Panel>
-      {view.snapshot && (
-        <Panel title="ردیف‌های منبع" className="mt-5">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>حساب</TableHead>
-                <TableHead>تاریخ</TableHead>
-                <TableHead>مبلغ (ریال)</TableHead>
-                <TableHead>تخصیص</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {view.rows.length ? (
-                view.rows.map((line) => (
-                  <TableRow key={line.id}>
-                    <TableRowHeader>{line.account}</TableRowHeader>
-                    <TableCell>{displayDate(line.date)}</TableCell>
-                    <TableCell>{amount(line.amount)}</TableCell>
-                    <TableCell>
-                      {!view.saved && view.workspace.canWrite ? (
-                        <Button
-                          variant="secondary"
-                          onClick={() => view.open(line)}
-                        >
-                          {line.allocation ? "بازبینی تخصیص" : "تعیین بُعد"}
-                        </Button>
-                      ) : line.allocation ? (
-                        "تخصیص‌یافته"
-                      ) : (
-                        "تخصیص‌نیافته"
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableEmptyCell
-                  colSpan={4}
-                  title="ردیف درآمد یا هزینه‌ای موجود نیست"
-                />
-              )}
-            </TableBody>
-          </Table>
-          <Pagination
-            page={view.page}
-            total={view.total}
-            onPrevious={view.previous}
-            onNext={view.next}
-          />
-        </Panel>
-      )}
       <Panel title="نسخه‌های ذخیره‌شده" className="mt-5">
         {view.history.loading ? (
           <LoadingState />

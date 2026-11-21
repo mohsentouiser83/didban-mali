@@ -1,7 +1,6 @@
 "use client";
 import { TrendUpIcon as HeaderIcon } from "@phosphor-icons/react";
 import { StatusBadge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -18,7 +17,6 @@ import {
   NoResult,
   PageHeader,
   Panel,
-  PeriodFilter,
 } from "./page-parts";
 
 export function ImportedForecastWorkspace() {
@@ -28,7 +26,6 @@ export function ImportedForecastWorkspace() {
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PeriodFilter />
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (
@@ -111,16 +108,6 @@ export function ForecastView() {
       <PageHeader
         icon={HeaderIcon}
         title="پیش‌بینی ۳۰روزه"
-        action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/cashflow/scenarios" variant="secondary">
-              سناریوها
-            </ButtonLink>
-            <ButtonLink href="/settlements/plans" variant="secondary">
-              برنامه پرداخت
-            </ButtonLink>
-          </div>
-        }
       />
       <NativeForecastWorkspace key={scope} />
     </>

@@ -4,6 +4,7 @@ Coordinates read-only evidence retrieval plans, deterministic change decompositi
 and structured evidence-backed explanations. Enforces step limits, tenant boundaries,
 and snapshot consistency.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -30,17 +31,32 @@ MAX_ORCHESTRATION_STEPS = 3
 
 INTENT_KEYWORDS = {
     "profit_analysis": [
-        "چرا سود", "علت کاهش سود", "کاهش سود", "افزایش سود",
-        "تغییر سود", "تحلیل سود", "علت سود",
+        "چرا سود",
+        "علت کاهش سود",
+        "کاهش سود",
+        "افزایش سود",
+        "تغییر سود",
+        "تحلیل سود",
+        "علت سود",
     ],
     "receivables_analysis": [
-        "کدام مطالبات", "مطالبات معوق", "سررسید گذشته",
-        "پیگیری مطالبات", "تحلیل مطالبات", "بدهکاران برتر",
+        "کدام مطالبات",
+        "مطالبات معوق",
+        "سررسید گذشته",
+        "پیگیری مطالبات",
+        "تحلیل مطالبات",
+        "بدهکاران برتر",
         "فاکتورهای پرداخت نشده",
     ],
     "cashflow_analysis": [
-        "کسری نقدینگی", "کمبود نقدینگی", "پول کم", "آینده نقدینگی",
-        "پیش‌بینی نقد", "کمبود پول", "کسری پول", "کسری نقد",
+        "کسری نقدینگی",
+        "کمبود نقدینگی",
+        "پول کم",
+        "آینده نقدینگی",
+        "پیش‌بینی نقد",
+        "کمبود پول",
+        "کسری پول",
+        "کسری نقد",
     ],
 }
 
@@ -90,25 +106,42 @@ def orchestrate_analysis(
         facts_list = []
         if decomp.get("status") == "available":
             facts_list = [
-                {"metric_key": "profit_before_tax", "value": decomp.get("delta_profit"), "label": "تغییر سود قبل از مالیات", "evidence_refs": evidence_refs[:4]},
-                {"metric_key": "revenue", "value": decomp.get("delta_revenue"), "label": "تغییر درآمد", "evidence_refs": evidence_refs[:4]},
-                {"metric_key": "expense", "value": decomp.get("delta_expense"), "label": "تغییر هزینه", "evidence_refs": evidence_refs[:4]},
+                {
+                    "metric_key": "profit_before_tax",
+                    "value": decomp.get("delta_profit"),
+                    "label": "تغییر سود قبل از مالیات",
+                    "evidence_refs": evidence_refs[:4],
+                },
+                {
+                    "metric_key": "revenue",
+                    "value": decomp.get("delta_revenue"),
+                    "label": "تغییر درآمد",
+                    "evidence_refs": evidence_refs[:4],
+                },
+                {
+                    "metric_key": "expense",
+                    "value": decomp.get("delta_expense"),
+                    "label": "تغییر هزینه",
+                    "evidence_refs": evidence_refs[:4],
+                },
             ]
 
-        return format_analytical_response({
-            "mode": "analytical_explanation",
-            "intent": intent,
-            "state": "complete" if decomp.get("status") == "available" else "limited",
-            "answer": explanation["answer"],
-            "conclusion": explanation.get("conclusion"),
-            "observed_drivers": explanation.get("observed_drivers", []),
-            "suggested_actions": explanation.get("suggested_actions", []),
-            "evidence_refs": explanation.get("evidence_links", []),
-            "facts": facts_list,
-            "analytical_facts": collected_facts,
-            "steps_executed": step_count,
-            "limitations": explanation.get("limitations", []),
-        })
+        return format_analytical_response(
+            {
+                "mode": "analytical_explanation",
+                "intent": intent,
+                "state": "complete" if decomp.get("status") == "available" else "limited",
+                "answer": explanation["answer"],
+                "conclusion": explanation.get("conclusion"),
+                "observed_drivers": explanation.get("observed_drivers", []),
+                "suggested_actions": explanation.get("suggested_actions", []),
+                "evidence_refs": explanation.get("evidence_links", []),
+                "facts": facts_list,
+                "analytical_facts": collected_facts,
+                "steps_executed": step_count,
+                "limitations": explanation.get("limitations", []),
+            }
+        )
 
     if intent == "receivables_analysis":
         step_count += 1
@@ -122,24 +155,36 @@ def orchestrate_analysis(
         facts_list = []
         if risk_analysis.get("status") == "available":
             facts_list = [
-                {"metric_key": "trade_receivable_balance", "value": risk_analysis.get("total_receivables"), "label": "کل مطالبات", "evidence_refs": evidence_refs[:4]},
-                {"metric_key": "overdue_receivables", "value": risk_analysis.get("overdue_receivables"), "label": "مطالبات معوق", "evidence_refs": evidence_refs[:4]},
+                {
+                    "metric_key": "trade_receivable_balance",
+                    "value": risk_analysis.get("total_receivables"),
+                    "label": "کل مطالبات",
+                    "evidence_refs": evidence_refs[:4],
+                },
+                {
+                    "metric_key": "overdue_receivables",
+                    "value": risk_analysis.get("overdue_receivables"),
+                    "label": "مطالبات معوق",
+                    "evidence_refs": evidence_refs[:4],
+                },
             ]
 
-        return format_analytical_response({
-            "mode": "analytical_explanation",
-            "intent": intent,
-            "state": "complete" if risk_analysis.get("status") == "available" else "limited",
-            "answer": explanation["answer"],
-            "conclusion": explanation.get("conclusion"),
-            "observed_drivers": explanation.get("observed_drivers", []),
-            "suggested_actions": explanation.get("suggested_actions", []),
-            "evidence_refs": explanation.get("evidence_links", []),
-            "facts": facts_list,
-            "analytical_facts": collected_facts,
-            "steps_executed": step_count,
-            "limitations": explanation.get("limitations", []),
-        })
+        return format_analytical_response(
+            {
+                "mode": "analytical_explanation",
+                "intent": intent,
+                "state": "complete" if risk_analysis.get("status") == "available" else "limited",
+                "answer": explanation["answer"],
+                "conclusion": explanation.get("conclusion"),
+                "observed_drivers": explanation.get("observed_drivers", []),
+                "suggested_actions": explanation.get("suggested_actions", []),
+                "evidence_refs": explanation.get("evidence_links", []),
+                "facts": facts_list,
+                "analytical_facts": collected_facts,
+                "steps_executed": step_count,
+                "limitations": explanation.get("limitations", []),
+            }
+        )
 
     if intent == "cashflow_analysis":
         step_count += 1
@@ -153,22 +198,29 @@ def orchestrate_analysis(
         facts_list = []
         if trajectory.get("status") == "available":
             facts_list = [
-                {"metric_key": "min_projected_balance", "value": trajectory.get("min_projected_balance"), "label": "حداقل موجودی پیش‌بینی‌شده", "evidence_refs": evidence_refs[:4]},
+                {
+                    "metric_key": "min_projected_balance",
+                    "value": trajectory.get("min_projected_balance"),
+                    "label": "حداقل موجودی پیش‌بینی‌شده",
+                    "evidence_refs": evidence_refs[:4],
+                },
             ]
 
-        return format_analytical_response({
-            "mode": "analytical_explanation",
-            "intent": intent,
-            "state": "complete" if trajectory.get("status") == "available" else "limited",
-            "answer": explanation["answer"],
-            "conclusion": explanation.get("conclusion"),
-            "observed_drivers": explanation.get("observed_drivers", []),
-            "suggested_actions": explanation.get("suggested_actions", []),
-            "evidence_refs": explanation.get("evidence_links", []),
-            "facts": facts_list,
-            "analytical_facts": collected_facts,
-            "steps_executed": step_count,
-            "limitations": explanation.get("limitations", []),
-        })
+        return format_analytical_response(
+            {
+                "mode": "analytical_explanation",
+                "intent": intent,
+                "state": "complete" if trajectory.get("status") == "available" else "limited",
+                "answer": explanation["answer"],
+                "conclusion": explanation.get("conclusion"),
+                "observed_drivers": explanation.get("observed_drivers", []),
+                "suggested_actions": explanation.get("suggested_actions", []),
+                "evidence_refs": explanation.get("evidence_links", []),
+                "facts": facts_list,
+                "analytical_facts": collected_facts,
+                "steps_executed": step_count,
+                "limitations": explanation.get("limitations", []),
+            }
+        )
 
     return None

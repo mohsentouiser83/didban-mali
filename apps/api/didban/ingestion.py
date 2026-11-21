@@ -36,9 +36,25 @@ ALIASES = {
     "amount": ["amount", "gross", "مبلغ", "مبلغ کل", "جمع کل"],
     "debit": ["debit", "بدهکار", "مبلغ بدهکار", "مبلغ بدهکار (ریال)"],
     "credit": ["credit", "بستانکار", "مبلغ بستانکار", "مبلغ بستانکار (ریال)"],
-    "account": ["account", "کد حساب", "حساب", "bank_account", "bank account", "حساب بانکی", "شناسه حساب بانکی"],
+    "account": [
+        "account",
+        "کد حساب",
+        "حساب",
+        "bank_account",
+        "bank account",
+        "حساب بانکی",
+        "شناسه حساب بانکی",
+    ],
     "bank_account": ["bank_account", "bank account", "حساب بانکی", "شناسه حساب بانکی"],
-    "bank_reference": ["bank_reference", "bank reference", "bankreference", "شماره پیگیری", "شماره پیگیری بانک", "پیگیری بانکی", "مرجع بانکی"],
+    "bank_reference": [
+        "bank_reference",
+        "bank reference",
+        "bankreference",
+        "شماره پیگیری",
+        "شماره پیگیری بانک",
+        "پیگیری بانکی",
+        "مرجع بانکی",
+    ],
     "role": ["role", "نقش حساب"],
     "entry_id": ["entry_id", "شماره سند", "سند"],
     "entry_type": ["entry_type", "نوع سند"],
@@ -65,7 +81,17 @@ ALIASES = {
 }
 REQUIRED = {
     "employees": ["employee_id", "employee_name", "date"],
-    "payroll": ["employee_id", "employee_name", "date", "gross_pay", "net_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions"],
+    "payroll": [
+        "employee_id",
+        "employee_name",
+        "date",
+        "gross_pay",
+        "net_pay",
+        "payroll_tax",
+        "employee_insurance",
+        "employer_insurance",
+        "other_deductions",
+    ],
     "ledger": ["date", "account", "debit", "credit"],
     "bank": ["date", "amount", "reference"],
     "sales": ["invoice_id", "party_id", "date", "amount"],
@@ -211,14 +237,38 @@ def inspect_xlsx(archive: ZipFile) -> None:
     files = archive.infolist()
     names = [part.filename.replace("\\", "/").casefold() for part in files]
     used_extensions = {Path(name).suffix.removeprefix(".") for name in names}
-    forbidden = ("vbaproject", "externallinks/", "xl/macrosheets/", "xl/dialogsheets/", "xl/embeddings/", "xl/activex/", "xl/ctrlprops/", "customui/")
-    require(len(names) == len(set(names)) and not any(part.flag_bits & 1 for part in files), "unsafe_workbook", "Excel رمزدار یا دارای بخش تکراری مجاز نیست.", 415)
-    require(not any(name.startswith("/") or "../" in name or any(marker in name for marker in forbidden) for name in names), "unsafe_workbook", "ماکرو، پیوند خارجی یا شیء اجرایی Excel مجاز نیست.", 415)
+    forbidden = (
+        "vbaproject",
+        "externallinks/",
+        "xl/macrosheets/",
+        "xl/dialogsheets/",
+        "xl/embeddings/",
+        "xl/activex/",
+        "xl/ctrlprops/",
+        "customui/",
+    )
+    require(
+        len(names) == len(set(names)) and not any(part.flag_bits & 1 for part in files),
+        "unsafe_workbook",
+        "Excel رمزدار یا دارای بخش تکراری مجاز نیست.",
+        415,
+    )
+    require(
+        not any(
+            name.startswith("/") or "../" in name or any(marker in name for marker in forbidden)
+            for name in names
+        ),
+        "unsafe_workbook",
+        "ماکرو، پیوند خارجی یا شیء اجرایی Excel مجاز نیست.",
+        415,
+    )
     for part in files:
         if not part.filename.casefold().endswith((".xml", ".rels")):
             continue
         with archive.open(part) as source:
-            for _event, element in safe_xml_events(source, events=("end",), forbid_dtd=True, forbid_entities=True, forbid_external=True):
+            for _event, element in safe_xml_events(
+                source, events=("end",), forbid_dtd=True, forbid_entities=True, forbid_external=True
+            ):
                 content_type = element.attrib.get("ContentType", "").casefold()
                 # Exporters may declare unused default types (including XLSB).
                 # A declaration applies only when the archive contains that extension.
@@ -229,7 +279,19 @@ def inspect_xlsx(archive: ZipFile) -> None:
                 ):
                     content_type = ""
                 relationship_type = element.attrib.get("Type", "").casefold()
-                require(not any(marker in content_type for marker in ("macroenabled", "macrosheet", "activex", "oleobject")) and not any(marker in relationship_type for marker in ("vbaproject", "macrosheet", "activex", "oleobject", "/control")), "unsafe_workbook", "ماکرو یا شیء اجرایی Excel مجاز نیست.", 415)
+                require(
+                    not any(
+                        marker in content_type
+                        for marker in ("macroenabled", "macrosheet", "activex", "oleobject")
+                    )
+                    and not any(
+                        marker in relationship_type
+                        for marker in ("vbaproject", "macrosheet", "activex", "oleobject", "/control")
+                    ),
+                    "unsafe_workbook",
+                    "ماکرو یا شیء اجرایی Excel مجاز نیست.",
+                    415,
+                )
                 element.clear()
 
 
@@ -316,7 +378,19 @@ def read_file(name: str, content: bytes) -> list[Sheet]:
         return sheets
     except DomainError:
         raise
-    except (ValueError, KeyError, BadZipFile, csv.Error, UnicodeError, OSError, SyntaxError, DefusedXmlException, RuntimeError, NotImplementedError, xlrd.XLRDError) as exc:
+    except (
+        ValueError,
+        KeyError,
+        BadZipFile,
+        csv.Error,
+        UnicodeError,
+        OSError,
+        SyntaxError,
+        DefusedXmlException,
+        RuntimeError,
+        NotImplementedError,
+        xlrd.XLRDError,
+    ) as exc:
         raise DomainError("invalid_file", "ساختار فایل معتبر نیست.", 415) from exc
 
 
@@ -428,8 +502,10 @@ def interpret(sheet: Sheet, filename: str) -> dict:
         unit = None
     elif portal and "currency" not in mapping:
         unit = "IRR"
-    elif family == "ledger" and "currency" not in mapping and all(
-        normalized(mapping[field]).endswith("(ریال)") for field in ("debit", "credit")
+    elif (
+        family == "ledger"
+        and "currency" not in mapping
+        and all(normalized(mapping[field]).endswith("(ریال)") for field in ("debit", "credit"))
     ):
         unit = "IRR"
     dates = [

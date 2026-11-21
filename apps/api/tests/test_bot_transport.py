@@ -10,8 +10,15 @@ from didban.errors import DomainError
 
 
 def update():
-    return {"update_id": 0, "message": {"message_id": 1, "from": {"id": 12, "is_bot": False},
-            "chat": {"id": 12, "type": "private"}, "text": " سلام "}}
+    return {
+        "update_id": 0,
+        "message": {
+            "message_id": 1,
+            "from": {"id": 12, "is_bot": False},
+            "chat": {"id": 12, "type": "private"},
+            "text": " سلام ",
+        },
+    }
 
 
 @pytest.mark.parametrize("provider", ["telegram", "bale"])
@@ -21,18 +28,21 @@ def test_private_normalization(provider):
     assert message.text == "سلام" and message.chat_id == message.sender_id == "12"
 
 
-@pytest.mark.parametrize("edit", [
-    lambda p: p.update(update_id=True),
-    lambda p: p.update(edited_message=p["message"]),
-    lambda p: p["message"]["from"].update(id="12"),
-    lambda p: p["message"]["from"].update(is_bot=True),
-    lambda p: p["message"]["chat"].update(type="group"),
-    lambda p: p["message"]["chat"].update(id=13),
-    lambda p: p["message"].update(text="a" * 4001),
-    lambda p: p["message"].update(text="  "),
-    lambda p: p["message"].update(document={}),
-    lambda p: p["message"].update(forward_origin={}),
-])
+@pytest.mark.parametrize(
+    "edit",
+    [
+        lambda p: p.update(update_id=True),
+        lambda p: p.update(edited_message=p["message"]),
+        lambda p: p["message"]["from"].update(id="12"),
+        lambda p: p["message"]["from"].update(is_bot=True),
+        lambda p: p["message"]["chat"].update(type="group"),
+        lambda p: p["message"]["chat"].update(id=13),
+        lambda p: p["message"].update(text="a" * 4001),
+        lambda p: p["message"].update(text="  "),
+        lambda p: p["message"].update(document={}),
+        lambda p: p["message"].update(forward_origin={}),
+    ],
+)
 def test_unsupported_or_malformed_updates_are_ignored(edit):
     payload = update()
     edit(payload)
@@ -54,8 +64,10 @@ def test_send_plain_text_to_fixed_origin(provider, host):
     assert len(calls) == 1 and "synthetic:token" not in repr(adapter)
 
 
-@pytest.mark.parametrize("status,body", [(429, {}), (302, {}), (200, {"ok": False}),
-                                         (200, {"ok": True, "result": {"message_id": True}})])
+@pytest.mark.parametrize(
+    "status,body",
+    [(429, {}), (302, {}), (200, {"ok": False}), (200, {"ok": True, "result": {"message_id": True}})],
+)
 def test_errors_sanitized_and_never_retried(status, body):
     calls = []
 
@@ -99,10 +111,12 @@ def test_httpx_info_logs_do_not_expose_bot_tokens(caplog, provider):
     adapter = BotTransport(provider, SecretStr("synthetic:token"), transport=httpx.MockTransport(handler))
     asyncio.run(adapter.send_message("12", "سلام"))
     assert "synthetic:token" not in caplog.text
+
     # Do not silence ordinary application HTTP requests.
     async def ordinary_request():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             await client.get("https://example.test/status")
+
     asyncio.run(ordinary_request())
     assert "https://example.test/status" in caplog.text
 
@@ -152,7 +166,9 @@ def test_send_document_validations_and_sanitized_errors():
     def fail_handler(request):
         return httpx.Response(500, json={"error": "internal"})
 
-    fail_adapter = BotTransport("bale", SecretStr("synthetic:token"), transport=httpx.MockTransport(fail_handler))
+    fail_adapter = BotTransport(
+        "bale", SecretStr("synthetic:token"), transport=httpx.MockTransport(fail_handler)
+    )
     with pytest.raises(DomainError) as err:
         asyncio.run(fail_adapter.send_document("12", b"%PDF", "doc.pdf"))
     assert err.value.code == "bot_delivery_unconfirmed"

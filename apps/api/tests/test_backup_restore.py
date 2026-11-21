@@ -97,7 +97,13 @@ def test_restore_script_rejects_corrupted_backup(tmp_path):
         "schema": "didban-backup-1",
         "created_at": "2026-11-13T00:00:00Z",
         "mode": "sqlite",
-        "files": [{"path": "database.sqlite3", "bytes": 9, "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}],
+        "files": [
+            {
+                "path": "database.sqlite3",
+                "bytes": 9,
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            }
+        ],
     }
     (backup_dir / "manifest.json").write_text(json.dumps(manifest))
 
@@ -128,4 +134,3 @@ def test_restore_script_rejects_path_traversal(tmp_path):
     )
     assert res.returncode != 0
     assert "Path traversal" in res.stderr or "Path traversal" in res.stdout
-

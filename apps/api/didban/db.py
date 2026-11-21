@@ -94,6 +94,7 @@ IMMUTABLE += (
     "bot_extraction_reviews",
 )
 
+
 def resolve_immutable_tables() -> tuple[str, ...]:
     """Resolve all tables marked immutable either via registry mixin or canonical list."""
     names = set(IMMUTABLE)
@@ -269,17 +270,27 @@ def initialize() -> None:
             if "active" not in cols:
                 conn.execute(text("ALTER TABLE inventory_items ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
             if "version" not in cols:
-                conn.execute(text("ALTER TABLE inventory_items ADD COLUMN version INTEGER NOT NULL DEFAULT 1"))
+                conn.execute(
+                    text("ALTER TABLE inventory_items ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+                )
         if inspect(conn).has_table("inventory_warehouses"):
             cols = {c["name"] for c in inspect(conn).get_columns("inventory_warehouses")}
             if "active" not in cols:
-                conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1"))
+                conn.execute(
+                    text("ALTER TABLE inventory_warehouses ADD COLUMN active BOOLEAN NOT NULL DEFAULT 1")
+                )
             if "version" not in cols:
-                conn.execute(text("ALTER TABLE inventory_warehouses ADD COLUMN version INTEGER NOT NULL DEFAULT 1"))
+                conn.execute(
+                    text("ALTER TABLE inventory_warehouses ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+                )
         if inspect(conn).has_table("accounting_accounts"):
             cols = {c["name"] for c in inspect(conn).get_columns("accounting_accounts")}
             if "nature" not in cols:
-                conn.execute(text("ALTER TABLE accounting_accounts ADD COLUMN nature VARCHAR(20) NOT NULL DEFAULT 'debit'"))
+                conn.execute(
+                    text(
+                        "ALTER TABLE accounting_accounts ADD COLUMN nature VARCHAR(20) NOT NULL DEFAULT 'debit'"
+                    )
+                )
         if inspect(conn).has_table("users"):
             cols = {c["name"] for c in inspect(conn).get_columns("users")}
             if "avatar" not in cols:

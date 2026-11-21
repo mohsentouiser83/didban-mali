@@ -149,7 +149,7 @@ function PeriodWorkspace() {
                     );
                   })
                 ) : (
-                  <TableEmptyCell colSpan={5} title="دوره مالی تعریف نشده" />
+                  <TableEmptyCell colSpan={5} title="هنوز دوره مالی تعریف نشده است" />
                 )}
               </TableBody>
             </Table>

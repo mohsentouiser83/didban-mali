@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowClockwiseIcon, PlusIcon, ReceiptIcon } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Dialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
@@ -25,7 +25,6 @@ function TransmissionWorkspace() {
       <PageHeader
         title="ارسال و استعلام صورتحساب"
         icon={ReceiptIcon}
-        action={<ButtonLink href="/moadian" variant="secondary">مقایسه فایل‌های مؤدیان</ButtonLink>}
       />
       {view.resource.loading ? (
         <LoadingState variant="panels" label="در حال دریافت وضعیت ارسال صورتحساب‌ها" />

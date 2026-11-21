@@ -17,11 +17,15 @@ export const moduleRoutes: Record<string, string> = {
   "/moadian": "moadian", "/settlements": "settlements",
   "/settlements/cheques": "settlements",
   "/settlements/plans": "settlements", "/reconciliation": "reconciliation",
+  "/reconciliation/bank": "reconciliation",
+  "/reconciliation/counterparties": "reconciliation",
+  "/reconciliation/counterparty": "reconciliation",
+  "/reconciliation/moadian": "reconciliation",
   "/tax": "employees", "/insurance": "employees", "/payroll": "employees",
   "/employees": "employees", "/employee-reports": "employees",
 };
 export const moduleStatusLabels = {
-  disabled: "خاموش", waiting_sources: "در انتظار اسناد معتبر",
+  disabled: "خاموش", waiting_sources: "نیاز به بارگذاری فایل",
   available: "آماده", not_implemented: "در انتظار تکمیل قابلیت",
 };
 

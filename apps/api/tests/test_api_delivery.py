@@ -1,11 +1,12 @@
 """Security/retention checks use an isolated subprocess and database per test."""
+
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-COMMON = r'''
+COMMON = r"""
 from datetime import date
 from hashlib import sha256
 from uuid import uuid4
@@ -56,7 +57,7 @@ def approve(client, index=0):
     return command(client,"POST",f"/api/v1/companies/company-a/reports/{report_ids[index]}/approvals",{"expected_version":1})
 
 base="/api/v1/companies/company-a"
-'''
+"""
 
 
 def scenario(tmp_path: Path, source: str) -> None:
@@ -70,13 +71,21 @@ def scenario(tmp_path: Path, source: str) -> None:
         "DIDBAN_MODEL_BUDGET_UNLIMITED": "false",
         "DIDBAN_OPENAI_API_KEY": "",
     }
-    result = subprocess.run([sys.executable, "-c", COMMON + "\n" + source], cwd=ROOT, env=env,
-                            capture_output=True, text=True, timeout=90)
+    result = subprocess.run(
+        [sys.executable, "-c", COMMON + "\n" + source],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_report_approval_requires_current_d05_authority_and_d08_audit(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner"); manager=client_for("finance_manager"); advisor=client_for("advisor"); viewer=client_for("viewer")
 assert approve(owner).status_code==403
 assert approve(advisor).status_code==403
@@ -95,11 +104,14 @@ with transaction("company-a") as db:
     assert events[0].details["before"]["approve_financial_report"] is False
     assert events[0].details["after"]["approve_financial_report"] is True
     assert events[0].actor_id==users["owner"]
-''')
+""",
+    )
 
 
 def test_only_owner_grants_and_revocation_preserves_historical_approval(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner"); manager=client_for("finance_manager"); advisor=client_for("advisor")
 path=base+"/members/"+members["advisor"]
 assert command(manager,"PATCH",path,{"approve_financial_report":True}).status_code==403
@@ -111,11 +123,14 @@ assert approve(advisor,1).status_code==403
 historical=advisor.get(base+"/reports/"+report_ids[0]).json()["approvals"]
 assert len(historical)==1 and historical[0]["actor_id"]==users["advisor"]
 assert advisor.get(base+"/reports/"+report_ids[1]).json()["approvals"]==[]
-''')
+""",
+    )
 
 
 def test_company_isolation_and_last_owner_guard(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner"); outsider=client_for("outsider")
 assert outsider.get(base+"/reports/"+report_ids[0]).status_code==404
 assert outsider.get("/api/v1/companies/company-b/results/"+manifest_ids[0]).status_code==404
@@ -124,11 +139,14 @@ response=command(owner,"PATCH",base+"/members/"+members["owner"],{"active":False
 assert response.status_code==409 and response.json()["code"]=="last_owner",response.text
 response=command(owner,"PATCH",base+"/members/"+members["owner"],{"role":"advisor"})
 assert response.status_code==409 and response.json()["code"]=="last_owner",response.text
-''')
+""",
+    )
 
 
 def test_archive_keeps_evidence_and_dependent_source_cannot_be_deleted(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner")
 content=b"date,amount\n2026-09-01,100\n"
 with transaction("company-a") as db:
@@ -144,11 +162,14 @@ response=command(owner,"DELETE",base+"/source-files/"+source_id+"?confirmed=true
 assert response.status_code==409 and response.json()["code"]=="source_has_dependencies",response.text
 assert (settings.storage/"retained-original").read_bytes()==content
 assert owner.get(base+"/reports/"+report_ids[0]).json()["manifest"]==before
-''')
+""",
+    )
 
 
 def test_origin_csrf_and_idempotency_guards(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner")
 body={"name":"مهر","start":"2026-10-01","end":"2026-10-31"}
 csrf=owner.headers.pop("x-csrf-token")
@@ -165,11 +186,14 @@ assert first.status_code==201 and second.status_code==201,(first.text,second.tex
 assert first.json()["id"]==second.json()["id"]
 conflict=command(owner,"POST",base+"/financial-periods",body|{"name":"دیگر"},key=key)
 assert conflict.status_code==409 and conflict.json()["code"]=="idempotency_conflict"
-''')
+""",
+    )
 
 
 def test_manifest_and_installation_audit_are_immutable_at_database_layer(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 with transaction() as db:
     audit=m.InstallationAudit(actor_id=users["owner"],actor_label="test",action="test.audit",entity_id=users["owner"],details={"original":True})
     db.add(audit);db.flush();audit_id=audit.id
@@ -184,4 +208,5 @@ for cls,identifier,field,value in [(m.ResultManifest,manifest_ids[0],"metrics",[
 with transaction("company-a") as db:
     assert db.get(m.ResultManifest,manifest_ids[0]).metrics[0]["value"] is None
     assert db.get(m.InstallationAudit,audit_id).details=={"original":True}
-''')
+""",
+    )

@@ -57,15 +57,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const data = await api<ResourceList<Company>>("/companies");
     const items = listItems(data);
     setCompanies(items);
-    setCompanyId((previous) =>
-      items.some((company) => company.id === previous)
+    setCompanyId((previous) => {
+      const activeId = items.some((company) => company.id === previous)
         ? previous
         : items.find(
             (company) => company.id === localStorage.getItem("didban-company"),
           )?.id ||
           items[0]?.id ||
-          "",
-    );
+          "";
+      try {
+        const savedPeriod = localStorage.getItem(`didban-period:${activeId}`) || "";
+        setPeriodId(savedPeriod);
+      } catch {
+        // Ignore storage errors
+      }
+      return activeId;
+    });
   }, []);
   useEffect(() => {
     let alive = true;
@@ -110,9 +117,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const periods = periodsResource.data;
   const setCompany = useCallback((id: string) => {
     setCompanyId(id);
-    setPeriodId("");
-    localStorage.setItem("didban-company", id);
+    let savedPeriod = "";
+    try {
+      savedPeriod = localStorage.getItem(`didban-period:${id}`) || "";
+      localStorage.setItem("didban-company", id);
+    } catch {
+      // Ignore storage errors
+    }
+    setPeriodId(savedPeriod);
   }, []);
+  const handleSetPeriodId = useCallback(
+    (id: string) => {
+      setPeriodId(id);
+      if (companyId) {
+        try {
+          if (id) {
+            localStorage.setItem(`didban-period:${companyId}`, id);
+          } else {
+            localStorage.removeItem(`didban-period:${companyId}`);
+          }
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    },
+    [companyId],
+  );
   const setUnit = useCallback(
     (value: "IRR" | "TOMAN") => {
       setUnitState(value);
@@ -146,7 +176,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         loading,
         error,
         setCompany,
-        setPeriodId,
+        setPeriodId: handleSetPeriodId,
         setUnit,
         updateUser,
         refreshCompanies,

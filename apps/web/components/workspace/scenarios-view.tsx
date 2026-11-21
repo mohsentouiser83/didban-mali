@@ -13,7 +13,7 @@ import {
   StatusMessage,
 } from "@/components/ui/content-states";
 import { useCashScenarios } from "@/hooks/use-cash-scenarios";
-import { NoCompany, PageHeader, Panel, PeriodFilter } from "./page-parts";
+import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { ScenarioForm } from "./scenario-form";
 import { ScenarioResults } from "./scenario-results";
 export function ImportedScenariosWorkspace() {
@@ -22,7 +22,6 @@ export function ImportedScenariosWorkspace() {
   if (!c.view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PeriodFilter />
       <ScenarioList
         title="سناریوهای ذخیره‌شده"
         list={c.list}
@@ -119,11 +118,6 @@ export function ScenariosView() {
       <PageHeader
         icon={FlaskIcon}
         title="سناریوهای نقدینگی"
-        action={
-          <ButtonLink href="/cashflow/forecast" variant="secondary">
-            پیش‌بینی ۳۰روزه
-          </ButtonLink>
-        }
       />
       <NativeScenariosWorkspace key={scope} />
     </>

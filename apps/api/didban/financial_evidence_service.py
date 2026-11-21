@@ -4,6 +4,7 @@ Provides typed, allowlisted queries over permitted company evidence (native stat
 journals, invoices, allocations, forecasts, scenarios, and imported manifests).
 Enforces tenant isolation, membership, bounded response limits, and deterministic calculations.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -130,9 +131,18 @@ def query_period_comparison(
     )
 
     curr_metrics = {m.get("metric_key"): m for m in (current_run.snapshot or {}).get("metrics", [])}
-    prior_metrics = {m.get("metric_key"): m for m in (prior_run.snapshot or {}).get("metrics", [])} if prior_run else {}
+    prior_metrics = (
+        {m.get("metric_key"): m for m in (prior_run.snapshot or {}).get("metrics", [])} if prior_run else {}
+    )
 
-    keys = ["revenue", "expense", "profit_before_tax", "bank_balance", "trade_receivable_balance", "trade_payable_balance"]
+    keys = [
+        "revenue",
+        "expense",
+        "profit_before_tax",
+        "bank_balance",
+        "trade_receivable_balance",
+        "trade_payable_balance",
+    ]
     deltas = {}
     evidence_refs = [f"native-statement:{current_run.id}"]
     if prior_run:
@@ -164,7 +174,9 @@ def query_period_comparison(
                 "percent_change": None,
                 "direction": "unknown",
                 "status": "unavailable",
-                "reason": "مقدار یکی از دو دوره در دسترس نیست." if not prior_run else "یکی از مقادیر ناموجود است.",
+                "reason": "مقدار یکی از دو دوره در دسترس نیست."
+                if not prior_run
+                else "یکی از مقادیر ناموجود است.",
             }
 
     return {
@@ -192,10 +204,7 @@ def query_income_expense_breakdown(
         get_entity(db, m.Period, company_id, period_id)
         if period_id
         else db.scalar(
-            select(m.Period)
-            .where(m.Period.company_id == company_id)
-            .order_by(desc(m.Period.start))
-            .limit(1)
+            select(m.Period).where(m.Period.company_id == company_id).order_by(desc(m.Period.start)).limit(1)
         )
     )
     if not target_period:
@@ -226,9 +235,7 @@ def query_income_expense_breakdown(
         r.account_id: r.role
         for r in db.scalars(select(NativeAccountRole).where(NativeAccountRole.company_id == company_id))
     }
-    accounts = {
-        a.id: a for a in db.scalars(select(Account).where(Account.company_id == company_id))
-    }
+    accounts = {a.id: a for a in db.scalars(select(Account).where(Account.company_id == company_id))}
 
     revenue_by_account: dict[str, Decimal] = {}
     expense_by_account: dict[str, Decimal] = {}
@@ -245,7 +252,15 @@ def query_income_expense_breakdown(
                 # Credit increases revenue, debit decreases
                 net = credit - debit
                 revenue_by_account[acc_id] = revenue_by_account.get(acc_id, ZERO) + net
-            elif role in ("expense", "cogs", "operating_expense", "loss", "bank_fee", "finance_expense", "income_tax_expense"):
+            elif role in (
+                "expense",
+                "cogs",
+                "operating_expense",
+                "loss",
+                "bank_fee",
+                "finance_expense",
+                "income_tax_expense",
+            ):
                 # Debit increases expense, credit decreases
                 net = debit - credit
                 expense_by_account[acc_id] = expense_by_account.get(acc_id, ZERO) + net
@@ -258,13 +273,15 @@ def query_income_expense_breakdown(
         for acc_id, val in sorted(acc_dict.items(), key=lambda x: x[1], reverse=True):
             pct = round(float((val / total) * 100), 1) if total > ZERO else 0.0
             acc = accounts.get(acc_id)
-            items.append({
-                "account_id": acc_id,
-                "account_title": acc.name if acc else acc_id,
-                "account_code": acc.code if acc else "",
-                "amount": text_amount(val),
-                "share_percent": pct,
-            })
+            items.append(
+                {
+                    "account_id": acc_id,
+                    "account_title": acc.name if acc else acc_id,
+                    "account_code": acc.code if acc else "",
+                    "amount": text_amount(val),
+                    "share_percent": pct,
+                }
+            )
         return items
 
     return {
@@ -296,8 +313,7 @@ def query_receivables_concentration(
 
     invoices = list(
         db.scalars(
-            select(NativeInvoice)
-            .where(
+            select(NativeInvoice).where(
                 NativeInvoice.company_id == company_id,
                 NativeInvoice.direction == "sale",
             )
@@ -318,8 +334,7 @@ def query_receivables_concentration(
     inv_ids = [inv.id for inv in invoices]
     allocations = list(
         db.scalars(
-            select(NativeInvoiceAllocation)
-            .where(
+            select(NativeInvoiceAllocation).where(
                 NativeInvoiceAllocation.company_id == company_id,
                 NativeInvoiceAllocation.invoice_id.in_(inv_ids),
                 NativeInvoiceAllocation.date <= ref_date,
@@ -328,8 +343,7 @@ def query_receivables_concentration(
     )
     reversals = set(
         db.scalars(
-            select(NativeInvoiceAllocationReversal.allocation_id)
-            .where(
+            select(NativeInvoiceAllocationReversal.allocation_id).where(
                 NativeInvoiceAllocationReversal.company_id == company_id,
                 NativeInvoiceAllocationReversal.date <= ref_date,
             )
@@ -396,15 +410,17 @@ def query_receivables_concentration(
             if total_outstanding > ZERO
             else 0.0
         )
-        customer_list.append({
-            "counterparty_id": c["counterparty_id"],
-            "counterparty_name": c["counterparty_name"],
-            "outstanding_amount": text_amount(c["outstanding_amount"]),
-            "overdue_amount": text_amount(c["overdue_amount"]),
-            "share_percent": pct,
-            "invoice_count": c["invoice_count"],
-            "max_overdue_days": c["max_overdue_days"],
-        })
+        customer_list.append(
+            {
+                "counterparty_id": c["counterparty_id"],
+                "counterparty_name": c["counterparty_name"],
+                "outstanding_amount": text_amount(c["outstanding_amount"]),
+                "overdue_amount": text_amount(c["overdue_amount"]),
+                "share_percent": pct,
+                "invoice_count": c["invoice_count"],
+                "max_overdue_days": c["max_overdue_days"],
+            }
+        )
 
     return {
         "query": "receivables_concentration",
@@ -454,10 +470,12 @@ def query_cashflow_forecast_summary(
             if min_balance is None or bal_dec < min_balance:
                 min_balance = bal_dec
             if bal_dec < ZERO:
-                deficit_dates.append({
-                    "date": d_str,
-                    "deficit_amount": text_amount(abs(bal_dec)),
-                })
+                deficit_dates.append(
+                    {
+                        "date": d_str,
+                        "deficit_amount": text_amount(abs(bal_dec)),
+                    }
+                )
 
     return {
         "query": "cashflow_forecast_summary",

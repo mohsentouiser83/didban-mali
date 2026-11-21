@@ -34,16 +34,6 @@ function Workspace() {
       <PageHeader
         title="صورت مالی دفتر دیدبان"
         icon={ChartLineUpIcon}
-        action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/settings/account-roles" variant="secondary">
-              نقش حساب‌ها
-            </ButtonLink>
-            <ButtonLink href="/accounting/journals" variant="secondary">
-              دفتر اصلی
-            </ButtonLink>
-          </div>
-        }
       />
       <Panel>
         <div className="flex flex-wrap items-end gap-3">

@@ -476,10 +476,7 @@ def _interpret_imported(question: str, period_id: str) -> dict:
             if any(w in text for w in ("خرید", "بدهی", "وارده", "پرداختنی"))
             else "all"
         )
-        overdue = any(
-            w in text
-            for w in ("سررسیدگذشته", "سررسید گذشته", "معوق", "پرداخت نشده", "تسویه نشده")
-        )
+        overdue = any(w in text for w in ("سررسیدگذشته", "سررسید گذشته", "معوق", "پرداخت نشده", "تسویه نشده"))
         spec = ReportSpec(
             period_id=period_id,
             kind="invoices",
@@ -553,10 +550,7 @@ def interpret(question: str, period_id: str, source: str = "imported_manifest") 
         keys = ["ar_ledger"]
     elif text in ("بدهی", "بدهی دفتر", "گزارش بدهی"):
         keys = ["ap_trade_ledger"]
-    elif any(
-        w in text
-        for w in ("نقد", "مانده بانک", "موجودی بانک", "موجودی نقد", "گزارش نقد", "نقدینگی")
-    ):
+    elif any(w in text for w in ("نقد", "مانده بانک", "موجودی بانک", "موجودی نقد", "گزارش نقد", "نقدینگی")):
         keys = ["cash"]
     else:
         proposal = _interpret_imported(question, period_id)

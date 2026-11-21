@@ -1,7 +1,7 @@
 "use client";
 import { FilesIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
@@ -21,7 +21,7 @@ import { usePagedResource } from "@/hooks/use-paged-resource";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems, type SourceFile } from "@/lib/api";
 import { persian } from "@/lib/utils";
-import { ArchiveIcon, DownloadSimpleIcon, ClockCounterClockwiseIcon } from "@phosphor-icons/react";
+import { ArchiveIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
@@ -37,11 +37,6 @@ export function SourcesView() {
     <>
       <PageHeader icon={HeaderIcon}
         title="فایل‌ها و مدارک"
-        action={
-          <ButtonLink href="/uploads" variant="secondary">
-            <ClockCounterClockwiseIcon size={18} aria-hidden className="text-primary" />نوبت‌های پردازش
-          </ButtonLink>
-        }
       />
       <Panel>
         {resource.loading ? (
@@ -104,7 +99,7 @@ export function SourcesView() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={4} title="منبعی بارگذاری نشده" />
+                  <TableEmptyCell colSpan={4} title="هنوز فایلی بارگذاری نشده است" />
                 )}
               </TableBody>
             </Table>

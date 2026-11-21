@@ -1,6 +1,7 @@
 "use client";
 import { ArrowsLeftRightIcon as HeaderIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowsLeftRightIcon,
   TextAaIcon,
@@ -38,6 +39,9 @@ import { GroupMatchesPanel } from "./group-matches-panel";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { useReconciliationBasis } from "@/hooks/use-reconciliation-basis";
 import { NativeBankMatchesPanel } from "./native-bank-matches-panel";
+import { CounterpartyReconciliationPanel } from "./counterparty-reconciliation-panel";
+import { MoadianReconciliationPanel } from "./moadian-reconciliation-panel";
+import { BankIcon, UsersThreeIcon, ReceiptIcon } from "@phosphor-icons/react";
 export function ImportedReconciliationWorkspace() {
   const view = useReconciliation();
   const [mappingOpen, setMappingOpen] = useState(false);
@@ -134,7 +138,7 @@ export function ImportedReconciliationWorkspace() {
                   </TableRow>
                 ))
               ) : (
-                <TableEmptyCell colSpan={7} title="نتیجه تطبیقی ثبت نشده" />
+                <TableEmptyCell colSpan={7} title="هنوز موردی برای تطبیق ثبت نشده است" />
               )}
             </TableBody>
           </Table>
@@ -164,8 +168,8 @@ export function ImportedReconciliationWorkspace() {
           <Panel>
             <EmptyState
               title="اطلاعات لازم برای تطبیق موجود نیست"
-              description="سند حسابداری بانک را در دفتر ثبت کنید."
-              action={<ButtonLink href="/accounting">اسناد حسابداری</ButtonLink>}
+              description="برای تطبیق، ابتدا تراکنش یا سند بانکی را ثبت کنید."
+              action={<ButtonLink href="/accounting">اسناد</ButtonLink>}
             />
           </Panel>
         ) : (
@@ -308,13 +312,92 @@ export function ImportedReconciliationWorkspace() {
   );
 }
 
-export function ReconciliationView() {
+export function ReconciliationView({
+  initialTab,
+}: {
+  initialTab?: "bank" | "counterparty" | "moadian";
+} = {}) {
   const view = useReconciliationBasis();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const routeTab: "bank" | "counterparty" | "moadian" =
+    initialTab ||
+    (pathname?.startsWith("/reconciliation/counterpart")
+      ? "counterparty"
+      : pathname?.startsWith("/reconciliation/moadian")
+        ? "moadian"
+        : "bank");
+
+  const [activeTab, setActiveTab] = useState<"bank" | "counterparty" | "moadian" | null>(null);
+  const tab = activeTab ?? routeTab;
+
+  const handleTabChange = (nextTab: "bank" | "counterparty" | "moadian") => {
+    setActiveTab(nextTab);
+    const targetUrl =
+      nextTab === "counterparty"
+        ? "/reconciliation/counterparties"
+        : nextTab === "moadian"
+          ? "/reconciliation/moadian"
+          : "/reconciliation";
+    if (pathname !== targetUrl) {
+      router?.push?.(targetUrl);
+    }
+  };
+
   if (!view.workspace.company) return <NoCompany />;
+
   return (
-    <>
-      <PageHeader icon={HeaderIcon} title="تطبیق بانک و دفتر" />
-      <NativeBankMatchesPanel key={view.scope + ":native"} />
-    </>
+    <div className="space-y-6">
+      <PageHeader
+        icon={HeaderIcon}
+        title="مرکز تطبیق و مغایرت‌گیری مالی"
+      />
+
+      <div className="flex border-b border-border/80 gap-2 pb-2">
+        <button
+          type="button"
+          onClick={() => handleTabChange("bank")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-medium text-sm transition-all duration-200 ${
+            tab === "bank"
+              ? "bg-primary-soft text-primary-dark shadow-sm ring-1 ring-primary/20"
+              : "text-muted hover:bg-surface-subtle hover:text-foreground"
+          }`}
+        >
+          <BankIcon size={18} />
+          تطبیق بانک و دفتر
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("counterparty")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-medium text-sm transition-all duration-200 ${
+            tab === "counterparty"
+              ? "bg-primary-soft text-primary-dark shadow-sm ring-1 ring-primary/20"
+              : "text-muted hover:bg-surface-subtle hover:text-foreground"
+          }`}
+        >
+          <UsersThreeIcon size={18} />
+          تطبیق طرف‌حساب‌ها (مشتریان و تأمین‌کنندگان)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("moadian")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-medium text-sm transition-all duration-200 ${
+            tab === "moadian"
+              ? "bg-primary-soft text-primary-dark shadow-sm ring-1 ring-primary/20"
+              : "text-muted hover:bg-surface-subtle hover:text-foreground"
+          }`}
+        >
+          <ReceiptIcon size={18} />
+          تطبیق کارپوشه سامانه مؤدیان
+        </button>
+      </div>
+
+      {tab === "bank" && <NativeBankMatchesPanel key={view.scope + ":native"} />}
+      {tab === "counterparty" && <CounterpartyReconciliationPanel />}
+      {tab === "moadian" && <MoadianReconciliationPanel />}
+    </div>
   );
 }

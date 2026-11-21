@@ -12,7 +12,7 @@ from .. import schemas as s
 from ..config import settings
 from ..db import engine, transaction
 from ..errors import DomainError, require
-from ..http import P, access, installation_mutate
+from ..http import P, access, installation_mutate, is_allowed_origin
 from ..security import authenticate, hasher, login, public_user
 
 router = APIRouter()
@@ -26,7 +26,9 @@ def health():
         "status": "ok",
         "deployment_mode": "production" if settings.production else "development",
         "scanner_status": "configured" if settings.scanner_host else "development_unscanned",
-        "model_status": "configured" if settings.model_enabled and settings.openai_api_key else "unconfigured",
+        "model_status": "configured"
+        if settings.model_enabled and settings.openai_api_key
+        else "unconfigured",
     }
 
 
@@ -53,11 +55,18 @@ def readiness():
         storage_ok = False
 
     # 3. Worker queue visibility
-    worker_info = {"pending_jobs": 0, "running_jobs": 0, "failed_jobs": 0, "stuck_jobs": 0, "oldest_pending_age_seconds": None}
+    worker_info = {
+        "pending_jobs": 0,
+        "running_jobs": 0,
+        "failed_jobs": 0,
+        "stuck_jobs": 0,
+        "oldest_pending_age_seconds": None,
+    }
     if db_ok:
         try:
             with transaction() as db:
                 from ..models import Job, now
+
                 jobs = list(db.scalars(select(Job)))
                 curr_time = now()
                 pending = [j for j in jobs if j.state == "pending"]
@@ -106,7 +115,6 @@ def readiness():
     )
 
 
-
 @router.get(P + "/auth/status")
 def auth_status():
     with transaction() as db:
@@ -116,7 +124,7 @@ def auth_status():
 @router.post(P + "/auth/login")
 def auth_login(data: s.LoginInput, request: Request):
     require(
-        request.headers.get("origin") in (None, settings.web_origin),
+        is_allowed_origin(request.headers.get("origin")),
         "origin_denied",
         "مبدأ درخواست مجاز نیست.",
         403,
@@ -171,7 +179,9 @@ def update_profile(data: ProfileUpdateInput, request: Request):
                     413,
                 )
                 require(
-                    avatar.startswith("data:image/") or avatar.startswith("https://") or avatar.startswith("http://"),
+                    avatar.startswith("data:image/")
+                    or avatar.startswith("https://")
+                    or avatar.startswith("http://"),
                     "invalid_avatar_format",
                     "فرمت تصویر باید تصویر معتبر باشد.",
                     400,

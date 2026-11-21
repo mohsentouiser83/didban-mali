@@ -3,6 +3,7 @@
 This module proposes dates only. It never creates a settlement or changes the
 invoice due date. Necessary questions are returned to the shared session barrier.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -41,7 +42,16 @@ def _event(row: dict, family: str, invoices: dict[str, dict]) -> dict | None:
         due_date, paid_on = day(due), day(paid)
     except (ValueError, KeyError, TypeError, ArithmeticError):
         return None
-    return {"event_id": identity, "invoice_reference": invoice_ref, "party_id": party, "due_date": due_date, "paid_on": paid_on, "amount": value, "family": family, "evidence_refs": [str(row["source_row_id"])] if row.get("source_row_id") else []}
+    return {
+        "event_id": identity,
+        "invoice_reference": invoice_ref,
+        "party_id": party,
+        "due_date": due_date,
+        "paid_on": paid_on,
+        "amount": value,
+        "family": family,
+        "evidence_refs": [str(row["source_row_id"])] if row.get("source_row_id") else [],
+    }
 
 
 def _fingerprint(event: dict) -> tuple:
@@ -49,7 +59,11 @@ def _fingerprint(event: dict) -> tuple:
 
 
 def _history(records: dict, as_of: date) -> tuple[dict[str, list[dict]], set[str]]:
-    invoices = {str(row["reference"]): row for row in records.get("invoices", []) if row.get("direction") in SALES_DIRECTIONS}
+    invoices = {
+        str(row["reference"]): row
+        for row in records.get("invoices", [])
+        if row.get("direction") in SALES_DIRECTIONS
+    }
     by_identity: dict[str, list[dict]] = defaultdict(list)
     start = as_of - timedelta(days=LOOKBACK_DAYS)
     for family in ("history", "settlements"):
@@ -111,7 +125,17 @@ def plan_receipts(records: dict, period: dict, coverage: dict) -> dict:
 
     def question(invoice: dict, reason: str, refs: list[str]) -> None:
         party = str(invoice.get("party_id") or "")
-        item = grouped.setdefault(party, {"party_id": party, "invoice_refs": [], "title": "زمان وصول این مشتری چه تاریخی است؟", "reason_code": reason, "reason_codes": [], "evidence_refs": []})
+        item = grouped.setdefault(
+            party,
+            {
+                "party_id": party,
+                "invoice_refs": [],
+                "title": "زمان وصول این مشتری چه تاریخی است؟",
+                "reason_code": reason,
+                "reason_codes": [],
+                "evidence_refs": [],
+            },
+        )
         item["invoice_refs"].append(str(invoice["reference"]))
         item["reason_codes"] = sorted(set([*item["reason_codes"], reason]))
         item["evidence_refs"] = sorted(set([*item["evidence_refs"], *refs]))
@@ -120,7 +144,13 @@ def plan_receipts(records: dict, period: dict, coverage: dict) -> dict:
         if invoice.get("direction") not in SALES_DIRECTIONS or day(invoice["date"]) > as_of:
             continue
         reference = str(invoice["reference"])
-        remaining, _paid, balance_reasons = invoice_remaining(invoice, records.get("settlements", []), as_of, history_complete=coverage.get("settlements_complete") is True, allocations=allocations)
+        remaining, _paid, balance_reasons = invoice_remaining(
+            invoice,
+            records.get("settlements", []),
+            as_of,
+            history_complete=coverage.get("settlements_complete") is True,
+            allocations=allocations,
+        )
         if remaining is None:
             unavailable.append({"invoice_ref": reference, "reason_codes": balance_reasons})
             continue
@@ -141,7 +171,14 @@ def plan_receipts(records: dict, period: dict, coverage: dict) -> dict:
                 question(invoice, "receipt_estimate_in_past", refs)
             else:
                 receipt_dates[reference] = expected.isoformat()
-                assumptions.append({"invoice_ref": reference, "basis": "human_expected_date", "expected_date": expected.isoformat(), "evidence_refs": refs})
+                assumptions.append(
+                    {
+                        "invoice_ref": reference,
+                        "basis": "human_expected_date",
+                        "expected_date": expected.isoformat(),
+                        "evidence_refs": refs,
+                    }
+                )
             continue
         party = str(invoice.get("party_id") or "")
         history = histories.get(party, [])
@@ -163,5 +200,24 @@ def plan_receipts(records: dict, period: dict, coverage: dict) -> dict:
                 question(invoice, "receipt_estimate_in_past", [*refs, *history_refs])
             else:
                 receipt_dates[reference] = expected.isoformat()
-                assumptions.append({"invoice_ref": reference, "party_id": party, "basis": "amount_weighted_median_delay", "history_event_count": len(history), "history_window_start": (as_of - timedelta(days=LOOKBACK_DAYS)).isoformat(), "history_window_end": as_of.isoformat(), "delay_days": lag, "expected_date": expected.isoformat(), "remaining": text_amount(remaining), "evidence_refs": sorted(set([*refs, *history_refs]))})
-    return {"receipt_dates": receipt_dates, "issues": list(grouped.values()), "assumptions": assumptions, "unavailable": unavailable, "policy_version": POLICY_VERSION}
+                assumptions.append(
+                    {
+                        "invoice_ref": reference,
+                        "party_id": party,
+                        "basis": "amount_weighted_median_delay",
+                        "history_event_count": len(history),
+                        "history_window_start": (as_of - timedelta(days=LOOKBACK_DAYS)).isoformat(),
+                        "history_window_end": as_of.isoformat(),
+                        "delay_days": lag,
+                        "expected_date": expected.isoformat(),
+                        "remaining": text_amount(remaining),
+                        "evidence_refs": sorted(set([*refs, *history_refs])),
+                    }
+                )
+    return {
+        "receipt_dates": receipt_dates,
+        "issues": list(grouped.values()),
+        "assumptions": assumptions,
+        "unavailable": unavailable,
+        "policy_version": POLICY_VERSION,
+    }

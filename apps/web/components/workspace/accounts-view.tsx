@@ -132,7 +132,7 @@ function AccountsWorkspace() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={5} title="حسابی تعریف نشده" />
+                  <TableEmptyCell colSpan={5} title="هنوز حسابی تعریف نشده است" />
                 )}
               </TableBody>
             </Table>

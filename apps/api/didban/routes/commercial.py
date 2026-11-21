@@ -108,9 +108,7 @@ def update_proforma(company_id: str, proforma_id: str, data: ProformaInput, requ
 
 
 @router.post(P + "/proformas/{proforma_id}/convert", status_code=201)
-def convert_proforma(
-    company_id: str, proforma_id: str, data: ConvertProformaInput, request: Request
-):
+def convert_proforma(company_id: str, proforma_id: str, data: ConvertProformaInput, request: Request):
     payload = data.model_dump()
     return mutate(
         request,

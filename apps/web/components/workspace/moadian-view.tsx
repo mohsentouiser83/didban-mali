@@ -1,7 +1,6 @@
 "use client";
 import { ReceiptIcon as HeaderIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import {
   Table,
@@ -22,7 +21,6 @@ import {
   NoResult,
   PageHeader,
   Panel,
-  PeriodFilter,
 } from "./page-parts";
 
 const comparisonLabels: Record<string, string> = {
@@ -83,9 +81,7 @@ export function MoadianView() {
       <PageHeader
         icon={HeaderIcon}
         title="مؤدیان"
-        action={<ButtonLink href="/moadian/transmissions">ارسال و استعلام صورتحساب</ButtonLink>}
       />
-      <PeriodFilter />
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (

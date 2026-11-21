@@ -235,7 +235,9 @@ def test_account_nature_creation_update_and_validation(workspace):
     assert acc_def["nature"] == "debit"
 
     # Explicit nature credit
-    acc_cred = save_account(db, "c", owner, {"code": "200", "name": "بستانکاران", "nature": "credit", "active": True})
+    acc_cred = save_account(
+        db, "c", owner, {"code": "200", "name": "بستانکاران", "nature": "credit", "active": True}
+    )
     assert acc_cred["nature"] == "credit"
 
     # Explicit nature floating
@@ -252,7 +254,12 @@ def test_account_nature_creation_update_and_validation(workspace):
 
     # Update nature from credit to floating
     updated = save_account(
-        db, "c", owner, {"code": "200", "name": "بستانکاران", "nature": "floating", "active": True}, acc_cred["id"], 1
+        db,
+        "c",
+        owner,
+        {"code": "200", "name": "بستانکاران", "nature": "floating", "active": True},
+        acc_cred["id"],
+        1,
     )
     assert updated["nature"] == "floating"
     assert updated["version"] == 2
@@ -268,4 +275,3 @@ def test_account_nature_creation_update_and_validation(workspace):
 
     with pytest.raises(ValidationError):
         AccountInput.model_validate({"code": "13", "name": "تست", "nature": "invalid_nature"})
-

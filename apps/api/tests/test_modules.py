@@ -1,9 +1,12 @@
 """Module settings preserve company isolation, versions and source readiness."""
+
 from test_api_delivery import scenario
 
 
 def test_company_module_preferences_are_versioned_audited_and_owner_only(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 owner=client_for("owner"); viewer=client_for("viewer"); outsider=client_for("outsider")
 path=base+"/modules"
 response=owner.get(path)
@@ -32,11 +35,14 @@ with transaction("company-a") as db:
     assert len(events)==2 and events[0].details["before"] is True
     assert db.get(m.ResultManifest,manifest_ids[0]).metrics[0]["value"] is None
 assert all(i["enabled"] for i in outsider.get("/api/v1/companies/company-b/modules").json()["items"] if i["key"]=="cashflow")
-''')
+""",
+    )
 
 
 def test_readiness_uses_accepted_manifest_evidence_and_preserves_partial_results(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from didban.module_service import module_state
 with transaction("company-a") as db:
     state=module_state(db,"company-a","receivables",{"ledger"})
@@ -54,11 +60,14 @@ with transaction("company-a") as db:
     db.add(manifest);db.flush()
     assert module_state(db,"company-a","cashflow")["available"] is True
     assert module_state(db,"company-b","cashflow")["available"] is False
-''')
+""",
+    )
 
 
 def test_personnel_uses_one_versioned_switch_for_all_legacy_endpoints(tmp_path):
-    scenario(tmp_path, r'''
+    scenario(
+        tmp_path,
+        r"""
 from didban.module_service import module_state
 owner=client_for("owner")
 response=command(owner,"PATCH",base+"/modules/employees",{"enabled":True})
@@ -75,4 +84,5 @@ assert response.json()["key"]=="employees" and response.json()["version"]==3
 for area in ("employees", "payroll", "tax", "insurance", "employee-reports"):
     assert owner.get(base+"/"+area).status_code==403
 assert command(owner,"PATCH",base+"/modules/insurance",{"enabled":True},version=2).status_code==409
-''')
+""",
+    )

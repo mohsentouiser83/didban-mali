@@ -112,6 +112,75 @@ def list_rules(db: Session, company_id: str, user: m.User) -> list[dict]:
     return [_serialize_rule(r) for r in sorted_rules]
 
 
+def create_rule(
+    db: Session,
+    company_id: str,
+    user: m.User,
+    data: dict,
+) -> dict:
+    membership(db, company_id, user, "write")
+    ensure_defaults(db, company_id)
+
+    entity_type = (data.get("entity_type") or "").strip().lower()
+    entity_title = (data.get("entity_title") or "").strip()
+
+    require(bool(entity_type), "entity_type_required", "شناسه انگلیسی موجودیت الزامی است.", 422)
+    require(bool(entity_title), "entity_title_required", "عنوان موجودیت الزامی است.", 422)
+
+    existing = db.scalar(
+        select(NumberingSystem).where(
+            NumberingSystem.company_id == company_id,
+            NumberingSystem.entity_type == entity_type,
+        )
+    )
+    require(
+        existing is None,
+        "duplicate_entity_type",
+        "قاعده شماره‌گذاری برای این موجودیت قبلاً تعریف شده است.",
+        409,
+    )
+
+    padding = int(data.get("padding", 3))
+    require(1 <= padding <= 10, "invalid_padding", "تعداد ارقام باید بین ۱ تا ۱۰ باشد.", 422)
+
+    start_number = int(data.get("start_number", 1))
+    require(start_number >= 1, "invalid_start_number", "شماره شروع باید بزرگتر یا مساوی ۱ باشد.", 422)
+
+    current_number = int(data.get("current_number", start_number))
+    require(current_number >= 1, "invalid_current_number", "شماره جاری باید بزرگتر یا مساوی ۱ باشد.", 422)
+
+    rule = NumberingSystem(
+        company_id=company_id,
+        entity_type=entity_type,
+        entity_title=entity_title,
+        prefix=str(data.get("prefix") or ""),
+        start_number=start_number,
+        current_number=current_number,
+        padding=padding,
+        suffix=str(data.get("suffix") or ""),
+        description=data.get("description"),
+        is_system=False,
+        active=bool(data.get("active", True)),
+    )
+    db.add(rule)
+    db.flush()
+
+    audit(
+        db,
+        company_id,
+        user.id,
+        "numbering_system.created",
+        rule.id,
+        {
+            "entity_type": rule.entity_type,
+            "entity_title": rule.entity_title,
+            "sample": rule.sample,
+            "current_number": rule.current_number,
+        },
+    )
+    return _serialize_rule(rule)
+
+
 def get_rule(db: Session, company_id: str, user: m.User, rule_id: str) -> dict:
     membership(db, company_id, user, "read")
     rule = get_entity(db, NumberingSystem, company_id, rule_id)
@@ -130,7 +199,7 @@ def update_rule(
     rule = get_entity(db, NumberingSystem, company_id, rule_id)
     check_version(rule, version)
 
-    for field in ("prefix", "suffix", "description", "active"):
+    for field in ("entity_title", "prefix", "suffix", "description", "active"):
         if field in data and data[field] is not None:
             setattr(rule, field, data[field])
 
@@ -177,14 +246,26 @@ def update_rule(
 
 
 def delete_rule(db: Session, company_id: str, user: m.User, rule_id: str) -> None:
-    """Predefined numbering rules cannot be deleted."""
+    """Predefined numbering rules cannot be deleted; custom rules can be deleted."""
     membership(db, company_id, user, "write")
-    _rule = get_entity(db, NumberingSystem, company_id, rule_id)
+    rule = get_entity(db, NumberingSystem, company_id, rule_id)
     require(
-        False,
+        not rule.is_system,
         "cannot_delete_numbering_system",
-        "امکان حذف سیستم شماره‌گذاری وجود ندارد. شما فقط می‌توانید آن را ویرایش کنید.",
+        "امکان حذف سیستم شماره‌گذاری پیش‌فرض وجود ندارد. شما فقط می‌توانید آن را ویرایش کنید.",
         400,
+    )
+    entity_type = rule.entity_type
+    db.delete(rule)
+    db.flush()
+
+    audit(
+        db,
+        company_id,
+        user.id,
+        "numbering_system.deleted",
+        rule_id,
+        {"entity_type": entity_type},
     )
 
 

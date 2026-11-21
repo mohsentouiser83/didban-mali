@@ -1,7 +1,8 @@
 """Model calls are HTTP MockTransport only; no API key or external data transmission."""
+
 from test_api_delivery import scenario
 
-SETUP = r'''
+SETUP = r"""
 import asyncio
 import httpx
 import json
@@ -29,11 +30,14 @@ def envelope(value=None,usage=True):
 
 def configured(handler):
     return ModelGateway(GatewayConfig(enabled=True,api_key="mock-not-a-live-key"),transport=httpx.MockTransport(handler))
-'''
+"""
 
 
 def test_disabled_gateway_never_sends_and_positive_call_settles_exact_cost(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 calls=[]
 def handler(request):
     calls.append(request)
@@ -63,11 +67,15 @@ with transaction("company-a") as db:
     assert reservation.state=="settled" and Decimal(reservation.actual_cost)==Decimal("0.0000995")
     budget=db.scalar(select(m.InstallationModelBudget))
     assert Decimal(budget.used)==Decimal("0.0000995") and Decimal(budget.reserved)==0
-''')
+""",
+    )
 
 
 def test_unknown_columns_extra_fields_and_invented_refs_are_rejected_but_usage_is_paid(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 variants=[(proposal|{"confidence":0.99},"model_schema_invalid"),(proposal|{"mapping":[{"field":"amount","header":"invented"}]},"model_unknown_column"),(proposal|{"evidence_refs":["invented-row"]},"model_unknown_evidence")]
 for index,(value,code) in enumerate(variants):
     result=asyncio.run(configured(lambda request: httpx.Response(200,json=envelope(value))).invoke(**(arguments|{"request_key":f"reject-{index}"})))
@@ -76,11 +84,15 @@ for index,(value,code) in enumerate(variants):
 with transaction("company-a") as db:
     reservations=list(db.scalars(select(m.BudgetReservation)))
     assert len(reservations)==3 and all(r.state=="settled" for r in reservations)
-''')
+""",
+    )
 
 
 def test_whole_session_barrier_invalidates_inflight_output_and_retains_known_charge(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 from didban.workflow import issue
 def handler(request):
     # This transaction succeeds because gateway releases all DB locks before HTTP.
@@ -94,11 +106,15 @@ with transaction("company-a") as db:
     assert db.get(m.ProcessingSession,processing_id).state=="waiting_input"
     assert db.scalar(select(m.BudgetReservation)).state=="settled"
     assert db.scalar(select(m.ModelRequest)).proposal is None
-''')
+""",
+    )
 
 
 def test_revoked_actor_and_fenced_worker_cannot_publish_provider_output(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 with transaction("company-a") as db:
     job=m.Job(company_id="company-a",session_id=processing_id,generation=1,state="running",fence=7,leased_until=now()+timedelta(minutes=2))
     db.add(job);db.flush();job_id=job.id
@@ -116,11 +132,15 @@ def revoke(request):
     return httpx.Response(200,json=envelope())
 result=asyncio.run(configured(revoke).invoke(**(arguments|{"request_key":"actor-revoked"})))
 assert result["state"]=="invalidated" and result["reason_code"]=="model_actor_revoked",result
-''')
+""",
+    )
 
 
 def test_timeout_cost_remains_reserved_until_audited_reconciliation(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 def timeout(request):
     raise httpx.ReadTimeout("synthetic timeout",request=request)
 result=asyncio.run(configured(timeout).invoke(**arguments))
@@ -136,11 +156,15 @@ with transaction("company-a") as db:
     budget=db.scalar(select(m.InstallationModelBudget))
     assert Decimal(budget.reserved)==0 and Decimal(budget.used)==Decimal("0.01")
     assert db.scalar(select(m.InstallationAudit).where(m.InstallationAudit.action=="model.cost_reconciled"))
-''')
+""",
+    )
 
 
 def test_rate_limit_retry_is_bounded_and_reservation_released(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 calls=[]
 def limited(request):
     calls.append(request)
@@ -154,11 +178,15 @@ assert len(calls)==3 and result["state"]=="failed",result
 with transaction("company-a") as db:
     assert all(r.state=="released" for r in db.scalars(select(m.BudgetReservation)))
     assert Decimal(db.scalar(select(m.InstallationModelBudget)).reserved)==0
-''')
+""",
+    )
 
 
 def test_installation_budget_cannot_be_bypassed_by_concurrent_companies(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 with transaction("company-b") as db:
     db.add(m.BudgetPolicy(company_id="company-b",cap="1",currency="USD",period=period,actor_id=users["outsider"]))
     db.add(m.ModelTariff(company_id="company-b",model="gpt-5.6-luna",price_version="test",currency="USD",input_per_million="1",cached_input_per_million="0.1",cache_write_per_million="1.25",output_per_million="2",max_input_tokens=30000,max_output_tokens=1024,effective_from=now()-timedelta(days=1)))
@@ -177,11 +205,15 @@ async def concurrent():
     release.set();await first
     assert len(calls)==1
 asyncio.run(concurrent())
-''')
+""",
+    )
 
 
 def test_crash_recovery_keeps_old_unknown_commitment_and_ignores_stale_attempt(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 async def recovery():
     started=asyncio.Event();release=asyncio.Event()
     async def slow(request):
@@ -204,11 +236,15 @@ async def recovery():
         assert Decimal(db.scalar(select(m.InstallationModelBudget)).reserved)==0
         assert db.scalar(select(m.ModelRequest)).attempts==2
 asyncio.run(recovery())
-''')
+""",
+    )
 
 
 def test_explanation_can_only_select_authorized_facts_and_evidence(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 facts={"cash":{"value":"100","evidence_refs":["row-1"],"comparison":{"delta":None},"reason":None}}
 value={"sentences":[{"template":"metric_value","fact_key":"cash","evidence_refs":["row-1"]}]}
 result=asyncio.run(configured(lambda request:httpx.Response(200,json=envelope(value))).invoke(**(arguments|{"purpose":"explain_finding","evidence":{"source_refs":["row-1"],"facts":facts}})))
@@ -216,11 +252,15 @@ assert result["state"]=="completed",result
 bad=value|{"text":"سود ۹۹۹۹ ریال است"}
 result=asyncio.run(configured(lambda request:httpx.Response(200,json=envelope(bad))).invoke(**(arguments|{"purpose":"explain_finding","evidence":{"source_refs":["row-1"],"facts":facts},"request_key":"bad-prose"})))
 assert result["state"]=="rejected" and result["reason_code"]=="model_schema_invalid",result
-''')
+""",
+    )
 
 
 def test_successful_response_with_unknown_usage_is_held_without_automatic_retry(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 calls=[]
 def missing_usage(request):
     calls.append(request)
@@ -233,11 +273,15 @@ with transaction("company-a") as db:
     reservation=db.scalar(select(m.BudgetReservation))
     assert reservation.state=="unknown" and reservation.actual_cost is None
     assert Decimal(db.scalar(select(m.InstallationModelBudget)).reserved)>0
-''')
+""",
+    )
 
 
 def test_free_chat_uses_read_permission_schema_and_normal_cost_accounting(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 chat={"kind":"chat","answer":"سلام! امروز دوست داری درباره چی حرف بزنیم؟"}
 def handler(request):
     body=json.loads(request.content)
@@ -253,4 +297,5 @@ assert result["state"]=="completed" and result["proposal"]==chat,result
 with transaction("company-a") as db:
     reservation=db.scalar(select(m.BudgetReservation))
     assert reservation.state=="settled" and Decimal(reservation.actual_cost)>0
-''')
+""",
+    )

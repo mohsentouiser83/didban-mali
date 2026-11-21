@@ -31,9 +31,11 @@ from didban.workflow import answer_issue, process
 @pytest.fixture
 def db():
     engine = create_engine("sqlite:///:memory:")
+
     @event.listens_for(engine, "connect")
     def enable_fk(connection, _):
         connection.execute("PRAGMA foreign_keys=ON")
+
     Base.metadata.create_all(engine)
     with Session(engine, expire_on_commit=False) as session:
         yield session
@@ -53,11 +55,34 @@ def seed(db):
 
 
 def session_job(db, user, company, period, *, parent=None, coverage=True):
-    session = ProcessingSession(company_id=company.id, actor_id=user.id, period_id=period.id, parent_id=parent, state="sealed")
+    session = ProcessingSession(
+        company_id=company.id, actor_id=user.id, period_id=period.id, parent_id=parent, state="sealed"
+    )
     db.add(session)
     db.flush()
     if coverage:
-        db.add(ProcessingIssue(company_id=company.id, session_id=session.id, code="coverage", question="پوشش", choices=[], evidence={}, answer={"value": {"ledger_complete": True, "invoice_complete": True, "settlements_complete": True, "tax_complete": True, "bank_complete": True, "comparable_ar": True, "comparable_ap": True}}, answered_by=user.id))
+        db.add(
+            ProcessingIssue(
+                company_id=company.id,
+                session_id=session.id,
+                code="coverage",
+                question="پوشش",
+                choices=[],
+                evidence={},
+                answer={
+                    "value": {
+                        "ledger_complete": True,
+                        "invoice_complete": True,
+                        "settlements_complete": True,
+                        "tax_complete": True,
+                        "bank_complete": True,
+                        "comparable_ar": True,
+                        "comparable_ap": True,
+                    }
+                },
+                answered_by=user.id,
+            )
+        )
     job = Job(company_id=company.id, session_id=session.id, generation=session.version)
     db.add(job)
     db.flush()
@@ -65,26 +90,78 @@ def session_job(db, user, company, period, *, parent=None, coverage=True):
 
 
 def source(db, session, family, rows, *, unit="IRR", sheet="حساب الف", provenance="validated_automatic"):
-    item = SourceFile(company_id=session.company_id, session_id=session.id, name=uid()+".csv", sha256=uid(), size=100, storage_key=uid(), state="ready", scan_status="development_unscanned", row_count=len(rows))
+    item = SourceFile(
+        company_id=session.company_id,
+        session_id=session.id,
+        name=uid() + ".csv",
+        sha256=uid(),
+        size=100,
+        storage_key=uid(),
+        state="ready",
+        scan_status="development_unscanned",
+        row_count=len(rows),
+    )
     db.add(item)
     db.flush()
     mapping = {key: key for row in rows for key in row}
-    db.add(Interpretation(company_id=session.company_id, file_id=item.id, sheet=sheet, family=family, mapping=mapping, unit=unit, calendar="gregorian", provenance=provenance, evidence={"headers": list(mapping), "sheet": sheet, "sample": rows[:1]}))
+    db.add(
+        Interpretation(
+            company_id=session.company_id,
+            file_id=item.id,
+            sheet=sheet,
+            family=family,
+            mapping=mapping,
+            unit=unit,
+            calendar="gregorian",
+            provenance=provenance,
+            evidence={"headers": list(mapping), "sheet": sheet, "sample": rows[:1]},
+        )
+    )
     for number, row in enumerate(rows, 2):
-        db.add(SourceRow(company_id=session.company_id, file_id=item.id, sheet=sheet, row_number=number, values=row))
+        db.add(
+            SourceRow(
+                company_id=session.company_id, file_id=item.id, sheet=sheet, row_number=number, values=row
+            )
+        )
     db.flush()
     return item
 
 
 def bank_rows(amount="30", reference="R"):
     return [
-        {"date": "2026-09-01", "amount": "0", "reference": "OPEN", "balance": "100", "row_type": "opening", "anchor_cutoff": "start_of_day", "account": "A"},
-        {"date": "2026-09-05", "amount": amount, "reference": reference, "balance": "", "row_type": "movement", "anchor_cutoff": "", "account": "A"},
+        {
+            "date": "2026-09-01",
+            "amount": "0",
+            "reference": "OPEN",
+            "balance": "100",
+            "row_type": "opening",
+            "anchor_cutoff": "start_of_day",
+            "account": "A",
+        },
+        {
+            "date": "2026-09-05",
+            "amount": amount,
+            "reference": reference,
+            "balance": "",
+            "row_type": "movement",
+            "anchor_cutoff": "",
+            "account": "A",
+        },
     ]
 
 
 def invoice_rows():
-    return [{"invoice_id": "INV", "party_id": "C", "date": "2026-09-01", "due_date": "2026-09-20", "amount": "100", "tax": "0", "tax_id": "T"}]
+    return [
+        {
+            "invoice_id": "INV",
+            "party_id": "C",
+            "date": "2026-09-01",
+            "due_date": "2026-09-20",
+            "amount": "100",
+            "tax": "0",
+            "tax_id": "T",
+        }
+    ]
 
 
 def metric(manifest, key):
@@ -114,7 +191,11 @@ def test_existing_portal_upload_is_recognized_without_overwriting_evidence(db):
         "مالیات بر ارزش افزوده": "",
     }
     file = source(
-        db, session, "unknown", [original, rejected, cancellation], unit=None,
+        db,
+        session,
+        "unknown",
+        [original, rejected, cancellation],
+        unit=None,
         provenance="validated_header_rules",
     )
     previous = db.scalar(select(Interpretation).where(Interpretation.file_id == file.id))
@@ -183,7 +264,12 @@ def test_same_session_overlapping_reference_blocks_but_equal_distinct_payments_s
     assert len(list(db.scalars(select(BankMovement)))) == 1
     assert db.get(SourceFile, first.id).state == "ready"
     separate, separate_job = session_job(db, user, company, period)
-    source(db, separate, "bank", [{**bank_rows()[1], "reference": "REAL1"}, {**bank_rows()[1], "reference": "REAL2"}])
+    source(
+        db,
+        separate,
+        "bank",
+        [{**bank_rows()[1], "reference": "REAL1"}, {**bank_rows()[1], "reference": "REAL2"}],
+    )
     process(db, separate_job)
     assert separate.result_id is not None
     result = db.get(ResultManifest, separate.result_id)
@@ -200,7 +286,11 @@ def test_changed_amount_or_date_on_parent_bank_reference_opens_overlap(db):
     revision, next_job = session_job(db, user, company, period, parent=prior.id)
     source(db, revision, "bank", [{**bank_rows()[1], "date": "2026-09-06", "amount": "50"}])
     process(db, next_job)
-    question = db.scalar(select(ProcessingIssue).where(ProcessingIssue.session_id == revision.id, ProcessingIssue.code == "overlap"))
+    question = db.scalar(
+        select(ProcessingIssue).where(
+            ProcessingIssue.session_id == revision.id, ProcessingIssue.code == "overlap"
+        )
+    )
     assert question is not None
     assert question.evidence["old_file_ids"] == [original_file.id]
     assert revision.state == "waiting_input" and revision.result_id is None
@@ -211,8 +301,18 @@ def test_changed_amount_or_date_on_parent_bank_reference_opens_overlap(db):
 def test_journal_imbalances_cannot_cancel_across_dates(db):
     user, company, period = seed(db)
     session, job = session_job(db, user, company, period)
-    row = {"entry_id": "E", "account": "A", "role": "capital", "entry_type": "regular", "date": "2026-09-01", "debit": "10", "credit": "0"}
-    source_file = source(db, session, "ledger", [row, {**row, "date": "2026-09-02", "debit": "0", "credit": "10"}])
+    row = {
+        "entry_id": "E",
+        "account": "A",
+        "role": "capital",
+        "entry_type": "regular",
+        "date": "2026-09-01",
+        "debit": "10",
+        "credit": "0",
+    }
+    source_file = source(
+        db, session, "ledger", [row, {**row, "date": "2026-09-02", "debit": "0", "credit": "10"}]
+    )
     process(db, job)
     question = db.scalar(select(ProcessingIssue).where(ProcessingIssue.code == "invalid_rows"))
     assert question.file_id == source_file.id
@@ -223,8 +323,14 @@ def test_journal_imbalances_cannot_cancel_across_dates(db):
 def test_unnumbered_ledger_keeps_rows_and_blocks_overlapping_file(db):
     user, company, period = seed(db)
     session, job = session_job(db, user, company, period)
-    row = {"account": "A", "role": "revenue", "entry_type": "regular", "date": "2026-09-02",
-           "debit": "0", "credit": "10"}
+    row = {
+        "account": "A",
+        "role": "revenue",
+        "entry_type": "regular",
+        "date": "2026-09-02",
+        "debit": "0",
+        "credit": "10",
+    }
     offset = {**row, "account": "B", "role": "capital", "date": "2026-09-03", "debit": "20", "credit": "0"}
     original = source(db, session, "ledger", [row, row, offset])
     process(db, job)
@@ -233,10 +339,15 @@ def test_unnumbered_ledger_keeps_rows_and_blocks_overlapping_file(db):
     assert metric(manifest, "revenue")["value"] == "20"
 
     revision, revision_job = session_job(db, user, company, period, parent=manifest.id)
-    replacement = source(db, revision, "ledger", [
-        {**row, "entry_id": "E"},
-        {**row, "entry_id": "E", "account": "B", "role": "capital", "debit": "10", "credit": "0"},
-    ])
+    replacement = source(
+        db,
+        revision,
+        "ledger",
+        [
+            {**row, "entry_id": "E"},
+            {**row, "entry_id": "E", "account": "B", "role": "capital", "debit": "10", "credit": "0"},
+        ],
+    )
     process(db, revision_job)
     question = db.scalar(select(ProcessingIssue).where(ProcessingIssue.code == "overlap"))
     assert question.file_id == replacement.id
@@ -255,7 +366,11 @@ def test_manual_allocation_uses_effective_bank_date_and_freezes_old_snapshot(db)
     assert metric(prior, "ar_invoice")["value"] == "100"
     bank = db.scalar(select(BankMovement).where(BankMovement.reference == "R"))
     invoice = db.scalar(select(Invoice))
-    db.add(Allocation(company_id=company.id, actor_id=user.id, bank_id=bank.id, invoice_id=invoice.id, amount="30"))
+    db.add(
+        Allocation(
+            company_id=company.id, actor_id=user.id, bank_id=bank.id, invoice_id=invoice.id, amount="30"
+        )
+    )
     db.flush()
     revision, revision_job = session_job(db, user, company, period, parent=prior.id)
     process(db, revision_job)
@@ -264,15 +379,49 @@ def test_manual_allocation_uses_effective_bank_date_and_freezes_old_snapshot(db)
     assert metric(revised, "ar_invoice")["value"] == "70"
     assert metric(prior, "ar_invoice")["value"] == "100"
     assert revised.selection["allocations"][0]["date"] == "2026-09-05"
-    assert {row["id"] for row in revised.selection["files"]} == {row["id"] for row in prior.selection["files"]}
+    assert {row["id"] for row in revised.selection["files"]} == {
+        row["id"] for row in prior.selection["files"]
+    }
 
 
 def test_normalization_keeps_moadian_party_and_exact_plan_precision():
     ident = uid()
-    row = SourceRow(id=ident, company_id="C", file_id="F", sheet="مؤدیان", row_number=2, values={"invoice_id": "I", "party_id": "P", "date": "2026-09-01", "amount": "100", "tax": "0", "tax_id": "T", "kind": "original"})
-    interpretation = Interpretation(company_id="C", file_id="F", sheet="مؤدیان", family="moadian_sales", mapping={key: key for key in row.values}, unit="IRR", calendar="gregorian", provenance="human", evidence={})
+    row = SourceRow(
+        id=ident,
+        company_id="C",
+        file_id="F",
+        sheet="مؤدیان",
+        row_number=2,
+        values={
+            "invoice_id": "I",
+            "party_id": "P",
+            "date": "2026-09-01",
+            "amount": "100",
+            "tax": "0",
+            "tax_id": "T",
+            "kind": "original",
+        },
+    )
+    interpretation = Interpretation(
+        company_id="C",
+        file_id="F",
+        sheet="مؤدیان",
+        family="moadian_sales",
+        mapping={key: key for key in row.values},
+        unit="IRR",
+        calendar="gregorian",
+        provenance="human",
+        evidence={},
+    )
     assert normalize(row, interpretation, "S").party_id == "P"
-    row.values = {"plan_id": "P", "obligation_id": "O", "date": "2026-10-01", "total_obligation": "999999999999999999999999999999.123456", "paid_as_of": "0.000001", "confirmed": "true"}
+    row.values = {
+        "plan_id": "P",
+        "obligation_id": "O",
+        "date": "2026-10-01",
+        "total_obligation": "999999999999999999999999999999.123456",
+        "paid_as_of": "0.000001",
+        "confirmed": "true",
+    }
     interpretation.family, interpretation.mapping = "plans", {key: key for key in row.values}
     plan = normalize(row, interpretation, "S")
     assert Decimal(plan.amount) == Decimal("999999999999999999999999999999.123455")
@@ -327,8 +476,26 @@ def test_account_role_ambiguity_is_human_interpretation_with_audited_scope(db):
     user, company, period = seed(db)
     session, job = session_job(db, user, company, period)
     rows = [
-        {"entry_id": "E", "account": "1201", "role": "unknown", "entry_type": "regular", "date": "2026-09-05", "debit": "100", "credit": "0", "party_id": "C"},
-        {"entry_id": "E", "account": "3001", "role": "capital", "entry_type": "regular", "date": "2026-09-05", "debit": "0", "credit": "100", "party_id": ""},
+        {
+            "entry_id": "E",
+            "account": "1201",
+            "role": "unknown",
+            "entry_type": "regular",
+            "date": "2026-09-05",
+            "debit": "100",
+            "credit": "0",
+            "party_id": "C",
+        },
+        {
+            "entry_id": "E",
+            "account": "3001",
+            "role": "capital",
+            "entry_type": "regular",
+            "date": "2026-09-05",
+            "debit": "0",
+            "credit": "100",
+            "party_id": "",
+        },
     ]
     source(db, session, "ledger", rows, sheet="دفتر")
     process(db, job)

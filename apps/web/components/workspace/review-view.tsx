@@ -1,7 +1,7 @@
 "use client";
 import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Field } from "@/components/ui/field";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -34,14 +34,12 @@ function ReviewWorkspace() {
     <>
       <PageHeader
         icon={ShieldCheckIcon}
-        title="بررسی و شواهد"
-        action={
-          <div className="flex flex-wrap gap-2"><ButtonLink href="/review/native-controls" variant="secondary">کنترل دفتر اصلی</ButtonLink><ButtonLink href="/review/expense-changes" variant="secondary">تغییر هزینه‌ها</ButtonLink><ButtonLink href="/accounting" variant="secondary">
-            اسناد حسابداری
-          </ButtonLink></div>
-        }
+        title="سلامت اسناد و مغایرت‌ها"
       />
       <Panel>
+        <p className="mb-4 text-xs text-muted leading-6">
+          پایش پیوستهٔ سلامت اسناد و دفاتر، کشف ناترازی‌ها و مغایرت‌های بانکی و سامانهٔ مؤدیان همراه با شواهد مستند مبدا.
+        </p>
         <div className="mb-5 max-w-sm">
           <Field id="control-scope" label="نمایش">
             <Select
@@ -120,13 +118,13 @@ function ReviewWorkspace() {
                           variant="secondary"
                           onClick={() => view.panel.open(row)}
                         >
-                          {row.case ? "پرونده پیگیری" : "بررسی شواهد"}
+                          {row.case ? "پیگیری مغایرت" : "بررسی و شواهد"}
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={6} title="موردی برای بررسی نیست" />
+                  <TableEmptyCell colSpan={6} title="تمام موارد بررسی شده‌اند و موردی باقی نمانده است" />
                 )}
               </TableBody>
             </Table>

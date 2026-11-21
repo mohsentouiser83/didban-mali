@@ -3,9 +3,18 @@ import { useRef, useState } from "react";
 import { MicrophoneIcon, StopIcon, TrashIcon, PlayIcon, PauseIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import type { AssistantVoice } from "@/hooks/use-assistant-voice";
 
-export function AssistantVoiceButton({ voice, disabled }: { voice: AssistantVoice; disabled: boolean }) {
+export function AssistantVoiceButton({
+  voice,
+  disabled,
+  className,
+}: {
+  voice: AssistantVoice;
+  disabled: boolean;
+  className?: string;
+}) {
   const recording = voice.phase === "recording";
   return (
     <Button
@@ -15,7 +24,7 @@ export function AssistantVoiceButton({ voice, disabled }: { voice: AssistantVoic
       aria-label={recording ? "پایان ضبط" : "ضبط ویس"}
       aria-pressed={recording}
       onClick={recording ? voice.stop : () => void voice.start()}
-      className="size-11 shrink-0 p-0"
+      className={cn("size-11 shrink-0 p-0", className)}
     >
       {recording ? <StopIcon size={18} aria-hidden /> : <MicrophoneIcon size={18} aria-hidden />}
     </Button>

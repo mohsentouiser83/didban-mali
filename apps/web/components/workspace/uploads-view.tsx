@@ -193,13 +193,13 @@ function UploadsWorkspace() {
                           className="size-11 p-0 text-primary"
                         >
                           <ArrowUpLeftIcon size={20} aria-hidden />
-                          <span className="sr-only">بازکردن پرونده</span>
+                          <span className="sr-only">مشاهده گزارش پردازش</span>
                         </ButtonLink>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={5} title="نوبت پردازشی ثبت نشده" />
+                  <TableEmptyCell colSpan={5} title="هنوز فایلی بارگذاری نشده است" />
                 )}
               </TableBody>
             </Table>

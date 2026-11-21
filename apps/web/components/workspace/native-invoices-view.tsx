@@ -1,6 +1,7 @@
 "use client";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   LoadingState,
   ErrorState,
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Pagination, CursorPagination } from "@/components/ui/pagination";
 import { StatCards } from "@/components/ui/financial/stat-cards";
+import { Tabs } from "@/components/ui/tabs";
 import {
   Table,
   TableHeader,
@@ -27,7 +29,7 @@ import { useNativeInvoices } from "@/hooks/use-native-invoices";
 import type { InvoiceDirection } from "@/lib/native-invoices";
 import { nativeInvoiceReason, expectedDateLabel } from "@/lib/native-invoices";
 import { amount, displayDate, persian } from "@/lib/utils";
-import { Panel, PeriodFilter } from "./page-parts";
+import { Panel } from "./page-parts";
 import { NativeInvoiceTermsDialog } from "./native-invoice-terms-dialog";
 import { NativeInvoiceAllocationDialog } from "./native-invoice-allocation-dialog";
 import { NativeInvoiceReminderDialog } from "./native-invoice-reminder-dialog";
@@ -44,6 +46,7 @@ export function NativeInvoicesView({
   operationId?: string;
 }) {
   const view = useNativeInvoices(direction, followups, operationId);
+  const [tab, setTab] = useState<"invoices" | "snapshots">("invoices");
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -72,7 +75,6 @@ export function NativeInvoicesView({
           )}
         </div>
       </div>
-      <PeriodFilter />
       {followups && (
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <Field id="native-collection-priority" label="ترتیب پیگیری">
@@ -132,202 +134,222 @@ export function NativeInvoicesView({
           {view.ledger.error && (
             <StatusMessage>{view.ledger.error.message}</StatusMessage>
           )}
-          <Panel
-            title="فاکتورهای دفتر دیدبان"
-            className="mt-5"
-            action={
-              <ButtonLink href="/accounting" variant="secondary">
-                اسناد حسابداری
-              </ButtonLink>
-            }
-          >
-            <Field id="native-invoice-query" label="فاکتور یا طرف حساب">
-              <Input
-                id="native-invoice-query"
-                value={view.query}
-                onChange={(event) => view.setQuery(event.target.value)}
-              />
-            </Field>
-            {followups &&
-              view.priority === "history" &&
-              view.report.data?.history_policy && (
-                <p className="my-3 text-xs text-muted">
-                  وصول‌های{" "}
-                  {displayDate(view.report.data.history_policy.window_start)} تا{" "}
-                  {displayDate(view.report.data.history_policy.window_end)}؛
-                  شواهد آینده کنار گذاشته شده‌اند.
-                </p>
-              )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>مرجع</TableHead>
-                  <TableHead>طرف حساب</TableHead>
-                  <TableHead>سررسید</TableHead>
-                  <TableHead>وعدهٔ پرداخت</TableHead>
-                  <TableHead>مانده (ریال)</TableHead>
-                  {followups && <TableHead>تأخیر تا تاریخ انتخابی</TableHead>}
-                  {followups && view.priority === "history" && (
-                    <TableHead>سابقهٔ وصول ۱۸۰ روزه</TableHead>
-                  )}
-                  <TableHead>عملیات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.rows.length ? (
-                  view.rows.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableRowHeader>{invoice.reference}</TableRowHeader>
-                      <TableCell>{invoice.party_id}</TableCell>
-                      <TableCell>
-                        {invoice.terms?.due_date
-                          ? displayDate(invoice.terms?.due_date)
-                          : "نامشخص"}
-                      </TableCell>
-                      <TableCell>
-                        {invoice.terms?.expected_date
-                          ? displayDate(invoice.terms.expected_date)
-                          : expectedDateLabel(invoice.terms, invoice.direction)}
-                      </TableCell>
-                      <TableCell>
-                        {amount(invoice.remaining)}
-                        {invoice.reason && (
-                          <span className="block text-xs text-muted">
-                            {nativeInvoiceReason(invoice.reason)}
-                          </span>
-                        )}
-                      </TableCell>
-                      {followups && (
-                        <TableCell>
-                          {invoice.overdue_days == null
-                            ? "سررسید نامشخص"
-                            : invoice.overdue_days
-                              ? `${persian(invoice.overdue_days)} روز`
-                              : "بدون تأخیر"}
-                        </TableCell>
-                      )}
-                      {followups && view.priority === "history" && (
-                        <TableCell>
-                          <span>
-                            {persian(invoice.history_event_count || 0)} سند وصول
-                            مستقل
-                          </span>
-                          <span className="mt-1 block text-xs text-muted">
-                            {invoice.history_lag_days == null
-                              ? invoice.history_reason ===
-                                "receipt_history_ambiguous"
-                                ? "تاریخ‌های وصول یا سررسید یک سند ناسازگار است."
-                                : "کمتر از ۳ وصول معتبر؛ تأخیر معمول قابل محاسبه نیست."
-                              : `میانهٔ وزنی با مبلغ: ${persian(invoice.history_lag_days)} روز`}
-                          </span>
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <Button
-                          variant="secondary"
-                          onClick={() => view.select(invoice.id)}
-                        >
-                          جزئیات و پیگیری
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableEmptyCell
-                    colSpan={
-                      followups ? (view.priority === "history" ? 8 : 7) : 6
-                    }
-                    title={
-                      view.query
-                        ? "فاکتوری با این فیلتر پیدا نشد"
-                        : "فاکتور خدماتی تکمیل نشده"
-                    }
-                  />
-                )}
-              </TableBody>
-            </Table>
-            <Pagination
-              page={view.currentPage}
-              total={view.total}
-              onPrevious={view.previous}
-              onNext={view.next}
+          <div className="mt-5 mb-3">
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              items={[
+                {
+                  id: "invoices",
+                  label:
+                    direction === "sale"
+                      ? "فاکتورهای فروش دفتر دیدبان"
+                      : "فاکتورهای خرید دفتر دیدبان",
+                },
+                { id: "snapshots", label: "نسخه‌های ثابت فاکتورها" },
+              ]}
             />
-          </Panel>
+          </div>
+          {tab === "invoices" ? (
+            <Panel
+              title={
+                direction === "sale"
+                  ? "فاکتورهای فروش دفتر دیدبان"
+                  : "فاکتورهای خرید دفتر دیدبان"
+              }
+              className="mt-3"
+            >
+              <Field id="native-invoice-query" label="فاکتور یا طرف حساب">
+                <Input
+                  id="native-invoice-query"
+                  value={view.query}
+                  onChange={(event) => view.setQuery(event.target.value)}
+                />
+              </Field>
+              {followups &&
+                view.priority === "history" &&
+                view.report.data?.history_policy && (
+                  <p className="my-3 text-xs text-muted">
+                    وصول‌های{" "}
+                    {displayDate(view.report.data.history_policy.window_start)} تا{" "}
+                    {displayDate(view.report.data.history_policy.window_end)}؛
+                    شواهد آینده کنار گذاشته شده‌اند.
+                  </p>
+                )}
+              <Table>
+                <TableHeader sticky>
+                  <TableRow>
+                    <TableHead>مرجع</TableHead>
+                    <TableHead>طرف حساب</TableHead>
+                    <TableHead>سررسید</TableHead>
+                    <TableHead>وعدهٔ پرداخت</TableHead>
+                    <TableHead numeric>مانده (ریال)</TableHead>
+                    {followups && <TableHead>تأخیر تا تاریخ انتخابی</TableHead>}
+                    {followups && view.priority === "history" && (
+                      <TableHead>سابقهٔ وصول ۱۸۰ روزه</TableHead>
+                    )}
+                    <TableHead>عملیات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {view.rows.length ? (
+                    view.rows.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableRowHeader>{invoice.reference}</TableRowHeader>
+                        <TableCell>{invoice.party_id}</TableCell>
+                        <TableCell>
+                          {invoice.terms?.due_date
+                            ? displayDate(invoice.terms?.due_date)
+                            : "نامشخص"}
+                        </TableCell>
+                        <TableCell>
+                          {invoice.terms?.expected_date
+                            ? displayDate(invoice.terms.expected_date)
+                            : expectedDateLabel(invoice.terms, invoice.direction)}
+                        </TableCell>
+                        <TableCell numeric>
+                          {amount(invoice.remaining)}
+                          {invoice.reason && (
+                            <span className="block text-xs text-muted">
+                              {nativeInvoiceReason(invoice.reason)}
+                            </span>
+                          )}
+                        </TableCell>
+                        {followups && (
+                          <TableCell>
+                            {invoice.overdue_days == null ? (
+                              <Badge tone="neutral">سررسید نامشخص</Badge>
+                            ) : invoice.overdue_days > 0 ? (
+                              <Badge tone="danger">{persian(invoice.overdue_days)} روز تأخیر</Badge>
+                            ) : (
+                              <Badge tone="success">بدون تأخیر</Badge>
+                            )}
+                          </TableCell>
+                        )}
+                        {followups && view.priority === "history" && (
+                          <TableCell>
+                            <span>
+                              {persian(invoice.history_event_count || 0)} سند وصول
+                              مستقل
+                            </span>
+                            <span className="mt-1 block text-xs text-muted">
+                              {invoice.history_lag_days == null
+                                ? invoice.history_reason ===
+                                  "receipt_history_ambiguous"
+                                  ? "تاریخ‌های وصول یا سررسید یک سند ناسازگار است."
+                                  : "کمتر از ۳ وصول معتبر؛ تأخیر معمول قابل محاسبه نیست."
+                                : `میانهٔ وزنی با مبلغ: ${persian(invoice.history_lag_days)} روز`}
+                            </span>
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <Button
+                            variant="secondary"
+                            onClick={() => view.select(invoice.id)}
+                          >
+                            جزئیات و پیگیری
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableEmptyCell
+                      colSpan={
+                        followups ? (view.priority === "history" ? 8 : 7) : 6
+                      }
+                      title={
+                        view.query
+                          ? "فاکتوری با این فیلتر پیدا نشد"
+                          : "هنوز فاکتوری ثبت نشده است"
+                      }
+                    />
+                  )}
+                </TableBody>
+              </Table>
+              <Pagination
+                page={view.currentPage}
+                total={view.total}
+                onPrevious={view.previous}
+                onNext={view.next}
+              />
+            </Panel>
+          ) : (
+            <Panel
+              title="نسخه‌های ثابت فاکتورها"
+              className="mt-3"
+              action={
+                view.workspace.canWrite && (
+                  <Button
+                    variant="secondary"
+                    onClick={view.saveSnapshot}
+                    busy={view.command.busy}
+                  >
+                    ذخیرهٔ نسخه تا تاریخ انتخابی
+                  </Button>
+                )
+              }
+            >
+              {view.snapshots.loading ? (
+                <LoadingState label="در حال دریافت نسخه‌های ثابت" />
+              ) : view.snapshots.error ? (
+                <ErrorState
+                  message={view.snapshots.error.message}
+                  onRetry={view.snapshots.refresh}
+                />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>تاریخ مبنا</TableHead>
+                      <TableHead>زمان ذخیره</TableHead>
+                      <TableHead>مبنا</TableHead>
+                      <TableHead>عملیات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {view.snapshots.data?.items.length ? (
+                      view.snapshots.data.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableRowHeader>
+                            {displayDate(item.payload.as_of)}
+                          </TableRowHeader>
+                          <TableCell>{displayDate(item.created_at)}</TableCell>
+                          <TableCell>
+                            <Badge>
+                              {item.payload.direction === "sale"
+                                ? "فروش خدمات"
+                                : item.payload.direction === "purchase"
+                                  ? "خرید خدمات"
+                                  : "فروش و خرید خدمات"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              onClick={() => view.selectSnapshot(item.id)}
+                            >
+                              مشاهدهٔ نسخه
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableEmptyCell colSpan={4} title="هنوز نسخه‌ای ذخیره نشده است" />
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+              <CursorPagination {...view.snapshots} />
+              <FormMessage error>
+                {!view.editor &&
+                  !view.allocation &&
+                  !view.sourceRevision &&
+                  view.command.error?.message}
+              </FormMessage>
+            </Panel>
+          )}
         </>
       )}
-      <Panel
-        title="نسخه‌های ثابت فاکتورها"
-        className="mt-5"
-        action={
-          view.workspace.canWrite && (
-            <Button
-              variant="secondary"
-              onClick={view.saveSnapshot}
-              busy={view.command.busy}
-            >
-              ذخیرهٔ نسخه تا تاریخ انتخابی
-            </Button>
-          )
-        }
-      >
-        {view.snapshots.loading ? (
-          <LoadingState label="در حال دریافت نسخه‌های ثابت" />
-        ) : view.snapshots.error ? (
-          <ErrorState
-            message={view.snapshots.error.message}
-            onRetry={view.snapshots.refresh}
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>تاریخ مبنا</TableHead>
-                <TableHead>زمان ذخیره</TableHead>
-                <TableHead>مبنا</TableHead>
-                <TableHead>عملیات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {view.snapshots.data?.items.length ? (
-                view.snapshots.data.items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableRowHeader>
-                      {displayDate(item.payload.as_of)}
-                    </TableRowHeader>
-                    <TableCell>{displayDate(item.created_at)}</TableCell>
-                    <TableCell>
-                      <Badge>
-                        {item.payload.direction === "sale"
-                          ? "فروش خدمات"
-                          : item.payload.direction === "purchase"
-                            ? "خرید خدمات"
-                            : "فروش و خرید خدمات"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        onClick={() => view.selectSnapshot(item.id)}
-                      >
-                        مشاهدهٔ نسخه
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableEmptyCell colSpan={4} title="نسخهٔ ثابتی ذخیره نشده" />
-              )}
-            </TableBody>
-          </Table>
-        )}
-        <CursorPagination {...view.snapshots} />
-        <FormMessage error>
-          {!view.editor &&
-            !view.allocation &&
-            !view.sourceRevision &&
-            view.command.error?.message}
-        </FormMessage>
-      </Panel>
       <NativeInvoiceDetail view={view} />
       <NativeInvoiceSourceDialog view={view} />
       <NativeInvoiceSnapshot view={view} />

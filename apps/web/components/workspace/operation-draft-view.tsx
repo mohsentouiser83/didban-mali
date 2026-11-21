@@ -1,5 +1,5 @@
 "use client";
-import { PackageIcon, ReceiptIcon } from "@phosphor-icons/react";
+import { ReceiptIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -47,17 +47,6 @@ function Workspace({
         <PageHeader
           title="عملیات مالی"
           icon={ReceiptIcon}
-          action={
-            <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/accounting/inventory" variant="secondary">
-                <PackageIcon size={18} aria-hidden />
-                کالا و انبار
-              </ButtonLink>
-              <ButtonLink href="/accounting" variant="secondary">
-                اسناد حسابداری
-              </ButtonLink>
-            </div>
-          }
         />
       )}
       <div>

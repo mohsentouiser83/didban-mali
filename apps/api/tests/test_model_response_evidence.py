@@ -5,7 +5,10 @@ from test_model_gateway import SETUP
 
 
 def test_unknown_cost_retains_full_ids_and_counters_without_output_or_secrets(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 from sqlalchemy.exc import IntegrityError
 long_id="resp_"+"a"*250
 value=envelope()
@@ -57,11 +60,15 @@ assert owner.get(path.replace("company-a","company-b")).status_code==404
 assert client_for("outsider").get(path).status_code==404
 public=viewer.get(base+"/model-requests").json()
 assert long_id not in json.dumps(public) and "provider-lookup-1" not in json.dumps(public)
-''')
+""",
+    )
 
 
 def test_failed_http_and_retry_keep_separate_immutable_receipts(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 def unavailable(request):
     return httpx.Response(503,json={"error":"private provider error"},headers={"avalai-request-id":"failed-trace"})
 first=asyncio.run(configured(unavailable).invoke(**arguments))
@@ -82,11 +89,15 @@ with transaction("company-a") as db:
     assert db.scalar(select(m.ModelRequest)).usage["output_tokens"]==5
     reservations=list(db.scalars(select(m.BudgetReservation).order_by(m.BudgetReservation.attempt)))
     assert [r.state for r in reservations]==["unknown","settled"]
-''')
+""",
+    )
 
 
 def test_late_attempt_receipt_does_not_overwrite_latest_attempt_usage(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 async def recovery():
     started=asyncio.Event();release=asyncio.Event()
     async def slow(request):
@@ -109,11 +120,15 @@ async def recovery():
         assert by_attempt[1]["provider_response_id"]=="old-response" and by_attempt[1]["usage"]["output_tokens"]==7
         assert by_attempt[2]["provider_response_id"]=="new-response" and by_attempt[2]["usage"]["output_tokens"]==5
 asyncio.run(recovery())
-''')
+""",
+    )
 
 
 def test_legacy_unknown_reservation_has_no_fabricated_receipt(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 with transaction("company-a") as db:
     request=m.ModelRequest(company_id="company-a",actor_id=users["owner"],request_key="old",input_hash="0"*64,
         purpose="chat",model="gpt-5.6-luna",prompt_version="old",state="waiting_reconciliation",attempts=1)
@@ -124,11 +139,15 @@ with transaction("company-a") as db:
 owner=client_for("owner")
 result=owner.get(base+"/model-reservations/"+reservation_id+"/response-evidence")
 assert result.status_code==200 and result.json()["available"] is False and result.json()["evidence"] is None,result.text
-''')
+""",
+    )
 
 
 def test_response_after_manual_reconciliation_keeps_receipt_without_charging_again(tmp_path):
-    scenario(tmp_path, SETUP + r'''
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
 def handler(request):
     # A recovery/admin transaction may reconcile a reserved attempt while HTTP
     # is still in flight. The later receipt must not charge that attempt twice.
@@ -146,4 +165,5 @@ with transaction("company-a") as db:
     receipt=db.scalar(select(m.AuditEvent).where(m.AuditEvent.action=="model.response_received"))
     assert receipt.details["response"]["provider_request_id"]=="late-settled-trace"
     assert receipt.details["response"]["cost_reason"]=="reservation_already_resolved"
-''')
+""",
+    )

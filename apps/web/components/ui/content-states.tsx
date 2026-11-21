@@ -23,8 +23,33 @@ export function LoadingState({
   variant = "summary",
 }: {
   label?: string;
-  variant?: "summary" | "message" | "panels";
+  variant?: "summary" | "message" | "panels" | "table";
 }) {
+  if (variant === "table")
+    return (
+      <div
+        role="status"
+        aria-label={label}
+        className="w-full space-y-3 rounded-control border border-border bg-surface p-4 motion-safe:animate-fade-in"
+      >
+        <span className="sr-only">{label}</span>
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        {[0, 1, 2, 3, 4].map((row) => (
+          <div
+            key={row}
+            className="flex items-center gap-4 py-3 border-b border-border/50 last:border-0"
+          >
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-1/6 ms-auto" />
+          </div>
+        ))}
+      </div>
+    );
   if (variant === "panels")
     return (
       <section role="status" aria-label={label} className="grid gap-5 lg:grid-cols-2">

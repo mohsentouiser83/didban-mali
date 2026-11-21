@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 
 from .. import numbering_service as service
 from ..http import C, access, expected, mutate
-from ..numbering_schemas import NumberingRuleInput
+from ..numbering_schemas import NumberingRuleCreateInput, NumberingRuleInput
 
 router = APIRouter()
 P = C + "/numbering"
@@ -14,6 +14,22 @@ P = C + "/numbering"
 def listing(company_id: str, request: Request):
     with access(request, company_id) as (db, user, _m):
         return service.list_rules(db, company_id, user)
+
+
+@router.post(P, status_code=201)
+def create_rule(company_id: str, data: NumberingRuleCreateInput, request: Request):
+    return mutate(
+        request,
+        company_id,
+        data.model_dump(),
+        "write",
+        lambda db, user: service.create_rule(
+            db,
+            company_id,
+            user,
+            data.model_dump(),
+        ),
+    )
 
 
 @router.get(P + "/{rule_id}")

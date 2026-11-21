@@ -99,7 +99,9 @@ def resolve_session_coverage(
         )
     )
     if not coverage_answer:
-        issue_fn(db, session, "coverage", "کدام بخش از پوشش منابع تأیید می‌شود؟", [], {"fields": coverage_fields})
+        issue_fn(
+            db, session, "coverage", "کدام بخش از پوشش منابع تأیید می‌شود؟", [], {"fields": coverage_fields}
+        )
         return None
     return dict(coverage_answer.answer["value"]) if coverage_answer.answer else {}
 
@@ -246,7 +248,8 @@ def validate_intra_session_overlap(
                     session,
                     "overlap_current",
                     "شماره سند در دو فایل این نوبت مشترک است."
-                    if same_document else "فایل‌های دفتر در یک تاریخ مشترک‌اند و بعضی ردیف‌ها شماره سند ندارند.",
+                    if same_document
+                    else "فایل‌های دفتر در یک تاریخ مشترک‌اند و بعضی ردیف‌ها شماره سند ندارند.",
                     [
                         {"value": "exclude", "label": "ادامه بدون این فایل"},
                         {"value": "cancel", "label": "لغو نوبت"},

@@ -35,9 +35,22 @@ def error_body(request: Request, code: str, message: str, fields: dict | None = 
     }
 
 
+def is_allowed_origin(origin: str | None) -> bool:
+    if origin is None:
+        return True
+    normalized = origin.rstrip("/")
+    allowed = {settings.web_origin.rstrip("/")}
+    if not settings.production:
+        if "127.0.0.1" in settings.web_origin:
+            allowed.add(settings.web_origin.replace("127.0.0.1", "localhost").rstrip("/"))
+        elif "localhost" in settings.web_origin:
+            allowed.add(settings.web_origin.replace("localhost", "127.0.0.1").rstrip("/"))
+    return normalized in allowed
+
+
 def check_csrf(request: Request, session: m.LoginSession) -> None:
     require(
-        request.headers.get("origin") in (None, settings.web_origin),
+        is_allowed_origin(request.headers.get("origin")),
         "origin_denied",
         "مبدأ درخواست مجاز نیست.",
         403,

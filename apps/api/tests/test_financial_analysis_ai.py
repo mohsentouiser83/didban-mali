@@ -5,6 +5,7 @@
 - Deterministic facts and change decomposition (AI-03)
 - Evidence-backed explanations and action suggestions (AI-04)
 """
+
 from datetime import date
 
 import pytest
@@ -43,11 +44,13 @@ def test_setup(db_session):
     acc_exp2 = Account(id="acc-exp2", company_id="c-ai", code="502", name="هزینه اجاره")
     db.add_all([acc_rev, acc_exp1, acc_exp2])
 
-    db.add_all([
-        NativeAccountRole(company_id="c-ai", account_id="acc-rev", role="revenue", actor_id="u-ai"),
-        NativeAccountRole(company_id="c-ai", account_id="acc-exp1", role="expense", actor_id="u-ai"),
-        NativeAccountRole(company_id="c-ai", account_id="acc-exp2", role="expense", actor_id="u-ai"),
-    ])
+    db.add_all(
+        [
+            NativeAccountRole(company_id="c-ai", account_id="acc-rev", role="revenue", actor_id="u-ai"),
+            NativeAccountRole(company_id="c-ai", account_id="acc-exp1", role="expense", actor_id="u-ai"),
+            NativeAccountRole(company_id="c-ai", account_id="acc-exp2", role="expense", actor_id="u-ai"),
+        ]
+    )
 
     # Prior statement: Rev 1000, Exp 400, Profit 600
     stmt_prior = NativeStatementRun(
@@ -61,10 +64,25 @@ def test_setup(db_session):
             "metrics": [
                 {"metric_key": "revenue", "value": "1000", "status": "available", "reason_codes": []},
                 {"metric_key": "expense", "value": "400", "status": "available", "reason_codes": []},
-                {"metric_key": "profit_before_tax", "value": "600", "status": "available", "reason_codes": []},
+                {
+                    "metric_key": "profit_before_tax",
+                    "value": "600",
+                    "status": "available",
+                    "reason_codes": [],
+                },
                 {"metric_key": "bank_balance", "value": "500", "status": "available", "reason_codes": []},
-                {"metric_key": "trade_receivable_balance", "value": "300", "status": "available", "reason_codes": []},
-                {"metric_key": "trade_payable_balance", "value": "200", "status": "available", "reason_codes": []},
+                {
+                    "metric_key": "trade_receivable_balance",
+                    "value": "300",
+                    "status": "available",
+                    "reason_codes": [],
+                },
+                {
+                    "metric_key": "trade_payable_balance",
+                    "value": "200",
+                    "status": "available",
+                    "reason_codes": [],
+                },
             ],
         },
     )
@@ -80,10 +98,25 @@ def test_setup(db_session):
             "metrics": [
                 {"metric_key": "revenue", "value": "900", "status": "available", "reason_codes": []},
                 {"metric_key": "expense", "value": "500", "status": "available", "reason_codes": []},
-                {"metric_key": "profit_before_tax", "value": "400", "status": "available", "reason_codes": []},
+                {
+                    "metric_key": "profit_before_tax",
+                    "value": "400",
+                    "status": "available",
+                    "reason_codes": [],
+                },
                 {"metric_key": "bank_balance", "value": "450", "status": "available", "reason_codes": []},
-                {"metric_key": "trade_receivable_balance", "value": "350", "status": "available", "reason_codes": []},
-                {"metric_key": "trade_payable_balance", "value": "150", "status": "available", "reason_codes": []},
+                {
+                    "metric_key": "trade_receivable_balance",
+                    "value": "350",
+                    "status": "available",
+                    "reason_codes": [],
+                },
+                {
+                    "metric_key": "trade_payable_balance",
+                    "value": "150",
+                    "status": "available",
+                    "reason_codes": [],
+                },
             ],
         },
     )
@@ -306,7 +339,12 @@ def test_assistant_api_route_end_to_end():
                 "metrics": [
                     {"metric_key": "revenue", "value": "1000", "status": "available", "reason_codes": []},
                     {"metric_key": "expense", "value": "600", "status": "available", "reason_codes": []},
-                    {"metric_key": "profit_before_tax", "value": "400", "status": "available", "reason_codes": []},
+                    {
+                        "metric_key": "profit_before_tax",
+                        "value": "400",
+                        "status": "available",
+                        "reason_codes": [],
+                    },
                 ],
             },
         )
@@ -335,5 +373,3 @@ def test_assistant_api_route_end_to_end():
         or "تفکیک تغییرات سود" in data["answer"]
         or "اطلاعات برای تحلیل" in data["answer"]
     )
-
-

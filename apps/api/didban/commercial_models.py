@@ -47,6 +47,8 @@ class ProformaInvoice(Entity, Tenant, Versioned, Base):
     total_amount: Mapped[str] = mapped_column(Money())
     total_amount_irr: Mapped[str] = mapped_column(Money())
     terms: Mapped[str | None] = mapped_column(String(1000), nullable=True, default=None)
-    status: Mapped[str] = mapped_column(String(20), default="issued")  # draft, issued, converted, expired, cancelled
+    status: Mapped[str] = mapped_column(
+        String(20), default="issued"
+    )  # draft, issued, converted, expired, cancelled
     converted_operation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     actor_id: Mapped[str] = mapped_column(String(36))

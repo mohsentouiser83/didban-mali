@@ -70,29 +70,33 @@ def env(db_session):
     cogs_acc = Account(company_id=c.id, code="7010", name="بهای تمام‌شده کالای فروش‌رفته")
     equity_acc = Account(company_id=c.id, code="3010", name="سرمایه اولیه")
 
-    db_session.add_all([
-        u,
-        c,
-        membership,
-        period,
-        setup,
-        bank_acc,
-        notes_recv_acc,
-        notes_pay_acc,
-        recv_acc,
-        pay_acc,
-        inv_acc,
-        sales_acc,
-        cogs_acc,
-        equity_acc,
-    ])
+    db_session.add_all(
+        [
+            u,
+            c,
+            membership,
+            period,
+            setup,
+            bank_acc,
+            notes_recv_acc,
+            notes_pay_acc,
+            recv_acc,
+            pay_acc,
+            inv_acc,
+            sales_acc,
+            cogs_acc,
+            equity_acc,
+        ]
+    )
     db_session.commit()
 
     # Assign explicit native roles
     roles = [
         NativeAccountRole(company_id=c.id, account_id=bank_acc.id, role="bank", actor_id=u.id),
         NativeAccountRole(company_id=c.id, account_id=notes_recv_acc.id, role="other_asset", actor_id=u.id),
-        NativeAccountRole(company_id=c.id, account_id=notes_pay_acc.id, role="other_liability", actor_id=u.id),
+        NativeAccountRole(
+            company_id=c.id, account_id=notes_pay_acc.id, role="other_liability", actor_id=u.id
+        ),
         NativeAccountRole(company_id=c.id, account_id=recv_acc.id, role="trade_receivable", actor_id=u.id),
         NativeAccountRole(company_id=c.id, account_id=pay_acc.id, role="trade_payable", actor_id=u.id),
         NativeAccountRole(company_id=c.id, account_id=inv_acc.id, role="other_asset", actor_id=u.id),
@@ -134,6 +138,7 @@ def env(db_session):
 # =====================================================================
 # 1. ACC-02 Mixed Settlement Engine Tests
 # =====================================================================
+
 
 def test_mixed_settlement_validation_exact_sums(env):
     accounts = env["accounts"]
@@ -375,6 +380,7 @@ def test_convert_proforma_mixed_settlement(env, db_session):
 # 2. Liquidity Cliff Early Warning Detection Tests
 # =====================================================================
 
+
 def test_detect_liquidity_cliff_with_cliff(env, db_session):
     c = env["company"]
     accounts = env["accounts"]
@@ -507,6 +513,7 @@ def test_detect_liquidity_cliff_no_cliff(env, db_session):
 # 3. COGS & Negative Margin Anomaly Detection Tests
 # =====================================================================
 
+
 def test_cogs_price_spike_and_negative_margin_anomalies(env, db_session):
     c = env["company"]
     it = env["item"]
@@ -581,6 +588,7 @@ def test_cogs_price_spike_and_negative_margin_anomalies(env, db_session):
 # 4. Action Cards in Analytical Explanations Tests
 # =====================================================================
 
+
 def test_action_cards_in_analytical_explanations():
     # Test receivables_analysis cards
     receivables_resp = {
@@ -622,6 +630,7 @@ def test_action_cards_in_analytical_explanations():
 # =====================================================================
 # 5. Financial ETag / Cache Key Generation & Invalidation Tests
 # =====================================================================
+
 
 def test_financial_etag_generation_and_invalidation(env, db_session):
     c = env["company"]

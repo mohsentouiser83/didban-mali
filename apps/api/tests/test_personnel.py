@@ -137,7 +137,11 @@ def test_native_payroll_and_employee_reports_acc_07():
         p_id = f"p-pay-{uuid4().hex[:6]}"
         db.add(m.Company(id=c_id, name="شرکت تست حقوق نیتیو"))
         db.add(CompanyAccountingSetup(company_id=c_id, mode="primary"))
-        db.add(m.Period(id=p_id, company_id=c_id, name="دوره مالی", start=date(2026, 1, 1), end=date(2026, 12, 29)))
+        db.add(
+            m.Period(
+                id=p_id, company_id=c_id, name="دوره مالی", start=date(2026, 1, 1), end=date(2026, 12, 29)
+            )
+        )
 
         # 1. Add posted payroll journal for Employee EMP-101
         draft_1 = str(uuid4())
@@ -272,4 +276,3 @@ def test_native_payroll_and_employee_reports_acc_07():
         imp_rep = personnel_result(db, c_id, "payroll", p_id, basis="imported")
         assert imp_rep["basis"] == "imported"
         assert imp_rep["status"] == "unavailable"
-

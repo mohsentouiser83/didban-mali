@@ -103,3 +103,25 @@ class InterpretReportInput(InputModel):
     source: Literal["imported_manifest", "native_statement", "native_invoice"] = "imported_manifest"
     question: str = Field(min_length=1, max_length=1000)
     period_id: str = Field(min_length=1, max_length=36)
+
+
+class BlockPreviewInput(InputModel):
+    block: dict = Field(default_factory=dict)
+    period_id: str | None = None
+    limit: int = 200
+
+
+class AIComposeInput(InputModel):
+    prompt: str = Field(min_length=1, max_length=1000)
+
+
+class CustomExportInput(InputModel):
+    report_name: str = Field(default="گزارش تحلیلی", max_length=120)
+    blocks_results: list[dict] = Field(default_factory=list)
+    format: Literal["xlsx", "pdf"] = "xlsx"
+
+
+class SaveCustomDefinitionInput(InputModel):
+    name: str = Field(min_length=1, max_length=120)
+    blocks: list[dict] = Field(default_factory=list)
+    period_id: str | None = None

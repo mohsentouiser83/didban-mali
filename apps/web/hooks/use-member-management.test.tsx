@@ -20,6 +20,45 @@ vi.mock("./workspace", () => ({
     refreshCompanies: vi.fn(),
   }),
 }));
+const sampleMembers = [
+  {
+    id: "m1",
+    user_id: "u1",
+    name: "علی رضایی",
+    email: "ali@example.test",
+    role: "owner",
+    active: true,
+    approve_financial_report: true,
+    version: 1,
+  },
+  {
+    id: "m2",
+    user_id: "u2",
+    name: "سارا محمدی",
+    email: "sara@example.test",
+    role: "finance_manager",
+    active: true,
+    approve_financial_report: false,
+    version: 1,
+  },
+  {
+    id: "m3",
+    user_id: "u3",
+    name: "امیر حسینی",
+    email: "amir@example.test",
+    role: "advisor",
+    active: false,
+    approve_financial_report: false,
+    version: 1,
+  },
+];
+
+const sampleUsers = [
+  { id: "u1", name: "علی رضایی", email: "ali@example.test" },
+  { id: "u2", name: "سارا محمدی", email: "sara@example.test" },
+  { id: "u-new", name: "کاربر جدید", email: "newuser@example.test" },
+];
+
 vi.mock("./use-resource", () => ({
   useResource: (path: string) => ({
     data: {
@@ -34,7 +73,11 @@ vi.mock("./use-resource", () => ({
               implicit_authority: false,
             },
           ]
-        : [],
+        : path.endsWith("/members")
+          ? sampleMembers
+          : path === "/admin/users"
+            ? sampleUsers
+            : [],
     },
     refresh: vi.fn(),
     loading: false,
@@ -107,4 +150,52 @@ it("retries a failed company membership without creating the account twice", asy
       .mock.calls.filter(([path]) => path === "/companies/c/members"),
   ).toHaveLength(2);
   expect(result.current.adding).toBe(false);
+});
+
+it("filters members by search query, role, and status and allows resetting", () => {
+  const { result } = renderHook(useMemberManagement);
+
+  expect(result.current.totalMembers).toBe(3);
+  expect(result.current.rows).toHaveLength(3);
+  expect(result.current.hasActiveFilters).toBe(false);
+
+  // Search by name
+  act(() => result.current.setQuery("سارا"));
+  expect(result.current.rows).toHaveLength(1);
+  expect(result.current.rows[0].name).toBe("سارا محمدی");
+  expect(result.current.hasActiveFilters).toBe(true);
+
+  // Clear query and filter by role
+  act(() => {
+    result.current.setQuery("");
+    result.current.setRoleFilter("advisor");
+  });
+  expect(result.current.rows).toHaveLength(1);
+  expect(result.current.rows[0].role).toBe("advisor");
+
+  // Filter by status
+  act(() => {
+    result.current.setRoleFilter("all");
+    result.current.setStatusFilter("active");
+  });
+  expect(result.current.rows).toHaveLength(2);
+
+  // Reset all filters
+  act(() => result.current.resetFilters());
+  expect(result.current.rows).toHaveLength(3);
+  expect(result.current.hasActiveFilters).toBe(false);
+});
+
+it("filters available user options when searching for existing users in add drawer", () => {
+  const { result } = renderHook(useMemberManagement);
+
+  expect(result.current.userOptions).toHaveLength(3);
+
+  act(() => result.current.setUserSearchQuery("جدید"));
+  expect(result.current.filteredUserOptions).toHaveLength(1);
+  expect(result.current.filteredUserOptions[0].label).toContain("کاربر جدید");
+
+  act(() => result.current.openAdd());
+  expect(result.current.userSearchQuery).toBe("");
+  expect(result.current.filteredUserOptions).toHaveLength(3);
 });

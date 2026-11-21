@@ -1,7 +1,7 @@
 "use client";
 import { UsersThreeIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -258,11 +258,6 @@ export function CollectionFollowupsView() {
       <PageHeader
         icon={UsersThreeIcon}
         title="پیگیری وصول"
-        action={
-          <ButtonLink href="/receivables" variant="secondary">
-            مطالبات
-          </ButtonLink>
-        }
       />
       <NativeInvoicesView key={scope} direction="sale" followups />
     </>

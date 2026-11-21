@@ -1,5 +1,6 @@
 "use client";
-import { BooksIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { BooksIcon, ChartLineUpIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -9,6 +10,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { Dialog } from "@/components/ui/dialog";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { CursorPagination } from "@/components/ui/pagination";
+import { Tabs } from "@/components/ui/tabs";
 import {
   Table,
   TableHeader,
@@ -32,93 +34,104 @@ import { DocumentDiscussionButton } from "./document-discussion-button";
 export function NativeJournalsView() {
   const w = useWorkspace();
   return w.company ? (
-    <Workspace key={`${w.user?.id}:${w.company.id}`} />
+    <NativeJournalsWorkspace key={`${w.user?.id}:${w.company.id}`} />
   ) : (
     <NoCompany />
   );
 }
-function Workspace() {
+export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: boolean }) {
   const c = useNativeJournals();
   const drafts = useJournalDrafts();
   const opening = useOpeningEvidence(c.balance.refresh);
+  const [activeTab, setActiveTab] = useState<"journals" | "balance">("journals");
   return (
     <>
-      <PageHeader
-        title="دفتر اصلی دیدبان"
-        icon={BooksIcon}
-        action={
-          <ButtonLink href="/accounting" variant="secondary">
-            اسناد و تأیید
-          </ButtonLink>
-        }
-      />
-      <Panel title="اسناد نهایی">
-        {c.journals.loading ? (
-          <LoadingState />
-        ) : c.journals.error ? (
-          <ErrorState
-            message={c.journals.error.message}
-            onRetry={c.journals.refresh}
-          />
-        ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>شماره</TableHead>
-                  <TableHead>شرح</TableHead>
-                  <TableHead>تاریخ</TableHead>
-                  <TableHead>عملیات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {c.journals.data?.items.length ? (
-                  c.journals.data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableRowHeader>{persian(item.sequence)}</TableRowHeader>
-                      <TableCell>{item.snapshot.description}</TableCell>
-                      <TableCell>{displayDate(item.date)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="secondary"
-                            onClick={() => c.setSelected(item)}
-                          >
-                            جزئیات
-                          </Button>
-                          {c.capabilities.data?.can_prepare &&
-                            !item.reversal_of && (
-                              <>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => c.openReversal(item)}
-                                >
-                                  تهیه برگشت
-                                </Button>
-                                {!item.snapshot.inventory && (
+      {!hideHeader && (
+        <PageHeader
+          title="دفتر اصلی دیدبان"
+          icon={BooksIcon}
+        />
+      )}
+      <div className="mb-4">
+        <Tabs
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { id: "journals", label: "اسناد نهایی", icon: BooksIcon },
+            { id: "balance", label: "گردش حساب‌های دفتر اصلی", icon: ChartLineUpIcon },
+          ]}
+        />
+      </div>
+      {activeTab === "journals" ? (
+        <Panel title="اسناد نهایی">
+          {c.journals.loading ? (
+            <LoadingState />
+          ) : c.journals.error ? (
+            <ErrorState
+              message={c.journals.error.message}
+              onRetry={c.journals.refresh}
+            />
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>شماره</TableHead>
+                    <TableHead>شرح</TableHead>
+                    <TableHead>تاریخ</TableHead>
+                    <TableHead>عملیات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {c.journals.data?.items.length ? (
+                    c.journals.data.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableRowHeader>{persian(item.sequence)}</TableRowHeader>
+                        <TableCell>{item.snapshot.description}</TableCell>
+                        <TableCell>{displayDate(item.date)}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              variant="secondary"
+                              onClick={() => c.setSelected(item)}
+                            >
+                              جزئیات
+                            </Button>
+                            {c.capabilities.data?.can_prepare &&
+                              !item.reversal_of && (
+                                <>
                                   <Button
                                     variant="secondary"
-                                    onClick={() => drafts.prepareReplacement(item)}
+                                    onClick={() => c.openReversal(item)}
                                   >
-                                    تهیه جایگزین
+                                    تهیه برگشت
                                   </Button>
-                                )}
-                              </>
-                            )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableEmptyCell colSpan={4} title="سند نهایی ثبت نشده" />
-                )}
-              </TableBody>
-            </Table>
-            <CursorPagination {...c.journals} />
-          </>
-        )}
-      </Panel>
-      <BookBalance c={c} />
+                                  {!item.snapshot.inventory && (
+                                    <Button
+                                      variant="secondary"
+                                      onClick={() => drafts.prepareReplacement(item)}
+                                    >
+                                      تهیه جایگزین
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableEmptyCell colSpan={4} title="سند نهایی ثبت نشده" />
+                  )}
+                </TableBody>
+              </Table>
+              <CursorPagination {...c.journals} />
+            </>
+          )}
+        </Panel>
+      ) : (
+        <BookBalance c={c} />
+      )}
       <Drawer
         title="جزئیات سند نهایی"
         open={!!c.selected}
@@ -230,11 +243,6 @@ function BookBalance({ c }: { c: ReturnType<typeof useNativeJournals> }) {
     <Panel
       title="گردش حساب‌های دفتر اصلی"
       className="mt-5"
-      action={
-        <ButtonLink href="/reports/native" variant="secondary">
-          صورت مالی دفتر دیدبان
-        </ButtonLink>
-      }
     >
       <Field id="native-period" label="دوره">
         <Select

@@ -1,7 +1,7 @@
 "use client";
 import { WalletIcon as HeaderIcon } from "@phosphor-icons/react";
 import { DetailField } from "@/components/ui/field-layout";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -16,7 +16,6 @@ import {
 } from "@/hooks/use-financial-view";
 import { amount, displayDate } from "@/lib/utils";
 import {
-  ArrowLeftIcon,
   CaretLeftIcon,
   CaretRightIcon,
   ArrowDownLeftIcon,
@@ -29,7 +28,6 @@ import {
   NoResult,
   PageHeader,
   Panel,
-  PeriodFilter,
 } from "./page-parts";
 
 export function CashflowView() {
@@ -48,14 +46,7 @@ export function CashflowView() {
     <>
       <PageHeader icon={HeaderIcon}
         title="نقدینگی دوره"
-        action={
-          <ButtonLink href="/cashflow/forecast" variant="secondary">
-            پیش‌بینی ۳۰روزه
-            <ArrowLeftIcon size={16} />
-          </ButtonLink>
-        }
       />
-      <PeriodFilter />
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (

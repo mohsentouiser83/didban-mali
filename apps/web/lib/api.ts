@@ -432,6 +432,7 @@ export interface NumberingRule {
   version: number;
 }
 export interface NumberingRuleInput {
+  entity_title?: string;
   prefix?: string;
   start_number?: number;
   current_number?: number;
@@ -440,3 +441,180 @@ export interface NumberingRuleInput {
   description?: string | null;
   active?: boolean;
 }
+export interface NumberingRuleCreateInput {
+  entity_type: string;
+  entity_title: string;
+  prefix?: string;
+  start_number?: number;
+  current_number?: number;
+  padding?: number;
+  suffix?: string;
+  description?: string | null;
+  active?: boolean;
+}
+
+export interface Employee {
+  id: string;
+  company_id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  identity_type: "national_id" | "foreign_national_id";
+  national_id: string | null;
+  father_name: string | null;
+  birth_date: string | null;
+  hire_date: string | null;
+  insurance_number: string | null;
+  phone: string | null;
+  iban: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  job_title: string | null;
+  department: string | null;
+  marital_status: "single" | "married";
+  children_count: number;
+  active: boolean;
+  is_veteran_or_child: boolean;
+  is_foreign_national: boolean;
+  is_science_park_staff: boolean;
+  has_disability_charge: boolean;
+  is_underdeveloped_region: boolean;
+  is_retired: boolean;
+  version: number;
+  contracts?: EmployeeContract[];
+}
+
+export interface EmployeeInput {
+  employee_code: string;
+  first_name: string;
+  last_name: string;
+  identity_type?: "national_id" | "foreign_national_id";
+  national_id?: string | null;
+  father_name?: string | null;
+  birth_date?: string | null;
+  hire_date?: string | null;
+  insurance_number?: string | null;
+  phone?: string | null;
+  iban?: string | null;
+  bank_name?: string | null;
+  account_number?: string | null;
+  job_title?: string | null;
+  department?: string | null;
+  marital_status?: "single" | "married";
+  children_count?: number;
+  active?: boolean;
+  is_veteran_or_child?: boolean;
+  is_foreign_national?: boolean;
+  is_science_park_staff?: boolean;
+  has_disability_charge?: boolean;
+  is_underdeveloped_region?: boolean;
+  is_retired?: boolean;
+}
+
+export interface EmployeeContract {
+  id: string;
+  company_id: string;
+  employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
+  contract_number: string;
+  contract_type: "full_time" | "part_time" | "hourly" | "project";
+  start_date: string;
+  end_date: string | null;
+  status: "draft" | "active" | "terminated";
+  base_salary: string;
+  daily_rate: string;
+  housing_allowance: string;
+  grocery_allowance: string;
+  marital_allowance: string;
+  child_allowance: string;
+  tenure_allowance: string;
+  custom_fixed_allowances: string;
+  is_insured: boolean;
+  is_taxable: boolean;
+  notes: string | null;
+  version: number;
+}
+
+export interface EmployeeContractInput {
+  employee_id: string;
+  contract_number: string;
+  contract_type?: "full_time" | "part_time" | "hourly" | "project";
+  start_date: string;
+  end_date?: string | null;
+  status?: "draft" | "active" | "terminated";
+  base_salary?: string | number;
+  daily_rate?: string | number;
+  housing_allowance?: string | number;
+  grocery_allowance?: string | number;
+  marital_allowance?: string | number;
+  child_allowance?: string | number;
+  tenure_allowance?: string | number;
+  custom_fixed_allowances?: string | number;
+  is_insured?: boolean;
+  is_taxable?: boolean;
+  notes?: string | null;
+}
+
+export interface PayrollRun {
+  id: string;
+  company_id: string;
+  period_id: string;
+  title: string;
+  year: number;
+  month: number;
+  calculation_date: string;
+  status: "draft" | "calculated" | "approved" | "posted";
+  total_gross: string;
+  total_employee_insurance: string;
+  total_employer_insurance: string;
+  total_tax: string;
+  total_other_deductions: string;
+  total_net: string;
+  journal_id: string | null;
+  created_by_user_id: string | null;
+  version: number;
+  slips?: PayrollSlip[];
+}
+
+export interface PayrollSlip {
+  id: string;
+  company_id: string;
+  payroll_run_id: string;
+  employee_id: string;
+  employee_code?: string;
+  employee_name?: string;
+  job_title?: string;
+  department?: string;
+  contract_id: string | null;
+  work_days: string;
+  work_hours: string;
+  overtime_hours: string;
+  absence_days: string;
+  paid_leave_days: string;
+  unpaid_leave_days: string;
+  advance_payment: string;
+  loan_installment: string;
+  other_deductions: string;
+  bonus_amount: string;
+  base_pay: string;
+  housing_pay: string;
+  grocery_pay: string;
+  marital_pay: string;
+  child_pay: string;
+  tenure_pay: string;
+  overtime_pay: string;
+  gross_pay: string;
+  insured_earnings: string;
+  taxable_earnings: string;
+  employee_insurance: string;
+  employer_insurance: string;
+  payroll_tax: string;
+  total_deductions: string;
+  net_pay: string;
+  status: "unpaid" | "paid";
+  applied_exemptions: Record<string, boolean | string | number | null>;
+  version: number;
+}
+

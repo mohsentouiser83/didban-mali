@@ -15,7 +15,6 @@ from .accounting_models import Account, Draft
 from .accounting_service import capabilities, save_draft, validate_lines
 from .errors import DomainError, require
 from .inventory_models import InventoryItem, InventoryMovement, InventoryWarehouse
-from .module_service import module_state, require_module
 from .money_type import aggregate_money, canonical_money
 from .native_reporting_models import NativeAccountRole
 from .operation_models import OperationDraft
@@ -25,8 +24,7 @@ from .security import membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
-MODULES = {"purchase_goods": "payables", "sale_goods": "receivables"}
-GOODS_KINDS = frozenset(MODULES)
+GOODS_KINDS = frozenset({"purchase_goods", "sale_goods"})
 INVENTORY_OPERATION_KINDS = GOODS_KINDS | {"opening_stock", "transfer_goods", "stock_adjustment"}
 STOCK_POLICY = "perpetual-fifo-v1"
 MOVEMENT_LIMIT = 100
@@ -263,8 +261,8 @@ def summary(db: Session, company: str, user: m.User) -> dict:
         "movements_truncated": movement_count > MOVEMENT_LIMIT,
         "can_prepare": ability["can_prepare"] and ability["posting_available"],
         "can_manage_catalog": ability["can_manage_accounts"] and ability["posting_available"],
-        "purchase_enabled": module_state(db, company, "payables", set())["enabled"],
-        "sale_enabled": module_state(db, company, "receivables", set())["enabled"],
+        "purchase_enabled": True,
+        "sale_enabled": True,
     }
 
 
@@ -343,7 +341,6 @@ def _stock_and_lines(
 ) -> tuple[dict, list[dict], dict[str, str], str]:
     kind = data["kind"]
     purchase = kind == "purchase_goods"
-    require_module(db, company, MODULES[kind], ready=False)
     item = get_entity(db, InventoryItem, company, data["item_id"])
     warehouse = get_entity(db, InventoryWarehouse, company, data["warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
@@ -364,7 +361,10 @@ def _stock_and_lines(
             if data.get("counterparty_account_id"):
                 roles["trade_payable"] = data["counterparty_account_id"]
         else:
-            roles = {"other_asset": item.inventory_account_id, "trade_payable": data["counterparty_account_id"]}
+            roles = {
+                "other_asset": item.inventory_account_id,
+                "trade_payable": data["counterparty_account_id"],
+            }
     else:
         require(
             bool(data.get("revenue_account_id") and data.get("cost_account_id")),
@@ -470,7 +470,9 @@ def _stock_and_lines(
         lines = [
             {
                 "account_id": account_id,
-                "party_id": data["party_id"] if role in ("trade_receivable", "trade_payable", "revenue") else "",
+                "party_id": data["party_id"]
+                if role in ("trade_receivable", "trade_payable", "revenue")
+                else "",
                 "debit": value if index % 2 == 0 else "0",
                 "credit": value if index % 2 == 1 else "0",
             }
@@ -588,7 +590,9 @@ def _opening_stock_and_lines(
         )
         .limit(1)
     )
-    require(not duplicate, "opening_stock_exists", "موجودی اول دوره این کالا در این انبار قبلاً ثبت شده است.", 409)
+    require(
+        not duplicate, "opening_stock_exists", "موجودی اول دوره این کالا در این انبار قبلاً ثبت شده است.", 409
+    )
 
     quantity = data["quantity"]
     price = Decimal(_stock_money(data["unit_price"]))
@@ -682,7 +686,9 @@ def _transfer_stock_and_lines(
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
     require(src_wh.active, "inactive_warehouse", "انبار مبدأ غیرفعال است.", 409)
     require(dst_wh.active, "inactive_warehouse", "انبار مقصد غیرفعال است.", 409)
-    require(src_wh.id != dst_wh.id, "inventory_same_warehouse", "انبار مبدأ و مقصد نمی‌توانند یکسان باشند.", 409)
+    require(
+        src_wh.id != dst_wh.id, "inventory_same_warehouse", "انبار مبدأ و مقصد نمی‌توانند یکسان باشند.", 409
+    )
 
     quantity = data["quantity"]
     lots, latest = _lots(db, company, item.id, src_wh.id)
@@ -1056,9 +1062,12 @@ def cardex(
     offset: int = 0,
 ) -> dict:
     membership(db, company, user)
-    items = {row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))}
+    items = {
+        row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))
+    }
     warehouses = {
-        row.id: row for row in db.scalars(select(InventoryWarehouse).where(InventoryWarehouse.company_id == company))
+        row.id: row
+        for row in db.scalars(select(InventoryWarehouse).where(InventoryWarehouse.company_id == company))
     }
 
     # Opening balance before from_date
@@ -1130,24 +1139,26 @@ def cardex(
             wh_obj = warehouses.get(m_row.warehouse_id)
             ev = m_row.evidence or {}
 
-            rows.append({
-                "sequence": m_row.sequence,
-                "date": m_row.date.isoformat(),
-                "kind": m_row.kind,
-                "item_id": m_row.item_id,
-                "item_code": item_obj.code if item_obj else "",
-                "item_name": item_obj.name if item_obj else "",
-                "warehouse_id": m_row.warehouse_id,
-                "warehouse_name": wh_obj.name if wh_obj else "",
-                "source_reference": ev.get("source_reference", ""),
-                "journal_id": m_row.journal_id,
-                "in_quantity": in_qty,
-                "in_value_irr": aggregate_money(in_val),
-                "out_quantity": out_qty,
-                "out_value_irr": aggregate_money(out_val),
-                "balance_quantity": running_qty,
-                "balance_value_irr": aggregate_money(running_val),
-            })
+            rows.append(
+                {
+                    "sequence": m_row.sequence,
+                    "date": m_row.date.isoformat(),
+                    "kind": m_row.kind,
+                    "item_id": m_row.item_id,
+                    "item_code": item_obj.code if item_obj else "",
+                    "item_name": item_obj.name if item_obj else "",
+                    "warehouse_id": m_row.warehouse_id,
+                    "warehouse_name": wh_obj.name if wh_obj else "",
+                    "source_reference": ev.get("source_reference", ""),
+                    "journal_id": m_row.journal_id,
+                    "in_quantity": in_qty,
+                    "in_value_irr": aggregate_money(in_val),
+                    "out_quantity": out_qty,
+                    "out_value_irr": aggregate_money(out_val),
+                    "balance_quantity": running_qty,
+                    "balance_value_irr": aggregate_money(running_val),
+                }
+            )
 
     paginated_rows = rows[offset : offset + limit]
 
@@ -1175,9 +1186,12 @@ def valuation_report(
     as_of: date | None = None,
 ) -> dict:
     membership(db, company, user)
-    items = {row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))}
+    items = {
+        row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))
+    }
     warehouses = {
-        row.id: row for row in db.scalars(select(InventoryWarehouse).where(InventoryWarehouse.company_id == company))
+        row.id: row
+        for row in db.scalars(select(InventoryWarehouse).where(InventoryWarehouse.company_id == company))
     }
 
     stmt = select(InventoryMovement).where(InventoryMovement.company_id == company)
@@ -1201,16 +1215,18 @@ def valuation_report(
         item_obj = items.get(i_id)
         wh_obj = warehouses.get(w_id)
         unit_cost = (val / qty) if qty > 0 else Decimal(0)
-        report_rows.append({
-            "item_id": i_id,
-            "item_code": item_obj.code if item_obj else "",
-            "item_name": item_obj.name if item_obj else "",
-            "warehouse_id": w_id,
-            "warehouse_name": wh_obj.name if wh_obj else "",
-            "quantity": qty,
-            "unit_cost_irr": aggregate_money(unit_cost),
-            "total_value_irr": aggregate_money(val),
-        })
+        report_rows.append(
+            {
+                "item_id": i_id,
+                "item_code": item_obj.code if item_obj else "",
+                "item_name": item_obj.name if item_obj else "",
+                "warehouse_id": w_id,
+                "warehouse_name": wh_obj.name if wh_obj else "",
+                "quantity": qty,
+                "unit_cost_irr": aggregate_money(unit_cost),
+                "total_value_irr": aggregate_money(val),
+            }
+        )
 
     return {
         "as_of": as_of.isoformat() if as_of else None,
@@ -1229,7 +1245,9 @@ def item_profit_report(
     to_date: date | None = None,
 ) -> dict:
     membership(db, company, user)
-    items = {row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))}
+    items = {
+        row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))
+    }
 
     stmt = select(InventoryMovement).where(
         InventoryMovement.company_id == company,
@@ -1280,16 +1298,18 @@ def item_profit_report(
         cg = rec["cogs_irr"]
         gp = rev - cg
         margin = round(float((gp / rev) * 100), 2) if rev > Decimal(0) else 0.0
-        rows.append({
-            "item_id": i_id,
-            "item_code": rec["item_code"],
-            "item_name": rec["item_name"],
-            "quantity_sold": rec["quantity_sold"],
-            "revenue_irr": aggregate_money(rev),
-            "cogs_irr": aggregate_money(cg),
-            "gross_profit_irr": aggregate_money(gp),
-            "margin_percent": margin,
-        })
+        rows.append(
+            {
+                "item_id": i_id,
+                "item_code": rec["item_code"],
+                "item_name": rec["item_name"],
+                "quantity_sold": rec["quantity_sold"],
+                "revenue_irr": aggregate_money(rev),
+                "cogs_irr": aggregate_money(cg),
+                "gross_profit_irr": aggregate_money(gp),
+                "margin_percent": margin,
+            }
+        )
 
     total_gp = total_revenue - total_cogs
     overall_margin = round(float((total_gp / total_revenue) * 100), 2) if total_revenue > Decimal(0) else 0.0

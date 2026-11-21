@@ -41,10 +41,14 @@ export default async function Page({
 }) {
   const { path = [] } = await params;
   const route = path.join("/");
-  if (["payroll", "tax", "insurance", "employees"].includes(route))
+  if (["tax", "insurance"].includes(route))
     redirect("/employee-reports");
+  if (route === "employees")
+    redirect("/settings/employees");
   if (route === "notifications")
     redirect("/");
+  if (route === "chat")
+    redirect("/assistant");
   if (path.length === 2 && path[0] === "uploads")
     return <SessionView id={path[1]} />;
   if (route === "receivables" || route === "payables") {
@@ -63,7 +67,17 @@ export default async function Page({
     review: () => <ReviewView />,
     accounting: () => <AccountingView />,
     "settings/accounts": () => <AccountsView />,
-    reconciliation: () => <ReconciliationView />,
+    reconciliation: () => <ReconciliationView initialTab="bank" />,
+    "reconciliation/bank": () => <ReconciliationView initialTab="bank" />,
+    "reconciliation/counterparties": () => (
+      <ReconciliationView initialTab="counterparty" />
+    ),
+    "reconciliation/counterparty": () => (
+      <ReconciliationView initialTab="counterparty" />
+    ),
+    "reconciliation/moadian": () => (
+      <ReconciliationView initialTab="moadian" />
+    ),
     "receivables/followups": () => <CollectionFollowupsView />,
     cashflow: () => <CashflowView />,
     "cashflow/forecast": () => <ForecastView />,

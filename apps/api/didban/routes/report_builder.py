@@ -4,8 +4,18 @@ from typing import Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
+from sqlalchemy import select
 
+from .. import models as m
 from .. import report_builder_service as service
+from ..custom_reports import (
+    FinancialBlockQueryEngine,
+    compose_report_block,
+    get_entity_registry,
+    list_data_sources,
+    serialize_entity_registry,
+)
+from ..custom_reports.exports import export_custom_report_pdf, export_custom_report_xlsx
 from ..http import C, access, expected, mutate, paginate
 from ..report_builder_exports import pdf_run, xlsx_run
 from ..report_builder_models import (
@@ -14,11 +24,142 @@ from ..report_builder_models import (
     SavedReportDefinition,
     SavedReportRun,
 )
-from ..report_builder_schemas import InterpretReportInput, PreviewInput, RerunInput, SaveReportInput
+from ..report_builder_schemas import (
+    AIComposeInput,
+    BlockPreviewInput,
+    CustomExportInput,
+    InterpretReportInput,
+    PreviewInput,
+    RerunInput,
+    SaveCustomDefinitionInput,
+    SaveReportInput,
+)
 from ..workflow import audit, serialize_fact
 
 router = APIRouter()
 BASE = C + "/report-builder"
+
+
+@router.get(BASE + "/data-sources")
+def get_data_sources(company_id: str, request: Request):
+    """Lists all available financial and operational entity data sources."""
+    with access(request, company_id):
+        return {"data_sources": list_data_sources()}
+
+
+@router.get(BASE + "/field-registry/{entity_type}")
+def get_field_registry(company_id: str, entity_type: str, request: Request):
+    """Retrieves filterable, selectable, and groupable fields for a given entity type."""
+    with access(request, company_id):
+        reg = get_entity_registry(entity_type)
+        if not reg:
+            return {"error": f"Unknown entity type: {entity_type}", "entity_type": entity_type}
+        return serialize_entity_registry(reg)
+
+
+@router.post(BASE + "/block-preview")
+def block_preview(company_id: str, data: BlockPreviewInput, request: Request):
+    """Safely executes a single custom report block query."""
+    with access(request, company_id) as (db, _user, _member):
+        period = db.get(m.Period, data.period_id) if data.period_id else None
+        return FinancialBlockQueryEngine.execute(
+            db=db,
+            company_id=company_id,
+            block=data.block,
+            period=period,
+            limit=data.limit,
+        )
+
+
+@router.post(BASE + "/ai-compose")
+def ai_compose(company_id: str, data: AIComposeInput, request: Request):
+    """Translates a Persian natural language query into a structured block specification."""
+    with access(request, company_id):
+        return compose_report_block(data.prompt)
+
+
+@router.post(BASE + "/export")
+def export_report(company_id: str, data: CustomExportInput, request: Request):
+    """Exports multi-source report blocks into formatted XLSX or PDF."""
+    with access(request, company_id) as (db, _user, _member):
+        company = db.get(m.Company, company_id)
+        company_name = company.name if company else company_id
+        if data.format == "pdf":
+            content = export_custom_report_pdf(company_name, data.report_name, data.blocks_results)
+            media_type = "application/pdf"
+            filename = "report.pdf"
+        else:
+            content = export_custom_report_xlsx(company_name, data.report_name, data.blocks_results)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            filename = "report.xlsx"
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+
+@router.get(BASE + "/custom-definitions")
+def list_custom_definitions(company_id: str, request: Request):
+    """Lists saved custom multi-source report templates."""
+    with access(request, company_id) as (db, _user, _member):
+        items = db.scalars(
+            select(SavedReportDefinition)
+            .where(SavedReportDefinition.company_id == company_id)
+            .order_by(SavedReportDefinition.created_at.desc())
+        ).all()
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "version": row.version,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "spec": row.spec,
+            }
+            for row in items
+            if isinstance(row.spec, dict) and row.spec.get("layout_kind") == "custom_blocks"
+        ]
+
+
+@router.post(BASE + "/custom-definitions", status_code=201)
+def save_custom_definition(company_id: str, data: SaveCustomDefinitionInput, request: Request):
+    """Saves a custom multi-source report template."""
+    return mutate(
+        request,
+        company_id,
+        data.model_dump(),
+        "write",
+        lambda db, user: _save_custom_def(db, company_id, user, data),
+    )
+
+
+def _save_custom_def(db, company_id: str, user, data: SaveCustomDefinitionInput):
+    spec_payload = {
+        "layout_kind": "custom_blocks",
+        "blocks": data.blocks,
+        "period_id": data.period_id,
+    }
+    definition = SavedReportDefinition(
+        company_id=company_id,
+        name=data.name,
+        spec=spec_payload,
+        actor_id=user.id,
+    )
+    db.add(definition)
+    db.flush()
+    audit(
+        db,
+        company_id,
+        user.id,
+        "report_builder.custom_definition_saved",
+        definition.id,
+        {"name": definition.name, "version": definition.version},
+    )
+    return {
+        "id": definition.id,
+        "name": definition.name,
+        "version": definition.version,
+    }
 
 
 @router.post(BASE + "/interpret")

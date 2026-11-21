@@ -3,7 +3,7 @@ import { ArrowsLeftRightIcon as HeaderIcon } from "@phosphor-icons/react";
 import { SearchSelect } from "@/components/ui/search-select";
 import { useAllocationChoices } from "@/hooks/use-allocation-choices";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Dialog } from "@/components/ui/dialog";
@@ -25,12 +25,15 @@ import { useCommand } from "@/hooks/use-command";
 import { usePagedResource } from "@/hooks/use-paged-resource";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems, type Allocation } from "@/lib/api";
-import { amount } from "@/lib/utils";
+import { amount, persian, cn } from "@/lib/utils";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   ArrowCounterClockwiseIcon,
+  CheckCircleIcon,
   CurrencyCircleDollarIcon,
   PlusIcon,
   TextAaIcon,
+  WalletIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
@@ -49,34 +52,138 @@ export function SettlementsView() {
   const [invoiceId, setInvoiceId] = useState("");
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "reversed">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
   if (!workspace.company) return <NoCompany />;
+
+  const allAllocations = listItems(allocations.data);
+  const activeAllocations = allAllocations.filter((a) => !a.reversed_at);
+  const reversedAllocations = allAllocations.filter((a) => !!a.reversed_at);
+  const activeTotalAmount = activeAllocations.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+
+  const filteredAllocations = allAllocations.filter((allocation) => {
+    if (statusFilter === "active" && allocation.reversed_at) return false;
+    if (statusFilter === "reversed" && !allocation.reversed_at) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const invRef = (
+        allocation.invoice_reference ||
+        listItems(invoices.data).find((i) => i.id === allocation.invoice_id)?.reference ||
+        allocation.invoice_id
+      ).toLowerCase();
+      const bankRef = (
+        allocation.bank_reference ||
+        listItems(banks.data).find((b) => b.id === allocation.bank_id)?.reference ||
+        allocation.bank_id
+      ).toLowerCase();
+      if (!invRef.includes(q) && !bankRef.includes(q)) return false;
+    }
+    return true;
+  });
+
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="دریافت و پرداخت"
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/settlements/cheques" variant="secondary">چک‌ها</ButtonLink>
-            <ButtonLink href="/settlements/plans" variant="secondary">
-              برنامه پرداخت
-            </ButtonLink>
-            {workspace.canWrite && (
-              <Button
-                onClick={() => {
-                  setOpen(true);
-                  command.clearError();
-                }}
-              >
-                تخصیص پرداخت
-                <PlusIcon size={16} />
-              </Button>
-            )}
-          </div>
+          workspace.canWrite ? (
+            <Button
+              onClick={() => {
+                setOpen(true);
+                command.clearError();
+              }}
+            >
+              تخصیص پرداخت
+              <PlusIcon size={16} />
+            </Button>
+          ) : undefined
         }
       />
+
+      {/* Summary KPI Cards */}
+      <div className="mb-5 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <CheckCircleIcon size={18} className="text-success" />
+            <span>تخصیص‌های فعال</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-display text-xl font-medium tabular-nums text-foreground">
+              {persian(activeAllocations.length)}
+            </span>
+            <span className="text-xs text-muted">فقره</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <WalletIcon size={18} className="text-primary" />
+            <span>مجموع مبالغ تخصیص‌یافته</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-display text-xl font-medium tabular-nums text-foreground">
+              {amount(String(activeTotalAmount), workspace.unit)}
+            </span>
+            <span className="text-xs text-muted">
+              {workspace.unit === "IRR" ? "ریال" : "تومان"}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <ArrowCounterClockwiseIcon size={18} className="text-warning" />
+            <span>تخصیص‌های برگشت‌شده</span>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-display text-xl font-medium tabular-nums text-foreground">
+              {persian(reversedAllocations.length)}
+            </span>
+            <span className="text-xs text-muted">فقره</span>
+          </div>
+        </div>
+      </div>
+
       <Panel title="ارتباط پرداخت و فاکتور">
+        {/* Filter and Search Bar */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput
+              label="جستجو در فاکتور یا مرجع بانک"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-60 text-xs"
+            />
+            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
+              {(
+                [
+                  { key: "all", label: "همه" },
+                  { key: "active", label: "فعال" },
+                  { key: "reversed", label: "برگشت‌شده" },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setStatusFilter(f.key)}
+                  className={cn(
+                    "rounded px-3 py-1 text-xs transition-colors",
+                    statusFilter === f.key
+                      ? "bg-surface text-primary font-medium shadow-xs"
+                      : "text-muted hover:text-foreground",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {allocations.loading ? (
-          <LoadingState />
+          <LoadingState variant="table" label="در حال دریافت تخصیص‌ها" />
         ) : allocations.error ? (
           <ErrorState
             message={allocations.error.message}
@@ -85,29 +192,31 @@ export function SettlementsView() {
         ) : (
           <>
             <Table>
-              <TableHeader>
+              <TableHeader sticky>
                 <TableRow>
                   <TableHead>فاکتور</TableHead>
                   <TableHead>مرجع بانکی</TableHead>
-                  <TableHead>
+                  <TableHead numeric>
                     مبلغ ({workspace.unit === "IRR" ? "ریال" : "تومان"})
                   </TableHead>
-                  <TableHead>وضعیت</TableHead>
-                  <TableHead>
+                  <TableHead className="w-28">وضعیت</TableHead>
+                  <TableHead className="w-24">
                     <span className="sr-only">برگشت تخصیص</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {listItems(allocations.data).length ? (
-                  listItems(allocations.data).map((allocation) => (
+                {filteredAllocations.length ? (
+                  filteredAllocations.map((allocation) => (
                     <TableRow key={allocation.id}>
                       <TableRowHeader>
-                        {allocation.invoice_reference ||
-                          listItems(invoices.data).find(
-                            (invoice) => invoice.id === allocation.invoice_id,
-                          )?.reference ||
-                          allocation.invoice_id}
+                        <span className="font-medium text-foreground">
+                          {allocation.invoice_reference ||
+                            listItems(invoices.data).find(
+                              (invoice) => invoice.id === allocation.invoice_id,
+                            )?.reference ||
+                            allocation.invoice_id}
+                        </span>
                       </TableRowHeader>
                       <TableCell>
                         {allocation.bank_reference ||
@@ -116,7 +225,7 @@ export function SettlementsView() {
                           )?.reference ||
                           allocation.bank_id}
                       </TableCell>
-                      <TableCell>
+                      <TableCell numeric className="whitespace-nowrap">
                         {amount(allocation.amount, workspace.unit)}
                       </TableCell>
                       <TableCell>
@@ -130,6 +239,7 @@ export function SettlementsView() {
                         {workspace.canWrite && !allocation.reversed_at && (
                           <Button
                             variant="ghost"
+                            className="h-8 text-xs text-danger hover:bg-danger-soft"
                             onClick={() => {
                               setReversing(allocation);
                               setReason("");
@@ -144,7 +254,36 @@ export function SettlementsView() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={5} title="تخصیصی ثبت نشده" />
+                  <TableEmptyCell
+                    colSpan={5}
+                    title={
+                      searchQuery || statusFilter !== "all"
+                        ? "تخصیصی با این فیلتر یا جستجو پیدا نشد"
+                        : "هنوز دریافت یا پرداختی ثبت نشده است"
+                    }
+                    action={
+                      searchQuery || statusFilter !== "all" ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setStatusFilter("all");
+                          }}
+                        >
+                          پاک‌کردن فیلترها
+                        </Button>
+                      ) : workspace.canWrite ? (
+                        <Button
+                          onClick={() => {
+                            setOpen(true);
+                            command.clearError();
+                          }}
+                        >
+                          ثبت اولین تخصیص
+                        </Button>
+                      ) : undefined
+                    }
+                  />
                 )}
               </TableBody>
             </Table>

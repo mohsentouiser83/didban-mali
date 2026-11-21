@@ -15,6 +15,8 @@ it("shows access, accounts, periods, dimensions and numbering in gear settings c
   expect(
     viewer.flatMap((group) => group.items.map((item) => item.href)),
   ).toEqual([
+    "/settings/employees",
+    "/settings/contracts",
     "/settings/members",
     "/settings/accounts",
     "/settings/periods",
@@ -75,6 +77,7 @@ it("checks active state for settings destinations", () => {
     installationAdmin: true,
   });
   expect(categories.map((c) => c.key)).toEqual([
+    "personnel",
     "access",
     "accounts",
     "periods",

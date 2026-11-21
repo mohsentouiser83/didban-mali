@@ -170,13 +170,15 @@ async def assistant(company_id: str, data: s.AssistantInput, request: Request):
 
     if analytical_response is not None:
         identity = {
-            name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
+            name: selected["descriptor"][name]
+            for name in ("context_type", "manifest_id", "native_statement_id")
         }
         return analytical_response | identity
 
     if operational_response is not None:
         identity = {
-            name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
+            name: selected["descriptor"][name]
+            for name in ("context_type", "manifest_id", "native_statement_id")
         }
         return operational_response | identity
 

@@ -81,9 +81,9 @@ interface StatementSummary extends Omit<StatementRun, "snapshot"> {
 export function useNativeStatements() {
   const workspace = useWorkspace();
   const base = workspace.companyPath("accounting/statements");
-  const [period, setPeriod] = useState(
-    workspace.periodId || workspace.periods[0]?.id || "",
-  );
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const period =
+    selectedPeriod ?? (workspace.periodId || workspace.periods[0]?.id || "");
   const [asOf, setAsOf] = useState(() =>
     period
       ? defaultCutoff(workspace.periods.find((item) => item.id === period))
@@ -146,7 +146,7 @@ export function useNativeStatements() {
     },
     period,
     setPeriod: (value: string) => {
-      setPeriod(value);
+      setSelectedPeriod(value);
       const selected = workspace.periods.find((item) => item.id === value);
       setAsOf(defaultCutoff(selected));
       setRun(null);
@@ -161,7 +161,7 @@ export function useNativeStatements() {
     selectRun: (item: StatementRun | StatementSummary) => {
       const select = (full: StatementRun) => {
         setRun(full);
-        setPeriod(full.snapshot.period_id);
+        setSelectedPeriod(full.snapshot.period_id);
         setAsOf(full.snapshot.as_of);
         setPage(0);
       };

@@ -1,6 +1,6 @@
 'use client';
 import {ChartLineUpIcon} from '@phosphor-icons/react';
-import {Button,ButtonLink} from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import {Drawer} from '@/components/ui/drawer';
 import {ErrorState,LoadingState,EmptyState,StatusMessage} from '@/components/ui/content-states';
 import {Table,TableHeader,TableBody,TableRow,TableHead,TableCell,TableRowHeader,TableEmptyCell} from '@/components/ui/table';
@@ -8,12 +8,11 @@ import {Pagination} from '@/components/ui/pagination';
 import {useExpenseReview} from '@/hooks/use-expense-review';
 import {useWorkspace} from '@/hooks/workspace';
 import {amount,displayDate} from '@/lib/utils';
-import {NoCompany,PageHeader,Panel,PeriodFilter} from './page-parts';
+import {NoCompany,PageHeader,Panel} from './page-parts';
 import {EvidenceList} from './evidence-list';
 export function ExpenseChangesView(){const workspace=useWorkspace();return workspace.company?<Workspace key={workspace.company.id}/>:<NoCompany/>;}
 function Workspace(){const view=useExpenseReview();return <>
-<PageHeader title="تغییر هزینه‌ها" icon={ChartLineUpIcon} action={<ButtonLink href="/review" variant="secondary">بررسی و شواهد</ButtonLink>}/>
-<PeriodFilter/>
+<PageHeader title="تحلیل تغییر هزینه‌ها" icon={ChartLineUpIcon} />
 <Panel title="مقایسهٔ حساب‌های هزینه">
 {view.loading?<LoadingState label="در حال مقایسه هزینه‌ها"/>:view.error?<ErrorState message={view.error.message} onRetry={view.refresh}/>:!view.resource.data?<EmptyState title="گزارش این دوره موجود نیست"/>:view.resource.data.status==='unavailable'?<EmptyState title="مقایسه آماده نیست" description={view.resource.data.reason||undefined}/>:<>
 <StatusMessage tone="primary">مرتب‌شده بر اساس قدر مطلق تغییر؛ بزرگی تغییر، به‌تنهایی نشانهٔ خطا یا تخلف نیست.</StatusMessage>

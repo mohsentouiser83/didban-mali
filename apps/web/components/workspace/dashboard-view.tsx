@@ -26,7 +26,6 @@ import {
   NoResult,
   PageHeader,
   Panel,
-  PeriodFilter,
 } from "./page-parts";
 
 export function ImportedDashboardView() {
@@ -38,14 +37,7 @@ export function ImportedDashboardView() {
       <PageHeader
         icon={HeaderIcon}
         title="خلاصه مالی"
-        action={
-          <ButtonLink href="/reports" variant="secondary">
-            گزارش‌ها
-            <ArrowUpLeftIcon size={16} className="text-primary" aria-hidden />
-          </ButtonLink>
-        }
       />
-      <PeriodFilter />
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (

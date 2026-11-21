@@ -9,6 +9,7 @@ import {
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { SearchSelect } from "@/components/ui/search-select";
 import { Select } from "@/components/ui/select";
 import { memberRoles } from "@/hooks/use-member-management";
 import type { useMemberManagement } from "@/hooks/use-member-management";
@@ -101,11 +102,18 @@ export function MemberAddDrawer({
                   onRetry={c.users.refresh}
                 />
               ) : (
-                <Select
+                <SearchSelect
                   id="member-user"
                   value={c.userId}
-                  onValueChange={c.setUserId}
-                  options={c.userOptions}
+                  selectedLabel={
+                    c.userOptions.find((opt) => opt.value === c.userId)?.label
+                  }
+                  onValueChange={(val) => c.setUserId(val)}
+                  query={c.userSearchQuery}
+                  onQueryChange={c.setUserSearchQuery}
+                  options={c.filteredUserOptions}
+                  placeholder="انتخاب یا جستجوی کاربر..."
+                  searchLabel="جستجوی کاربر بر اساس نام یا ایمیل"
                   disabled={c.command.busy}
                 />
               )

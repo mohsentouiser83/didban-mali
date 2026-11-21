@@ -25,11 +25,15 @@ def inventory_test_setup(db_session):
     inv_acc = Account(id=f"acc-inv-{uuid4().hex[:6]}", company_id=company_id, code="101", name="موجودی کالا")
     db.add(inv_acc)
 
-    item = InventoryItem(id="item-1", company_id=company_id, code="ITM-01", name="کالای الف", inventory_account_id=inv_acc.id)
+    item = InventoryItem(
+        id="item-1", company_id=company_id, code="ITM-01", name="کالای الف", inventory_account_id=inv_acc.id
+    )
     warehouse = InventoryWarehouse(id="wh-1", company_id=company_id, code="WH-01", name="انبار مرکزی")
     db.add_all([item, warehouse])
 
-    period = m.Period(id="p-inv", company_id=company_id, name="دوره تست", start=date(2026, 1, 1), end=date(2026, 12, 31))
+    period = m.Period(
+        id="p-inv", company_id=company_id, name="دوره تست", start=date(2026, 1, 1), end=date(2026, 12, 31)
+    )
     db.add(period)
 
     # 1. Purchase 100 units @ 10,000 IRR = 1,000,000 IRR on 2026-02-01
@@ -204,8 +208,16 @@ def test_inventory_reporting_http_endpoints():
 
         acc = Account(id=f"acc-{uuid4().hex[:6]}", company_id=c_id, code="101", name="کالا")
         db.add(acc)
-        item = InventoryItem(id=f"item-api-{uuid4().hex[:6]}", company_id=c_id, code=f"ITM-{uuid4().hex[:4]}", name="کالای تست", inventory_account_id=acc.id)
-        wh = InventoryWarehouse(id=f"wh-api-{uuid4().hex[:6]}", company_id=c_id, code=f"WH-{uuid4().hex[:4]}", name="انبار تست")
+        item = InventoryItem(
+            id=f"item-api-{uuid4().hex[:6]}",
+            company_id=c_id,
+            code=f"ITM-{uuid4().hex[:4]}",
+            name="کالای تست",
+            inventory_account_id=acc.id,
+        )
+        wh = InventoryWarehouse(
+            id=f"wh-api-{uuid4().hex[:6]}", company_id=c_id, code=f"WH-{uuid4().hex[:4]}", name="انبار تست"
+        )
         db.add_all([item, wh])
 
     client = TestClient(app)
@@ -228,4 +240,3 @@ def test_inventory_reporting_http_endpoints():
     res_prof = client.get(f"/api/v1/companies/{c_id}/accounting/inventory/profit", headers=headers)
     assert res_prof.status_code == 200, res_prof.text
     assert "total_gross_profit_irr" in res_prof.json()
-

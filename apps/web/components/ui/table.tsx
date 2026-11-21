@@ -38,9 +38,20 @@ export function Table({
   );
 }
 
-export function TableHeader(props: ComponentProps<"thead">) {
+export interface TableHeaderProps extends ComponentProps<"thead"> {
+  sticky?: boolean;
+}
+
+export function TableHeader({ sticky = false, className, ...props }: TableHeaderProps) {
   return (
-    <thead {...props} className={cn("bg-canvas text-muted", props.className)} />
+    <thead
+      {...props}
+      className={cn(
+        "bg-canvas text-muted",
+        sticky && "sticky top-0 z-20 bg-canvas/95 backdrop-blur-xs shadow-xs",
+        className,
+      )}
+    />
   );
 }
 
@@ -68,21 +79,27 @@ export function TableRow(props: ComponentProps<"tr">) {
   );
 }
 
-export interface TableHeadProps extends ComponentProps<"th"> {
+export interface TableHeadProps extends Omit<ComponentProps<"th">, "align"> {
   stickyFirstColumn?: boolean;
+  numeric?: boolean;
+  align?: "start" | "center" | "end";
 }
 
 export function TableHead({
   stickyFirstColumn,
+  numeric,
+  align,
   className,
   ...props
 }: TableHeadProps) {
+  const alignment = align ? `text-${align}` : numeric ? "text-end" : "text-start";
   return (
     <th
       {...props}
       scope="col"
       className={cn(
-        "whitespace-nowrap px-4 py-3 text-start font-medium",
+        "whitespace-nowrap px-4 py-3 font-medium text-xs",
+        alignment,
         stickyFirstColumn &&
           "sticky start-0 z-10 bg-surface shadow-[1px_0_0_0_hsl(var(--border))]",
         className,
@@ -91,20 +108,26 @@ export function TableHead({
   );
 }
 
-export interface TableCellProps extends ComponentProps<"td"> {
+export interface TableCellProps extends Omit<ComponentProps<"td">, "align"> {
   stickyFirstColumn?: boolean;
+  numeric?: boolean;
+  align?: "start" | "center" | "end";
 }
 
 export function TableCell({
   stickyFirstColumn,
+  numeric,
+  align,
   className,
   ...props
 }: TableCellProps) {
+  const alignment = align ? `text-${align}` : numeric ? "text-end font-mono" : "text-start";
   return (
     <td
       {...props}
       className={cn(
-        "px-4 py-4 text-start tabular-nums",
+        "px-4 py-3.5 tabular-nums text-sm",
+        alignment,
         stickyFirstColumn &&
           "sticky start-0 z-10 bg-surface shadow-[1px_0_0_0_hsl(var(--border))]",
         className,

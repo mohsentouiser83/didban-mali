@@ -2,6 +2,7 @@
 
 import json
 from datetime import timedelta, timezone
+from decimal import Decimal
 from hashlib import sha256
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ from .moadian_payload import build_payload, can_build
 from .moadian_profiles import MoadianProfile, load_profile
 from .moadian_schemas import MoadianInvoiceInput
 from .module_service import module_state, require_module
+from .money_type import canonical_money
 from .native_invoice_models import NativeInvoice
 from .native_invoice_service import detail as invoice_detail
 from .services import get_entity
@@ -434,3 +436,121 @@ def _record(row, actor, key, kind, status, reference, errors, evidence_digest) -
 def _refresh(request, row) -> dict:
     with access(request, row.company_id) as (db, _, member):
         return _visible(db, row, member, load_profile(row.company_id))
+
+
+def reconciliation_summary(db: Session, company: str, user: m.User, member) -> dict:
+    require(
+        member.role in ("owner", "finance_manager", "advisor"),
+        "moadian_permission_required",
+        "دسترسی کافی برای مشاهده مغایرت مؤدیان ندارید.",
+        403,
+    )
+    profile = load_profile(company)
+    invoices = db.scalars(
+        select(NativeInvoice)
+        .where(NativeInvoice.company_id == company, NativeInvoice.direction == "sale")
+        .order_by(NativeInvoice.created_at.desc())
+    ).all()
+
+    transmissions = db.scalars(
+        select(Transmission)
+        .where(Transmission.company_id == company)
+        .order_by(Transmission.created_at.desc())
+    ).all()
+
+    tx_by_invoice = {}
+    for tx in transmissions:
+        if tx.invoice_id not in tx_by_invoice:
+            tx_by_invoice[tx.invoice_id] = tx
+
+    accepted = []
+    pending = []
+    rejected = []
+    untransmitted = []
+
+    total_sales_book = Decimal(0)
+    total_sales_accepted = Decimal(0)
+    total_sales_untransmitted = Decimal(0)
+
+    total_vat_book = Decimal(0)
+    total_vat_accepted = Decimal(0)
+
+    for inv in invoices:
+        det = invoice_detail(db, company, user, inv.id)
+        amt = Decimal(str(det.get("amount") or 0))
+        vat_amt = Decimal(0)
+        lines = det.get("source", {}).get("lines", []) or []
+        for line in lines:
+            vat_amt += Decimal(str(line.get("vat_amount") or 0))
+
+        total_sales_book += amt
+        total_vat_book += vat_amt
+
+        tx = tx_by_invoice.get(inv.id)
+        if not tx:
+            total_sales_untransmitted += amt
+            untransmitted.append(
+                {
+                    "invoice_id": inv.id,
+                    "reference": det.get("reference") or "",
+                    "party_id": det.get("party_id") or "",
+                    "date": det.get("date") or "",
+                    "amount": canonical_money(amt),
+                    "vat_amount": canonical_money(vat_amt),
+                    "status": "untransmitted",
+                    "status_label": "ارسال‌نشده به مؤدیان",
+                }
+            )
+        else:
+            latest_ev = _latest(db, tx)
+            st = latest_ev.status
+            row_data = {
+                "invoice_id": inv.id,
+                "transmission_id": tx.id,
+                "tax_id": tx.tax_id,
+                "reference": det.get("reference") or "",
+                "party_id": det.get("party_id") or "",
+                "date": det.get("date") or "",
+                "amount": canonical_money(amt),
+                "vat_amount": canonical_money(vat_amt),
+                "status": st,
+            }
+            if st == "accepted":
+                total_sales_accepted += amt
+                total_vat_accepted += vat_amt
+                row_data["status_label"] = "تأییدشده در کارپوشه"
+                accepted.append(row_data)
+            elif st in ("rejected", "failed"):
+                row_data["status_label"] = "ردشده در مؤدیان"
+                rejected.append(row_data)
+            else:
+                row_data["status_label"] = "در انتظار استعلام/ارسال"
+                pending.append(row_data)
+
+    vat_discrepancy = total_vat_book - total_vat_accepted
+
+    return {
+        "configured": profile is not None,
+        "summary": {
+            "total_sales_book": canonical_money(total_sales_book),
+            "total_sales_accepted": canonical_money(total_sales_accepted),
+            "total_sales_untransmitted": canonical_money(total_sales_untransmitted),
+            "total_vat_book": canonical_money(total_vat_book),
+            "total_vat_accepted": canonical_money(total_vat_accepted),
+            "vat_discrepancy": canonical_money(abs(vat_discrepancy)),
+            "invoices_count": len(invoices),
+            "accepted_count": len(accepted),
+            "pending_count": len(pending),
+            "rejected_count": len(rejected),
+            "untransmitted_count": len(untransmitted),
+            "compliance_percentage": (
+                round(float(total_sales_accepted / total_sales_book * 100), 1)
+                if total_sales_book > 0
+                else 100.0
+            ),
+        },
+        "accepted": accepted,
+        "pending": pending,
+        "rejected": rejected,
+        "untransmitted": untransmitted,
+    }

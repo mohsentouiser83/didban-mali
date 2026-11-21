@@ -91,7 +91,20 @@ def commercial_env(db_session):
     )
 
     db_session.add_all(
-        [u, c, membership, period, setup, cash_acc, recv_acc, pay_acc, inv_acc, sales_acc, cogs_acc, equity_acc]
+        [
+            u,
+            c,
+            membership,
+            period,
+            setup,
+            cash_acc,
+            recv_acc,
+            pay_acc,
+            inv_acc,
+            sales_acc,
+            cogs_acc,
+            equity_acc,
+        ]
     )
     db_session.commit()
 

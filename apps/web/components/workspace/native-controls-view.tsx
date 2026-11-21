@@ -1,10 +1,12 @@
 "use client";
-import { ShieldCheckIcon } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { useState } from "react";
+import { ChartLineUpIcon, ShieldCheckIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { CursorPagination, Pagination } from "@/components/ui/pagination";
+import { Tabs } from "@/components/ui/tabs";
 import {
   EmptyState,
   ErrorState,
@@ -39,16 +41,12 @@ export function NativeControlsView() {
 }
 function Workspace() {
   const c = useNativeControls();
+  const [controlTab, setControlTab] = useState<"findings" | "expenses">("findings");
   return (
     <>
       <PageHeader
         title="کنترل دفتر اصلی"
         icon={ShieldCheckIcon}
-        action={
-          <ButtonLink href="/review" variant="secondary">
-            بررسی و شواهد
-          </ButtonLink>
-        }
       />
       <Panel>
         <div className="flex flex-wrap items-end gap-4">
@@ -87,14 +85,25 @@ function Workspace() {
             onRetry={c.resource.refresh}
           />
         ) : c.snapshot ? (
-          <>
-            <Panel title="موارد نیازمند رسیدگی">
-              <Findings c={c} />
-            </Panel>
-            <Panel title="مقایسه هزینه اسناد ثبت‌شده">
-              <Expenses c={c} />
-            </Panel>
-          </>
+          <div className="space-y-4">
+            <Tabs
+              value={controlTab}
+              onChange={setControlTab}
+              items={[
+                { id: "findings", label: "موارد نیازمند رسیدگی", icon: WarningCircleIcon },
+                { id: "expenses", label: "مقایسه هزینه اسناد ثبت‌شده", icon: ChartLineUpIcon },
+              ]}
+            />
+            {controlTab === "findings" ? (
+              <Panel title="موارد نیازمند رسیدگی">
+                <Findings c={c} />
+              </Panel>
+            ) : (
+              <Panel title="مقایسه هزینه اسناد ثبت‌شده">
+                <Expenses c={c} />
+              </Panel>
+            )}
+          </div>
         ) : null}
         <Panel title="سابقه بررسی‌ها">
           {c.history.loading ? (

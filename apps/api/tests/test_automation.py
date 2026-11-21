@@ -494,6 +494,7 @@ def test_imported_rule_history_is_filtered_before_pagination(workspace, monkeypa
     first = enabled_rule(db, owner)
     second = enabled_rule(db, owner)
     from didban.automation_models import AutomationRule
+
     execute(db, "c", db.get(AutomationRule, first["id"]), manifest)
     execute(db, "c", db.get(AutomationRule, second["id"]), manifest)
 

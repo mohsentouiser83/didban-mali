@@ -221,7 +221,9 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
     items = []
     for op in db.scalars(
         select(OperationDraft)
-        .where(OperationDraft.company_id == company, OperationDraft.kind.in_(INVOICE_KINDS.get(kind, (kind,))))
+        .where(
+            OperationDraft.company_id == company, OperationDraft.kind.in_(INVOICE_KINDS.get(kind, (kind,)))
+        )
         .order_by(OperationDraft.created_at.desc())
     ):
         if not settlement and db.scalar(
@@ -230,11 +232,7 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
             )
         ):
             continue
-        proofs = (
-            replacement_candidates(db, company, op.id, _today(db, company))
-            if settlement
-            else []
-        )
+        proofs = replacement_candidates(db, company, op.id, _today(db, company)) if settlement else []
         try:
             proofs.insert(0, _proof(db, company, op.id, _today(db, company)))
         except DomainError:
@@ -243,11 +241,7 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
             try:
                 items.append(
                     proof
-                    | {
-                        "remaining_capacity": _capacity(db, company, proof)
-                        if settlement
-                        else proof["amount"]
-                    }
+                    | {"remaining_capacity": _capacity(db, company, proof) if settlement else proof["amount"]}
                 )
             except DomainError:
                 continue

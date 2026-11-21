@@ -215,7 +215,7 @@ export function useInventoryDraft(
   const fields = { ...command.error?.fields, ...errors };
 
   function save() {
-    if (!inventory.can_prepare || !(sale ? inventory.sale_enabled : inventory.purchase_enabled)) return;
+    if (!inventory.can_prepare) return;
     const next: Record<string, string> = {};
     const required = ["period_id", "date", "item_id", "warehouse_id", "counterparty_account_id"] as const;
     for (const field of required) {

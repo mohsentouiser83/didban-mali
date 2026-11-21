@@ -16,7 +16,7 @@ import {useCompanyComparison} from "@/hooks/use-company-comparison";
 import {amount,displayDate} from "@/lib/utils";
 import {NoCompany,PageHeader,Panel} from "./page-parts";
 function Workspace(){const view=useCompanyComparison();return <>
-<PageHeader title="مقایسه شرکت‌ها" icon={BuildingsIcon} action={<div className="flex flex-wrap gap-2"><ButtonLink href="/reports/consolidation" variant="secondary">پیش‌نویس حذف درون‌گروهی</ButtonLink><ButtonLink href="/reports" variant="secondary">گزارش‌ها</ButtonLink></div>}/>
+<PageHeader title="مقایسه شرکت‌ها" icon={BuildingsIcon} />
 <Panel title="گروه‌های شرکت" action={view.canManage&&<Button onClick={()=>view.open(null)}>گروه جدید</Button>}>
 <Field id="comparison-period" label="دوره مقایسه"><Select id="comparison-period" value={view.period} onValueChange={view.setPeriod} options={view.periodOptions}/></Field>
 {view.groups.loading?<LoadingState label="در حال دریافت گروه‌ها"/>:view.groups.error?<ErrorState message={view.groups.error.message} onRetry={view.groups.refresh}/>:view.rows.length?<div className="divide-y divide-border">{view.rows.map(group=><div key={group.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><span>{group.name}</span><div className="flex gap-2">{view.canManage&&<Button variant="ghost" onClick={()=>view.open(group)}>ویرایش</Button>}{view.canCompare&&<Button variant="secondary" disabled={!view.period} busy={view.command.busy} onClick={()=>view.compare(group)}>مقایسه</Button>}</div></div>)}</div>:<EmptyState title="گروهی تعریف نشده"/>}<CursorPagination {...view.groups}/><FormMessage error>{view.command.error?.message}</FormMessage></Panel>

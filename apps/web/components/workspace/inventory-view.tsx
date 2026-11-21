@@ -8,6 +8,7 @@ import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
+import { Tabs } from "@/components/ui/tabs";
 import { useInventoryOverview } from "@/hooks/use-inventory";
 import { useWorkspace } from "@/hooks/workspace";
 import { inventoryInvoicePath, inventoryTitle, type InventoryOperation } from "@/lib/inventory";
@@ -27,6 +28,7 @@ export function InventoryView() {
 
 function InventoryWorkspace() {
   const view = useInventoryOverview();
+  const [stockTab, setStockTab] = useState<"balance" | "movements">("balance");
   const [editor, setEditor] = useState<{ kind: InventoryOperation; open: boolean; generation: number }>();
   const openDraft = (kind: InventoryOperation) =>
     setEditor((previous) => ({ kind, open: true, generation: (previous?.generation ?? 0) + 1 }));
@@ -45,9 +47,12 @@ function InventoryWorkspace() {
         icon={PackageIcon}
         action={
           <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting" variant="secondary">اسناد حسابداری</ButtonLink>
-            <ButtonLink href="/accounting/inventory/items" variant="secondary">کالاها</ButtonLink>
-            <ButtonLink href="/accounting/inventory/warehouses" variant="secondary">انبارها</ButtonLink>
+            <ButtonLink href="/accounting/inventory/items" variant="secondary">
+              مدیریت کالاها
+            </ButtonLink>
+            <ButtonLink href="/accounting/inventory/warehouses" variant="secondary">
+              مدیریت انبارها
+            </ButtonLink>
           </div>
         }
       />
@@ -62,14 +67,14 @@ function InventoryWorkspace() {
             action={data.can_prepare && (
               <div className="flex flex-wrap gap-2">
                 <Button
-                  disabled={!canCreate || !data.purchase_enabled}
+                  disabled={!canCreate}
                   onClick={() => openDraft("purchase_goods")}
                 >
                   خرید کالا
                 </Button>
                 <Button
                   variant="secondary"
-                  disabled={!canCreate || !data.sale_enabled}
+                  disabled={!canCreate}
                   onClick={() => openDraft("sale_goods")}
                 >
                   فروش کالا
@@ -82,11 +87,6 @@ function InventoryWorkspace() {
             )}
             {data.can_prepare && !canCreate && !view.accounts.loading && !view.accounts.error && (
               <StatusMessage>برای شروع، کالا، انبار، حساب فعال و دورهٔ مالی تعریف کنید.</StatusMessage>
-            )}
-            {data.can_prepare && (!data.purchase_enabled || !data.sale_enabled) && (
-              <StatusMessage>
-                {data.purchase_enabled ? "فروش کالا" : data.sale_enabled ? "خرید کالا" : "خرید و فروش کالا"} در ماژول‌های شرکت غیرفعال است.
-              </StatusMessage>
             )}
             <div className="flex flex-wrap items-end gap-3">
               <Field id="inventory-filter-item" label="کالا" icon={PackageIcon}>
@@ -142,8 +142,21 @@ function InventoryWorkspace() {
               <FormMessage error>{view.posting.error?.message}</FormMessage>
             </Panel>
           )}
-          <InventoryBalanceTable view={view} />
-          <InventoryMovementTable view={view} />
+          <div className="mb-2">
+            <Tabs
+              value={stockTab}
+              onChange={setStockTab}
+              items={[
+                { id: "balance", label: "موجودی ثبت‌شده کالا", icon: PackageIcon },
+                { id: "movements", label: "گردش نهایی کالا", icon: StorefrontIcon },
+              ]}
+            />
+          </div>
+          {stockTab === "balance" ? (
+            <InventoryBalanceTable view={view} />
+          ) : (
+            <InventoryMovementTable view={view} />
+          )}
           {editor && (
             <InventoryDraftDrawer
               key={editor.generation}

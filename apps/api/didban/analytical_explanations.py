@@ -4,6 +4,7 @@ Produces structured Persian explanations from deterministic financial decomposit
 Strictly ensures all figures derive from verified facts; never hallucinates amounts or
 claims to execute unauthorized financial actions.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -48,12 +49,14 @@ def explain_profit_change(
     observed_drivers = []
     for driver in profit_decomposition.get("drivers", []):
         impact_fa = "کاهش سود" if driver["impact_direction"] == "negative" else "افزایش سود"
-        observed_drivers.append({
-            "label": driver["label"],
-            "delta": format_currency_fa(driver["delta"]),
-            "profit_impact": f"{format_currency_fa(abs(int(driver['profit_impact'])))} ({impact_fa})",
-            "share": f"{driver['relative_share']}٪ از وزن تغییرات",
-        })
+        observed_drivers.append(
+            {
+                "label": driver["label"],
+                "delta": format_currency_fa(driver["delta"]),
+                "profit_impact": f"{format_currency_fa(abs(int(driver['profit_impact'])))} ({impact_fa})",
+                "share": f"{driver['relative_share']}٪ از وزن تغییرات",
+            }
+        )
 
     suggested_actions = [
         "بررسی جزئیات ردیف‌های اسناد حسابداری مربوط به سرفصل‌های هزینه‌ای افزایشی",
@@ -61,7 +64,9 @@ def explain_profit_change(
     ]
     if profit_decomposition.get("top_expenses"):
         top_exp_title = profit_decomposition["top_expenses"][0]["account_title"]
-        suggested_actions.insert(0, f"بررسی و مدیریت سرفصل هزینه «{top_exp_title}» که بیشترین سهم را در هزینه‌ها دارد")
+        suggested_actions.insert(
+            0, f"بررسی و مدیریت سرفصل هزینه «{top_exp_title}» که بیشترین سهم را در هزینه‌ها دارد"
+        )
 
     # Compose structured answer text
     lines = [conclusion, "", "عوامل اصلی ثبت‌شده:"]
@@ -71,7 +76,9 @@ def explain_profit_change(
         lines.append("")
         lines.append("بزرگترین سرفصل‌های هزینه این دوره:")
         for te in profit_decomposition["top_expenses"][:3]:
-            lines.append(f"• {te['account_title']}: {format_currency_fa(te['amount'])} ({te['share_percent']}٪ از کل هزینه‌ها)")
+            lines.append(
+                f"• {te['account_title']}: {format_currency_fa(te['amount'])} ({te['share_percent']}٪ از کل هزینه‌ها)"
+            )
 
     lines.append("")
     lines.append("اقدامات پیشنهادی:")
@@ -125,8 +132,14 @@ def explain_receivables_risk(
     if top_debtors:
         lines.append("مهم‌ترین بدهکاران نیازمند توجه:")
         for debtor in top_debtors[:3]:
-            od_text = f" (شامل {format_currency_fa(debtor['overdue_amount'])} معوق)" if debtor.get("overdue_amount") != "0" else ""
-            lines.append(f"• {debtor['counterparty_name']}: مانده کل {format_currency_fa(debtor['outstanding_amount'])}{od_text}")
+            od_text = (
+                f" (شامل {format_currency_fa(debtor['overdue_amount'])} معوق)"
+                if debtor.get("overdue_amount") != "0"
+                else ""
+            )
+            lines.append(
+                f"• {debtor['counterparty_name']}: مانده کل {format_currency_fa(debtor['outstanding_amount'])}{od_text}"
+            )
         lines.append("")
 
     lines.append("اقدامات پیشنهادی:")
@@ -211,40 +224,48 @@ def format_analytical_response(
     action_cards: list[dict[str, Any]] = []
 
     if intent == "profit_analysis":
-        action_cards.append({
-            "id": "card-review-expenses",
-            "title": "بررسی ریز سرفصل‌های هزینه",
-            "action_type": "navigate",
-            "target_path": "/reports/income-statement",
-            "payload": {"view": "detailed", "focus": "expenses"},
-            "variant": "primary",
-        })
-        action_cards.append({
-            "id": "card-dimensions-analysis",
-            "title": "تحلیل مراکز هزینه و پروژه‌ها",
-            "action_type": "navigate",
-            "target_path": "/reports/dimensions",
-            "payload": {},
-            "variant": "secondary",
-        })
+        action_cards.append(
+            {
+                "id": "card-review-expenses",
+                "title": "بررسی ریز سرفصل‌های هزینه",
+                "action_type": "navigate",
+                "target_path": "/reports/income-statement",
+                "payload": {"view": "detailed", "focus": "expenses"},
+                "variant": "primary",
+            }
+        )
+        action_cards.append(
+            {
+                "id": "card-dimensions-analysis",
+                "title": "تحلیل مراکز هزینه و پروژه‌ها",
+                "action_type": "navigate",
+                "target_path": "/reports/dimensions",
+                "payload": {},
+                "variant": "secondary",
+            }
+        )
 
     elif intent == "receivables_analysis":
-        action_cards.append({
-            "id": "card-overdue-invoices",
-            "title": "مشاهده فاکتورهای معوق مشتریان",
-            "action_type": "navigate",
-            "target_path": "/invoices",
-            "payload": {"status": "overdue", "direction": "sale"},
-            "variant": "warning",
-        })
-        action_cards.append({
-            "id": "card-reconciliation",
-            "title": "تخصیص دریافت‌های بانکی",
-            "action_type": "navigate",
-            "target_path": "/reconciliation",
-            "payload": {},
-            "variant": "secondary",
-        })
+        action_cards.append(
+            {
+                "id": "card-overdue-invoices",
+                "title": "مشاهده فاکتورهای معوق مشتریان",
+                "action_type": "navigate",
+                "target_path": "/invoices",
+                "payload": {"status": "overdue", "direction": "sale"},
+                "variant": "warning",
+            }
+        )
+        action_cards.append(
+            {
+                "id": "card-reconciliation",
+                "title": "تخصیص دریافت‌های بانکی",
+                "action_type": "navigate",
+                "target_path": "/reconciliation",
+                "payload": {},
+                "variant": "secondary",
+            }
+        )
 
     elif intent == "cashflow_analysis":
         has_deficit = (
@@ -252,33 +273,39 @@ def format_analytical_response(
             or any(d.get("value") == "دارد" for d in res.get("observed_drivers", []))
             or "کسری" in res.get("answer", "")
         )
-        action_cards.append({
-            "id": "card-cashflow-forecast",
-            "title": "مشاهده پیش‌بینی ۳۰ روزه نقدینگی",
-            "action_type": "navigate",
-            "target_path": "/forecast",
-            "payload": {},
-            "variant": "destructive" if has_deficit else "primary",
-        })
-        action_cards.append({
-            "id": "card-new-scenario",
-            "title": "تعریف سناریوی نقدینگی جدید",
-            "action_type": "navigate",
-            "target_path": "/scenarios",
-            "payload": {},
-            "variant": "secondary",
-        })
+        action_cards.append(
+            {
+                "id": "card-cashflow-forecast",
+                "title": "مشاهده پیش‌بینی ۳۰ روزه نقدینگی",
+                "action_type": "navigate",
+                "target_path": "/forecast",
+                "payload": {},
+                "variant": "destructive" if has_deficit else "primary",
+            }
+        )
+        action_cards.append(
+            {
+                "id": "card-new-scenario",
+                "title": "تعریف سناریوی نقدینگی جدید",
+                "action_type": "navigate",
+                "target_path": "/scenarios",
+                "payload": {},
+                "variant": "secondary",
+            }
+        )
 
     else:
         for idx, act in enumerate(res.get("suggested_actions", [])[:3]):
-            action_cards.append({
-                "id": f"card-action-{idx + 1}",
-                "title": act,
-                "action_type": "navigate",
-                "target_path": "/reports",
-                "payload": {},
-                "variant": "default",
-            })
+            action_cards.append(
+                {
+                    "id": f"card-action-{idx + 1}",
+                    "title": act,
+                    "action_type": "navigate",
+                    "target_path": "/reports",
+                    "payload": {},
+                    "variant": "default",
+                }
+            )
 
     res["action_cards"] = action_cards
     return res
