@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import {
   BASIS_OPTIONS,
   type RenderedSection,
+  type RenderedWidget,
   type StudioBasisType,
-  type StudioLayoutType,
   type StudioWidgetSpec,
 } from "@/lib/report-studio";
 import {
@@ -25,7 +25,6 @@ interface SectionRendererProps {
   section: RenderedSection;
   index?: number;
   totalSections?: number;
-  onUpdateLayout?: (layout: StudioLayoutType) => void;
   onUpdateBasis?: (basis: StudioBasisType) => void;
   onReorder?: (targetIndex: number) => void;
   onMoveUp?: () => void;
@@ -34,23 +33,194 @@ interface SectionRendererProps {
   onAddWidget?: () => void;
   onEditWidget?: (widget: StudioWidgetSpec) => void;
   onDeleteWidget?: (widgetId: string) => void;
+  onResizeWidget?: (widgetId: string, colSpan: number) => void;
   readOnly?: boolean;
 }
 
-const LAYOUT_BUTTONS: { value: StudioLayoutType; label: string; cols: string }[] = [
-  { value: "grid-1", label: "۱ ستون", cols: "۱۰۰٪" },
-  { value: "grid-2", label: "۲ ستون", cols: "۵۰/۵۰" },
-  { value: "grid-3", label: "۳ ستون", cols: "۳۳٪" },
-  { value: "grid-4", label: "۴ ستون", cols: "۲۵٪" },
-  { value: "split-2-1", label: "۲/۳ + ۱/۳", cols: "۶۶/۳۳" },
-  { value: "split-1-2", label: "۱/۳ + ۲/۳", cols: "۳۳/۶۶" },
-];
+function getColSpanClass(span: number): string {
+  switch (span) {
+    case 3:
+      return "col-span-12 md:col-span-3";
+    case 4:
+      return "col-span-12 md:col-span-4";
+    case 6:
+      return "col-span-12 md:col-span-6";
+    case 8:
+      return "col-span-12 md:col-span-8";
+    case 9:
+      return "col-span-12 md:col-span-9";
+    case 12:
+    default:
+      return "col-span-12";
+  }
+}
+
+function getSpanLabel(span: number): string {
+  switch (span) {
+    case 3:
+      return "۱/۴ ردیف (۲۵٪)";
+    case 4:
+      return "۱/۳ ردیف (۳۳٪)";
+    case 6:
+      return "۱/۲ ردیف (۵۰٪)";
+    case 8:
+      return "۲/۳ ردیف (۶۶٪)";
+    case 9:
+      return "۳/۴ ردیف (۷۵٪)";
+    case 12:
+      return "تمام ردیف (۱۰۰٪)";
+    default:
+      return `${span} ستون از ۱۲`;
+  }
+}
+
+interface ResizableCardProps {
+  widget: RenderedWidget;
+  readOnly?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onResize?: (colSpan: number) => void;
+}
+
+function ResizableCard({
+  widget,
+  readOnly,
+  onEdit,
+  onDelete,
+  onResize,
+}: ResizableCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [previewSpan, setPreviewSpan] = useState<number | null>(null);
+
+  const defaultSpan =
+    widget.col_span ||
+    (widget.type === "kpi_card"
+      ? 3
+      : widget.type === "data_table" || widget.type === "ai_summary"
+      ? 12
+      : 6);
+
+  const currentSpan = previewSpan || defaultSpan;
+
+  // Mouse drag-to-resize handle for this individual card
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (readOnly || !onResize) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsResizing(true);
+    const startX = e.clientX;
+    const cardRect = cardRef.current?.getBoundingClientRect();
+    const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
+    const initialWidth = cardRect?.width || 260;
+    const containerWidth = parentRect?.width || 1100;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      // In RTL layout, dragging to the left increases the card width
+      const deltaX = startX - moveEvent.clientX;
+      const targetWidth = Math.max(140, initialWidth + deltaX);
+      const ratio = targetWidth / containerWidth;
+
+      let nextSpan = 3;
+      if (ratio < 0.29) nextSpan = 3;          // 25% (1/4)
+      else if (ratio < 0.42) nextSpan = 4;     // 33% (1/3)
+      else if (ratio < 0.58) nextSpan = 6;     // 50% (1/2)
+      else if (ratio < 0.75) nextSpan = 8;     // 66% (2/3)
+      else if (ratio < 0.90) nextSpan = 9;     // 75% (3/4)
+      else nextSpan = 12;                      // 100% (full)
+
+      setPreviewSpan(nextSpan);
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      setIsResizing(false);
+      setPreviewSpan((finalSpan) => {
+        if (finalSpan && finalSpan !== defaultSpan) {
+          onResize(finalSpan);
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  const cycleSpan = () => {
+    if (readOnly || !onResize) return;
+    const spans = [3, 4, 6, 8, 12];
+    const currentIndex = spans.indexOf(currentSpan);
+    const nextSpan = spans[(currentIndex + 1) % spans.length];
+    onResize(nextSpan);
+  };
+
+  const spanClass = getColSpanClass(currentSpan);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`group relative ${spanClass} transition-all duration-300 ease-interface`}
+    >
+      {/* Live Mouse Resizing Indicator Badge */}
+      {isResizing && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-white shadow-lg animate-pulse">
+          <ArrowsLeftRightIcon size={14} />
+          <span>عرض کارت: {getSpanLabel(currentSpan)}</span>
+        </div>
+      )}
+
+      {/* Mouse Drag-to-Resize Handle on the Left Edge of the Card */}
+      {!readOnly && onResize && (
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-label="تغییر عرض کارت با ماوس"
+          onMouseDown={handleMouseDown}
+          className={`absolute top-2 bottom-2 left-0 z-20 w-3 cursor-ew-resize flex items-center justify-center rounded-l-panel transition-all ${
+            isResizing
+              ? "bg-primary/40 text-primary opacity-100"
+              : "opacity-0 group-hover:opacity-100 hover:bg-primary/20 text-muted/60 hover:text-primary"
+          }`}
+          title="برای تغییر عرض این کارت، با ماوس به چپ یا راست بکشید"
+        >
+          <div className="h-8 w-1 rounded-full bg-border group-hover:bg-primary transition-colors" />
+        </div>
+      )}
+
+      {/* Quick Width Pill on Hover (Top-Left) */}
+      {!readOnly && onResize && (
+        <div className="absolute top-2 left-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={cycleSpan}
+            className="rounded-full border border-border/80 bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-muted hover:border-primary hover:text-primary shadow-xs transition-colors"
+            title="کلیک برای تغییر مرحله‌ای اندازه کارت (یا کشیدن لبه با ماوس)"
+          >
+            {getSpanLabel(currentSpan).split(" ")[0]}
+          </button>
+        </div>
+      )}
+
+      {/* The Actual Widget Card */}
+      <div className={`h-full ${isResizing ? "ring-2 ring-primary/50 shadow-md" : ""}`}>
+        <WidgetRenderer
+          widget={widget}
+          readOnly={readOnly}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function SectionRenderer({
   section,
   index = 0,
   totalSections = 1,
-  onUpdateLayout,
   onUpdateBasis,
   onReorder,
   onMoveUp,
@@ -59,18 +229,14 @@ export function SectionRenderer({
   onAddWidget,
   onEditWidget,
   onDeleteWidget,
+  onResizeWidget,
   readOnly = false,
 }: SectionRendererProps) {
-  const { title, description, layout, basis = "all", widgets } = section;
+  const { title, description, basis = "all", widgets } = section;
 
   // Animation states
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [previewLayout, setPreviewLayout] = useState<StudioLayoutType | null>(null);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeLayout = previewLayout || layout;
 
   // Animated delete
   const handleDelete = () => {
@@ -81,47 +247,7 @@ export function SectionRenderer({
     }, 280);
   };
 
-  // Mouse horizontal drag resizing on section edge
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    if (readOnly || !onUpdateLayout) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    setIsResizing(true);
-    const startX = e.clientX;
-    const initialWidth = containerRef.current?.getBoundingClientRect().width || 800;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      // In RTL layout, dragging towards left increases relative width
-      const deltaX = startX - moveEvent.clientX;
-      const ratio = Math.max(0.1, Math.min(1.2, 0.5 + deltaX / initialWidth));
-
-      let next: StudioLayoutType = "grid-2";
-      if (ratio < 0.35) next = "grid-1";
-      else if (ratio < 0.6) next = "grid-2";
-      else if (ratio < 0.85) next = "grid-3";
-      else next = "grid-4";
-
-      setPreviewLayout(next);
-    };
-
-    const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      setIsResizing(false);
-      setPreviewLayout((finalLayout) => {
-        if (finalLayout && finalLayout !== layout) {
-          onUpdateLayout(finalLayout);
-        }
-        return null;
-      });
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  // Drag and Drop reordering
+  // Drag and Drop reordering of whole sections
   const handleDragStart = (e: React.DragEvent) => {
     if (readOnly) return;
     e.dataTransfer.setData("text/plain", String(index));
@@ -149,72 +275,38 @@ export function SectionRenderer({
     }
   };
 
-  // Grid styling based on active layout
-  let gridClasses = "grid grid-cols-1 gap-5 transition-all duration-300";
-  if (activeLayout === "grid-2") gridClasses = "grid grid-cols-1 md:grid-cols-2 gap-5 transition-all duration-300";
-  if (activeLayout === "grid-3") gridClasses = "grid grid-cols-1 md:grid-cols-3 gap-5 transition-all duration-300";
-  if (activeLayout === "grid-4") gridClasses = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 transition-all duration-300";
-  if (activeLayout === "split-2-1" || activeLayout === "split-1-2") {
-    gridClasses = "grid grid-cols-1 lg:grid-cols-3 gap-5 transition-all duration-300";
-  }
-
   return (
     <div
-      ref={containerRef}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`group relative rounded-panel border bg-canvas/60 p-5 backdrop-blur-sm transition-all duration-300 ease-interface ${
         isDeleting
           ? "pointer-events-none -translate-y-3 scale-95 border-transparent opacity-0 max-h-0 overflow-hidden py-0 my-0"
-          : "scale-100 opacity-100 max-h-[3000px] border-border/80"
+          : "scale-100 opacity-100 max-h-[4000px] border-border/80"
       } ${
         isDraggingOver
           ? "border-primary bg-primary-soft/30 ring-2 ring-primary ring-offset-2 scale-[1.01]"
           : "hover:border-border"
-      } ${isResizing ? "ring-2 ring-primary/40 shadow-md" : ""}`}
+      }`}
     >
-      {/* Visual Live Resize Badge */}
-      {isResizing && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-medium text-white shadow-lg animate-pulse">
-          <ArrowsLeftRightIcon size={14} />
-          <span>چیدمان جدید: {LAYOUT_BUTTONS.find((b) => b.value === activeLayout)?.label}</span>
-        </div>
-      )}
-
-      {/* Mouse Drag-to-Resize Handle on the Left Border */}
-      {!readOnly && onUpdateLayout && (
-        <div
-          role="separator"
-          tabIndex={0}
-          aria-label="تغییر اندازه ستون‌ها با ماوس"
-          onMouseDown={handleResizeMouseDown}
-          className={`absolute top-2 bottom-2 left-0.5 z-10 w-3 cursor-ew-resize flex items-center justify-center rounded-l-panel transition-colors ${
-            isResizing ? "bg-primary/40 text-primary" : "hover:bg-primary/20 text-muted/60 hover:text-primary"
-          }`}
-          title="برای تغییر پویای ستون‌ها با ماوس به چپ یا راست بکشید"
-        >
-          <div className="h-10 w-1 rounded-full bg-border group-hover:bg-primary/80 transition-colors" />
-        </div>
-      )}
-
       {/* Section Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-        {/* Title and Grip / Reorder Controls */}
+        {/* Title, Grip Drag Handle, and Direct Order Selector */}
         <div className="flex items-center gap-2.5">
-          {/* Drag Handle */}
+          {/* Section Drag Handle */}
           {!readOnly && onReorder && (
             <div
               draggable
               onDragStart={handleDragStart}
               className="cursor-grab active:cursor-grabbing rounded-control p-1 text-muted hover:bg-surface hover:text-primary transition-colors"
-              title="برای جابه‌جایی، این آیکون را با ماوس بگیرید و بکشید"
+              title="برای جابه‌جایی کل سکشن، این آیکون را با ماوس بگیرید و بکشید"
             >
               <DotsSixVerticalIcon size={20} />
             </div>
           )}
 
-          {/* Quick Order Badge & Selector */}
+          {/* Quick Order Badge & Selector (e.g. ردیف ۱، ردیف ۲) */}
           {!readOnly && onReorder && totalSections > 1 ? (
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted font-medium">ردیف:</span>
@@ -242,10 +334,10 @@ export function SectionRenderer({
           </div>
         </div>
 
-        {/* Section Actions: Basis Selector, Mouse Layout Resizer, Widgets, Delete */}
+        {/* Section Actions: Per-Section Basis Selector, Up/Down, Add Widget, Delete */}
         {!readOnly && (
           <div className="flex flex-wrap items-center gap-2">
-            {/* 1. Per-Section Extraction Basis Selector */}
+            {/* Per-Section Extraction Basis Selector */}
             {onUpdateBasis && (
               <div className="flex items-center gap-1">
                 <DatabaseIcon size={14} className="text-muted shrink-0" />
@@ -255,27 +347,6 @@ export function SectionRenderer({
                   options={BASIS_OPTIONS}
                   className="w-40 text-xs"
                 />
-              </div>
-            )}
-
-            {/* 2. Mouse Resizing Layout Switcher (No Select Dropdown!) */}
-            {onUpdateLayout && (
-              <div className="flex items-center rounded-control border border-border bg-surface p-0.5 shadow-2xs">
-                {LAYOUT_BUTTONS.map((btn) => (
-                  <button
-                    key={btn.value}
-                    type="button"
-                    onClick={() => onUpdateLayout(btn.value)}
-                    className={`rounded-xs px-2 py-1 text-xs transition-all ${
-                      activeLayout === btn.value
-                        ? "bg-primary text-white font-medium shadow-xs"
-                        : "text-muted hover:text-foreground hover:bg-canvas"
-                    }`}
-                    title={`${btn.label} (${btn.cols})`}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
               </div>
             )}
 
@@ -327,25 +398,23 @@ export function SectionRenderer({
         )}
       </div>
 
-      {/* Widgets Grid */}
+      {/* 12-Column Responsive Grid: Each Card Can Be Resized Individually */}
       {widgets.length > 0 ? (
-        <div className={gridClasses}>
-          {widgets.map((widget, idx) => {
-            let colSpanClass = "";
-            if (activeLayout === "split-2-1" && idx === 0) colSpanClass = "lg:col-span-2";
-            if (activeLayout === "split-1-2" && idx === 1) colSpanClass = "lg:col-span-2";
-
-            return (
-              <div key={widget.id} className={`${colSpanClass} transition-all duration-300`}>
-                <WidgetRenderer
-                  widget={widget}
-                  readOnly={readOnly}
-                  onEdit={onEditWidget ? () => onEditWidget(widget) : undefined}
-                  onDelete={onDeleteWidget ? () => onDeleteWidget(widget.id) : undefined}
-                />
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 transition-all duration-300">
+          {widgets.map((widget) => (
+            <ResizableCard
+              key={widget.id}
+              widget={widget}
+              readOnly={readOnly}
+              onEdit={onEditWidget ? () => onEditWidget(widget) : undefined}
+              onDelete={onDeleteWidget ? () => onDeleteWidget(widget.id) : undefined}
+              onResize={
+                onResizeWidget
+                  ? (newSpan) => onResizeWidget(widget.id, newSpan)
+                  : undefined
+              }
+            />
+          ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-control border border-dashed border-border py-12 text-center transition-all">

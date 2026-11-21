@@ -63,6 +63,7 @@ class StudioWidgetSpec(InputModel):
     filters: StudioWidgetFilters = Field(default_factory=StudioWidgetFilters)
     unit: Literal["IRR", "TOMAN"] = "IRR"
     color: str | None = Field(default="primary", max_length=30)
+    col_span: int = Field(default=3, ge=1, le=12)
 
 
 class StudioSectionSpec(InputModel):

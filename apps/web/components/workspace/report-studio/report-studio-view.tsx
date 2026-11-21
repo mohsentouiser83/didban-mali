@@ -203,7 +203,6 @@ export function ReportStudioView() {
               section={section}
               index={idx}
               totalSections={preview.sections.length}
-              onUpdateLayout={(layout) => studio.updateSection(section.id, { layout })}
               onUpdateBasis={(basis) => studio.updateSection(section.id, { basis })}
               onReorder={(targetIdx) => studio.reorderSection(section.id, targetIdx)}
               onMoveUp={() => studio.moveSection(section.id, "up")}
@@ -212,6 +211,9 @@ export function ReportStudioView() {
               onAddWidget={() => openAddWidget(section.id)}
               onEditWidget={(w) => openEditWidget(section.id, w)}
               onDeleteWidget={(wId) => studio.removeWidget(section.id, wId)}
+              onResizeWidget={(wId, colSpan) =>
+                studio.updateWidget(section.id, wId, { col_span: colSpan })
+              }
             />
           ))
         ) : (

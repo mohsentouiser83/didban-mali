@@ -51,6 +51,7 @@ export interface StudioWidgetSpec {
   filters: StudioWidgetFilters;
   unit: "IRR" | "TOMAN";
   color?: string;
+  col_span?: number;
 }
 
 export type StudioBasisType =

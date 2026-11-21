@@ -926,6 +926,7 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
                             "group_by": widget.group_by,
                             "unit": widget.unit or spec.global_filters.unit,
                             "color": widget.color or "primary",
+                            "col_span": getattr(widget, "col_span", None) or (3 if widget.type == "kpi_card" else 6 if "chart" in widget.type else 12),
                             "data": {},
                         }
                         for widget in section.widgets
@@ -963,6 +964,7 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
                     "group_by": widget.group_by,
                     "unit": widget.unit or spec.global_filters.unit,
                     "color": widget.color or "primary",
+                    "col_span": getattr(widget, "col_span", None) or (3 if widget.type == "kpi_card" else 6 if "chart" in widget.type else 12),
                     "data": data,
                 }
             )
