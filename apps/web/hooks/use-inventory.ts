@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { api } from "@/lib/api";
 import type { AccountingCapabilities } from "@/lib/accounting";
 import type {
   InventoryCatalogue,
@@ -11,7 +12,9 @@ import type {
 } from "@/lib/inventory";
 import { inventoryTitle } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
-import { asciiDigits } from "@/lib/utils";
+import { asciiDigits, persian } from "@/lib/utils";
+import type { ParsedTableImport } from "@/components/ui/table";
+import { toast } from "sonner";
 import { useAccountOptions } from "./use-accounting";
 import { useCommand } from "./use-command";
 import { useNativeJournal } from "./use-native-journal";
@@ -181,6 +184,70 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
       command.clearError();
     },
     save,
+    importFromExcel: async (parsed: ParsedTableImport) => {
+      if (!workspace.company || !parsed.rows.length) return;
+      const headerMap: Record<string, number> = {};
+      parsed.headers.forEach((h, i) => {
+        headerMap[h.trim().toLowerCase()] = i;
+      });
+
+      const getCol = (names: string[]) => {
+        for (const name of names) {
+          for (const [h, idx] of Object.entries(headerMap)) {
+            if (h.includes(name.toLowerCase())) return idx;
+          }
+        }
+        return -1;
+      };
+
+      const nameIdx = getCol(["نام کالا", "نام انبار", "نام", "عنوان", "name"]);
+      const codeIdx = getCol(["کد کالا", "کد انبار", "کد", "شناسه", "code"]);
+      const accountIdx = getCol(["حساب موجودی", "حساب", "inventory_account_id"]);
+
+      const defaultAccount = accounts.options[0]?.value;
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const row of parsed.rows) {
+        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
+        const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
+        if (!code || !name) continue;
+
+        const accId = accountIdx >= 0 && row[accountIdx] ? String(row[accountIdx]).trim() : defaultAccount;
+        if (entity === "items" && !accId) {
+          failCount++;
+          continue;
+        }
+
+        const body =
+          entity === "items"
+            ? { code, name, inventory_account_id: accId }
+            : { code, name };
+
+        try {
+          await api(workspace.companyPath(`${base}/${entity}`)!, {
+            method: "POST",
+            body,
+          });
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      inventory.refresh();
+      if (successCount > 0) {
+        toast.success(
+          `${persian(successCount)} ${entity === "items" ? "کالا" : "انبار"} با موفقیت در سامانه تعریف شد.`,
+        );
+      }
+      if (failCount > 0) {
+        toast.warning(
+          `${persian(failCount)} ردیف به دلیل تکراری بودن کد یا عدم وجود حساب موجودی ثبت نشد.`,
+        );
+      }
+    },
   };
 }
 

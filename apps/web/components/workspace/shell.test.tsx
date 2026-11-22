@@ -79,11 +79,27 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
     expect(desktopButton).toHaveAttribute("aria-controls");
   });
 
+  it("renders dashboard as a standalone link and not a category button", () => {
+    render(<Shell><div>محتوای صفحه</div></Shell>);
+
+    const dashboardLink = screen.getAllByRole("link", {
+      name: "داشبورد",
+    })[0];
+    expect(dashboardLink).toBeInTheDocument();
+    expect(dashboardLink).toHaveAttribute("href", "/");
+
+    // Dashboard should not be a collapsible category button
+    const dashboardButtons = screen.queryAllByRole("button", {
+      name: /داشبورد/,
+    });
+    expect(dashboardButtons.length).toBe(0);
+  });
+
   it("toggles group collapse and expand when header button is clicked", () => {
     render(<Shell><div>محتوای صفحه</div></Shell>);
 
     const desktopButton = screen.getAllByRole("button", {
-      name: /داشبورد/,
+      name: /حسابداری/,
     })[0];
     expect(desktopButton).toHaveAttribute("aria-expanded", "true");
 
@@ -121,35 +137,29 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
     expect(screen.getByText("دوره مالی ۱۴۰۴")).toBeInTheDocument();
   });
 
-  it("renders inventory as a collapsible subcategory under accounting with sub-items", () => {
+  it("opens the inventory subsection on direct entry and marks its child", () => {
     mockPathname = "/accounting/inventory/items";
+    localStorageMock.setItem("didban_sidebar_collapsed_groups", JSON.stringify({ حسابداری: true }));
+    localStorageMock.setItem("didban_sidebar_collapsed_subgroups", JSON.stringify({ انبار: true }));
     render(<Shell><div>محتوای کالاها</div></Shell>);
 
-    const inventoryCategoryButtons = screen.getAllByRole("button", {
-      name: /انبار/,
-    });
-    expect(inventoryCategoryButtons.length).toBeGreaterThan(0);
-    const inventoryButton = inventoryCategoryButtons[0];
-    expect(inventoryButton).toHaveAttribute("aria-expanded", "true");
+    const inventory = screen.getByRole("button", { name: /^انبار -/ });
+    expect(inventory).toHaveAttribute("aria-expanded", "true");
+    const current = screen.getByRole("link", { name: "کالاها و خدمات" });
+    expect(current).toHaveAttribute("href", "/accounting/inventory/items");
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "موجودی و کاردکس" })).not.toHaveAttribute("aria-current");
+  });
 
-    // Check inventory sub-items
-    const itemsLink = screen.getAllByRole("link", { name: "کالاها" })[0];
-    expect(itemsLink).toBeInTheDocument();
-    expect(itemsLink).toHaveAttribute("href", "/accounting/inventory/items");
-    expect(itemsLink).toHaveAttribute("aria-current", "page");
+  it("provides separate cashflow links in mobile navigation with unique disclosure ids", () => {
+    mockPathname = "/cashflow/forecast";
+    render(<Shell><div>پیش‌بینی</div></Shell>);
 
-    const stockLink = screen.getAllByRole("link", { name: "موجودی و کاردکس" })[0];
-    expect(stockLink).toBeInTheDocument();
-    expect(stockLink).toHaveAttribute("href", "/accounting/inventory");
-    expect(stockLink).not.toHaveAttribute("aria-current");
-
-    const warehousesLink = screen.getAllByRole("link", { name: "انبارها" })[0];
-    expect(warehousesLink).toBeInTheDocument();
-    expect(warehousesLink).toHaveAttribute("href", "/accounting/inventory/warehouses");
-    expect(warehousesLink).not.toHaveAttribute("aria-current");
-
-    // Click to collapse inventory subcategory
-    fireEvent.click(inventoryButton);
-    expect(inventoryButton).toHaveAttribute("aria-expanded", "false");
+    const desktop = screen.getByRole("button", { name: /^نقدینگی -/ });
+    fireEvent.click(screen.getByRole("button", { name: "بازکردن ناوبری" }));
+    const mobile = screen.getByRole("button", { name: /^نقدینگی -/ });
+    expect(mobile.getAttribute("aria-controls")).not.toBe(desktop.getAttribute("aria-controls"));
+    expect(screen.getByRole("link", { name: "جریان نقد دوره" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "پیش‌بینی ۳۰روزه" })).toHaveAttribute("aria-current", "page");
   });
 });

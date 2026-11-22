@@ -71,9 +71,6 @@ function ScenarioBasis({ c }: { c: Controller }) {
             <EmptyState
               compact
               title="پیش‌بینی دفتر اصلی ذخیره نشده"
-              action={
-                <ButtonLink href="/cashflow/forecast">ساخت پیش‌بینی</ButtonLink>
-              }
             />
           )
         ) : c.statements.loading ? (
@@ -112,9 +109,6 @@ function ScenarioBasis({ c }: { c: Controller }) {
           <EmptyState
             compact
             title="گزارش مالی ثابت موجود نیست"
-            action={
-              <ButtonLink href="/reports/native">ذخیره گزارش مالی</ButtonLink>
-            }
           />
         )}
         {c.sourceHref && (
@@ -129,15 +123,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
         )}
         {c.frozen.loading && <LoadingState />}
         {c.frozen.error && (
-          <>
-            <ErrorState
-              message={c.frozen.error.message}
-              onRetry={c.frozen.refresh}
-            />
-            <ButtonLink href="/reports/native" variant="secondary">
-              بررسی ماندهٔ نقد گزارش
-            </ButtonLink>
-          </>
+          <ErrorState message={c.frozen.error.message} onRetry={c.frozen.refresh} />
         )}
         {c.command.error && (!c.baseline || !c.canWrite) && (
           <ErrorState message={c.command.error.message} />

@@ -57,7 +57,7 @@ function Workspace() {
           />
         ) : (
           <>
-            <Table>
+            <Table title="ابعاد مالی و مراکز هزینه" onImport={view.importFromExcel}>
               <TableHeader>
                 <TableRow>
                   <TableHead>نام</TableHead>

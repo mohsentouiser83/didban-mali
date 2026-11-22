@@ -31,6 +31,12 @@ import { SessionView, UploadsView } from "@/components/workspace/upload-views";
 import { ReconciliationView } from "@/components/workspace/reconciliation-view";
 import { NumberingSystemView } from "@/components/workspace/numbering-system-view";
 import { SettingsOverviewView } from "@/components/workspace/settings-overview-view";
+import { ModulesView } from "@/components/workspace/modules-view";
+import { ModelSettingsView } from "@/components/workspace/model-settings-view";
+import { LearningView } from "@/components/workspace/learning-view";
+import { AutomationRulesView } from "@/components/workspace/automation-rules-view";
+import { CounterpartiesView } from "@/components/workspace/commercial/counterparties-view";
+import { ProformasView } from "@/components/workspace/commercial/proformas-view";
 import { notFound, redirect } from "next/navigation";
 export default async function Page({
   params,
@@ -98,13 +104,21 @@ export default async function Page({
     "settings/company-access": () => (
       <SettingsOverviewView categoryKey="company-access" />
     ),
-    "settings/documents": () => (
-      <SettingsOverviewView categoryKey="documents" />
-    ),
+    "settings/documents": () => <SettingsOverviewView categoryKey="documents" />,
+    "settings/personnel": () => <SettingsOverviewView categoryKey="personnel" />,
+    "settings/modules": () => <ModulesView />,
+    "settings/model": () => <ModelSettingsView />,
+    "settings/rules": () => <AutomationRulesView />,
+    "settings/learning": () => <LearningView />,
+    "commercial/counterparties": () => <CounterpartiesView />,
+    "commercial/proformas": () => <ProformasView />,
     "settings/accounting": () => (
       <SettingsOverviewView categoryKey="accounting" />
     ),
     "settings/numbering": () => <NumberingSystemView />,
+    "settings/inventory": () => (
+      <SettingsOverviewView categoryKey="inventory" />
+    ),
     "settings/periods": () => <PeriodsView />,
     "settings/company": () => <CompanyView />,
     "settings/members": () => <MembersView />,

@@ -96,6 +96,13 @@ function ResizableCard({
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [previewSpan, setPreviewSpan] = useState<number | null>(null);
 
+  const dragInfoRef = useRef<{
+    startX: number;
+    initialWidth: number;
+    containerWidth: number;
+  } | null>(null);
+  const currentDragSpanRef = useRef<number | null>(null);
+
   const defaultSpan =
     widget.col_span ||
     (widget.type === "kpi_card"
@@ -129,26 +136,19 @@ function ResizableCard({
     }, 260);
   };
 
-  // Mouse drag-to-resize handle for this individual card
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (readOnly || !onResize) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    setIsResizing(true);
-    const startX = e.clientX;
-    const cardRect = cardRef.current?.getBoundingClientRect();
-    const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
-    const initialWidth = cardRect?.width || 260;
-    const containerWidth = parentRect?.width || 1100;
-    setDragWidth(initialWidth);
+  // Drag-to-resize effect: registers listeners during resize and cleans up on unmount or finish
+  useEffect(() => {
+    if (!isResizing) return;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
+      const dragInfo = dragInfoRef.current;
+      if (!dragInfo) return;
+
       // In RTL layout, dragging to the left increases the card width
-      const deltaX = startX - moveEvent.clientX;
-      const targetWidth = Math.max(160, Math.min(containerWidth, initialWidth + deltaX));
+      const deltaX = dragInfo.startX - moveEvent.clientX;
+      const targetWidth = Math.max(160, Math.min(dragInfo.containerWidth, dragInfo.initialWidth + deltaX));
       setDragWidth(targetWidth);
-      const ratio = targetWidth / containerWidth;
+      const ratio = targetWidth / dragInfo.containerWidth;
 
       let nextSpan = 3;
       if (ratio < 0.29) nextSpan = 3;          // 25% (1/4)
@@ -158,30 +158,57 @@ function ResizableCard({
       else if (ratio < 0.90) nextSpan = 9;     // 75% (3/4)
       else nextSpan = 12;                      // 100% (full)
 
+      currentDragSpanRef.current = nextSpan;
       setPreviewSpan(nextSpan);
     };
 
     const onMouseUp = () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
       setIsResizing(false);
       setDragWidth(null);
-      setPreviewSpan((finalSpan) => {
-        if (finalSpan && finalSpan !== defaultSpan) {
-          if (finalSpan > defaultSpan) {
-            setIsExpanding(true);
-            setTimeout(() => setIsExpanding(false), 600);
-          }
-          onResize(finalSpan);
+
+      const finalSpan = currentDragSpanRef.current;
+      currentDragSpanRef.current = null;
+      dragInfoRef.current = null;
+      setPreviewSpan(null);
+
+      if (finalSpan && finalSpan !== defaultSpan && onResize) {
+        if (finalSpan > defaultSpan) {
+          setIsExpanding(true);
+          setTimeout(() => setIsExpanding(false), 600);
         }
-        return null;
-      });
+        onResize(finalSpan);
+      }
       setIsSettling(true);
       setTimeout(() => setIsSettling(false), 450);
     };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizing, defaultSpan, onResize]);
+
+  // Mouse drag-to-resize handle for this individual card
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (readOnly || !onResize) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const cardRect = cardRef.current?.getBoundingClientRect();
+    const parentRect = cardRef.current?.parentElement?.getBoundingClientRect();
+    const initialWidth = cardRect?.width || 260;
+    const containerWidth = parentRect?.width || 1100;
+
+    dragInfoRef.current = {
+      startX: e.clientX,
+      initialWidth,
+      containerWidth,
+    };
+    currentDragSpanRef.current = null;
+    setDragWidth(initialWidth);
+    setIsResizing(true);
   };
 
   const cycleSpan = () => {

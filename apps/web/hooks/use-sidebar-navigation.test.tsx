@@ -1,3 +1,4 @@
+import { PackageIcon } from "@phosphor-icons/react";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -5,7 +6,7 @@ import {
   SIDEBAR_COLLAPSED_SUBGROUPS_STORAGE_KEY,
   useSidebarNavigation,
 } from "./use-sidebar-navigation";
-import { navigationGroups } from "@/lib/navigation-catalog";
+import { navigationGroups, type NavigationGroup } from "@/lib/navigation-catalog";
 
 let currentPathname = "/";
 vi.mock("next/navigation", () => ({
@@ -41,13 +42,15 @@ describe("useSidebarNavigation", () => {
     localStorageMock.setItem.mockClear();
   });
 
-  it("initializes with all groups and subgroups expanded by default", () => {
+  it("starts with top-level groups expanded and inactive subsections closed", () => {
     const { result } = renderHook(() => useSidebarNavigation());
 
     navigationGroups.forEach((group) => {
-      expect(result.current.isGroupExpanded(group.label)).toBe(true);
+      if (group.label) {
+        expect(result.current.isGroupExpanded(group.label)).toBe(true);
+      }
     });
-    expect(result.current.isSubgroupExpanded("انبار")).toBe(true);
+    expect(result.current.isSubgroupExpanded("انبار")).toBe(false);
     expect(result.current.collapsed).toEqual({});
     expect(result.current.collapsedSubgroups).toEqual({});
   });
@@ -59,7 +62,7 @@ describe("useSidebarNavigation", () => {
       result.current.toggleGroup("حسابداری");
     });
     expect(result.current.isGroupExpanded("حسابداری")).toBe(false);
-    expect(result.current.isGroupExpanded("داشبورد")).toBe(true);
+    expect(result.current.isGroupExpanded("گزارش‌ها")).toBe(true);
 
     act(() => {
       result.current.toggleGroup("حسابداری");
@@ -83,7 +86,7 @@ describe("useSidebarNavigation", () => {
   it("restores collapsed state from localStorage on mount", () => {
     window.localStorage.setItem(
       SIDEBAR_COLLAPSED_GROUPS_STORAGE_KEY,
-      JSON.stringify({ داشبورد: true }),
+      JSON.stringify({ گزارش‌ها: true }),
     );
     window.localStorage.setItem(
       SIDEBAR_COLLAPSED_SUBGROUPS_STORAGE_KEY,
@@ -92,7 +95,7 @@ describe("useSidebarNavigation", () => {
 
     const { result } = renderHook(() => useSidebarNavigation());
 
-    expect(result.current.isGroupExpanded("داشبورد")).toBe(false);
+    expect(result.current.isGroupExpanded("گزارش‌ها")).toBe(false);
     expect(result.current.isGroupExpanded("حسابداری")).toBe(true);
     expect(result.current.isSubgroupExpanded("انبار")).toBe(false);
   });
@@ -104,14 +107,18 @@ describe("useSidebarNavigation", () => {
       result.current.collapseAll();
     });
     navigationGroups.forEach((group) => {
-      expect(result.current.isGroupExpanded(group.label)).toBe(false);
+      if (group.label) {
+        expect(result.current.isGroupExpanded(group.label)).toBe(false);
+      }
     });
 
     act(() => {
       result.current.expandAll();
     });
     navigationGroups.forEach((group) => {
-      expect(result.current.isGroupExpanded(group.label)).toBe(true);
+      if (group.label) {
+        expect(result.current.isGroupExpanded(group.label)).toBe(true);
+      }
     });
     expect(result.current.isSubgroupExpanded("انبار")).toBe(true);
   });
@@ -147,39 +154,39 @@ describe("useSidebarNavigation", () => {
     expect(result.current.isGroupExpanded("حسابداری")).toBe(false);
   });
 
-  it("toggles and auto-expands inventory subcategory under accounting", () => {
-    const { result, rerender } = renderHook(() => useSidebarNavigation());
+  it("toggles and auto-expands a subgroup when navigating to a child item", () => {
+    const customGroups: NavigationGroup[] = [
+      {
+        label: "حسابداری",
+        items: [
+          {
+            href: "/parent",
+            label: "زیرشاخه",
+            icon: PackageIcon,
+            children: [
+              { href: "/parent/child", label: "آیتم فرزند", icon: PackageIcon },
+            ],
+          },
+        ],
+      },
+    ];
+    const { result, rerender } = renderHook(() =>
+      useSidebarNavigation({ groups: customGroups }),
+    );
 
-    expect(result.current.isSubgroupExpanded("انبار")).toBe(true);
+    expect(result.current.isSubgroupExpanded("زیرشاخه")).toBe(false);
 
     act(() => {
-      result.current.toggleSubgroup("انبار");
+      result.current.toggleSubgroup("زیرشاخه");
     });
-    expect(result.current.isSubgroupExpanded("انبار")).toBe(false);
+    expect(result.current.isSubgroupExpanded("زیرشاخه")).toBe(true);
+    act(() => result.current.toggleSubgroup("زیرشاخه"));
 
-    // Navigating to /accounting/inventory/items auto-expands both accounting group and inventory subgroup
-    currentPathname = "/accounting/inventory/items";
+    // Navigating to /parent/child auto-expands both group and subgroup
+    currentPathname = "/parent/child";
     rerender();
 
     expect(result.current.isGroupExpanded("حسابداری")).toBe(true);
-    expect(result.current.isSubgroupExpanded("انبار")).toBe(true);
-  });
-
-  it("toggles and auto-expands reconciliation subcategory under accounting", () => {
-    const { result, rerender } = renderHook(() => useSidebarNavigation());
-
-    expect(result.current.isSubgroupExpanded("تطبیق و مغایرت‌گیری")).toBe(true);
-
-    act(() => {
-      result.current.toggleSubgroup("تطبیق و مغایرت‌گیری");
-    });
-    expect(result.current.isSubgroupExpanded("تطبیق و مغایرت‌گیری")).toBe(false);
-
-    // Navigating to /reconciliation/counterparties auto-expands both accounting group and reconciliation subgroup
-    currentPathname = "/reconciliation/counterparties";
-    rerender();
-
-    expect(result.current.isGroupExpanded("حسابداری")).toBe(true);
-    expect(result.current.isSubgroupExpanded("تطبیق و مغایرت‌گیری")).toBe(true);
+    expect(result.current.isSubgroupExpanded("زیرشاخه")).toBe(true);
   });
 });

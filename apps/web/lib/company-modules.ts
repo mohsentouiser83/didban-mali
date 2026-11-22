@@ -16,13 +16,13 @@ export const moduleRoutes: Record<string, string> = {
   "/cashflow/scenarios": "cashflow", "/receivables/followups": "receivables",
   "/moadian": "moadian", "/settlements": "settlements",
   "/settlements/cheques": "settlements",
-  "/settlements/plans": "settlements", "/reconciliation": "reconciliation",
+  "/settlements/plans": "cashflow", "/reconciliation": "reconciliation",
   "/reconciliation/bank": "reconciliation",
   "/reconciliation/counterparties": "reconciliation",
   "/reconciliation/counterparty": "reconciliation",
   "/reconciliation/moadian": "reconciliation",
   "/tax": "employees", "/insurance": "employees", "/payroll": "employees",
-  "/employees": "employees", "/employee-reports": "employees",
+  "/employees": "employees", "/settings/employees": "employees", "/employee-reports": "employees",
 };
 export const moduleStatusLabels = {
   disabled: "خاموش", waiting_sources: "نیاز به بارگذاری فایل",

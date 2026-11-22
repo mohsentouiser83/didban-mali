@@ -7,7 +7,7 @@ import {
   StorefrontIcon,
   WalletIcon,
 } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -55,7 +55,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
     <>
       <PageHeader
         title={isItem ? "کالاها" : "انبارها"}
-        icon={isItem ? PackageIcon : StorefrontIcon}
+        icon={isItem ? BarcodeIcon : StorefrontIcon}
         action={addAction}
       />
       <Panel>
@@ -71,7 +71,11 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
           />
         ) : (
           <>
-            <Table aria-label={isItem ? "فهرست کالاها" : "فهرست انبارها"}>
+            <Table
+              title={isItem ? "فهرست کالاها" : "فهرست انبارها"}
+              aria-label={isItem ? "فهرست کالاها" : "فهرست انبارها"}
+              onImport={view.importFromExcel}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>نام {singular}</TableHead>
@@ -91,10 +95,11 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                 )) : (
                   <TableEmptyCell
                     colSpan={isItem ? 3 : 2}
-                    title={isItem ? "کالایی تعریف نشده" : "انباری تعریف نشده"}
-                    action={isItem && view.inventory.data?.can_manage_catalog && !view.accounts.options.length ? (
-                      <ButtonLink href="/settings/accounts">تعریف حساب موجودی</ButtonLink>
-                    ) : undefined}
+                    title={isItem
+                      ? view.inventory.data?.can_manage_catalog && !view.accounts.options.length
+                        ? "برای تعریف کالا، حساب موجودی لازم است"
+                        : "کالایی تعریف نشده"
+                      : "انباری تعریف نشده"}
                   />
                 )}
               </TableBody>

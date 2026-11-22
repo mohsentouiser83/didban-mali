@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRightIcon, ChartBarIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ChartBarIcon, SlidersHorizontalIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/field";
 import { useReportBuilder } from "@/hooks/use-report-builder";
 import { useWorkspace } from "@/hooks/workspace";
 import { NoCompany, PageHeader } from "./page-parts";
 import { ReportBuilderForm } from "./report-builder-form";
 import { ReportBuilderResult } from "./report-builder-result";
+import { ReportBuilderSaved } from "./report-builder-saved";
 import { CustomReportCanvas } from "./custom-reports/custom-report-canvas";
 
 function BuilderWorkspace() {
@@ -30,10 +31,6 @@ function BuilderWorkspace() {
               <SlidersHorizontalIcon size={16} />
               {mode === "advanced" ? "تغییر به فرم ساده کلاسیک" : "تغییر به گزارش‌ساز چندمنبعی P3G"}
             </Button>
-            <ButtonLink href="/reports" variant="secondary" className="gap-1.5 text-xs">
-              <ArrowRightIcon size={16} />
-              بازگشت به گزارش‌ها
-            </ButtonLink>
           </div>
         }
       />
@@ -44,6 +41,7 @@ function BuilderWorkspace() {
           <ReportBuilderForm controller={controller} />
           <FormMessage error>{controller.command.error?.message}</FormMessage>
           <ReportBuilderResult controller={controller} />
+          <ReportBuilderSaved controller={controller} />
         </div>
       )}
     </>

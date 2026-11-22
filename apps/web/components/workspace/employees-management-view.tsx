@@ -54,7 +54,7 @@ export function EmployeesManagementView() {
               <span className="text-xs text-muted">{persian(v.employees.length)} کارمند</span>
             </div>
 
-            <Table>
+            <Table title="فهرست کارمندان" onImport={v.importFromExcel}>
               <TableHeader>
                 <TableRow>
                   <TableHead>کد پرسنلی</TableHead>

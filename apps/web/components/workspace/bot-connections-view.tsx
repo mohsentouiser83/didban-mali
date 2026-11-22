@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { BotConnectionNavigation } from "./bot-connection-navigation";
 import { BotProviderPanel } from "./bot-provider-panel";
 import { NoCompany, PageHeader } from "./page-parts";
 
@@ -44,7 +43,6 @@ function BotConnectionsContent({
           حساب‌های شما برای {view.company.name}
         </p>
       </PageHeader>
-      <BotConnectionNavigation />
       {view.loading ? (
         <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />
       ) : view.error ? (

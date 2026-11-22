@@ -74,7 +74,7 @@ export function ContractsManagementView() {
               <span className="text-xs text-muted">{persian(v.contracts.length)} قرارداد</span>
             </div>
 
-            <Table>
+            <Table title="قراردادهای کارمندان" onImport={v.importFromExcel}>
               <TableHeader>
                 <TableRow>
                   <TableHead>شماره قرارداد</TableHead>

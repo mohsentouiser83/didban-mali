@@ -10,7 +10,7 @@ export default function NotFound() {
           این صفحه پیدا نشد
         </PageTitle>
         <ButtonLink href="/" variant="secondary" className="mt-6">
-          بازگشت به خلاصه مالی
+          بازگشت به داشبورد
         </ButtonLink>
       </div>
     </main>

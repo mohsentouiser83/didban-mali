@@ -25,18 +25,15 @@ import {
 } from "@/components/ui/table";
 import { useCommand } from "@/hooks/use-command";
 import { usePagedResource } from "@/hooks/use-paged-resource";
-import { useReportBuilder } from "@/hooks/use-report-builder";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems, type Report } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
-import { ReportBuilderSaved } from "./report-builder-saved";
 
 export function ReportsView() {
   const workspace = useWorkspace();
   const resource = usePagedResource<Report>(workspace.companyPath("reports"));
-  const builder = useReportBuilder();
   const command = useCommand();
   const [approving, setApproving] = useState<Report | null>(null);
 
@@ -46,11 +43,11 @@ export function ReportsView() {
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="گزارش‌ها و صورت‌های مالی"
+        title="گزارش‌ها"
         action={
           <ButtonLink href="/reports/studio" variant="primary" className="gap-1.5">
             <PlusIcon size={18} />
-            گزارش جدید
+            ساخت گزارش
           </ButtonLink>
         }
       />
@@ -177,8 +174,6 @@ export function ReportsView() {
             </>
           )}
         </Panel>
-
-        <ReportBuilderSaved controller={builder} />
       </div>
 
       <ConfirmDialog

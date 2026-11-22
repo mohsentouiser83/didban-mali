@@ -35,7 +35,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { Panel } from "./page-parts";
-import { amount, displayDate, persian } from "@/lib/utils";
+import { amount, displayDate, persian, asciiDigits } from "@/lib/utils";
+import { toast } from "sonner";
+import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
+import type { StatementRow } from "@/hooks/use-counterparty-reconciliation";
 
 export function CounterpartyReconciliationPanel() {
   const recon = useCounterpartyReconciliation();
@@ -55,6 +58,60 @@ export function CounterpartyReconciliationPanel() {
   const selectedCandidate = recon.candidates.data?.items.find(
     (c) => c.id === recon.selectedPartyId,
   );
+
+  const handleImportStatementExcel = (parsed: ParsedTableImport) => {
+    if (!parsed.rows.length) return;
+    const headerMap: Record<string, number> = {};
+    parsed.headers.forEach((h, i) => {
+      headerMap[h.trim().toLowerCase()] = i;
+    });
+
+    const getCol = (names: string[]) => {
+      for (const name of names) {
+        for (const [h, idx] of Object.entries(headerMap)) {
+          if (h.includes(name.toLowerCase())) return idx;
+        }
+      }
+      return -1;
+    };
+
+    const dateIdx = getCol(["تاریخ", "date"]);
+    const refIdx = getCol(["شماره", "مدرک", "سند", "فاکتور", "reference", "ref"]);
+    const debitIdx = getCol(["بدهکار", "debit"]);
+    const creditIdx = getCol(["بستانکار", "credit"]);
+    const amountIdx = getCol(["مبلغ", "amount"]);
+    const descIdx = getCol(["شرح", "توضیحات", "description", "desc"]);
+
+    const rows: StatementRow[] = [];
+    for (const r of parsed.rows) {
+      const rawDate = dateIdx >= 0 ? asciiDigits(String(r[dateIdx] ?? "").trim()) : recon.asOfDate;
+      const ref = refIdx >= 0 ? String(r[refIdx] ?? "").trim() : "";
+      let deb = debitIdx >= 0 ? asciiDigits(String(r[debitIdx] ?? "").replace(/[,٬\s]/g, "")) : "0";
+      let cred = creditIdx >= 0 ? asciiDigits(String(r[creditIdx] ?? "").replace(/[,٬\s]/g, "")) : "0";
+      if (debitIdx < 0 && creditIdx < 0 && amountIdx >= 0) {
+        const amt = asciiDigits(String(r[amountIdx] ?? "").replace(/[,٬\s]/g, ""));
+        if (Number(amt) > 0) deb = amt;
+        else if (Number(amt) < 0) cred = String(Math.abs(Number(amt)));
+      }
+      const desc = descIdx >= 0 ? String(r[descIdx] ?? "").trim() : "";
+      if (rawDate && (deb !== "0" || cred !== "0" || ref)) {
+        rows.push({
+          date: rawDate,
+          reference: ref,
+          debit: deb,
+          credit: cred,
+          description: desc,
+        });
+      }
+    }
+
+    if (rows.length > 0) {
+      recon.setStatementRows((prev) => [...prev, ...rows]);
+      toast.success(`${persian(rows.length)} ردیف صورت‌حساب با موفقیت وارد شد.`);
+    } else {
+      toast.error("ردیف معتبری در فایل یافت نشد.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -613,7 +670,10 @@ export function CounterpartyReconciliationPanel() {
             </div>
 
             <div className="max-h-[300px] overflow-y-auto">
-              <Table>
+              <Table
+                title="ردیف‌های صورت‌حساب طرف‌حساب"
+                onImport={handleImportStatementExcel}
+              >
                 <TableHeader>
                   <TableRow>
                     <TableHead>تاریخ</TableHead>
@@ -625,24 +685,28 @@ export function CounterpartyReconciliationPanel() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recon.statementRows.map((row, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{row.date}</TableCell>
-                      <TableCell>{row.reference || "—"}</TableCell>
-                      <TableCell>{amount(row.debit, unit)}</TableCell>
-                      <TableCell>{amount(row.credit, unit)}</TableCell>
-                      <TableCell className="max-w-[150px] truncate">{row.description}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          className="size-8 p-0 text-rose-600"
-                          onClick={() => recon.removeRow(idx)}
-                        >
-                          <TrashIcon size={16} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {recon.statementRows.length ? (
+                    recon.statementRows.map((row, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{row.date}</TableCell>
+                        <TableCell>{row.reference || "—"}</TableCell>
+                        <TableCell>{amount(row.debit, unit)}</TableCell>
+                        <TableCell>{amount(row.credit, unit)}</TableCell>
+                        <TableCell className="max-w-[150px] truncate">{row.description}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            className="size-8 p-0 text-rose-600"
+                            onClick={() => recon.removeRow(idx)}
+                          >
+                            <TrashIcon size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableEmptyCell colSpan={6} title="هنوز ردیفی از صورت‌حساب وارد نشده است" />
+                  )}
                 </TableBody>
               </Table>
             </div>

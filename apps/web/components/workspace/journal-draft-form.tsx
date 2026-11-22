@@ -7,7 +7,6 @@ import {
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { OperationDraftView } from "./operation-draft-view";
-import { ButtonLink } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FieldError, FormMessage } from "@/components/ui/field";
@@ -42,18 +41,8 @@ export function JournalDraftForm({
       !view.replacement &&
       (view.requiresAccounts || view.requiresPeriod) ? (
         <div className="space-y-4">
-          {view.requiresAccounts && (
-            <div>
-              <p className="mb-3">برای ساخت سند، حساب فعال تعریف کنید.</p>
-              <ButtonLink href="/settings/accounts">تعریف حساب</ButtonLink>
-            </div>
-          )}
-          {view.requiresPeriod && (
-            <div>
-              <p className="mb-3">برای ساخت سند، دوره مالی تعریف کنید.</p>
-              <ButtonLink href="/settings/periods">تعریف دوره مالی</ButtonLink>
-            </div>
-          )}
+          {view.requiresAccounts && <p>برای ساخت سند، حساب فعال تعریف کنید.</p>}
+          {view.requiresPeriod && <p>برای ساخت سند، دوره مالی تعریف کنید.</p>}
         </div>
       ) : (
         <>

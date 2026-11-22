@@ -77,7 +77,7 @@ function AccountsWorkspace() {
           />
         ) : (
           <>
-            <Table>
+            <Table title="کدینگ حساب‌ها" onImport={view.importFromExcel}>
               <TableHeader>
                 <TableRow>
                   <TableHead>کد حساب</TableHead>

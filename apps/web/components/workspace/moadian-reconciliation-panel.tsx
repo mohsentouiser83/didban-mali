@@ -6,10 +6,8 @@ import {
   WarningCircleIcon,
   ClockIcon,
   XCircleIcon,
-  ArrowSquareOutIcon,
 } from "@phosphor-icons/react";
 import { useMoadianReconciliation } from "@/hooks/use-moadian-reconciliation";
-import { ButtonLink } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import {
   LoadingState,
@@ -96,17 +94,7 @@ export function MoadianReconciliationPanel() {
         )}
       </Panel>
 
-      <Panel
-        title="ریز اقلام مغایرت مؤدیان"
-        action={
-          <div className="flex items-center gap-2">
-            <ButtonLink href="/moadian" variant="secondary">
-              <ArrowSquareOutIcon size={16} />
-              مدیریت و ارسال در کارپوشه
-            </ButtonLink>
-          </div>
-        }
-      >
+      <Panel title="ریز اقلام مغایرت مؤدیان">
         <div className="mb-4">
           <Tabs
             value={activeTab}

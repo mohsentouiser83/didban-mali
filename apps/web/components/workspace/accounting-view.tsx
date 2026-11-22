@@ -11,7 +11,7 @@ import { JournalDetailsDrawer } from "./journal-details-drawer";
 import { usePosting } from "@/hooks/use-posting";
 import { PostingReviewDialog } from "./posting-review-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
@@ -257,14 +257,6 @@ function JournalWorkspace() {
                           >
                             پاک‌کردن فیلترها
                           </Button>
-                        ) : view.requiresAccounts ? (
-                          <ButtonLink href="/settings/accounts">
-                            تعریف حساب‌ها
-                          </ButtonLink>
-                        ) : view.requiresPeriod ? (
-                          <ButtonLink href="/settings/periods">
-                            تعریف دوره مالی
-                          </ButtonLink>
                         ) : undefined
                       }
                     />

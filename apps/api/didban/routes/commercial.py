@@ -1,5 +1,7 @@
 """API routes for commercial counterparties and proforma documents."""
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Query, Request, Response
 
 from .. import commercial_service as service
@@ -52,7 +54,10 @@ def get_counterparty(company_id: str, counterparty_id: str, request: Request):
 def update_counterparty(
     company_id: str, counterparty_id: str, data: UpdateCounterpartyInput, request: Request
 ):
-    payload = {k: v for k, v in data.model_dump().items() if v is not None}
+    payload = data.model_dump(exclude_unset=True)
+    for field in ("code", "name", "active"):
+        if payload.get(field) is None:
+            payload.pop(field, None)
     return mutate(
         request,
         company_id,
@@ -131,8 +136,9 @@ def export_proforma_pdf(company_id: str, proforma_id: str, request: Request):
         pdf_bytes = service.pdf_commercial_document(
             pf, company_name=comp.name if comp else "شرکت", doc_type="پیش‌فاکتور"
         )
+        filename = quote(f"proforma_{pf['number']}.pdf", safe="")
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=proforma_{pf['number']}.pdf"},
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
         )

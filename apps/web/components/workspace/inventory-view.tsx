@@ -1,19 +1,21 @@
 "use client";
 
-import { PackageIcon, StorefrontIcon } from "@phosphor-icons/react";
+import { PackageIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
-import { Field, FormMessage } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { FormMessage } from "@/components/ui/field";
 import { useInventoryOverview } from "@/hooks/use-inventory";
 import { useWorkspace } from "@/hooks/workspace";
 import { inventoryInvoicePath, inventoryTitle, type InventoryOperation } from "@/lib/inventory";
 import { displayDate, persian } from "@/lib/utils";
 import { InventoryDraftDrawer } from "./inventory-draft-drawer";
-import { InventoryBalanceTable, InventoryMovementTable } from "./inventory-stock-tables";
+import {
+  InventoryBalanceTable,
+  InventoryKardexDrawer,
+} from "./inventory-stock-tables";
 import { JournalPostingLines } from "./journal-posting-lines";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { PostingReviewDialog } from "./posting-review-dialog";
@@ -28,6 +30,7 @@ export function InventoryView() {
 function InventoryWorkspace() {
   const view = useInventoryOverview();
   const [editor, setEditor] = useState<{ kind: InventoryOperation; open: boolean; generation: number }>();
+  const [kardexTarget, setKardexTarget] = useState<{ itemId?: string; warehouseId?: string } | null>(null);
   const openDraft = (kind: InventoryOperation) =>
     setEditor((previous) => ({ kind, open: true, generation: (previous?.generation ?? 0) + 1 }));
   const closeDraft = () =>
@@ -44,26 +47,9 @@ function InventoryWorkspace() {
         title="موجودی و گردش کالا"
         icon={PackageIcon}
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink href="/accounting/inventory/items" variant="secondary">
-              مدیریت کالاها
-            </ButtonLink>
-            <ButtonLink href="/accounting/inventory/warehouses" variant="secondary">
-              مدیریت انبارها
-            </ButtonLink>
-          </div>
-        }
-      />
-      {view.inventory.loading ? (
-        <LoadingState label="در حال دریافت موجودی و گردش کالا" variant="panels" />
-      ) : view.inventory.error ? (
-        <ErrorState message={view.inventory.error.message} onRetry={view.inventory.refresh} />
-      ) : data && (
-        <div className="space-y-5">
-          <Panel
-            title="خرید و فروش کالا"
-            action={data.can_prepare && (
-              <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {data?.can_prepare && (
+              <>
                 <Button
                   disabled={!canCreate}
                   onClick={() => openDraft("purchase_goods")}
@@ -77,47 +63,23 @@ function InventoryWorkspace() {
                 >
                   فروش کالا
                 </Button>
-              </div>
+              </>
             )}
-          >
-            {data.can_prepare && view.accounts.error && (
-              <ErrorState message={view.accounts.error.message} onRetry={view.accounts.refresh} />
-            )}
-            {data.can_prepare && !canCreate && !view.accounts.loading && !view.accounts.error && (
-              <StatusMessage>برای شروع، کالا، انبار، حساب فعال و دورهٔ مالی تعریف کنید.</StatusMessage>
-            )}
-            <div className="flex flex-wrap items-end gap-3">
-              <Field id="inventory-filter-item" label="کالا" icon={PackageIcon}>
-                <Select
-                  id="inventory-filter-item"
-                  label="فیلتر کالا"
-                  value={view.itemId}
-                  onValueChange={view.chooseItem}
-                  options={[
-                    { value: view.all, label: "همهٔ کالاها" },
-                    ...data.items.map((item) => ({ value: item.id, label: item.name })),
-                  ]}
-                  className="sm:w-48"
-                />
-              </Field>
-              <Field id="inventory-filter-warehouse" label="انبار" icon={StorefrontIcon}>
-                <Select
-                  id="inventory-filter-warehouse"
-                  label="فیلتر انبار"
-                  value={view.warehouseId}
-                  onValueChange={view.chooseWarehouse}
-                  options={[
-                    { value: view.all, label: "همهٔ انبارها" },
-                    ...data.warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name })),
-                  ]}
-                  className="sm:w-48"
-                />
-              </Field>
-              {(view.itemId !== view.all || view.warehouseId !== view.all) && (
-                <Button variant="ghost" onClick={view.resetFilters}>پاک‌کردن فیلتر</Button>
-              )}
-            </div>
-          </Panel>
+          </div>
+        }
+      />
+      {view.inventory.loading ? (
+        <LoadingState label="در حال دریافت موجودی و گردش کالا" variant="panels" />
+      ) : view.inventory.error ? (
+        <ErrorState message={view.inventory.error.message} onRetry={view.inventory.refresh} />
+      ) : data && (
+        <div className="space-y-5">
+          {data.can_prepare && view.accounts.error && (
+            <ErrorState message={view.accounts.error.message} onRetry={view.accounts.refresh} />
+          )}
+          {data.can_prepare && !canCreate && !view.accounts.loading && !view.accounts.error && (
+            <StatusMessage>برای شروع، کالا، انبار، حساب فعال و دورهٔ مالی تعریف کنید.</StatusMessage>
+          )}
           {view.pending && (
             <Panel title="آخرین عملیات">
               <div className="flex flex-wrap items-center gap-3" aria-live="polite">
@@ -141,9 +103,18 @@ function InventoryWorkspace() {
             </Panel>
           )}
           <div className="space-y-6">
-            <InventoryBalanceTable view={view} />
-            <InventoryMovementTable view={view} />
+            <InventoryBalanceTable
+              view={view}
+              onViewKardex={(itemId, warehouseId) =>
+                setKardexTarget({ itemId, warehouseId })
+              }
+            />
           </div>
+          <InventoryKardexDrawer
+            view={view}
+            target={kardexTarget}
+            onClose={() => setKardexTarget(null)}
+          />
           {editor && (
             <InventoryDraftDrawer
               key={editor.generation}
@@ -175,7 +146,6 @@ function InventoryWorkspace() {
               سند {persian(journal.data.sequence)} · {displayDate(journal.data.date)} · نسخه {persian(journal.data.draft_version)}
             </p>
             <JournalPostingLines lines={journal.data.snapshot.lines} />
-            <ButtonLink href="/accounting/journals" variant="secondary">دفتر اصلی دیدبان</ButtonLink>
           </div>
         )}
       </Drawer>

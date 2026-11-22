@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { useReportStudio } from "@/hooks/use-report-studio";
@@ -80,9 +80,6 @@ export function ReportStudioView() {
           title={spec.title || "گزارش جدید"}
           action={
             <div className="flex flex-wrap items-center gap-2">
-              <ButtonLink href="/reports" variant="ghost">
-                بازگشت به گزارش‌ها
-              </ButtonLink>
 
               <Button
                 variant="soft"

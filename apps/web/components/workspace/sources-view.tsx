@@ -1,11 +1,14 @@
 "use client";
-import { FilesIcon as HeaderIcon } from "@phosphor-icons/react";
+import { FilesIcon as HeaderIcon, PlusIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Drawer } from "@/components/ui/drawer";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { FormMessage } from "@/components/ui/field";
+import { Field, FormMessage } from "@/components/ui/field";
+import { FilePicker } from "@/components/ui/file-picker";
 import { CursorPagination } from "@/components/ui/pagination";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { useCommand } from "@/hooks/use-command";
 import { usePagedResource } from "@/hooks/use-paged-resource";
+import { useUpload } from "@/hooks/use-upload";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems, type SourceFile } from "@/lib/api";
 import { persian } from "@/lib/utils";
@@ -27,6 +31,8 @@ import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 export function SourcesView() {
   const workspace = useWorkspace();
+  const upload = useUpload();
+  const [openUpload, setOpenUpload] = useState(false);
   const resource = usePagedResource<SourceFile>(
     workspace.companyPath("source-files"),
   );
@@ -35,8 +41,17 @@ export function SourcesView() {
   if (!workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="فایل‌ها و مدارک"
+        action={
+          workspace.canWrite && (
+            <Button onClick={() => setOpenUpload(true)}>
+              <PlusIcon size={18} aria-hidden />
+              بارگذاری جدید
+            </Button>
+          )
+        }
       />
       <Panel>
         {resource.loading ? (
@@ -107,6 +122,68 @@ export function SourcesView() {
           </>
         )}
       </Panel>
+      {workspace.canWrite && (
+        <Drawer
+          title="بارگذاری جدید اسناد و مدارک"
+          open={openUpload}
+          onOpenChange={(value) => {
+            if (!upload.busy) setOpenUpload(value);
+          }}
+        >
+          <div className="space-y-4">
+            <Field id="source-upload-period" label="دوره مالی (اختیاری)">
+              <Select
+                id="source-upload-period"
+                value={workspace.periodId || ""}
+                onValueChange={(value) => workspace.setPeriodId(value || "")}
+                placeholder="انتخاب دوره مالی..."
+                options={workspace.periods.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+              />
+            </Field>
+            <FilePicker
+              onFiles={async (files) => {
+                await upload.upload(files);
+                resource.refresh();
+              }}
+              busy={upload.busy}
+            />
+            {upload.files.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted">فایل‌های ارسالی:</p>
+                {upload.files.map((file, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between rounded-lg border border-border p-2.5 text-xs"
+                  >
+                    <span className="font-medium text-foreground">{file.name}</span>
+                    <Badge
+                      tone={
+                        file.state === "uploaded"
+                          ? "success"
+                          : file.state === "failed"
+                            ? "danger"
+                            : "neutral"
+                      }
+                    >
+                      {file.state === "uploading"
+                        ? "در حال ارسال..."
+                        : file.state === "uploaded"
+                          ? "ارسال شد"
+                          : file.state === "failed"
+                            ? "خطا در ارسال"
+                            : "در صف ارسال"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+            {upload.error && <FormMessage error>{upload.error}</FormMessage>}
+          </div>
+        </Drawer>
+      )}
       <ConfirmDialog
         title="منبع بایگانی شود؟"
         open={!!archiving}

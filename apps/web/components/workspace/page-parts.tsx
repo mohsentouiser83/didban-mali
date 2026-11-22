@@ -1,13 +1,12 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { navigationGroups } from "@/lib/navigation-catalog";
+import { navigationDestinations } from "@/lib/navigation-catalog";
 import { settingsCatalog } from "@/lib/settings-catalog";
 import { useExistingSourceReport } from "@/hooks/use-existing-source-report";
 import { FormMessage } from "@/components/ui/field";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/content-states";
 import {
-  BooksIcon,
   BuildingsIcon,
   PackageIcon,
   StorefrontIcon,
@@ -34,12 +33,7 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const destination = navigationGroups
-    .flatMap((group) => [
-      ...group.items,
-      ...group.items.flatMap((item) => item.children || []),
-    ])
-    .find((item) => item.href === pathname)
+  const destination = navigationDestinations.find((item) => item.href === pathname)
     || settingsCatalog.flatMap((category) => category.items)
       .find((item) => item.href === pathname);
   const category = settingsCatalog.find((item) => item.hub === pathname);
@@ -148,21 +142,7 @@ export function NoResult() {
             <Button busy={controller.busy} onClick={controller.create}>
               محاسبه گزارش
             </Button>
-          ) : controller.workspace.canWrite ? (
-            <div className="flex flex-wrap justify-center gap-2">
-              <ButtonLink href="/accounting">
-                <BooksIcon size={18} aria-hidden />
-                اسناد حسابداری
-              </ButtonLink>
-              <ButtonLink href="/reports" variant="secondary">
-                گزارش‌ها
-              </ButtonLink>
-            </div>
-          ) : (
-            <ButtonLink href="/reports" variant="secondary">
-              گزارش‌ها
-            </ButtonLink>
-          )
+          ) : undefined
         }
       />
       <FormMessage error>{controller.error?.message}</FormMessage>

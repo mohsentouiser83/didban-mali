@@ -1,11 +1,10 @@
 "use client";
 import { GearIcon as HeaderIcon } from "@phosphor-icons/react";
 import Link from "next/link";
-import { ArrowUpLeftIcon, GearSixIcon } from "@phosphor-icons/react";
+import { ArrowUpLeftIcon } from "@phosphor-icons/react";
 import { useSettingsNavigation } from "@/hooks/use-settings-navigation";
 import { settingsCategoryDestination } from "@/lib/settings-catalog";
 import { EmptyState } from "@/components/ui/content-states";
-import { ButtonLink } from "@/components/ui/button";
 import { PageHeader, Panel } from "./page-parts";
 import type { Icon } from "@phosphor-icons/react";
 
@@ -51,14 +50,6 @@ export function SettingsOverviewView({
       <PageHeader
         icon={HeaderIcon}
         title={category?.title || "تنظیمات"}
-        action={
-          categoryKey && (
-            <ButtonLink href="/settings" variant="secondary">
-              <GearSixIcon size={18} aria-hidden className="text-primary" />
-              همه تنظیمات
-            </ButtonLink>
-          )
-        }
       />
       {categoryKey && !category ? (
         <Panel>

@@ -5,7 +5,7 @@ import { ScenarioList } from "./scenario-list";
 import { FlaskIcon } from "@phosphor-icons/react";
 import { useScenarioSource } from "@/hooks/use-scenario-source";
 import { NativeScenariosWorkspace } from "./native-scenarios-workspace";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -95,11 +95,6 @@ export function ImportedScenariosWorkspace() {
               ) : (
                 <EmptyState
                   title="پیش‌بینی معتبر برای سناریو موجود نیست"
-                  action={
-                    <ButtonLink href="/cashflow/forecast">
-                      بررسی پیش‌بینی
-                    </ButtonLink>
-                  }
                 />
               )}
             </>

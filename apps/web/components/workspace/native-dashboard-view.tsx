@@ -1,5 +1,5 @@
 "use client";
-import { ChartBarIcon, SquaresFourIcon, WalletIcon } from "@phosphor-icons/react";
+import { SquaresFourIcon, WalletIcon } from "@phosphor-icons/react";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,29 +19,17 @@ export function NativeDashboardView() {
   return (
     <>
       <PageHeader
-        title="خلاصه مالی"
+        title="داشبورد"
         icon={SquaresFourIcon}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ButtonLink
-              href="/reports/studio"
-              variant="soft"
-              className="gap-1.5 text-xs text-primary"
-            >
-              <ChartBarIcon size={16} />
-              طراحی داشبورد اختصاصی
-            </ButtonLink>
-            {c.data ? (
-              <ButtonLink
-                href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
-                variant="secondary"
-                download
-              >
-                گزارش مبنا PDF
-              </ButtonLink>
-            ) : undefined}
-          </div>
-        }
+        action={c.data && (
+          <ButtonLink
+            href={`/api/v1${c.workspace.companyPath(`accounting/statements/${c.data.id}/export?format=pdf`)}`}
+            variant="secondary"
+            download
+          >
+            گزارش مبنا PDF
+          </ButtonLink>
+        )}
       />
       {c.loading ? (
         <LoadingState />
@@ -49,12 +37,7 @@ export function NativeDashboardView() {
         <ErrorState message={c.error.message} onRetry={c.refresh} />
       ) : !c.data ? (
         <Panel>
-          <EmptyState
-            title="گزارش مالی دفتر اصلی ذخیره نشده"
-            action={
-              <ButtonLink href="/reports/native">تهیه گزارش مالی</ButtonLink>
-            }
-          />
+          <EmptyState title="گزارش مالی دفتر اصلی ذخیره نشده" />
         </Panel>
       ) : (
         <>

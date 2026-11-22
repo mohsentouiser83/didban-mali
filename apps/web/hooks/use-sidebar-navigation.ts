@@ -61,7 +61,25 @@ export function useSidebarNavigation(options?: UseSidebarNavigationOptions) {
     return {};
   });
 
-  const [prevPathname, setPrevPathname] = useState(pathname);
+  const activeGroup = groups.find((group) =>
+    group.items.some((item) => isItemOrChildActive(item, pathname)),
+  );
+  const activeSubgroup = activeGroup?.items.find(
+    (item) => item.children?.length && isItemOrChildActive(item, pathname),
+  );
+  const [pathOverrides, setPathOverrides] = useState<{
+    pathname: string;
+    group?: boolean;
+    subgroup?: boolean;
+  }>({ pathname });
+  if (pathOverrides.pathname !== pathname) setPathOverrides({ pathname });
+
+  const isGroupExpanded = (label?: string) =>
+    !label || (label === activeGroup?.label ? !pathOverrides.group : !collapsed[label]);
+  const isSubgroupExpanded = (label: string) =>
+    label === activeSubgroup?.label
+      ? !pathOverrides.subgroup
+      : collapsedSubgroups[label] === false;
 
   const persistState = useCallback(
     (next: Record<string, boolean>) => {
@@ -89,128 +107,43 @@ export function useSidebarNavigation(options?: UseSidebarNavigationOptions) {
     [subgroupsStorageKey],
   );
 
-  if (prevPathname !== pathname) {
-    setPrevPathname(pathname);
-    const activeGroup = groups.find((group) =>
-      group.items.some((item) => isItemOrChildActive(item, pathname)),
-    );
-    if (activeGroup && collapsed[activeGroup.label]) {
-      const next = { ...collapsed, [activeGroup.label]: false };
-      setCollapsed(next);
-      persistState(next);
-    }
-
-    // Auto-expand any active subgroup with children
-    for (const group of groups) {
-      for (const item of group.items) {
-        if (
-          item.children?.length &&
-          isItemOrChildActive(item, pathname) &&
-          collapsedSubgroups[item.label]
-        ) {
-          const next = { ...collapsedSubgroups, [item.label]: false };
-          setCollapsedSubgroups(next);
-          persistSubgroupsState(next);
-        }
-      }
+  function setGroupCollapsed(label: string, value: boolean) {
+    const next = { ...collapsed, [label]: value };
+    setCollapsed(next);
+    persistState(next);
+    if (label === activeGroup?.label) {
+      setPathOverrides({ ...pathOverrides, group: value });
     }
   }
 
-  const toggleGroup = useCallback(
-    (groupLabel: string) => {
-      setCollapsed((prev) => {
-        const next = { ...prev, [groupLabel]: !prev[groupLabel] };
-        persistState(next);
-        return next;
-      });
-    },
-    [persistState],
-  );
+  function setSubgroupCollapsed(label: string, value: boolean) {
+    const next = { ...collapsedSubgroups, [label]: value };
+    setCollapsedSubgroups(next);
+    persistSubgroupsState(next);
+    if (label === activeSubgroup?.label) {
+      setPathOverrides({ ...pathOverrides, subgroup: value });
+    }
+  }
 
-  const expandGroup = useCallback(
-    (groupLabel: string) => {
-      setCollapsed((prev) => {
-        if (!prev[groupLabel]) return prev;
-        const next = { ...prev, [groupLabel]: false };
-        persistState(next);
-        return next;
-      });
-    },
-    [persistState],
-  );
-
-  const collapseGroup = useCallback(
-    (groupLabel: string) => {
-      setCollapsed((prev) => {
-        if (prev[groupLabel]) return prev;
-        const next = { ...prev, [groupLabel]: true };
-        persistState(next);
-        return next;
-      });
-    },
-    [persistState],
-  );
-
-  const toggleSubgroup = useCallback(
-    (subgroupLabel: string) => {
-      setCollapsedSubgroups((prev) => {
-        const next = { ...prev, [subgroupLabel]: !prev[subgroupLabel] };
-        persistSubgroupsState(next);
-        return next;
-      });
-    },
-    [persistSubgroupsState],
-  );
-
-  const expandSubgroup = useCallback(
-    (subgroupLabel: string) => {
-      setCollapsedSubgroups((prev) => {
-        if (!prev[subgroupLabel]) return prev;
-        const next = { ...prev, [subgroupLabel]: false };
-        persistSubgroupsState(next);
-        return next;
-      });
-    },
-    [persistSubgroupsState],
-  );
-
-  const collapseSubgroup = useCallback(
-    (subgroupLabel: string) => {
-      setCollapsedSubgroups((prev) => {
-        if (prev[subgroupLabel]) return prev;
-        const next = { ...prev, [subgroupLabel]: true };
-        persistSubgroupsState(next);
-        return next;
-      });
-    },
-    [persistSubgroupsState],
-  );
-
-  const expandAll = useCallback(() => {
+  function expandAll() {
+    const nextSubgroups = Object.fromEntries(groups.flatMap((group) =>
+      group.items.filter((item) => item.children?.length).map((item) => [item.label, false]),
+    ));
     setCollapsed({});
     persistState({});
-    setCollapsedSubgroups({});
-    persistSubgroupsState({});
-  }, [persistState, persistSubgroupsState]);
+    setCollapsedSubgroups(nextSubgroups);
+    persistSubgroupsState(nextSubgroups);
+    setPathOverrides({ pathname });
+  }
 
-  const collapseAll = useCallback(() => {
-    const next: Record<string, boolean> = {};
-    for (const g of groups) {
-      next[g.label] = true;
-    }
+  function collapseAll() {
+    const next = Object.fromEntries(groups.flatMap((group) =>
+      group.label ? [[group.label, true]] : [],
+    ));
     setCollapsed(next);
     persistState(next);
-  }, [groups, persistState]);
-
-  const isGroupExpanded = useCallback(
-    (groupLabel: string) => !collapsed[groupLabel],
-    [collapsed],
-  );
-
-  const isSubgroupExpanded = useCallback(
-    (subgroupLabel: string) => !collapsedSubgroups[subgroupLabel],
-    [collapsedSubgroups],
-  );
+    setPathOverrides({ ...pathOverrides, group: true });
+  }
 
   const isGroupActive = useCallback(
     (group: NavigationGroup) =>
@@ -225,12 +158,12 @@ export function useSidebarNavigation(options?: UseSidebarNavigationOptions) {
     isGroupExpanded,
     isSubgroupExpanded,
     isGroupActive,
-    toggleGroup,
-    expandGroup,
-    collapseGroup,
-    toggleSubgroup,
-    expandSubgroup,
-    collapseSubgroup,
+    toggleGroup: (label: string) => setGroupCollapsed(label, isGroupExpanded(label)),
+    expandGroup: (label: string) => setGroupCollapsed(label, false),
+    collapseGroup: (label: string) => setGroupCollapsed(label, true),
+    toggleSubgroup: (label: string) => setSubgroupCollapsed(label, isSubgroupExpanded(label)),
+    expandSubgroup: (label: string) => setSubgroupCollapsed(label, false),
+    collapseSubgroup: (label: string) => setSubgroupCollapsed(label, true),
     expandAll,
     collapseAll,
   };

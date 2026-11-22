@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
-import { listItems, type ResourceList } from "@/lib/api";
+import { toast } from "sonner";
+import { persian } from "@/lib/utils";
+import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
+import { api, listItems, type ResourceList } from "@/lib/api";
 import type {
   Dimension,
   DimensionLine,
@@ -64,6 +67,72 @@ export function useDimensionManagement() {
         },
         "بُعد ذخیره شد.",
       );
+    },
+    importFromExcel: async (parsed: ParsedTableImport) => {
+      if (!workspace.company || !parsed.rows.length) return;
+      const headerMap: Record<string, number> = {};
+      parsed.headers.forEach((h, i) => {
+        headerMap[h.trim().toLowerCase()] = i;
+      });
+
+      const getCol = (names: string[]) => {
+        for (const name of names) {
+          for (const [h, idx] of Object.entries(headerMap)) {
+            if (h.includes(name.toLowerCase())) return idx;
+          }
+        }
+        return -1;
+      };
+
+      const codeIdx = getCol(["کد", "کد بعد", "code"]);
+      const nameIdx = getCol(["نام", "عنوان", "نام بعد", "عنوان بعد", "name", "title"]);
+      const kindIdx = getCol(["نوع", "نوع بعد", "دسته", "kind", "type"]);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const row of parsed.rows) {
+        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
+        const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
+        if (!code || !name) continue;
+
+        let kind: "project" | "branch" | "cost_center" = "project";
+        if (kindIdx >= 0) {
+          const rawKind = String(row[kindIdx] ?? "").toLowerCase();
+          if (rawKind.includes("هزینه") || rawKind.includes("مرکز") || rawKind.includes("cost")) {
+            kind = "cost_center";
+          } else if (rawKind.includes("شعبه") || rawKind.includes("branch")) {
+            kind = "branch";
+          } else {
+            kind = "project";
+          }
+        }
+
+        const payload = {
+          code,
+          name,
+          kind,
+          active: true,
+        };
+
+        try {
+          await api(workspace.companyPath("dimensions")!, {
+            method: "POST",
+            body: payload,
+          });
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      resource.refresh();
+      if (successCount > 0) {
+        toast.success(`${persian(successCount)} بُعد مالی با موفقیت در پایگاه داده ثبت شد.`);
+      }
+      if (failCount > 0) {
+        toast.warning(`${persian(failCount)} مورد به دلیل تکراری بودن کد یا خطای اعتبارسنجی ثبت نشد.`);
+      }
     },
   };
 }

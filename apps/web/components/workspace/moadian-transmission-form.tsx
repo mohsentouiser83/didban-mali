@@ -1,4 +1,4 @@
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -192,7 +192,6 @@ export function MoadianTransmissionForm({ view }: { view: MoadianTransmissionCon
             !view.invoiceOptions.length ? (
               <EmptyState
                 title="فاکتور فروش قابل ارسال موجود نیست"
-                action={<ButtonLink href="/receivables" variant="secondary">فاکتورهای فروش</ButtonLink>}
               />
             ) : <FiscalFields view={view} />}
     </Drawer>

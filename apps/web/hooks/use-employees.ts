@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Employee, EmployeeInput } from "@/lib/api";
+import { api, type Employee, type EmployeeInput } from "@/lib/api";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+import type { ParsedTableImport } from "@/components/ui/table";
+import { toast } from "sonner";
+import { persian } from "@/lib/utils";
 
 const defaultEmployeeInput: EmployeeInput = {
   employee_code: "",
@@ -132,6 +135,101 @@ export function useEmployees() {
     );
   };
 
+  const importFromExcel = async (parsed: ParsedTableImport) => {
+    if (!workspace.company || !parsed.rows.length) return;
+
+    const headerMap: Record<string, number> = {};
+    parsed.headers.forEach((h, i) => {
+      headerMap[h.trim().toLowerCase()] = i;
+    });
+
+    const getCol = (names: string[]) => {
+      for (const name of names) {
+        for (const [h, idx] of Object.entries(headerMap)) {
+          if (h.includes(name.toLowerCase())) return idx;
+        }
+      }
+      return -1;
+    };
+
+    const codeIdx = getCol(["کد پرسنلی", "کد کارمندی", "شماره پرسنلی", "کد", "code"]);
+    const fullNameIdx = getCol(["نام و نام خانوادگی", "نام کامل", "full_name"]);
+    const firstNameIdx = getCol(["نام", "first_name"]);
+    const lastNameIdx = getCol(["نام خانوادگی", "فامیلی", "شهرت", "last_name"]);
+    const nationalIdIdx = getCol(["کد ملی", "شناسه ملی", "شماره ملی", "national_id"]);
+    const jobIdx = getCol(["عنوان شغلی", "سمت", "شغل", "job_title"]);
+    const deptIdx = getCol(["واحد", "دپارتمان", "بخش", "department"]);
+    const phoneIdx = getCol(["تلفن", "موبایل", "شماره تماس", "phone"]);
+    const ibanIdx = getCol(["شبا", "شماره شبا", "iban"]);
+    const bankIdx = getCol(["بانک", "نام بانک", "bank_name"]);
+    const accIdx = getCol(["شماره حساب", "حساب", "account_number"]);
+    const childrenIdx = getCol(["تعداد فرزند", "اولاد", "فرزندان", "children"]);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const row of parsed.rows) {
+      const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
+      if (!code) continue;
+
+      let firstName = "";
+      let lastName = "";
+
+      if (lastNameIdx >= 0 && firstNameIdx >= 0 && lastNameIdx !== firstNameIdx) {
+        firstName = String(row[firstNameIdx] ?? "").trim();
+        lastName = String(row[lastNameIdx] ?? "").trim();
+      } else if (fullNameIdx >= 0) {
+        const parts = String(row[fullNameIdx] ?? "").trim().split(/\s+/);
+        firstName = parts[0] || "";
+        lastName = parts.slice(1).join(" ") || parts[0] || "";
+      } else if (firstNameIdx >= 0) {
+        firstName = String(row[firstNameIdx] ?? "").trim();
+        lastName = code;
+      }
+
+      const payload: EmployeeInput = {
+        employee_code: code,
+        first_name: firstName || "کارمند",
+        last_name: lastName || code,
+        identity_type: "national_id",
+        national_id: nationalIdIdx >= 0 ? String(row[nationalIdIdx] ?? "").trim() || undefined : undefined,
+        job_title: jobIdx >= 0 ? String(row[jobIdx] ?? "").trim() || undefined : undefined,
+        department: deptIdx >= 0 ? String(row[deptIdx] ?? "").trim() || undefined : undefined,
+        phone: phoneIdx >= 0 ? String(row[phoneIdx] ?? "").trim() || undefined : undefined,
+        iban: ibanIdx >= 0 ? String(row[ibanIdx] ?? "").trim() || undefined : undefined,
+        bank_name: bankIdx >= 0 ? String(row[bankIdx] ?? "").trim() || undefined : undefined,
+        account_number: accIdx >= 0 ? String(row[accIdx] ?? "").trim() || undefined : undefined,
+        children_count: childrenIdx >= 0 ? Number(row[childrenIdx]) || 0 : 0,
+        marital_status: "single",
+        active: true,
+        is_veteran_or_child: false,
+        is_foreign_national: false,
+        is_science_park_staff: false,
+        has_disability_charge: false,
+        is_underdeveloped_region: false,
+        is_retired: false,
+      };
+
+      try {
+        await api(`/companies/${workspace.company.id}/employees`, {
+          method: "POST",
+          body: payload,
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    resource.refresh();
+    if (successCount > 0) {
+      toast.success(`${persian(successCount)} کارمند جدید با موفقیت از اکسل در سامانه ثبت شد.`);
+    }
+    if (failCount > 0) {
+      toast.warning(`${persian(failCount)} ردیف به دلیل خطای اعتبارسنجی یا تکراری بودن کد پرسنلی ثبت نشد.`);
+    }
+  };
+
   return {
     workspace,
     command,
@@ -150,6 +248,7 @@ export function useEmployees() {
     setForm,
     save,
     remove,
+    importFromExcel,
     refresh: resource.refresh,
   };
 }

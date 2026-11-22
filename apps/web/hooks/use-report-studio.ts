@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useCommand } from "./use-command";
 import { api } from "@/lib/api";
@@ -68,32 +68,35 @@ export function useReportStudio() {
   }, [companyId, workspace]);
 
   // Fetch live preview of current spec
-  function fetchPreview(specToPreview = spec) {
-    const path = workspace.companyPath("report-studio/preview");
-    if (!path || !specToPreview.global_filters.period_id) return;
-    generation.current += 1;
-    const currentGen = generation.current;
-    setPreviewLoading(true);
-    setPreviewError(null);
+  const fetchPreview = useCallback(
+    (specToPreview = spec) => {
+      const path = workspace.companyPath("report-studio/preview");
+      if (!path || !specToPreview.global_filters.period_id) return;
+      generation.current += 1;
+      const currentGen = generation.current;
+      setPreviewLoading(true);
+      setPreviewError(null);
 
-    api<StudioPreviewResult>(path, {
-      method: "POST",
-      body: { spec: specToPreview },
-    })
-      .then((result) => {
-        if (currentGen !== generation.current) return;
-        setPreview(result);
+      api<StudioPreviewResult>(path, {
+        method: "POST",
+        body: { spec: specToPreview },
       })
-      .catch((err) => {
-        if (currentGen !== generation.current) return;
-        setPreviewError(err);
-      })
-      .finally(() => {
-        if (currentGen === generation.current) {
-          setPreviewLoading(false);
-        }
-      });
-  }
+        .then((result) => {
+          if (currentGen !== generation.current) return;
+          setPreview(result);
+        })
+        .catch((err) => {
+          if (currentGen !== generation.current) return;
+          setPreviewError(err);
+        })
+        .finally(() => {
+          if (currentGen === generation.current) {
+            setPreviewLoading(false);
+          }
+        });
+    },
+    [workspace, spec],
+  );
 
   // Synchronize spec with workspace.periodId if initial was default
   const [prevPeriod, setPrevPeriod] = useState(workspace.periodId);
@@ -109,40 +112,30 @@ export function useReportStudio() {
     }));
   }
 
-  // Initial preview on load
+  // Initial preview on load and live updates on spec change
   const periodId = spec.global_filters.period_id;
 
   useEffect(() => {
     if (!companyId || !periodId) return;
     let active = true;
-    const path = workspace.companyPath("report-studio/preview");
-    if (!path) return;
 
-    api<StudioPreviewResult>(path, {
-      method: "POST",
-      body: { spec },
-    })
-      .then((res) => {
-        if (active) setPreview(res);
-      })
-      .catch((err) => {
-        if (active) setPreviewError(err);
-      });
+    const timer = setTimeout(() => {
+      if (active) {
+        fetchPreview(spec);
+      }
+    }, 0);
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
-  }, [companyId, periodId, spec, workspace]);
+  }, [companyId, periodId, spec, fetchPreview]);
 
   function updateGlobalFilters(updates: Partial<StudioGlobalFilters>) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        global_filters: { ...prev.global_filters, ...updates },
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      global_filters: { ...prev.global_filters, ...updates },
+    }));
   }
 
   function addSection(layout: StudioLayoutType = "grid-2", basis: StudioBasisType = "all") {
@@ -153,11 +146,10 @@ export function useReportStudio() {
       basis,
       widgets: [],
     };
-    setSpec((prev) => {
-      const next = { ...prev, sections: [...prev.sections, newSection] };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: [...prev.sections, newSection],
+    }));
   }
 
   function reorderSection(sectionId: string, targetIndex: number) {
@@ -168,32 +160,22 @@ export function useReportStudio() {
       const newSections = [...prev.sections];
       const [moved] = newSections.splice(currentIndex, 1);
       newSections.splice(targetIndex, 0, moved);
-      const next = { ...prev, sections: newSections };
-      fetchPreview(next);
-      return next;
+      return { ...prev, sections: newSections };
     });
   }
 
   function removeSection(sectionId: string) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        sections: prev.sections.filter((s) => s.id !== sectionId),
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: prev.sections.filter((s) => s.id !== sectionId),
+    }));
   }
 
   function updateSection(sectionId: string, updates: Partial<StudioSectionSpec>) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        sections: prev.sections.map((s) => (s.id === sectionId ? { ...s, ...updates } : s)),
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) => (s.id === sectionId ? { ...s, ...updates } : s)),
+    }));
   }
 
   function moveSection(sectionId: string, direction: "up" | "down") {
@@ -207,38 +189,28 @@ export function useReportStudio() {
       const temp = newSections[index];
       newSections[index] = newSections[targetIndex];
       newSections[targetIndex] = temp;
-      const next = { ...prev, sections: newSections };
-      fetchPreview(next);
-      return next;
+      return { ...prev, sections: newSections };
     });
   }
 
   function addWidget(sectionId: string, widget: StudioWidgetSpec) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        sections: prev.sections.map((s) =>
-          s.id === sectionId ? { ...s, widgets: [...s.widgets, widget] } : s,
-        ),
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId ? { ...s, widgets: [...s.widgets, widget] } : s,
+      ),
+    }));
   }
 
   function removeWidget(sectionId: string, widgetId: string) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        sections: prev.sections.map((s) =>
-          s.id === sectionId
-            ? { ...s, widgets: s.widgets.filter((w) => w.id !== widgetId) }
-            : s,
-        ),
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? { ...s, widgets: s.widgets.filter((w) => w.id !== widgetId) }
+          : s,
+      ),
+    }));
   }
 
   function updateWidget(
@@ -246,23 +218,19 @@ export function useReportStudio() {
     widgetId: string,
     updates: Partial<StudioWidgetSpec>,
   ) {
-    setSpec((prev) => {
-      const next = {
-        ...prev,
-        sections: prev.sections.map((s) =>
-          s.id === sectionId
-            ? {
-                ...s,
-                widgets: s.widgets.map((w) =>
-                  w.id === widgetId ? { ...w, ...updates } : w,
-                ),
-              }
-            : s,
-        ),
-      };
-      fetchPreview(next);
-      return next;
-    });
+    setSpec((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              widgets: s.widgets.map((w) =>
+                w.id === widgetId ? { ...w, ...updates } : w,
+              ),
+            }
+          : s,
+      ),
+    }));
   }
 
   function interpretPrompt(promptText: string) {

@@ -1,5 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { persian } from "@/lib/utils";
+import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
 import {
   api,
   ApiError,
@@ -333,6 +336,68 @@ export function useLedgerAccounts() {
     close: () => setEditing(undefined),
     change: (patch: Partial<typeof value>) =>
       setValue((previous) => ({ ...previous, ...patch })),
+    importFromExcel: async (parsed: ParsedTableImport) => {
+      if (!workspace.company || !parsed.rows.length) return;
+      const headerMap: Record<string, number> = {};
+      parsed.headers.forEach((h, i) => {
+        headerMap[h.trim().toLowerCase()] = i;
+      });
+
+      const getCol = (names: string[]) => {
+        for (const name of names) {
+          for (const [h, idx] of Object.entries(headerMap)) {
+            if (h.includes(name.toLowerCase())) return idx;
+          }
+        }
+        return -1;
+      };
+
+      const codeIdx = getCol(["کد حساب", "کد", "code", "کد کل", "کد معین"]);
+      const nameIdx = getCol(["نام حساب", "عنوان حساب", "نام", "عنوان", "شرح حساب", "name", "title"]);
+      const natureIdx = getCol(["ماهیت", "ماهیت حساب", "nature"]);
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const row of parsed.rows) {
+        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
+        const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
+        if (!code || !name) continue;
+
+        let nature: AccountNature = "debit";
+        if (natureIdx >= 0) {
+          const rawNat = String(row[natureIdx] ?? "").toLowerCase();
+          if (rawNat.includes("بستان") || rawNat.includes("credit")) nature = "credit";
+          else if (rawNat.includes("شناور") || rawNat.includes("float")) nature = "floating";
+          else if (rawNat.includes("خنثی") || rawNat.includes("بدون") || rawNat === "none") nature = "none";
+        }
+
+        const payload = {
+          code,
+          name,
+          nature,
+          active: true,
+        };
+
+        try {
+          await api(workspace.companyPath("accounting/accounts")!, {
+            method: "POST",
+            body: payload,
+          });
+          successCount++;
+        } catch {
+          failCount++;
+        }
+      }
+
+      resource.refresh();
+      if (successCount > 0) {
+        toast.success(`${persian(successCount)} حساب با موفقیت در پایگاه داده ثبت شد.`);
+      }
+      if (failCount > 0) {
+        toast.warning(`${persian(failCount)} حساب به دلیل تکراری بودن کد یا خطای اعتبارسنجی ثبت نشد.`);
+      }
+    },
   };
 }
 

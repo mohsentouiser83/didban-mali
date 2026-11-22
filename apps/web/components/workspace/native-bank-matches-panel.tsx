@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Drawer } from "@/components/ui/drawer";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -87,9 +87,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
       ) : !view.statementChoices.length ? (
         <EmptyState
           title="نسخهٔ ثابت دفتر دیدبان موجود نیست"
-          action={
-            <ButtonLink href="/reports/native">ساخت نسخهٔ گزارش</ButtonLink>
-          }
         />
       ) : (
         <>
@@ -114,7 +111,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
             <EmptyState
               title="گردش بانکی برای تطبیق موجود نیست"
               description="تراکنش‌های بانکی را ثبت کنید تا تطبیق خودکار انجام شود."
-              action={<ButtonLink href="/accounting">اسناد</ButtonLink>}
             />
           ) : (
             view.current.statementId && (

@@ -1,12 +1,9 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent } from "react";
-import Link from "next/link";
 import {
   ArrowClockwiseIcon,
-  BellIcon,
   CameraIcon,
-  FileTextIcon,
   TrashIcon,
   UserCircleIcon,
 } from "@phosphor-icons/react";
@@ -292,30 +289,11 @@ function ProfileContent({
         >
           {workspace.company ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted">
-                <p>
-                  اتصال حساب تلگرام یا بله به شرکت{" "}
-                  <strong className="text-foreground">{workspace.company.name}</strong>{" "}
-                  جهت پرسش از گزارش‌ها و دریافت مدارک مالی.
-                </p>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/settings/connections/documents"
-                    className="inline-flex items-center gap-1 text-xs text-primary transition-colors hover:underline"
-                  >
-                    <FileTextIcon size={14} aria-hidden />
-                    مدارک ارسالی بات
-                  </Link>
-                  <span className="text-border">|</span>
-                  <Link
-                    href="/settings/connections/notifications"
-                    className="inline-flex items-center gap-1 text-xs text-primary transition-colors hover:underline"
-                  >
-                    <BellIcon size={14} aria-hidden />
-                    اعلان‌های بات
-                  </Link>
-                </div>
-              </div>
+              <p className="text-sm text-muted">
+                اتصال حساب تلگرام یا بله به شرکت{" "}
+                <strong className="text-foreground">{workspace.company.name}</strong>{" "}
+                جهت پرسش از گزارش‌ها و دریافت مدارک مالی.
+              </p>
 
               {botView.loading ? (
                 <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />

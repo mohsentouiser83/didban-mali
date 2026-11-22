@@ -192,6 +192,16 @@ def test_counterparty_crud_and_credit_limit(commercial_env, db_session):
     )
 
 
+    cleared = update_counterparty(
+        db_session, c_id, user, cp["id"],
+        {"credit_limit_irr": None, "phone": None},
+        version=updated["version"],
+    )
+    assert cleared["credit_limit_irr"] is None
+    assert cleared["phone"] is None
+    assert cleared["national_id"] == payload["national_id"]
+
+
 def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
     c_id = commercial_env["company"].id
     user = commercial_env["user"]

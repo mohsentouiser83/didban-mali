@@ -25,13 +25,11 @@ function ChequeWorkspace() {
   return (
     <>
       <PageHeader
-        title="چک‌ها"
+        title="چک‌های صیادی"
         icon={ReceiptIcon}
-        action={
-          c.workspace.canWrite ? (
-            <Button onClick={c.showCreate}>ثبت چک</Button>
-          ) : undefined
-        }
+        action={c.workspace.canWrite && (
+          <Button onClick={c.showCreate}>ثبت چک جدید</Button>
+        )}
       />
       <Panel>
         {c.resource.loading ? (
@@ -43,7 +41,7 @@ function ChequeWorkspace() {
           />
         ) : (
           <>
-            <Table>
+            <Table title="فهرست چک‌ها" onImport={c.importFromExcel}>
               <TableHeader>
                 <TableRow>
                   <TableHead>شماره</TableHead>

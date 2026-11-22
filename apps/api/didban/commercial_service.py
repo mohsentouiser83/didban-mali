@@ -73,8 +73,10 @@ def update_counterparty(
         )
         require(not duplicate, "duplicate_counterparty_code", "این شناسه طرف حساب قبلاً ثبت شده است.", 409)
         cp.code = data["code"]
-    for field in ("name", "national_id", "economic_code", "phone", "address"):
-        if field in data and data[field] is not None:
+    if data.get("name") is not None:
+        cp.name = data["name"]
+    for field in ("national_id", "economic_code", "phone", "address"):
+        if field in data:
             setattr(cp, field, data[field])
     if "credit_limit_irr" in data:
         cp.credit_limit_irr = (

@@ -3,12 +3,11 @@ import { useEffect, useState } from "react";
 import {
   ArrowCounterClockwiseIcon,
   CheckCircleIcon,
-  PencilSimpleIcon,
   SquaresFourIcon as HeaderIcon,
   SquaresFourIcon,
 } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -25,7 +24,6 @@ import { NativeDashboardView } from "./native-dashboard-view";
 import { useDashboard } from "@/hooks/use-financial-view";
 import { amount, displayDate } from "@/lib/utils";
 import {
-  ArrowUpLeftIcon,
   UsersThreeIcon,
   ReceiptIcon,
   ClockCounterClockwiseIcon,
@@ -47,7 +45,7 @@ export function ImportedDashboardView() {
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="خلاصه مالی"
+        title="داشبورد"
       />
       {view.loading ? (
         <LoadingState />
@@ -91,29 +89,18 @@ export function ImportedDashboardView() {
                 {
                   key: "ar_invoice",
                   label: "مطالبات فاکتوری",
-                  href: "/receivables",
                   icon: UsersThreeIcon,
                 },
                 {
                   key: "ap_invoice",
                   label: "بدهی فاکتوری",
-                  href: "/payables",
                   icon: ReceiptIcon,
                 },
               ].map((item) => (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className="group -m-2 rounded-control p-2 outline-none transition-colors duration-200 ease-interface hover:bg-surface/80 focus-visible:bg-surface/80 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-                >
-                  <p className="flex items-center gap-2 text-xs text-muted group-hover:text-primary group-focus-visible:text-primary">
+                <div key={item.key}>
+                  <p className="flex items-center gap-2 text-xs text-muted">
                     <item.icon size={18} aria-hidden className="text-primary" />
                     {item.label}
-                    <ArrowUpLeftIcon
-                      size={14}
-                      className="ms-auto shrink-0 text-primary"
-                      aria-hidden
-                    />
                   </p>
                   <div className="mt-1 flex flex-wrap items-baseline gap-2">
                     <span className="text-metric font-medium tabular-nums">
@@ -123,7 +110,7 @@ export function ImportedDashboardView() {
                       {unit === "IRR" ? "ریال" : "تومان"}
                     </span>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </section>
@@ -136,51 +123,19 @@ export function ImportedDashboardView() {
             ]}
           />
           <div className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_1fr]">
-            <Panel
-              title="مسیر نقدینگی"
-              action={
-                <ButtonLink
-                  href="/cashflow"
-                  variant="ghost"
-                  className="px-3 text-xs text-primary"
-                >
-                  جزئیات
-                  <ArrowUpLeftIcon size={16} aria-hidden />
-                </ButtonLink>
-              }
-            >
+            <Panel title="مسیر نقدینگی">
               <CashChart
                 unit={unit}
                 days={view.manifest.details.daily_cash || []}
               />
             </Panel>
-            <Panel
-              title="اولویت رسیدگی"
-              action={
-                <ButtonLink
-                  href="/review"
-                  variant="ghost"
-                  className="px-3 text-xs text-primary"
-                >
-                  مشاهده همه
-                  <ArrowUpLeftIcon size={16} aria-hidden />
-                </ButtonLink>
-              }
-            >
+            <Panel title="اولویت رسیدگی">
               {view.findings.length ? (
                 <div className="divide-y divide-border">
                   {view.findings.map((finding) => (
-                    <Link
-                      key={finding.id}
-                      href="/review"
-                      className="group flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-4 outline-none transition-colors duration-200 ease-interface hover:bg-primary-soft/50 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-                    >
-                      <span>{finding.title}</span>
-                      <ArrowUpLeftIcon
-                        size={18}
-                        className="shrink-0 text-primary"
-                      />
-                    </Link>
+                    <p key={finding.id} className="px-3 py-4">
+                      {finding.title}
+                    </p>
                   ))}
                 </div>
               ) : (
@@ -299,15 +254,6 @@ export function DashboardView() {
                 داشبورد استاندارد دیدبان
               </Button>
 
-              <ButtonLink
-                href="/reports/studio"
-                variant="soft"
-                className="gap-1.5 text-xs text-primary hover:bg-primary-soft/50"
-              >
-                <PencilSimpleIcon size={15} />
-                ویرایش در استودیو
-              </ButtonLink>
-
               {workspace.canWrite && (
                 <Button
                   variant="ghost"
@@ -343,11 +289,6 @@ export function DashboardView() {
           <Panel>
             <EmptyState
               title="بخش یا ویجتی در این داشبورد تعریف نشده است"
-              action={
-                <ButtonLink href="/reports/studio">
-                  طراحی بخش‌ها در استودیو
-                </ButtonLink>
-              }
             />
           </Panel>
         )}

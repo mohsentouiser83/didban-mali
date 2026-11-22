@@ -113,9 +113,7 @@ function Workspace() {
                   : "حساب‌های ترازنامه‌ای انتخابی"}
               </legend>
               {!c.visibleAccounts.length && (
-                <ButtonLink href="/settings/account-roles" variant="secondary">
-                  تعیین نقش حساب‌ها
-                </ButtonLink>
+                <p className="text-sm text-muted">حسابی با نقش موردنیاز تعریف نشده است.</p>
               )}
               {c.visibleAccounts.map((account) => (
                 <Checkbox

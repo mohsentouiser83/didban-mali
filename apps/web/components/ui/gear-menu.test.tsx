@@ -2,9 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GearMenu } from "./gear-menu";
 import { settingsCatalog } from "@/lib/settings-catalog";
+import { BankIcon } from "@phosphor-icons/react";
 
 describe("GearMenu", () => {
-  it("renders side-by-side grid layout with categories", () => {
+  it("renders categories initially in the gear menu", () => {
     const onNavigate = vi.fn();
     const onOpenChange = vi.fn();
 
@@ -18,13 +19,38 @@ describe("GearMenu", () => {
       />,
     );
 
-    const nav = screen.getByRole("navigation", { name: "تنظیمات" });
-    expect(nav).toBeInTheDocument();
-    expect(nav).toHaveClass("grid-cols-2");
+    const categoriesNav = screen.getByRole("navigation", {
+      name: "دسته‌بندی‌های تنظیمات",
+    });
+    expect(categoriesNav).toBeInTheDocument();
 
-    const accessLink = screen.getByRole("link", { name: /دسترسی/ });
-    expect(accessLink).toBeVisible();
-    expect(accessLink).toHaveAttribute("href", "/settings/members");
+    expect(screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /کارمندان و پرسنل/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /شرکت و دسترسی/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /میز کار تطبیق و مغایرت/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /انبار و کالا/ })).toBeVisible();
+  });
+
+  it("entering a category reveals cards for that category and allows navigation", () => {
+    const onNavigate = vi.fn();
+
+    render(
+      <GearMenu
+        open={true}
+        onOpenChange={vi.fn()}
+        pathname="/dashboard"
+        onNavigate={onNavigate}
+        categories={settingsCatalog}
+      />,
+    );
+
+    const accountingBtn = screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ });
+    fireEvent.click(accountingBtn);
+
+    const cardsNav = screen.getByRole("navigation", {
+      name: "تعاریف مالی و حسابداری",
+    });
+    expect(cardsNav).toBeInTheDocument();
 
     const accountsLink = screen.getByRole("link", { name: /کدینگ حساب‌ها/ });
     expect(accountsLink).toBeVisible();
@@ -42,25 +68,91 @@ describe("GearMenu", () => {
     expect(numberingLink).toBeVisible();
     expect(numberingLink).toHaveAttribute("href", "/settings/numbering");
 
-    fireEvent.click(accessLink);
+    fireEvent.click(accountsLink);
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
-  it("marks the active route correctly", () => {
+  it("back button returns from category cards view to categories view", () => {
     render(
       <GearMenu
         open={true}
         onOpenChange={vi.fn()}
-        pathname="/settings/members"
+        pathname="/dashboard"
         onNavigate={vi.fn()}
         categories={settingsCatalog}
       />,
     );
 
-    const accessLink = screen.getByRole("link", { name: /دسترسی/ });
-    expect(accessLink).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: /کارمندان و پرسنل/ }));
 
-    const numberingLink = screen.getByRole("link", { name: /شماره‌گذاری/ });
-    expect(numberingLink).not.toHaveAttribute("aria-current");
+    expect(
+      screen.getByRole("navigation", { name: "کارمندان و پرسنل" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^کارمندان/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /قرارداد کارمندان/ })).toBeVisible();
+
+    const backBtn = screen.getByRole("button", { name: /بازگشت به دسته‌بندی‌ها/ });
+    fireEvent.click(backBtn);
+
+    expect(
+      screen.getByRole("navigation", { name: "دسته‌بندی‌های تنظیمات" }),
+    ).toBeInTheDocument();
+  });
+
+  it("marks the active route correctly inside category cards", () => {
+    render(
+      <GearMenu
+        open={true}
+        onOpenChange={vi.fn()}
+        pathname="/settings/accounts"
+        onNavigate={vi.fn()}
+        categories={settingsCatalog}
+      />,
+    );
+
+    // Enter accounting category
+    fireEvent.click(screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ }));
+
+    const accountsLink = screen.getByRole("link", { name: /کدینگ حساب‌ها/ });
+    expect(accountsLink).toHaveAttribute("aria-current", "page");
+
+    const periodsLink = screen.getByRole("link", { name: /دوره‌های مالی/ });
+    expect(periodsLink).not.toHaveAttribute("aria-current");
+  });
+
+  it("displays search results when query is provided", () => {
+    const onNavigate = vi.fn();
+    const results = [
+      {
+        key: "reconciliation-bank",
+        href: "/reconciliation",
+        label: "تطبیق بانک و دفتر",
+        categoryTitle: "میز کار تطبیق و مغایرت",
+        icon: BankIcon,
+      },
+    ];
+
+    render(
+      <GearMenu
+        open={true}
+        onOpenChange={vi.fn()}
+        pathname="/dashboard"
+        onNavigate={onNavigate}
+        categories={settingsCatalog}
+        query="تطبیق"
+        onQueryChange={vi.fn()}
+        results={results}
+      />,
+    );
+
+    const searchNav = screen.getByRole("navigation", { name: "نتایج جستجو" });
+    expect(searchNav).toBeInTheDocument();
+
+    const resultLink = screen.getByRole("link", { name: /تطبیق بانک و دفتر/ });
+    expect(resultLink).toBeVisible();
+    expect(resultLink).toHaveAttribute("href", "/reconciliation");
+
+    fireEvent.click(resultLink);
+    expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 });

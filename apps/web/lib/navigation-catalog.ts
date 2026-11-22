@@ -1,219 +1,125 @@
 import {
-  ArrowsLeftRightIcon,
-  BankIcon,
-  BarcodeIcon,
-  BooksIcon,
-  ChartLineUpIcon,
-  FilesIcon,
-  PackageIcon,
-  ReceiptIcon,
-  SquaresFourIcon,
-  StorefrontIcon,
-  UsersThreeIcon,
-  WalletIcon,
-  type Icon,
+  ArrowsLeftRightIcon, BankIcon, BooksIcon, CalendarBlankIcon, ChartLineUpIcon,
+  FilesIcon, PackageIcon, ReceiptIcon, ShoppingCartIcon, SquaresFourIcon,
+  StorefrontIcon, UsersThreeIcon, WalletIcon, type Icon,
 } from "@phosphor-icons/react";
 
 export interface NavigationItem {
   href: string;
   label: string;
   icon: Icon;
-  badge?: string;
-  adminOnly?: boolean;
+  matches?: string[];
   children?: NavigationItem[];
 }
 
 export interface NavigationGroup {
-  label: string;
+  label?: string;
   items: NavigationItem[];
 }
 
 export const navigationGroups: NavigationGroup[] = [
-  {
-    label: "داشبورد",
-    items: [
-      { href: "/", label: "خلاصه مالی", icon: SquaresFourIcon },
-    ],
-  },
+  { items: [{ href: "/", label: "داشبورد", icon: SquaresFourIcon }] },
   {
     label: "حسابداری",
     items: [
-      { href: "/accounting", label: "اسناد", icon: BooksIcon },
       {
-        href: "/settlements",
-        label: "دریافت و پرداخت",
-        icon: ArrowsLeftRightIcon,
-      },
-      {
-        href: "/reconciliation",
-        label: "تطبیق و مغایرت‌گیری",
-        icon: ArrowsLeftRightIcon,
+        href: "/accounting", label: "اسناد حسابداری", icon: BooksIcon,
         children: [
-          {
-            href: "/reconciliation",
-            label: "تطبیق بانک و دفتر",
-            icon: BankIcon,
-          },
-          {
-            href: "/reconciliation/counterparties",
-            label: "تطبیق طرف‌حساب‌ها",
-            icon: UsersThreeIcon,
-          },
-          {
-            href: "/reconciliation/moadian",
-            label: "تطبیق کارپوشه مؤدیان",
-            icon: ReceiptIcon,
-          },
+          { href: "/accounting", label: "پیش‌نویس‌ها", icon: FilesIcon },
+          { href: "/accounting/journals", label: "دفتر روزنامه", icon: BooksIcon },
+          { href: "/accounting/operations", label: "عملیات حسابداری", icon: ArrowsLeftRightIcon },
+          { href: "/accounting/period-end", label: "بستن و افتتاح دوره", icon: CalendarBlankIcon },
         ],
       },
       {
-        href: "/accounting/inventory",
-        label: "انبار",
-        icon: PackageIcon,
+        href: "/receivables", label: "خرید و فروش", icon: ShoppingCartIcon,
         children: [
-          {
-            href: "/accounting/inventory",
-            label: "موجودی و کاردکس",
-            icon: PackageIcon,
-          },
-          {
-            href: "/accounting/inventory/items",
-            label: "کالاها",
-            icon: BarcodeIcon,
-          },
-          {
-            href: "/accounting/inventory/warehouses",
-            label: "انبارها",
-            icon: StorefrontIcon,
-          },
+          { href: "/receivables", label: "فاکتورهای فروش", icon: ReceiptIcon },
+          { href: "/payables", label: "فاکتورهای خرید", icon: ShoppingCartIcon },
+          { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
+          { href: "/commercial/counterparties", label: "طرف‌حساب‌ها", icon: UsersThreeIcon },
         ],
       },
       {
-        href: "/payroll",
-        label: "حقوق و دستمزد",
-        icon: UsersThreeIcon,
+        href: "/settlements", label: "دریافت و پرداخت", icon: ArrowsLeftRightIcon,
+        children: [
+          { href: "/settlements", label: "تسویه‌ها", icon: ArrowsLeftRightIcon },
+          { href: "/settlements/cheques", label: "چک‌های صیادی", icon: ReceiptIcon },
+          { href: "/settlements/plans", label: "برنامه پرداخت", icon: CalendarBlankIcon },
+          { href: "/receivables/followups", label: "پیگیری وصول", icon: UsersThreeIcon },
+        ],
       },
-      { href: "/moadian", label: "مؤدیان", icon: ReceiptIcon },
+      {
+        href: "/accounting/inventory", label: "انبار", icon: PackageIcon,
+        children: [
+          { href: "/accounting/inventory", label: "موجودی و کاردکس", icon: PackageIcon },
+          { href: "/accounting/inventory/items", label: "کالاها و خدمات", icon: ShoppingCartIcon },
+          { href: "/accounting/inventory/warehouses", label: "انبارها", icon: StorefrontIcon },
+        ],
+      },
+      {
+        href: "/payroll", label: "حقوق و دستمزد", icon: UsersThreeIcon,
+        children: [
+          { href: "/payroll", label: "لیست حقوق و فیش‌ها", icon: WalletIcon },
+          { href: "/employee-reports", label: "گزارش کارکنان و کسورات", icon: FilesIcon },
+        ],
+      },
+      {
+        href: "/moadian", label: "مؤدیان", icon: ReceiptIcon,
+        children: [
+          { href: "/moadian", label: "صورتحساب‌های کارپوشه", icon: ReceiptIcon },
+          { href: "/moadian/transmissions", label: "ارسال و استعلام", icon: ArrowsLeftRightIcon },
+        ],
+      },
     ],
   },
   {
     label: "گزارش‌ها",
     items: [
-      { href: "/reports", label: "صورت‌های مالی", icon: FilesIcon },
-      { href: "/reports/studio", label: "گزارش جدید", icon: ChartLineUpIcon },
-      { href: "/cashflow", label: "تحلیل و نقدینگی", icon: WalletIcon },
+      {
+        href: "/reports", label: "گزارش‌های مالی", icon: FilesIcon,
+        children: [
+          { href: "/reports", label: "آرشیو گزارش‌ها", icon: FilesIcon, matches: ["/reports/studio", "/reports/builder"] },
+          { href: "/reports/native", label: "صورت‌های مالی", icon: BooksIcon },
+          { href: "/reports/dimensions", label: "گزارش ابعاد مالی", icon: ChartLineUpIcon },
+          { href: "/reports/companies", label: "مقایسه شرکت‌ها", icon: BankIcon },
+          { href: "/reports/consolidation", label: "تلفیق شرکت‌ها", icon: FilesIcon },
+        ],
+      },
+      {
+        href: "/cashflow", label: "نقدینگی", icon: WalletIcon,
+        children: [
+          { href: "/cashflow", label: "جریان نقد دوره", icon: WalletIcon },
+          { href: "/cashflow/forecast", label: "پیش‌بینی ۳۰روزه", icon: ChartLineUpIcon },
+          { href: "/cashflow/scenarios", label: "سناریوهای نقدینگی", icon: FilesIcon },
+        ],
+      },
     ],
   },
 ];
 
+export const navigationDestinations = navigationGroups.flatMap((group) =>
+  group.items.flatMap((item) => item.children ?? [item]),
+);
+
 export function isCurrentNavItem(itemHref: string, pathname: string) {
-  if (pathname === itemHref) return true;
-  if (itemHref === "/accounting") {
-    return (
-      pathname.startsWith("/accounting/journals") ||
-      pathname.startsWith("/accounting/operations") ||
-      pathname.startsWith("/accounting/period-end")
-    );
-  }
-  if (itemHref === "/accounting/inventory") {
-    return (
-      pathname === "/accounting/inventory" ||
-      pathname === "/accounting/inventory/"
-    );
-  }
-  if (itemHref === "/accounting/inventory/items") {
-    return (
-      pathname === "/accounting/inventory/items" ||
-      pathname.startsWith("/accounting/inventory/items/")
-    );
-  }
-  if (itemHref === "/accounting/inventory/warehouses") {
-    return (
-      pathname === "/accounting/inventory/warehouses" ||
-      pathname.startsWith("/accounting/inventory/warehouses/")
-    );
-  }
-  if (itemHref === "/reports") {
-    return (
-      (pathname.startsWith("/reports/") &&
-        pathname !== "/employee-reports" &&
-        pathname !== "/reports/studio" &&
-        pathname !== "/reports/builder") ||
-      pathname === "/reports"
-    );
-  }
-  if (itemHref === "/reports/studio" || itemHref === "/reports/builder") {
-    return (
-      pathname.startsWith("/reports/studio") ||
-      pathname.startsWith("/reports/builder")
-    );
-  }
-  if (itemHref === "/payroll") {
-    return (
-      pathname === "/payroll" ||
-      pathname.startsWith("/payroll/") ||
-      pathname.startsWith("/employee-reports")
-    );
-  }
-  if (itemHref === "/settlements") {
-    return (
-      pathname.startsWith("/settlements/") ||
-      pathname === "/receivables" ||
-      pathname.startsWith("/receivables/") ||
-      pathname === "/payables" ||
-      pathname.startsWith("/payables/")
-    );
-  }
-  if (itemHref === "/moadian") {
-    return pathname.startsWith("/moadian/");
-  }
-  if (itemHref === "/cashflow") {
-    return pathname.startsWith("/cashflow/");
-  }
-  if (itemHref === "/reconciliation") {
-    return (
-      pathname === "/reconciliation" ||
-      pathname === "/reconciliation/" ||
-      pathname === "/reconciliation/bank" ||
-      pathname.startsWith("/reconciliation/bank/")
-    );
-  }
-  if (itemHref === "/reconciliation/counterparties") {
-    return (
-      pathname === "/reconciliation/counterparties" ||
-      pathname.startsWith("/reconciliation/counterparties/") ||
-      pathname.startsWith("/reconciliation/counterpart")
-    );
-  }
-  if (itemHref === "/reconciliation/moadian") {
-    return (
-      pathname === "/reconciliation/moadian" ||
-      pathname.startsWith("/reconciliation/moadian/")
-    );
-  }
-  if (itemHref.startsWith("/settings/")) {
-    return pathname.startsWith(itemHref + "/");
-  }
-  return false;
+  const path = pathname.replace(/\/$/, "") || "/";
+  const normalizedItemHref = itemHref.replace(/\/$/, "") || "/";
+  if (path === normalizedItemHref) return true;
+  const exact = navigationDestinations.find((item) => item.href === path);
+  if (exact) return exact.href === itemHref;
+
+  const active = navigationDestinations.find((item) =>
+    item.matches?.some((match) => path === match || path.startsWith(match + "/")),
+  ) ?? navigationDestinations
+    .filter((item) => item.href !== "/" && path.startsWith(item.href + "/"))
+    .reduce<NavigationItem | undefined>((best, item) =>
+      !best || item.href.length > best.href.length ? item : best, undefined);
+  return active?.href === itemHref;
 }
 
 export function isItemOrChildActive(item: NavigationItem, pathname: string): boolean {
-  if (isCurrentNavItem(item.href, pathname)) return true;
-  if (item.children?.some((child) => isItemOrChildActive(child, pathname))) {
-    return true;
-  }
-  if (
-    item.href === "/accounting/inventory" &&
-    pathname.startsWith("/accounting/inventory")
-  ) {
-    return true;
-  }
-  if (
-    item.href === "/reconciliation" &&
-    pathname.startsWith("/reconciliation")
-  ) {
-    return true;
-  }
-  return false;
+  return item.children
+    ? item.children.some((child) => isItemOrChildActive(child, pathname))
+    : item.href === pathname || isCurrentNavItem(item.href, pathname);
 }
-

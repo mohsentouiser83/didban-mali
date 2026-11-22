@@ -87,19 +87,17 @@ export function SettlementsView() {
       <PageHeader
         icon={HeaderIcon}
         title="دریافت و پرداخت"
-        action={
-          workspace.canWrite ? (
-            <Button
-              onClick={() => {
-                setOpen(true);
-                command.clearError();
-              }}
-            >
-              تخصیص پرداخت
-              <PlusIcon size={16} />
-            </Button>
-          ) : undefined
-        }
+        action={workspace.canWrite && (
+          <Button
+            onClick={() => {
+              setOpen(true);
+              command.clearError();
+            }}
+          >
+            تخصیص پرداخت
+            <PlusIcon size={16} aria-hidden />
+          </Button>
+        )}
       />
 
       {/* Summary KPI Cards */}
