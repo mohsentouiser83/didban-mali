@@ -3,13 +3,12 @@
 from fastapi import APIRouter, Request
 
 from ..http import C, access
-from ..module_service import require_module
 from ..personnel_service import personnel_result
 
 router = APIRouter()
 
 
-@router.get(C + "/employees")
+@router.get(C + "/personnel-directory")
 @router.get(C + "/payroll")
 @router.get(C + "/employee-reports")
 @router.get(C + "/tax")
@@ -22,5 +21,5 @@ def personnel(
 ):
     area = request.url.path.rsplit("/", 1)[-1]
     with access(request, company_id) as (db, _user, _member):
-        require_module(db, company_id, area.replace("-", "_"))
-        return personnel_result(db, company_id, area, period_id, basis=basis)
+        kind = "employees" if area == "personnel-directory" else area
+        return personnel_result(db, company_id, kind, period_id, basis=basis)

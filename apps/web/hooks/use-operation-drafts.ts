@@ -5,7 +5,6 @@ import { useResource } from "./use-resource";
 import { usePagedResource } from "./use-paged-resource";
 import { useCommand } from "./use-command";
 import { useAccountOptions } from "./use-accounting";
-import { useOperationLearning } from "./use-operation-learning";
 interface Template {
   kind: string;
   label: string;
@@ -97,12 +96,6 @@ export function useOperationDrafts(onCreated?: () => void) {
       "پیش‌نویس عملیات ساخته شد.",
     );
   }
-  const learning = useOperationLearning(
-    workspace,
-    form,
-    template?.roles || [],
-    (accounts) => change({ accounts }),
-  );
   return {
     workspace,
     catalogue,
@@ -115,7 +108,6 @@ export function useOperationDrafts(onCreated?: () => void) {
     choose,
     save,
     chequeEvents,
-    learning,
     selectEvent: (id: string) => {
       const event = chequeEvents.data?.items.find((item) => item.id === id);
       if (event)

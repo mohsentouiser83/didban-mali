@@ -32,7 +32,7 @@ import {
 } from "recharts";
 
 interface KpiData {
-  value?: number;
+  value?: number | string | null;
   formatted_value?: string;
   unit?: string;
   status?: string;
@@ -125,7 +125,9 @@ export function WidgetRenderer({
 }
 
 function KpiCardContent({ data }: { data: KpiData | null }) {
-  if (!data) return <div className="text-sm text-muted">داده‌ای موجود نیست</div>;
+  if (data?.value == null) {
+    return <p className="text-sm text-muted">{data?.subtitle || "داده‌ای موجود نیست"}</p>;
+  }
 
   const tone =
     data.status === "positive"
@@ -140,7 +142,7 @@ function KpiCardContent({ data }: { data: KpiData | null }) {
     <div className="flex h-full flex-col justify-between py-2">
       <div className="flex items-baseline gap-2">
         <span className="font-heading text-3xl font-medium tracking-tight text-foreground animate-[value-change_280ms_cubic-bezier(0.2,0.7,0.2,1)]">
-          {data.formatted_value || "۰"}
+          {data.formatted_value ?? data.value}
         </span>
         <span className="text-xs font-medium text-muted">{data.unit || "ریال"}</span>
       </div>

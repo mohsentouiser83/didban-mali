@@ -12,7 +12,6 @@ from .control_models import ControlActivity, ControlCase
 from .errors import DomainError, require
 from .finance import SALES_DIRECTIONS
 from .http import paginate
-from .module_service import require_module
 from .money_type import canonical_money
 from .security import membership
 from .services import check_version, get_entity
@@ -75,7 +74,6 @@ def finding_source(db: Session, company: str, identifier: str) -> dict[str, Any]
 
 
 def invoice_source(db: Session, company: str, identifier: str) -> dict[str, Any]:
-    require_module(db, company, "receivables", ready=False)
     invoice = get_entity(db, m.Invoice, company, identifier)
     require(
         invoice.direction in SALES_DIRECTIONS, "not_sales_invoice", "پیگیری وصول فقط برای فاکتور فروش است."
@@ -195,8 +193,6 @@ def update_case(
     membership(db, company, user, "write")
     case = get_entity(db, ControlCase, company, identifier)
     check_version(case, version)
-    if case.invoice_id:
-        require_module(db, company, "receivables", ready=False)
     require(
         data.get("state") in ("open", "in_progress", "resolved", "accepted"),
         "invalid_case_state",
@@ -227,8 +223,6 @@ def record_activity(
     membership(db, company, user, "write")
     case = get_entity(db, ControlCase, company, identifier)
     check_version(case, version)
-    if case.invoice_id:
-        require_module(db, company, "receivables", ready=False)
     require(
         data.get("kind") in ("comment", "contact", "promise", "document_request"),
         "invalid_activity_kind",
@@ -282,35 +276,10 @@ def activities(
     )
 
 
-def findings(db: Session, company: str, user: m.User, limit: int, cursor: str | None) -> dict[str, Any]:
-    membership(db, company, user)
-    manifest = latest_manifest(db, company)
-
-    def transform(item: m.Finding) -> dict[str, Any]:
-        case = db.scalar(
-            select(ControlCase).where(ControlCase.company_id == company, ControlCase.finding_id == item.id)
-        )
-        return serialize_fact(item) | {
-            "source": finding_source(db, company, item.id),
-            "case": public_case(db, company, case) if case else None,
-        }
-
-    return paginate(
-        db,
-        m.Finding,
-        company,
-        limit,
-        cursor,
-        [m.Finding.manifest_id == (manifest.id if manifest else None)],
-        transform,
-    )
-
-
 def collection(
     db: Session, company: str, user: m.User, page: int, q: str, priority: str = "amount"
 ) -> dict[str, Any]:
     membership(db, company, user)
-    require_module(db, company, "receivables", ready=False)
     require(page >= 0 and len(q) <= 100, "invalid_query", "جستجو یا صفحه معتبر نیست.")
     require(priority in ("amount", "history"), "invalid_priority", "ترتیب پیگیری معتبر نیست.")
     manifest = latest_manifest(db, company)

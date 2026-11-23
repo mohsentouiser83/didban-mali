@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @theme inline {
   --font-body: var(--font-yekan);
-  --font-display: var(--font-anjoman);
+  --font-display: var(--font-yekan);
+  --font-sans: var(--font-yekan);
+  --font-mono: var(--font-yekan);
   --color-canvas: #f6f7fc;
   --color-surface: #ffffff;
   --color-foreground: #20243f;

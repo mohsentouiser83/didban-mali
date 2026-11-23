@@ -9,7 +9,6 @@ import {
   type CollectionPage,
   type ControlActivity,
   type ControlCase,
-  type ControlFinding,
   type ControlSelection,
 } from "@/lib/control";
 import { useCommand } from "./use-command";
@@ -258,35 +257,6 @@ export function useControlCasePanel(onSaved: () => void) {
       assignees.refresh();
     },
   };
-}
-export function useControlReview() {
-  const workspace = useWorkspace();
-  const [scope, setScope] = useState("latest");
-  const findings = usePagedResource<ControlFinding>(
-    scope === "latest" ? workspace.companyPath("control/findings") : null,
-  );
-  const cases = usePagedResource<ControlCase>(
-    scope === "cases"
-      ? workspace.companyPath("control/cases?kind=finding")
-      : null,
-  );
-  const resource = scope === "latest" ? findings : cases;
-  const panel = useControlCasePanel(resource.refresh);
-  const rows: ControlSelection[] =
-    scope === "latest"
-      ? listItems(findings.data).map((finding) => ({
-          kind: "finding",
-          subject_id: finding.id,
-          source: finding.source,
-          case: finding.case,
-        }))
-      : listItems(cases.data).map((item) => ({
-          kind: "finding",
-          subject_id: item.finding_id!,
-          source: item.source_snapshot,
-          case: item,
-        }));
-  return { workspace, scope, setScope, resource, panel, rows };
 }
 export function useCollectionFollowups() {
   const workspace = useWorkspace();

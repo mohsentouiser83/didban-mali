@@ -9,15 +9,20 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Spacer
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from . import models as m
-from .accounting_service import capabilities
+from .accounting_models import Draft
+from .accounting_service import capabilities, validate_lines
 from .commercial_models import CommercialCounterparty, ProformaInvoice
 from .errors import DomainError, require
 from .exports import FONT_MEDIUM, MUTED, RTLText, _table, display_date, localized, register_fonts
+from .inventory_models import InventoryItem
 from .inventory_service import create_draft
 from .money_type import aggregate_money, canonical_money
+from .native_invoice_models import NativeInvoice, NativeInvoiceSourceRevision
+from .operation_models import OperationDraft
+from .posting_models import NativeJournal
 from .security import membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
@@ -64,6 +69,18 @@ def update_counterparty(
     if version is not None:
         check_version(cp, version)
     if "code" in data and data["code"] != cp.code:
+        for model, party_field in (
+            (ProformaInvoice, ProformaInvoice.party_id),
+            (OperationDraft, OperationDraft.payload["party_id"].as_string()),
+            (m.Invoice, m.Invoice.party_id),
+            (m.JournalLine, m.JournalLine.party_id),
+        ):
+            require(
+                not db.scalar(select(model.id).where(model.company_id == company, party_field == cp.code).limit(1)),
+                "counterparty_code_in_use",
+                "شناسهٔ طرف‌حساب در سوابق مالی استفاده شده و قابل تغییر نیست.",
+                409,
+            )
         duplicate = db.scalar(
             select(CommercialCounterparty.id).where(
                 CommercialCounterparty.company_id == company,
@@ -120,6 +137,31 @@ def get_counterparty(db: Session, company: str, counterparty_id: str) -> Commerc
     return get_entity(db, CommercialCounterparty, company, counterparty_id)
 
 
+def resolve_counterparty(db: Session, company: str, party_id: str) -> CommercialCounterparty | None:
+    cp = db.scalar(
+        select(CommercialCounterparty).where(
+            CommercialCounterparty.company_id == company,
+            or_(CommercialCounterparty.code == party_id, CommercialCounterparty.id == party_id),
+        )
+    )
+    if cp:
+        require(cp.active, "inactive_counterparty", "طرف‌حساب غیرفعال است.", 409)
+    return cp
+
+
+def sale_credit_amount(data: dict, amount: str) -> str:
+    settlement_type = data.get("settlement_type", "on_account")
+    if settlement_type == "cash":
+        return "0"
+    if settlement_type == "mixed":
+        amount = data.get("on_account_amount")
+        if amount is None:
+            amount = data.get("amounts", {}).get("on_account_amount", "0")
+    with localcontext() as context:
+        context.prec = 60
+        return canonical_money(Decimal(canonical_money(amount)) * (10 if data.get("unit") == "TOMAN" else 1))
+
+
 def check_credit_limit(
     db: Session,
     company: str,
@@ -129,16 +171,11 @@ def check_credit_limit(
     *,
     allow_override: bool = False,
     override_reason: str = "",
+    audit_override: bool = True,
 ) -> None:
-    cp = db.scalar(
-        select(CommercialCounterparty).where(
-            CommercialCounterparty.company_id == company,
-            or_(CommercialCounterparty.code == party_id, CommercialCounterparty.id == party_id),
-        )
-    )
-    if cp is None or cp.credit_limit_irr is None:
+    cp = resolve_counterparty(db, company, party_id)
+    if cp is None or cp.credit_limit_irr is None or Decimal(canonical_money(additional_amount_irr)) == 0:
         return
-    require(cp.active, "inactive_counterparty", "طرف حساب غیرفعال است.", 409)
 
     # Calculate current unpaid exposure for this party from native invoices
     from .native_invoice_evidence import _today
@@ -146,39 +183,127 @@ def check_credit_limit(
 
     today = _today(db, company)
     invoices_data = current_invoices(db, company, user, as_of=today, direction="sale")
-    current_exposure = Decimal(0)
-    for inv in invoices_data.get("items", []):
-        if inv.get("party_id") == cp.code or inv.get("party_id") == cp.id:
-            rem = inv.get("remaining")
-            if rem and rem != "unavailable":
-                current_exposure += Decimal(rem)
-
+    party_identifiers = (cp.code, cp.id)
+    previous_reversal = aliased(NativeJournal)
+    unlinked = db.scalars(
+        select(OperationDraft)
+        .join(NativeJournal, (NativeJournal.company_id == company) & (NativeJournal.draft_id == OperationDraft.draft_id))
+        .where(
+            OperationDraft.company_id == company,
+            OperationDraft.kind.in_(("sale_goods", "sale_service")),
+            OperationDraft.payload["party_id"].as_string().in_(party_identifiers),
+            NativeJournal.date <= today,
+            ~select(NativeInvoice.id).where(
+                NativeInvoice.company_id == company, NativeInvoice.operation_id == OperationDraft.id
+            ).exists(),
+            ~select(NativeInvoiceSourceRevision.id).where(
+                NativeInvoiceSourceRevision.company_id == company,
+                NativeInvoiceSourceRevision.journal_id == NativeJournal.id,
+                NativeInvoiceSourceRevision.effective_date <= today,
+            ).exists(),
+            ~select(previous_reversal.id).where(
+                previous_reversal.company_id == company,
+                previous_reversal.reversal_of == NativeJournal.id,
+                previous_reversal.date <= today,
+            ).exists(),
+        )
+    )
     with localcontext() as context:
         context.prec = 60
+        current_exposure = sum(
+            (Decimal(inv["remaining"] if inv["remaining"] is not None else inv["amount"])
+             for inv in invoices_data.get("items", [])
+             if inv.get("party_id") in party_identifiers and inv.get("reason") != "native_invoice_source_reversed"),
+            Decimal(0),
+        )
+        current_exposure += sum(
+            (Decimal(sale_credit_amount(origin.payload, origin.payload["amounts"]["amount"])) for origin in unlinked),
+            Decimal(0),
+        )
         projected = current_exposure + Decimal(canonical_money(additional_amount_irr))
         max_allowed = Decimal(cp.credit_limit_irr)
 
     if projected > max_allowed:
-        if allow_override and bool(override_reason.strip()):
-            audit(
-                db,
-                company,
-                user.id,
-                "commercial.credit_limit_overridden",
-                cp.id,
-                {
-                    "credit_limit_irr": cp.credit_limit_irr,
-                    "current_exposure_irr": str(current_exposure),
-                    "projected_exposure_irr": str(projected),
-                    "override_reason": override_reason,
-                },
-            )
+        if allow_override and bool(override_reason.strip()) and capabilities(db, company, user)["can_post"]:
+            if audit_override:
+                audit(
+                    db,
+                    company,
+                    user.id,
+                    "commercial.credit_limit_overridden",
+                    cp.id,
+                    {
+                        "credit_limit_irr": cp.credit_limit_irr,
+                        "current_exposure_irr": str(current_exposure),
+                        "projected_exposure_irr": str(projected),
+                        "override_reason": override_reason,
+                    },
+                )
             return
         raise DomainError(
             "credit_limit_exceeded",
             f"مجموع مطالبات از سقف اعتباری مشتری ({aggregate_money(max_allowed)} ریال) بیشتر می‌شود.",
             409,
         )
+
+
+def validate_posting_credit(db: Session, company: str, user: m.User, drafts: list[Draft]) -> None:
+    draft_ids = [draft.id for draft in drafts]
+    sales = {
+        sale.draft_id: sale
+        for sale in db.scalars(
+            select(OperationDraft).where(
+                OperationDraft.company_id == company,
+                OperationDraft.draft_id.in_(draft_ids),
+                OperationDraft.kind.in_(("sale_goods", "sale_service")),
+            )
+        )
+    }
+    batch_amounts: dict[str, Decimal] = {}
+    with localcontext() as context:
+        context.prec = 60
+        for draft in drafts:
+            sale = sales.get(draft.id)
+            if not sale:
+                continue
+            payload = sale.payload
+            party_id = payload.get("party_id")
+            if not party_id:
+                # Earlier operation records may lack the structured party and amounts.
+                line_parties = {line["party_id"] for line in draft.lines if line.get("party_id")}
+                for line_party in line_parties:
+                    registered = resolve_counterparty(db, company, line_party)
+                    require(
+                        registered is None or registered.credit_limit_irr is None,
+                        "sale_credit_evidence_missing",
+                        "برای کنترل سقف اعتبار، پیش‌نویس فروش را از عملیات فروش دوباره تهیه کنید.",
+                        409,
+                    )
+                continue
+            party = resolve_counterparty(db, company, party_id)
+            if party is None or party.credit_limit_irr is None:
+                continue
+            require(
+                payload.get("amounts", {}).get("amount") is not None and payload.get("unit"),
+                "sale_credit_evidence_missing",
+                "برای کنترل سقف اعتبار، پیش‌نویس فروش را از عملیات فروش دوباره تهیه کنید.",
+                409,
+            )
+            if sale.kind == "sale_service":
+                from .operation_service import build
+
+                expected = validate_lines(db, company, {"unit": payload["unit"], "lines": build(payload)})
+                require(draft.lines == expected, "sale_draft_changed", "محتوای سند با عملیات فروش یکسان نیست.", 409)
+            addition = Decimal(sale_credit_amount(payload, payload["amounts"]["amount"]))
+            if not addition:
+                continue
+            total = batch_amounts.get(party.id, Decimal(0)) + addition
+            override_reason = payload.get("credit_override_reason", "")
+            check_credit_limit(
+                db, company, user, party.id, aggregate_money(total),
+                allow_override=bool(override_reason), override_reason=override_reason, audit_override=False,
+            )
+            batch_amounts[party.id] = total
 
 
 def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str, str]:
@@ -192,6 +317,8 @@ def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str
             qty = line["quantity"]
             price = Decimal(canonical_money(line["unit_price"]))
             discount = Decimal(canonical_money(line.get("discount", 0)))
+            require(price > 0, "invalid_proforma_price", "قیمت واحد باید مثبت باشد.", 422)
+            require(discount >= 0, "invalid_proforma_discount", "تخفیف نمی‌تواند منفی باشد.", 422)
             line_total = (price * qty) - discount
             require(line_total >= 0, "negative_line_total", "مبلغ ردیف نمی‌تواند منفی باشد.", 422)
             unit_price_irr = price * factor
@@ -214,6 +341,27 @@ def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str
     return processed, canonical_money(total), canonical_money(total_irr)
 
 
+def _validate_proforma(db: Session, company: str, data: dict) -> None:
+    require(data.get("direction", "sale") == "sale", "proforma_sale_only", "صدور پیش‌فاکتور فقط برای فروش است.", 422)
+    expiry = data.get("expiry_date")
+    require(not expiry or expiry >= data["date"], "invalid_proforma_expiry", "اعتبار پیش‌فاکتور نباید قبل از تاریخ صدور باشد.", 422)
+    require(
+        resolve_counterparty(db, company, data["party_id"]) is not None,
+        "proforma_counterparty_required",
+        "طرف‌حساب معتبر را انتخاب کنید.",
+        422,
+    )
+
+    item_ids = {line["item_id"] for line in data.get("lines", []) if line.get("item_id")}
+    if item_ids:
+        active_items = set(db.scalars(
+            select(InventoryItem.id).where(
+                InventoryItem.company_id == company, InventoryItem.id.in_(item_ids), InventoryItem.active.is_(True)
+            )
+        ))
+        require(active_items == item_ids, "invalid_proforma_item", "کالای معتبر و فعال را انتخاب کنید.", 422)
+
+
 def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict:
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه صدور پیش‌فاکتور ندارید.", 403)
@@ -228,12 +376,13 @@ def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict
         "این شماره پیش‌فاکتور قبلاً ثبت شده است.",
         409,
     )
+    _validate_proforma(db, company, data)
     currency = data.get("currency", "IRR")
     lines, total, total_irr = _process_lines(data["lines"], currency)
     row = ProformaInvoice(
         company_id=company,
         number=data["number"],
-        direction=data["direction"],
+        direction="sale",
         date=data["date"],
         expiry_date=data.get("expiry_date"),
         party_id=data["party_id"],
@@ -260,6 +409,12 @@ def update_proforma(
     if version is not None:
         check_version(pf, version)
     require(pf.status in ("draft", "issued"), "proforma_not_editable", "پیش‌فاکتور قابل ویرایش نیست.", 409)
+    require(pf.direction == "sale", "proforma_sale_only", "پیش‌فاکتور خرید فقط قابل مشاهده است.", 409)
+    _validate_proforma(
+        db,
+        company,
+        {"direction": pf.direction, "date": pf.date, "expiry_date": pf.expiry_date, "party_id": pf.party_id} | data,
+    )
     if "number" in data and data["number"] != pf.number:
         duplicate = db.scalar(
             select(ProformaInvoice.id).where(
@@ -356,32 +511,21 @@ def convert_proforma(
         "نوع تسویه باید on_account، cash یا mixed باشد.",
     )
 
-    # Enforce credit limit on sale conversion
-    if pf.direction == "sale":
-        if settlement_type == "cash":
-            credit_addition = "0"
-        elif settlement_type == "mixed" and data.get("on_account_amount") is not None:
-            factor = 10 if pf.currency == "TOMAN" else 1
-            credit_addition = canonical_money(Decimal(canonical_money(data["on_account_amount"])) * factor)
-        else:
-            credit_addition = pf.total_amount_irr
-        check_credit_limit(
-            db,
-            company,
-            user,
-            pf.party_id,
-            credit_addition,
-            allow_override=data.get("allow_credit_override", False),
-            override_reason=data.get("credit_override_reason", ""),
-        )
-
-    # First line item inventory operation
+    require(pf.direction == "sale", "proforma_sale_only", "پیش‌فاکتور خرید قابل تبدیل نیست.", 409)
+    require(
+        len(pf.lines) == 1 and Decimal(pf.lines[0].get("discount", "0")) == 0,
+        "proforma_unsupported_conversion",
+        "تبدیل فقط برای پیش‌فاکتور تک‌قلم بدون تخفیف در دسترس است.",
+        409,
+    )
+    _validate_proforma(
+        db, company, {"direction": pf.direction, "party_id": pf.party_id, "date": pf.date, "expiry_date": pf.expiry_date}
+    )
     first_line = pf.lines[0]
     require(first_line.get("item_id"), "item_required", "شناسه کالا در پیش‌فاکتور موجود نیست.", 422)
 
-    kind = "sale_goods" if pf.direction == "sale" else "purchase_goods"
     draft_data = {
-        "kind": kind,
+        "kind": "sale_goods",
         "item_id": first_line["item_id"],
         "warehouse_id": data["warehouse_id"],
         "quantity": first_line["quantity"],
@@ -404,7 +548,14 @@ def convert_proforma(
         "cheque_number": data.get("cheque_number"),
         "cheque_due_date": data.get("cheque_due_date"),
     }
-    operation = create_draft(db, company, user, draft_data)
+    operation = create_draft(
+        db,
+        company,
+        user,
+        draft_data,
+        allow_credit_override=data.get("allow_credit_override", False),
+        credit_override_reason=data.get("credit_override_reason", ""),
+    )
 
     pf.status = "converted"
     pf.converted_operation_id = operation["operation_id"]

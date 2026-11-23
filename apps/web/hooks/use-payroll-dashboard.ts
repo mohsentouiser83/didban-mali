@@ -2,34 +2,76 @@
 
 import { useMemo, useState } from "react";
 import type { PayrollRun, PayrollSlip } from "@/lib/api";
+import { tehranToday } from "@/lib/native-invoices";
+import { useAccountOptions } from "./use-accounting";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+
+function payrollForm(calculationDate: string) {
+  const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", {
+    timeZone: "UTC", year: "numeric", month: "numeric",
+  }).formatToParts(new Date(calculationDate + "T12:00:00Z"));
+  return {
+    title: "",
+    year: Number(parts.find((part) => part.type === "year")?.value),
+    month: Number(parts.find((part) => part.type === "month")?.value),
+    calculation_date: calculationDate,
+  };
+}
 
 export function usePayrollDashboard() {
   const workspace = useWorkspace();
   const command = useCommand();
 
+  const periodQuery = workspace.periodId ? `?period_id=${encodeURIComponent(workspace.periodId)}` : "";
   const runsResource = useResource<{ items: PayrollRun[]; total: number }>(
-    workspace.companyPath("payroll/runs"),
+    workspace.companyPath("payroll/runs" + periodQuery),
   );
 
   const runs = useMemo(() => runsResource.data?.items || [], [runsResource.data]);
   const [selectedRunIdState, setSelectedRunId] = useState<string | null>(null);
-  const selectedRunId = selectedRunIdState || runs[0]?.id || null;
+  const selectedRunId = runs.find((run) => run.id === selectedRunIdState)?.id ?? runs[0]?.id ?? null;
 
   const runResource = useResource<PayrollRun>(
     selectedRunId ? workspace.companyPath(`payroll/runs/${selectedRunId}`) : null,
   );
 
-  // Create Run Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    title: "",
-    year: 1403,
-    month: 1,
-    calculation_date: new Date().toISOString().slice(0, 10),
-  });
+  const [createForm, setCreateForm] = useState(() => payrollForm(tehranToday()));
+  function openCreateRun() {
+    const today = tehranToday();
+    const period = workspace.periods.find((item) => item.id === workspace.periodId);
+    if (!period) return;
+    const calculationDate = today < period.start ? period.start : today > period.end ? period.end : today;
+    setCreateForm(payrollForm(calculationDate));
+    command.clearError();
+    setCreateOpen(true);
+  }
+
+  const [draftRunId, setDraftRunId] = useState<string | null>(null);
+  const [draftAccounts, setDraftAccounts] = useState<Record<string, string>>({});
+  const draftOpen = draftRunId !== null && draftRunId === selectedRunId;
+  const accounts = useAccountOptions(draftOpen ? workspace.company?.id ?? "" : "");
+  const selectedRun = runResource.data;
+  const roles = [
+    { key: "salary_expense", label: "هزینه حقوق", required: Number(selectedRun?.total_gross) > 0 },
+    { key: "employer_insurance_expense", label: "هزینه بیمه سهم کارفرما", required: Number(selectedRun?.total_employer_insurance) > 0 },
+    { key: "payroll_payable", label: "حقوق پرداختنی", required: Number(selectedRun?.total_net) > 0 },
+    { key: "insurance_payable", label: "بیمه پرداختنی", required: Number(selectedRun?.total_employee_insurance) > 0 || Number(selectedRun?.total_employer_insurance) > 0 },
+    { key: "payroll_tax_payable", label: "مالیات حقوق پرداختنی", required: Number(selectedRun?.total_tax) > 0 },
+    { key: "other_deductions_payable", label: "سایر کسورات پرداختنی", required: Number(selectedRun?.total_other_deductions) > 0 },
+  ].filter((role) => role.required);
+  const canCreateDraft = roles.length > 0 && roles.every((role) => draftAccounts[role.key]);
+  function openDraft() {
+    setDraftAccounts({});
+    command.clearError();
+    setDraftRunId(selectedRunId);
+  }
+  function closeDraft() {
+    setDraftRunId(null);
+    command.clearError();
+  }
 
   // Edit Timesheet Modal
   const [editingSlip, setEditingSlip] = useState<PayrollSlip | null>(null);
@@ -105,13 +147,15 @@ export function usePayrollDashboard() {
   };
 
   const handleCreateDraft = async () => {
-    if (!workspace.company || !selectedRunId) return;
+    if (!workspace.company || !selectedRunId || !selectedRun || !canCreateDraft) return;
     await command.run(
       `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/create-draft`,
       {
         method: "POST",
+        body: { expected_version: selectedRun.version, accounts: draftAccounts },
       },
       () => {
+        closeDraft();
         runResource.refresh();
         runsResource.refresh();
       },
@@ -125,11 +169,12 @@ export function usePayrollDashboard() {
     runs,
     selectedRunId,
     setSelectedRunId,
-    selectedRun: runResource.data,
+    selectedRun,
     loading: runsResource.loading,
     runLoading: runResource.loading && !!selectedRunId,
     createOpen,
     setCreateOpen,
+    openCreateRun,
     createForm,
     setCreateForm,
     handleCreateRun,
@@ -140,6 +185,18 @@ export function usePayrollDashboard() {
     closeEditSlip,
     handleSaveSlipTimesheet,
     handleCreateDraft,
+    openDraft,
+    closeDraft,
+    draftOpen,
+    draftAccounts,
+    setDraftAccount: (key: string, value: string) => setDraftAccounts((current) => ({ ...current, [key]: value })),
+    roles,
+    canCreateDraft,
+    accountOptions: accounts.items.filter((account) => account.active).map((account) => ({
+      value: account.id, label: `${account.code} · ${account.name}`,
+    })),
+    accountsLoading: accounts.loading,
+    accountsError: accounts.error?.message,
     viewingSlip,
     setViewingSlip,
     refresh: () => {

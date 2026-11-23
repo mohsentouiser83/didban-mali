@@ -154,6 +154,15 @@ def configure_tariff(db: Session, company_id: str, actor: User, values: dict) ->
     return serialize_fact(tariff)
 
 
+def require_installation_model_admin(actor: User) -> None:
+    require(
+        actor.active and actor.installation_admin,
+        "permission_denied",
+        "فقط مدیر نصب مجاز است.",
+        403,
+    )
+
+
 def model_status(db: Session, company_id: str) -> dict:
     period = billing_period(db, company_id)
     tariff = db.scalar(

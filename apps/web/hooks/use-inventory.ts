@@ -66,6 +66,9 @@ export function useInventoryOverview() {
   const [balancePage, setBalancePage] = useState(0);
   const journal = useNativeJournal();
   const data = inventory.data;
+  const canCreate = !!data?.items.some((item) => item.active) &&
+    data.warehouses.some((warehouse) => warehouse.active) && workspace.periods.length > 0 &&
+    !accounts.loading && !accounts.error && accounts.options.length > 0;
   const itemNames = new Map(data?.items.map((item) => [item.id, item.name]));
   const warehouseNames = new Map(data?.warehouses.map((item) => [item.id, item.name]));
   const filter = (row: { item_id: string; warehouse_id: string }) =>
@@ -84,6 +87,7 @@ export function useInventoryOverview() {
   return {
     workspace,
     inventory,
+    canCreate,
     accounts,
     capabilities,
     posting,
@@ -138,32 +142,75 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const command = useCommand();
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState({ code: "", name: "", inventory_account_id: "" });
+  const [editing, setEditing] = useState<InventoryItem | InventoryWarehouse>();
+  const [deleting, setDeleting] = useState<InventoryItem | InventoryWarehouse>();
+  const [value, setValue] = useState({ code: "", name: "", inventory_account_id: "", active: true });
   const data = inventory.data;
+  const isItem = entity === "items";
+  const label = isItem ? "کالا" : "انبار";
+  const canManage = data?.can_manage_catalog === true;
   const items: (InventoryItem | InventoryWarehouse)[] = data?.[entity] ?? [];
+  const referenced = new Set(data?.balances.map((row) => isItem ? row.item_id : row.warehouse_id));
+  const accountLocked = isItem && !!editing && referenced.has(editing.id);
+  const accountNames = new Map(accounts.items.map((account) => [account.id, `${account.code} · ${account.name}`]));
+  const accountOptions = accounts.options.some((option) => option.value === value.inventory_account_id) || !value.inventory_account_id
+    ? accounts.options
+    : [
+        ...accounts.options,
+        { value: value.inventory_account_id, label: accountNames.get(value.inventory_account_id) || value.inventory_account_id },
+      ];
+  const inventoryPath = `${base}/${entity}`;
   const pageSize = 25;
   const index = Math.min(page, Math.max(0, Math.ceil(items.length / pageSize) - 1));
+
   function save() {
-    if (!data?.can_manage_catalog || !value.code.trim() || !value.name.trim()) return;
-    if (entity === "items" && !value.inventory_account_id) return;
+    if (!canManage || !value.code.trim() || !value.name.trim() || (isItem && !value.inventory_account_id)) return;
     const body = { code: value.code.trim(), name: value.name.trim() };
+    const catalogueData = isItem && !accountLocked ? { ...body, inventory_account_id: value.inventory_account_id } : body;
     void command.run(
-      workspace.companyPath(`${base}/${entity}`),
-      { body: entity === "items" ? { ...body, inventory_account_id: value.inventory_account_id } : body },
+      workspace.companyPath(editing ? `${inventoryPath}/${editing.id}` : inventoryPath),
+      editing
+        ? { method: "PATCH", version: editing.version, body: { ...catalogueData, active: value.active } }
+        : { body: catalogueData },
       () => {
         setOpen(false);
         inventory.refresh();
       },
-      entity === "items" ? "کالا تعریف شد." : "انبار تعریف شد.",
+      editing ? `${label} ویرایش شد.` : `${label} تعریف شد.`,
     );
   }
+
+  function remove() {
+    if (!canManage || !deleting || referenced.has(deleting.id)) return;
+    void command.run(
+      workspace.companyPath(`${inventoryPath}/${deleting.id}`),
+      { method: "DELETE", version: deleting.version },
+      () => {
+        setDeleting(undefined);
+        inventory.refresh();
+      },
+      `${label} حذف شد.`,
+    );
+  }
+
   return {
     inventory,
     accounts,
+    accountNames,
+    accountOptions,
+    accountLocked,
+    canManage,
+    canAdd: canManage && (!isItem || (!accounts.loading && !accounts.error && accounts.options.length > 0)),
     command,
     open,
+    editing,
+    deleting,
+    remove,
     value,
-    rows: items.slice(index * pageSize, (index + 1) * pageSize),
+    rows: items.slice(index * pageSize, (index + 1) * pageSize).map((record) => ({
+      record,
+      hasMovements: referenced.has(record.id),
+    })),
     pagination: {
       page: index,
       total: items.length,
@@ -171,10 +218,23 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
       onPrevious: () => setPage(index - 1),
       onNext: () => setPage(index + 1),
     },
-    show: () => {
-      setValue({ code: "", name: "", inventory_account_id: "" });
+    show: (record?: InventoryItem | InventoryWarehouse) => {
+      setEditing(record);
+      setValue({
+        code: record?.code ?? "",
+        name: record?.name ?? "",
+        inventory_account_id: record && "inventory_account_id" in record ? record.inventory_account_id : "",
+        active: record?.active ?? true,
+      });
       command.clearError();
       setOpen(true);
+    },
+    confirmRemove: (record: InventoryItem | InventoryWarehouse) => {
+      command.clearError();
+      setDeleting(record);
+    },
+    cancelRemove: () => {
+      if (!command.busy) setDeleting(undefined);
     },
     close: () => {
       if (!command.busy) setOpen(false);
@@ -185,7 +245,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
     },
     save,
     importFromExcel: async (parsed: ParsedTableImport) => {
-      if (!workspace.company || !parsed.rows.length) return;
+      if (!canManage || !workspace.company || !parsed.rows.length) return;
       const headerMap: Record<string, number> = {};
       parsed.headers.forEach((h, i) => {
         headerMap[h.trim().toLowerCase()] = i;
@@ -258,6 +318,8 @@ export function useInventoryDraft(
 ) {
   const workspace = useWorkspace();
   const command = useCommand();
+  const availableItems = inventory.items.filter((item) => item.active);
+  const availableWarehouses = inventory.warehouses.filter((warehouse) => warehouse.active);
   const [value, setValue] = useState(() => ({
     kind,
     period_id: workspace.periodId || workspace.periods.find((period) => {
@@ -265,8 +327,8 @@ export function useInventoryDraft(
       return period.start <= today && period.end >= today;
     })?.id || "",
     date: tehranToday(),
-    item_id: inventory.items.length === 1 ? inventory.items[0].id : "",
-    warehouse_id: inventory.warehouses.length === 1 ? inventory.warehouses[0].id : "",
+    item_id: availableItems.length === 1 ? availableItems[0].id : "",
+    warehouse_id: availableWarehouses.length === 1 ? availableWarehouses[0].id : "",
     quantity: "",
     unit_price: "",
     unit: workspace.unit,
@@ -327,6 +389,8 @@ export function useInventoryDraft(
     fields,
     sale,
     command,
+    availableItems,
+    availableWarehouses,
     periods: workspace.periods,
     save,
     change: (patch: Partial<typeof value>) => {

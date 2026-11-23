@@ -1,14 +1,12 @@
 "use client";
 import type {
   CashDay,
-  Finding,
   Manifest,
   Metric,
   ProcessingSession,
   ResourceList,
 } from "@/lib/api";
 import { listItems } from "@/lib/api";
-import type { ControlFinding } from "@/lib/control";
 import {
   addExactAmounts,
   forecastAssumptionLabel,
@@ -144,15 +142,9 @@ export function useDashboard() {
   const sessions = useResource<ResourceList<ProcessingSession>>(
     view.workspace.companyPath("processing-sessions"),
   );
-  const findings = useResource<ResourceList<Finding & ControlFinding>>(
-    view.workspace.companyPath("control/findings"),
-  );
   return {
     ...view,
     sessions: listItems(sessions.data).slice(0, 3),
-    findings: listItems(findings.data)
-      .filter((item) => item.case ? ["open", "in_progress"].includes(item.case.state) : item.state === "open")
-      .slice(0, 3),
   };
 }
 /** Local inspection moves through real report days without constructing financial data. */

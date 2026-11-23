@@ -1,16 +1,19 @@
 """Report Studio aggregation engine, AI template generator, and dashboard execution service."""
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
+import jdatetime
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models as m
 from .cheque_models import Cheque
 from .custom_reports.exports import export_custom_report_pdf
-from .errors import require
+from .errors import DomainError, require
 from .exports import localized
 from .ingestion import normalized
 from .native_invoice_models import NativeInvoiceSnapshot
@@ -27,25 +30,10 @@ from .report_studio_schemas import (
 from .services import check_version, get_entity
 from .workflow import audit
 
-PERSIAN_MONTHS = [
-    "فروردین",
-    "اردیبهشت",
-    "خرداد",
-    "تیر",
-    "مرداد",
-    "شهریور",
-    "مهر",
-    "آبان",
-    "آذر",
-    "دی",
-    "بهمن",
-    "اسفند",
-]
-
 
 def _format_currency(val: Decimal | int | float | None, unit: str = "IRR") -> tuple[int, str]:
     if val is None:
-        return 0, "۰"
+        return 0, "—"
     dec = Decimal(str(val))
     if unit == "TOMAN":
         dec = (dec / Decimal("10")).quantize(Decimal("1"))
@@ -538,6 +526,10 @@ def _get_company_ledger_metrics(db: Session, company_id: str, period: m.Period) 
     return {}
 
 
+def _unavailable_kpi(reason: str) -> dict:
+    return {"value": None, "formatted_value": "—", "status": "unavailable", "subtitle": reason}
+
+
 def _evaluate_widget(
     db: Session,
     company_id: str,
@@ -563,6 +555,15 @@ def _evaluate_widget(
         trend_percent = None
 
         if entity == "invoices":
+            if not invoices:
+                return _unavailable_kpi("ردیف فاکتور معتبر برای این دوره موجود نیست.")
+            sales = [inv for inv in invoices if inv.get("direction") in ("sale", "sales")]
+            if metric in {"sales_unpaid", "sales_overdue"} and any(inv.get("remaining") is None for inv in sales):
+                return _unavailable_kpi("ماندهٔ برخی فاکتورها مشخص نیست.")
+            if metric == "sales_overdue" and any(
+                inv.get("overdue") is None and Decimal(str(inv["remaining"])) > 0 for inv in sales
+            ):
+                return _unavailable_kpi("سررسید برخی فاکتورهای باز مشخص نیست.")
             filtered = [
                 inv
                 for inv in invoices
@@ -579,12 +580,12 @@ def _evaluate_widget(
                 )
             ]
             if metric == "sales_total":
-                sales = [inv for inv in invoices if inv.get("direction") in ("sale", "sales")]
+                if any(inv.get("amount") is None for inv in sales):
+                    return _unavailable_kpi("مبلغ برخی فاکتورهای فروش مشخص نیست.")
                 value = sum(Decimal(str(inv.get("amount") or 0)) for inv in sales)
                 subtitle = "مجموع فاکتورهای فروش تأییدشده"
                 status = "positive"
             elif metric == "sales_unpaid":
-                sales = [inv for inv in invoices if inv.get("direction") in ("sale", "sales")]
                 value = sum(Decimal(str(inv.get("remaining") or 0)) for inv in sales)
                 subtitle = "مانده در انتظار دریافت از خریداران"
                 status = "warning"
@@ -609,7 +610,9 @@ def _evaluate_widget(
                     "trend_percent": None,
                 }
             else:
-                value = sum(Decimal(str(inv.get("amount") or 0)) for inv in filtered)
+                if any(inv.get("amount") is None for inv in filtered):
+                    return _unavailable_kpi("مبلغ برخی فاکتورها مشخص نیست.")
+                value = sum(Decimal(str(inv["amount"])) for inv in filtered)
                 subtitle = "مجموع مبالغ"
 
         elif entity == "ledger":
@@ -624,7 +627,9 @@ def _evaluate_widget(
             }
             mapped_key = key_map.get(metric, metric)
             m_data = ledger_metrics.get(mapped_key, {})
-            raw_val = m_data.get("value") or 0
+            raw_val = m_data.get("value")
+            if raw_val is None:
+                return _unavailable_kpi(m_data.get("reason") or "دادهٔ معتبر برای این شاخص موجود نیست.")
             value = Decimal(str(raw_val))
             subtitle = m_data.get("label") or "شاخص دفتری"
             status = (
@@ -660,9 +665,21 @@ def _evaluate_widget(
                 subtitle = f"{len(bounced)} فقره چک برگشتی"
                 status = "danger" if value > 0 else "positive"
 
-        int_val, formatted = _format_currency(value, unit)
+        if entity == "ledger" and m_data.get("unit") not in (None, "IRR", "TOMAN"):
+            return {
+                "value": m_data["value"],
+                "formatted_value": localized(m_data["value"], amount=True),
+                "unit": m_data["unit"],
+                "subtitle": subtitle,
+                "status": status,
+            }
+        precise = Decimal(str(value))
+        if unit == "TOMAN":
+            precise /= Decimal(10)
+        display_value = int(precise) if precise == precise.to_integral_value() else format(precise, "f")
+        formatted = localized(display_value, amount=True)
         return {
-            "value": int_val,
+            "value": display_value,
             "formatted_value": formatted,
             "unit": "تومان" if unit == "TOMAN" else "ریال",
             "subtitle": subtitle,
@@ -673,23 +690,6 @@ def _evaluate_widget(
     # 2. LINE / BAR CHARTS
     if w_type in ("line_chart", "bar_chart"):
         chart_data = []
-
-        if metric == "revenue_vs_expense" or (entity == "ledger" and widget.group_by == "month"):
-            # Provide monthly timeline breakdown
-            for i, month_name in enumerate(PERSIAN_MONTHS):
-                # Monthly projection/distribution derived from ledger figures
-                rev_base = int(_format_currency(ledger_metrics.get("revenue", {}).get("value", 0), unit)[0])
-                exp_base = int(_format_currency(ledger_metrics.get("expense", {}).get("value", 0), unit)[0])
-                # Generate realistic monthly distribution
-                weight = 0.8 + (i % 4) * 0.12
-                chart_data.append(
-                    {
-                        "name": month_name,
-                        "درآمد": int(rev_base / 12 * weight) if rev_base > 0 else 0,
-                        "هزینه": int(exp_base / 12 * weight) if exp_base > 0 else 0,
-                    }
-                )
-            return chart_data
 
         if entity == "invoices" and widget.group_by == "party":
             # Group invoices by party
@@ -702,63 +702,34 @@ def _evaluate_widget(
             for p_name, total in sorted_parties:
                 int_v, _ = _format_currency(total, unit)
                 chart_data.append({"name": p_name, "مبلغ": int_v})
-            if not chart_data:
-                chart_data = [{"name": "داده‌ای یافت نشد", "مبلغ": 0}]
             return chart_data
 
         if entity == "invoices" and widget.group_by == "month":
-            # Group invoices by month
-            month_map: dict[str, Decimal] = {m: Decimal("0") for m in PERSIAN_MONTHS[:6]}
-            for inv in invoices:
-                amt = Decimal(str(inv.get("amount") or 0))
-                # Distribute or assign
-                month_map[PERSIAN_MONTHS[0]] += amt
-            for m_name, total in month_map.items():
-                int_v, _ = _format_currency(total, unit)
-                chart_data.append({"name": m_name, "فروش": int_v})
-            return chart_data
-
-        if entity == "cheques":
-            for m_name in PERSIAN_MONTHS[:6]:
-                chart_data.append(
-                    {
-                        "name": m_name,
-                        "دریافتنی": 0,
-                        "پرداختنی": 0,
-                    }
+            month_totals: dict[tuple[int, int], Decimal] = {}
+            for invoice in invoices:
+                if invoice.get("direction") not in ("sale", "sales"):
+                    continue
+                try:
+                    invoice_date = date.fromisoformat(invoice.get("date") or "")
+                except ValueError:
+                    return []
+                if invoice.get("amount") is None:
+                    return []
+                jalali = jdatetime.date.fromgregorian(date=invoice_date)
+                month_key = (jalali.year, jalali.month)
+                month_totals[month_key] = month_totals.get(month_key, Decimal(0)) + Decimal(
+                    str(invoice["amount"])
                 )
-            return chart_data
+            return [
+                {"name": localized(f"{year}/{month:02}"), "فروش": _format_currency(total, unit)[0]}
+                for (year, month), total in sorted(month_totals.items())
+            ]
 
         return chart_data
 
     # 3. DONUT / PIE CHARTS
     if w_type == "donut_chart":
         donut_data = []
-        if entity == "ledger" and widget.group_by == "category":
-            total_exp = int(_format_currency(ledger_metrics.get("expense", {}).get("value", 0), unit)[0])
-            if total_exp > 0:
-                categories = [
-                    ("حقوق و دستمزد", 0.45, "#5556DE"),
-                    ("اجاره و استهلاک", 0.25, "#10B981"),
-                    ("اداری و بازاریابی", 0.18, "#F59E0B"),
-                    ("سایر هزینه‌های عملیاتی", 0.12, "#EF4444"),
-                ]
-                for cat_name, ratio, color in categories:
-                    val = int(total_exp * ratio)
-                    donut_data.append(
-                        {
-                            "name": cat_name,
-                            "value": val,
-                            "color": color,
-                            "percentage": int(ratio * 100),
-                        }
-                    )
-            else:
-                donut_data = [
-                    {"name": "بدون هزینه ثبت‌شده", "value": 1, "color": "#E9ECF5", "percentage": 100}
-                ]
-            return donut_data
-
         if entity == "invoices":
             sales_amt = sum(
                 Decimal(str(inv.get("amount") or 0))
@@ -854,27 +825,26 @@ def _evaluate_widget(
 
     # 5. AI SUMMARY WIDGET
     if w_type == "ai_summary":
-        rev = ledger_metrics.get("revenue", {}).get("value", 0)
-        exp = ledger_metrics.get("expense", {}).get("value", 0)
-        cash = ledger_metrics.get("cash", {}).get("value", 0)
-        profit = ledger_metrics.get("pre_tax_profit", {}).get("value", 0)
-
-        _, rev_f = _format_currency(rev, unit)
-        _, exp_f = _format_currency(exp, unit)
-        _, profit_f = _format_currency(profit, unit)
-        _, cash_f = _format_currency(cash, unit)
-
-        sentiment = "positive" if profit and Decimal(str(profit)) > 0 else "caution"
+        labels = {
+            "revenue": "درآمد ناخالص",
+            "expense": "هزینه‌های عملیاتی",
+            "cash": "ماندهٔ نقد",
+            "pre_tax_profit": "سود پیش از مالیات",
+        }
+        highlights = []
+        missing = []
+        for key, label in labels.items():
+            value = ledger_metrics.get(key, {}).get("value")
+            if value is None:
+                missing.append(label)
+            else:
+                highlights.append(f"{label} {_format_currency(value, unit)[1]} {unit}")
         insight = (
-            f"بر اساس داده‌های ثبتی این دوره، شرکت به درآمد ناخالص {rev_f} {unit} دست یافته و مجموع هزینه‌های عملیاتی {exp_f} {unit} ثبت گردیده است. "
-            f"مانده نقدینگی حاضر در بانک‌ها برابر با {cash_f} {unit} بوده که نسبت به تعهدات کوتاه‌مدت، وضعیت نقدینگی در محدوده "
-            f"{'مطلوب و پایدار' if sentiment == 'positive' else 'نیازمند مراقبت و پیگیری وصول مطالبات'} ارزیابی می‌شود."
+            f"دادهٔ معتبر برای {'، '.join(missing)} موجود نیست."
+            if missing
+            else " · ".join(highlights[:2])
         )
-        highlights = [
-            f"سود ناخالص عملیاتی محقق‌شده: {profit_f} {unit}",
-            f"نسبت نقدینگی و مانده حساب‌های بانکی: {cash_f} {unit}",
-            "توصیه: اولویت‌بندی تسویه فاکتورهای سررسیدگذشته برای بهبود جریان نقدینگی",
-        ]
+        sentiment = "caution" if missing else "neutral"
         return {
             "insight": insight,
             "highlights": highlights,
@@ -884,7 +854,14 @@ def _evaluate_widget(
     return {}
 
 
-def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
+def preview(
+    db: Session,
+    company_id: str,
+    spec: StudioLayoutSpec,
+    *,
+    manifest: m.ResultManifest | None = None,
+    live_actor: m.User | None = None,
+) -> dict:
     """Renders the entire Studio Layout by computing all section and widget data."""
     period = None
     if spec.global_filters.period_id and spec.global_filters.period_id != "default-period":
@@ -894,8 +871,8 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
                 m.Period.id == spec.global_filters.period_id,
             )
         )
-    if not period:
-        # Fall back to latest active period for this company
+        require(period is not None, "studio_period_not_found", "دورهٔ مالی انتخاب‌شده یافت نشد.", 404)
+    else:
         period = db.scalar(
             select(m.Period)
             .where(m.Period.company_id == company_id)
@@ -939,8 +916,18 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
             ],
         }
 
-    invoices = _get_company_invoices(db, company_id, period)
-    ledger_metrics = _get_company_ledger_metrics(db, company_id, period)
+    basis = "منابع ویجت‌ها"
+    as_of = period.end.isoformat()
+    if manifest is not None:
+        invoices = (manifest.details or {}).get("invoices") or []
+        ledger_metrics = {item["metric_key"]: item for item in (manifest.metrics or [])}
+        basis = "گزارش ذخیره‌شده"
+        as_of = manifest.created_at.isoformat()
+    elif live_actor is not None:
+        invoices, ledger_metrics, basis, as_of = _live_data(db, company_id, live_actor, period)
+    else:
+        invoices = _get_company_invoices(db, company_id, period)
+        ledger_metrics = _get_company_ledger_metrics(db, company_id, period)
 
     rendered_sections = []
     for section in spec.sections:
@@ -994,8 +981,53 @@ def preview(db: Session, company_id: str, spec: StudioLayoutSpec) -> dict:
             "end": str(period.end),
         },
         "global_filters": spec.global_filters.model_dump(),
+        "basis_label": basis,
+        "as_of": as_of,
         "sections": rendered_sections,
     }
+
+
+def _live_data(db: Session, company: str, actor: m.User, period: m.Period) -> tuple:
+    from .accounting_setup_models import CompanyAccountingSetup
+    from .native_assistant_service import CORE_METRICS
+    from .native_invoice_evidence import _today
+    from .native_invoice_exports import invoice_rows
+    from .native_invoice_service import current
+    from .native_reporting_reasons import REASONS
+    from .native_reporting_service import build_statement
+
+    cutoff = min(period.end, _today(db, company))
+    setup = db.get(CompanyAccountingSetup, company)
+    if setup is not None and setup.mode == "primary":
+        require(cutoff >= period.start, "studio_period_in_future", "دورهٔ مالی هنوز شروع نشده است.")
+        statement = build_statement(db, company, actor, period.id, cutoff)
+        source = {metric["metric_key"]: metric for metric in statement["metrics"]}
+        metrics = {}
+        for source_key, key, label in CORE_METRICS:
+            metric = source.get(source_key, {})
+            metrics[key] = metric | {
+                "label": label,
+                "reason": "، ".join(REASONS.get(code, code) for code in metric.get("reason_codes", [])),
+            }
+        invoices = [
+            row for row in invoice_rows(current(db, company, actor, cutoff))
+            if row.get("date") and row["date"] >= period.start.isoformat()
+        ]
+        return invoices, metrics, "دفتر و فاکتورهای بومی", cutoff.isoformat()
+    manifest = db.scalar(
+        select(m.ResultManifest)
+        .where(m.ResultManifest.company_id == company, m.ResultManifest.period_id == period.id)
+        .order_by(m.ResultManifest.created_at.desc(), m.ResultManifest.id.desc())
+        .limit(1)
+    )
+    if manifest is None:
+        return [], {}, "ورودی پردازش‌شده", cutoff.isoformat()
+    return (
+        (manifest.details or {}).get("invoices") or [],
+        {item["metric_key"]: item for item in (manifest.metrics or [])},
+        "آخرین ورودی پردازش‌شده",
+        manifest.created_at.isoformat(),
+    )
 
 
 def save(
@@ -1005,6 +1037,9 @@ def save(
     data: StudioSaveDefinitionInput,
     definition_id: str | None = None,
     expected_version: int | None = None,
+    *,
+    dashboard_mode: str = "fixed",
+    manifest: m.ResultManifest | None = None,
 ) -> dict:
     """Saves or updates a Studio Dashboard definition."""
     layout_dict = data.spec.model_dump()
@@ -1022,6 +1057,10 @@ def save(
             "studio_spec": layout_dict,
             "is_dashboard": is_dashboard,
         }
+        if is_dashboard and definition.spec.get("is_dashboard"):
+            for key in ("dashboard_mode", "dashboard_snapshot"):
+                if key in definition.spec:
+                    spec_payload[key] = definition.spec[key]
         definition.spec = spec_payload
         definition.version += 1
     else:
@@ -1040,6 +1079,8 @@ def save(
 
     db.flush()
     if is_dashboard:
+        if "dashboard_mode" not in definition.spec:
+            _configure_dashboard(db, company_id, definition, dashboard_mode, manifest)
         all_defs = db.scalars(
             select(SavedReportDefinition).where(
                 SavedReportDefinition.company_id == company_id,
@@ -1112,6 +1153,8 @@ def set_active_dashboard(
     company_id: str,
     user: m.User,
     definition_id: str,
+    *,
+    mode: str = "fixed",
 ) -> dict:
     """Designates a saved report definition as the company's active dashboard."""
     definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
@@ -1126,9 +1169,7 @@ def set_active_dashboard(
             updated["is_dashboard"] = False
             d.spec = updated
 
-    updated_spec = dict(definition.spec)
-    updated_spec["is_dashboard"] = True
-    definition.spec = updated_spec
+    _configure_dashboard(db, company_id, definition, mode)
     definition.version += 1
     db.flush()
 
@@ -1138,7 +1179,7 @@ def set_active_dashboard(
         user.id,
         "report_studio.set_active_dashboard",
         definition.id,
-        {"name": definition.name, "version": definition.version},
+        {"name": definition.name, "version": definition.version, "mode": mode},
     )
     return {
         "id": definition.id,
@@ -1181,6 +1222,8 @@ def get_active_dashboard(
     db: Session,
     company_id: str,
     period_id: str | None = None,
+    *,
+    actor: m.User | None = None,
 ) -> dict:
     """Returns the active custom dashboard and its evaluated preview if one is configured."""
     all_defs = db.scalars(
@@ -1201,9 +1244,31 @@ def get_active_dashboard(
             "dashboard": None,
         }
 
-    studio_spec_dict = active_def.spec.get("studio_spec")
+    mode = active_def.spec.get("dashboard_mode", "legacy")
+    result = {
+        "has_custom_dashboard": True,
+        "definition_id": active_def.id,
+        "definition_name": active_def.name,
+        "mode": mode,
+    }
+    snapshot = active_def.spec.get("dashboard_snapshot")
+    if mode == "fixed" and snapshot is not None:
+        return result | snapshot
+
+    try:
+        spec = _dashboard_layout(active_def, period_id)
+        rendered = preview(db, company_id, spec, live_actor=actor if mode == "live" else None)
+        return result | {"spec": spec.model_dump(), "dashboard": rendered}
+    except DomainError as exc:
+        return result | {"error": exc.message, "dashboard": None}
+    except ValidationError:
+        return result | {"error": "تعریف داشبورد نامعتبر است.", "dashboard": None}
+
+
+def _dashboard_layout(definition: SavedReportDefinition, period_id: str | None = None) -> StudioLayoutSpec:
+    studio_spec_dict = definition.spec.get("studio_spec")
     if not studio_spec_dict:
-        classic_spec = active_def.spec
+        classic_spec = definition.spec
         period_id_val = period_id or classic_spec.get("period_id") or "default-period"
         kind = classic_spec.get("kind", "metrics")
         basis = classic_spec.get("basis", "ledger")
@@ -1252,7 +1317,7 @@ def get_active_dashboard(
             )
 
         spec_data = {
-            "title": active_def.name,
+            "title": definition.name,
             "description": "داشبورد تبدیل‌شده از گزارش سازمانی",
             "global_filters": {
                 "period_id": period_id_val,
@@ -1262,7 +1327,7 @@ def get_active_dashboard(
             "sections": [
                 {
                     "id": "section-main",
-                    "title": active_def.name,
+                    "title": definition.name,
                     "description": None,
                     "layout": "grid-2",
                     "basis": studio_basis,
@@ -1276,24 +1341,28 @@ def get_active_dashboard(
             spec_data["global_filters"] = dict(spec_data["global_filters"])
             spec_data["global_filters"]["period_id"] = period_id
 
-    try:
-        spec_obj = StudioLayoutSpec.model_validate(spec_data)
-        rendered = preview(db, company_id, spec_obj)
-        return {
-            "has_custom_dashboard": True,
-            "definition_id": active_def.id,
-            "definition_name": active_def.name,
-            "spec": spec_obj.model_dump(),
-            "dashboard": rendered,
+    return StudioLayoutSpec.model_validate(spec_data)
+
+
+def _configure_dashboard(
+    db: Session,
+    company_id: str,
+    definition: SavedReportDefinition,
+    mode: str,
+    manifest: m.ResultManifest | None = None,
+) -> None:
+    require(mode in {"fixed", "live"}, "invalid_dashboard_mode", "نوع داشبورد نامعتبر است.")
+    spec = dict(definition.spec)
+    spec["is_dashboard"] = True
+    spec["dashboard_mode"] = mode
+    spec.pop("dashboard_snapshot", None)
+    if mode == "fixed":
+        layout = _dashboard_layout(definition)
+        spec["dashboard_snapshot"] = {
+            "spec": layout.model_dump(),
+            "dashboard": preview(db, company_id, layout, manifest=manifest),
         }
-    except Exception as e:
-        return {
-            "has_custom_dashboard": False,
-            "error": str(e),
-            "definition_id": active_def.id,
-            "definition_name": active_def.name,
-            "dashboard": None,
-        }
+    definition.spec = spec
 
 
 def export_definition_pdf(
@@ -1412,6 +1481,8 @@ def set_official_report_as_dashboard(
     company_id: str,
     user: m.User,
     report_id: str,
+    *,
+    mode: str = "fixed",
 ) -> dict:
     """Creates and designates a dashboard definition from an official Report record."""
     report = get_entity(db, m.Report, company_id, report_id)
@@ -1423,23 +1494,21 @@ def set_official_report_as_dashboard(
     for met in metrics:
         m_key = met.get("metric_key") or "metric"
         m_label = met.get("label") or m_key
-        m_val = met.get("value")
-        if m_val is not None:
-            kpi_widgets.append(
-                {
-                    "id": f"kpi-{m_key}",
-                    "title": m_label,
-                    "type": "kpi_card",
-                    "entity": "ledger",
-                    "metric": m_key,
-                    "group_by": "none",
-                    "limit": 1,
-                    "filters": {},
-                    "unit": met.get("unit") or "IRR",
-                    "color": "primary",
-                    "col_span": 3,
-                }
-            )
+        kpi_widgets.append(
+            {
+                "id": f"kpi-{m_key}",
+                "title": m_label,
+                "type": "kpi_card",
+                "entity": "ledger",
+                "metric": m_key,
+                "group_by": "none",
+                "limit": 1,
+                "filters": {},
+                "unit": "IRR",
+                "color": "primary",
+                "col_span": 3,
+            }
+        )
 
     sections = [
         {
@@ -1494,4 +1563,4 @@ def set_official_report_as_dashboard(
         spec=StudioLayoutSpec.model_validate(layout_spec),
         is_dashboard=True,
     )
-    return save(db, company_id, user, save_input)
+    return save(db, company_id, user, save_input, dashboard_mode=mode, manifest=manifest)

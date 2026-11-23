@@ -282,6 +282,20 @@ def test_ai02_ai04_analytical_orchestration_and_explanations(db_session, test_se
     assert len(res1["suggested_actions"]) > 0
     assert len(res1["evidence_refs"]) > 0
 
+    newer_same_period = NativeStatementRun(
+        id="stmt-p2-later", company_id=company.id, actor_id=user.id, digest="7" * 64,
+        snapshot={"period_id": "p2", "as_of": "2026-12-29", "metrics": []},
+    )
+    db.add(newer_same_period)
+    db.flush()
+    pinned = orchestrate_analysis(
+        db, company.id, user, q1, {"native_statement_id": "stmt-p2"}, context_type="native_statement",
+    )
+    comparison = pinned["analytical_facts"]["period_comparison"]
+    assert comparison["current_statement_id"] == "stmt-p2"
+    assert comparison["prior_statement_id"] == "stmt-p1"
+    assert comparison["deltas"]["profit_before_tax"]["delta"] == "-200"
+
     # Test receivables inquiry
     q2 = "کدام مطالبات تجاری معوق شده و نیازمند پیگیری است؟"
     res2 = orchestrate_analysis(db, company.id, user, q2)
@@ -357,7 +371,7 @@ def test_assistant_api_route_end_to_end():
 
     res = client.post(
         f"/api/v1/companies/{c_id}/assistant/questions",
-        json={"question": "چرا سود این دوره کاهش یافته است؟"},
+        json={"question": "چرا سود این دوره کاهش یافته است؟", "native_statement_id": stmt.id},
         headers={
             "X-CSRF-Token": csrf,
             "Idempotency-Key": f"key-{uuid4().hex[:8]}",

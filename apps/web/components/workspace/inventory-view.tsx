@@ -37,8 +37,7 @@ function InventoryWorkspace() {
     setEditor((previous) => previous && { ...previous, open: false });
   const data = view.inventory.data;
   const canPost = view.capabilities.data?.can_post && view.capabilities.data.posting_available;
-  const canCreate = !!data?.items.length && !!data.warehouses.length && view.workspace.periods.length > 0 &&
-    !view.accounts.loading && !view.accounts.error && view.accounts.options.length > 0;
+  const canCreate = view.canCreate;
   const journal = view.journal.resource;
 
   return (

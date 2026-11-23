@@ -30,6 +30,7 @@ import { listItems, type Report } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { BuiltInReportList } from "./built-in-report-list";
 
 export function ReportsView() {
   const workspace = useWorkspace();
@@ -43,7 +44,7 @@ export function ReportsView() {
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="گزارش‌ها"
+        title="آرشیو گزارش‌ها"
         action={
           <ButtonLink href="/reports/studio" variant="primary" className="gap-1.5">
             <PlusIcon size={18} />
@@ -53,6 +54,7 @@ export function ReportsView() {
       />
 
       <div className="space-y-6">
+        <BuiltInReportList />
         <Panel title="صورت‌های مالی و گزارش‌های رسمی">
           {resource.loading ? (
             <LoadingState />
@@ -95,27 +97,27 @@ export function ReportsView() {
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-2">
                             {/* 1. تبدیل به داشبورد */}
-                            {workspace.canWrite && (
+                            {workspace.canWrite && (["fixed", "live"] as const).map((mode) => (
                               <Button
-                                variant="soft"
+                                key={mode}
+                                variant={mode === "fixed" ? "soft" : "ghost"}
                                 disabled={command.busy}
                                 onClick={() => {
                                   void command.run(
                                     workspace.companyPath(
-                                      `report-studio/reports/${report.id}/set-dashboard`,
+                                      `report-studio/reports/${report.id}/set-dashboard?mode=${mode}`,
                                     ),
                                     { method: "POST" },
                                     () => resource.refresh(),
-                                    "این گزارش رسمی به‌عنوان داشبورد اصلی شرکت تنظیم شد.",
+                                    "داشبورد شرکت تنظیم شد.",
                                   );
                                 }}
-                                className="gap-1.5 text-xs text-primary"
-                                title="تنظیم این صورت مالی به‌عنوان داشبورد صفحه نخست شرکت"
+                                className="gap-1.5 text-xs"
                               >
                                 <SquaresFourIcon size={15} />
-                                تبدیل به داشبورد
+                                {mode === "fixed" ? "تبدیل به داشبورد" : "تنظیم به‌عنوان داشبورد زنده"}
                               </Button>
-                            )}
+                            ))}
 
                             {/* 2. خروجی PDF */}
                             <a

@@ -4,6 +4,7 @@ import type { AccountingCapabilities } from "@/lib/accounting";
 import type { Counterparty, CounterpartyForm, Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
 import type { InventoryState } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
+import { useAccountOptions } from "./use-accounting";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
@@ -103,7 +104,7 @@ export function emptyProformaLine(key: number): ProformaLineForm {
 
 export function proformaForm(row?: Proforma): ProformaForm {
   return {
-    number: row?.number ?? "", direction: row?.direction ?? "sale",
+    number: row?.number ?? "", direction: "sale",
     date: row?.date ?? tehranToday(), expiry_date: row?.expiry_date ?? "",
     party_id: row?.party_id ?? "", currency: row?.currency ?? "IRR", terms: row?.terms ?? "",
     lines: row?.lines.map((line, key) => ({
@@ -152,4 +153,74 @@ export function useProformas() {
       });
     },
   };
+}
+
+export function useProformaConversion(row: Proforma, onComplete: () => void) {
+  const operation = useWorkspace();
+  const accountResource = useAccountOptions(operation.company?.id ?? "");
+  const accounts = {
+    ...accountResource,
+    options: accountResource.items.filter((item) => item.active).map(({ id, code, name }) => ({
+      value: id, label: `${code} · ${name}`,
+    })),
+  };
+  const inventory = useResource<InventoryState>(operation.companyPath("accounting/inventory"));
+  const command = useCommand();
+  const today = tehranToday();
+  const periods = operation.periods.filter((period) => period.start <= today && period.end >= today);
+  const [values, setValues] = useState({
+    period_id: periods.find((period) => period.id === operation.periodId)?.id ?? periods[0]?.id ?? "",
+    warehouse_id: "",
+    counterparty_account_id: "",
+    revenue_account_id: "",
+    cost_account_id: "",
+    settlement_type: "on_account",
+    cash_amount: "",
+    cheque_amount: "",
+    on_account_amount: "",
+    cash_account_id: "",
+    cheque_account_id: "",
+    cheque_number: "",
+    cheque_due_date: "",
+  });
+  const request = useRef<{ fingerprint: string; key: string }>(null);
+  const mixed = values.settlement_type === "mixed";
+  const cash = values.settlement_type === "cash" || (mixed && /[1-9]/.test(values.cash_amount));
+  const cheque = mixed && /[1-9]/.test(values.cheque_amount);
+  const onAccount = values.settlement_type === "on_account" || (mixed && /[1-9]/.test(values.on_account_amount));
+  const valid = !!(values.period_id && values.warehouse_id && values.revenue_account_id && values.cost_account_id)
+    && (!onAccount || !!values.counterparty_account_id)
+    && (!cash || !!values.cash_account_id)
+    && (!cheque || !!(values.cheque_account_id && values.cheque_number.trim() && values.cheque_due_date))
+    && (!mixed || cash || cheque || onAccount);
+
+  function save() {
+    if (!valid) return;
+    const body = {
+      period_id: values.period_id,
+      warehouse_id: values.warehouse_id,
+      source_reference: `proforma:${row.id}`,
+      settlement_type: values.settlement_type,
+      revenue_account_id: values.revenue_account_id,
+      cost_account_id: values.cost_account_id,
+      ...(onAccount ? { counterparty_account_id: values.counterparty_account_id } : {}),
+      ...(cash ? { cash_account_id: values.cash_account_id } : {}),
+      ...(cheque ? { cheque_account_id: values.cheque_account_id,
+        cheque_number: values.cheque_number.trim(), cheque_due_date: values.cheque_due_date } : {}),
+      ...(mixed ? { cash_amount: values.cash_amount || "0", cheque_amount: values.cheque_amount || "0",
+        on_account_amount: values.on_account_amount || "0" } : {}),
+    };
+    const fingerprint = JSON.stringify(body);
+    if (request.current?.fingerprint !== fingerprint) {
+      request.current = { fingerprint, key: crypto.randomUUID() };
+    }
+    void command.run(operation.companyPath(`commercial/proformas/${row.id}/convert`), {
+      method: "POST",
+      body,
+      version: row.version,
+      key: request.current.key,
+    }, onComplete, "پیش‌نویس فروش ساخته شد.");
+  }
+
+  return { accounts, inventory, command, periods, values, setValues, mixed, cash, cheque, onAccount, valid, save };
 }

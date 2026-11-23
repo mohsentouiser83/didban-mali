@@ -309,6 +309,12 @@ export function ImportedReconciliationWorkspace() {
   );
 }
 
+const reconciliationTitles = {
+  bank: "تطبیق بانک و دفتر",
+  counterparty: "تطبیق طرف‌حساب‌ها",
+  moadian: "تطبیق کارپوشه مؤدیان",
+};
+
 export function ReconciliationView({
   initialTab = "bank",
 }: {
@@ -321,7 +327,7 @@ export function ReconciliationView({
     <div className="space-y-6">
       <PageHeader
         icon={HeaderIcon}
-        title="مرکز تطبیق و مغایرت‌گیری مالی"
+        title={reconciliationTitles[initialTab]}
       />
 
       {initialTab === "bank" && <NativeBankMatchesPanel key={view.scope + ":native"} />}

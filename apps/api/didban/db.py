@@ -50,8 +50,6 @@ IMMUTABLE += (
     "native_book_report_runs",
     "journal_correction_drafts",
     "accounting_operations",
-    "inventory_items",
-    "inventory_warehouses",
     "inventory_movements",
     "moadian_transmissions",
     "moadian_transmission_events",
@@ -106,6 +104,17 @@ def resolve_immutable_tables() -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
+def obsolete_inventory_catalogue_guards(dialect: str) -> list[str]:
+    tables = ("inventory_items", "inventory_warehouses")
+    if dialect == "postgresql":
+        return [f"DROP TRIGGER IF EXISTS immutable_fact ON {table}" for table in tables]
+    return [
+        f"DROP TRIGGER IF EXISTS immutable_{table}_{operation}"
+        for table in tables
+        for operation in ("UPDATE", "DELETE")
+    ]
+
+
 if engine.dialect.name == "sqlite":
 
     @event.listens_for(engine, "connect")
@@ -143,6 +152,7 @@ def postgres_security_statements() -> list[str]:
                 f"CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON {name} FOR EACH ROW EXECUTE FUNCTION deny_fact_change()",
             ]
         )
+    statements.extend(obsolete_inventory_catalogue_guards("postgresql"))
     statements.extend(native_invoice_source_guards("postgresql"))
     return statements
 
@@ -302,6 +312,8 @@ def initialize() -> None:
             for statement in postgres_security_statements():
                 conn.execute(text(statement))
         else:
+            for statement in obsolete_inventory_catalogue_guards("sqlite"):
+                conn.execute(text(statement))
             for name in resolve_immutable_tables():
                 for operation in ("UPDATE", "DELETE"):
                     conn.execute(

@@ -75,25 +75,6 @@ PAYROLL_FIELDS = (
 )
 
 
-def _require_operation_module(db: Session, company: str, kind: str) -> None:
-    if kind in ("sale_goods", "purchase_goods"):
-        return
-    from .module_service import require_module
-
-    module = (
-        "payroll"
-        if kind in ("payroll", "payroll_payment")
-        else "receivables"
-        if kind == "sale_service"
-        else "payables"
-        if kind == "purchase_service"
-        else "settlements"
-    )
-    # Preparation is an input workflow, so source availability is not required.
-    # Explicit module disablement still blocks both preparation and posting.
-    require_module(db, company, module, ready=False)
-
-
 def catalogue() -> dict:
     items = []
     for kind, label in LABELS.items():
@@ -480,7 +461,6 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
     require(
         capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تهیه سند ندارید.", 403
     )
-    _require_operation_module(db, company, data["kind"])
     require(
         not db.scalar(
             select(OperationDraft.id).where(
@@ -527,6 +507,10 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
             company=company,
         )
     lines = build(data)
+    if data["kind"] == "sale_service":
+        from .commercial_service import check_credit_limit, sale_credit_amount
+
+        check_credit_limit(db, company, user, data["party_id"], sale_credit_amount(data, data["amounts"]["amount"]))
     result = save_draft(
         db,
         company,
@@ -643,7 +627,6 @@ def validate_posting(db: Session, company: str, draft) -> str | None:
     )
     if not origin:
         return
-    _require_operation_module(db, company, origin.kind)
     if not origin.kind.startswith("cheque_"):
         return
     data = dict(origin.payload)

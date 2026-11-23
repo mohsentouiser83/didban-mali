@@ -3,17 +3,22 @@
 import {
   BarcodeIcon,
   PackageIcon,
+  PencilSimpleIcon,
   PlusIcon,
   StorefrontIcon,
+  TrashIcon,
   WalletIcon,
 } from "@phosphor-icons/react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -42,15 +47,12 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
   const isItem = entity === "items";
   const singular = isItem ? "کالا" : "انبار";
   const addLabel = isItem ? "افزودن کالا" : "افزودن انبار";
-  const canAdd = !!view.inventory.data?.can_manage_catalog &&
-    (!isItem || (!view.accounts.loading && !view.accounts.error && view.accounts.options.length > 0));
-  const addAction = canAdd && (
-    <Button onClick={view.show}>
+  const addAction = view.canAdd && (
+    <Button onClick={() => view.show()}>
       <PlusIcon size={18} aria-hidden />
       {addLabel}
     </Button>
   );
-  const accountNames = new Map(view.accounts.items.map((account) => [account.id, `${account.code} · ${account.name}`]));
   return (
     <>
       <PageHeader
@@ -74,27 +76,47 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
             <Table
               title={isItem ? "فهرست کالاها" : "فهرست انبارها"}
               aria-label={isItem ? "فهرست کالاها" : "فهرست انبارها"}
-              onImport={view.importFromExcel}
+              onImport={view.canAdd ? view.importFromExcel : undefined}
             >
               <TableHeader>
                 <TableRow>
                   <TableHead>نام {singular}</TableHead>
                   <TableHead>کد</TableHead>
                   {isItem && <TableHead>حساب موجودی</TableHead>}
+                  <TableHead>وضعیت</TableHead>
+                  {view.canManage && <TableHead>عملیات</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {view.rows.length ? view.rows.map((row) => (
+                {view.rows.length ? view.rows.map(({ record: row, hasMovements }) => (
                   <TableRow key={row.id}>
                     <TableRowHeader>{row.name}</TableRowHeader>
                     <TableCell><bdi>{row.code}</bdi></TableCell>
                     {"inventory_account_id" in row && (
-                      <TableCell>{accountNames.get(row.inventory_account_id) || "—"}</TableCell>
+                      <TableCell>{view.accountNames.get(row.inventory_account_id) || "—"}</TableCell>
+                    )}
+                    <TableCell>
+                      <Badge tone={row.active ? "success" : "neutral"}>{row.active ? "فعال" : "غیرفعال"}</Badge>
+                    </TableCell>
+                    {view.canManage && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" className="size-11 p-0" aria-label={`ویرایش ${row.name}`} onClick={() => view.show(row)}>
+                            <PencilSimpleIcon size={18} aria-hidden />
+                          </Button>
+                          <Button variant="ghost" className="size-11 p-0 text-danger"
+                            disabled={hasMovements}
+                            aria-label={hasMovements ? `حذف ${row.name} به‌دلیل گردش انبار ممکن نیست` : `حذف ${row.name}`}
+                            onClick={() => view.confirmRemove(row)}>
+                            <TrashIcon size={18} aria-hidden />
+                          </Button>
+                        </div>
+                      </TableCell>
                     )}
                   </TableRow>
                 )) : (
                   <TableEmptyCell
-                    colSpan={isItem ? 3 : 2}
+                    colSpan={3 + Number(isItem) + Number(view.canManage)}
                     title={isItem
                       ? view.inventory.data?.can_manage_catalog && !view.accounts.options.length
                         ? "برای تعریف کالا، حساب موجودی لازم است"
@@ -109,7 +131,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
         )}
       </Panel>
       <Drawer
-        title={addLabel}
+        title={view.editing ? `ویرایش ${singular}` : addLabel}
         open={view.open}
         onOpenChange={(open) => {
           if (!open) view.close();
@@ -145,12 +167,28 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
             <Field id="inventory-account" name="inventory_account_id" label="حساب موجودی" icon={WalletIcon}>
               <Select id="inventory-account" label="حساب موجودی" value={view.value.inventory_account_id}
                 onValueChange={(inventory_account_id) => view.change({ inventory_account_id })}
-                options={view.accounts.options} />
+                options={view.accountOptions} disabled={view.accountLocked} />
             </Field>
+          )}
+          {view.editing && (
+            <div className="flex items-center justify-between gap-3">
+              <span>{singular} فعال</span>
+              <Switch label={`${singular} فعال`} checked={view.value.active} onCheckedChange={(active) => view.change({ active })} />
+            </div>
           )}
           <FormMessage error>{view.command.error?.message}</FormMessage>
         </Form>
       </Drawer>
+      <ConfirmDialog
+        open={!!view.deleting}
+        onOpenChange={(open) => { if (!open) view.cancelRemove(); }}
+        title={`حذف ${singular}`}
+        busy={view.command.busy}
+        onConfirm={view.remove}
+      >
+        <p>«{view.deleting?.name}» حذف شود؟</p>
+        <FormMessage error>{view.command.error?.message}</FormMessage>
+      </ConfirmDialog>
     </>
   );
 }

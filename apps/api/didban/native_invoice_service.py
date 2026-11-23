@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from . import models as m
 from .errors import DomainError, require
-from .module_service import require_module
 from .money_type import aggregate_money, canonical_money
 from .native_invoice_evidence import INVOICE_KINDS, KINDS, _access, _proof, _today
 from .native_invoice_models import (
@@ -216,8 +215,6 @@ def candidates(db: Session, company: str, user: m.User, kind: str) -> dict:
         authoring=True,
     )
     settlement = kind in ("receipt", "payment")
-    if settlement:
-        require_module(db, company, "settlements", ready=False)
     items = []
     for op in db.scalars(
         select(OperationDraft)
@@ -360,7 +357,6 @@ def allocate(db: Session, company: str, user: m.User, invoice_id: str, data: dic
     _lock(db, company)
     invoice = get_entity(db, NativeInvoice, company, invoice_id)
     _access(db, company, user, invoice.direction, True)
-    require_module(db, company, "settlements", ready=False)
     check_version(invoice, version)
     status = detail(db, company, user, invoice.id)
     require(
@@ -477,7 +473,6 @@ def reverse_allocation(
     _lock(db, company)
     invoice = get_entity(db, NativeInvoice, company, invoice_id)
     _access(db, company, user, invoice.direction, True)
-    require_module(db, company, "settlements", ready=False)
     check_version(invoice, version)
     row = get_entity(db, NativeInvoiceAllocation, company, allocation_id)
     require(row.invoice_id == invoice.id, "not_found", "تخصیص پیدا نشد.", 404)

@@ -95,12 +95,13 @@ def update_item(company_id: str, item_id: str, data: UpdateInventoryItemInput, r
 
 @router.delete(P + "/items/{item_id}")
 def delete_item(company_id: str, item_id: str, request: Request):
+    version = expected(request) if "if-match" in request.headers else None
     return mutate(
         request,
         company_id,
-        {},
+        {"version": version} if version is not None else {},
         "read",
-        lambda db, user: service.delete_item(db, company_id, user, item_id),
+        lambda db, user: service.delete_item(db, company_id, user, item_id, version),
     )
 
 
@@ -132,12 +133,13 @@ def update_warehouse(company_id: str, warehouse_id: str, data: UpdateWarehouseIn
 
 @router.delete(P + "/warehouses/{warehouse_id}")
 def delete_warehouse(company_id: str, warehouse_id: str, request: Request):
+    version = expected(request) if "if-match" in request.headers else None
     return mutate(
         request,
         company_id,
-        {},
+        {"version": version} if version is not None else {},
         "read",
-        lambda db, user: service.delete_warehouse(db, company_id, user, warehouse_id),
+        lambda db, user: service.delete_warehouse(db, company_id, user, warehouse_id, version),
     )
 
 

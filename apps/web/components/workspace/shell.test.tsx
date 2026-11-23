@@ -35,9 +35,6 @@ vi.mock("./header-account-menu", () => ({
 vi.mock("./floating-assistant", () => ({
   FloatingAssistant: () => <div data-testid="floating-assistant" />,
 }));
-vi.mock("./module-gate", () => ({
-  ModuleGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
 
 const storage: Record<string, string> = {};
 const localStorageMock = {
@@ -113,7 +110,7 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
   });
 
   it("shows active indicator when a collapsed category contains the current page", () => {
-    mockPathname = "/accounting/journals";
+    mockPathname = "/accounting/operations";
     render(<Shell><div>محتوای اسناد</div></Shell>);
 
     const accountingButton = screen.getAllByRole("button", {
@@ -151,7 +148,7 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
     expect(screen.getByRole("link", { name: "موجودی و کاردکس" })).not.toHaveAttribute("aria-current");
   });
 
-  it("provides separate cashflow links in mobile navigation with unique disclosure ids", () => {
+  it("keeps forecast accessible in mobile navigation without a direct period report link", () => {
     mockPathname = "/cashflow/forecast";
     render(<Shell><div>پیش‌بینی</div></Shell>);
 
@@ -159,7 +156,7 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "بازکردن ناوبری" }));
     const mobile = screen.getByRole("button", { name: /^نقدینگی -/ });
     expect(mobile.getAttribute("aria-controls")).not.toBe(desktop.getAttribute("aria-controls"));
-    expect(screen.getByRole("link", { name: "جریان نقد دوره" })).not.toHaveAttribute("aria-current");
+    expect(screen.queryByRole("link", { name: "جریان نقد دوره" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "پیش‌بینی ۳۰روزه" })).toHaveAttribute("aria-current", "page");
   });
 });

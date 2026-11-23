@@ -122,27 +122,9 @@ export function ImportedDashboardView() {
               { key: "net_profit", label: "سود خالص" },
             ]}
           />
-          <div className="mt-5 grid gap-5 xl:grid-cols-[1.25fr_1fr]">
-            <Panel title="مسیر نقدینگی">
-              <CashChart
-                unit={unit}
-                days={view.manifest.details.daily_cash || []}
-              />
-            </Panel>
-            <Panel title="اولویت رسیدگی">
-              {view.findings.length ? (
-                <div className="divide-y divide-border">
-                  {view.findings.map((finding) => (
-                    <p key={finding.id} className="px-3 py-4">
-                      {finding.title}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState compact title="مورد بازی برای بررسی نیست" />
-              )}
-            </Panel>
-          </div>
+          <Panel title="مسیر نقدینگی" className="mt-5">
+            <CashChart unit={unit} days={view.manifest.details.daily_cash || []} />
+          </Panel>
         </>
       )}
       {view.sessions.length > 0 && (
@@ -174,6 +156,12 @@ export function ImportedDashboardView() {
 
 export function DashboardView() {
   const workspace = useWorkspace();
+  if (!workspace.company) return <NoCompany />;
+  return <CompanyDashboard key={workspace.company.id} />;
+}
+
+function CompanyDashboard() {
+  const workspace = useWorkspace();
   const command = useCommand();
   const [activeDashboard, setActiveDashboard] =
     useState<ActiveDashboardResponse | null>(null);
@@ -188,7 +176,8 @@ export function DashboardView() {
     let active = true;
     const path = workspace.companyPath("report-studio/active-dashboard");
     if (!path) return;
-    api<ActiveDashboardResponse>(path)
+    const query = periodId ? `?period_id=${encodeURIComponent(periodId)}` : "";
+    api<ActiveDashboardResponse>(path + query)
       .then((data) => {
         if (active) {
           setActiveDashboard(data);
@@ -229,6 +218,15 @@ export function DashboardView() {
     activeDashboard?.has_custom_dashboard && activeDashboard.dashboard,
   );
 
+  if (activeDashboard?.error && viewMode === "custom") {
+    return (
+      <Panel>
+        <ErrorState message={activeDashboard.error} />
+        <Button variant="ghost" onClick={() => setViewMode("native")}>داشبورد استاندارد دیدبان</Button>
+      </Panel>
+    );
+  }
+
   if (hasCustom && viewMode === "custom" && activeDashboard?.dashboard) {
     const dash = activeDashboard.dashboard;
     return (
@@ -242,7 +240,8 @@ export function DashboardView() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone="primary" className="gap-1 font-medium">
                 <CheckCircleIcon size={14} />
-                داشبورد اختصاصی
+                {activeDashboard.mode === "fixed" ? "نسخهٔ ثابت" :
+                  activeDashboard.mode === "live" ? "نمای زنده" : "داشبورد اختصاصی"}
               </Badge>
 
               <Button
@@ -269,6 +268,11 @@ export function DashboardView() {
             </div>
           }
         >
+          {dash.as_of && dash.basis_label && (
+            <p className="mt-1 text-xs text-muted">
+              {dash.basis_label} · {displayDate(dash.as_of)}
+            </p>
+          )}
           {dash.description && (
             <p className="mt-1 text-xs text-muted">{dash.description}</p>
           )}

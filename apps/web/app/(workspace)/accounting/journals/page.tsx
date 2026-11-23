@@ -1,5 +1,5 @@
-import { AccountingView } from "@/components/workspace/accounting-view";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AccountingView />;
+  redirect("/reports/journals");
 }

@@ -32,15 +32,15 @@ import { JournalDraftForm } from "./journal-draft-form";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { DocumentDiscussionButton } from "./document-discussion-button";
 
-export function AccountingView() {
+export function AccountingView({ reviewDraftId }: { reviewDraftId?: string } = {}) {
   const workspace = useWorkspace();
   if (!workspace.company) return <NoCompany />;
   return (
-    <JournalWorkspace key={`${workspace.user?.id}:${workspace.company.id}`} />
+    <JournalWorkspace key={`${workspace.user?.id}:${workspace.company.id}`} reviewDraftId={reviewDraftId} />
   );
 }
 
-function JournalWorkspace() {
+function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
   const view = useJournalDrafts();
   const posting = usePosting(view.refresh);
   const details = useJournalDetails(view.refresh);
@@ -116,6 +116,11 @@ function JournalWorkspace() {
             </div>
           </div>
 
+            {reviewDraftId && canSelect && (
+              <Button variant="secondary" busy={posting.loading} onClick={() => void posting.review([reviewDraftId])}>
+                بررسی پیش‌نویس دستیار
+              </Button>
+            )}
             {view.capabilities.data?.can_post &&
               view.capabilities.data.posting_available &&
               posting.selected.length > 0 && (

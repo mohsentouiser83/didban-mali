@@ -4,7 +4,7 @@ import base64
 import json
 import secrets
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from hashlib import sha256
 
 from fastapi import Request
@@ -72,37 +72,18 @@ def access(request: Request, company: str | None = None, operation: str = "read"
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             check_csrf(request, session)
         member = membership(db, company, user, operation) if company else None
-        if company:
-            # Shared server guard also covers callers bypassing disabled navigation.
-            # Reports/results remain immutable historical records and are readable.
-            from .module_service import require_module
-
-            resource = request.url.path.removeprefix(f"/api/v1/companies/{company}/").split("/")[0]
-            module = {
-                "planned-payments": "cashflow",
-                "forecasts": "cashflow",
-                "cashflow-scenarios": "cashflow",
-                "native-forecasts": "cashflow",
-                "cheques": "settlements",
-                "allocations": "settlements",
-                "reconciliation-options": "reconciliation",
-                "reconciliation-groups": "reconciliation",
-                "reconciliation-manual-groups": "reconciliation",
-                "reconciliation-native-groups": "reconciliation",
-                "reconciliations": "reconciliation",
-                "reconciliation-proposals": "reconciliation",
-                "employees": "employees",
-                "payroll": "payroll",
-                "employee-reports": "employee_reports",
-                "tax": "tax",
-                "insurance": "insurance",
-            }.get(resource)
-            if module:
-                require_module(db, company, module, ready=False)
         yield db, user, member
 
 
-def mutate(request: Request, company: str, payload: dict, operation: str, callback) -> dict:
+def mutate(
+    request: Request,
+    company: str,
+    payload: dict,
+    operation: str,
+    callback,
+    *,
+    installation_admin: bool = False,
+) -> dict:
     key = request.headers.get("idempotency-key", "")
     require(1 <= len(key) <= 128, "idempotency_key_required", "شناسه درخواست لازم است.", 428)
     fingerprint = sha256(
@@ -112,6 +93,8 @@ def mutate(request: Request, company: str, payload: dict, operation: str, callba
         ).encode()
     ).hexdigest()
     with access(request, company, operation) as (db, user, _member):
+        if installation_admin:
+            require(user.installation_admin, "permission_denied", "فقط مدیر نصب مجاز است.", 403)
         previous = db.scalar(
             select(m.Idempotency).where(
                 m.Idempotency.company_id == company,
@@ -190,20 +173,24 @@ def paginate(
     cursor: str | None = None,
     filters: list | None = None,
     transform=serialize_fact,
+    *,
+    date_order: str | None = None,
 ) -> dict:
     require(1 <= limit <= 100, "invalid_limit", "تعداد ردیف باید بین ۱ و ۱۰۰ باشد.")
     query = select(cls).where(cls.company_id == company, *(filters or []))
+    order = getattr(cls, date_order) if date_order else cls.created_at
     if cursor:
         try:
             data = json.loads(base64.urlsafe_b64decode(cursor.encode()))
-            stamp, identifier = datetime.fromisoformat(data[0]), str(data[1])
+            stamp = date.fromisoformat(data[0]) if date_order else datetime.fromisoformat(data[0])
+            identifier = str(data[1])
         except (ValueError, TypeError, KeyError, IndexError) as error:
             raise DomainError("invalid_cursor", "صفحه‌بندی معتبر نیست.") from error
-        query = query.where(or_(cls.created_at < stamp, and_(cls.created_at == stamp, cls.id < identifier)))
-    items = list(db.scalars(query.order_by(cls.created_at.desc(), cls.id.desc()).limit(limit + 1)))
+        query = query.where(or_(order < stamp, and_(order == stamp, cls.id < identifier)))
+    items = list(db.scalars(query.order_by(order.desc(), cls.id.desc()).limit(limit + 1)))
     next_cursor = (
         base64.urlsafe_b64encode(
-            json.dumps([items[limit - 1].created_at.isoformat(), items[limit - 1].id]).encode()
+            json.dumps([getattr(items[limit - 1], date_order or "created_at").isoformat(), items[limit - 1].id]).encode()
         ).decode()
         if len(items) > limit
         else None

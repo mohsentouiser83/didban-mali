@@ -341,26 +341,16 @@ initialize()
     )
 
 
-def test_disabled_receivables_blocks_current_collection_and_case_mutations_preserves_history(workspace):
+def test_legacy_receivables_setting_keeps_collection_actions_and_history(workspace):
     db = workspace
     user = db.get(m.User, "advisor")
     case = service.create_case(db, "c", user, {"kind": "invoice", "subject_id": "i0"})
     db.add(m.CompanyModule(company_id="c", key="receivables", enabled=False))
     db.flush()
-    for action in (
-        lambda: service.collection(db, "c", user, 0, ""),
-        lambda: service.create_case(db, "c", user, {"kind": "invoice", "subject_id": "i1"}),
-        lambda: service.update_case(
-            db, "c", user, case["id"], CaseUpdate(state="resolved", reason="بررسی").model_dump(), 1
-        ),
-        lambda: service.record_activity(
-            db, "c", user, case["id"], ActivityCreate(kind="comment", message="تازه").model_dump(), 1
-        ),
-    ):
-        with pytest.raises(DomainError) as failure:
-            action()
-        assert failure.value.code == "module_disabled"
-    # Disabling is an operational guard, not deletion of prior evidence/history.
+    assert service.collection(db, "c", user, 0, "")
+    updated = service.update_case(
+        db, "c", user, case["id"], CaseUpdate(state="resolved", reason="بررسی").model_dump(), 1
+    )
+    assert updated["state"] == "resolved"
     historical = service.public_case(db, "c", db.get(ControlCase, case["id"]))
     assert historical["source_snapshot"]["id"] == "i0"
-    assert len(service.activities(db, "c", user, case["id"], 25, None)["items"]) == 1

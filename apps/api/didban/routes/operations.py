@@ -8,7 +8,7 @@ from .. import schemas as s
 from .. import services as service
 from ..errors import require
 from ..http import C, access, expected, mutate, paginate
-from ..model_admin_service import company_usage
+from ..model_admin_service import company_usage, require_installation_model_admin
 from ..model_gateway import exact, usd
 from ..workflow import (
     audit,
@@ -101,8 +101,9 @@ async def voice_transcription(company_id: str, request: Request):
 
 @router.get(C + "/usage")
 def usage(company_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _member):
-        return company_usage(db, company_id, _user)
+    with access(request, company_id) as (db, user, _member):
+        require_installation_model_admin(user)
+        return company_usage(db, company_id, user)
 
 
 @router.post(C + "/budget-policy")
@@ -125,62 +126,58 @@ def budget(company_id: str, data: s.BudgetInput, request: Request):
         )
         return serialize_fact(policy)
 
-    return mutate(request, company_id, data.model_dump(), "write", apply)
+    return mutate(request, company_id, data.model_dump(), "write", apply, installation_admin=True)
 
 
 @router.post(C + "/assistant/questions")
 async def assistant(company_id: str, data: s.AssistantInput, request: Request):
+    from ..analytical_orchestrator import detect_analytical_intent, orchestrate_analysis
     from ..assistant_service import respond
     from ..native_assistant_service import select_context
+    from ..operational_orchestrator import detect_operational_intent, orchestrate_operation
 
     key = request.headers.get("idempotency-key", "")
     require(1 <= len(key) <= 128, "idempotency_key_required", "شناسه درخواست لازم است.", 428)
+
+    def context(db, actor):
+        return select_context(
+            db, company_id, actor, context_type=data.context_type,
+            manifest_id=data.manifest_id, native_statement_id=data.native_statement_id,
+        )
+
+    def identity(selected):
+        return {
+            name: selected["descriptor"][name]
+            for name in ("context_type", "manifest_id", "native_statement_id")
+        }
+
+    if detect_operational_intent(data.question) and not detect_analytical_intent(data.question):
+        def operation(db, actor):
+            selected = context(db, actor)
+            savepoint = db.begin_nested()
+            try:
+                result = orchestrate_operation(db, company_id, actor, data.question)
+                if result["mode"] == "operational_error":
+                    savepoint.rollback()
+                else:
+                    savepoint.commit()
+            except Exception:
+                savepoint.rollback()
+                raise
+            return result | identity(selected)
+
+        return mutate(request, company_id, data.model_dump(), "read", operation)
+
     with access(request, company_id) as (db, user, _member):
-        selected = select_context(
-            db,
-            company_id,
-            user,
-            context_type=data.context_type,
-            manifest_id=data.manifest_id,
-            native_statement_id=data.native_statement_id,
-        )
+        selected = context(db, user)
         actor_id = user.id
-        from ..analytical_orchestrator import orchestrate_analysis
-
-        analytical_response = orchestrate_analysis(
-            db,
-            company_id,
-            user,
-            data.question,
-            selected["frozen"],
+        analysis = orchestrate_analysis(
+            db, company_id, user, data.question, selected["frozen"],
             history=[message.model_dump() for message in data.history],
+            context_type=selected["descriptor"]["context_type"],
         )
-
-        from ..operational_orchestrator import orchestrate_operation
-
-        operational_response = None
-        if analytical_response is None:
-            operational_response = orchestrate_operation(
-                db,
-                company_id,
-                user,
-                data.question,
-                history=[message.model_dump() for message in data.history],
-            )
-
-    if analytical_response is not None:
-        identity = {
-            name: selected["descriptor"][name]
-            for name in ("context_type", "manifest_id", "native_statement_id")
-        }
-        return analytical_response | identity
-
-    if operational_response is not None:
-        identity = {
-            name: selected["descriptor"][name]
-            for name in ("context_type", "manifest_id", "native_statement_id")
-        }
-        return operational_response | identity
+    if analysis is not None:
+        return analysis | identity(selected)
 
     # Any external model call is outside the database transaction.
     response = await respond(
@@ -194,10 +191,7 @@ async def assistant(company_id: str, data: s.AssistantInput, request: Request):
     )
     with access(request, company_id) as (_db, current_user, _member):
         require(current_user.id == actor_id, "session_changed", "نشست تغییر کرده؛ دوباره وارد شوید.", 401)
-    identity = {
-        name: selected["descriptor"][name] for name in ("context_type", "manifest_id", "native_statement_id")
-    }
-    return response | identity
+    return response | identity(selected)
 
 
 @router.get(C + "/assistant/context")

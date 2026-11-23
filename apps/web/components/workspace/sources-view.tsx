@@ -1,7 +1,7 @@
 "use client";
 import { FilesIcon as HeaderIcon, PlusIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -28,8 +28,17 @@ import { persian } from "@/lib/utils";
 import { ArchiveIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { BotIntakesPanel } from "./bot-intakes-panel";
+import { DocumentSpreadsheetsPanel } from "./document-spreadsheets-panel";
 
 export function SourcesView() {
+  const workspace = useWorkspace();
+  return workspace.company ? (
+    <CompanyDocuments key={`${workspace.user?.id}:${workspace.company.id}`} />
+  ) : <NoCompany />;
+}
+
+function CompanyDocuments() {
   const workspace = useWorkspace();
   const upload = useUpload();
   const [openUpload, setOpenUpload] = useState(false);
@@ -43,17 +52,20 @@ export function SourcesView() {
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="فایل‌ها و مدارک"
+        title="اسناد"
         action={
-          workspace.canWrite && (
-            <Button onClick={() => setOpenUpload(true)}>
-              <PlusIcon size={18} aria-hidden />
-              بارگذاری جدید
-            </Button>
-          )
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/uploads" variant="secondary">نوبت‌های پردازش</ButtonLink>
+            {workspace.canWrite && (
+              <Button onClick={() => setOpenUpload(true)}>
+                <PlusIcon size={18} aria-hidden />
+                بارگذاری جدید
+              </Button>
+            )}
+          </div>
         }
       />
-      <Panel>
+      <Panel title="فایل‌های پردازش">
         {resource.loading ? (
           <LoadingState />
         ) : resource.error ? (
@@ -122,6 +134,12 @@ export function SourcesView() {
           </>
         )}
       </Panel>
+      <div className="mt-5">
+        <DocumentSpreadsheetsPanel />
+      </div>
+      <section id="bot-documents">
+        <BotIntakesPanel />
+      </section>
       {workspace.canWrite && (
         <Drawer
           title="بارگذاری جدید اسناد و مدارک"

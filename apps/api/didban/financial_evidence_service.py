@@ -116,19 +116,34 @@ def query_period_comparison(
             "evidence_refs": [],
         }
 
-    prior_run = (
-        get_entity(db, NativeStatementRun, company_id, prior_statement_id)
-        if prior_statement_id
-        else db.scalar(
+    current_snapshot = current_run.snapshot or {}
+    period_id = current_snapshot.get("period_id")
+    cutoff = current_snapshot.get("as_of")
+    prior_run = None
+    if prior_statement_id:
+        candidate = get_entity(db, NativeStatementRun, company_id, prior_statement_id)
+        prior_snapshot = candidate.snapshot or {}
+        if (
+            period_id and cutoff and prior_snapshot.get("period_id")
+            and prior_snapshot["period_id"] != period_id
+            and prior_snapshot.get("as_of") and prior_snapshot["as_of"] < cutoff
+        ):
+            prior_run = candidate
+    elif period_id and cutoff:
+        prior_run = db.scalar(
             select(NativeStatementRun)
             .where(
                 NativeStatementRun.company_id == company_id,
-                NativeStatementRun.id != current_run.id,
+                NativeStatementRun.snapshot["period_id"].as_string() != period_id,
+                NativeStatementRun.snapshot["as_of"].as_string() < cutoff,
             )
-            .order_by(desc(NativeStatementRun.created_at), desc(NativeStatementRun.id))
+            .order_by(
+                NativeStatementRun.snapshot["as_of"].as_string().desc(),
+                NativeStatementRun.created_at.desc(),
+                NativeStatementRun.id.desc(),
+            )
             .limit(1)
         )
-    )
 
     curr_metrics = {m.get("metric_key"): m for m in (current_run.snapshot or {}).get("metrics", [])}
     prior_metrics = (
@@ -198,8 +213,21 @@ def query_income_expense_breakdown(
     *,
     period_id: str | None = None,
     as_of: date | None = None,
+    statement_id: str | None = None,
 ) -> dict:
     membership(db, company_id, user)
+    statement = get_entity(db, NativeStatementRun, company_id, statement_id) if statement_id else None
+    if statement:
+        frozen = statement.snapshot
+        if not {"period_id", "as_of", "profit_journal_ids", "role_assignments"} <= frozen.keys():
+            return {
+                "query": "income_expense_breakdown",
+                "status": "unavailable",
+                "reason": "جزئیات سندها در این نسخه ذخیره نشده است.",
+                "evidence_refs": [f"native-statement:{statement.id}"],
+            }
+        period_id = frozen["period_id"]
+        as_of = date.fromisoformat(frozen["as_of"])
     target_period = (
         get_entity(db, m.Period, company_id, period_id)
         if period_id
@@ -219,23 +247,47 @@ def query_income_expense_breakdown(
         }
 
     cutoff = as_of or target_period.end
-    journals = list(
-        db.scalars(
-            select(NativeJournal)
-            .where(
-                NativeJournal.company_id == company_id,
-                NativeJournal.period_id == target_period.id,
-                NativeJournal.date <= cutoff,
+    if statement:
+        journal_ids = statement.snapshot["profit_journal_ids"]
+        journals = [
+            journal
+            for offset in range(0, len(journal_ids), 500)
+            for journal in db.scalars(
+                select(NativeJournal).where(
+                    NativeJournal.company_id == company_id,
+                    NativeJournal.period_id == target_period.id,
+                    NativeJournal.id.in_(journal_ids[offset : offset + 500]),
+                )
             )
+        ]
+        if len(journals) != len(journal_ids):
+            return {
+                "query": "income_expense_breakdown",
+                "status": "unavailable",
+                "reason": "شواهد سندهای این نسخه کامل نیست.",
+                "evidence_refs": [f"native-statement:{statement.id}"],
+            }
+        roles = {row["account_id"]: row["role"] for row in statement.snapshot["role_assignments"]}
+        labels = {
+            line["account_id"]: (line.get("name", line["account_id"]), line.get("code", ""))
+            for journal in sorted(journals, key=lambda row: row.sequence)
+            for line in journal.snapshot["lines"]
+        }
+    else:
+        journals = list(db.scalars(
+            select(NativeJournal)
+            .where(NativeJournal.company_id == company_id, NativeJournal.period_id == target_period.id,
+                   NativeJournal.date <= cutoff)
             .order_by(NativeJournal.sequence)
-        )
-    )
-
-    roles = {
-        r.account_id: r.role
-        for r in db.scalars(select(NativeAccountRole).where(NativeAccountRole.company_id == company_id))
-    }
-    accounts = {a.id: a for a in db.scalars(select(Account).where(Account.company_id == company_id))}
+        ))
+        roles = {
+            row.account_id: row.role
+            for row in db.scalars(select(NativeAccountRole).where(NativeAccountRole.company_id == company_id))
+        }
+        labels = {
+            row.id: (row.name, row.code)
+            for row in db.scalars(select(Account).where(Account.company_id == company_id))
+        }
 
     revenue_by_account: dict[str, Decimal] = {}
     expense_by_account: dict[str, Decimal] = {}
@@ -272,12 +324,12 @@ def query_income_expense_breakdown(
         items = []
         for acc_id, val in sorted(acc_dict.items(), key=lambda x: x[1], reverse=True):
             pct = round(float((val / total) * 100), 1) if total > ZERO else 0.0
-            acc = accounts.get(acc_id)
+            title, code = labels.get(acc_id, (acc_id, ""))
             items.append(
                 {
                     "account_id": acc_id,
-                    "account_title": acc.name if acc else acc_id,
-                    "account_code": acc.code if acc else "",
+                    "account_title": title,
+                    "account_code": code,
                     "amount": text_amount(val),
                     "share_percent": pct,
                 }
@@ -294,7 +346,7 @@ def query_income_expense_breakdown(
         "total_expense": text_amount(total_expense),
         "revenue_accounts": format_breakdown(revenue_by_account, total_revenue),
         "expense_accounts": format_breakdown(expense_by_account, total_expense),
-        "evidence_refs": [f"period:{target_period.id}"],
+        "evidence_refs": [f"native-statement:{statement.id}" if statement else f"period:{target_period.id}"],
         "formula_version": FORMULA_VERSION,
     }
 
@@ -439,13 +491,15 @@ def query_cashflow_forecast_summary(
     db: Session,
     company_id: str,
     user: m.User,
+    *,
+    statement_id: str | None = None,
 ) -> dict:
     membership(db, company_id, user)
+    query = select(NativeForecastRun).where(NativeForecastRun.company_id == company_id)
+    if statement_id:
+        query = query.where(NativeForecastRun.native_statement_id == statement_id)
     forecast_run = db.scalar(
-        select(NativeForecastRun)
-        .where(NativeForecastRun.company_id == company_id)
-        .order_by(desc(NativeForecastRun.created_at), desc(NativeForecastRun.id))
-        .limit(1)
+        query.order_by(desc(NativeForecastRun.created_at), desc(NativeForecastRun.id)).limit(1)
     )
     if not forecast_run:
         return {
@@ -514,14 +568,15 @@ def execute_evidence_query(
     if query_type == "income_expense_breakdown":
         as_of_val = date.fromisoformat(params["as_of"]) if params.get("as_of") else None
         return query_income_expense_breakdown(
-            db, company_id, user, period_id=params.get("period_id"), as_of=as_of_val
+            db, company_id, user, period_id=params.get("period_id"), as_of=as_of_val,
+            statement_id=params.get("statement_id")
         )
     if query_type == "receivables_concentration":
         as_of_val = date.fromisoformat(params["as_of"]) if params.get("as_of") else None
         limit_val = int(params.get("limit", DEFAULT_PAGE_SIZE))
         return query_receivables_concentration(db, company_id, user, as_of=as_of_val, limit=limit_val)
     if query_type == "cashflow_forecast_summary":
-        return query_cashflow_forecast_summary(db, company_id, user)
+        return query_cashflow_forecast_summary(db, company_id, user, statement_id=params.get("statement_id"))
 
     return {
         "query": query_type,

@@ -17,8 +17,6 @@ it("shows categorized settings with cards in gear settings catalog", () => {
     "personnel",
     "company-access",
     "documents",
-    "reconciliation",
-    "inventory",
   ]);
   expect(
     viewer.flatMap((group) => group.items.map((item) => item.href)),
@@ -26,43 +24,17 @@ it("shows categorized settings with cards in gear settings catalog", () => {
     "/settings/accounts",
     "/settings/periods",
     "/settings/dimensions",
-    "/settings/account-roles",
-    "/settings/rules",
-    "/settings/learning",
     "/settings/numbering",
     "/settings/employees",
     "/settings/contracts",
     "/settings/members",
     "/settings/company",
-    "/settings/modules",
-    "/settings/connections",
-    "/settings/connections/notifications",
-    "/sources",
-    "/uploads",
-    "/settings/connections/documents",
-    "/reconciliation",
-    "/reconciliation/counterparties",
-    "/reconciliation/moadian",
-    "/review",
-    "/review/native-controls",
-    "/review/expense-changes",
-    "/accounting/inventory/items",
-    "/accounting/inventory/warehouses",
-    "/accounting/inventory",
+    "/settings/documents",
   ]);
-  expect(searchSettings(viewer, "تطبیق")[0].href).toBe("/reconciliation");
-  expect(searchSettings(viewer, "طرف‌حساب")[0].href).toBe(
-    "/reconciliation/counterparties",
-  );
-  expect(searchSettings(viewer, "کالا")[0].href).toBe(
-    "/accounting/inventory/items",
-  );
-  expect(searchSettings(viewer, "انبارها")[0].href).toBe(
-    "/accounting/inventory/warehouses",
-  );
-  expect(searchSettings(viewer, "کاردکس")[0].href).toBe(
-    "/accounting/inventory",
-  );
+  expect(searchSettings(viewer, "مدارک بات")[0].href).toBe("/settings/documents");
+  for (const removed of ["تطبیق", "مغایرت", "کالا", "انبارها", "کاردکس", "اعلان‌های بات", "موارد نیازمند بررسی", "کنترل‌های دفتر", "تحلیل تغییر هزینه‌ها", "نقش حساب‌ها در صورت‌های مالی", "قواعد و پیشنهادهای حسابداری", "الگوهای ثبت و نگاشت"]) {
+    expect(searchSettings(viewer, removed)).toEqual([]);
+  }
   expect(searchSettings(viewer, "دسترسی")[0].href).toBe("/settings/members");
   expect(searchSettings(viewer, "اعضا")[0].href).toBe("/settings/members");
   expect(searchSettings(viewer, "کدینگ")[0].href).toBe("/settings/accounts");
@@ -73,9 +45,8 @@ it("shows categorized settings with cards in gear settings catalog", () => {
     "/settings/numbering",
   );
   expect(searchSettings(viewer, "001")[0].href).toBe("/settings/numbering");
-  expect(searchSettings(viewer, "تلگرام")[0].href).toBe(
-    "/settings/connections",
-  );
+  expect(searchSettings(viewer, "تلگرام")).toEqual([]);
+  expect(searchSettings(viewer, "پیام‌رسان")).toEqual([]);
   expect(searchSettings(viewer, "سازمان")[0].href).toBe("/settings/company");
 
   expect(
@@ -95,14 +66,9 @@ it("shows categorized settings with cards in gear settings catalog", () => {
   ).toBe("/settings/personnel");
   expect(
     settingsCategoryDestination(
-      viewer.find((category) => category.key === "reconciliation")!,
+      viewer.find((category) => category.key === "documents")!,
     ),
-  ).toBe("/reconciliation");
-  expect(
-    settingsCategoryDestination(
-      viewer.find((category) => category.key === "inventory")!,
-    ),
-  ).toBe("/settings/inventory");
+  ).toBe("/settings/documents");
 });
 
 it("offers no settings to a user without a company", () => {
@@ -126,8 +92,6 @@ it("checks active state for settings destinations and categories", () => {
     "personnel",
     "company-access",
     "documents",
-    "reconciliation",
-    "inventory",
   ]);
 
   const accounting = categories.find((c) => c.key === "accounting")!;
@@ -143,35 +107,19 @@ it("checks active state for settings destinations and categories", () => {
   expect(isSettingsCategoryActive(personnel, "/settings/contracts")).toBe(true);
   expect(isSettingsCategoryActive(personnel, "/settings/accounts")).toBe(false);
 
-  const reconciliation = categories.find((c) => c.key === "reconciliation")!;
-  expect(isSettingsCategoryActive(reconciliation, "/reconciliation")).toBe(true);
-  expect(
-    isSettingsCategoryActive(
-      reconciliation,
-      "/reconciliation/counterparties",
-    ),
-  ).toBe(true);
-
-  const inventory = categories.find((c) => c.key === "inventory")!;
-  expect(isSettingsCategoryActive(inventory, "/accounting/inventory/items")).toBe(
-    true,
-  );
-  expect(
-    isSettingsCategoryActive(inventory, "/accounting/inventory/warehouses"),
-  ).toBe(true);
-  expect(isSettingsCategoryActive(inventory, "/accounting/inventory")).toBe(
-    true,
-  );
+  expect(categories.some((category) =>
+    isSettingsCategoryActive(category, "/accounting/inventory/items"),
+  )).toBe(false);
 
   const companyAccess = categories.find((c) => c.key === "company-access")!;
   expect(isSettingsCategoryActive(companyAccess, "/settings/members")).toBe(true);
   expect(isSettingsCategoryActive(companyAccess, "/settings/company")).toBe(true);
-  expect(isSettingsCategoryActive(companyAccess, "/settings/connections")).toBe(true);
+  expect(isSettingsCategoryActive(companyAccess, "/settings/profile")).toBe(false);
   expect(isSettingsCategoryActive(companyAccess, "/settings/numbering")).toBe(false);
-  expect(isSettingsCategoryActive(companyAccess, "/settings/connections/documents")).toBe(false);
   const documents = categories.find((category) => category.key === "documents")!;
-  expect(isSettingsCategoryActive(documents, "/settings/connections/documents")).toBe(true);
-  expect(isSettingsCategoryActive(documents, "/uploads/session-id")).toBe(true);
-  expect(searchSettings(categories, "در انتظار پاسخ")[0].href).toBe("/uploads");
-  expect(searchSettings(categories, "بودجه")[0].href).toBe("/settings/model");
+  expect(documents.standalone).toBe(true);
+  expect(isSettingsCategoryActive(documents, "/settings/documents")).toBe(true);
+  expect(isSettingsCategoryActive(documents, "/reconciliation")).toBe(false);
+  expect(searchSettings(categories, "بودجه")).toHaveLength(0);
+  expect(searchSettings(categories, "ماژول")).toHaveLength(0);
 });

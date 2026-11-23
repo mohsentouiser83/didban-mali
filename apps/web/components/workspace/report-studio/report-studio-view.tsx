@@ -215,7 +215,7 @@ export function ReportStudioView() {
         <h1 className="font-heading text-2xl font-bold text-foreground">{spec.title}</h1>
         <div className="mt-2 flex items-center gap-4 text-xs text-muted">
           <span>شرکت: {preview?.company_name || workspace.company.name}</span>
-          <span>دوره مالی: {preview?.period.name || "دوره جاری"}</span>
+          <span>دوره مالی: {preview?.period?.name || "دوره انتخاب نشده"}</span>
           <span>واحد ارقام: {spec.global_filters.unit === "TOMAN" ? "تومان" : "ریال"}</span>
           <span>تاریخ گزارش: {new Date().toLocaleDateString("fa-IR")}</span>
         </div>

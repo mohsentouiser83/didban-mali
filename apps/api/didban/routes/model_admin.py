@@ -72,13 +72,15 @@ def save_installation_budget(data: InstallationBudgetInput, request: Request):
 
 @router.get(C + "/model-status")
 def status(company_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
+        service.require_installation_model_admin(user)
         return service.model_status(db, company_id)
 
 
 @router.get(C + "/model-tariffs")
 def tariffs(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
+        service.require_installation_model_admin(user)
         return paginate(db, m.ModelTariff, company_id, limit, cursor, transform=serialize_fact)
 
 
@@ -90,12 +92,14 @@ def save_tariff(company_id: str, data: TariffInput, request: Request):
         data.model_dump(),
         "write",
         lambda db, actor: service.configure_tariff(db, company_id, actor, data.model_dump()),
+        installation_admin=True,
     )
 
 
 @router.get(C + "/model-requests")
 def model_requests(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
+        service.require_installation_model_admin(user)
         return paginate(db, m.ModelRequest, company_id, limit, cursor, transform=service.public_model_request)
 
 
@@ -106,7 +110,8 @@ class CostReconciliationInput(InputModel):
 
 @router.get(C + "/model-reservations")
 def model_reservations(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
+        service.require_installation_model_admin(user)
 
         def public(item):
             return {
@@ -136,6 +141,7 @@ def reconcile_cost(company_id: str, reservation_id: str, data: CostReconciliatio
         lambda db, actor: reconcile_unknown_cost_in(
             db, company_id=company_id, actor_id=actor.id, reservation_id=reservation_id, **data.model_dump()
         ),
+        installation_admin=True,
     )
 
 

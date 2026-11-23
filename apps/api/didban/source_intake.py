@@ -9,7 +9,6 @@ from . import models as m
 from .config import settings
 from .errors import require
 from .ingestion import interpret
-from .learning_service import reuse
 from .services import get_entity
 from .workflow import audit
 
@@ -61,16 +60,12 @@ def store_source(db, company_id, user, session_id, name, content, scanned, sheet
     db.flush()
     for sheet in sheets:
         proposal = interpret(sheet, name)
-
-        proposal = reuse(db, company_id, sheet, proposal)
         db.add(
             m.Interpretation(
                 company_id=company_id,
                 file_id=source.id,
                 sheet=sheet.name,
-                provenance="validated_company_memory"
-                if proposal["evidence"].get("learning_pattern")
-                else "validated_header_rules",
+                provenance="validated_header_rules",
                 **proposal,
             )
         )

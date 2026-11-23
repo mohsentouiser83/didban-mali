@@ -87,11 +87,6 @@ class ExpectedVersion(InputModel):
     expected_version: int = Field(ge=1)
 
 
-class DecisionInput(ExpectedVersion):
-    decision: Literal["reviewed", "dismissed", "accepted", "rejected"]
-    reason: str = Field(min_length=1, max_length=500)
-
-
 class PlanInput(InputModel):
     label: str = Field(min_length=1, max_length=120)
     amount: str = Field(min_length=1, max_length=80)

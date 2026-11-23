@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import type { InventoryState } from "@/lib/inventory";
-import { useInventoryDraft } from "./use-inventory";
+import { useInventoryCatalogue, useInventoryDraft } from "./use-inventory";
 
 vi.mock("./workspace", () => ({
   useWorkspace: () => ({
@@ -19,8 +19,8 @@ vi.mock("@/lib/api", async (original) => ({
 }));
 
 const inventory: InventoryState = {
-  items: [{ id: "item", code: "A", name: "کالا", inventory_account_id: "inventory" }],
-  warehouses: [{ id: "warehouse", code: "WH", name: "انبار" }],
+  items: [{ id: "item", code: "A", name: "کالا", inventory_account_id: "inventory", active: true, version: 1 }],
+  warehouses: [{ id: "warehouse", code: "WH", name: "انبار", active: true, version: 1 }],
   balances: [],
   movements: [],
   can_prepare: true,
@@ -96,4 +96,37 @@ it("requires both posting accounts for sales and keeps the currency exact", asyn
     revenue_account_id: "revenue",
     cost_account_id: "cost",
   });
+});
+
+it("edits an active warehouse with its selected version and deletes the current version", async () => {
+  const warehouse = inventory.warehouses[0];
+  const savedWarehouse = { ...warehouse, name: "انبار بایگانی", active: false, version: 2 };
+  let currentInventory = inventory;
+  vi.mocked(api).mockImplementation(async (_path, options) => {
+    if (options?.method === "PATCH") {
+      currentInventory = { ...inventory, warehouses: [savedWarehouse] };
+    } else if (options?.method === "DELETE") {
+      currentInventory = { ...inventory, warehouses: [] };
+    }
+    return currentInventory as never;
+  });
+  const { result } = renderHook(() => useInventoryCatalogue("warehouses"));
+  await waitFor(() => expect(result.current.rows).toHaveLength(1));
+
+  act(() => result.current.show(warehouse));
+  act(() => result.current.change({ name: savedWarehouse.name, active: false }));
+  act(() => result.current.save());
+  await waitFor(() => expect(result.current.rows[0]?.record).toEqual(savedWarehouse));
+  expect(vi.mocked(api)).toHaveBeenCalledWith(
+    "/companies/company/accounting/inventory/warehouses/warehouse",
+    { method: "PATCH", version: 1, body: { code: "WH", name: savedWarehouse.name, active: false } },
+  );
+
+  act(() => result.current.confirmRemove(savedWarehouse));
+  act(() => result.current.remove());
+  await waitFor(() => expect(result.current.rows).toHaveLength(0));
+  expect(vi.mocked(api)).toHaveBeenCalledWith(
+    "/companies/company/accounting/inventory/warehouses/warehouse",
+    { method: "DELETE", version: 2 },
+  );
 });

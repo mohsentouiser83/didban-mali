@@ -28,7 +28,7 @@ export interface MoadianReconciliationSummary {
   pending_count: number;
   rejected_count: number;
   untransmitted_count: number;
-  compliance_percentage: number;
+  compliance_percentage: number | null;
 }
 
 export interface MoadianReconciliationData {

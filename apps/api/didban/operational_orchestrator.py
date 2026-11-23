@@ -3,7 +3,7 @@
 Coordinates:
 1. Daily Accounting Operations:
    - expense, payment, receipt, sale_service, purchase_service, transfer
-   - In-chat posting confirmation (confirm_post)
+   - Review links for explicit journal posting
    - Inquiry of pending drafts
 2. Treasury & Cheques Lifecycle:
    - Register received / issued cheque (register_cheque)
@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session
 from . import models as m
 from .accounting_models import Account, Draft
 from .accounting_service import capabilities
-from .accounting_setup_models import CompanyAccountingSetup
 from .cheque_models import Cheque
 from .cheque_service import act as act_cheque
 from .cheque_service import create as create_cheque
@@ -35,10 +34,8 @@ from .errors import DomainError
 from .ingestion import normalized
 from .native_invoice_models import NativeInvoice
 from .native_reporting_models import NativeAccountRole
-from .operation_models import OperationDraft
 from .operation_service import LABELS
 from .operation_service import create as create_operation
-from .posting_service import post_batch
 from .posting_service import preview as preview_posting
 
 PERSIAN_TO_ENG = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
@@ -562,7 +559,6 @@ def orchestrate_operation(
     company_id: str,
     user: m.User,
     question: str,
-    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Main operational dispatcher: inspects intent, routes to cheques, drafts, or collections."""
     intent = detect_operational_intent(question)
@@ -573,7 +569,17 @@ def orchestrate_operation(
 
     # 1. Draft confirmation
     if intent == "confirm_post":
-        return handle_draft_confirmation(db, company_id, user, caps, history)
+        return {
+            "mode": "operational_clarification",
+            "answer": "برای ثبت نهایی، پیش‌نمایش همان سند را در اسناد حسابداری بررسی و تأیید کنید.",
+            "action_cards": [{
+                "id": "review-accounting",
+                "title": "اسناد حسابداری",
+                "action_type": "navigate",
+                "target_path": "/accounting",
+                "button_text": "مشاهده پیش‌نویس‌ها",
+            }],
+        }
 
     # 2. Inquiries & Generative UI Reporting Tables
     if intent == "inquiry_trial_balance":
@@ -620,127 +626,6 @@ def orchestrate_operation(
 # ---------------------------------------------------------------------------
 
 
-def handle_draft_confirmation(
-    db: Session,
-    company_id: str,
-    user: m.User,
-    caps: dict[str, Any],
-    history: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """Execute posting for the most recent pending draft."""
-    if not caps["can_post"]:
-        return {
-            "mode": "operational_clarification",
-            "answer": (
-                "پیش‌نویس سند ایجاد شده است، اما شما دسترسی ثبت نهایی سند در دفتر کل (Posting) را ندارید. "
-                "ثبت نهایی باید توسط مدیر مالی یا کاربر دارای مجوز انجام شود."
-            ),
-            "action_cards": [
-                {
-                    "id": "card-view-accounting",
-                    "title": "مشاهده اسناد حسابداری",
-                    "action_type": "navigate",
-                    "target_path": "/accounting",
-                    "button_text": "مشاهده پیش‌نویس",
-                    "variant": "secondary",
-                }
-            ],
-        }
-
-    draft_id_candidate = None
-    if history:
-        for msg in reversed(history):
-            text_hist = msg.get("text", "")
-            m_draft = re.search(r"draft_id[:=]\s*([a-zA-Z0-9_-]{36})", text_hist)
-            if m_draft:
-                draft_id_candidate = m_draft.group(1)
-                break
-
-    latest_op = None
-    if draft_id_candidate:
-        latest_op = db.scalar(
-            select(OperationDraft)
-            .join(Draft, Draft.id == OperationDraft.draft_id)
-            .where(
-                OperationDraft.company_id == company_id,
-                OperationDraft.draft_id == draft_id_candidate,
-                Draft.state == "draft",
-            )
-        )
-
-    if not latest_op:
-        latest_op = db.scalar(
-            select(OperationDraft)
-            .join(Draft, Draft.id == OperationDraft.draft_id)
-            .where(
-                OperationDraft.company_id == company_id,
-                Draft.state == "draft",
-            )
-            .order_by(OperationDraft.created_at.desc())
-        )
-
-    if not latest_op:
-        return {
-            "mode": "operational_clarification",
-            "answer": "در حال حاضر هیچ پیش‌نویس سندی در انتظار ثبت نهایی یافت نشد. می‌توانید یک سند جدید را از طریق چت اعلام نمایید.",
-            "action_cards": [],
-        }
-
-    # Ensure primary accounting setup is active
-    setup = db.get(CompanyAccountingSetup, company_id)
-    if setup is None:
-        setup = CompanyAccountingSetup(company_id=company_id, mode="primary", version=1)
-        db.add(setup)
-        db.flush()
-    elif setup.mode != "primary":
-        setup.mode = "primary"
-        setup.version += 1
-        db.flush()
-
-    try:
-        preview_data = preview_posting(db, company_id, user, latest_op.draft_id)
-        post_result = post_batch(
-            db,
-            company_id,
-            user,
-            [
-                {
-                    "draft_id": latest_op.draft_id,
-                    "expected_version": preview_data["expected_version"],
-                    "digest": preview_data["digest"],
-                }
-            ],
-        )
-        posted_item = post_result["items"][0]
-        journal_seq = posted_item.get("sequence", "جدید")
-
-        return {
-            "mode": "operational_posted",
-            "answer": (
-                f"✅ **سند حسابداری با موفقیت ثبت قطعی شد.**\n\n"
-                f"• شماره سند در دفتر روزنامه: **{journal_seq}**\n"
-                f"• جمع بدهکار / بستانکار: **{format_currency_fa(preview_data['total_debit'], 'ریال')}**\n"
-                f"• وضعیت: **ثبت قطعی (Posted)** و اثر آن در تمامی گزارش‌ها اعمال گردید."
-            ),
-            "action_cards": [
-                {
-                    "id": f"card-view-journal-{latest_op.draft_id}",
-                    "title": f"مشاهده سند شماره {journal_seq}",
-                    "action_type": "navigate",
-                    "target_path": "/accounting/journals",
-                    "button_text": "مشاهده در دفتر روزنامه",
-                    "variant": "primary",
-                }
-            ],
-        }
-    except DomainError as err:
-        return {
-            "mode": "operational_error",
-            "answer": f"خطا در ثبت نهایی سند: {err.message}",
-            "action_cards": [],
-        }
-
-
 def handle_pending_inquiry(db: Session, company_id: str, user: m.User) -> dict[str, Any]:
     """List pending drafts awaiting posting."""
     drafts = db.scalars(
@@ -769,17 +654,12 @@ def handle_pending_inquiry(db: Session, company_id: str, user: m.User) -> dict[s
         cards.append(
             {
                 "id": f"card-draft-{d.id}",
-                "title": f"تأیید: {d.description[:35]}",
-                "action_type": "confirm_post",
+                "title": d.description,
+                "action_type": "navigate",
+                "target_path": f"/accounting?review_draft={d.id}",
                 "description": f"مبلغ: {total}",
-                "button_text": "تأیید و ثبت",
+                "button_text": "بررسی سند",
                 "variant": "primary",
-                "payload": {
-                    "draft_id": d.id,
-                    "expected_version": d.version,
-                    "digest": prev["digest"] if "prev" in locals() and prev else "",
-                    "total_debit": prev["total_debit"] if "prev" in locals() and prev else "",
-                },
             }
         )
 
@@ -916,35 +796,17 @@ def handle_operation_creation(
             f"• **مبلغ:** {format_currency_fa(amount, unit_label)}\n\n"
             f"**آرتیکل‌های سند دوبل:**\n"
             + "\n".join(lines_summary)
-            + f"\n\nشناسه پیش‌نویس: `draft_id: {draft_id}`\n\n"
-            f"برای ثبت قطعی سند در دفتر کل، روی دکمه «تأیید و ثبت نهایی» کلیک کنید یا بنویسید «**تأیید کن**»."
+            + "\n\nپیش‌نویس برای بررسی در اسناد حسابداری آماده است."
         )
 
-        cards = [
-            {
-                "id": f"card-confirm-post-{draft_id}",
-                "title": f"ثبت نهایی {label}",
-                "action_type": "confirm_post",
-                "description": f"مبلغ: {format_currency_fa(amount, unit_label)} (سند تراز شده)",
-                "button_text": "تأیید و ثبت نهایی",
-                "variant": "primary",
-                "payload": {
-                    "draft_id": draft_id,
-                    "expected_version": preview_data["expected_version"],
-                    "digest": preview_data["digest"],
-                    "total_debit": preview_data["total_debit"],
-                    "total_credit": preview_data["total_credit"],
-                },
-            },
-            {
-                "id": f"card-view-draft-{draft_id}",
-                "title": "مشاهده در اسناد حسابداری",
-                "action_type": "navigate",
-                "target_path": "/accounting",
-                "button_text": "مشاهده سند",
-                "variant": "secondary",
-            },
-        ]
+        cards = [{
+            "id": f"card-view-draft-{draft_id}",
+            "title": "پیش‌نویس سند",
+            "action_type": "navigate",
+            "target_path": f"/accounting?review_draft={draft_id}",
+            "button_text": "بررسی سند",
+            "variant": "primary",
+        }]
 
         return {
             "mode": "operational_draft",
@@ -1033,7 +895,7 @@ def handle_cheque_registration(
                 "id": f"card-cheque-{created['id']}",
                 "title": f"مدیریت چک شماره {cheque_num}",
                 "action_type": "navigate",
-                "target_path": "/cheques",
+                "target_path": "/settlements/cheques",
                 "button_text": "مشاهده در دفتر چک‌ها",
                 "variant": "primary",
             }
@@ -1139,7 +1001,7 @@ def handle_cheque_action(
                 "id": f"card-view-cheque-{cheque.id}",
                 "title": "مشاهده زنجیره رویدادهای چک",
                 "action_type": "navigate",
-                "target_path": "/cheques",
+                "target_path": "/settlements/cheques",
                 "button_text": "مشاهده چک",
                 "variant": "primary",
             }
@@ -1210,7 +1072,7 @@ def handle_cheque_inquiry(db: Session, company_id: str) -> dict[str, Any]:
             "id": "card-view-all-cheques",
             "title": "مشاهده دفتر کامل چک‌ها",
             "action_type": "navigate",
-            "target_path": "/cheques",
+            "target_path": "/settlements/cheques",
             "button_text": "مشاهده همه چک‌ها",
             "variant": "secondary",
         }

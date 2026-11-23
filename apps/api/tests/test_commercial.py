@@ -22,6 +22,7 @@ from didban.commercial_service import (
     list_counterparties,
     pdf_commercial_document,
     update_counterparty,
+    update_proforma,
 )
 from didban.errors import DomainError
 from didban.inventory_service import add_item, add_warehouse, create_opening_stock_draft
@@ -202,6 +203,40 @@ def test_counterparty_crud_and_credit_limit(commercial_env, db_session):
     assert cleared["national_id"] == payload["national_id"]
 
 
+def test_direct_sales_recheck_credit_for_batch_and_unlinked_journal(commercial_env, db_session):
+    from didban.operation_service import create
+
+    company = commercial_env["company"].id
+    user = commercial_env["user"]
+    counterparty = add_counterparty(
+        db_session, company, user, {"code": "CAP-TEST", "name": "مشتری", "credit_limit_irr": "1000"},
+    )
+    accounts = commercial_env["accounts"]
+    payload = {
+        "kind": "sale_service",
+        "period_id": commercial_env["period"].id,
+        "date": date.today(),
+        "party_id": counterparty["code"],
+        "description": "فروش آزمایشی",
+        "unit": "IRR",
+        "amounts": {"amount": "600"},
+        "accounts": {"trade_receivable": accounts["receivable"].id, "service_revenue": accounts["sales"].id},
+    }
+    one = create(db_session, company, user, payload | {"source_reference": "SALE-1"})
+    two = create(db_session, company, user, payload | {"source_reference": "SALE-2"})
+    previews = [preview(db_session, company, user, row["draft"]["id"]) for row in (one, two)]
+    with pytest.raises(DomainError, match="سقف") as exc:
+        post_batch(db_session, company, user, previews)
+    assert exc.value.code == "credit_limit_exceeded"
+    post_batch(db_session, company, user, previews[:1])
+    with pytest.raises(DomainError) as exc:
+        post_batch(db_session, company, user, previews[1:])
+    assert exc.value.code == "credit_limit_exceeded"
+    with pytest.raises(DomainError) as exc:
+        update_counterparty(db_session, company, user, counterparty["id"], {"code": "MOVED"}, counterparty["version"])
+    assert exc.value.code == "counterparty_code_in_use"
+
+
 def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
     c_id = commercial_env["company"].id
     user = commercial_env["user"]
@@ -287,6 +322,21 @@ def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
         "revenue_account_id": accs["sales"].id,
         "cost_account_id": accs["cogs"].id,
     }
+    with pytest.raises(DomainError) as exc:
+        convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
+    assert exc.value.code == "proforma_unsupported_conversion"
+    assert get_proforma(db_session, c_id, pf["id"])["status"] == "issued"
+
+    second_line = {**proforma_payload["lines"][0], "discount": "0"}
+    pf = update_proforma(
+        db_session, c_id, user, pf["id"], {"lines": [second_line, second_line]}, pf["version"],
+    )
+    with pytest.raises(DomainError) as exc:
+        convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
+    assert exc.value.code == "proforma_unsupported_conversion"
+    assert get_proforma(db_session, c_id, pf["id"])["status"] == "issued"
+
+    pf = update_proforma(db_session, c_id, user, pf["id"], {"lines": [second_line]}, pf["version"])
     conv_result = convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
     assert conv_result["operation_id"] is not None
     assert conv_result["proforma_id"] == pf["id"]

@@ -17,7 +17,7 @@ from didban.accounting_models import Account
 from didban.accounting_setup_models import CompanyAccountingSetup
 from didban.analytical_explanations import format_analytical_response
 from didban.cheque_models import Cheque
-from didban.commercial_service import convert_proforma, create_proforma
+from didban.commercial_service import add_counterparty, convert_proforma, create_proforma
 from didban.errors import DomainError
 from didban.financial_decomposition_service import (
     detect_cogs_and_margin_anomalies,
@@ -316,6 +316,7 @@ def test_convert_proforma_mixed_settlement(env, db_session):
     prev_op = preview(db_session, c.id, u, op_res["draft"]["id"])
     post_batch(db_session, c.id, u, [prev_op])
 
+    add_counterparty(db_session, c.id, u, {"code": "CUST-VIP", "name": "مشتری آزمایشی"})
     # Create proforma
     pf_res = create_proforma(
         db_session,

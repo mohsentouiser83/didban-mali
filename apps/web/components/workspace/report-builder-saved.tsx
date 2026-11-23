@@ -87,34 +87,27 @@ export function ReportBuilderSaved({
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-2">
                             {/* 1. تبدیل به داشبورد */}
-                            {isDashboard ? (
-                              <Badge tone="primary" className="gap-1 py-1 text-xs">
-                                <CheckCircleIcon size={13} />
-                                داشبورد فعال
-                              </Badge>
-                            ) : (
-                              c.workspace.canWrite && (
-                                <Button
-                                  variant="soft"
-                                  disabled={c.command.busy}
-                                  onClick={() => {
-                                    void c.command.run(
-                                      c.workspace.companyPath(
-                                        `report-studio/definitions/${item.id}/set-dashboard`,
-                                      ),
-                                      { method: "POST" },
-                                      () => c.definitions.refresh(),
-                                      "گزارش به‌عنوان داشبورد اصلی شرکت تنظیم شد.",
-                                    );
-                                  }}
-                                  className="gap-1.5 text-xs text-primary"
-                                  title="تنظیم این گزارش به‌عنوان داشبورد اصلی شرکت در صفحه نخست"
-                                >
-                                  <SquaresFourIcon size={15} />
-                                  تبدیل به داشبورد
-                                </Button>
-                              )
-                            )}
+                            {c.workspace.canWrite && (["fixed", "live"] as const).map((mode) => (
+                              <Button
+                                key={mode}
+                                variant={mode === "fixed" ? "soft" : "ghost"}
+                                disabled={c.command.busy}
+                                onClick={() => {
+                                  void c.command.run(
+                                    c.workspace.companyPath(
+                                      `report-studio/definitions/${item.id}/set-dashboard?mode=${mode}`,
+                                    ),
+                                    { method: "POST" },
+                                    () => c.definitions.refresh(),
+                                    "داشبورد شرکت تنظیم شد.",
+                                  );
+                                }}
+                                className="gap-1.5 text-xs"
+                              >
+                                <SquaresFourIcon size={15} />
+                                {mode === "fixed" ? "تبدیل به داشبورد" : "تنظیم به‌عنوان داشبورد زنده"}
+                              </Button>
+                            ))}
 
                             {/* 2. خروجی PDF */}
                             <a

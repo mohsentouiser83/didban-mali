@@ -117,7 +117,7 @@ class PayrollRunCreateInput(StrictInput):
 
 
 class PayrollSlipTimesheetInput(StrictInput):
-    employee_id: str = Field(min_length=1, max_length=36)
+    employee_id: str | None = Field(default=None, min_length=1, max_length=36)
     work_days: Annotated[str, Field(max_length=40)] | StrictInt | None = None
     work_hours: Annotated[str, Field(max_length=40)] | StrictInt | None = None
     overtime_hours: Annotated[str, Field(max_length=40)] | StrictInt | None = None
@@ -130,10 +130,14 @@ class PayrollSlipTimesheetInput(StrictInput):
     bonus_amount: Annotated[str, Field(max_length=80)] | StrictInt | None = None
 
 
+class EmployeeTimesheetInput(PayrollSlipTimesheetInput):
+    employee_id: str = Field(min_length=1, max_length=36)
+
+
 class BatchTimesheetInput(StrictInput):
-    slips: list[PayrollSlipTimesheetInput] = Field(min_length=1, max_length=500)
+    slips: list[EmployeeTimesheetInput] = Field(min_length=1, max_length=500)
 
 
 class PayrollPostJournalInput(StrictInput):
-    date: CalendarDate | None = None
-    description: str | None = Field(default=None, max_length=300)
+    accounts: dict[str, Annotated[str, Field(min_length=1, max_length=36)]] = Field(max_length=6)
+    expected_version: StrictInt = Field(ge=1)

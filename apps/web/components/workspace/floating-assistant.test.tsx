@@ -55,11 +55,11 @@ vi.mock("@/hooks/use-floating-assistant", () => ({
             },
             {
               id: "card-3",
-              title: "تأیید و ثبت نهایی سند",
-              action_type: "confirm_post",
-              button_text: "تأیید و ثبت نهایی",
+              title: "پیش‌نویس سند",
+              action_type: "navigate",
+              button_text: "بررسی سند",
+              target_path: "/accounting?review_draft=draft-123",
               variant: "primary",
-              payload: { draft_id: "draft-123" },
             },
             {
               id: "card-4",
@@ -148,15 +148,16 @@ describe("FloatingAssistant Action Cards", () => {
     expect(setOpenMock).not.toHaveBeenCalled();
   });
 
-  it("triggers confirmation in chat when clicking confirm_post action card", () => {
+  it("opens the exact draft in accounting for review", () => {
     render(<FloatingAssistant />);
 
     const confirmButton = screen.getByRole("button", {
-      name: "تأیید و ثبت نهایی: تأیید و ثبت نهایی سند",
+      name: "بررسی سند: پیش‌نویس سند",
     });
     fireEvent.click(confirmButton);
 
-    expect(sendMock).toHaveBeenCalledWith("تأیید کن");
+    expect(pushMock).toHaveBeenCalledWith("/accounting?review_draft=draft-123");
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("fills draft input when clicking suggest_text action card", () => {

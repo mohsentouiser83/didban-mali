@@ -7,7 +7,7 @@ from decimal import Decimal, localcontext
 from zoneinfo import ZoneInfo
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from . import models as m
@@ -164,9 +164,25 @@ def update_warehouse(
     return serialize_fact(wh)
 
 
-def delete_item(db: Session, company: str, user: m.User, item_id: str) -> dict:
+def _catalogue_draft_reference(db: Session, company: str, record_id: str, *fields: str) -> bool:
+    return db.scalar(
+        select(OperationDraft.id)
+        .where(
+            OperationDraft.company_id == company,
+            OperationDraft.kind.in_(INVENTORY_OPERATION_KINDS),
+            or_(*(OperationDraft.payload[field].as_string() == record_id for field in fields)),
+        )
+        .limit(1)
+    ) is not None
+
+
+def delete_item(
+    db: Session, company: str, user: m.User, item_id: str, version: int | None = None
+) -> dict:
     _require_catalog_permission(db, company, user)
     item = get_entity(db, InventoryItem, company, item_id)
+    if version is not None:
+        check_version(item, version)
     has_movements = db.scalar(
         select(InventoryMovement.id)
         .where(InventoryMovement.company_id == company, InventoryMovement.item_id == item_id)
@@ -178,15 +194,25 @@ def delete_item(db: Session, company: str, user: m.User, item_id: str) -> dict:
         "این کالا دارای گردش انبار است و قابل حذف نیست؛ می‌توانید آن را غیرفعال کنید.",
         409,
     )
+    require(
+        not _catalogue_draft_reference(db, company, item_id, "item_id"),
+        "inventory_item_draft_referenced",
+        "این کالا در پیش‌نویس انبار استفاده شده است و قابل حذف نیست.",
+        409,
+    )
     db.delete(item)
     db.flush()
     audit(db, company, user.id, "inventory.item_deleted", item_id)
     return {"deleted": True, "id": item_id}
 
 
-def delete_warehouse(db: Session, company: str, user: m.User, warehouse_id: str) -> dict:
+def delete_warehouse(
+    db: Session, company: str, user: m.User, warehouse_id: str, version: int | None = None
+) -> dict:
     _require_catalog_permission(db, company, user)
     wh = get_entity(db, InventoryWarehouse, company, warehouse_id)
+    if version is not None:
+        check_version(wh, version)
     has_movements = db.scalar(
         select(InventoryMovement.id)
         .where(InventoryMovement.company_id == company, InventoryMovement.warehouse_id == warehouse_id)
@@ -196,6 +222,12 @@ def delete_warehouse(db: Session, company: str, user: m.User, warehouse_id: str)
         not has_movements,
         "inventory_warehouse_referenced",
         "این انبار دارای گردش است و قابل حذف نیست؛ می‌توانید آن را غیرفعال کنید.",
+        409,
+    )
+    require(
+        not _catalogue_draft_reference(db, company, warehouse_id, "warehouse_id", "source_warehouse_id", "destination_warehouse_id"),
+        "inventory_warehouse_draft_referenced",
+        "این انبار در پیش‌نویس انبار استفاده شده است و قابل حذف نیست.",
         409,
     )
     db.delete(wh)
@@ -532,7 +564,15 @@ def _require_unused_reference(db: Session, company: str, data: dict) -> None:
     require(not duplicate, "operation_duplicate", "این مرجع عملیات کالا قبلاً استفاده شده است.", 409)
 
 
-def create_draft(db: Session, company: str, user: m.User, data: dict) -> dict:
+def create_draft(
+    db: Session,
+    company: str,
+    user: m.User,
+    data: dict,
+    *,
+    allow_credit_override: bool = False,
+    credit_override_reason: str = "",
+) -> dict:
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه تهیه سند ندارید.", 403)
     require(
@@ -541,6 +581,13 @@ def create_draft(db: Session, company: str, user: m.User, data: dict) -> dict:
     _require_unused_reference(db, company, data)
     identifier = m.uid()
     stock, lines, accounts, amount = _stock_and_lines(db, company, data, identifier)
+    if data["kind"] == "sale_goods":
+        from .commercial_service import check_credit_limit, sale_credit_amount
+
+        check_credit_limit(
+            db, company, user, data.get("party_id", ""), sale_credit_amount(data, amount),
+            allow_override=allow_credit_override, override_reason=credit_override_reason,
+        )
     result = save_draft(db, company, user, data | {"lines": lines})
     origin = OperationDraft(
         id=identifier,
@@ -549,7 +596,10 @@ def create_draft(db: Session, company: str, user: m.User, data: dict) -> dict:
         kind=data["kind"],
         source_reference="inventory:" + identifier,
         payload=jsonable_encoder(
-            data | {"amounts": {"amount": amount}, "accounts": accounts, "lines": lines, "stock": stock}
+            data | {
+                "amounts": {"amount": amount}, "accounts": accounts, "lines": lines, "stock": stock,
+                "credit_override_reason": credit_override_reason.strip() if allow_credit_override else "",
+            }
         ),
         actor_id=user.id,
         policy_version=POLICY,

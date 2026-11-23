@@ -1,4 +1,5 @@
 "use client";
+import { archiveTableImport, TableImportArchiveContext } from "./table-import-archive";
 import {
   api,
   ApiError,
@@ -9,7 +10,7 @@ import {
   type ResourceList,
   type User,
 } from "@/lib/api";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -18,8 +19,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CompanyModules } from "@/lib/company-modules";
-import { useResource } from "./use-resource";
 import { usePeriodOptions } from "./use-period-options";
 interface Workspace {
   user?: User;
@@ -38,14 +37,12 @@ interface Workspace {
   refreshPeriods: () => void;
   logout: () => Promise<void>;
   companyPath: (resource: string) => string | null;
-  modules: ReturnType<typeof useResource<CompanyModules>>;
   canWrite: boolean;
   canApprove: boolean;
 }
 const Context = createContext<Workspace | null>(null);
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const [user, setUser] = useState<User>();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyId, setCompanyId] = useState("");
@@ -107,12 +104,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshCompanies, router]);
   const company = companies.find((item) => item.id === companyId);
-  const modules = useResource<CompanyModules>(companyId ? `/companies/${companyId}/modules` : null);
-  const refreshModules = modules.refresh;
-  const isModuleView = pathname.includes("/settings/modules");
-  useEffect(() => {
-    if (isModuleView) refreshModules();
-  }, [isModuleView, refreshModules]);
   const periodsResource = usePeriodOptions(companyId);
   const periods = periodsResource.data;
   const setCompany = useCallback((id: string) => {
@@ -166,7 +157,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
-        modules,
         user,
         companies,
         company,
@@ -192,7 +182,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
               company.approve_financial_report)),
       }}
     >
-      {children}
+      <TableImportArchiveContext.Provider value={company ? (file) => archiveTableImport(company.id, file) : null}>
+        {children}
+      </TableImportArchiveContext.Provider>
     </Context.Provider>
   );
 }

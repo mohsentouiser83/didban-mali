@@ -56,7 +56,7 @@ export interface TableContextType {
   exportExcel: () => void;
   exportCsv: () => void;
   exportPdf: () => void;
-  openImport: () => void;
+  openImport?: () => void;
   hasActiveFilters: boolean;
   visibleCount: number;
   totalCount: number;
@@ -70,7 +70,8 @@ export interface TableProps extends ComponentProps<"table"> {
   columnControls?: boolean;
   title?: string;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
-  onImport?: (data: ParsedTableImport) => void;
+  onImport?: (data: ParsedTableImport) => void | Promise<void>;
+  importPersistsSource?: boolean;
 }
 
 export function Table({
@@ -81,6 +82,7 @@ export function Table({
   title,
   toolbarVariant = "primary",
   onImport,
+  importPersistsSource = false,
   children,
   ...props
 }: TableProps) {
@@ -428,7 +430,7 @@ export function Table({
     exportExcel: handleExportExcel,
     exportCsv: handleExportCsv,
     exportPdf: handleExportPdf,
-    openImport: handleOpenImport,
+    openImport: onImport ? handleOpenImport : undefined,
     hasActiveFilters,
     visibleCount,
     totalCount,
@@ -481,7 +483,7 @@ export function Table({
             onExportExcel={handleExportExcel}
             onExportCsv={handleExportCsv}
             onExportPdf={handleExportPdf}
-            onOpenImport={handleOpenImport}
+            onOpenImport={onImport ? handleOpenImport : undefined}
             hasActiveFilters={hasActiveFilters}
             toolbarVariant={toolbarVariant}
           />
@@ -511,13 +513,15 @@ export function Table({
           </table>
         </div>
 
-        {/* Excel Import Dialog */}
-        <TableImportDialog
-          open={importDialogOpen}
-          onOpenChange={setImportDialogOpen}
-          onImport={onImport}
-          title={`ورود اطلاعات به ${title || "جدول"}`}
-        />
+        {onImport && (
+          <TableImportDialog
+            open={importDialogOpen}
+            onOpenChange={setImportDialogOpen}
+            onImport={onImport}
+            archiveOriginal={!importPersistsSource}
+            title={`ورود اطلاعات به ${title || "جدول"}`}
+          />
+        )}
       </div>
     </TableContext.Provider>
   );
@@ -869,7 +873,7 @@ export function DataTable<T extends object>({
   title?: string;
   toolbar?: boolean;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
-  onImport?: (parsed: ParsedTableImport) => void;
+  onImport?: (parsed: ParsedTableImport) => void | Promise<void>;
   emptyTitle?: string;
   emptyAction?: ReactNode;
   className?: string;

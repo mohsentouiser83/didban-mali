@@ -147,3 +147,29 @@ older = checked(viewer.get(path, params={"limit": 2, "cursor": page["next_cursor
 assert page["items"] + older["items"] == history["items"] and older["next_cursor"] is None
 """,
     )
+
+
+def test_empty_moadian_reconciliation_has_no_percentage(tmp_path):
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
+url = base + "/moadian/reconciliation"
+empty = checked(owner.get(url))
+assert empty["summary"]["invoices_count"] == 0
+assert empty["summary"]["compliance_percentage"] is None
+assert all(not empty[key] for key in ("accepted", "pending", "rejected", "untransmitted"))
+post_draft(goods("purchase_goods", "stock-in", 1, "50", "2026-09-02")["draft"]["id"])
+sale = goods("sale_goods", "not-sent", 1, "150", "2026-09-04")
+journal = post_draft(sale["draft"]["id"])
+checked(command(advisor, "POST", invoices, {
+    "operation_id": sale["operation_id"], "journal_digest": journal["digest"],
+    "reference": "not-sent", "due_date": "2026-09-20", "due_unknown": False,
+    "expected_date": None, "expected_unknown": True,
+}), 201)
+populated = checked(owner.get(url))
+assert populated["summary"]["invoices_count"] == 1, populated
+assert populated["summary"]["compliance_percentage"] == 0, populated
+assert len(populated["untransmitted"]) == 1
+""",
+    )

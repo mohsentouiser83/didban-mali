@@ -40,7 +40,7 @@ class ProformaLineInput(StrictInput):
 
 class ProformaInput(StrictInput):
     number: str = Field(min_length=1, max_length=100)
-    direction: Literal["sale", "purchase"] = "sale"
+    direction: Literal["sale"] = "sale"
     date: date
     expiry_date: date | None = None
     party_id: str = Field(min_length=1, max_length=100)

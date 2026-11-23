@@ -27,7 +27,7 @@ export const peopleCatalog = {
   payroll: { title: "حقوق و دستمزد", columns: ["gross_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions", "net_pay"] },
   tax: { title: "مالیات حقوق", columns: ["gross_pay", "payroll_tax"] },
   insurance: { title: "بیمه", columns: ["employee_insurance", "employer_insurance"] },
-  "employee-reports": { title: "گزارش کارمندان", columns: ["gross_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions", "net_pay"] },
+  "employee-reports": { title: "گزارش حقوق واردشده", columns: ["gross_pay", "payroll_tax", "employee_insurance", "employer_insurance", "other_deductions", "net_pay"] },
 } satisfies Record<PeopleKind, { title: string; columns: PayrollValue[] }>;
 export const payrollLabels: Record<PayrollValue, string> = {
   gross_pay: "حقوق ناخالص", net_pay: "خالص پرداختنی", payroll_tax: "مالیات حقوق",
@@ -35,7 +35,7 @@ export const payrollLabels: Record<PayrollValue, string> = {
 };
 export function usePeopleView(kind: PeopleKind) {
   const workspace = useWorkspace();
-  const path = workspace.companyPath(kind);
+  const path = workspace.companyPath(kind === "employees" ? "personnel-directory" : kind);
   const resource = useResource<PeopleResult>(path ? `${path}${workspace.periodId ? `?period_id=${encodeURIComponent(workspace.periodId)}` : ""}` : null);
   const [query, setQuery] = useState("");
   const pageScope = `${path}:${workspace.periodId}`;

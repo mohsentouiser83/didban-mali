@@ -40,7 +40,7 @@ export function InventoryDraftDrawer({
     onClose();
   });
   const { value, change, command } = view;
-  const item = inventory.items.find((item) => item.id === value.item_id);
+  const item = view.availableItems.find((item) => item.id === value.item_id);
   const unitLabel = value.unit === "IRR" ? "ریال" : "تومان";
   return (
     <Drawer
@@ -71,7 +71,7 @@ export function InventoryDraftDrawer({
               label="کالا"
               value={value.item_id}
               onValueChange={(item_id) => change({ item_id })}
-              options={inventory.items.map(({ id, code, name }) => ({
+              options={view.availableItems.map(({ id, code, name }) => ({
                 value: id, label: `${code} · ${name}`,
               }))}
             />
@@ -82,7 +82,7 @@ export function InventoryDraftDrawer({
               label="انبار"
               value={value.warehouse_id}
               onValueChange={(warehouse_id) => change({ warehouse_id })}
-              options={inventory.warehouses.map(({ id, code, name }) => ({
+              options={view.availableWarehouses.map(({ id, code, name }) => ({
                 value: id, label: `${code} · ${name}`,
               }))}
             />

@@ -330,3 +330,63 @@ assert positions()[bucket] == (1, "1001")
 assert len(checked(viewer.get(stock))["movements"]) == 2
 """,
     )
+
+
+def test_catalogue_http_upgrades_legacy_guards_and_preserves_movements(tmp_path):
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
+from sqlalchemy import text
+from didban.db import engine
+
+with engine.begin() as conn:
+    for table in ("inventory_items", "inventory_warehouses"):
+        for operation in ("UPDATE", "DELETE"):
+            conn.exec_driver_sql(
+                f"CREATE TRIGGER immutable_{table}_{operation} BEFORE {operation} ON {table} "
+                "BEGIN SELECT RAISE(ABORT, 'immutable fact'); END"
+            )
+initialize()
+initialize()
+
+for entity, row in (("items", item), ("warehouses", warehouse)):
+    path = stock + f"/{entity}/" + row["id"]
+    rejected(command(viewer, "PATCH", path, {"name": "آزمون"}, version=row["version"]), 403, "permission_denied")
+    revised = checked(command(owner, "PATCH", path, {"name": "ویرایش", "active": False}, version=row["version"]))
+    assert revised["name"] == "ویرایش" and revised["active"] is False
+    rejected(command(owner, "DELETE", path, version=row["version"]), 409, "version_conflict")
+    checked(command(owner, "PATCH", path, {"active": True}, version=revised["version"]))
+    assert any(value["id"] == row["id"] for value in checked(owner.get(stock))[entity])
+
+unused_item = checked(command(owner, "POST", stock + "/items", item_input | {"code": "UNUSED"}), 201)
+unused_warehouse = checked(command(owner, "POST", stock + "/warehouses", {"code": "UNUSED", "name": "آزمون"}), 201)
+for entity, row in (("items", unused_item), ("warehouses", unused_warehouse)):
+    path = stock + f"/{entity}/" + row["id"]
+    key = str(uuid4())
+    result = checked(command(owner, "DELETE", path, version=row["version"], key=key))
+    assert result["deleted"] and result == checked(command(owner, "DELETE", path, version=row["version"], key=key))
+    assert not any(value["id"] == row["id"] for value in checked(owner.get(stock))[entity])
+
+draft = goods("purchase_goods", "catalogue-dependency", 2, "50", "2026-09-10")
+for entity, row, code in (
+    ("items", item, "inventory_item_draft_referenced"),
+    ("warehouses", warehouse, "inventory_warehouse_draft_referenced"),
+):
+    rejected(command(owner, "DELETE", stock + f"/{entity}/" + row["id"], version=row["version"] + 2), 409, code)
+post_draft(draft["draft"]["id"])
+for entity, row, code in (
+    ("items", item, "inventory_item_referenced"),
+    ("warehouses", warehouse, "inventory_warehouse_referenced"),
+):
+    rejected(command(owner, "DELETE", stock + f"/{entity}/" + row["id"], version=row["version"] + 2), 409, code)
+
+try:
+    with transaction("company-a") as db:
+        db.execute(text("DELETE FROM inventory_movements"))
+except IntegrityError:
+    pass
+else:
+    raise AssertionError("Posted inventory movements must remain immutable")
+""",
+    )

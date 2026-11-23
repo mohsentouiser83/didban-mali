@@ -38,6 +38,7 @@ def _correction(db: Session, company: str, draft_id: str) -> JournalCorrectionDr
 def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
     from .closing_models import PeriodAccountingDraft
     from .inventory_service import validate_posting as validate_inventory_posting
+    from .payroll_service import payroll_posting_evidence
 
     draft = get_entity(db, Draft, company, draft_id)
     require(draft.state == "draft", "draft_not_postable", "این پیش‌نویس آمادهٔ ثبت نیست.", 409)
@@ -155,6 +156,9 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
                 409,
             )
         snapshot["inventory"] = inventory
+    payroll = payroll_posting_evidence(db, company, draft)
+    if payroll:
+        snapshot["payroll"] = payroll
     digest = sha256(
         json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -219,6 +223,7 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
     from .closing_service import validate_posting as validate_period_posting
     from .inventory_service import add_posted_movement
     from .operation_service import validate_posting
+    from .payroll_models import PayrollRun
 
     provenance = _posting_authority(db, company, user)
     require(1 <= len(items) <= 100, "posting_batch_size", "بین ۱ تا ۱۰۰ سند انتخاب کنید.")
@@ -275,6 +280,9 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         "سندهای یک کالا در یک انبار را جداگانه تأیید کنید.",
         409,
     )
+    from .commercial_service import validate_posting_credit
+
+    validate_posting_credit(db, company, user, [draft for draft, _ in prepared])
     sequence = (
         db.scalar(select(func.max(NativeJournal.sequence)).where(NativeJournal.company_id == company)) or 0
     )
@@ -304,6 +312,11 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         draft.state = "posted"
         draft.version += 1
         db.flush()
+        if payroll := journal.snapshot.get("payroll"):
+            run = get_entity(db, PayrollRun, company, payroll["run_id"])
+            run.journal_id = journal.id
+            run.status = "posted"
+            run.version += 1
         if "inventory" in journal.snapshot:
             add_posted_movement(db, company, journal, journal.snapshot["inventory"])
         audit(
@@ -321,12 +334,6 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
             },
         )
         result.append(serialize_fact(journal))
-    from .native_control_service import on_postings
-
-    on_postings(db, company, user, [draft.period_id for draft, _ in prepared])
-    from .native_automation_service import on_postings as apply_rules
-
-    apply_rules(db, company, user, [row["id"] for row in result])
     return {"items": result, "basis": "native_book"}
 
 
@@ -511,8 +518,14 @@ def discard_draft(db: Session, company: str, user: m.User, draft_id: str, reason
     draft = get_entity(db, Draft, company, draft_id)
     check_version(draft, version)
     require(draft.state == "draft", "draft_not_editable", "فقط پیش‌نویس ثبت‌نشده را می‌توان کنار گذاشت.", 409)
+    from .payroll_service import payroll_run_for_draft
+
+    run = payroll_run_for_draft(db, company, draft)
     draft.state = "discarded"
     draft.version += 1
+    if run and run.status == "approved":
+        run.status = "calculated"
+        run.version += 1
     db.flush()
     audit(
         db,

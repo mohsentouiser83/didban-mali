@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -160,8 +160,8 @@ export function EmployeesManagementView() {
         </div>
       )}
 
-      {/* Add / Edit Employee Dialog */}
-      <Dialog
+      {/* Add / Edit Employee Drawer */}
+      <Drawer
         open={v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش مشخصات کارمند" : "ثبت کارمند جدید"}
@@ -358,7 +358,7 @@ export function EmployeesManagementView() {
             </div>
           </div>
         </div>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

@@ -7,6 +7,8 @@ export interface InventoryWarehouse {
   id: string;
   code: string;
   name: string;
+  active: boolean;
+  version: number;
 }
 
 export interface InventoryItem extends InventoryWarehouse {

@@ -35,6 +35,8 @@ pnpm dev:web
 
 ## اجرای محلی با Docker Compose
 
+برای استفاده روی همین لپ‌تاپ تا زمان آماده‌شدن سرور، اگر گروه `didban-fresh` از قبل وجود دارد، از Docker Desktop همان گروه را Start کنید یا در ریشهٔ مخزن `docker compose start` را اجرا کنید. پس از آماده‌شدن سرویس‌ها، [سلامت API](http://127.0.0.1:3000/api/v1/health) و سپس [دیدبان](http://127.0.0.1:3000) را باز کنید. راه‌اندازی دوباره از همان volumeهای PostgreSQL و اصل فایل‌های نصب محلی استفاده می‌کند.
+
 در `.env`، مقدارهای `DIDBAN_PRODUCTION=false` و `DIDBAN_WEB_ORIGIN=http://127.0.0.1:3000` را قرار دهید و دو رمز مستقل URL-safe برای `DIDBAN_POSTGRES_ADMIN_PASSWORD` و `DIDBAN_APP_DB_PASSWORD` تنظیم کنید. نمونهٔ تنظیمات در `.env.example` است. پیش از تغییر از اجرای مستقیم به Docker، فرآیندهای محلی وب/API روی پورت‌های ۳۰۰۰ و ۸۰۰۰ را متوقف کنید.
 
 ```sh
@@ -65,6 +67,8 @@ docker compose exec api python scripts/bootstrap.py --email admin@example.local 
 
 در Compose، وب با آدرس داخلی `http://api:8000` build می‌شود. برای استقرار جداگانه وب، `DIDBAN_API_URL` باید در مرحله build صحیح باشد.
 
+مسیر استقرار AWS با یک دامنه، ECS Fargate، RDS و EFS در [راهنمای استقرار AWS](docs/aws-deployment.fa.md) آمده است. نخستین نصب و تمرین بازیابی را در محیط جداگانه انجام دهید.
+
 برای بازنشانی رمز حساب مدیریت‌شده:
 
 ```sh
@@ -84,7 +88,7 @@ PYTHONPATH=apps/api .venv/bin/python -m pytest apps/api/tests
 PYTHONPATH=apps/api .venv/bin/python -m ruff check apps/api scripts
 ```
 
-OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snapshot قابل بررسی با فرمان `.venv/bin/python scripts/generate_contracts.py` از source به `contracts/openapi.json` و `database/schema.sql` تولید می‌شود. نسخه schema در DB کنترل می‌شود؛ ارتقای آینده نیازمند migration صریح نسخه‌دار است و `create_all` جای migration نیست. بخش‌های تکمیل‌نشده و نتیجه واقعی آزمون‌ها در [`docs/current-implementation.fa.md`](docs/current-implementation.fa.md) ثبت می‌شوند. وجود صفحه یا قرارداد به معنی تأیید حسابدار، اتصال Luna یا آمادگی انتشار نیست.
+OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snapshot قابل بررسی با فرمان `.venv/bin/python scripts/generate_contracts.py` از source به `contracts/openapi.json` و `database/schema.sql` تولید می‌شود. مدل فعلی ۱۲۳ جدول، ۲۶۹ مسیر و ۳۲۹ عملیات HTTP دارد. [فهرست موجودیت‌ها](docs/entity-inventory.fa.md) کلاس، جدول و فایل منبع هر مدل را نشان می‌دهد. DDL تولیدشده برای نصب تازه است. ارتقای نصب داده‌دار migration نسخه‌دار و آزمون مستقل می‌خواهد. بخش‌های تکمیل‌نشده و نتیجه واقعی آزمون‌ها در [`docs/current-implementation.fa.md`](docs/current-implementation.fa.md) ثبت می‌شوند. وجود صفحه یا قرارداد به معنی تأیید حسابدار، اتصال Luna یا آمادگی انتشار نیست.
 
 هنگام راه‌اندازی، وجود ستون‌های مدل و کلیدهای یکتای `(company_id, id)` نیز کنترل می‌شود. پایگاه قدیمی با پیام `Database schema is outdated` و نام موارد مفقود متوقف می‌شود تا به‌جای خطاهای پراکندهٔ API، نیاز به ارتقای صریح ساختار روشن باشد؛ این کنترل داده یا ساختار جدول‌های موجود را مهاجرت نمی‌دهد.
 

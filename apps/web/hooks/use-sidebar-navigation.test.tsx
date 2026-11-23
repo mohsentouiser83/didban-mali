@@ -131,15 +131,14 @@ describe("useSidebarNavigation", () => {
     });
     expect(result.current.isGroupExpanded("حسابداری")).toBe(false);
 
-    // Navigate to /accounting/journals
-    currentPathname = "/accounting/journals";
+    currentPathname = "/accounting/operations";
     rerender();
 
     expect(result.current.isGroupExpanded("حسابداری")).toBe(true);
   });
 
   it("allows user to manually collapse category containing active page without auto-reopening while on same pathname", () => {
-    currentPathname = "/accounting/journals";
+    currentPathname = "/accounting/operations";
     const { result, rerender } = renderHook(() => useSidebarNavigation());
 
     expect(result.current.isGroupExpanded("حسابداری")).toBe(true);

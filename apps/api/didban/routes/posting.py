@@ -52,6 +52,7 @@ def journals(
     cursor: str | None = None,
     period_id: str | None = None,
     draft_id: str | None = None,
+    order_by_date: bool = False,
 ):
     with access(request, company_id) as (db, _user, _member):
         filters = []
@@ -62,7 +63,10 @@ def journals(
 
             get_entity(db, Period, company_id, period_id)
             filters.append(NativeJournal.period_id == period_id)
-        return paginate(db, NativeJournal, company_id, limit, cursor, filters)
+        return paginate(
+            db, NativeJournal, company_id, limit, cursor, filters,
+            date_order="date" if order_by_date else None,
+        )
 
 
 @router.get(A + "/journals/{journal_id}")

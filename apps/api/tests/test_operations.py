@@ -317,35 +317,8 @@ with transaction('company-a') as db:
     )
 
 
-@pytest.mark.parametrize(
-    "kind,module",
-    [
-        ("sale_service", "receivables"),
-        ("purchase_service", "payables"),
-        ("receipt", "settlements"),
-        ("payment", "settlements"),
-        ("expense", "settlements"),
-        ("transfer", "settlements"),
-        ("cheque_received", "settlements"),
-        ("cheque_collected", "settlements"),
-        ("cheque_endorsed", "settlements"),
-        ("payroll", "payroll"),
-        ("payroll_payment", "payroll"),
-    ],
-)
-def test_disabled_operation_module_blocks_draft_preparation(workspace, kind, module):
-    from didban.module_service import canonical_module
 
-    db = workspace
-    db.add(m.CompanyModule(company_id="c", key=canonical_module(module), enabled=False))
-    db.flush()
-    with pytest.raises(DomainError) as error:
-        create(db, "c", db.get(m.User, "advisor"), {"kind": kind})
-    assert error.value.code == "module_disabled"
-    assert db.scalar(select(Draft.id)) is None
-
-
-def test_module_disabled_after_posting_preview_blocks_operation_but_not_manual_journal(tmp_path):
+def test_legacy_module_setting_does_not_block_operation_or_manual_journal(tmp_path):
     from test_api_delivery import scenario
 
     scenario(
@@ -364,13 +337,13 @@ assert result.status_code==201,result.text
 draft=result.json()['draft'];preview=manager.get(base+'/accounting/drafts/'+draft['id']+'/posting-preview').json()
 with transaction('company-a') as db:db.add(m.CompanyModule(company_id='company-a',key='receivables',enabled=False))
 result=command(manager,'POST',base+'/accounting/postings',{'items':[{key:preview[key] for key in ('draft_id','expected_version','digest')}]})
-assert result.status_code==403 and result.json()['code']=='module_disabled',result.text
+assert result.status_code==201,result.text
 # Generic manual journals retain their own independent posting authority.
 manual=command(owner,'POST',base+'/accounting/drafts',{'period_id':period_id,'date':'2026-09-02','description':'ثبت دستی مستقل','unit':'IRR','lines':[{'account_id':'ar','party_id':'customer','debit':'100','credit':'0'},{'account_id':'rev','party_id':'customer','debit':'0','credit':'100'}]})
 assert manual.status_code==201,manual.text
 preview=manager.get(base+'/accounting/drafts/'+manual.json()['id']+'/posting-preview').json()
 result=command(manager,'POST',base+'/accounting/postings',{'items':[{key:preview[key] for key in ('draft_id','expected_version','digest')}]})
 assert result.status_code==201,result.text
-with transaction('company-a') as db:assert len(list(db.scalars(select(NativeJournal))))==1
+with transaction('company-a') as db:assert len(list(db.scalars(select(NativeJournal))))==2
 """,
     )

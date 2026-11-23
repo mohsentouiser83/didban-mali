@@ -14,7 +14,7 @@ export function useUpload() {
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState("");
   const lock = useRef(false);
-  const upload = async (selected: File[], existingId?: string) => {
+  const upload = async (selected: File[], existingId?: string, parentId?: string) => {
     if (lock.current || !workspace.company) return;
     if (!selected.length) return;
     if (selected.length > 10) {
@@ -34,7 +34,7 @@ export function useUpload() {
       if (!id) {
         const session = await api<ProcessingSession>(
           workspace.companyPath("processing-sessions")!,
-          { method: "POST", body: { period_id: workspace.periodId || null } },
+          { method: "POST", body: { period_id: workspace.periodId || null, parent_id: parentId } },
         );
         id = session.id;
       }

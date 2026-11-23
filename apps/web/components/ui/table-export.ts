@@ -246,6 +246,11 @@ export function exportTableToPdf(
       )
       .join("");
 
+    const fonts = ["Regular", "Bold"].map((style, index) => {
+      const url = new URL(`/fonts/IRANYekanX-${style}.ttf`, window.location.origin);
+      return `@font-face { font-family: IRANYekanX; src: url("${url.href}") format("truetype"); font-weight: ${index ? 700 : 400}; }`;
+    }).join("\n");
+
     doc.write(`
       <!DOCTYPE html>
       <html dir="rtl" lang="fa">
@@ -253,13 +258,14 @@ export function exportTableToPdf(
         <meta charset="utf-8">
         <title>${title}</title>
         <style>
+          ${fonts}
           @page {
             size: A4 landscape;
             margin: 12mm 10mm;
           }
           * { box-sizing: border-box; }
           body {
-            font-family: IRANYekanX, Tahoma, sans-serif;
+            font-family: IRANYekanX, sans-serif;
             direction: rtl;
             color: #20243f;
             margin: 0;
@@ -351,8 +357,10 @@ export function exportTableToPdf(
     `);
     doc.close();
 
-    // Trigger print after iframe renders
-    setTimeout(() => {
+    void Promise.allSettled([
+      doc.fonts.load('400 11px IRANYekanX'),
+      doc.fonts.load('700 16px IRANYekanX'),
+    ]).then(() => {
       try {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
@@ -363,7 +371,7 @@ export function exportTableToPdf(
           }
         }, 1500);
       }
-    }, 250);
+    });
 
     toast.info("پیش‌نمایش چاپ و ذخیره PDF باز شد.");
     return true;

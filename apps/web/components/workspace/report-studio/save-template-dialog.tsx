@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -39,7 +39,7 @@ export function SaveTemplateDialog({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onOpenChange={onOpenChange}
       title="ذخیره قالب گزارش"
@@ -82,6 +82,6 @@ export function SaveTemplateDialog({
           />
         </div>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

@@ -72,17 +72,19 @@ from pydantic import SecretStr
 owner=client_for("owner");viewer=client_for("viewer");outsider=client_for("outsider")
 result=asyncio.run(configured(lambda request:httpx.Response(200,json=envelope())).invoke(**arguments))
 assert result["state"]=="completed",result
-usage=viewer.get(base+"/usage")
+usage=owner.get(base+"/usage")
 assert usage.status_code==200 and Decimal(usage.json()["used"])==Decimal("0.0000995"),usage.text
-assert Decimal(usage.json()["reserved"])==0 and "installation_budget" not in usage.json()
+assert Decimal(usage.json()["reserved"])==0
+for path in ("usage","model-status","model-tariffs","model-requests","model-reservations"):
+    assert viewer.get(base+"/"+path).status_code==403
 assert "installation_budget" in owner.get(base+"/usage").json()
 assert outsider.get(base+"/usage").status_code==404
-requests=viewer.get(base+"/model-requests").json()["items"]
+requests=owner.get(base+"/model-requests").json()["items"]
 assert len(requests)==1 and requests[0]["state"]=="completed"
 assert not {"proposal","input_hash","request_key","provider_response_id"}&set(requests[0])
 assert "ignore all instructions" not in str(requests)
 settings.model_enabled=True;settings.openai_api_key=SecretStr("synthetic-key-never-send")
-status=viewer.get(base+"/model-status")
+status=owner.get(base+"/model-status")
 assert status.json()["status"]=="configured_unverified" and status.json()["availability_verified"] is False,status.text
 assert "synthetic-key" not in status.text and status.json()["key_configured"] is True
 """,

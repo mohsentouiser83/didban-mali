@@ -1,15 +1,19 @@
 "use client";
+import { useState } from "react";
 import { FilesIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Pagination } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableEmptyCell, TableHead, TableHeader, TableRow, TableRowHeader } from "@/components/ui/table";
+import { tehranToday } from "@/lib/native-invoices";
+import { useWorkspace } from "@/hooks/workspace";
 import { useProformas } from "@/hooks/use-commercial";
 import type { Proforma } from "@/lib/commercial";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { NoCompany, PageHeader, Panel } from "../page-parts";
+import { ProformaConversion } from "./proforma-conversion";
 import { ProformaEditor } from "./proforma-editor";
 
 const statuses: Record<string, string> = {
@@ -18,13 +22,25 @@ const statuses: Record<string, string> = {
 const units = { IRR: "ریال", TOMAN: "تومان" };
 
 export function ProformasView() {
+  const { company, user } = useWorkspace();
+  if (!company) return <NoCompany />;
+  return <ProformasWorkspace key={`${user?.id}:${company.id}`} />;
+}
+
+function ProformasWorkspace() {
   const view = useProformas();
-  if (!view.workspace.company) return <NoCompany />;
+  const [conversion, setConversion] = useState<Proforma>();
+  const [converted, setConverted] = useState(false);
   return (
     <>
       <PageHeader title="پیش‌فاکتورها" icon={FilesIcon} action={
         view.canPrepare && <Button onClick={() => view.open()}>پیش‌فاکتور جدید</Button>
       } />
+      {converted && (
+        <Panel>
+          <ButtonLink href="/accounting" variant="secondary">مشاهدهٔ پیش‌نویس در اسناد</ButtonLink>
+        </Panel>
+      )}
       <Panel>
         {view.resource.loading ? <LoadingState /> : view.resource.error ? (
           <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
@@ -49,9 +65,17 @@ export function ProformasView() {
                       <div className="flex flex-wrap gap-1">
                         <Button variant="ghost" aria-label={`مشاهده پیش‌فاکتور ${row.number}`}
                           onClick={() => view.open(row, true)}>مشاهده</Button>
-                        {view.canPrepare && ["draft", "issued"].includes(row.status) &&
+                        {view.canPrepare && row.direction === "sale" && ["draft", "issued"].includes(row.status) &&
                           <Button variant="ghost" aria-label={`ویرایش پیش‌فاکتور ${row.number}`}
                             onClick={() => view.open(row)}>ویرایش</Button>}
+                        {view.canPrepare && view.capabilities.data?.posting_available &&
+                          row.direction === "sale" && row.status === "issued" &&
+                          (!row.expiry_date || row.expiry_date >= tehranToday()) &&
+                          row.lines.length === 1 && row.lines[0].item_id &&
+                          !/[1-9]/.test(row.lines[0].discount) && (
+                            <Button variant="ghost" onClick={() => setConversion(row)}>تبدیل به پیش‌نویس فروش</Button>
+                          )}
+
                       </div>
                     </TableCell>
                   </TableRow>
@@ -65,6 +89,14 @@ export function ProformasView() {
           </>
         )}
       </Panel>
+      {conversion && (
+        <ProformaConversion key={conversion.id} row={conversion} onClose={() => setConversion(undefined)}
+          onComplete={() => {
+            setConversion(undefined);
+            setConverted(true);
+            view.resource.refresh();
+          }} />
+      )}
       {view.editor && (view.editor.readOnly && view.editor.row && view.base ? (
         <ProformaDetail row={view.editor.row} exportHref={`/api/v1${view.base}/${view.editor.row.id}/export`}
           onClose={view.close} />
@@ -81,7 +113,7 @@ function ProformaDetail({ row, exportHref, onClose }: {
   row: Proforma; exportHref: string; onClose: () => void;
 }) {
   return (
-    <Dialog open onOpenChange={onClose} className="max-w-3xl"
+    <Drawer open onOpenChange={onClose} className="max-w-3xl"
       title={`پیش‌فاکتور ${row.number}`}
       footer={<ButtonLink href={exportHref} download variant="secondary">دریافت PDF</ButtonLink>}>
       <div className="space-y-4">
@@ -105,6 +137,6 @@ function ProformaDetail({ row, exportHref, onClose }: {
         </Table>
         {row.terms && <p className="whitespace-pre-wrap">{row.terms}</p>}
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

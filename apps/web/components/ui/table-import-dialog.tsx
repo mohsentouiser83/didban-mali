@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef, type DragEvent, type ChangeEvent } from "react";
+import { useState, useRef, useContext, type DragEvent, type ChangeEvent } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { Dialog } from "./dialog";
+import { Drawer } from "./drawer";
 import { Button } from "./button";
 import {
   UploadSimpleIcon,
@@ -14,6 +14,8 @@ import {
   ClipboardTextIcon,
 } from "@phosphor-icons/react";
 import { persian } from "@/lib/utils";
+import { ApiError } from "@/lib/api";
+import { TableImportArchiveContext } from "@/hooks/table-import-archive";
 
 export interface ParsedTableImport {
   headers: string[];
@@ -25,7 +27,8 @@ export interface ParsedTableImport {
 export interface TableImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImport?: (data: ParsedTableImport) => void;
+  onImport: (data: ParsedTableImport) => void | Promise<void>;
+  archiveOriginal: boolean;
   title?: string;
 }
 
@@ -33,8 +36,12 @@ export function TableImportDialog({
   open,
   onOpenChange,
   onImport,
+  archiveOriginal,
   title = "ورود اطلاعات از اکسل (Excel / CSV)",
 }: TableImportDialogProps) {
+  const archive = useContext(TableImportArchiveContext);
+  const submitting = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"file" | "paste">("file");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -44,6 +51,7 @@ export function TableImportDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetState = () => {
+    if (submitting.current) return;
     setParsedData(null);
     setSelectedFile(null);
     setPastedText("");
@@ -51,6 +59,7 @@ export function TableImportDialog({
   };
 
   const handleClose = () => {
+    if (submitting.current) return;
     resetState();
     onOpenChange(false);
   };
@@ -101,6 +110,7 @@ export function TableImportDialog({
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (submitting.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
     setSelectedFile(file);
@@ -129,6 +139,7 @@ export function TableImportDialog({
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+    if (submitting.current) return;
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
@@ -195,18 +206,25 @@ export function TableImportDialog({
     }
   };
 
-  const handleConfirm = () => {
-    if (!parsedData) return;
-    if (onImport) {
-      onImport(parsedData);
-    } else {
-      toast.success(`${persian(parsedData.totalRows)} ردیف به داده‌های جدول افزوده شد.`);
+  const handleConfirm = async () => {
+    if (!parsedData || submitting.current) return;
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      if (archiveOriginal && archive && parsedData.file) await archive(parsedData.file);
+      await onImport(parsedData);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "ورود فایل انجام نشد.");
+      return;
+    } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
     }
     handleClose();
   };
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onOpenChange={(v) => {
         if (!v) handleClose();
@@ -233,7 +251,8 @@ export function TableImportDialog({
             <Button
               variant="primary"
               disabled={!parsedData || !parsedData.rows.length}
-              onClick={handleConfirm}
+              busy={isSubmitting}
+              onClick={() => void handleConfirm()}
               className="gap-2"
             >
               <UploadSimpleIcon size={16} />
@@ -248,6 +267,7 @@ export function TableImportDialog({
         <div className="flex rounded-control border border-border bg-canvas/60 p-1">
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={() => {
               setActiveTab("file");
               resetState();
@@ -263,6 +283,7 @@ export function TableImportDialog({
           </button>
           <button
             type="button"
+            disabled={isSubmitting}
             onClick={() => {
               setActiveTab("paste");
               resetState();
@@ -391,6 +412,6 @@ export function TableImportDialog({
           </div>
         )}
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

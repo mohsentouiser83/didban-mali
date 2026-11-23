@@ -444,7 +444,7 @@ def test_account_only_corrected_source_uses_posted_accounts_for_semantic_role_gu
     assert error.value.code == "native_invoice_role_conflict"
 
 
-def test_module_disable_preserves_financial_evidence_but_blocks_authoring_and_mode_change_keeps_snapshots(
+def test_legacy_settings_allow_authoring_and_mode_change_preserves_snapshots(
     book,
 ):
     from didban.accounting_setup_models import CompanyAccountingSetup
@@ -462,28 +462,27 @@ def test_module_disable_preserves_financial_evidence_but_blocks_authoring_and_mo
     assert len(service.receipt_history(db, "c", actor, "customer", date(2026, 10, 20))) == 1
     with pytest.raises(DomainError):
         alloc(db, item, receipt, "1")
-    with pytest.raises(DomainError):
-        service.candidates(db, "c", actor, "receipt")
+    assert "items" in service.candidates(db, "c", actor, "receipt")
     db.add(m.CompanyModule(company_id="c", key="receivables", enabled=False))
     db.flush()
     assert service.current(db, "c", actor, date(2026, 10, 20))["items"][0]["remaining"] == "0"
     assert len(service.receipt_history(db, "c", actor, "customer", date(2026, 10, 20))) == 1
-    with pytest.raises(DomainError):
-        service.update_terms(
-            db,
-            "c",
-            actor,
-            item["id"],
-            {
-                "due_date": None,
-                "due_unknown": True,
-                "expected_date": None,
-                "expected_unknown": True,
-                "effective_date": date(2026, 10, 20),
-                "reason": "تغییر",
-            },
-            item["version"],
-        )
+    revised = service.update_terms(
+        db,
+        "c",
+        actor,
+        item["id"],
+        {
+            "due_date": None,
+            "due_unknown": True,
+            "expected_date": None,
+            "expected_unknown": True,
+            "effective_date": date(2026, 10, 20),
+            "reason": "تغییر",
+        },
+        item["version"],
+    )
+    assert revised["version"] == item["version"] + 1
     db.get(CompanyAccountingSetup, "c").mode = "analysis"
     db.flush()
     assert service.current(db, "c", actor, date(2026, 10, 20))["items"][0]["remaining"] == "0"

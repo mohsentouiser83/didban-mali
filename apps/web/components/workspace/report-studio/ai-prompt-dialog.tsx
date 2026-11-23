@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { SparkleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -33,7 +33,7 @@ export function AiPromptDialog({
   }
 
   return (
-    <Dialog
+    <Drawer
       open={open}
       onOpenChange={onOpenChange}
       title="تولید هوشمند داشبورد با هوش مصنوعی"
@@ -84,6 +84,6 @@ export function AiPromptDialog({
           </div>
         </div>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

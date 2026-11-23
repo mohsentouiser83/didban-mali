@@ -200,6 +200,8 @@ export interface ComparisonRow {
   difference?: string | null;
   amount?: string;
   reason?: string;
+  portal_amount?: string | null;
+  tax?: string | null;
 }
 export interface SourceFile {
   id: string;
@@ -240,15 +242,6 @@ export interface ProcessingSession {
   created_at: string;
   files?: SourceFile[];
   issues?: Issue[];
-}
-export interface Finding {
-  id: string;
-  title: string;
-  code: string;
-  state: string;
-  version: number;
-  evidence: unknown[];
-  decision?: unknown;
 }
 export interface Report {
   id: string;

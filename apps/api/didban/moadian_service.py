@@ -20,7 +20,6 @@ from .moadian_models import MoadianTransmissionEvent as Event
 from .moadian_payload import build_payload, can_build
 from .moadian_profiles import MoadianProfile, load_profile
 from .moadian_schemas import MoadianInvoiceInput
-from .module_service import module_state, require_module
 from .money_type import canonical_money
 from .native_invoice_models import NativeInvoice
 from .native_invoice_service import detail as invoice_detail
@@ -37,7 +36,6 @@ def _can_send(db, company, member) -> bool:
         member.role in ("owner", "finance_manager")
         and setup
         and setup.mode == "primary"
-        and module_state(db, company, "moadian", set())["enabled"]
     )
 
 
@@ -49,7 +47,6 @@ def _authority(db, company, member, *, sending: bool) -> MoadianProfile:
         403,
     )
     if sending:
-        require_module(db, company, "moadian", ready=False)
         setup = db.get(CompanyAccountingSetup, company)
         require(
             setup and setup.mode == "primary",
@@ -546,7 +543,7 @@ def reconciliation_summary(db: Session, company: str, user: m.User, member) -> d
             "compliance_percentage": (
                 round(float(total_sales_accepted / total_sales_book * 100), 1)
                 if total_sales_book > 0
-                else 100.0
+                else None
             ),
         },
         "accepted": accepted,

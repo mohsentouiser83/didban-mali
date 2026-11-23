@@ -72,6 +72,25 @@ CREATE TABLE accounting_accounts (
 
 CREATE INDEX ix_accounting_accounts_company_id ON accounting_accounts (company_id);
 
+CREATE TABLE archived_spreadsheets (
+	actor_id VARCHAR(36) NOT NULL,
+	name VARCHAR(255) NOT NULL,
+	origin VARCHAR(20) NOT NULL,
+	sha256 VARCHAR(64) NOT NULL,
+	size INTEGER NOT NULL,
+	scan_status VARCHAR(30) NOT NULL,
+	content BYTEA NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, actor_id, origin, sha256, name),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_archived_spreadsheets_company_id ON archived_spreadsheets (company_id);
+
 CREATE TABLE audit_events (
 	actor_id VARCHAR(36),
 	action VARCHAR(80) NOT NULL,
@@ -245,6 +264,71 @@ CREATE TABLE company_modules (
 );
 
 CREATE INDEX ix_company_modules_company_id ON company_modules (company_id);
+
+CREATE TABLE counterparty_reconciliation_runs (
+	counterparty_id VARCHAR(100) NOT NULL,
+	party_name VARCHAR(200) NOT NULL,
+	as_of_date DATE NOT NULL,
+	book_balance NUMERIC(38, 6) NOT NULL,
+	statement_balance NUMERIC(38, 6) NOT NULL,
+	discrepancy NUMERIC(38, 6) NOT NULL,
+	matched_count INTEGER NOT NULL,
+	open_book_count INTEGER NOT NULL,
+	open_statement_count INTEGER NOT NULL,
+	payload JSON NOT NULL,
+	status VARCHAR(30) NOT NULL,
+	notes TEXT,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_counterparty_reconciliation_runs_book_balance CHECK (book_balance > -100000000000000000000000000000000 AND book_balance < 100000000000000000000000000000000),
+	CONSTRAINT finite_counterparty_reconciliation_runs_statement_balance CHECK (statement_balance > -100000000000000000000000000000000 AND statement_balance < 100000000000000000000000000000000),
+	CONSTRAINT finite_counterparty_reconciliation_runs_discrepancy CHECK (discrepancy > -100000000000000000000000000000000 AND discrepancy < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_counterparty_reconciliation_runs_company_id ON counterparty_reconciliation_runs (company_id);
+
+CREATE TABLE employees (
+	employee_code VARCHAR(50) NOT NULL,
+	first_name VARCHAR(100) NOT NULL,
+	last_name VARCHAR(100) NOT NULL,
+	identity_type VARCHAR(20) NOT NULL,
+	national_id VARCHAR(20),
+	father_name VARCHAR(100),
+	birth_date DATE,
+	hire_date DATE,
+	insurance_number VARCHAR(50),
+	phone VARCHAR(30),
+	iban VARCHAR(34),
+	bank_name VARCHAR(100),
+	account_number VARCHAR(50),
+	job_title VARCHAR(120),
+	department VARCHAR(120),
+	marital_status VARCHAR(20) NOT NULL,
+	children_count INTEGER NOT NULL,
+	active BOOLEAN NOT NULL,
+	is_veteran_or_child BOOLEAN NOT NULL,
+	is_foreign_national BOOLEAN NOT NULL,
+	is_science_park_staff BOOLEAN NOT NULL,
+	has_disability_charge BOOLEAN NOT NULL,
+	is_underdeveloped_region BOOLEAN NOT NULL,
+	is_retired BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, employee_code),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_employees_company_id ON employees (company_id);
 
 CREATE TABLE financial_dimensions (
 	kind VARCHAR(20) NOT NULL,
@@ -701,6 +785,45 @@ CREATE TABLE company_comparison_runs (
 
 CREATE INDEX ix_company_comparison_runs_company_id ON company_comparison_runs (company_id);
 
+CREATE TABLE employee_contracts (
+	employee_id VARCHAR(36) NOT NULL,
+	contract_number VARCHAR(50) NOT NULL,
+	contract_type VARCHAR(30) NOT NULL,
+	start_date DATE NOT NULL,
+	end_date DATE,
+	status VARCHAR(20) NOT NULL,
+	base_salary NUMERIC(38, 6) NOT NULL,
+	daily_rate NUMERIC(38, 6) NOT NULL,
+	housing_allowance NUMERIC(38, 6) NOT NULL,
+	grocery_allowance NUMERIC(38, 6) NOT NULL,
+	marital_allowance NUMERIC(38, 6) NOT NULL,
+	child_allowance NUMERIC(38, 6) NOT NULL,
+	tenure_allowance NUMERIC(38, 6) NOT NULL,
+	custom_fixed_allowances NUMERIC(38, 6) NOT NULL,
+	is_insured BOOLEAN NOT NULL,
+	is_taxable BOOLEAN NOT NULL,
+	notes TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, contract_number),
+	FOREIGN KEY(company_id, employee_id) REFERENCES employees (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_employee_contracts_base_salary CHECK (base_salary > -100000000000000000000000000000000 AND base_salary < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_daily_rate CHECK (daily_rate > -100000000000000000000000000000000 AND daily_rate < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_housing_allowance CHECK (housing_allowance > -100000000000000000000000000000000 AND housing_allowance < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_grocery_allowance CHECK (grocery_allowance > -100000000000000000000000000000000 AND grocery_allowance < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_marital_allowance CHECK (marital_allowance > -100000000000000000000000000000000 AND marital_allowance < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_child_allowance CHECK (child_allowance > -100000000000000000000000000000000 AND child_allowance < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_tenure_allowance CHECK (tenure_allowance > -100000000000000000000000000000000 AND tenure_allowance < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_custom_fixed_allowances CHECK (custom_fixed_allowances > -100000000000000000000000000000000 AND custom_fixed_allowances < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_employee_contracts_company_id ON employee_contracts (company_id);
+
 CREATE TABLE intercompany_mappings (
 	group_id VARCHAR(36) NOT NULL,
 	version INTEGER NOT NULL,
@@ -914,6 +1037,40 @@ CREATE TABLE native_zero_opening_evidence (
 );
 
 CREATE INDEX ix_native_zero_opening_evidence_company_id ON native_zero_opening_evidence (company_id);
+
+CREATE TABLE payroll_runs (
+	period_id VARCHAR(36) NOT NULL,
+	title VARCHAR(150) NOT NULL,
+	year INTEGER NOT NULL,
+	month INTEGER NOT NULL,
+	calculation_date DATE NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	total_gross NUMERIC(38, 6) NOT NULL,
+	total_employee_insurance NUMERIC(38, 6) NOT NULL,
+	total_employer_insurance NUMERIC(38, 6) NOT NULL,
+	total_tax NUMERIC(38, 6) NOT NULL,
+	total_other_deductions NUMERIC(38, 6) NOT NULL,
+	total_net NUMERIC(38, 6) NOT NULL,
+	journal_id VARCHAR(36),
+	created_by_user_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, year, month),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_payroll_runs_total_gross CHECK (total_gross > -100000000000000000000000000000000 AND total_gross < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_runs_total_employee_insurance CHECK (total_employee_insurance > -100000000000000000000000000000000 AND total_employee_insurance < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_runs_total_employer_insurance CHECK (total_employer_insurance > -100000000000000000000000000000000 AND total_employer_insurance < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_runs_total_tax CHECK (total_tax > -100000000000000000000000000000000 AND total_tax < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_runs_total_other_deductions CHECK (total_other_deductions > -100000000000000000000000000000000 AND total_other_deductions < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_runs_total_net CHECK (total_net > -100000000000000000000000000000000 AND total_net < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_payroll_runs_company_id ON payroll_runs (company_id);
 
 CREATE TABLE period_accounting_drafts (
 	draft_id VARCHAR(36) NOT NULL,
@@ -1190,6 +1347,76 @@ CREATE TABLE outbox_jobs (
 );
 
 CREATE INDEX ix_outbox_jobs_company_id ON outbox_jobs (company_id);
+
+CREATE TABLE payroll_slips (
+	payroll_run_id VARCHAR(36) NOT NULL,
+	employee_id VARCHAR(36) NOT NULL,
+	contract_id VARCHAR(36),
+	work_days NUMERIC(38, 6) NOT NULL,
+	work_hours NUMERIC(38, 6) NOT NULL,
+	overtime_hours NUMERIC(38, 6) NOT NULL,
+	absence_days NUMERIC(38, 6) NOT NULL,
+	paid_leave_days NUMERIC(38, 6) NOT NULL,
+	unpaid_leave_days NUMERIC(38, 6) NOT NULL,
+	advance_payment NUMERIC(38, 6) NOT NULL,
+	loan_installment NUMERIC(38, 6) NOT NULL,
+	other_deductions NUMERIC(38, 6) NOT NULL,
+	bonus_amount NUMERIC(38, 6) NOT NULL,
+	base_pay NUMERIC(38, 6) NOT NULL,
+	housing_pay NUMERIC(38, 6) NOT NULL,
+	grocery_pay NUMERIC(38, 6) NOT NULL,
+	marital_pay NUMERIC(38, 6) NOT NULL,
+	child_pay NUMERIC(38, 6) NOT NULL,
+	tenure_pay NUMERIC(38, 6) NOT NULL,
+	overtime_pay NUMERIC(38, 6) NOT NULL,
+	gross_pay NUMERIC(38, 6) NOT NULL,
+	insured_earnings NUMERIC(38, 6) NOT NULL,
+	taxable_earnings NUMERIC(38, 6) NOT NULL,
+	employee_insurance NUMERIC(38, 6) NOT NULL,
+	employer_insurance NUMERIC(38, 6) NOT NULL,
+	payroll_tax NUMERIC(38, 6) NOT NULL,
+	total_deductions NUMERIC(38, 6) NOT NULL,
+	net_pay NUMERIC(38, 6) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	applied_exemptions JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, payroll_run_id, employee_id),
+	FOREIGN KEY(company_id, payroll_run_id) REFERENCES payroll_runs (company_id, id),
+	FOREIGN KEY(company_id, employee_id) REFERENCES employees (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_payroll_slips_work_days CHECK (work_days > -100000000000000000000000000000000 AND work_days < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_work_hours CHECK (work_hours > -100000000000000000000000000000000 AND work_hours < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_overtime_hours CHECK (overtime_hours > -100000000000000000000000000000000 AND overtime_hours < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_absence_days CHECK (absence_days > -100000000000000000000000000000000 AND absence_days < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_paid_leave_days CHECK (paid_leave_days > -100000000000000000000000000000000 AND paid_leave_days < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_unpaid_leave_days CHECK (unpaid_leave_days > -100000000000000000000000000000000 AND unpaid_leave_days < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_advance_payment CHECK (advance_payment > -100000000000000000000000000000000 AND advance_payment < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_loan_installment CHECK (loan_installment > -100000000000000000000000000000000 AND loan_installment < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_other_deductions CHECK (other_deductions > -100000000000000000000000000000000 AND other_deductions < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_bonus_amount CHECK (bonus_amount > -100000000000000000000000000000000 AND bonus_amount < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_base_pay CHECK (base_pay > -100000000000000000000000000000000 AND base_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_housing_pay CHECK (housing_pay > -100000000000000000000000000000000 AND housing_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_grocery_pay CHECK (grocery_pay > -100000000000000000000000000000000 AND grocery_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_marital_pay CHECK (marital_pay > -100000000000000000000000000000000 AND marital_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_child_pay CHECK (child_pay > -100000000000000000000000000000000 AND child_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_tenure_pay CHECK (tenure_pay > -100000000000000000000000000000000 AND tenure_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_overtime_pay CHECK (overtime_pay > -100000000000000000000000000000000 AND overtime_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_gross_pay CHECK (gross_pay > -100000000000000000000000000000000 AND gross_pay < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_insured_earnings CHECK (insured_earnings > -100000000000000000000000000000000 AND insured_earnings < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_taxable_earnings CHECK (taxable_earnings > -100000000000000000000000000000000 AND taxable_earnings < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_employee_insurance CHECK (employee_insurance > -100000000000000000000000000000000 AND employee_insurance < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_employer_insurance CHECK (employer_insurance > -100000000000000000000000000000000 AND employer_insurance < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_payroll_tax CHECK (payroll_tax > -100000000000000000000000000000000 AND payroll_tax < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_total_deductions CHECK (total_deductions > -100000000000000000000000000000000 AND total_deductions < 100000000000000000000000000000000),
+	CONSTRAINT finite_payroll_slips_net_pay CHECK (net_pay > -100000000000000000000000000000000 AND net_pay < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_payroll_slips_company_id ON payroll_slips (company_id);
 
 CREATE TABLE result_manifests (
 	session_id VARCHAR(36) NOT NULL,
@@ -2269,6 +2496,14 @@ DROP POLICY IF EXISTS tenant_isolation ON accounting_accounts;
 
 CREATE POLICY tenant_isolation ON accounting_accounts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE archived_spreadsheets ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE archived_spreadsheets FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON archived_spreadsheets;
+
+CREATE POLICY tenant_isolation ON archived_spreadsheets USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE audit_events FORCE ROW LEVEL SECURITY;
@@ -2340,6 +2575,22 @@ ALTER TABLE company_modules FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON company_modules;
 
 CREATE POLICY tenant_isolation ON company_modules USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE counterparty_reconciliation_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE counterparty_reconciliation_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON counterparty_reconciliation_runs;
+
+CREATE POLICY tenant_isolation ON counterparty_reconciliation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE employees FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON employees;
+
+CREATE POLICY tenant_isolation ON employees USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE financial_dimensions ENABLE ROW LEVEL SECURITY;
 
@@ -2517,6 +2768,14 @@ DROP POLICY IF EXISTS tenant_isolation ON company_comparison_runs;
 
 CREATE POLICY tenant_isolation ON company_comparison_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE employee_contracts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE employee_contracts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON employee_contracts;
+
+CREATE POLICY tenant_isolation ON employee_contracts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE intercompany_mappings ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE intercompany_mappings FORCE ROW LEVEL SECURITY;
@@ -2604,6 +2863,14 @@ ALTER TABLE native_zero_opening_evidence FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON native_zero_opening_evidence;
 
 CREATE POLICY tenant_isolation ON native_zero_opening_evidence USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE payroll_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE payroll_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON payroll_runs;
+
+CREATE POLICY tenant_isolation ON payroll_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE period_accounting_drafts ENABLE ROW LEVEL SECURITY;
 
@@ -2716,6 +2983,14 @@ ALTER TABLE outbox_jobs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON outbox_jobs;
 
 CREATE POLICY tenant_isolation ON outbox_jobs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE payroll_slips ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE payroll_slips FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON payroll_slips;
+
+CREATE POLICY tenant_isolation ON payroll_slips USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE result_manifests ENABLE ROW LEVEL SECURITY;
 
@@ -3131,6 +3406,10 @@ DROP TRIGGER IF EXISTS immutable_fact ON accounting_operations;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON accounting_operations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
+DROP TRIGGER IF EXISTS immutable_fact ON archived_spreadsheets;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON archived_spreadsheets FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
 DROP TRIGGER IF EXISTS immutable_fact ON audit_events;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
@@ -3211,17 +3490,9 @@ DROP TRIGGER IF EXISTS immutable_fact ON interpretations;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON interpretations FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON inventory_items;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_items FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
 DROP TRIGGER IF EXISTS immutable_fact ON inventory_movements;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_movements FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON inventory_warehouses;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON inventory_warehouses FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON invoice_snapshots;
 
@@ -3394,6 +3665,10 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON settlements FOR EACH RO
 DROP TRIGGER IF EXISTS immutable_fact ON source_rows;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON source_rows FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON inventory_items;
+
+DROP TRIGGER IF EXISTS immutable_fact ON inventory_warehouses;
 
 CREATE OR REPLACE FUNCTION deny_native_invoice_source_change() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF TG_OP = 'DELETE' THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; IF NEW.id IS DISTINCT FROM OLD.id OR NEW.company_id IS DISTINCT FROM OLD.company_id OR NEW.operation_id IS DISTINCT FROM OLD.operation_id OR NEW.direction IS DISTINCT FROM OLD.direction OR NEW.source::jsonb IS DISTINCT FROM OLD.source::jsonb OR NEW.actor_id IS DISTINCT FROM OLD.actor_id OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN RAISE EXCEPTION 'immutable native invoice source'; END IF; RETURN NEW; END $$;
 

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { AmountInput, Input, Textarea } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -29,7 +29,7 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
     setForm((previous) => ({ ...previous, [key]: value }));
   }
   return (
-    <Dialog open onOpenChange={onClose} title={row ? (readOnly ? "پرونده طرف‌حساب" : "ویرایش طرف‌حساب") : "طرف‌حساب جدید"}>
+    <Drawer open onOpenChange={onClose} title={row ? (readOnly ? "پرونده طرف‌حساب" : "ویرایش طرف‌حساب") : "طرف‌حساب جدید"}>
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); onSave(form); }}>
         <div className="grid gap-4 sm:grid-cols-2">
           {fields.map(([key, label, maxLength]) => (
@@ -56,6 +56,6 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
         <FormMessage error>{error}</FormMessage>
         {!readOnly && <Button type="submit" busy={busy} disabled={!form.code.trim() || !form.name.trim()}>ذخیره</Button>}
       </form>
-    </Dialog>
+    </Drawer>
   );
 }

@@ -76,12 +76,25 @@ def orchestrate_analysis(
     question: str,
     manifest: dict[str, Any] | None = None,
     history: list[dict[str, Any]] | None = None,
+    *,
+    context_type: str | None = None,
 ) -> dict[str, Any] | None:
     """Execute a bounded read-only analytical plan for supported questions."""
     membership(db, company_id, user)
     intent = detect_analytical_intent(question)
     if not intent:
         return None
+
+    statement_id = (manifest or {}).get("native_statement_id")
+    if context_type and (context_type != "native_statement" or not statement_id):
+        return {
+            "mode": "analytical_explanation",
+            "intent": intent,
+            "state": "limited",
+            "answer": "برای این تحلیل، نسخه‌ای از گزارش مالی دفتر اصلی را انتخاب کنید.",
+            "facts": [],
+            "evidence_refs": [],
+        }
 
     step_count = 0
     collected_facts: dict[str, Any] = {}
@@ -90,13 +103,18 @@ def orchestrate_analysis(
     if intent == "profit_analysis":
         # Step 1: Period comparison
         step_count += 1
-        comparison = execute_evidence_query(db, company_id, user, "period_comparison")
+        comparison = execute_evidence_query(
+            db, company_id, user, "period_comparison", {"current_statement_id": statement_id}
+        )
         evidence_refs.extend(comparison.get("evidence_refs", []))
         collected_facts["period_comparison"] = comparison
 
         # Step 2: Income / expense breakdown
         step_count += 1
-        breakdown = execute_evidence_query(db, company_id, user, "income_expense_breakdown")
+        breakdown = execute_evidence_query(
+            db, company_id, user, "income_expense_breakdown",
+            {"statement_id": comparison.get("current_statement_id")},
+        )
         evidence_refs.extend(breakdown.get("evidence_refs", []))
         collected_facts["income_expense_breakdown"] = breakdown
 
@@ -145,7 +163,10 @@ def orchestrate_analysis(
 
     if intent == "receivables_analysis":
         step_count += 1
-        receivables_data = execute_evidence_query(db, company_id, user, "receivables_concentration")
+        as_of = (manifest or {}).get("details", {}).get("as_of_date")
+        receivables_data = execute_evidence_query(
+            db, company_id, user, "receivables_concentration", {"as_of": as_of}
+        )
         evidence_refs.extend(receivables_data.get("evidence_refs", []))
         collected_facts["receivables_concentration"] = receivables_data
 
@@ -188,7 +209,9 @@ def orchestrate_analysis(
 
     if intent == "cashflow_analysis":
         step_count += 1
-        cashflow_data = execute_evidence_query(db, company_id, user, "cashflow_forecast_summary")
+        cashflow_data = execute_evidence_query(
+            db, company_id, user, "cashflow_forecast_summary", {"statement_id": statement_id}
+        )
         evidence_refs.extend(cashflow_data.get("evidence_refs", []))
         collected_facts["cashflow_forecast_summary"] = cashflow_data
 

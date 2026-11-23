@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -78,7 +78,7 @@ export function BlockEditor({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()} title={`تنظیمات بلاک: ${block.title}`}>
+    <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} title={`تنظیمات بلاک: ${block.title}`}>
       <div className="space-y-4">
         {/* Navigation Tabs */}
         <div className="flex border-b border-border pb-1">
@@ -340,6 +340,6 @@ export function BlockEditor({
           </Button>
         </div>
       </div>
-    </Dialog>
+    </Drawer>
   );
 }

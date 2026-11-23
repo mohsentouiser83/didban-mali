@@ -228,7 +228,7 @@ class FinancialBlockQueryEngine:
                 q = q.where(m.JournalLine.date >= start_d)
             if end_d:
                 q = q.where(m.JournalLine.date <= end_d)
-            q = q.order_by(m.JournalLine.date.desc(), m.JournalLine.entry_id.desc()).limit(2000)
+            q = q.order_by(m.JournalLine.date.desc(), m.JournalLine.entry_id.desc())
             items = db.scalars(q).all()
             return [
                 {
@@ -285,7 +285,6 @@ class FinancialBlockQueryEngine:
                     select(m.Invoice)
                     .where(m.Invoice.company_id == company_id)
                     .order_by(m.Invoice.date.desc())
-                    .limit(2000)
                 ).all()
                 rows = [
                     {
@@ -377,7 +376,7 @@ class FinancialBlockQueryEngine:
                 q = q.where(m.BankMovement.date >= start_d)
             if end_d:
                 q = q.where(m.BankMovement.date <= end_d)
-            q = q.order_by(m.BankMovement.date.desc()).limit(2000)
+            q = q.order_by(m.BankMovement.date.desc())
             items = db.scalars(q).all()
             return [
                 {
@@ -400,7 +399,7 @@ class FinancialBlockQueryEngine:
                 q = q.where(cheque_models.Cheque.due_date >= start_d)
             if end_d:
                 q = q.where(cheque_models.Cheque.due_date <= end_d)
-            q = q.order_by(cheque_models.Cheque.due_date.asc()).limit(2000)
+            q = q.order_by(cheque_models.Cheque.due_date.asc())
             items = db.scalars(q).all()
             return [
                 {
@@ -448,7 +447,7 @@ class FinancialBlockQueryEngine:
                 q = q.where(inventory_models.InventoryMovement.date >= start_d)
             if end_d:
                 q = q.where(inventory_models.InventoryMovement.date <= end_d)
-            q = q.order_by(inventory_models.InventoryMovement.date.desc()).limit(2000)
+            q = q.order_by(inventory_models.InventoryMovement.date.desc())
             items = db.scalars(q).all()
             return [
                 {
@@ -470,7 +469,7 @@ class FinancialBlockQueryEngine:
                 q = q.where(m.PersonnelRecord.date >= start_d)
             if end_d:
                 q = q.where(m.PersonnelRecord.date <= end_d)
-            q = q.order_by(m.PersonnelRecord.date.desc()).limit(2000)
+            q = q.order_by(m.PersonnelRecord.date.desc())
             items = db.scalars(q).all()
             return [
                 {
@@ -510,7 +509,6 @@ class FinancialBlockQueryEngine:
                 select(moadian_models.MoadianTransmission)
                 .where(moadian_models.MoadianTransmission.company_id == company_id)
                 .order_by(moadian_models.MoadianTransmission.created_at.desc())
-                .limit(2000)
             )
             items = db.scalars(q).all()
             return [

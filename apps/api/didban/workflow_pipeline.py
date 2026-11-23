@@ -612,9 +612,6 @@ def publish_manifest_and_findings(
     session.state = "completed" if all(reporting_scope.values()) else "completed_limited"
     session.completed_steps, session.version = 4, session.version + 1
     db.add(Notification(company_id=session.company_id, title="گزارش تازه آماده است", href="/reports"))
-    from .automation_service import on_manifest
-
-    on_manifest(db, session.company_id, manifest)
     audit_fn(
         db,
         session.company_id,

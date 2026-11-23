@@ -1,11 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useWorkspace } from "./workspace";
 import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { api, type ResourceList } from "@/lib/api";
+import { prepareChequeImport } from "@/lib/cheque-import";
 import type { ParsedTableImport } from "@/components/ui/table";
 import { toast } from "sonner";
 export interface Cheque {
@@ -80,6 +81,9 @@ export function useCheques() {
   const base = workspace.companyPath("cheques");
   const resource = usePagedResource<Cheque>(base);
   const command = useCommand();
+  const importing = useRef(false);
+  const importKeys = useRef(new Map<string, string>());
+  const [importBusy, setImportBusy] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -241,83 +245,39 @@ export function useCheques() {
         !!banks.data?.items.find((bank) => bank.id === id)?.party_id,
       );
     },
+    importBusy,
     importFromExcel: async (parsed: ParsedTableImport) => {
-      if (!workspace.company || !parsed.rows.length) return;
-      const headerMap: Record<string, number> = {};
-      parsed.headers.forEach((h, i) => {
-        headerMap[h.trim().toLowerCase()] = i;
-      });
-
-      const getCol = (names: string[]) => {
-        for (const name of names) {
-          for (const [h, idx] of Object.entries(headerMap)) {
-            if (h.includes(name.toLowerCase())) return idx;
-          }
-        }
-        return -1;
-      };
-
-      const numIdx = getCol(["شماره چک", "شماره", "number"]);
-      const dirIdx = getCol(["نوع", "جهت", "direction"]);
-      const bankIdx = getCol(["نام بانک", "بانک", "bank_name"]);
-      const partyIdx = getCol(["طرف حساب", "طرف‌حساب", "party_id"]);
-      const amountIdx = getCol(["مبلغ", "amount"]);
-      const dueDateIdx = getCol(["سررسید", "تاریخ سررسید", "due_date"]);
-      const issueDateIdx = getCol(["تاریخ صدور", "تاریخ دریافت", "صدور", "issue_date"]);
-
-      const currentPeriod =
-        workspace.periods.find((p) => p.id === workspace.periodId) ||
-        workspace.periods[0];
-      if (!currentPeriod) {
-        toast.error("برای ثبت چک ابتدا باید دوره مالی باز وجود داشته باشد.");
+      if (!base || !workspace.canWrite || !parsed.rows.length || importing.current) return;
+      const period = workspace.periods.find((item) => item.id === workspace.periodId);
+      if (!period) {
+        toast.error("دورهٔ مالی ورود چک را انتخاب کنید.");
+        return;
+      }
+      const prepared = prepareChequeImport(parsed, period);
+      if ("error" in prepared) {
+        toast.error(prepared.error);
         return;
       }
 
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const row of parsed.rows) {
-        const num = numIdx >= 0 ? String(row[numIdx] ?? "").trim() : "";
-        const amt = amountIdx >= 0 ? String(row[amountIdx] ?? "").replace(/[,٬]/g, "").trim() : "";
-        if (!num || !amt) continue;
-
-        const rawDir = dirIdx >= 0 ? String(row[dirIdx] ?? "").trim() : "";
-        const isIssued = rawDir.includes("صادر") || rawDir.includes("پرداخت") || rawDir === "issued";
-        const direction = isIssued ? "issued" : "received";
-
-        const issueDate = issueDateIdx >= 0 && row[issueDateIdx] ? String(row[issueDateIdx]).trim() : currentPeriod.start;
-        const dueDate = dueDateIdx >= 0 && row[dueDateIdx] ? String(row[dueDateIdx]).trim() : issueDate;
-
-        const payload = {
-          period_id: currentPeriod.id,
-          direction,
-          number: num,
-          bank_name: bankIdx >= 0 ? String(row[bankIdx] ?? "").trim() || "بانک" : "بانک",
-          bank_account: "",
-          party_id: partyIdx >= 0 ? String(row[partyIdx] ?? "").trim() || "نامشخص" : "نامشخص",
-          amount: amt,
-          unit: "IRR",
-          issue_date: issueDate,
-          due_date: dueDate,
-        };
-
-        try {
-          await api(`/companies/${workspace.company.id}/cheques`, {
-            method: "POST",
-            body: payload,
-          });
-          successCount++;
-        } catch {
-          failCount++;
+      importing.current = true;
+      setImportBusy(true);
+      let saved = 0;
+      try {
+        for (const body of prepared.rows) {
+          const fingerprint = base + JSON.stringify(body);
+          const key = importKeys.current.get(fingerprint) ?? crypto.randomUUID();
+          importKeys.current.set(fingerprint, key);
+          await api(base, { method: "POST", body, key });
+          saved++;
         }
-      }
-
-      resource.refresh();
-      if (successCount > 0) {
-        toast.success(`${persian(successCount)} فقره چک با موفقیت در پایگاه داده ثبت شد.`);
-      }
-      if (failCount > 0) {
-        toast.warning(`${persian(failCount)} ردیف به دلیل خطای اعتبارسنجی ثبت نشد.`);
+        toast.success(`${persian(saved)} فقره چک ثبت شد.`);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "خطای ثبت چک";
+        toast.error(`${persian(saved)} فقره ثبت شد. ورود در ردیف دادهٔ ${persian(saved + 1)} متوقف شد. ${detail}`);
+      } finally {
+        importing.current = false;
+        setImportBusy(false);
+        resource.refresh();
       }
     },
   };

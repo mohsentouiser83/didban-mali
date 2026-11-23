@@ -27,8 +27,9 @@ describe("GearMenu", () => {
     expect(screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /کارمندان و پرسنل/ })).toBeVisible();
     expect(screen.getByRole("button", { name: /شرکت و دسترسی/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /میز کار تطبیق و مغایرت/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /انبار و کالا/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /^اسناد/ })).toHaveAttribute("href", "/settings/documents");
+    expect(screen.queryByRole("button", { name: /میز کار تطبیق و مغایرت/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /انبار و کالا/ })).not.toBeInTheDocument();
   });
 
   it("entering a category reveals cards for that category and allows navigation", () => {

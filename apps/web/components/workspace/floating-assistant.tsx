@@ -41,10 +41,6 @@ export function FloatingAssistant() {
   const form = useRef<HTMLFormElement>(null);
 
   const handleActionCard = (card: AssistantActionCard) => {
-    if (card.action_type === "confirm_post") {
-      view.send("تأیید کن");
-      return;
-    }
     if (card.action_type === "suggest_text" && card.payload?.text) {
       view.setDraft(String(card.payload.text));
       input.current?.focus();
@@ -55,6 +51,7 @@ export function FloatingAssistant() {
         ? card.target_path
         : view.workspace.companyPath(card.target_path) || `/${card.target_path}`;
       router.push(path);
+      if (path.startsWith("/accounting?review_draft=")) view.setOpen(false);
     }
     if (typeof window !== "undefined") {
       window.dispatchEvent(

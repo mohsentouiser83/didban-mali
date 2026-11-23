@@ -7,7 +7,6 @@ import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/input";
 import { Drawer } from "@/components/ui/drawer";
-import { Dialog } from "@/components/ui/dialog";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { CursorPagination } from "@/components/ui/pagination";
 import { Tabs } from "@/components/ui/tabs";
@@ -184,7 +183,7 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
           )}
         </div>
       </Drawer>
-      <Dialog
+      <Drawer
         title="تهیه پیش‌نویس برگشت"
         open={!!c.reversal}
         onOpenChange={(open) => {
@@ -232,7 +231,7 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
             ساخت پیش‌نویس برگشت
           </Button>
         </Form>
-      </Dialog>
+      </Drawer>
       <JournalDraftForm view={drafts} />
       <OpeningEvidenceDialog c={opening} />
     </>

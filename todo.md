@@ -1,14 +1,14 @@
 # Didban Mali — Implementation and Acceptance Backlog
 
-Updated: 2026-11-13. Language: English. Audience: an implementation agent working in this repository.
+Updated: 2026-11-22. Language: English. Audience: an implementation agent working in this repository.
 
 ## 1. Objective and authority
 
-Build a trustworthy accounting and AI-assisted financial analysis system for small and medium-sized companies. AI should interpret inputs, investigate supported financial questions, explain evidence and suggest actions. Exact money calculations, accounting effects, permissions and approvals remain deterministic server responsibilities.
+Build a trustworthy accounting and AI-assisted financial analysis system for small and medium-sized companies, with commercial companies as the first pilot profile. AI should interpret inputs, investigate supported financial questions, explain evidence and suggest actions. Exact money calculations, accounting effects, permissions and approvals remain deterministic server responsibilities.
 
 This file is an execution handoff, not an implementation claim. The user requested documentation and this backlog; this documentation task does not authorize deploying, sending messages, submitting tax invoices, uploading customer data to a provider or posting real journals on their behalf.
 
-Read `AGENTS.md`, `design.md`, `docs/current-implementation.fa.md`, `docs/rebuild-spec.fa.md`, `docs/rebuild-financial-contract.fa.md`, `docs/rebuild-technical-contract.fa.md`, and decisions D01–D23/P01–P28 before implementation. Read the relevant design skills before frontend work. Current code is `apps/api/didban` and `apps/web`; do not implement in `apps/api/app`, copy legacy implementation/data, or reset a legacy/operational database.
+Read `AGENTS.md`, `design.md`, `docs/current-implementation.fa.md`, `docs/rebuild-spec.fa.md`, `docs/rebuild-financial-contract.fa.md`, `docs/rebuild-technical-contract.fa.md`, and decisions D01–D34/P01–P28 before implementation. Read the relevant design skills before frontend work. Current code is `apps/api/didban` and `apps/web`; do not implement in `apps/api/app`, copy legacy implementation/data, or reset a legacy/operational database.
 
 ### Status labels
 
@@ -22,7 +22,7 @@ Priorities describe order, not deadlines: P0 = correctness/analysis foundation a
 
 ### Already implemented — extend, do not rebuild
 
-Native chart/drafts/posting with exact-version approval; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices/allocations/snapshots; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions/comparison/selected 100%-owned-company eliminations; rules/controlled account suggestions; document discussions; bot intake/extraction review/explicit journal approval/opt-in notifications; coordinated backup; single-item on-account FIFO inventory; bounded direct Moadian submission/inquiry. Existing boundaries are described in `docs/current-implementation.fa.md`.
+Native chart/drafts and the explicit posting flow; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices/allocations/snapshots; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions/comparison/selected 100%-owned-company eliminations; document discussions; bot intake/extraction review/explicit journal approval; coordinated backup; single-item FIFO purchase/sale, opening stock, transfer and adjustment; bounded direct Moadian submission/inquiry. Existing boundaries are described in [current implementation](docs/current-implementation.fa.md). The [entity inventory](docs/entity-inventory.fa.md) maps all runtime classes and tables.
 
 ### Non-negotiable invariants
 
@@ -38,13 +38,23 @@ Native chart/drafts/posting with exact-version approval; immutable journals and 
 - Preserve current navigation categories, gear menu, non-modal bottom-left assistant, approved fonts/tokens, shared controls/tables and Persian RTL.
 - No blanket claims of live AI quality, fraud detection, accounting compliance, customer adoption, capacity or production readiness from tests, routes or historical documents.
 
+## CRUD drawer follow-up — 2026-11-23
+
+Implemented the user-requested migration of the remaining 15 CRUD/import/editor components to shared Drawer. Sensitive confirmations and required processing questions retain Dialog. See the [current implementation evidence](docs/current-implementation.fa.md). Browser validation remains open for populated payroll/slip flows, proforma conversion/details, reminder editors, reversal preparation, the legacy block editor, and live reduced motion. Use isolated synthetic data; do not post real journals or send messages.
+
+## Settings acceptance follow-up
+
+- Run end-to-end web writes on an isolated installation, including financial-period CRUD and permission/disabled states. See the [gear-menu audit](docs/settings-menu-review.fa.md).
+
 ## 2. Execution order and dependency map
 
-1. Establish the financial reference/evaluation and policy inventory (QA-01, AI-01, ACC-01 policy portion, OPS-01).
-2. Build AI evidence access → orchestration → deterministic analytical facts → explanations → conversational reports (AI-01 → AI-02 → AI-03 → AI-04/AI-05). Build evaluation alongside each step (AI-10).
-3. In parallel where safe, complete approved commercial and warehouse workflows (ACC-01…ACC-06, INV-01…INV-05). Do not duplicate posting/invoice services.
-4. Connect existing workflows to remaining channels and dependencies (BOT-01…BOT-04, EXT-01…EXT-03).
-5. Complete PostgreSQL/browser/output/installation/performance/restore acceptance and a supervised pilot (QA-01…QA-04, OPS-01…OPS-05).
+The [business logic audit](docs/business-logic-audit.fa.md) records current code findings, user-directed product changes and acceptance cases for the browser pass. Use it when prioritizing fixes.
+
+1. Guard proforma conversion and conversational confirmation, then preserve unavailable metrics and explicit source basis in the dashboard (ACC-03, AI-11, FIN-02).
+2. Complete line-level sales/purchases and commercial returns within approved policy. Verify accounting, stock, settlement and correction together (ACC-01, ACC-06, QA-01).
+3. Build the first management reports around 30-day cash, profit drivers and collections. Extend evidence queries and evaluate them against representative reference cases (AI-01 through AI-05, AI-10, FIN-02).
+4. Continue remaining channel and integration acceptance as access permits (BOT-03/BOT-04, EXT-01 through EXT-03).
+5. Validate PostgreSQL migration, restore, browser, outputs and capacity. Run a supervised full-period commercial pilot (OPS-01/OPS-02/OPS-04, QA-01 through QA-04).
 
 Tasks with independent modules may run in parallel if repository instructions permit, but schema/contracts, shared capacity and posting integration must be coordinated. Do not mark a task done solely because another task created its route or table.
 
@@ -97,7 +107,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 - Use evidence-backed company-local mappings and valid corrections; version applicability and controls, and invalidate patterns when schema/account roles change.
 - Preserve the question barrier and independent all-row/unit/calendar/family checks. A stronger model cannot resolve absent facts.
 - **Acceptance:** held-out supported formats either map correctly or ask the necessary question; ambiguous units/coverage never auto-publish a complete result; human decisions survive subsequent inference.
-- **Start in:** `model_interpretation.py`, ingestion/normalization/source intake, `learning_service.py`, gateway schemas and workflow tests.
+- **Start in:** `model_interpretation.py`, ingestion/normalization/source intake, gateway schemas and workflow tests.
 
 ### AI-07 — Text, image, PDF and voice to reviewed financial drafts
 
@@ -112,18 +122,18 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### AI-08 — Controlled learning and anomaly/match suggestions
 
-**P1 · OPEN / IMPLEMENT + OPEN / VALIDATE.** Extend existing company-local account suggestions, deterministic controls and bounded matching rather than claiming a new generic learning/fraud system.
+**P1 · OPEN / IMPLEMENT + OPEN / VALIDATE.** Extend deterministic controls and bounded matching. Standalone accounting rules and saved posting/mapping patterns were retired on 2026-11-22.
 
 - Collect valid accepted/rejected/corrected proposals with exact source and policy versions. Exclude reversed, role-changed, stale or unauthorized examples.
 - Evaluate improvements to ranking account choices, duplicate candidates, unusual cost movements and supported aggregate matches. Keep current deterministic hard constraints before any score.
 - Provide the reason/evidence, supported scope and a way to reject/disable a learned pattern. Define abstention and conflict handling.
 - Any statistical detector needs an evaluated baseline and calibrated thresholds; do not infer “fraud” from outliers.
 - **Acceptance:** valid corrections improve the evaluated supported task without cross-company learning leakage; no suggested account, match or anomaly score bypasses explicit financial approval/capacity rules.
-- **Start in:** `operation_learning_service.py`, `operation_learning_corrections.py`, native control and matching services.
+- **Start in:** period readiness and matching services. Any return of saved posting or mapping patterns requires a separate product decision.
 
 ### AI-09 — Proactive financial insight summaries
 
-**P1 · OPEN / IMPLEMENT · depends on AI-03/AI-04, BOT-01 for bot delivery.** Produce bounded, evidence-backed summaries from frozen data.
+**P1 · OPEN / IMPLEMENT · depends on AI-03/AI-04.** Produce bounded, evidence-backed summaries from frozen data.
 
 - Cover material recorded changes, due/overdue obligations, supported forecast deficits and unresolved financial controls; deduplicate and prioritize findings with visible criteria.
 - Reuse existing internal notifications/rules and opt-in preferences; do not create a second scheduler or send external messages without user opt-in/authorization.
@@ -141,10 +151,10 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### AI-11 — Conversational Operations & In-Chat Generative UI (ChatOps)
 
-**P0 · IMPLEMENTED & VALIDATED.**
+**P0 · IMPLEMENTED, BROWSER VALIDATION OPEN.** Chat prepares drafts. Final posting uses the exact-version review and explicit confirmation in Accounting.
 - Implemented in `apps/api/didban/operational_orchestrator.py`, `apps/web/components/workspace/floating-assistant.tsx`, and `apps/web/components/workspace/assistant-data-table.tsx`.
 - Daily operational drafts: expense, payment, receipt, sale_service, purchase_service, transfer.
-- Two-phase in-chat posting confirmation: Preview card with exact version and digest, confirmed via action button or text command ("تأیید کن").
+- Free-text confirmation directs users to accounting. Draft review cards target the specific draft, and the explicit posting flow rechecks version, digest and authority. Operational question retries replay the saved result.
 - Cheque lifecycle: registration (with Sayad extraction, Persian due dates), action transitions (deposit, clear, return, endorse, cancel), and inquiries.
 - Collections follow-up: overdue receivables detection and official Persian reminder generation.
 - In-chat Generative UI reporting data tables (`AssistantDataTable`): trial balance (4-column), ledger account statement, income statement summary, and top debtors ranking.
@@ -152,7 +162,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 - Run offline fixtures/mocks in routine CI; run live evaluation only on explicitly permitted data and configured budgets. Store redacted evidence, never credentials or unrestricted customer files.
 - **Acceptance:** another agent can reproduce the report, compare prompt/model versions and identify regressions; a two-row successful connection test cannot satisfy this gate.
 
-### AI-11 — Similar-document review and party-learning coverage
+### AI-12 — Similar-document review and party-learning coverage
 
 **P1 · OPEN / IMPLEMENT + OPEN / VALIDATE.** P11 requires more than exact file hashes; P13 also includes valid party corrections, not only account/mapping memory.
 
@@ -165,11 +175,13 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-01 — Multi-line commercial documents
 
-**P1 · OPEN / IMPLEMENT; GATED / POLICY for new amount rules.** Extend single-item on-account purchase/sale without replacing the current ledger.
+**P1 · OPEN / IMPLEMENT.** Extend single-item purchase/sale using the approved commercial pilot rules and the current ledger.
 
-- Specify line IDs, supported quantity precision, exact unit price, line/document discounts, totals, rial/toman conversion, counterparty and settlement terms. Current inventory quantities are positive integers; fractional quantities require an explicit decision.
-- Define the accounting treatment and ordering of discounts/rounding before dependent implementation; VAT is not silently added.
-- Add versioned commercial document/line models and a data-preserving migration. Generate one coherent draft with line-level stock/FIFO evidence and journal/invoice links.
+- Specify line IDs, exact unit price, totals, rial/toman conversion, counterparty and settlement terms. D32 specifies integer quantities for the first release. If a pilot requires weighted or measured items, address decimal quantities and units in its data model design.
+- Implement user-approved D24. Apply the invoice discount after line discounts, allocate it in proportion to each net line amount and persist each share. The shares must sum exactly to the invoice discount. Use the resulting net line amount for item analysis and as the basis for line returns. See the [decision record](docs/advanced-capabilities-decisions.fa.md#تصمیم-d24--تخفیف-کل-فاکتور-چندقلمی-۲۰۲۶۱۱۲۲).
+- Implement D27 for invoice discount shares. Allocate the whole-rial portion of each exact share first, then assign remaining rials in descending fractional-remainder order with invoice line order as the tie-break. Verify that 100 IRR across three equal lines produces 34, 33 and 33 IRR and that the shares sum exactly.
+- Implement D25 for fully settled sales and D26 for sales with an open balance. Preserve original sales/purchase and FIFO evidence. VAT remains a separate scope decision.
+- Implement D33 and D34 with one warehouse per invoice and stock movements linked to their document lines. Add versioned commercial document/line models and a data-preserving migration. Post the approved journal and linked inventory movements atomically.
 - Add focused shared-UI preparation/review flows within existing document/invoice categories. Preserve immutable old single-line documents and exports.
 - **Acceptance:** line totals, invoice balance, journal debits/credits and stock/COGS reconcile exactly; one invalid line blocks posting atomically; concurrent/replayed approval has one effect; stale FIFO/version/closed-period checks remain effective.
 - **Start in:** inventory schemas/models/service, operation services, `native_invoice_service.py`, `native_invoice_evidence.py`, posting and inventory web hooks/views.
@@ -186,10 +198,9 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-03 — Nonfinancial proforma and conversion
 
-**P1 · IMPLEMENTED & VALIDATED.**
-- Implemented in `apps/api/didban/commercial_models.py` (`ProformaInvoice`), `apps/api/didban/commercial_service.py` (`create_proforma`, `update_proforma`, `cancel_proforma`, `convert_proforma`).
-- Proformas never affect ledger, tax, stock, or receivables prior to conversion. Conversion creates linked, reviewable operation draft from exact version with expiry check and double-conversion protection.
-- Validated in `apps/api/tests/test_commercial.py`.
+**P0 guard implemented. P1 multi-line conversion remains open.** Sales proformas can be created or converted from the product. Existing purchase proformas remain readable.
+- The server rejects multi-line and discounted conversion until ACC-01 can preserve exact totals, discounts, stock and settlement. Extend conversion with ACC-01.
+- Add regression cases for two lines, nonzero discount, mixed payment, retry and conversion failure. A rejected conversion must preserve the issued proforma.
 
 ### ACC-04 — Counterparty commercial records and credit control
 
@@ -209,6 +220,10 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 **P1 · OPEN / IMPLEMENT · depends on ACC-01/ACC-02.** Extend supported source recognition and recovery beyond current bounded templates.
 
+- Implement D25 for returns against fully collected sales. Issue customer credit for the net returned amount, preserve the original receipt history, and allow later application to another invoice for the same customer or a separately approved refund. Test available credit, replay, and unchanged cash at return time.
+- Implement D26 for returns against sales with an open balance. Apply the return to that invoice up to its current outstanding balance, then issue same-customer credit for any remainder. Cover returns below, equal to and above the balance, concurrent allocations, and idempotent approval. Preserve receipts and leave cash unchanged at return time.
+- Implement D29 for purchase returns. Apply the return against the same invoice's outstanding payable first, then retain excess as a receivable from the same supplier. Preserve original payments and allow later application to another invoice for that supplier or a separate receipt. Cover fully settled and partly settled purchases and verify unchanged cash at return time.
+- Implement D30 and D31 for returned sales stock. Use original posted FIFO consumption and its sequence for healthy partial returns, with remaining quantity capacity tracked across returns. Keep damaged returns out of salable stock pending a separately tracked restock, repair or disposal decision.
 - Define replacement compatibility for multi-line goods/services and cash/mixed operations. Update source/evidence recognition deliberately; do not accept any balanced manual journal as a compatible invoice source.
 - Preserve linked reversal/replacement, explicit release of active allocations, replacement receipt/payment capacity, actual acceptance date and historical snapshots.
 - **Acceptance:** original financial history remains readable, unsupported replacements fail safely, adopted replacements have correct inventory/COGS/settlement effects, and replay/concurrency cannot double release or allocate.
@@ -253,7 +268,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### INV-05 — Catalog lifecycle and validation
 
-**P1 · IMPLEMENTED & VALIDATED.**
+**P1 · IMPLEMENTED.** The initialized SQLite HTTP path covers catalogue edits, deactivation, version checks, unused deletion and protection for draft-linked and posted records. PostgreSQL acceptance remains open.
 - Added `active` and `version` columns to `InventoryItem` and `InventoryWarehouse` models with safe data-preserving schema readiness.
 - Implemented item and warehouse update/delete with deletion guards against referenced movements (`inventory_item_referenced`, `inventory_warehouse_referenced`), locked inventory account updates when movements exist, and draft creation guards against inactive catalog entries.
 - Validated in `apps/api/tests/test_inventory_lifecycle_workflows.py`.
@@ -273,7 +288,8 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 **P0 · OPEN / VALIDATE, implement fixes found.** Verify dashboard, invoices, collections, assistant, reports, forecasts, scenarios, dimensions and group outputs agree for the same basis/version.
 
-- Exercise missing opening evidence, incomplete future obligations, changed account roles, reversed/replaced documents, module disablement and primary/external mode switches.
+- Identify entry points that read imported facts, posted native data or a selected snapshot. In custom reports, native-only journal/employee datasets must show accurate coverage. D28 fixed and explicit live modes are implemented and covered by API tests. Verify them in the browser alongside the shared reporting scope. Propagate null and specific missing coverage instead of displaying zero.
+- Exercise missing opening evidence, incomplete future obligations, changed account roles, reversed/replaced documents, retired module preferences and primary/external mode switches.
 - Propagate actual unavailable reasons and supported completion actions; never fill a missing metric from a different basis.
 - **Acceptance:** fixed snapshots remain unchanged, current results identify stale/missing dependencies, and known dated-flow projections cannot appear as complete forecast balances in any UI/export/channel.
 
@@ -304,19 +320,16 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ## 7. Bots, media and external integrations
 
-### BOT-01 — Native-book notification content
+### BOT-01 — Native-book notifications
 
-**P1 · IMPLEMENTED & VALIDATED.**
-- Implemented in `apps/api/didban/bot_notification_service.py`.
-- Formats native frozen statement, invoice totals, and forecast insights based on company mode without misattributing them to imported manifests.
-- Validated in `apps/api/tests/test_bot_notifications.py`.
+**REMOVED · 2026-11-22.** Bot notification settings, history, delivery queue execution and configuration APIs were retired by user decision. Historical records are retained.
 
 ### BOT-02 — Authorized PDF/document delivery
 
 **P1 · IMPLEMENTED & VALIDATED.**
-- Implemented in `apps/api/didban/bot_transport.py:send_document` and `apps/api/didban/bot_notification_service.py:deliver_snapshot_pdf_to_bot`.
+- Implemented in `apps/api/didban/bot_transport.py:send_document` and `apps/api/didban/bot_pdf_delivery.py:deliver_snapshot_pdf_to_bot`.
 - Delivers frozen financial report, statement, and custom report PDFs via Telegram and Bale transports with strict permission checks, path traversal guards, file extension and size validation.
-- Validated in `apps/api/tests/test_bot_transport.py` and `apps/api/tests/test_bot_notifications.py`.
+- Validated in `apps/api/tests/test_bot_transport.py` and `apps/api/tests/test_bot_pdf_delivery.py`.
 
 ### BOT-03 — Clear company selection and real channel acceptance
 
@@ -324,7 +337,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 - Verify current single-company pairing is explicit in web/bot messages and never routes based on a name inferred by AI.
 - If in-bot switching is selected, implement explicit authorized company choice, invalidate pending reviews/context on switch and scope every callback/update. Do not silently broaden pairing authority.
-- Run Telegram and Bale separately: private pairing/confirmation/revocation, `/document`, file intake, duplicate update, journal exact-version callback, changed draft/revoked permission, quiet hours, scheduled summary and ambiguous send.
+- Run Telegram and Bale separately: private pairing/confirmation/revocation, `/document`, file intake, duplicate update, journal exact-version callback, changed draft/revoked permission, explicit PDF delivery and ambiguous send.
 - **Acceptance:** real redacted delivery evidence for each enabled channel and case; production tokens/webhook secrets remain server-only; mocks remain labeled mocks.
 
 ### BOT-04 — Deployable media/voice readiness
@@ -374,10 +387,9 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### OPS-02 — Verified restore and external key material backup
 
-**P0 · IMPLEMENTED & VALIDATED.**
-- Implemented in `scripts/restore.py`.
-- Coordinates atomic restore of database, storage, and settings with checksum verification against the backup manifest. Prevents path traversal, blocks corrupted archives, and keeps external/production data isolated.
-- Validated with complete roundtrip tests in `apps/api/tests/test_backup_restore.py`.
+**P0 · SQLite recovery validated; production PostgreSQL and document recovery open.**
+- `scripts/restore.py` restores SQLite, documents, and settings into an isolated location. Roundtrip tests are in `apps/api/tests/test_backup_restore.py`.
+- Execute the paired RDS/EFS restore rehearsal in [the AWS deployment runbook](docs/aws-deployment.fa.md) and record actual recovery times, evidence checks, and role isolation.
 
 ### OPS-03 — Current-architecture health and incident monitoring
 
@@ -389,6 +401,8 @@ Tasks with independent modules may run in parallel if repository instructions pe
 ### OPS-04 — Fresh installation, security and capacity acceptance
 
 **P0 · OPEN / VALIDATE, implement fixes found.** Run in an isolated deployment with PostgreSQL restricted role, ClamAV, private storage, API, separate worker, web and HTTPS configuration.
+
+- Provision the AWS staging stack from the repository template and verify image startup, same-origin routing, role bootstrap, and integration tests before production cutover.
 
 - Validate clean startup, real schema upgrade, non-root images, secret injection, session/CSRF/origin behavior, private file access, scanner fail-closed behavior and restart after pending work.
 - Run 10-file/20,000-row workloads with up to five concurrent users/readers and realistic processing contention. Measure P50/P95 latency, peak memory, DB/worker queues, scanner time, model calls/cost and retries.
@@ -432,7 +446,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### QA-04 — Supervised full-period pilot and release decision
 
-**P1 · GATED / ACCESS + OPEN / VALIDATE.** Select a permitted real small-company dataset and responsible users; a service-company pilot is a proposed sequencing choice, not a reduction of final approved scope.
+**P1 · GATED / ACCESS + OPEN / VALIDATE.** Select a permitted real small-company dataset and responsible users; the first proposed pilot profile is a small commercial company with inventory, credit sales and cheque settlement.
 
 - Run a complete accounting period in parallel with the reference process: opening, entry/import, approval, invoice/settlement, correction, reconciliation, analysis, reports, closing and recovery.
 - Capture actual user tasks, errors, time saved, unresolved coverage, accountant findings, model usefulness/cost and operational incidents. Do not fabricate customer names, ROI, retention or willingness-to-pay.
@@ -471,9 +485,9 @@ Policy or acceptance provenance:
 
 ## 11. Baseline evidence — not future acceptance
 
-Current code test run: 610 passing API tests with one PostgreSQL-dependent test skipped; 174 web tests in 51 files passed; TypeScript, ESLint and Ruff passed with zero errors.
+2026-11-22 logic-audit run: 652 API tests passed with one PostgreSQL-dependent skip. 293 web tests in 76 files passed. TypeScript, ESLint and Ruff passed. The built-in browser could not reach the local test installation because the runner denied local server startup. Live service, browser, independent accountant and PostgreSQL restore acceptance remain open.
 
-Current code/OpenAPI snapshot agree: 116 model tables, 260 HTTP paths. All monetary values use exact decimal precision (canonical money in IRR/Toman), final journals are immutable, and assistant remains strictly read-only.
+Regenerated OpenAPI and fresh-install DDL reflect 122 mapped tables, 293 HTTP paths and 356 operations. Fresh-install DDL also includes the schema-version table. See [current implementation](docs/current-implementation.fa.md) for verified scope and current approval gaps.
 
 ## 12. Approved-scope coverage map
 
@@ -487,20 +501,20 @@ This map prevents a future agent from rebuilding completed capabilities or overl
 | D13, P08–P10 | Explicit paired company, intake/review and shared processing | AI-07, BOT-03/BOT-04, QA-02 |
 | D16/P05 | Service, money, payroll and cheque operation templates | ACC-07, FIN-03; new commercial extensions ACC-01…ACC-06 follow D23 |
 | P06 | Cheque lifecycle/evidence and supported operation templates | FIN-03, BOT-03, QA-01/QA-02; independent installment management is not selected |
-| D17/P13 | Editable chart/import, file mapping and controlled account suggestions | AI-06, AI-08, AI-11 |
+| D17/P13 | Editable chart/import, file mapping and controlled account suggestions | AI-06, AI-08, AI-12 |
 | D18 | One primary book and separate report bases | Preserve; independent books remain deferred |
 | D19 | Linked reversal/replacement and bounded invoice recovery | ACC-06, FIN-02/FIN-03 |
 | D20/P18 | Period checklist/readiness, close/open drafts and lock/reopen | FIN-03, QA-01/QA-02 |
 | D21/P26 | Comparison and selected 100%-owned-company eliminations | FIN-04, QA-01/QA-03; broader ownership remains deferred |
 | D22/P27 | User-provisional rule provenance; no coding wait for accountant introduction | QA-01/QA-04; genuine accountant review must not be fabricated |
 | D23 | Single-item on-account FIFO purchase/sale | ACC-01…ACC-06, INV-01…INV-05, EXT-02/EXT-03, OPS-02 |
-| P11 | Exact-original hash warning | AI-11 for semantic/similar-document review |
-| P12 | Opt-in schedules, quiet hours and supported event notifications | BOT-01…BOT-04, AI-09 |
+| P11 | Exact-original hash warning | AI-12 for semantic/similar-document review |
+| P12 | Opt-in schedules, quiet hours and supported event notifications | BOT-01 retired; BOT-02…BOT-04 remain independent |
 | P14 | Bounded candidates and explicit manual many-to-many | FIN-01, QA-01/QA-02 |
 | P15/P16 | Financial control cases and deterministic checks/cost comparisons | AI-03/AI-08/AI-09, FIN-02 |
 | P17 | Allowlisted rules/previews and controlled internal effects | FIN-02, QA-01/QA-02; extend only supported effects |
 | P19/P20 | Forecast/D09/evaluation and frozen independent scenarios | AI-03/AI-10, FIN-02, QA-03 |
-| P21 | Collections queue, contact/next-action tracking and editable reminders | AI-04/AI-09, BOT-01; direct external messaging stays gated under EXT-03 |
+| P21 | Collections queue, contact/next-action tracking and editable reminders | AI-04/AI-09; direct external messaging stays gated under EXT-03 |
 | P22 | Dimension allocations and fixed reports | FIN-04, QA-03 |
 | P23 | Saved specs/runs/exports and bounded Persian parser | AI-05 |
 | P24 | Read-only assistant on fixed facts | AI-01…AI-04/AI-10; no free-chat posting |

@@ -1,5 +1,6 @@
 """Final native posting is exact, authorized, immutable and independent of imported facts."""
 
+from contextlib import nullcontext
 from datetime import date
 
 import pytest
@@ -14,6 +15,7 @@ from didban.errors import DomainError
 from didban.period_lock_models import PeriodLock
 from didban.posting_models import NativeJournal
 from didban.posting_service import create_replacement, create_reversal, post_batch, preview, trial_balance
+from didban.routes import posting
 
 
 @pytest.fixture
@@ -53,6 +55,26 @@ def data(db, amount="9007199254740993"):
 def approval(db, draft, actor="finance_manager"):
     item = preview(db, "c", db.get(m.User, actor), draft["id"])
     return {key: item[key] for key in ("draft_id", "expected_version", "digest")}
+
+
+def test_journal_report_paginates_by_document_date_and_period(book, monkeypatch):
+    user = book.get(m.User, "finance_manager")
+    book.get(m.Period, "p").start = date(2026, 7, 1)
+    book.add(m.Period(id="early", company_id="c", name="دوره قبلی", start=date(2026, 1, 1), end=date(2026, 6, 30)))
+    ids = {}
+    for period, posting_date in [
+        ("p", date(2026, 11, 3)), ("p", date(2026, 11, 2)), ("early", date(2026, 3, 1)),
+    ]:
+        draft = save_draft(book, "c", user, data(book) | {"period_id": period, "date": posting_date})
+        ids[posting_date] = post_batch(book, "c", user, [approval(book, draft)])["items"][0]["id"]
+    monkeypatch.setattr(posting, "access", lambda *_: nullcontext((book, user, None)))
+
+    first = posting.journals("c", None, limit=1, period_id="p", order_by_date=True)
+    second = posting.journals("c", None, limit=1, cursor=first["next_cursor"], period_id="p", order_by_date=True)
+    assert [first["items"][0]["id"], second["items"][0]["id"]] == [
+        ids[date(2026, 11, 3)], ids[date(2026, 11, 2)],
+    ]
+    assert second["next_cursor"] is None
 
 
 def test_exact_posting_snapshot_authority_and_native_only_balance(book):

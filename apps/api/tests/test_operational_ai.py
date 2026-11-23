@@ -33,6 +33,8 @@ from didban.operational_orchestrator import (
     parse_persian_amount,
 )
 from didban.posting_models import NativeJournal
+from didban.posting_service import post_batch
+from didban.posting_service import preview as posting_preview
 
 
 @pytest.fixture
@@ -123,51 +125,29 @@ def test_create_expense_draft_conversational(db_session, operational_setup):
     assert res["mode"] == "operational_draft"
     assert "پیش‌نویس سند هزینه پرداخت‌شده" in res["answer"]
     assert "۳۰،۰۰۰،۰۰۰ تومان" in res["answer"]
-    assert len(res["action_cards"]) == 2
-
-    confirm_card = res["action_cards"][0]
-    assert confirm_card["action_type"] == "confirm_post"
-    assert "draft_id" in confirm_card["payload"]
-
     draft_id = res["draft_id"]
+    assert res["action_cards"][0]["target_path"] == f"/accounting?review_draft={draft_id}"
     draft = db.get(Draft, draft_id)
     assert draft is not None
     assert draft.state == "draft"
 
 
-def test_confirm_draft_conversational(db_session, operational_setup):
+def test_free_text_cannot_post_or_switch_accounting_mode(db_session, operational_setup):
     db = db_session
-    user, company, period = operational_setup
+    user, company, _period = operational_setup
+    result = orchestrate_operation(db, company.id, user, "یک هزینه اجاره به مبلغ ۲۰ میلیون تومان از بانک ملت ثبت کن")
+    setup = db.get(CompanyAccountingSetup, company.id)
+    if setup:
+        setup.mode = "external_analysis"
+    mode = setup.mode if setup else None
 
-    q1 = "یک هزینه اجاره به مبلغ ۲۰ میلیون تومان از بانک ملت ثبت کن"
-    res1 = orchestrate_operation(db, company.id, user, q1)
-    draft_id = res1["draft_id"]
+    response = orchestrate_operation(db, company.id, user, "تأیید کن")
 
-    q2 = "تأیید کن"
-    res2 = orchestrate_operation(
-        db,
-        company.id,
-        user,
-        q2,
-        history=[
-            {"role": "user", "text": q1},
-            {"role": "assistant", "text": res1["answer"]},
-        ],
-    )
-
-    assert res2 is not None
-    assert res2["mode"] == "operational_posted"
-    assert "سند حسابداری با موفقیت ثبت قطعی شد" in res2["answer"]
-
-    draft = db.get(Draft, draft_id)
-    assert draft.state == "posted"
-
-    journal = db.scalar(
-        select(NativeJournal).where(
-            NativeJournal.company_id == company.id, NativeJournal.draft_id == draft_id
-        )
-    )
-    assert journal is not None
+    assert response["mode"] == "operational_clarification"
+    assert db.get(Draft, result["draft_id"]).state == "draft"
+    assert db.scalar(select(NativeJournal).where(NativeJournal.company_id == company.id)) is None
+    current = db.get(CompanyAccountingSetup, company.id)
+    assert (current.mode if current else None) == mode
 
 
 def test_register_and_act_cheque_conversational(db_session, operational_setup):
@@ -269,43 +249,39 @@ def test_end_to_end_operational_assistant_api():
     assert login.status_code == 200, login.text
     csrf = login.json()["csrf"]
 
-    # 1. Ask to register expense
-    res = client.post(
-        f"/api/v1/companies/{c_id}/assistant/questions",
-        json={"question": "یک هزینه اجاره به مبلغ ۱۵ میلیون تومان از بانک ملت ثبت کن"},
-        headers={
-            "X-CSRF-Token": csrf,
-            "Idempotency-Key": f"key-{uuid4().hex[:8]}",
-            "Origin": settings.web_origin,
-        },
-    )
+    base = f"/api/v1/companies/{c_id}"
+    headers = {"X-CSRF-Token": csrf, "Idempotency-Key": str(uuid4()), "Origin": settings.web_origin}
+    body = {"question": "یک هزینه اجاره به مبلغ ۱۵ میلیون تومان از بانک ملت ثبت کن"}
+    res = client.post(base + "/assistant/questions", json=body, headers=headers)
     assert res.status_code == 200, res.text
     data = res.json()
     assert data["mode"] == "operational_draft"
-    assert "پیش‌نویس سند هزینه پرداخت‌شده" in data["answer"]
-    assert len(data["action_cards"]) == 2
-    assert data["action_cards"][0]["action_type"] == "confirm_post"
+    assert data["action_cards"][0]["target_path"] == f"/accounting?review_draft={data['draft_id']}"
+    retry = client.post(base + "/assistant/questions", json=body, headers=headers)
+    assert retry.json() == data
+    changed = client.post(base + "/assistant/questions", json={"question": "تأیید کن"}, headers=headers)
+    assert changed.status_code == 409
 
-    # 2. Confirm in chat
-    res_confirm = client.post(
-        f"/api/v1/companies/{c_id}/assistant/questions",
-        json={
-            "question": "تأیید کن",
-            "history": [
-                {"role": "user", "text": "یک هزینه اجاره به مبلغ ۱۵ میلیون تومان از بانک ملت ثبت کن"},
-                {"role": "assistant", "text": data["answer"]},
-            ],
-        },
-        headers={
-            "X-CSRF-Token": csrf,
-            "Idempotency-Key": f"key-{uuid4().hex[:8]}",
-            "Origin": settings.web_origin,
-        },
+    headers["Idempotency-Key"] = str(uuid4())
+    confirmation = client.post(base + "/assistant/questions", json={"question": "تأیید کن"}, headers=headers)
+    assert confirmation.json()["mode"] == "operational_clarification"
+    with transaction(c_id) as db:
+        setup = db.get(CompanyAccountingSetup, c_id)
+        if not setup:
+            db.add(CompanyAccountingSetup(company_id=c_id, mode="primary"))
+        else:
+            setup.mode = "primary"
+        assert len(db.scalars(select(Draft).where(Draft.company_id == c_id)).all()) == 1
+        assert db.get(Draft, data["draft_id"]).state == "draft"
+
+    preview = client.get(base + f"/accounting/drafts/{data['draft_id']}/posting-preview").json()
+    headers["Idempotency-Key"] = str(uuid4())
+    posting = client.post(
+        base + "/accounting/postings",
+        json={"items": [{key: preview[key] for key in ("draft_id", "expected_version", "digest")}]},
+        headers=headers,
     )
-    assert res_confirm.status_code == 200, res_confirm.text
-    data_confirm = res_confirm.json()
-    assert data_confirm["mode"] == "operational_posted"
-    assert "سند حسابداری با موفقیت ثبت قطعی شد" in data_confirm["answer"]
+    assert posting.status_code == 201, posting.text
 
     # 3. Register cheque via chat API
     res_chq = client.post(
@@ -370,33 +346,22 @@ def test_reporting_data_tables_orchestration(operational_setup, db_session):
         db, company.id, user, "یک هزینه اجاره به مبلغ ۲۰ میلیون تومان از بانک ملت ثبت کن"
     )
     assert res_exp["mode"] == "operational_draft"
-    res_post_exp = orchestrate_operation(
-        db,
-        company.id,
-        user,
-        "تأیید کن",
-        history=[
-            {"role": "user", "text": "یک هزینه اجاره به مبلغ ۲۰ میلیون تومان از بانک ملت ثبت کن"},
-            {"role": "assistant", "text": res_exp["answer"]},
-        ],
-    )
-    assert res_post_exp["mode"] == "operational_posted"
+    setup = db.get(CompanyAccountingSetup, company.id)
+    if not setup:
+        db.add(CompanyAccountingSetup(company_id=company.id, mode="primary"))
+    else:
+        setup.mode = "primary"
+    db.flush()
+    posting_fields = ("draft_id", "expected_version", "digest")
+    preview = posting_preview(db, company.id, user, res_exp["draft_id"])
+    post_batch(db, company.id, user, [{key: preview[key] for key in posting_fields}])
 
     res_sale = orchestrate_operation(
         db, company.id, user, "فروش خدمات به مبلغ ۵۰ میلیون تومان به آرمان ثبت کن"
     )
     assert res_sale["mode"] == "operational_draft"
-    res_post_sale = orchestrate_operation(
-        db,
-        company.id,
-        user,
-        "تأیید کن",
-        history=[
-            {"role": "user", "text": "فروش خدمات به مبلغ ۵۰ میلیون تومان به آرمان ثبت کن"},
-            {"role": "assistant", "text": res_sale["answer"]},
-        ],
-    )
-    assert res_post_sale["mode"] == "operational_posted"
+    preview = posting_preview(db, company.id, user, res_sale["draft_id"])
+    post_batch(db, company.id, user, [{key: preview[key] for key in posting_fields}])
 
     # 3. Test Trial Balance reporting table
     res_tb = orchestrate_operation(db, company.id, user, "تراز آزمایشی ۴ ستونی را نشان بده")

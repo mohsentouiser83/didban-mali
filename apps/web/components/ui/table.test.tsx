@@ -11,6 +11,7 @@ import {
   DataTable,
 } from "./table";
 import * as tableExport from "./table-export";
+import { TableImportArchiveContext } from "@/hooks/table-import-archive";
 
 describe("Table with stickyFirstColumn", () => {
   it("renders a standard table without sticky classes by default", () => {
@@ -134,13 +135,13 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     </Table>
   );
 
-  it("renders search input and action buttons in top toolbar", () => {
+  it("shows search and export controls on a read-only table", () => {
     render(sampleTable);
 
     expect(screen.getByPlaceholderText("جست‌وجو در جدول")).toBeInTheDocument();
     expect(screen.getByLabelText("نمایش تمام صفحه")).toBeInTheDocument();
     expect(screen.getByLabelText("دانلود خروجی اکسل و PDF")).toBeInTheDocument();
-    expect(screen.getByLabelText("ورود اطلاعات از اکسل")).toBeInTheDocument();
+    expect(screen.queryByLabelText("ورود اطلاعات از اکسل")).not.toBeInTheDocument();
 
     // Show/hide columns and reset button are removed
     expect(screen.queryByLabelText("مدیریت ستون‌ها")).not.toBeInTheDocument();
@@ -332,4 +333,26 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     expect(screen.getByText("مدیر مالی")).toBeInTheDocument();
     expect(screen.getByText("مهسا")).toBeInTheDocument();
   });
+});
+
+it("archives the selected original before passing parsed rows to a table import", async () => {
+  const calls: string[] = [];
+  const archive = vi.fn(async () => { calls.push("archive"); });
+  const ingest = vi.fn(() => { calls.push("import"); });
+  render(
+    <TableImportArchiveContext.Provider value={archive}>
+      <Table onImport={ingest} title="نمونه" />
+    </TableImportArchiveContext.Provider>,
+  );
+
+  fireEvent.click(screen.getByLabelText("ورود اطلاعات از اکسل"));
+  const file = new File(["code,name\n101,Sample"], "import.csv", { type: "text/csv" });
+  const chooser = screen.getByRole("dialog").querySelector("input[type=file]")!;
+  fireEvent.change(chooser, { target: { files: [file] } });
+  await screen.findByText(/پیش‌نمایش داده‌های خوانده‌شده/);
+  fireEvent.click(screen.getByRole("button", { name: "تأیید و ورود به جدول" }));
+
+  await waitFor(() => expect(calls).toEqual(["archive", "import"]));
+  expect(archive).toHaveBeenCalledWith(file);
+  expect(ingest).toHaveBeenCalledWith(expect.objectContaining({ file, totalRows: 1 }));
 });

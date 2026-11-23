@@ -31,7 +31,7 @@ export interface TableToolbarProps {
   onExportExcel: () => void;
   onExportCsv: () => void;
   onExportPdf: () => void;
-  onOpenImport: () => void;
+  onOpenImport?: () => void;
   hasActiveFilters: boolean;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
 }
@@ -157,17 +157,18 @@ export function TableToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* 3. Upload / Import Button */}
-        <Tooltip content="ورود اطلاعات از اکسل (Import Excel)">
-          <button
-            type="button"
-            onClick={onOpenImport}
-            className={actionButtonClass}
-            aria-label="ورود اطلاعات از اکسل"
-          >
-            <UploadSimpleIcon size={18} weight="bold" />
-          </button>
-        </Tooltip>
+        {onOpenImport && (
+          <Tooltip content="ورود اطلاعات از اکسل (Import Excel)">
+            <button
+              type="button"
+              onClick={onOpenImport}
+              className={actionButtonClass}
+              aria-label="ورود اطلاعات از اکسل"
+            >
+              <UploadSimpleIcon size={18} weight="bold" />
+            </button>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

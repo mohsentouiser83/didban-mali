@@ -11,7 +11,6 @@ from . import models as m
 from .accounting_models import Draft
 from .accounting_setup_models import CompanyAccountingSetup
 from .errors import require
-from .module_service import require_module
 from .money_type import canonical_money
 from .native_reporting_models import NativeAccountRole
 from .operation_models import OperationDraft
@@ -58,8 +57,6 @@ def _access(
         )
     if direction:
         require(direction in ("sale", "purchase"), "invalid_direction", "نوع فاکتور معتبر نیست.")
-        if write or authoring:
-            require_module(db, company, "receivables" if direction == "sale" else "payables", ready=False)
 
 
 def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id: str | None = None) -> dict:

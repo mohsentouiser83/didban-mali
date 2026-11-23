@@ -79,16 +79,9 @@ export function useAccountRoles() {
     refresh,
   };
   const command = useCommand();
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
   const editable = ["owner", "finance_manager"].includes(
     workspace.company?.role || "",
   );
-  const filtered = (resource.data?.items || []).filter((item) =>
-    `${item.code} ${item.name}`.includes(query),
-  );
-  const pages = Math.max(1, Math.ceil(filtered.length / 25));
-  const currentPage = Math.min(page, pages);
   function save(row: RoleRow, role: string) {
     void command.run(
       workspace.companyPath(`accounting/account-roles/${row.account_id}`),
@@ -105,16 +98,6 @@ export function useAccountRoles() {
     resource,
     command,
     editable,
-    query,
-    setQuery: (value: string) => {
-      setQuery(value);
-      setPage(1);
-    },
-    page: currentPage,
-    pages,
-    total: filtered.length,
-    setPage,
-    rows: filtered.slice((currentPage - 1) * 25, currentPage * 25),
     save,
     options: [
       { value: "unassigned", label: "تعیین نشده" },

@@ -41,7 +41,11 @@ function ChequeWorkspace() {
           />
         ) : (
           <>
-            <Table title="فهرست چک‌ها" onImport={c.importFromExcel}>
+            {c.importBusy && <LoadingState label="در حال ورود چک‌ها..." />}
+            <Table
+              title="فهرست چک‌ها"
+              onImport={c.workspace.canWrite && !c.importBusy ? c.importFromExcel : undefined}
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>شماره</TableHead>

@@ -210,3 +210,54 @@ with transaction("company-a") as db:
     assert db.get(m.InstallationAudit,audit_id).details=={"original":True}
 """,
     )
+
+
+def test_retired_settings_api_routes_are_unavailable():
+    from fastapi.testclient import TestClient
+
+    from didban.api import app
+
+    client = TestClient(app)
+    prefix = "/api/v1/companies/test-company"
+    for method, suffix in (
+        ("GET", "/bot-notifications"),
+        ("PATCH", "/bot-notifications/telegram"),
+        ("GET", "/bot-notifications/deliveries"),
+        ("POST", "/bot-notifications/deliver-document"),
+        ("GET", "/findings"),
+        ("GET", "/findings/test-finding"),
+        ("POST", "/findings/test-finding/decisions"),
+        ("GET", "/control/findings"),
+        ("GET", "/accounting/native-controls"),
+        ("POST", "/accounting/native-controls/runs"),
+        ("GET", "/accounting/native-controls/runs"),
+        ("GET", "/accounting/native-controls/runs/test-run"),
+        ("GET", "/expense-changes"),
+        ("GET", "/automation/capabilities"),
+        ("GET", "/automation/rules"),
+        ("POST", "/automation/rules"),
+        ("PATCH", "/automation/rules/test-rule"),
+        ("POST", "/automation/preview"),
+        ("POST", "/automation/rules/test-rule/execute"),
+        ("GET", "/automation/runs"),
+        ("POST", "/automation/native-preview"),
+        ("GET", "/automation/native-runs"),
+        ("GET", "/automation/learning"),
+        ("GET", "/automation/learning/candidates"),
+        ("POST", "/automation/learning"),
+        ("PATCH", "/automation/learning/test-pattern"),
+        ("GET", "/accounting/operation-learning"),
+        ("GET", "/accounting/operation-learning/test-operation"),
+        ("PATCH", "/accounting/operation-learning/test-operation"),
+        ("GET", "/accounting/operation-learning/corrections/candidates"),
+        ("POST", "/accounting/operation-learning/test-operation/correction"),
+    ):
+        assert client.request(method, prefix + suffix).status_code == 404, suffix
+
+    paths = app.openapi()["paths"]
+    company = "/api/v1/companies/{company_id}"
+    assert "post" in paths[company + "/bot-connections/deliver-document"]
+    assert "get" in paths[company + "/control/collection"]
+    assert "get" in paths[company + "/accounting/inventory"]
+    assert "get" in paths[company + "/accounting/account-roles"]
+    assert "patch" in paths[company + "/accounting/account-roles/{account_id}"]

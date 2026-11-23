@@ -8,6 +8,7 @@ from ..payroll_schemas import (
     BatchTimesheetInput,
     ContractInput,
     EmployeeInput,
+    PayrollPostJournalInput,
     PayrollRunCreateInput,
     PayrollSlipTimesheetInput,
     UpdateContractInput,
@@ -202,13 +203,15 @@ def batch_update_timesheets(
 def create_payroll_operation_draft(
     company_id: str,
     run_id: str,
+    data: PayrollPostJournalInput,
     request: Request,
 ):
-    # Pass empty or custom accounts dict from request body if needed
     return mutate(
         request,
         company_id,
-        {},
+        data.model_dump(),
         "read",
-        lambda db, user: service.create_payroll_operation_draft(db, company_id, user, run_id, {}),
+        lambda db, user: service.create_payroll_operation_draft(
+            db, company_id, user, run_id, data.accounts, expected_version=data.expected_version
+        ),
     )

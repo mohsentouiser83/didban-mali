@@ -2,9 +2,18 @@
 
 from datetime import date
 
+from pytest import raises
+from test_posting import approval
 from test_posting import book as book
+from test_posting import data as posting_data
 
 from didban import models as m
+from didban.accounting_service import save_draft
+from didban.accounting_setup_models import CompanyAccountingSetup
+from didban.custom_reports.query_engine import FinancialBlockQueryEngine
+from didban.errors import DomainError
+from didban.native_reporting_models import NativeAccountRole
+from didban.posting_service import post_batch
 from didban.report_studio_schemas import (
     StudioGlobalFilters,
     StudioLayoutSpec,
@@ -287,7 +296,91 @@ def test_studio_dashboard_conversion(book):
     assert official_dash["is_dashboard"] is True
     active_now = get_active_dashboard(db, "c")
     assert active_now["has_custom_dashboard"] is True
+    assert active_now["mode"] == "fixed"
     assert "تراز آزمایشی" in active_now["definition_name"]
+    fixed = active_now["dashboard"]
+    assert fixed["sections"][0]["widgets"][0]["data"]["value"] == 10000000
+
+    db.add(m.ResultManifest(
+        company_id="c", period_id="p1", session_id="newer", digest="newer",
+        selection={}, metrics=[{"metric_key": "revenue", "value": "10000001"}], details={}
+    ))
+    db.flush()
+    assert get_active_dashboard(db, "c", "missing")["dashboard"] == fixed
+
+    db.get(CompanyAccountingSetup, "c").mode = "analysis"
+    db.flush()
+    set_official_report_as_dashboard(db, "c", user, report.id, mode="live")
+    live = get_active_dashboard(db, "c", actor=user)
+    assert live["mode"] == "live"
+    assert live["dashboard"]["sections"][0]["widgets"][0]["data"]["value"] == 10000001
+
+
+def test_live_native_dashboard_reflects_new_journal(book):
+    owner = book.get(m.User, "owner")
+    manager = book.get(m.User, "finance_manager")
+    layout = StudioLayoutSpec(
+        global_filters=StudioGlobalFilters(period_id="p"),
+        sections=[StudioSectionSpec(id="section", widgets=[
+            StudioWidgetSpec(id="revenue", title="درآمد", type="kpi_card", entity="ledger", metric="revenue"),
+        ])],
+    )
+    definition = save(book, "c", owner, StudioSaveDefinitionInput(name="درآمد", spec=layout))
+    set_active_dashboard(book, "c", owner, definition["id"], mode="live")
+    operation = posting_data(book, "10")
+    for line, role in zip(operation["lines"], ("trade_receivable", "revenue"), strict=True):
+        book.add(NativeAccountRole(
+            company_id="c", account_id=line["account_id"], role=role, actor_id=owner.id
+        ))
+    book.flush()
+    draft = save_draft(book, "c", manager, operation)
+    post_batch(book, "c", manager, [approval(book, draft)])
+
+    dashboard = get_active_dashboard(book, "c", actor=owner)["dashboard"]
+    assert dashboard["sections"][0]["widgets"][0]["data"]["value"] == 100
+    assert dashboard["basis_label"] == "دفتر و فاکتورهای بومی"
+
+
+def test_studio_missing_amount_and_invalid_period_stay_explicit(book):
+    book.add(m.Period(id="p1", company_id="c", name="دوره", start=date(2026, 1, 1), end=date(2026, 12, 31)))
+    book.flush()
+    layout = StudioLayoutSpec(
+        global_filters=StudioGlobalFilters(period_id="p1"),
+        sections=[StudioSectionSpec(id="section", widgets=[
+            StudioWidgetSpec(id="cash", title="نقد", type="kpi_card", entity="ledger", metric="cash"),
+            StudioWidgetSpec(id="chart", title="روند ماهانه", type="bar_chart", entity="ledger", group_by="month"),
+        ])],
+    )
+    widgets = preview(book, "c", layout)["sections"][0]["widgets"]
+    assert widgets[0]["data"]["value"] is None
+    assert widgets[0]["data"]["subtitle"]
+    assert widgets[1]["data"] == []
+    layout.global_filters.period_id = "missing"
+    with raises(DomainError, match="دورهٔ مالی"):
+        preview(book, "c", layout)
+
+
+def test_custom_report_totals_include_rows_past_display_size(book):
+    day = date(2026, 1, 1)
+    book.add_all([
+        m.JournalLine(
+            company_id="c", source_row_id=f"row-{i}", session_id="import", original_unit="IRR",
+            original_amount="1", entry_id=str(i), date=day, account="a", role="bank",
+            debit="1", credit="0", entry_type="normal",
+        )
+        for i in range(2001)
+    ])
+    book.flush()
+    result = FinancialBlockQueryEngine.execute(
+        book, "c", {
+            "entity_type": "journal_lines",
+            "visualization": "metric_strip",
+            "limit": 1,
+            "metrics": [{"function": "sum", "field": "debit"}],
+        }
+    )
+    assert result["total"] == 2001
+    assert result["metrics"][0]["value"] == 2001
 
 
 def test_studio_api_routes():
@@ -313,7 +406,8 @@ def test_studio_api_routes():
         db.add_all([user, company])
         db.flush()
 
-        db.execute(text(f"SET LOCAL didban.company_id = '{c_id}'"))
+        if db.bind.dialect.name == "postgresql":
+            db.execute(text("SELECT set_config('didban.company_id', :company, true)"), {"company": c_id})
         member = m.Membership(company_id=c_id, user_id=u_id, role="owner", active=True)
         period = m.Period(
             id=p_id,

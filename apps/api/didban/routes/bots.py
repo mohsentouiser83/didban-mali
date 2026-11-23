@@ -6,11 +6,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from .. import bot_service as service
 from .. import models as m
+from ..accounting_schemas import StrictInput
+from ..bot_pdf_delivery import deliver_snapshot_pdf_to_bot
 from ..errors import require
 from ..http import C, P, access, expected, mutate
 from ..security import digest
@@ -20,6 +22,13 @@ router = APIRouter()
 
 class PairingInput(BaseModel):
     provider: Literal["telegram", "bale"]
+
+
+class DeliverDocumentInput(StrictInput):
+    provider: Literal["telegram", "bale"]
+    export_type: Literal["report_builder", "native_statement", "financial_report"]
+    export_id: str = Field(min_length=1, max_length=64)
+    caption: str | None = Field(default=None, max_length=1024)
 
 
 @router.get(C + "/bot-connections")
@@ -102,6 +111,20 @@ def revoke(company_id: str, connection_id: str, request: Request):
         "read",
         lambda db, user: service.revoke(db, company_id, user, connection_id, version),
     )
+
+
+@router.post(C + "/bot-connections/deliver-document")
+async def deliver_document(company_id: str, data: DeliverDocumentInput, request: Request):
+    with access(request, company_id) as (db, user, _m):
+        return await deliver_snapshot_pdf_to_bot(
+            db,
+            company_id,
+            user,
+            provider=data.provider,
+            export_type=data.export_type,
+            export_id=data.export_id,
+            caption=data.caption,
+        )
 
 
 async def payload(request: Request):

@@ -222,3 +222,66 @@ def test_payroll_run_and_slips_flow(db_session, payroll_env):
     # 6. Verify run totals updated
     updated_run = service.get_payroll_run(db_session, company, run["id"])
     assert int(updated_run["total_net"]) > 0
+
+
+def test_payroll_posting_preserves_the_reviewed_run(db_session, payroll_env):
+    from didban.accounting_models import Account, Draft
+    from didban.accounting_setup_models import CompanyAccountingSetup
+    from didban.operation_service import catalogue
+    from didban.posting_service import discard_draft, post_batch, preview
+
+    company = payroll_env["company"]
+    user = payroll_env["user"]
+    period = payroll_env["period"]
+    db_session.add(CompanyAccountingSetup(company_id=company, mode="primary"))
+    roles = next(item for item in catalogue()["items"] if item["kind"] == "payroll")["roles"]
+    accounts = {
+        role["key"]: Account(company_id=company, code=str(index), name=role["label"])
+        for index, role in enumerate(roles)
+    }
+    db_session.add_all(accounts.values())
+    db_session.flush()
+    account_ids = {role: account.id for role, account in accounts.items()}
+
+    employee = service.add_employee(db_session, company, user, {
+        "employee_code": "PAY-1", "first_name": "سارا", "last_name": "احمدی",
+    })
+    service.add_contract(db_session, company, user, {
+        "employee_id": employee["id"], "contract_number": "PAY-CON-1",
+        "contract_type": "full_time", "start_date": date(2024, 3, 20),
+        "end_date": date(2024, 4, 19), "base_salary": "100000000",
+    })
+    data = {"period_id": period.id, "title": "حقوق", "year": 1403, "month": 1}
+    with pytest.raises(DomainError, match="متناسب با دوره"):
+        service.create_payroll_run(db_session, company, user, data | {"calculation_date": date(2025, 5, 1)})
+    run = service.create_payroll_run(db_session, company, user, data | {"calculation_date": date(2024, 4, 20)})
+    slip = service.get_payroll_run(db_session, company, run["id"])["slips"][0]
+    with pytest.raises(DomainError) as invalid:
+        with db_session.begin_nested():
+            service.create_payroll_run(db_session, company, user, data | {
+                "month": 2, "calculation_date": date(2024, 5, 20),
+            })
+    assert invalid.value.code == "payroll_contract_missing"
+
+    prepared = service.create_payroll_operation_draft(
+        db_session, company, user, run["id"], account_ids, expected_version=run["version"],
+    )
+    draft = db_session.get(Draft, prepared["operation"]["draft"]["id"])
+    with pytest.raises(DomainError) as locked:
+        service.update_slip_timesheet(db_session, company, user, run["id"], slip["id"], {"work_days": 25})
+    assert locked.value.code == "payroll_draft_exists"
+    discard_draft(db_session, company, user, draft.id, "دوباره بررسی شود", draft.version)
+    service.update_slip_timesheet(db_session, company, user, run["id"], slip["id"], {"work_days": 25})
+    edited = service.get_payroll_run(db_session, company, run["id"])
+    prepared = service.create_payroll_operation_draft(
+        db_session, company, user, run["id"], account_ids, expected_version=edited["version"],
+    )
+    draft_id = prepared["operation"]["draft"]["id"]
+    review = preview(db_session, company, user, draft_id)
+    assert review["snapshot"]["payroll"] == {"run_id": run["id"], "run_version": prepared["run"]["version"]}
+    journal = post_batch(db_session, company, user, [{
+        "draft_id": draft_id, "expected_version": review["expected_version"], "digest": review["digest"],
+    }])["items"][0]
+    posted = service.get_payroll_run(db_session, company, run["id"])
+    assert posted["journal_id"] == journal["id"]
+    assert posted["status"] == "posted"

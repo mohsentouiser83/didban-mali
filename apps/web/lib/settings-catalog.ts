@@ -1,20 +1,9 @@
 import {
-  ArrowsLeftRightIcon,
-  BankIcon,
-  BellIcon,
-  BarcodeIcon,
   BooksIcon,
   BuildingsIcon,
-  BrainIcon,
   FilesIcon,
-  ShieldCheckIcon,
-  SquaresFourIcon,
   CalendarBlankIcon,
   HashIcon,
-  PackageIcon,
-  PlugsConnectedIcon,
-  ReceiptIcon,
-  StorefrontIcon,
   UsersThreeIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -23,7 +12,6 @@ import type { Company } from "./api";
 type Permission =
   | "company"
   | "owner"
-  | "installation_admin"
   | "company_or_admin";
 
 export interface SettingsDestination {
@@ -122,28 +110,6 @@ export const settingsCatalog: SettingsCategory[] = [
         ],
       },
       {
-        key: "account-roles",
-        href: "/settings/account-roles",
-        label: "نقش حساب‌ها در صورت‌های مالی",
-        icon: BooksIcon,
-        permission: "company",
-      },
-      {
-        key: "rules",
-        href: "/settings/rules",
-        label: "قواعد و پیشنهادهای حسابداری",
-        icon: ShieldCheckIcon,
-        permission: "company",
-        keywords: ["خودکارسازی", "یادگیری", "نگاشت"],
-      },
-      {
-        key: "learning",
-        href: "/settings/learning",
-        label: "الگوهای ثبت و نگاشت",
-        icon: BooksIcon,
-        permission: "company",
-      },
-      {
         key: "numbering",
         href: "/settings/numbering",
         label: "شماره‌گذاری",
@@ -217,7 +183,7 @@ export const settingsCatalog: SettingsCategory[] = [
   {
     key: "company-access",
     title: "شرکت و دسترسی",
-    description: "مدیریت کاربران، مجوزها، پرونده شرکت و اتصالات",
+    description: "مدیریت کاربران، مجوزها و پرونده شرکت",
     icon: BuildingsIcon,
     hub: "/settings/company-access",
     items: [
@@ -247,199 +213,22 @@ export const settingsCatalog: SettingsCategory[] = [
         permission: "company_or_admin",
         keywords: ["شرکت", "سازمان", "شناسه", "company"],
       },
-      {
-        key: "modules",
-        href: "/settings/modules",
-        label: "ماژول‌های شرکت",
-        icon: SquaresFourIcon,
-        permission: "company",
-      },
-      {
-        key: "model",
-        href: "/settings/model",
-        label: "مدل هوش مصنوعی و بودجه",
-        icon: BrainIcon,
-        permission: "installation_admin",
-        keywords: ["هزینه مدل", "بودجه", "تعرفه", "AI"],
-      },
-      {
-        key: "connections",
-        href: "/settings/connections",
-        label: "اتصال‌ها و پیام‌رسان‌ها",
-        description: "اتصال حساب تلگرام و بله برای گزارش‌ها و اعلانات",
-        icon: PlugsConnectedIcon,
-        permission: "company",
-        keywords: [
-          "تلگرام",
-          "بله",
-          "بات",
-          "ربات",
-          "telegram",
-          "bale",
-          "connections",
-        ],
-      },
-      {
-        key: "bot-notifications",
-        href: "/settings/connections/notifications",
-        label: "اعلان‌های بات",
-        icon: BellIcon,
-        permission: "company",
-      },
     ],
   },
   {
     key: "documents",
-    title: "اسناد و پردازش",
-    description: "فایل‌های منبع، نوبت‌های پردازش و مدارک بات",
+    title: "اسناد",
+    description: "آرشیو فایل‌ها و مدارک شرکت",
     icon: FilesIcon,
-    hub: "/settings/documents",
+    standalone: true,
     items: [
       {
-        key: "sources",
-        href: "/sources",
-        label: "فایل‌های منبع",
+        key: "documents",
+        href: "/settings/documents",
+        label: "اسناد",
         icon: FilesIcon,
         permission: "company",
-        keywords: ["بارگذاری", "منابع", "اکسل"],
-      },
-      {
-        key: "processing-sessions",
-        href: "/uploads",
-        label: "نوبت‌های پردازش",
-        icon: CalendarBlankIcon,
-        permission: "company",
-        keywords: ["سؤال پردازش", "در انتظار پاسخ"],
-      },
-      {
-        key: "bot-documents",
-        href: "/settings/connections/documents",
-        label: "مدارک بات",
-        icon: PlugsConnectedIcon,
-        permission: "company",
-      },
-    ],
-  },
-  {
-    key: "reconciliation",
-    title: "میز کار تطبیق و مغایرت",
-    description: "مغایرت‌گیری بانک، طرف‌حساب‌ها و سامانه مؤدیان",
-    icon: ArrowsLeftRightIcon,
-    hub: "/reconciliation",
-    items: [
-      {
-        key: "reconciliation-bank",
-        href: "/reconciliation",
-        label: "تطبیق بانک و دفتر",
-        description: "مغایرت‌گیری گردش حساب با صورت‌حساب بانک",
-        icon: BankIcon,
-        permission: "company",
-        keywords: ["تطبیق", "بانک", "دفتر", "مغایرت", "bank", "reconciliation"],
-      },
-      {
-        key: "reconciliation-counterparties",
-        href: "/reconciliation/counterparties",
-        label: "تطبیق طرف‌حساب‌ها",
-        description: "انطباق مانده معین با صورت‌حساب مشتریان و تأمین‌کنندگان",
-        icon: UsersThreeIcon,
-        permission: "company",
-        keywords: [
-          "طرف‌حساب",
-          "مشتری",
-          "تأمین‌کننده",
-          "صورت‌حساب",
-          "counterparties",
-        ],
-      },
-      {
-        key: "reconciliation-moadian",
-        href: "/reconciliation/moadian",
-        label: "تطبیق کارپوشه مؤدیان",
-        description: "تطبیق فاکتورهای فروش با کارپوشه سازمان امور مالیاتی",
-        icon: ReceiptIcon,
-        permission: "company",
-        keywords: ["مؤدیان", "کارپوشه", "مالیات", "ارزش افزوده", "moadian"],
-      },
-      {
-        key: "review",
-        href: "/review",
-        label: "موارد نیازمند بررسی",
-        icon: ShieldCheckIcon,
-        permission: "company",
-      },
-      {
-        key: "native-controls",
-        href: "/review/native-controls",
-        label: "کنترل‌های دفتر",
-        icon: BooksIcon,
-        permission: "company",
-      },
-      {
-        key: "expense-changes",
-        href: "/review/expense-changes",
-        label: "تحلیل تغییر هزینه‌ها",
-        icon: FilesIcon,
-        permission: "company",
-      },
-    ],
-  },
-  {
-    key: "inventory",
-    title: "انبار و کالا",
-    description: "کاتالوگ کالاها، انبارها و کنترل موجودی",
-    icon: PackageIcon,
-    hub: "/settings/inventory",
-    items: [
-      {
-        key: "inventory-items",
-        href: "/accounting/inventory/items",
-        label: "کالاها و خدمات",
-        description: "تعریف کالاها، واحد سنجش، بارکد و قیمت‌گذاری",
-        icon: BarcodeIcon,
-        permission: "company",
-        keywords: [
-          "کالا",
-          "کالاها",
-          "خدمات",
-          "بارکد",
-          "قیمت",
-          "اجناس",
-          "محصول",
-          "items",
-          "products",
-        ],
-      },
-      {
-        key: "inventory-warehouses",
-        href: "/accounting/inventory/warehouses",
-        label: "انبارها",
-        description: "تعریف انبارها و مراکز نگهداری موجودی",
-        icon: StorefrontIcon,
-        permission: "company",
-        keywords: [
-          "انبار",
-          "انبارها",
-          "محل نگهداری",
-          "سوله",
-          "warehouses",
-        ],
-      },
-      {
-        key: "inventory-stock",
-        href: "/accounting/inventory",
-        label: "موجودی و کاردکس",
-        description: "مشاهده موجودی ریالی و تعدادی و کاردکس کالا",
-        icon: PackageIcon,
-        permission: "company",
-        keywords: [
-          "موجودی",
-          "کاردکس",
-          "گردش کالا",
-          "انبارداری",
-          "stock",
-          "inventory",
-          "kardex",
-        ],
+        keywords: ["بارگذاری", "آرشیو", "منابع", "اکسل", "مدارک بات", "نوبت پردازش"],
       },
     ],
   },
@@ -449,8 +238,6 @@ function permitted(permission: Permission, access: SettingsAccess) {
   switch (permission) {
     case "owner":
       return access.hasCompany && access.role === "owner";
-    case "installation_admin":
-      return access.installationAdmin;
     case "company_or_admin":
       return access.hasCompany || access.installationAdmin;
     default:

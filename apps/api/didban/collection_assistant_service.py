@@ -14,7 +14,6 @@ from .errors import DomainError, require
 from .finance import SALES_DIRECTIONS, day
 from .forecast_planning import LOOKBACK_DAYS, MINIMUM_EVENTS, POLICY_VERSION, _history, weighted_median_delay
 from .ingestion import money, parsed_date
-from .module_service import require_module
 from .money_type import canonical_money
 from .security import membership
 from .services import get_entity
@@ -167,7 +166,6 @@ def _persian(value: str) -> str:
 
 def reminder(db: Session, company: str, user: m.User, invoice_id: str, manifest_id: str) -> dict:
     membership(db, company, user, "write")
-    require_module(db, company, "receivables", ready=False)
     manifest = db.scalar(
         select(m.ResultManifest)
         .where(m.ResultManifest.company_id == company)

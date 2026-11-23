@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -230,7 +230,7 @@ export function WidgetConfigDialog({
   onSave: (widget: StudioWidgetSpec) => void;
 }) {
   return (
-    <Dialog
+    <Drawer
       open={open}
       onOpenChange={onOpenChange}
       title={initialWidget ? "ویرایش ویجت" : "افزودن ویجت جدید"}
@@ -246,6 +246,6 @@ export function WidgetConfigDialog({
           onCancel={() => onOpenChange(false)}
         />
       )}
-    </Dialog>
+    </Drawer>
   );
 }

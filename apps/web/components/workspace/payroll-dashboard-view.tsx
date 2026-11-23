@@ -15,11 +15,12 @@ import {
 } from "@phosphor-icons/react";
 import { usePayrollDashboard } from "@/hooks/use-payroll-dashboard";
 import { Button } from "@/components/ui/button";
-import { EmptyState, LoadingState } from "@/components/ui/content-states";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input, AmountInput } from "@/components/ui/input";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
 import { NoCompany, PageHeader, Panel, PeriodFilter } from "./page-parts";
 import { amount, persian } from "@/lib/utils";
@@ -42,12 +43,12 @@ export function PayrollDashboardView() {
         icon={UsersThreeIcon}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" onClick={() => v.setCreateOpen(true)}>
+            <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
               <PlusIcon size={18} aria-hidden />
               ایجاد لیست حقوق جدید
             </Button>
-            {currentRun && currentRun.status !== "posted" && (
-              <Button variant="secondary" onClick={v.handleCreateDraft} busy={v.command.busy}>
+            {currentRun && currentRun.status === "calculated" && (
+              <Button variant="secondary" onClick={v.openDraft} busy={v.command.busy}>
                 <BooksIcon size={18} aria-hidden />
                 صدور پیش‌نویس سند حسابداری
               </Button>
@@ -66,7 +67,7 @@ export function PayrollDashboardView() {
             title="هیچ لیست حقوقی ایجاد نشده است"
             description="برای شروع محاسبه حقوق و صدور فیش‌ها، اولین لیست حقوق دوره را ایجاد کنید."
             action={
-              <Button variant="primary" onClick={() => v.setCreateOpen(true)}>
+              <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
                 ایجاد اولین لیست حقوق
               </Button>
             }
@@ -215,7 +216,7 @@ export function PayrollDashboardView() {
                         </TableCell>
                         <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
-                            {currentRun.status !== "posted" && (
+                            {currentRun.status === "calculated" && (
                               <Button
                                 variant="ghost"
                                 className="size-8 p-0"
@@ -251,7 +252,7 @@ export function PayrollDashboardView() {
       )}
 
       {/* مودال ایجاد لیست حقوق جدید */}
-      <Dialog
+      <Drawer
         open={v.createOpen}
         onOpenChange={(open) => !open && v.setCreateOpen(false)}
         title="ایجاد لیست حقوق و دستمزد جدید"
@@ -277,8 +278,9 @@ export function PayrollDashboardView() {
             <Field id="run-year" label="سال">
               <Input
                 type="number"
-                value={String(v.createForm.year)}
-                onChange={(e) => v.setCreateForm({ ...v.createForm, year: Number(e.target.value) || 1403 })}
+                id="run-year"
+                value={v.createForm.year || ""}
+                onChange={(e) => v.setCreateForm({ ...v.createForm, year: Number(e.target.value) })}
               />
             </Field>
             <Field id="run-month" label="ماه">
@@ -293,17 +295,35 @@ export function PayrollDashboardView() {
             </Field>
           </div>
           <Field id="run-calc-date" label="تاریخ محاسبه و صدور">
-            <Input
-              type="date"
+            <PersianDatePicker id="run-calc-date"
               value={v.createForm.calculation_date}
-              onChange={(e) => v.setCreateForm({ ...v.createForm, calculation_date: e.target.value })}
+              onChange={(value) => v.setCreateForm({ ...v.createForm, calculation_date: value })}
             />
           </Field>
         </div>
-      </Dialog>
+      </Drawer>
+
+      <Drawer
+        open={v.draftOpen}
+        onOpenChange={(open) => !open && v.closeDraft()}
+        title="حساب‌های سند حقوق"
+        footer={<Button onClick={v.handleCreateDraft} disabled={!v.canCreateDraft} busy={v.command.busy}>تهیه پیش‌نویس</Button>}
+      >
+        {v.accountsLoading ? <LoadingState /> : v.accountsError ? <ErrorState message={v.accountsError} /> : (
+          <div className="space-y-3">
+            {v.roles.map((role) => (
+              <Field key={role.key} id={`payroll-account-${role.key}`} label={role.label}>
+                <Select id={`payroll-account-${role.key}`} value={v.draftAccounts[role.key] ?? ""}
+                  options={v.accountOptions} onValueChange={(value) => v.setDraftAccount(role.key, value)} />
+              </Field>
+            ))}
+            {v.command.error && <p role="alert" className="text-sm text-danger">{v.command.error.message}</p>}
+          </div>
+        )}
+      </Drawer>
 
       {/* مودال ویرایش کارکرد و کسورات کارمند */}
-      <Dialog
+      <Drawer
         open={!!v.editingSlip}
         onOpenChange={(open) => !open && v.closeEditSlip()}
         title={`ثبت کارکرد و کسورات: ${v.editingSlip?.employee_name || ""}`}
@@ -374,10 +394,10 @@ export function PayrollDashboardView() {
             </Field>
           </div>
         </div>
-      </Dialog>
+      </Drawer>
 
       {/* مودال مشاهده فیش حقوقی کامل */}
-      <Dialog
+      <Drawer
         open={!!v.viewingSlip}
         onOpenChange={(open) => !open && v.setViewingSlip(null)}
         title="فیش حقوق و دستمزد کارمند"
@@ -454,7 +474,7 @@ export function PayrollDashboardView() {
             </div>
           </div>
         )}
-      </Dialog>
+      </Drawer>
     </>
   );
 }

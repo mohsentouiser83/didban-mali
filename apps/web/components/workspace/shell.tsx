@@ -17,7 +17,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ModuleGate } from "./module-gate";
 import { FloatingAssistant } from "./floating-assistant";
 import { SettingsMenu } from "./settings-menu";
 import { NotificationsMenu } from "./notifications-menu";
@@ -169,15 +168,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
               isAssistant && "flex min-h-0 flex-1 flex-col overflow-hidden",
             )}
           >
-            <ModuleGate>
-              <PageTransition
-                className={cn(
-                  isAssistant && "flex min-h-0 flex-1 flex-col overflow-hidden",
-                )}
-              >
-                {children}
-              </PageTransition>
-            </ModuleGate>
+            <PageTransition
+              className={cn(
+                isAssistant && "flex min-h-0 flex-1 flex-col overflow-hidden",
+              )}
+            >
+              {children}
+            </PageTransition>
           </div>
         </main>
       </div>

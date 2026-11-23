@@ -657,6 +657,7 @@ from . import consolidation_models as consolidation_models  # noqa: E402,F401
 from . import control_models as control_models  # noqa: E402,F401
 from . import counterparty_reconciliation_models as counterparty_reconciliation_models  # noqa: E402,F401
 from . import dimensions_models as dimensions_models  # noqa: E402,F401
+from . import document_archive_models as document_archive_models  # noqa: E402,F401
 from . import document_thread_models as document_thread_models  # noqa: E402,F401
 from . import group_match_models as group_match_models  # noqa: E402,F401
 from . import inventory_models as inventory_models  # noqa: E402,F401

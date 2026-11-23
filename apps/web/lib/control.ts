@@ -43,12 +43,6 @@ export interface ControlActivity {
     after?: Record<string, unknown>;
   };
 }
-export interface ControlFinding {
-  id: string;
-  title: string;
-  source: ControlSource;
-  case: ControlCase | null;
-}
 export interface CollectionInvoice {
   id: string;
   reference: string;

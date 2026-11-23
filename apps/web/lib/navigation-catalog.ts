@@ -3,6 +3,7 @@ import {
   FilesIcon, PackageIcon, ReceiptIcon, ShoppingCartIcon, SquaresFourIcon,
   StorefrontIcon, UsersThreeIcon, WalletIcon, type Icon,
 } from "@phosphor-icons/react";
+import { builtInReports } from "./report-archive-catalog";
 
 export interface NavigationItem {
   href: string;
@@ -25,8 +26,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/accounting", label: "اسناد حسابداری", icon: BooksIcon,
         children: [
-          { href: "/accounting", label: "پیش‌نویس‌ها", icon: FilesIcon },
-          { href: "/accounting/journals", label: "دفتر روزنامه", icon: BooksIcon },
+          { href: "/accounting", label: "فهرست اسناد", icon: FilesIcon },
           { href: "/accounting/operations", label: "عملیات حسابداری", icon: ArrowsLeftRightIcon },
           { href: "/accounting/period-end", label: "بستن و افتتاح دوره", icon: CalendarBlankIcon },
         ],
@@ -38,6 +38,7 @@ export const navigationGroups: NavigationGroup[] = [
           { href: "/payables", label: "فاکتورهای خرید", icon: ShoppingCartIcon },
           { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
           { href: "/commercial/counterparties", label: "طرف‌حساب‌ها", icon: UsersThreeIcon },
+          { href: "/reconciliation/counterparties", label: "تطبیق طرف‌حساب‌ها", icon: ArrowsLeftRightIcon, matches: ["/reconciliation/counterparty"] },
         ],
       },
       {
@@ -47,6 +48,7 @@ export const navigationGroups: NavigationGroup[] = [
           { href: "/settlements/cheques", label: "چک‌های صیادی", icon: ReceiptIcon },
           { href: "/settlements/plans", label: "برنامه پرداخت", icon: CalendarBlankIcon },
           { href: "/receivables/followups", label: "پیگیری وصول", icon: UsersThreeIcon },
+          { href: "/reconciliation", label: "تطبیق بانک و دفتر", icon: BankIcon, matches: ["/reconciliation/bank"] },
         ],
       },
       {
@@ -61,7 +63,6 @@ export const navigationGroups: NavigationGroup[] = [
         href: "/payroll", label: "حقوق و دستمزد", icon: UsersThreeIcon,
         children: [
           { href: "/payroll", label: "لیست حقوق و فیش‌ها", icon: WalletIcon },
-          { href: "/employee-reports", label: "گزارش کارکنان و کسورات", icon: FilesIcon },
         ],
       },
       {
@@ -69,6 +70,7 @@ export const navigationGroups: NavigationGroup[] = [
         children: [
           { href: "/moadian", label: "صورتحساب‌های کارپوشه", icon: ReceiptIcon },
           { href: "/moadian/transmissions", label: "ارسال و استعلام", icon: ArrowsLeftRightIcon },
+          { href: "/reconciliation/moadian", label: "تطبیق کارپوشه مؤدیان", icon: ArrowsLeftRightIcon },
         ],
       },
     ],
@@ -79,17 +81,22 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/reports", label: "گزارش‌های مالی", icon: FilesIcon,
         children: [
-          { href: "/reports", label: "آرشیو گزارش‌ها", icon: FilesIcon, matches: ["/reports/studio", "/reports/builder"] },
-          { href: "/reports/native", label: "صورت‌های مالی", icon: BooksIcon },
-          { href: "/reports/dimensions", label: "گزارش ابعاد مالی", icon: ChartLineUpIcon },
+          {
+            href: "/reports",
+            label: "آرشیو گزارش‌ها",
+            icon: FilesIcon,
+            matches: [
+              "/reports/studio", "/reports/builder", "/accounting/journals",
+              ...builtInReports.map(({ href }) => href),
+            ],
+          },
           { href: "/reports/companies", label: "مقایسه شرکت‌ها", icon: BankIcon },
-          { href: "/reports/consolidation", label: "تلفیق شرکت‌ها", icon: FilesIcon },
+          { href: "/reports/consolidation", label: "حذف‌های درون‌گروهی", icon: FilesIcon },
         ],
       },
       {
         href: "/cashflow", label: "نقدینگی", icon: WalletIcon,
         children: [
-          { href: "/cashflow", label: "جریان نقد دوره", icon: WalletIcon },
           { href: "/cashflow/forecast", label: "پیش‌بینی ۳۰روزه", icon: ChartLineUpIcon },
           { href: "/cashflow/scenarios", label: "سناریوهای نقدینگی", icon: FilesIcon },
         ],

@@ -58,7 +58,8 @@ assert response.status_code==200 and response.json()["available"] is True,respon
 assert response.json()["evidence"]["response"]["provider_response_id"]==long_id
 assert owner.get(path.replace("company-a","company-b")).status_code==404
 assert client_for("outsider").get(path).status_code==404
-public=viewer.get(base+"/model-requests").json()
+assert viewer.get(base+"/model-requests").status_code==403
+public=owner.get(base+"/model-requests").json()
 assert long_id not in json.dumps(public) and "provider-lookup-1" not in json.dumps(public)
 """,
     )

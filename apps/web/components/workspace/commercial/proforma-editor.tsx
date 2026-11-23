@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { AmountInput, Input, Textarea } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -10,10 +10,6 @@ import { emptyProformaLine, proformaForm } from "@/hooks/use-commercial";
 import type { Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
 import { asciiDigits, persian } from "@/lib/utils";
 
-const directions = [
-  { value: "sale", label: "فروش" },
-  { value: "purchase", label: "خرید" },
-];
 const currencies = [
   { value: "IRR", label: "ریال" },
   { value: "TOMAN", label: "تومان" },
@@ -45,10 +41,10 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
   const valid = !!(form.number.trim() && form.party_id.trim() && form.date) &&
     (!form.expiry_date || form.expiry_date >= form.date) &&
     form.lines.every((line) => line.description.trim() && /^[1-9]\d{0,9}$/.test(line.quantity)
-      && Number(line.quantity) <= 1_000_000_000 && /^\d+(\.\d+)?$/.test(line.unit_price)
+      && Number(line.quantity) <= 1_000_000_000 && /^\d+(\.\d+)?$/.test(line.unit_price) && /[1-9]/.test(line.unit_price)
       && (!line.discount || /^\d+(\.\d+)?$/.test(line.discount)));
   return (
-    <Dialog open onOpenChange={onClose} className="max-w-3xl"
+    <Drawer open onOpenChange={onClose} className="max-w-3xl"
       title={row ? "ویرایش پیش‌فاکتور" : "پیش‌فاکتور جدید"}>
       <form className="space-y-5" onSubmit={(event) => {
         event.preventDefault();
@@ -58,10 +54,6 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
           <Field id="proforma-number" label="شماره پیش‌فاکتور">
             <Input id="proforma-number" required maxLength={100} value={form.number}
               onChange={(event) => update("number", event.target.value)} />
-          </Field>
-          <Field id="proforma-direction" label="نوع">
-            <Select id="proforma-direction" value={form.direction} options={directions} disabled={!!row}
-              onValueChange={(value) => update("direction", value === "purchase" ? "purchase" : "sale")} />
           </Field>
           <Field id="proforma-date" label="تاریخ صدور">
             <PersianDatePicker id="proforma-date" value={form.date} onChange={(value) => update("date", value)} />
@@ -106,7 +98,7 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
         <FormMessage error>{error}</FormMessage>
         <Button type="submit" busy={busy} disabled={!valid}>{row ? "ذخیره" : "صدور پیش‌فاکتور"}</Button>
       </form>
-    </Dialog>
+    </Drawer>
   );
 }
 

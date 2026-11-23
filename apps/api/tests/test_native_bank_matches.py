@@ -210,20 +210,6 @@ def test_native_bank_preview_has_frozen_proofs_and_no_imported_ledger(book):
     assert len(list(db.scalars(select(NativeBankMatchPreview)))) == 1
 
 
-def test_primary_readiness_requires_native_bank_proof_and_preserves_other_modules(book):
-    from didban.module_service import module_state
-
-    db = book
-    before = module_state(db, "c", "reconciliation", {"bank", "ledger"})
-    assert before["source_basis"] == "native_book"
-    assert before["missing_sources"] == [["native_bank_ledger"]]
-    user, accounts, statement, data = setup(db)
-    assert module_state(db, "c", "reconciliation")["status"] == "available"
-    assert module_state(db, "c", "receivables")["status"] == "waiting_sources"
-    save_role(db, "c", user, accounts[0].id, "other_asset", 2)
-    assert module_state(db, "c", "reconciliation")["missing_sources"] == [["native_bank_ledger"]]
-
-
 def test_http_native_preview_exact_approval_replay_read_isolation_and_immutability(tmp_path):
     from test_api_delivery import scenario
 

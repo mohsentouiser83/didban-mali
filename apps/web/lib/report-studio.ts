@@ -104,6 +104,8 @@ export interface StudioPreviewResult {
   };
   global_filters: StudioGlobalFilters;
   sections: RenderedSection[];
+  as_of?: string;
+  basis_label?: string;
 }
 
 export interface StudioDefinition {
@@ -117,6 +119,7 @@ export interface StudioDefinition {
 
 export interface ActiveDashboardResponse {
   has_custom_dashboard: boolean;
+  mode?: "fixed" | "live" | "legacy";
   definition_id?: string | null;
   definition_name?: string | null;
   spec?: StudioLayoutSpec | null;

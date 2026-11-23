@@ -1,5 +1,5 @@
 "use client";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -11,7 +11,7 @@ export function CollectionReminderDialog({
   c: ReturnType<typeof useCollectionReminder>;
 }) {
   return (
-    <Dialog
+    <Drawer
       title="پیش‌نویس یادآوری پرداخت"
       open={!!c.current}
       onOpenChange={(open) => {
@@ -47,6 +47,6 @@ export function CollectionReminderDialog({
           </Button>
         </div>
       ) : null}
-    </Dialog>
+    </Drawer>
   );
 }

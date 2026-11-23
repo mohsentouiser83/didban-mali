@@ -10,6 +10,7 @@ import {
 import { useMoadianReconciliation } from "@/hooks/use-moadian-reconciliation";
 import { StatusBadge } from "@/components/ui/badge";
 import {
+  EmptyState,
   LoadingState,
   ErrorState,
   StatusMessage,
@@ -39,6 +40,9 @@ export function MoadianReconciliationPanel() {
   }
 
   const summary = moadian.summary;
+  if (!summary?.invoices_count) {
+    return <Panel><EmptyState title="هنوز فاکتور فروشی ثبت نشده است" /></Panel>;
+  }
 
   return (
     <div className="space-y-6">
@@ -77,7 +81,7 @@ export function MoadianReconciliationPanel() {
           <div className="rounded-xl border border-border/80 bg-surface-subtle p-4">
             <p className="text-xs text-muted">نرخ تمکین مالیاتی</p>
             <p className="mt-1 font-semibold text-lg">
-              {persian(summary?.compliance_percentage || 0)}٪
+              {summary.compliance_percentage == null ? "—" : `${persian(summary.compliance_percentage)}٪`}
             </p>
             <p className="text-xs text-muted">پوشش فاکتورهای معتبر</p>
           </div>
@@ -151,7 +155,7 @@ export function MoadianReconciliationPanel() {
                   </TableRow>
                 ))
               ) : (
-                <TableEmptyCell colSpan={6} title="تمامی فاکتورهای فروش به سامانه مؤدیان ارسال شده‌اند" />
+                <TableEmptyCell colSpan={6} title="فاکتور ارسال‌نشده‌ای وجود ندارد" />
               )}
             </TableBody>
           </Table>

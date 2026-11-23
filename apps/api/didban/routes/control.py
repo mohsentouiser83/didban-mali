@@ -20,12 +20,6 @@ def assignees(company_id: str, request: Request):
         return service.assignees(db, company_id, user)
 
 
-@router.get(PREFIX + "/findings")
-def findings(company_id: str, request: Request, limit: int = 25, cursor: str | None = None):
-    with access(request, company_id) as (db, user, _member):
-        return service.findings(db, company_id, user, limit, cursor)
-
-
 @router.get(PREFIX + "/collection")
 def collection(company_id: str, request: Request, page: int = 0, q: str = ""):
     with access(request, company_id) as (db, user, _member):

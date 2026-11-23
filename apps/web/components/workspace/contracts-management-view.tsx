@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
-import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
 import { Input, AmountInput } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -145,8 +145,8 @@ export function ContractsManagementView() {
         </div>
       )}
 
-      {/* Add / Edit Contract Dialog */}
-      <Dialog
+      {/* Add / Edit Contract Drawer */}
+      <Drawer
         open={v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش قرارداد" : "ثبت قرارداد جدید"}
@@ -294,7 +294,7 @@ export function ContractsManagementView() {
             </div>
           </div>
         </div>
-      </Dialog>
+      </Drawer>
     </>
   );
 }

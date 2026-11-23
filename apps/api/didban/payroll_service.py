@@ -1,17 +1,22 @@
 """Service layer for employee master data, employment contracts, and periodic payroll runs."""
 
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
+import jdatetime
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from . import models as m
+from .accounting_models import Draft
 from .accounting_service import capabilities
 from .errors import require
 from .money_type import canonical_money
+from .operation_models import OperationDraft
 from .payroll_engine import calculate_slip, d
 from .payroll_models import Employee, EmployeeContract, PayrollRun, PayrollSlip
+from .period_lock_service import require_open_period
 from .security import membership
 from .services import check_version, get_entity
 from .workflow import audit
@@ -486,6 +491,17 @@ def update_contract(
 # --- Payroll Runs & Slips Operations ---
 
 
+def _month_bounds(year: int, month: int) -> tuple[date, date]:
+    start = jdatetime.date(year, month, 1).togregorian()
+    next_month = jdatetime.date(year + (month == 12), month % 12 + 1, 1).togregorian()
+    return start, next_month
+
+
+def _month_days(year: int, month: int) -> int:
+    start, end = _month_bounds(year, month)
+    return (end - start).days
+
+
 def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ایجاد لیست حقوق ندارید.", 403)
@@ -494,6 +510,17 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
     period = get_entity(db, m.Period, company, data["period_id"])
     year = int(data["year"])
     month = int(data["month"])
+    month_start, next_month = _month_bounds(year, month)
+    calculation_date = data["calculation_date"]
+    require_open_period(db, company, period.id)
+    require(
+        period.start <= calculation_date <= period.end
+        and month_start <= calculation_date
+        and period.start < next_month,
+        "payroll_date_outside_period",
+        "ماه حقوق و تاریخ محاسبه را متناسب با دورهٔ مالی انتخاب کنید.",
+    )
+    contract_date = min(calculation_date, next_month - timedelta(days=1))
 
     require(
         not db.scalar(
@@ -523,10 +550,13 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
 
     # Query all active employees
     employees = db.scalars(
-        select(Employee).where(Employee.company_id == company, Employee.active.is_(True))
+        select(Employee).where(
+            Employee.company_id == company, Employee.active.is_(True),
+            or_(Employee.hire_date.is_(None), Employee.hire_date <= contract_date),
+        ).order_by(Employee.employee_code)
     ).all()
 
-    days_in_month = 31 if month <= 6 else 30 if month <= 11 else 29
+    days_in_month = _month_days(year, month)
 
     total_gross = Decimal("0")
     total_employee_insurance = Decimal("0")
@@ -543,14 +573,21 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
                 EmployeeContract.company_id == company,
                 EmployeeContract.employee_id == emp.id,
                 EmployeeContract.status == "active",
-                EmployeeContract.start_date <= run.calculation_date,
+                EmployeeContract.start_date <= contract_date,
+                or_(EmployeeContract.end_date.is_(None), EmployeeContract.end_date >= contract_date),
             )
             .order_by(EmployeeContract.start_date.desc())
             .limit(1)
         )
 
+        require(
+            contract is not None,
+            "payroll_contract_missing",
+            f"کارمند {emp.employee_code} در تاریخ محاسبه قرارداد معتبر ندارد.",
+            409,
+        )
         emp_dict = serialize_employee(emp)
-        contract_dict = serialize_contract(contract) if contract else None
+        contract_dict = serialize_contract(contract)
         timesheet = {"work_days": days_in_month}
 
         calc = calculate_slip(emp_dict, contract_dict, timesheet, days_in_month=days_in_month)
@@ -659,9 +696,15 @@ def update_slip_timesheet(
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارکرد ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
-    require(run.status != "posted", "run_already_posted", "لیست حقوق ثبت نهایی شده و قابل ویرایش نیست.", 409)
+    _require_editable_run(db, company, run)
 
     slip = get_entity(db, PayrollSlip, company, slip_id)
+    require(
+        slip.payroll_run_id == run.id and timesheet_data.get("employee_id", slip.employee_id) == slip.employee_id,
+        "not_found",
+        "فیش در این لیست حقوق پیدا نشد.",
+        404,
+    )
     emp = get_entity(db, Employee, company, slip.employee_id)
     con = get_entity(db, EmployeeContract, company, slip.contract_id) if slip.contract_id else None
 
@@ -682,7 +725,7 @@ def update_slip_timesheet(
             setattr(slip, field, canonical_money(timesheet_data[field]))
 
     # Re-calculate
-    days_in_month = 31 if run.month <= 6 else 30 if run.month <= 11 else 29
+    days_in_month = _month_days(run.year, run.month)
     emp_dict = serialize_employee(emp)
     con_dict = serialize_contract(con) if con else None
     ts_dict = {
@@ -720,7 +763,7 @@ def batch_update_timesheets(
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارکرد ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
-    require(run.status != "posted", "run_already_posted", "لیست حقوق ثبت نهایی شده و قابل ویرایش نیست.", 409)
+    _require_editable_run(db, company, run)
 
     for item in slips_data:
         emp_id = item["employee_id"]
@@ -731,8 +774,7 @@ def batch_update_timesheets(
                 PayrollSlip.employee_id == emp_id,
             )
         )
-        if not slip:
-            continue
+        require(slip is not None, "not_found", "فیش در این لیست حقوق پیدا نشد.", 404)
         emp = get_entity(db, Employee, company, slip.employee_id)
         con = get_entity(db, EmployeeContract, company, slip.contract_id) if slip.contract_id else None
 
@@ -751,7 +793,7 @@ def batch_update_timesheets(
             if field in item and item[field] is not None:
                 setattr(slip, field, canonical_money(item[field]))
 
-        days_in_month = 31 if run.month <= 6 else 30 if run.month <= 11 else 29
+        days_in_month = _month_days(run.year, run.month)
         calc = calculate_slip(
             serialize_employee(emp),
             serialize_contract(con) if con else None,
@@ -803,12 +845,90 @@ def _refresh_run_totals(db: Session, company: str, run: PayrollRun) -> None:
     db.flush()
 
 
+def _require_editable_run(db: Session, company: str, run: PayrollRun) -> None:
+    require_open_period(db, company, run.period_id)
+    require(run.status != "posted", "run_already_posted", "لیست حقوق ثبت نهایی شده است.", 409)
+    legacy_reference = f"payroll-run-{run.year}-{run.month:02d}-{run.id[:8]}"
+    existing = db.scalar(
+        select(Draft.id)
+        .join(OperationDraft, Draft.id == OperationDraft.draft_id)
+        .where(
+            Draft.company_id == company,
+            Draft.state.in_(("draft", "posted")),
+            OperationDraft.company_id == company,
+            OperationDraft.kind == "payroll",
+            or_(
+                OperationDraft.payload["payroll_run_id"].as_string() == run.id,
+                OperationDraft.source_reference == legacy_reference,
+            ),
+        )
+        .limit(1)
+    )
+    require(
+        not existing,
+        "payroll_draft_exists",
+        "برای این لیست سند وجود دارد. پیش‌نویس باز را ابتدا کنار بگذارید.",
+        409,
+    )
+
+
+def payroll_run_for_draft(db: Session, company: str, draft: Draft) -> PayrollRun | None:
+    operation = db.scalar(
+        select(OperationDraft).where(
+            OperationDraft.company_id == company,
+            OperationDraft.draft_id == draft.id,
+            OperationDraft.kind == "payroll",
+        )
+    )
+    if not operation:
+        return None
+    run_id = operation.payload.get("payroll_run_id")
+    if run_id:
+        return get_entity(db, PayrollRun, company, run_id)
+    if operation.source_reference.startswith("payroll-run-"):
+        candidates = db.scalars(select(PayrollRun).where(
+            PayrollRun.company_id == company, PayrollRun.period_id == draft.period_id
+        ))
+        for run in candidates:
+            if operation.source_reference == f"payroll-run-{run.year}-{run.month:02d}-{run.id[:8]}":
+                return run
+    return None
+
+
+def payroll_posting_evidence(db: Session, company: str, draft: Draft) -> dict | None:
+    from .operation_service import build
+
+    run = payroll_run_for_draft(db, company, draft)
+    if not run:
+        return None
+    operation = db.scalar(select(OperationDraft).where(
+        OperationDraft.company_id == company, OperationDraft.draft_id == draft.id
+    ))
+    stored = operation.payload
+    lines = [{key: line[key] for key in ("account_id", "party_id", "debit", "credit")} for line in draft.lines]
+    require(
+        run.status == "approved"
+        and stored.get("payroll_run_version") == run.version
+        and run.period_id == draft.period_id
+        and run.calculation_date == draft.date
+        and draft.description == stored.get("description")
+        and draft.original_unit == stored.get("unit")
+        and lines == build(stored),
+        "payroll_draft_changed",
+        "پیش‌نویس با نسخهٔ لیست حقوق منطبق نیست. آن را کنار بگذارید و دوباره بسازید.",
+        409,
+    )
+    return {"run_id": run.id, "run_version": run.version}
+
+
 def create_payroll_operation_draft(
     db: Session,
     company: str,
     user: m.User,
     run_id: str,
     accounts: dict[str, str],
+    *,
+    expected_version: int,
 ) -> dict[str, Any]:
     """Generates a balanced native operation draft for identifying the monthly payroll liabilities and expenses."""
     from .operation_service import create as create_operation
@@ -816,7 +936,8 @@ def create_payroll_operation_draft(
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ایجاد سند شناسایی حقوق ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
-    require(run.status != "posted", "run_already_posted", "این لیست حقوق قبلاً ثبت شده است.", 409)
+    check_version(run, expected_version)
+    _require_editable_run(db, company, run)
 
     amounts = {
         "gross": d(run.total_gross),
@@ -829,9 +950,11 @@ def create_payroll_operation_draft(
 
     op_data = {
         "kind": "payroll",
-        "source_reference": f"payroll-run-{run.year}-{run.month:02d}-{run.id[:8]}",
+        "source_reference": f"payroll-run-{run.id}-v{run.version}",
+        "payroll_run_id": run.id,
+        "payroll_run_version": run.version + 1,
         "period_id": run.period_id,
-        "date": str(run.calculation_date),
+        "date": run.calculation_date,
         "party_id": "پرسنل و کارکنان",
         "description": f"شناسایی حقوق و دستمزد {run.title}",
         "unit": "IRR",
@@ -841,6 +964,7 @@ def create_payroll_operation_draft(
 
     res = create_operation(db, company, user, op_data)
     run.status = "approved"
+    run.version += 1
     db.flush()
     audit(
         db, company, user.id, "payroll_run.draft_created", run.id, {"operation_id": res.get("operation_id")}

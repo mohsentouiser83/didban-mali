@@ -21,6 +21,7 @@ import {
   type SettingsCategory,
   type SettingsSearchResult,
   isSettingsCategoryActive,
+  settingsCategoryDestination,
 } from "@/lib/settings-catalog";
 import { cn, persian } from "@/lib/utils";
 
@@ -66,6 +67,11 @@ export function GearMenu({
     }
     onOpenChange(nextOpen);
   };
+
+  function navigate() {
+    setSelectedCategoryKey(null);
+    onNavigate();
+  }
 
   const isAnyCategoryActive = categories.some((category) =>
     isSettingsCategoryActive(category, pathname),
@@ -149,7 +155,7 @@ export function GearMenu({
               </div>
             </div>
             <span className="rounded-full bg-primary-soft/80 px-2.5 py-0.5 text-[11px] font-medium text-primary">
-              {persian(categories.length)} دسته‌بندی
+              {persian(categories.filter((category) => !category.standalone).length)} دسته‌بندی
             </span>
           </header>
         )}
@@ -199,7 +205,7 @@ export function GearMenu({
                     <Link
                       key={res.key + res.href}
                       href={res.href}
-                      onClick={onNavigate}
+                      onClick={navigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "group flex items-center gap-3 rounded-xl border p-2.5 text-start outline-none transition-all duration-150 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none sm:p-3",
@@ -257,7 +263,7 @@ export function GearMenu({
                 <Link
                   key={item.key}
                   href={item.href}
-                  onClick={onNavigate}
+                  onClick={navigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl border p-2.5 text-start outline-none transition-all duration-150 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none sm:p-3",
@@ -312,18 +318,14 @@ export function GearMenu({
             {categories.map((category) => {
               const active = isSettingsCategoryActive(category, pathname);
               const Icon = category.icon;
-              return (
-                <button
-                  key={category.key}
-                  type="button"
-                  onClick={() => setSelectedCategoryKey(category.key)}
-                  className={cn(
-                    "group flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 text-start outline-none transition-all duration-150 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none sm:p-3",
+              const className = cn(
+"group flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 text-start outline-none transition-all duration-150 hover:-translate-y-0.5 hover:shadow-xs active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none sm:p-3",
                     active
                       ? "border-primary/60 bg-primary-soft/40 hover:border-primary hover:bg-primary-soft/60 ring-1 ring-primary/20"
                       : "border-border/70 bg-surface/90 hover:border-border hover:bg-canvas/80 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary/30",
-                  )}
-                >
+              );
+              const content = (
+                <>
                   <span
                     className={cn(
                       "grid size-9 shrink-0 place-items-center rounded-xl shadow-2xs transition-all duration-200 group-hover:scale-105 motion-reduce:transform-none sm:size-10",
@@ -340,9 +342,11 @@ export function GearMenu({
                         {category.title}
                       </span>
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="rounded-full bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted group-hover:bg-primary-soft group-hover:text-primary">
-                          {persian(category.items.length)} بخش
-                        </span>
+                        {!category.standalone && (
+                          <span className="rounded-full bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-muted group-hover:bg-primary-soft group-hover:text-primary">
+                            {persian(category.items.length)} بخش
+                          </span>
+                        )}
                         <CaretLeftIcon
                           size={14}
                           className="shrink-0 text-border transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:text-primary motion-reduce:transform-none"
@@ -356,7 +360,27 @@ export function GearMenu({
                       </span>
                     )}
                   </div>
-                </button>
+                </>
+              );
+              return category.standalone ? (
+                <Link
+                  key={category.key}
+                  href={settingsCategoryDestination(category)}
+                  onClick={navigate}
+                  aria-current={active ? "page" : undefined}
+                  className={className}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <Button
+                  key={category.key}
+                  variant="ghost"
+                  onClick={() => setSelectedCategoryKey(category.key)}
+                  className={cn("h-auto min-h-0 shadow-none", className)}
+                >
+                  {content}
+                </Button>
               );
             })}
           </nav>
