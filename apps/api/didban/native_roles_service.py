@@ -15,6 +15,9 @@ from .workflow import audit
 
 ROLE_CATALOG = (
     {"key": "bank", "label": "بانک", "balance_side": "debit"},
+    {"key": "cash", "label": "صندوق", "balance_side": "debit"},
+    {"key": "petty_cash", "label": "تنخواه", "balance_side": "debit"},
+    {"key": "cash_bank", "label": "موجودی نقد و بانک", "balance_side": "debit"},
     {"key": "trade_receivable", "label": "مطالبات تجاری", "balance_side": "debit"},
     {"key": "trade_payable", "label": "بدهی تجاری", "balance_side": "credit"},
     {"key": "revenue", "label": "درآمد", "balance_side": "credit"},

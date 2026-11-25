@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  EmptyState,
   LoadingState,
   ErrorState,
   StatusMessage,
@@ -26,10 +27,13 @@ import {
   TableEmptyCell,
 } from "@/components/ui/table";
 import { useNativeInvoices } from "@/hooks/use-native-invoices";
+import { useResource } from "@/hooks/use-resource";
+import type { Proforma } from "@/lib/commercial";
 import type { InvoiceDirection } from "@/lib/native-invoices";
 import { nativeInvoiceReason, expectedDateLabel } from "@/lib/native-invoices";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { Panel } from "./page-parts";
+import { ProformaConversion } from "./commercial/proforma-conversion";
 import { NativeInvoiceTermsDialog } from "./native-invoice-terms-dialog";
 import { NativeInvoiceAllocationDialog } from "./native-invoice-allocation-dialog";
 import { NativeInvoiceReminderDialog } from "./native-invoice-reminder-dialog";
@@ -47,6 +51,11 @@ export function NativeInvoicesView({
 }) {
   const view = useNativeInvoices(direction, followups, operationId);
   const [snapshotsOpen, setSnapshotsOpen] = useState(false);
+  const [convertProformaOpen, setConvertProformaOpen] = useState(false);
+  const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
+  const proformasResource = useResource<{ items: Proforma[] }>(
+    convertProformaOpen ? view.workspace.companyPath("commercial/proformas?limit=50") : null,
+  );
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -58,6 +67,14 @@ export function NativeInvoicesView({
           />
         </Field>
         <div className="flex flex-wrap gap-2">
+          {direction === "sale" && view.workspace.canWrite && (
+            <Button
+              variant="secondary"
+              onClick={() => setConvertProformaOpen(true)}
+            >
+              تبدیل پیش‌فاکتور به فاکتور
+            </Button>
+          )}
           <Button
             variant="secondary"
             onClick={() => setSnapshotsOpen(true)}
@@ -353,6 +370,64 @@ export function NativeInvoicesView({
       <NativeInvoiceReminderDialog view={view} />
       <NativeInvoiceTermsDialog view={view} />
       <NativeInvoiceAllocationDialog view={view} />
+
+      <Drawer
+        title="انتخاب پیش‌فاکتور جهت صدور فاکتور فروش"
+        open={convertProformaOpen}
+        onOpenChange={setConvertProformaOpen}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            پیش‌فاکتور مورد نظر را انتخاب کنید تا مشخصات و اقلام آن به فاکتور فروش تبدیل شود:
+          </p>
+          {proformasResource.loading ? (
+            <LoadingState label="در حال دریافت پیش‌فاکتورها..." />
+          ) : proformasResource.error ? (
+            <ErrorState message={proformasResource.error.message} />
+          ) : !proformasResource.data?.items?.length ? (
+            <EmptyState title="پیش‌فاکتوری برای تبدیل یافت نشد" />
+          ) : (
+            <div className="space-y-2">
+              {proformasResource.data.items
+                .filter((p) => p.direction === "sale" && p.status !== "converted")
+                .map((proforma) => (
+                  <div
+                    key={proforma.id}
+                    className="flex items-center justify-between rounded-xl border border-border p-3 hover:bg-canvas"
+                  >
+                    <div>
+                      <div className="font-medium text-foreground">
+                        پیش‌فاکتور {proforma.number} · {proforma.party_id}
+                      </div>
+                      <div className="text-xs text-muted">
+                        مبلغ: {amount(proforma.total_amount)} {proforma.currency === "TOMAN" ? "تومان" : "ریال"} · تاریخ: {displayDate(proforma.date)}
+                      </div>
+                    </div>
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setSelectedProforma(proforma);
+                        setConvertProformaOpen(false);
+                      }}
+                    >
+                      تبدیل به فاکتور
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </Drawer>
+      {selectedProforma && (
+        <ProformaConversion
+          row={selectedProforma}
+          onClose={() => setSelectedProforma(null)}
+          onComplete={() => {
+            setSelectedProforma(null);
+            view.report.refresh();
+          }}
+        />
+      )}
     </>
   );
 }

@@ -11,23 +11,29 @@ export function usePeriodAccounting() {
   const roleOf = (id: string) =>
     roles.resource.data?.items.find((item) => item.account_id === id)?.role;
   const command = useCommand();
-  const [kind, setKind] = useState("closing");
-  const [period, setPeriod] = useState(
-    workspace.periodId || workspace.periods[0]?.id || "",
-  );
-  const [target, setTarget] = useState("");
+  const [kind, setKind] = useState("temporary_closing");
+  const target = workspace.periodId;
+  const current = workspace.periods.find((item) => item.id === target);
+  const adjacent = current ? workspace.periods.filter((item) =>
+    new Date(`${item.end}T00:00:00Z`).getTime() + 86_400_000 ===
+    new Date(`${current.start}T00:00:00Z`).getTime(),
+  ) : [];
+  const source = current?.previous_period_id || (adjacent.length === 1 ? adjacent[0].id : "");
+  const isClosing = kind === "temporary_closing" || kind === "permanent_closing" || kind === "closing";
+  const period = isClosing ? target : source;
   const [resultAccount, setResultAccount] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [reason, setReason] = useState("");
   const [query, setQuery] = useState("");
   const [created, setCreated] = useState(false);
   function save() {
-    if (!reason.trim()) return;
+    if (!reason.trim() || !period || (kind === "opening" && !target)) return;
+    const apiKind = isClosing ? "closing" : "opening";
     void command.run(
-      workspace.companyPath(`accounting/period-${kind}-drafts`),
+      workspace.companyPath(`accounting/period-${apiKind}-drafts`),
       {
         body:
-          kind === "closing"
+          isClosing
             ? {
                 period_id: period,
                 account_ids: selected,
@@ -59,14 +65,6 @@ export function usePeriodAccounting() {
     query,
     created,
     save,
-    setPeriod: (value: string) => {
-      setPeriod(value);
-      setCreated(false);
-    },
-    setTarget: (value: string) => {
-      setTarget(value);
-      setCreated(false);
-    },
     setResultAccount: (value: string) => {
       setResultAccount(value);
       setCreated(false);
@@ -90,13 +88,29 @@ export function usePeriodAccounting() {
           : old.filter((item) => item !== id),
       );
     },
+    selectAll: () => {
+      const allIds = accounts.items
+        .filter(
+          (item) =>
+            item.active &&
+            (kind === "temporary_closing" || kind === "closing"
+              ? ["revenue", "expense"].includes(roleOf(item.id) || "")
+              : !["revenue", "expense"].includes(roleOf(item.id) || "")),
+        )
+        .map((item) => item.id);
+      setSelected(allIds);
+      setCreated(false);
+    },
+    deselectAll: () => {
+      setSelected([]);
+      setCreated(false);
+    },
     visibleAccounts: accounts.items.filter(
       (item) =>
         item.active &&
-        !!roleOf(item.id) &&
-        (kind === "closing"
-          ? ["revenue", "expense"].includes(roleOf(item.id)!)
-          : !["revenue", "expense"].includes(roleOf(item.id)!)) &&
+        (kind === "temporary_closing" || kind === "closing"
+          ? ["revenue", "expense"].includes(roleOf(item.id) || "")
+          : !["revenue", "expense"].includes(roleOf(item.id) || "")) &&
         `${item.code} ${item.name}`.includes(query),
     ),
     periodOptions: workspace.periods.map((item) => ({

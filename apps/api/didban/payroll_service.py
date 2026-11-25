@@ -13,8 +13,9 @@ from .accounting_models import Draft
 from .accounting_service import capabilities
 from .errors import require
 from .money_type import canonical_money
+from .numbering_service import allocate_number
 from .operation_models import OperationDraft
-from .payroll_engine import calculate_slip, d
+from .payroll_engine import calculate_end_of_service, calculate_slip, d
 from .payroll_models import Employee, EmployeeContract, PayrollRun, PayrollSlip
 from .period_lock_service import require_open_period
 from .security import membership
@@ -152,17 +153,6 @@ def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, 
 def add_employee(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه مدیریت کارمندان ندارید.", 403)
-    require(
-        not db.scalar(
-            select(Employee.id).where(
-                Employee.company_id == company,
-                Employee.employee_code == data["employee_code"],
-            )
-        ),
-        "duplicate_employee_code",
-        "این کد پرسنلی قبلاً ثبت شده است.",
-        409,
-    )
     if data.get("national_id"):
         require(
             not db.scalar(
@@ -178,7 +168,7 @@ def add_employee(db: Session, company: str, user: m.User, data: dict[str, Any]) 
 
     emp = Employee(
         company_id=company,
-        employee_code=data["employee_code"],
+        employee_code=allocate_number(db, company, "personnel", Employee, "employee_code"),
         first_name=data["first_name"],
         last_name=data["last_name"],
         identity_type=data.get("identity_type", "national_id"),
@@ -273,22 +263,7 @@ def update_employee(
     if expected_version is not None:
         check_version(emp.version, expected_version)
 
-    if "employee_code" in data and data["employee_code"] != emp.employee_code:
-        require(
-            not db.scalar(
-                select(Employee.id).where(
-                    Employee.company_id == company,
-                    Employee.employee_code == data["employee_code"],
-                    Employee.id != employee_id,
-                )
-            ),
-            "duplicate_employee_code",
-            "این کد پرسنلی برای کارمند دیگری ثبت شده است.",
-            409,
-        )
-
     for field in (
-        "employee_code",
         "first_name",
         "last_name",
         "identity_type",
@@ -357,22 +332,10 @@ def add_contract(db: Session, company: str, user: m.User, data: dict[str, Any]) 
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه مدیریت قراردادها ندارید.", 403)
     emp = get_entity(db, Employee, company, data["employee_id"])
-    require(
-        not db.scalar(
-            select(EmployeeContract.id).where(
-                EmployeeContract.company_id == company,
-                EmployeeContract.contract_number == data["contract_number"],
-            )
-        ),
-        "duplicate_contract_number",
-        "این شماره قرارداد قبلاً ثبت شده است.",
-        409,
-    )
-
     contract = EmployeeContract(
         company_id=company,
         employee_id=emp.id,
-        contract_number=data["contract_number"],
+        contract_number=allocate_number(db, company, "employee_contract", EmployeeContract, "contract_number"),
         contract_type=data.get("contract_type", "full_time"),
         start_date=data["start_date"],
         end_date=data.get("end_date"),
@@ -457,7 +420,6 @@ def update_contract(
         check_version(con.version, expected_version)
 
     for field in (
-        "contract_number",
         "contract_type",
         "start_date",
         "end_date",
@@ -970,3 +932,241 @@ def create_payroll_operation_draft(
         db, company, user.id, "payroll_run.draft_created", run.id, {"operation_id": res.get("operation_id")}
     )
     return {"run": serialize_run(run), "operation": res}
+
+
+# --- Statutory End-of-Service & Settlement ---
+
+
+def get_employee_settlement(
+    db: Session,
+    company: str,
+    user: m.User,
+    employee_id: str,
+    calculation_date: date | None = None,
+    used_leave_days: Decimal = Decimal(0),
+) -> dict[str, Any]:
+    membership(db, company, user, "read")
+    emp = get_entity(db, Employee, company, employee_id)
+    as_of = calculation_date or date.today()
+
+    contract = db.scalar(
+        select(EmployeeContract)
+        .where(
+            EmployeeContract.company_id == company,
+            EmployeeContract.employee_id == employee_id,
+        )
+        .order_by(EmployeeContract.start_date.desc())
+        .limit(1)
+    )
+
+    base_salary = d(contract.base_salary) if contract else Decimal(0)
+    calc = calculate_end_of_service(
+        base_salary=base_salary,
+        hire_date=emp.hire_date,
+        calculation_date=as_of,
+        used_leave_days=used_leave_days,
+    )
+
+    return {
+        "employee": serialize_employee(emp),
+        "contract": serialize_contract(contract) if contract else None,
+        "calculation_date": str(as_of),
+        "settlement": calc,
+    }
+
+
+# --- Statutory Insurance & Tax Diskettes ---
+
+
+def export_insurance_disk(
+    db: Session,
+    company: str,
+    user: m.User,
+    run_id: str,
+) -> dict[str, Any]:
+    """Generates standard Iranian Social Security Insurance diskette (DSKKAR00 & DSKWOR00)."""
+    membership(db, company, user, "read")
+    run = get_entity(db, PayrollRun, company, run_id)
+    comp = db.get(m.Company, company)
+
+    stmt = (
+        select(PayrollSlip, Employee, EmployeeContract)
+        .join(Employee, PayrollSlip.employee_id == Employee.id)
+        .outerjoin(EmployeeContract, PayrollSlip.contract_id == EmployeeContract.id)
+        .where(PayrollSlip.company_id == company, PayrollSlip.payroll_run_id == run_id)
+        .order_by(Employee.employee_code.asc())
+    )
+    rows = db.execute(stmt).all()
+
+    workshop_code = "0000000000"
+    employer_name = comp.name if comp else "کارگاه"
+
+    year_str = str(run.year)[-2:] if len(str(run.year)) == 4 else str(run.year)
+    month_str = f"{run.month:02d}"
+
+    total_insured = 0
+    total_days = 0
+    total_insured_wage = Decimal(0)
+    total_emp_share = Decimal(0)
+    total_empr_share = Decimal(0)
+
+    wor_lines = []
+    ui_rows = []
+
+    for idx, (slip, emp, con) in enumerate(rows, start=1):
+        # Only include slips with insured earnings > 0
+        emp_share = d(slip.employee_insurance)
+        empr_share = d(slip.employer_insurance)
+        insured_earn = d(slip.insured_earnings)
+        days = int(d(slip.work_days))
+
+        total_insured += 1
+        total_days += days
+        total_insured_wage += insured_earn
+        total_emp_share += emp_share
+        total_empr_share += empr_share
+
+        insurance_num = emp.insurance_number or "0000000000"
+        nat_id = emp.national_id or "0000000000"
+        fname = emp.first_name or ""
+        lname = emp.last_name or ""
+        fath_name = emp.father_name or ""
+        job = emp.job_title or "کارشناس"
+
+        # DSKWOR line: CSV/tab format matching standard SSO specifications
+        wor_line = (
+            f"{idx},{insurance_num},{nat_id},{fname},{lname},{fath_name},{job},"
+            f"{days},{slip.base_pay},{slip.grocery_pay},{slip.housing_pay},"
+            f"{slip.insured_earnings},{slip.employee_insurance},{slip.employer_insurance}"
+        )
+        wor_lines.append(wor_line)
+
+        ui_rows.append({
+            "row_number": idx,
+            "employee_code": emp.employee_code,
+            "employee_name": f"{fname} {lname}".strip(),
+            "national_id": nat_id,
+            "insurance_number": insurance_num,
+            "job_title": job,
+            "days_worked": days,
+            "insured_earnings": slip.insured_earnings,
+            "employee_insurance": slip.employee_insurance,
+            "employer_insurance": slip.employer_insurance,
+            "total_insurance": canonical_money(emp_share + empr_share),
+        })
+
+    # DSKKAR line (Workshop header)
+    kar_line = (
+        f"{workshop_code},{employer_name},{year_str},{month_str},01,"
+        f"{total_insured},{total_days},{canonical_money(total_insured_wage)},"
+        f"{canonical_money(total_emp_share)},{canonical_money(total_empr_share)},"
+        f"{canonical_money(total_emp_share + total_empr_share)}"
+    )
+
+    dskkar00_content = (
+        f"DSK_ID,DSK_NAME,DSK_YY,DSK_MM,DSK_LISTNO,DSK_NUM,DSK_TDD,DSK_TMOT,DSK_TINS,DSK_TNET,DSK_TKAR\n"
+        f"{kar_line}"
+    )
+
+    dskwor00_content = (
+        "DSK_ROW,DSK_NUM,DSK_IDNO,DSK_NAME,DSK_LNAME,DSK_FATH,DSK_OCP,DSK_ROOZ,DSK_RMAH,DSK_BON,DSK_MSK,DSK_MASH,DSK_BIME,DSK_KAR\n"
+        + "\n".join(wor_lines)
+    )
+
+    return {
+        "run_id": run.id,
+        "title": run.title,
+        "year": run.year,
+        "month": run.month,
+        "summary": {
+            "total_insured_employees": total_insured,
+            "total_days_worked": total_days,
+            "total_insured_wage": canonical_money(total_insured_wage),
+            "total_employee_share_7pct": canonical_money(total_emp_share),
+            "total_employer_share_23pct": canonical_money(total_empr_share),
+            "total_insurance_payable": canonical_money(total_emp_share + total_empr_share),
+        },
+        "dskkar00": dskkar00_content,
+        "dskwor00": dskwor00_content,
+        "rows": ui_rows,
+    }
+
+
+def export_tax_disk(
+    db: Session,
+    company: str,
+    user: m.User,
+    run_id: str,
+) -> dict[str, Any]:
+    """Generates standard Iranian Payroll Tax List (سامانه امور مالیاتی ماده ۸۶)."""
+    membership(db, company, user, "read")
+    run = get_entity(db, PayrollRun, company, run_id)
+    comp = db.get(m.Company, company)
+
+    stmt = (
+        select(PayrollSlip, Employee, EmployeeContract)
+        .join(Employee, PayrollSlip.employee_id == Employee.id)
+        .outerjoin(EmployeeContract, PayrollSlip.contract_id == EmployeeContract.id)
+        .where(PayrollSlip.company_id == company, PayrollSlip.payroll_run_id == run_id)
+        .order_by(Employee.employee_code.asc())
+    )
+    rows = db.execute(stmt).all()
+
+    tax_lines = []
+    ui_rows = []
+    total_tax = Decimal(0)
+    total_gross = Decimal(0)
+    total_taxable = Decimal(0)
+
+    for idx, (slip, emp, con) in enumerate(rows, start=1):
+        gross = d(slip.gross_pay)
+        taxable = d(slip.taxable_earnings)
+        tax = d(slip.payroll_tax)
+
+        total_gross += gross
+        total_taxable += taxable
+        total_tax += tax
+
+        nat_id = emp.national_id or "0000000000"
+        fname = emp.first_name or ""
+        lname = emp.last_name or ""
+        contract_type = con.contract_type if con else "full_time"
+
+        tax_line = (
+            f"{idx},{nat_id},{fname} {lname},{contract_type},{slip.work_days},"
+            f"{slip.gross_pay},{slip.base_pay},{slip.taxable_earnings},{slip.payroll_tax}"
+        )
+        tax_lines.append(tax_line)
+
+        ui_rows.append({
+            "row_number": idx,
+            "employee_code": emp.employee_code,
+            "employee_name": f"{fname} {lname}".strip(),
+            "national_id": nat_id,
+            "contract_type": contract_type,
+            "work_days": slip.work_days,
+            "gross_pay": slip.gross_pay,
+            "taxable_earnings": slip.taxable_earnings,
+            "payroll_tax": slip.payroll_tax,
+        })
+
+    tax_file_content = (
+        "ROW,NATIONAL_ID,FULL_NAME,CONTRACT_TYPE,WORK_DAYS,GROSS_PAY,BASE_PAY,TAXABLE_PAY,PAYROLL_TAX\n"
+        + "\n".join(tax_lines)
+    )
+
+    return {
+        "run_id": run.id,
+        "title": run.title,
+        "year": run.year,
+        "month": run.month,
+        "summary": {
+            "total_employees": len(rows),
+            "total_gross_pay": canonical_money(total_gross),
+            "total_taxable_earnings": canonical_money(total_taxable),
+            "total_payroll_tax": canonical_money(total_tax),
+        },
+        "tax_file": tax_file_content,
+        "rows": ui_rows,
+    }
+

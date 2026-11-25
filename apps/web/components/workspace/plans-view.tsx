@@ -197,6 +197,7 @@ export function PlansView() {
               id="plan-date"
               label="تاریخ پرداخت"
               icon={CalendarBlankIcon}
+              required
             >
               <PersianDatePicker id="plan-date" value={due} onChange={setDue} />
             </Field>

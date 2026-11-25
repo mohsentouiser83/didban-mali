@@ -215,3 +215,30 @@ def create_payroll_operation_draft(
             db, company_id, user, run_id, data.accounts, expected_version=data.expected_version
         ),
     )
+
+
+@router.get(C + "/employees/{employee_id}/settlement")
+def get_employee_settlement(
+    company_id: str,
+    employee_id: str,
+    request: Request,
+    used_leave_days: str = Query("0"),
+):
+    from decimal import Decimal
+    with access(request, company_id) as (db, user, _m):
+        return service.get_employee_settlement(
+            db, company_id, user, employee_id, used_leave_days=Decimal(used_leave_days)
+        )
+
+
+@router.get(C + "/payroll/runs/{run_id}/insurance-disk")
+def export_insurance_disk(company_id: str, run_id: str, request: Request):
+    with access(request, company_id) as (db, user, _m):
+        return service.export_insurance_disk(db, company_id, user, run_id)
+
+
+@router.get(C + "/payroll/runs/{run_id}/tax-disk")
+def export_tax_disk(company_id: str, run_id: str, request: Request):
+    with access(request, company_id) as (db, user, _m):
+        return service.export_tax_disk(db, company_id, user, run_id)
+

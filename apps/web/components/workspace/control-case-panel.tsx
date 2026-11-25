@@ -158,7 +158,7 @@ export function ControlCasePanel({
               </Field>
               {view.currentCase && (
                 <>
-                  <Field id="control-state" label="وضعیت">
+                  <Field id="control-state" label="وضعیت" required>
                     <Select
                       id="control-state"
                       value={view.value.state}
@@ -244,7 +244,7 @@ export function ControlCasePanel({
                     view.addActivity();
                   }}
                 >
-                  <Field id="control-activity-kind" label="نوع فعالیت">
+                  <Field id="control-activity-kind" label="نوع فعالیت" required>
                     <Select
                       id="control-activity-kind"
                       value={view.activity.kind}
@@ -283,7 +283,7 @@ export function ControlCasePanel({
                       </Field>
                       <Field
                         id="control-promise-amount"
-                        label="مبلغ وعده"
+                        label="مبلغ وعده (ریال)"
                         icon={CoinsIcon}
                       >
                         <AmountInput
@@ -291,20 +291,6 @@ export function ControlCasePanel({
                           value={view.activity.promise_amount}
                           onValueChange={(promise_amount) =>
                             view.changeActivity({ promise_amount })
-                          }
-                          disabled={view.command.busy}
-                        />
-                      </Field>
-                      <Field id="control-promise-unit" label="واحد مبلغ">
-                        <Select
-                          id="control-promise-unit"
-                          value={view.activity.unit}
-                          options={[
-                            { value: "IRR", label: "ریال" },
-                            { value: "TOMAN", label: "تومان" },
-                          ]}
-                          onValueChange={(unit) =>
-                            view.changeActivity({ unit })
                           }
                           disabled={view.command.busy}
                         />

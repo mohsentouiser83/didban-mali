@@ -9,7 +9,7 @@ from .accounting_schemas import StrictInput
 
 
 class EmployeeInput(StrictInput):
-    employee_code: str = Field(min_length=1, max_length=50)
+    employee_code: str | None = Field(default=None, min_length=1, max_length=50)
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
     identity_type: Literal["national_id", "foreign_national_id"] = "national_id"
@@ -67,8 +67,8 @@ class UpdateEmployeeInput(StrictInput):
 
 class ContractInput(StrictInput):
     employee_id: str = Field(min_length=1, max_length=36)
-    contract_number: str = Field(min_length=1, max_length=50)
-    contract_type: Literal["full_time", "part_time", "hourly", "project"] = "full_time"
+    contract_number: str | None = Field(default=None, min_length=1, max_length=50)
+    contract_type: Literal["full_time", "part_time", "hourly", "project", "honorarium"] = "full_time"
     start_date: CalendarDate
     end_date: CalendarDate | None = None
     status: Literal["draft", "active", "terminated"] = "active"
@@ -89,7 +89,7 @@ class ContractInput(StrictInput):
 
 class UpdateContractInput(StrictInput):
     contract_number: str | None = Field(default=None, min_length=1, max_length=50)
-    contract_type: Literal["full_time", "part_time", "hourly", "project"] | None = None
+    contract_type: Literal["full_time", "part_time", "hourly", "project", "honorarium"] | None = None
     start_date: CalendarDate | None = None
     end_date: CalendarDate | None = None
     status: Literal["draft", "active", "terminated"] | None = None

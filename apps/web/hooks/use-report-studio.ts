@@ -16,13 +16,13 @@ import {
   type StudioWidgetSpec,
 } from "@/lib/report-studio";
 
-export function useReportStudio() {
+export function useReportStudio(initialDefinitionId?: string) {
   const workspace = useWorkspace();
   const command = useCommand();
   const generation = useRef(0);
 
   const [spec, setSpec] = useState<StudioLayoutSpec>(() =>
-    createDefaultStudioSpec(workspace.periodId || "default-period", "IRR"),
+    createDefaultStudioSpec(workspace.periodId, "IRR"),
   );
   const [preview, setPreview] = useState<StudioPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -48,24 +48,27 @@ export function useReportStudio() {
       .catch(() => {});
   }
 
+  const definitionsPath = workspace.companyPath("report-studio/definitions");
+  const [definitionsLoading, setDefinitionsLoading] = useState(true);
+  const [definitionsError, setDefinitionsError] = useState<Error | null>(null);
   useEffect(() => {
-    if (!companyId) return;
+    if (!definitionsPath) return;
     let active = true;
-    const path = workspace.companyPath("report-studio/definitions");
-    if (!path) return;
-
-    api<StudioDefinition[]>(path)
+    api<StudioDefinition[]>(definitionsPath)
       .then((result) => {
-        if (active && Array.isArray(result)) {
-          setDefinitions(result);
+        if (!active) return;
+        setDefinitions(result);
+        if (initialDefinitionId) {
+          const definition = result.find(({ id }) => id === initialDefinitionId);
+          if (!definition) throw new Error("قالب گزارش یافت نشد.");
+          setSelectedDefinition(definition);
+          setSpec(definition.spec);
         }
       })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, [companyId, workspace]);
+      .catch((error: Error) => { if (active) setDefinitionsError(error); })
+      .finally(() => { if (active) setDefinitionsLoading(false); });
+    return () => { active = false; };
+  }, [definitionsPath, initialDefinitionId]);
 
   // Fetch live preview of current spec
   const fetchPreview = useCallback(
@@ -98,13 +101,9 @@ export function useReportStudio() {
     [workspace, spec],
   );
 
-  // Synchronize spec with workspace.periodId if initial was default
+  // The header owns the period, including when loading a stored template.
   const [prevPeriod, setPrevPeriod] = useState(workspace.periodId);
-  if (
-    workspace.periodId &&
-    workspace.periodId !== prevPeriod &&
-    (!spec.global_filters.period_id || spec.global_filters.period_id === "default-period")
-  ) {
+  if (workspace.periodId !== prevPeriod || spec.global_filters.period_id !== workspace.periodId) {
     setPrevPeriod(workspace.periodId);
     setSpec((prev) => ({
       ...prev,
@@ -116,7 +115,7 @@ export function useReportStudio() {
   const periodId = spec.global_filters.period_id;
 
   useEffect(() => {
-    if (!companyId || !periodId) return;
+    if (!companyId || !periodId || (initialDefinitionId && definitionsLoading) || definitionsError) return;
     let active = true;
 
     const timer = setTimeout(() => {
@@ -129,12 +128,15 @@ export function useReportStudio() {
       active = false;
       clearTimeout(timer);
     };
-  }, [companyId, periodId, spec, fetchPreview]);
+  }, [companyId, periodId, spec, fetchPreview, initialDefinitionId, definitionsLoading, definitionsError]);
 
   function updateGlobalFilters(updates: Partial<StudioGlobalFilters>) {
     setSpec((prev) => ({
       ...prev,
       global_filters: { ...prev.global_filters, ...updates },
+      sections: updates.unit ? prev.sections.map(section => ({ ...section,
+        widgets: section.widgets.map(widget => ({ ...widget, unit: updates.unit! })),
+      })) : prev.sections,
     }));
   }
 
@@ -257,41 +259,43 @@ export function useReportStudio() {
 
   function saveTemplate(name: string, isDashboard?: boolean) {
     if (!name.trim() || !workspace.company) return;
-    void command.run<{ id: string; name: string; is_dashboard?: boolean }>(
-      workspace.companyPath("report-studio/definitions"),
+    const savingSpec = { ...spec, title: name.trim() };
+    void command.run<StudioDefinition>(
+      workspace.companyPath(selectedDefinition
+        ? `report-studio/definitions/${selectedDefinition.id}`
+        : "report-studio/definitions"),
       {
+        method: selectedDefinition ? "PATCH" : "POST",
+        version: selectedDefinition?.version,
         body: {
-          name: name.trim(),
-          spec,
-          is_dashboard: Boolean(isDashboard),
+          name: name.trim(), spec: savingSpec,
+          is_dashboard: isDashboard ?? selectedDefinition?.is_dashboard ?? false,
         },
       },
-      (res) => {
+      (result) => {
         loadDefinitions();
         setTemplateName("");
-        if (res && res.id) {
-          setSelectedDefinition({
-            id: res.id,
-            name: res.name,
-            version: 1,
-            is_dashboard: res.is_dashboard,
-            spec,
-          });
-        }
+        setSelectedDefinition(result);
+        setSpec(savingSpec);
       },
+      "قالب گزارش ذخیره شد.",
     );
   }
 
   function setAsDashboard(definitionId?: string) {
     const targetId = definitionId || selectedDefinition?.id;
     if (!targetId || !workspace.company) return;
-    void command.run<{ id: string; name: string; is_dashboard: boolean }>(
+    if (selectedDefinition?.system_key && selectedDefinition.version === 1) {
+      saveTemplate(selectedDefinition.name, true);
+      return;
+    }
+    void command.run<{ id: string; name: string; version: number; is_dashboard: boolean }>(
       workspace.companyPath(`report-studio/definitions/${targetId}/set-dashboard`),
       { method: "POST" },
-      () => {
+      (result) => {
         loadDefinitions();
         setSelectedDefinition((prev) =>
-          prev ? { ...prev, is_dashboard: true } : prev,
+          prev ? { ...prev, version: result.version, is_dashboard: true } : prev,
         );
       },
     );
@@ -315,12 +319,12 @@ export function useReportStudio() {
     if (def.spec) {
       setSelectedDefinition(def);
       setSpec(def.spec);
-      fetchPreview(def.spec);
+      fetchPreview({ ...def.spec, global_filters: { ...def.spec.global_filters, period_id: workspace.periodId } });
     }
   }
 
   function resetToDefault() {
-    const fresh = createDefaultStudioSpec(workspace.periodId || "default-period", "IRR");
+    const fresh = createDefaultStudioSpec(workspace.periodId, "IRR");
     setSelectedDefinition(null);
     setSpec(fresh);
     fetchPreview(fresh);
@@ -329,6 +333,8 @@ export function useReportStudio() {
   return {
     spec,
     setSpec,
+    definitionsLoading,
+    definitionsError,
     preview,
     previewLoading,
     previewError,
@@ -340,7 +346,7 @@ export function useReportStudio() {
     setAiPrompt,
     aiMessage,
     busy: command.busy || previewLoading,
-    error: command.error || previewError,
+    error: command.error || definitionsError || previewError,
     updateGlobalFilters,
     addSection,
     removeSection,

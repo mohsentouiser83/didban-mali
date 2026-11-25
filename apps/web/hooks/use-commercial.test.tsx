@@ -29,10 +29,11 @@ it("clears optional counterparty fields in a versioned update", async () => {
   const { result } = renderHook(useCounterparties);
   await waitFor(() => expect(result.current.canEdit).toBe(true));
   const row = {
-    id: "party", version: 3, name: "فروشنده", code: "A1", active: true,
+    id: "party", type: "supplier" as const, version: 3, name: "فروشنده", code: "A1", active: true,
     national_id: null, economic_code: null, phone: "02199999999", address: null, credit_limit_irr: "25000",
   };
   act(() => result.current.open(row));
+  expect(counterpartyForm(row)).not.toHaveProperty("code");
   const form = { ...counterpartyForm(row), phone: "", credit_limit_irr: "" };
   act(() => result.current.save(form));
 
@@ -58,7 +59,7 @@ it("retries an identical proforma request with its original idempotency key and 
   const { result } = renderHook(useProformas);
   await waitFor(() => expect(result.current.canPrepare).toBe(true));
   act(() => result.current.open());
-  const form = { ...proformaForm(), party_id: "A1", number: "PF-1", currency: "TOMAN" as const };
+  const form = { ...proformaForm(), party_id: "A1", currency: "TOMAN" as const };
   form.lines = [
     { ...form.lines[0], description: "ردیف اول", unit_price: "10.5" },
     { key: 1, item_id: "", description: "ردیف دوم", quantity: "3", unit_price: "250", discount: "25" },
@@ -68,6 +69,7 @@ it("retries an identical proforma request with its original idempotency key and 
   act(() => result.current.save(form));
 
   await waitFor(() => expect(written).toHaveLength(2));
+  expect(written[0].body).not.toHaveProperty("number");
   expect(written[0].key).toBeTruthy();
   expect(written[1].key).toBe(written[0].key);
   expect(written[1].body).toMatchObject({

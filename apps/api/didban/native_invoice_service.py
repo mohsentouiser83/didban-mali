@@ -306,7 +306,7 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
         409,
     )
     require(
-        proof["reference"] == data["reference"],
+        data["reference"] is None or proof["reference"] == data["reference"],
         "native_invoice_reference",
         "شماره فاکتور باید با مرجع عملیات برابر باشد.",
     )

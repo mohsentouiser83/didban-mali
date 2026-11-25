@@ -123,7 +123,7 @@ export function BlockEditor({
         {/* Tab 1: Data Source */}
         {activeTab === "datasource" && (
           <div className="space-y-4">
-            <Field id="block-title" label="عنوان بلاک">
+            <Field id="block-title" label="عنوان بلاک" required>
               <Input
                 id="block-title"
                 value={block.title}
@@ -132,7 +132,7 @@ export function BlockEditor({
               />
             </Field>
 
-            <Field id="block-entity" label="انتخاب منبع داده (Data Source)">
+            <Field id="block-entity" label="انتخاب منبع داده (Data Source)" required>
               <Select
                 id="block-entity"
                 value={block.entity_type}
@@ -262,7 +262,7 @@ export function BlockEditor({
         {/* Tab 3: Visualization & Columns */}
         {activeTab === "viz" && (
           <div className="space-y-4">
-            <Field id="block-viz" label="نوع نمایش (Visualization)">
+            <Field id="block-viz" label="نوع نمایش (Visualization)" required>
               <Select
                 id="block-viz"
                 value={block.visualization}
@@ -310,7 +310,7 @@ export function BlockEditor({
                   />
                 </Field>
 
-                <Field id="block-agg" label="تابع محاسبه تجمیعی">
+                <Field id="block-agg" label="تابع محاسبه تجمیعی" required>
                   <Select
                     id="block-agg"
                     value={block.aggregation?.function || "count"}

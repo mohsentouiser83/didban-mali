@@ -120,17 +120,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </div>
                 {(workspace.periods || []).length > 0 ? (
                   <Select
-                    value={workspace.periodId || "latest"}
-                    onValueChange={(id) =>
-                      workspace.setPeriodId(id === "latest" ? "" : id)
-                    }
-                    options={[
-                      { value: "latest", label: "آخرین نتیجه" },
-                      ...(workspace.periods || []).map((period) => ({
-                        value: period.id,
-                        label: period.name,
-                      })),
-                    ]}
+                    value={workspace.periodId}
+                    onValueChange={workspace.setPeriodId}
+                    options={(workspace.periods || []).map((period) => ({
+                      value: period.id,
+                      label: period.name,
+                    }))}
                     label="دوره مالی"
                     className="w-28 min-w-0 px-2 text-xs sm:w-44 sm:px-3 sm:text-sm"
                   />
@@ -162,7 +157,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           )}
         >
           <div
-            key={workspace.company?.id || "no-company"}
+            key={`${workspace.company?.id || "no-company"}:${workspace.periodId}`}
             className={cn(
               "w-full",
               isAssistant && "flex min-h-0 flex-1 flex-col overflow-hidden",

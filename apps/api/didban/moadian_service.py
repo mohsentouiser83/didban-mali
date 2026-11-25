@@ -125,25 +125,32 @@ def history(db, company, member, limit: int, cursor: str | None) -> dict:
     }
 
 
-def candidates(db, company, user, member) -> dict:
+def candidates(db, company, user, member, include_all: bool = False) -> dict:
     _authority(db, company, member, sending=True)
-    sent = select(Transmission.invoice_id).where(Transmission.company_id == company)
-    ids = db.scalars(
+    sent_ids = set(
+        db.scalars(select(Transmission.invoice_id).where(Transmission.company_id == company))
+    )
+    stmt = (
         select(NativeInvoice.id)
         .where(
             NativeInvoice.company_id == company,
             NativeInvoice.direction == "sale",
-            ~NativeInvoice.id.in_(sent),
         )
         .order_by(NativeInvoice.created_at.desc(), NativeInvoice.id.desc())
     )
+    if not include_all and sent_ids:
+        stmt = stmt.where(~NativeInvoice.id.in_(sent_ids))
+    ids = list(db.scalars(stmt))
     items = []
     for identifier in ids:
         invoice = invoice_detail(db, company, user, identifier)
         if can_build(invoice):
             items.append(
                 {key: invoice[key] for key in ("id", "version", "reference", "date", "amount", "party_id")}
-                | {"source": {"kind": invoice["source"]["kind"]}}
+                | {
+                    "source": {"kind": invoice["source"]["kind"]},
+                    "moadian_status": "sent" if identifier in sent_ids else "not_sent",
+                }
             )
     return {"items": items}
 

@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models as m
+from . import system_report_templates as system_reports
 from .cheque_models import Cheque
 from .custom_reports.exports import export_custom_report_pdf
 from .errors import DomainError, require
@@ -547,6 +548,12 @@ def _evaluate_widget(
     limit = widget.limit or 8
     filters = widget.filters
 
+    if metric in system_reports.TABLE_METRICS:
+        expected_basis = "bank" if metric == "daily_cash" else "payroll" if metric == "imported_payroll" else "ledger"
+        require(section_basis in {"all", expected_basis}, "system_report_basis", "مبنای بخش با منبع جدول سازگار نیست.")
+        require(w_type == "data_table", "system_report_widget_type", "این منبع باید در جدول نمایش داده شود.")
+        return system_reports.evaluate_table(db, company_id, period, widget, global_filters)
+
     # 1. KPI CARD WIDGET
     if w_type == "kpi_card":
         value = 0
@@ -904,6 +911,8 @@ def preview(
                             "entity": widget.entity,
                             "metric": widget.metric,
                             "group_by": widget.group_by,
+                            "filters": widget.filters.model_dump(),
+                            "limit": widget.limit,
                             "unit": widget.unit or spec.global_filters.unit,
                             "color": widget.color or "primary",
                             "col_span": getattr(widget, "col_span", None) or (3 if widget.type == "kpi_card" else 6 if "chart" in widget.type else 12),
@@ -952,6 +961,8 @@ def preview(
                     "entity": widget.entity,
                     "metric": widget.metric,
                     "group_by": widget.group_by,
+                    "filters": widget.filters.model_dump(),
+                    "limit": widget.limit,
                     "unit": widget.unit or spec.global_filters.unit,
                     "color": widget.color or "primary",
                     "col_span": getattr(widget, "col_span", None) or (3 if widget.type == "kpi_card" else 6 if "chart" in widget.type else 12),
@@ -1046,7 +1057,17 @@ def save(
     is_dashboard = bool(getattr(data, "is_dashboard", False))
 
     if definition_id:
-        definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
+        definition = db.scalar(select(SavedReportDefinition).where(
+            SavedReportDefinition.company_id == company_id, SavedReportDefinition.id == definition_id,
+        ))
+        system_key = system_reports.template_key(company_id, definition_id)
+        if definition is None and system_key:
+            require(expected_version == 1, "version_conflict", "قالب تغییر کرده است؛ دوباره بارگذاری کنید.", 409)
+            definition = SavedReportDefinition(id=definition_id, company_id=company_id,
+                name=data.name, spec={}, actor_id=user.id, version=1)
+            db.add(definition)
+        if definition is None:
+            definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
         check_version(definition, expected_version)
         definition.name = data.name
         if getattr(data, "is_dashboard", None) is None and isinstance(definition.spec, dict):
@@ -1057,6 +1078,8 @@ def save(
             "studio_spec": layout_dict,
             "is_dashboard": is_dashboard,
         }
+        if system_key:
+            spec_payload["system_key"] = system_key
         if is_dashboard and definition.spec.get("is_dashboard"):
             for key in ("dashboard_mode", "dashboard_snapshot"):
                 if key in definition.spec:
@@ -1105,6 +1128,8 @@ def save(
         "id": definition.id,
         "name": definition.name,
         "version": definition.version,
+        "system_key": definition.spec.get("system_key"),
+        "can_delete": False,
         "is_dashboard": is_dashboard,
         "spec": data.spec.model_dump(),
     }
@@ -1126,16 +1151,22 @@ def list_definitions(db: Session, company_id: str) -> list[dict]:
                     "id": d.id,
                     "name": d.name,
                     "version": d.version,
+                    "system_key": d.spec.get("system_key"),
+                    "can_delete": False,
                     "created_at": d.created_at.isoformat() if d.created_at else None,
                     "spec": d.spec.get("studio_spec"),
                     "is_dashboard": bool(d.spec.get("is_dashboard")),
                 }
             )
-    return results
+    existing = {row["id"] for row in results}
+    return [row for row in system_reports.definitions(company_id) if row["id"] not in existing] + results
 
 
 def get_definition(db: Session, company_id: str, definition_id: str) -> dict:
     """Retrieves a single saved Studio dashboard template."""
+    for definition in list_definitions(db, company_id):
+        if definition["id"] == definition_id:
+            return definition
     definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
     studio_spec = definition.spec.get("studio_spec") if isinstance(definition.spec, dict) else None
     return {
@@ -1406,13 +1437,30 @@ def export_definition_pdf(
                     cols = w_data.get("columns", [])
                     rows = w_data.get("rows", [])
                     if cols and rows:
+                        total = w_data.get("total_count", len(rows))
+                        shown = min(40, len(rows))
+                        notes = [w_data["reason"]] if w_data.get("reason") else []
+                        if total > shown:
+                            notes.append(f"{localized(shown)} ردیف از {localized(total)}")
+                        block_title = " · ".join([f"{sec_title} - {w_title}", *notes])
+                        money_keys = {col["key"] for col in cols if col.get("format") == "money"}
+                        export_rows = [
+                            {key: localized(value, amount=True) if key in money_keys else value
+                             for key, value in row.items()}
+                            for row in rows
+                        ]
                         blocks_results.append(
                             {
-                                "title": f"{sec_title} - {w_title}",
-                                "columns": cols,
-                                "rows": rows,
+                                "title": block_title,
+                                "columns": [
+                                    {**col, "label_fa": col.get("label_fa") or col.get("label") or col["key"]}
+                                    for col in cols
+                                ],
+                                "rows": export_rows,
                             }
                         )
+                    elif w_data.get("reason"):
+                        blocks_results.append({"title": w_data["reason"], "columns": [], "rows": []})
                 elif "chart" in w_type:
                     categories = w_data.get("categories") or []
                     series = w_data.get("series") or []

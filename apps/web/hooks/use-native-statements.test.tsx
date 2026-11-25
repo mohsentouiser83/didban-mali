@@ -50,7 +50,7 @@ it("does not turn missing opening evidence into a zero bank balance", () => {
   expect(result.current.metrics[0].value).toBeNull();
   expect(result.current.metrics[0].reason).toContain("افتتاحیه");
 });
-it("approval pins the selected frozen run digest and never transfers to a different period", async () => {
+it("approval pins the selected frozen run digest", async () => {
   const { result } = renderHook(() => useNativeStatements());
   act(() =>
     result.current.selectRun({
@@ -68,9 +68,6 @@ it("approval pins the selected frozen run digest and never transfers to a differ
     "/companies/c/accounting/statements/fixed/approvals",
     expect.objectContaining({ body: { digest: "f".repeat(64) } }),
   ]);
-  act(() => result.current.setPeriod("next"));
-  expect(result.current.run).toBeNull();
-  expect(result.current.metrics[0].value).toBeNull();
 });
 
 it("saves the same explicit cutoff used by the preview rather than silently switching to period end", async () => {

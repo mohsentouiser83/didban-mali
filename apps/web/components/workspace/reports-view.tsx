@@ -1,11 +1,19 @@
 "use client";
 import {
+  BankIcon,
+  BooksIcon,
+  ChartLineUpIcon,
   ChartLineUpIcon as HeaderIcon,
+  ClockAfternoonIcon,
   DownloadSimpleIcon,
   FilePdfIcon,
+  FileTextIcon,
   PlusIcon,
+  ReceiptIcon,
   ShieldCheckIcon,
   SquaresFourIcon,
+  UsersThreeIcon,
+  WalletIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -23,20 +31,13 @@ import {
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
-import { useCommand } from "@/hooks/use-command";
-import { usePagedResource } from "@/hooks/use-paged-resource";
-import { useWorkspace } from "@/hooks/workspace";
-import { listItems, type Report } from "@/lib/api";
+import { useReportArchive } from "@/hooks/use-report-archive";
 import { displayDate, persian } from "@/lib/utils";
-import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
-import { BuiltInReportList } from "./built-in-report-list";
 
 export function ReportsView() {
-  const workspace = useWorkspace();
-  const resource = usePagedResource<Report>(workspace.companyPath("reports"));
-  const command = useCommand();
-  const [approving, setApproving] = useState<Report | null>(null);
+  const archive = useReportArchive();
+  const { workspace, resource, command, approving } = archive;
 
   if (!workspace.company) return <NoCompany />;
 
@@ -44,24 +45,105 @@ export function ReportsView() {
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="آرشیو گزارش‌ها"
+        title="گزارش‌ها و دفاتر مالی"
         action={
           <ButtonLink href="/reports/studio" variant="primary" className="gap-1.5">
             <PlusIcon size={18} />
-            ساخت گزارش
+            ساخت گزارش سفارشی
           </ButtonLink>
         }
       />
 
+      {/* Directory of Core Financial & Legal Reports */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {
+            title: "صورت‌های مالی اساسی",
+            desc: "ترازنامه، سود و زیان و تراز آزمایشی",
+            href: "/reports/native",
+            icon: ChartLineUpIcon,
+            color: "text-primary",
+          },
+          {
+            title: "دفاتر الکترونیک قانونی",
+            desc: "دفتر کل و معین با شماره‌گذاری روزانه",
+            href: "/accounting/electronic-ledgers",
+            icon: BooksIcon,
+            color: "text-info",
+          },
+          {
+            title: "دفتر روزنامه اسناد",
+            desc: "فهرست و ریز آرتیکل‌های ثبتی",
+            href: "/reports/journals",
+            icon: FileTextIcon,
+            color: "text-foreground",
+          },
+          {
+            title: "گزارش سامانه مؤدیان",
+            desc: "کارنامه ارسال و استعلام صورتحساب‌ها",
+            href: "/moadian/reports",
+            icon: ReceiptIcon,
+            color: "text-warning",
+          },
+          {
+            title: "چک‌های صیادی و ضمانتی",
+            desc: "دریافتنی، پرداختنی و ضمانت نزد دیگران",
+            href: "/settlements/cheques",
+            icon: BankIcon,
+            color: "text-success",
+          },
+          {
+            title: "جریان نقدینگی و پیش‌بینی",
+            desc: "پیش‌بینی ۳۰ روزه و سناریوسازی وجه نقد",
+            href: "/cashflow/forecast",
+            icon: WalletIcon,
+            color: "text-primary",
+          },
+          {
+            title: "حقوق و دستمزد و کارکرد",
+            desc: "فیش‌های حقوقی و لیست بیمه و مالیات",
+            href: "/payroll",
+            icon: UsersThreeIcon,
+            color: "text-muted",
+          },
+          {
+            title: "مرکز حساب‌ها (ابعاد)",
+            desc: "گزارشگری بر اساس پروژه‌ها و مراکز هزینه",
+            href: "/reports/dimensions",
+            icon: SquaresFourIcon,
+            color: "text-secondary",
+          },
+        ].map((item) => {
+          const IconComponent = item.icon;
+          return (
+            <ButtonLink
+              key={item.href}
+              href={item.href}
+              variant="secondary"
+              className="group flex flex-col items-start justify-between h-auto p-4 rounded-2xl border border-border bg-surface text-right shadow-xs hover:border-primary/40 hover:bg-canvas transition-all"
+            >
+              <div className="flex w-full items-center justify-between mb-2">
+                <span className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">
+                  {item.title}
+                </span>
+                <div className="size-8 rounded-xl bg-canvas flex items-center justify-center border border-border/60">
+                  <IconComponent size={18} className={item.color} />
+                </div>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">{item.desc}</p>
+            </ButtonLink>
+          );
+        })}
+      </div>
+
       <div className="space-y-6">
-        <BuiltInReportList />
-        <Panel title="صورت‌های مالی و گزارش‌های رسمی">
-          {resource.loading ? (
+        <Panel title="آرشیو گزارش‌های تولیدشده و استودیو">
+          {archive.loading ? (
             <LoadingState />
-          ) : resource.error ? (
+          ) : archive.error ? (
             <ErrorState
-              message={resource.error.message}
-              onRetry={resource.refresh}
+              message={archive.error.message}
+              onRetry={archive.refresh}
             />
           ) : (
             <>
@@ -69,14 +151,33 @@ export function ReportsView() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>گزارش</TableHead>
-                    <TableHead>تاریخ تولید</TableHead>
-                    <TableHead>وضعیت تأیید</TableHead>
+                    <TableHead>تاریخ</TableHead>
+                    <TableHead>وضعیت</TableHead>
                     <TableHead>عملیات و دریافت</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {listItems(resource.data).length ? (
-                    listItems(resource.data).map((report) => (
+                  {archive.definitions.map((definition) => (
+                    <TableRow key={definition.id}
+                      className="cursor-pointer hover:bg-canvas"
+                      onClick={() => archive.openDefinition(definition.id)}>
+                      <TableRowHeader>
+                        <ButtonLink href={`/reports/studio?definition=${encodeURIComponent(definition.id)}`}
+                          variant="ghost" onClick={(event) => event.stopPropagation()}>
+                          {definition.name}
+                        </ButtonLink>
+                      </TableRowHeader>
+                      <TableCell className="whitespace-nowrap">{definition.created_at ? displayDate(definition.created_at) : "—"}</TableCell>
+                      <TableCell><Badge tone={definition.system_key ? "primary" : "neutral"}>
+                        {definition.system_key ? "قالب سامانه" : "قالب گزارش"}
+                      </Badge></TableCell>
+                      <TableCell><Button variant="ghost" onClick={(event) => {
+                        event.stopPropagation(); archive.openDefinition(definition.id);
+                      }}>{workspace.canWrite ? "ویرایش" : "مشاهده"}</Button></TableCell>
+                    </TableRow>
+                  ))}
+                  {archive.reports.length ? (
+                    archive.reports.map((report) => (
                       <TableRow key={report.id}>
                         <TableRowHeader>
                           <span className="block font-medium">{report.title}</span>
@@ -102,16 +203,7 @@ export function ReportsView() {
                                 key={mode}
                                 variant={mode === "fixed" ? "soft" : "ghost"}
                                 disabled={command.busy}
-                                onClick={() => {
-                                  void command.run(
-                                    workspace.companyPath(
-                                      `report-studio/reports/${report.id}/set-dashboard?mode=${mode}`,
-                                    ),
-                                    { method: "POST" },
-                                    () => resource.refresh(),
-                                    "داشبورد شرکت تنظیم شد.",
-                                  );
-                                }}
+                                onClick={() => archive.setDashboard(report, mode)}
                                 className="gap-1.5 text-xs"
                               >
                                 <SquaresFourIcon size={15} />
@@ -154,8 +246,7 @@ export function ReportsView() {
                                 <Button
                                   variant="ghost"
                                   onClick={() => {
-                                    setApproving(report);
-                                    command.clearError();
+                                    archive.requestApproval(report);
                                   }}
                                   className="text-xs"
                                 >
@@ -167,9 +258,9 @@ export function ReportsView() {
                         </TableCell>
                       </TableRow>
                     ))
-                  ) : (
+                  ) : !archive.definitions.length ? (
                     <TableEmptyCell colSpan={4} title="هنوز گزارشی تولید نشده است" />
-                  )}
+                  ) : null}
                 </TableBody>
               </Table>
               <CursorPagination {...resource} />
@@ -181,25 +272,9 @@ export function ReportsView() {
       <ConfirmDialog
         title="تأیید مالی این نسخه؟"
         open={!!approving}
-        onOpenChange={(open) => {
-          if (!open) setApproving(null);
-        }}
+        onOpenChange={(open) => { if (!open) archive.closeApproval(); }}
         busy={command.busy}
-        onConfirm={() => {
-          if (approving)
-            void command.run(
-              workspace.companyPath(`reports/${approving.id}/approvals`),
-              {
-                body: { expected_version: approving.version },
-                version: approving.version,
-              },
-              () => {
-                setApproving(null);
-                resource.refresh();
-              },
-              "تأیید این نسخه ثبت شد.",
-            );
-        }}
+        onConfirm={archive.confirmApproval}
       >
         <p>
           {approving?.title} · نسخه {persian(approving?.version || 1)}

@@ -1,0 +1,200 @@
+import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
+import type { AccountNature, LedgerAccount } from "./accounting";
+
+export type AccountLevel = "group" | "general" | "subsidiary" | "detail";
+export const ACCOUNT_LEVEL_OPTIONS: { value: AccountLevel; label: string }[] = [
+  { value: "group", label: "گروه" },
+  { value: "general", label: "کل" },
+  { value: "subsidiary", label: "معین" },
+  { value: "detail", label: "تفصیلی" },
+];
+export const accountLevelLabel = (level?: string | null) =>
+  ACCOUNT_LEVEL_OPTIONS.find((option) => option.value === level)?.label || "تعیین‌نشده";
+export const parentAccountLevel = (level: string): AccountLevel | null =>
+  level === "detail"
+    ? "subsidiary"
+    : level === "subsidiary"
+      ? "general"
+      : level === "general"
+        ? "group"
+        : null;
+
+export function isAccountPostable(account: Pick<LedgerAccount, "active" | "level" | "has_children" | "postable">): boolean {
+  if (!account.active) return false;
+  if (account.level === "group") return false;
+  if (account.has_children) return false;
+  if (account.postable === false) return false;
+  return true;
+}
+
+export function accountCodeHint(level: string, parentCode?: string | null): string {
+  switch (level) {
+    case "group":
+      return "الگوی کد گروه: ۲ رقم عددی (مثلاً 11)";
+    case "general":
+      return parentCode
+        ? `الگوی کد کل: ۴ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
+        : "الگوی کد کل: ۴ رقم عددی با پیشوند کد گروه بالادست";
+    case "subsidiary":
+      return parentCode
+        ? `الگوی کد معین: ۶ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
+        : "الگوی کد معین: ۶ رقم عددی با پیشوند کد کل بالادست";
+    case "detail":
+      return parentCode
+        ? `الگوی کد تفصیلی: حداقل ۸ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
+        : "الگوی کد تفصیلی: حداقل ۸ رقم عددی با پیشوند کد معین بالادست";
+    default:
+      return "";
+  }
+}
+
+export function suggestAccountCode(
+  accounts: Pick<LedgerAccount, "id" | "code">[],
+  level: string,
+  parentId?: string | null,
+): string {
+  const existing = new Set(accounts.map((a) => a.code));
+  if (level === "group") {
+    const nums = accounts
+      .map((a) => a.code)
+      .filter((code) => /^[0-9]{2}$/.test(code))
+      .map((code) => Number(code));
+    const start = nums.length ? Math.max(...nums) + 1 : 1;
+    for (let n = start; n <= 99; n++) {
+      const candidate = String(n).padStart(2, "0");
+      if (!existing.has(candidate)) return candidate;
+    }
+    for (let n = 1; n < start; n++) {
+      const candidate = String(n).padStart(2, "0");
+      if (!existing.has(candidate)) return candidate;
+    }
+    return "";
+  }
+  const parent = accounts.find((a) => a.id === parentId);
+  if (!parent) return "";
+  const prefix = parent.code;
+  const targetLen = prefix.length + 2;
+  const nums = accounts
+    .map((a) => a.code)
+    .filter((code) => code.startsWith(prefix) && code.length === targetLen && /^[0-9]+$/.test(code.slice(prefix.length)))
+    .map((code) => Number(code.slice(prefix.length)));
+  const start = nums.length ? Math.max(...nums) + 1 : 1;
+  for (let n = start; n <= 99; n++) {
+    const candidate = `${prefix}${String(n).padStart(2, "0")}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  for (let n = 1; n < start; n++) {
+    const candidate = `${prefix}${String(n).padStart(2, "0")}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  if (level === "detail") {
+    for (let n = 100; n <= 999; n++) {
+      const candidate = `${prefix}${String(n).padStart(3, "0")}`;
+      if (!existing.has(candidate)) return candidate;
+    }
+  }
+  return "";
+}
+
+export function validateAccountCodePattern(
+  code: string,
+  level: string,
+  parentCode?: string | null,
+): string | undefined {
+  const trimmed = code.trim();
+  if (!trimmed) return "کد حساب لازم است.";
+  if (level === "group") {
+    return /^[0-9]{2}$/.test(trimmed) ? undefined : "کد گروه باید دقیقاً ۲ رقم عددی باشد (مثلاً 11).";
+  }
+  if (level === "general") {
+    if (!/^[0-9]{4}$/.test(trimmed) || (parentCode && !trimmed.startsWith(parentCode))) {
+      return "کد کل باید دقیقاً ۴ رقم عددی باشد و با کد گروه بالادست شروع شود.";
+    }
+    return undefined;
+  }
+  if (level === "subsidiary") {
+    if (!/^[0-9]{6}$/.test(trimmed) || (parentCode && !trimmed.startsWith(parentCode))) {
+      return "کد معین باید دقیقاً ۶ رقم عددی باشد و با کد کل بالادست شروع شود.";
+    }
+    return undefined;
+  }
+  if (level === "detail") {
+    if (!/^[0-9]{8,12}$/.test(trimmed) || (parentCode && !trimmed.startsWith(parentCode))) {
+      return "کد تفصیلی باید عددی (حداقل ۸ رقم) باشد و با کد معین بالادست شروع شود.";
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+export const TREASURY_ROLES = ["bank", "cash", "petty_cash", "cash_bank"] as const;
+export type TreasuryRole = (typeof TREASURY_ROLES)[number];
+
+export const ACCOUNT_ROLE_OPTIONS = [
+  { value: "unassigned", label: "بدون نقش" },
+  { value: "bank", label: "بانک" },
+  { value: "cash", label: "صندوق" },
+  { value: "petty_cash", label: "تنخواه‌گردان" },
+  { value: "cash_bank", label: "موجودی نقد و بانک" },
+  { value: "trade_receivable", label: "مطالبات تجاری" },
+  { value: "trade_payable", label: "بدهی تجاری" },
+  { value: "revenue", label: "درآمد" },
+  { value: "expense", label: "هزینه" },
+  { value: "other_asset", label: "سایر دارایی‌ها" },
+  { value: "other_liability", label: "سایر بدهی‌ها" },
+  { value: "equity", label: "حقوق مالکانه" },
+  { value: "payroll_payable", label: "حقوق پرداختنی" },
+  { value: "insurance_payable", label: "بیمه پرداختنی" },
+  { value: "payroll_tax_payable", label: "مالیات حقوق پرداختنی" },
+];
+
+export function treasuryRoleLabel(role?: string | null): string {
+  if (role === "bank") return "بانک";
+  if (role === "cash") return "صندوق";
+  if (role === "petty_cash") return "تنخواه";
+  if (role === "cash_bank") return "نقد و بانک";
+  return "";
+}
+
+export function accountRoleLabel(role?: string | null): string {
+  if (!role || role === "unassigned") return "بدون نقش";
+  const match = ACCOUNT_ROLE_OPTIONS.find((opt) => opt.value === role);
+  return match?.label || role;
+}
+
+export function isTreasuryAccount(account: { role?: string | null; name: string; code?: string }): boolean {
+  if (account.role && (TREASURY_ROLES as readonly string[]).includes(account.role)) {
+    return true;
+  }
+  const name = (account.name || "").toLowerCase();
+  return name.includes("بانک") || name.includes("صندوق") || name.includes("تنخواه");
+}
+
+export function isTreasuryRoleKey(roleKey: string): boolean {
+  return ["bank_a", "bank_b", "cash_bank", "bank", "cash", "petty_cash"].includes(roleKey);
+}
+
+/** Preserve text codes, explicit levels and batch parent references from uploaded tables. */
+export function accountImportRows(parsed: ParsedTableImport) {
+  const headers = parsed.headers.map((header) => header.trim().toLowerCase());
+  const column = (aliases: string[]) => headers.findIndex((header) => aliases.includes(header));
+  const codeIndex = column(["کد حساب", "کد", "code"]);
+  const nameIndex = column(["نام حساب", "عنوان حساب", "نام", "عنوان", "شرح حساب", "name", "title"]);
+  const natureIndex = column(["ماهیت", "ماهیت حساب", "nature"]);
+  const levelIndex = column(["سطح", "سطح حساب", "level"]);
+  const parentIndex = column(["کد بالادست", "کد حساب بالادست", "parent_code"]);
+  if (codeIndex < 0 || nameIndex < 0) throw new Error("ستون کد حساب و نام حساب لازم است.");
+  return parsed.rows.map((row) => {
+    const text = (index: number) => index < 0 ? "" : String(row[index] ?? "").trim();
+    const rawNature = text(natureIndex).toLowerCase();
+    const nature: AccountNature = /بستان|credit/.test(rawNature) ? "credit"
+      : /شناور|float/.test(rawNature) ? "floating"
+        : /خنثی|بدون|none/.test(rawNature) ? "none" : "debit";
+    const level = text(levelIndex);
+    const parent = text(parentIndex);
+    return {
+      code: text(codeIndex), name: text(nameIndex), nature, active: true,
+      ...(level ? { level } : {}), ...(parent ? { parent_code: parent } : {}),
+    };
+  });
+}

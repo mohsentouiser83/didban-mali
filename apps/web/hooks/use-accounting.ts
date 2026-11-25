@@ -1,11 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { persian } from "@/lib/utils";
-import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
 import {
-  api,
-  ApiError,
   listItems,
   type Member,
   type ResourceList,
@@ -15,14 +10,14 @@ import {
   draftPayload,
   draftValidation,
   emptyDraftLine,
-  type AccountNature,
   type AccountingCapabilities,
   type AccountingPermission,
   type DraftFormValue,
   type JournalDraft,
   type JournalDraftLine,
-  type LedgerAccount,
 } from "@/lib/accounting";
+import { isAccountPostable } from "@/lib/account-catalogue";
+import { useAccountOptions } from "./use-account-options";
 import { useCommand } from "./use-command";
 import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
@@ -35,60 +30,8 @@ function focusError(errors: Record<string, string>) {
       ?.focus(),
   );
 }
-export function useAccountOptions(companyId: string) {
-  const [snapshot, setSnapshot] = useState<{
-    companyId: string;
-    items: LedgerAccount[];
-    error?: ApiError;
-  }>({ companyId: "", items: [] });
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    if (!companyId) return;
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const items: LedgerAccount[] = [];
-        const cursors = new Set<string>();
-        let cursor: string | null | undefined;
-        do {
-          const page = await api<ResourceList<LedgerAccount>>(
-            `/companies/${companyId}/accounting/accounts?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
-            { signal: controller.signal },
-          );
-          items.push(...page.items);
-          cursor = page.next_cursor;
-          if (cursor) {
-            if (cursors.has(cursor))
-              throw new ApiError(
-                0,
-                "فهرست حساب‌ها کامل دریافت نشد.",
-                "invalid_pagination",
-              );
-            cursors.add(cursor);
-          }
-        } while (cursor && !controller.signal.aborted);
-        if (!controller.signal.aborted) setSnapshot({ companyId, items });
-      } catch (error) {
-        if (!controller.signal.aborted)
-          setSnapshot({
-            companyId,
-            items: [],
-            error:
-              error instanceof ApiError
-                ? error
-                : new ApiError(0, "حساب‌ها دریافت نشد.", "unknown"),
-          });
-      }
-    })();
-    return () => controller.abort();
-  }, [companyId, revision]);
-  return {
-    items: snapshot.companyId === companyId ? snapshot.items : [],
-    error: snapshot.companyId === companyId ? snapshot.error : undefined,
-    loading: !!companyId && snapshot.companyId !== companyId,
-    refresh: () => setRevision((value) => value + 1),
-  };
-}
+export { useAccountOptions };
+
 export function useJournalDrafts() {
   const workspace = useWorkspace();
   const drafts = usePagedResource<JournalDraft>(
@@ -102,7 +45,8 @@ export function useJournalDrafts() {
   const [editing, setEditing] = useState<JournalDraft | null | undefined>();
   const [discarding, setDiscarding] = useState<JournalDraft | null>(null);
   const [discardReason, setDiscardReason] = useState("");
-  const [value, setValue] = useState<DraftFormValue>(() => draftFormValue());
+  const [valueState, setValue] = useState<DraftFormValue>(() => draftFormValue());
+  const value = { ...valueState, period_id: workspace.periodId };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const totals = draftValidation(value);
   const [replacement, setReplacement] = useState<{
@@ -115,7 +59,7 @@ export function useJournalDrafts() {
     setValue(
       draftFormValue(
         draft || undefined,
-        workspace.periodId || workspace.periods[0]?.id || "",
+        workspace.periodId,
       ),
     );
     setErrors({});
@@ -170,7 +114,7 @@ export function useJournalDrafts() {
   }
   const loading = drafts.loading || capabilities.loading || accounts.loading;
   const error = drafts.error || capabilities.error || accounts.error;
-  const hasActiveAccounts = accounts.items.some((account) => account.active);
+  const hasActiveAccounts = accounts.items.some((account) => isAccountPostable(account));
   const requiresAccounts = !hasActiveAccounts;
   const requiresPeriod = workspace.periods.length === 0;
   const canPrepare = !!capabilities.data?.can_prepare;
@@ -252,11 +196,21 @@ export function useJournalDrafts() {
       capabilities.refresh();
       accounts.refresh();
     },
-    accountOptions: accounts.items.map((account) => ({
-      value: account.id,
-      label: `${account.code} — ${account.name}${account.active ? "" : " (غیرفعال)"}`,
-      disabled: !account.active,
-    })),
+    accountOptions: accounts.items.map((account) => {
+      const postable = isAccountPostable(account);
+      const suffix = !account.active
+        ? " (غیرفعال)"
+        : account.level === "group"
+          ? " (گروه — غیرقابل ثبت)"
+          : account.has_children
+            ? " (دارای زیرمجموعه — غیرقابل ثبت)"
+            : "";
+      return {
+        value: account.id,
+        label: `${account.code} — ${account.name}${suffix}`,
+        disabled: !postable,
+      };
+    }),
     open,
     close: () => setEditing(undefined),
     change,
@@ -270,136 +224,7 @@ export function useJournalDrafts() {
       ),
   };
 }
-export function useLedgerAccounts() {
-  const workspace = useWorkspace();
-  const resource = usePagedResource<LedgerAccount>(
-    workspace.companyPath("accounting/accounts"),
-  );
-  const capabilities = useResource<AccountingCapabilities>(
-    workspace.companyPath("accounting/capabilities"),
-  );
-  const command = useCommand();
-  const [editing, setEditing] = useState<LedgerAccount | null | undefined>();
-  const [value, setValue] = useState<{
-    code: string;
-    name: string;
-    nature: AccountNature;
-    active: boolean;
-  }>({ code: "", name: "", nature: "debit", active: true });
-  function open(account: LedgerAccount | null) {
-    setEditing(account);
-    setValue(
-      account
-        ? {
-            code: account.code,
-            name: account.name,
-            nature: account.nature ?? "debit",
-            active: account.active,
-          }
-        : { code: "", name: "", nature: "debit", active: true },
-    );
-    command.clearError();
-  }
-  function save() {
-    if (!value.code.trim() || !value.name.trim()) return;
-    void command.run(
-      workspace.companyPath(
-        `accounting/accounts${editing ? `/${editing.id}` : ""}`,
-      ),
-      {
-        method: editing ? "PATCH" : "POST",
-        version: editing?.version,
-        body: {
-          ...value,
-          code: value.code.trim(),
-          name: value.name.trim(),
-          nature: value.nature || "debit",
-        },
-      },
-      () => {
-        setEditing(undefined);
-        resource.refresh();
-      },
-      "حساب ذخیره شد.",
-    );
-  }
-  return {
-    workspace,
-    resource,
-    capabilities,
-    command,
-    editing,
-    value,
-    rows: listItems(resource.data),
-    open,
-    save,
-    close: () => setEditing(undefined),
-    change: (patch: Partial<typeof value>) =>
-      setValue((previous) => ({ ...previous, ...patch })),
-    importFromExcel: async (parsed: ParsedTableImport) => {
-      if (!workspace.company || !parsed.rows.length) return;
-      const headerMap: Record<string, number> = {};
-      parsed.headers.forEach((h, i) => {
-        headerMap[h.trim().toLowerCase()] = i;
-      });
-
-      const getCol = (names: string[]) => {
-        for (const name of names) {
-          for (const [h, idx] of Object.entries(headerMap)) {
-            if (h.includes(name.toLowerCase())) return idx;
-          }
-        }
-        return -1;
-      };
-
-      const codeIdx = getCol(["کد حساب", "کد", "code", "کد کل", "کد معین"]);
-      const nameIdx = getCol(["نام حساب", "عنوان حساب", "نام", "عنوان", "شرح حساب", "name", "title"]);
-      const natureIdx = getCol(["ماهیت", "ماهیت حساب", "nature"]);
-
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const row of parsed.rows) {
-        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
-        const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
-        if (!code || !name) continue;
-
-        let nature: AccountNature = "debit";
-        if (natureIdx >= 0) {
-          const rawNat = String(row[natureIdx] ?? "").toLowerCase();
-          if (rawNat.includes("بستان") || rawNat.includes("credit")) nature = "credit";
-          else if (rawNat.includes("شناور") || rawNat.includes("float")) nature = "floating";
-          else if (rawNat.includes("خنثی") || rawNat.includes("بدون") || rawNat === "none") nature = "none";
-        }
-
-        const payload = {
-          code,
-          name,
-          nature,
-          active: true,
-        };
-
-        try {
-          await api(workspace.companyPath("accounting/accounts")!, {
-            method: "POST",
-            body: payload,
-          });
-          successCount++;
-        } catch {
-          failCount++;
-        }
-      }
-
-      resource.refresh();
-      if (successCount > 0) {
-        toast.success(`${persian(successCount)} حساب با موفقیت در پایگاه داده ثبت شد.`);
-      }
-      if (failCount > 0) {
-        toast.warning(`${persian(failCount)} حساب به دلیل تکراری بودن کد یا خطای اعتبارسنجی ثبت نشد.`);
-      }
-    },
-  };
-}
+export { useLedgerAccounts } from "./use-ledger-accounts";
 
 export function useAccountingPermissions(
   membershipSnapshot?: ResourceList<Member>,

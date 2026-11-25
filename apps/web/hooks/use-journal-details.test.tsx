@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 vi.mock("./workspace", () => ({ useWorkspace: () => ({
   companyPath: (path: string) => `/companies/current/${path}`,
+  periodId: "header-period",
   periods: [{ id: "period", name: "سال" }],
 }) }));
 vi.mock("./use-resource", () => ({ useResource: (path: string | null) => {
@@ -45,7 +46,7 @@ it("creates a correction draft for the selected final journal without posting it
   act(() => result.current.saveReversal());
   expect(state.run).toHaveBeenCalledWith(
     "/companies/current/accounting/journals/final-a/reversal-draft",
-    { body: { period_id: "period", date: "2026-11-06", reason: "اصلاح مبلغ" } },
+    { body: { period_id: "header-period", date: "2026-11-06", reason: "اصلاح مبلغ" } },
     expect.any(Function), expect.any(String),
   );
   expect(onCreated).not.toHaveBeenCalled();

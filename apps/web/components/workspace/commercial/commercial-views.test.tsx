@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { CounterpartiesView } from "./counterparties-view";
@@ -23,6 +23,7 @@ beforeEach(() => {
     unobserve() {}
     disconnect() {}
   });
+  vi.mocked(api).mockReset();
   vi.mocked(api).mockImplementation(async (path) =>
     path.endsWith("capabilities")
       ? { can_manage_accounts: true, can_prepare: true }
@@ -32,14 +33,34 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-it("renders an empty counterparty list and opens the create form", async () => {
+it("creates a counterparty without requesting or sending a manual code", async () => {
   pathname = "/commercial/counterparties";
   render(<CounterpartiesView />);
   const empty = await screen.findByText("طرف‌حسابی ثبت نشده است");
   expect(empty.closest("tr")?.parentElement?.tagName).toBe("TBODY");
   fireEvent.click(await screen.findByRole("button", { name: "طرف‌حساب جدید" }));
   expect(screen.getByRole("dialog", { name: "طرف‌حساب جدید" })).toBeVisible();
-  expect(screen.getByRole("textbox", { name: "کد طرف‌حساب" })).toBeVisible();
+  expect(screen.queryByRole("textbox", { name: "کد طرف‌حساب" })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole("textbox", { name: /^نام$/ }), {
+    target: { value: "مشتری جدید" },
+  });
+  expect(screen.getByRole("button", { name: /^ذخیره$/ })).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole("combobox", { name: /نوع طرف‌حساب/ }), { key: "Enter" });
+  expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+    "تأمین‌کننده", "مشتری", "کارمند", "سایر",
+  ]);
+  fireEvent.click(screen.getByRole("option", { name: "مشتری" }));
+  fireEvent.click(screen.getByRole("button", { name: /^ذخیره$/ }));
+  await waitFor(() => expect(api).toHaveBeenCalledWith(
+    "/companies/c1/commercial/counterparties",
+    expect.objectContaining({
+      method: "POST",
+      body: expect.objectContaining({ name: "مشتری جدید", type: "customer" }),
+    }),
+  ));
+  const creation = vi.mocked(api).mock.calls.find(([, options]) => options?.method === "POST");
+  expect(creation?.[1]?.body).not.toHaveProperty("code");
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
 it("renders an empty proforma list and supports adding an independent line", async () => {

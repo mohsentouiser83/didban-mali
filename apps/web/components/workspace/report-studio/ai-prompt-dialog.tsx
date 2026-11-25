@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
+import { Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { SparkleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -57,8 +58,8 @@ export function AiPromptDialog({
       }
     >
       <div className="space-y-4 py-2">
-        <Field id="ai-prompt-input" label="درخواست شما">
-          <textarea
+        <Field id="ai-prompt-input" label="درخواست شما" required>
+          <Textarea
             id="ai-prompt-input"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}

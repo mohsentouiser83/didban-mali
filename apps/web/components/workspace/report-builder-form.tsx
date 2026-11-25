@@ -61,7 +61,7 @@ export function ReportBuilderForm({
           className="space-y-5 disabled:opacity-70"
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="builder-source" label="منبع گزارش">
+            <Field id="builder-source" label="منبع گزارش" required>
               <Select
                 id="builder-source"
                 value={spec.source || "imported_manifest"}
@@ -71,20 +71,8 @@ export function ReportBuilderForm({
                 options={sourceOptions}
               />
             </Field>
-            <Field id="builder-period" label="دوره مالی">
-              <Select
-                id="builder-period"
-                value={spec.period_id}
-                onValueChange={(value) =>
-                  c.change({ ...spec, period_id: value })
-                }
-                options={c.workspace.periods.map((period) => ({
-                  value: period.id,
-                  label: period.name,
-                }))}
-              />
-            </Field>
-            <Field id="builder-kind" label="نوع گزارش">
+
+            <Field id="builder-kind" label="نوع گزارش" required>
               <Select
                 id="builder-kind"
                 value={spec.kind}
@@ -101,7 +89,7 @@ export function ReportBuilderForm({
                 ]}
               />
             </Field>
-            <Field id="builder-basis" label="مبنای محاسبه">
+            <Field id="builder-basis" label="مبنای محاسبه" required>
               <Select
                 id="builder-basis"
                 value={spec.basis}

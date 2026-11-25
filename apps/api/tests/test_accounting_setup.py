@@ -108,11 +108,15 @@ def test_template_includes_nature():
     from didban.accounting_setup_service import TEMPLATE
 
     natures = {item["code"]: item["nature"] for item in TEMPLATE}
-    assert natures["1101"] == "debit"
-    assert natures["1201"] == "debit"
-    assert natures["2101"] == "credit"
-    assert natures["4101"] == "credit"
-    assert natures["5101"] == "debit"
+    levels = {item["code"]: item["level"] for item in TEMPLATE}
+    assert levels["11"] == "group"
+    assert levels["1101"] == "general"
+    assert levels["110101"] == "subsidiary"
+    assert natures["110101"] == "debit"
+    assert natures["120101"] == "debit"
+    assert natures["210101"] == "credit"
+    assert natures["410101"] == "credit"
+    assert natures["510101"] == "debit"
 
 
 def test_xlsx_text_codes_only_and_formulas_rejected():

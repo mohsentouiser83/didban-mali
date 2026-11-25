@@ -181,21 +181,15 @@ export function EmployeesManagementView() {
           <div className="space-y-4">
             <h4 className="text-xs font-semibold text-muted">۱. مشخصات هویتی و سازمانی</h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Field id="emp-code" label="کد پرسنلی *">
-                <Input
-                  value={v.form.employee_code}
-                  onChange={(e) => v.setForm({ ...v.form, employee_code: e.target.value })}
-                  placeholder="مثال: EMP-101"
-                />
-              </Field>
-              <Field id="emp-first-name" label="نام *">
+              
+              <Field id="emp-first-name" label="نام" required>
                 <Input
                   value={v.form.first_name}
                   onChange={(e) => v.setForm({ ...v.form, first_name: e.target.value })}
                   placeholder="نام"
                 />
               </Field>
-              <Field id="emp-last-name" label="نام خانوادگی *">
+              <Field id="emp-last-name" label="نام خانوادگی" required>
                 <Input
                   value={v.form.last_name}
                   onChange={(e) => v.setForm({ ...v.form, last_name: e.target.value })}

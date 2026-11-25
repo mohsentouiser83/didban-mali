@@ -155,10 +155,13 @@ key=str(uuid4());result=command(owner,'POST',path,body,key=key)
 assert result.status_code==201,result.text
 assert result.json()['draft']['lines'][0]['debit']=='1200'
 assert command(owner,'POST',path,body,key=key).json()==result.json()
-assert command(owner,'POST',path,body).status_code==409
+second=command(owner,'POST',path,{k:v for k,v in body.items() if k!='source_reference'})
+assert second.status_code==201,second.text
+assert second.json()['source_reference'] != result.json()['source_reference']
+assert result.json()['source_reference'] != 'INV-001'
 with transaction('company-a') as db:
-    assert len(list(db.scalars(select(OperationDraft))))==1
-    assert len(list(db.scalars(select(Draft))))==1
+    assert len(list(db.scalars(select(OperationDraft))))==2
+    assert len(list(db.scalars(select(Draft))))==2
     assert db.scalar(select(m.JournalLine.id)) is None
 try:
     with transaction('company-a') as db:db.execute(update(OperationDraft).values(kind='expense'))
@@ -347,3 +350,35 @@ assert result.status_code==201,result.text
 with transaction('company-a') as db:assert len(list(db.scalars(select(NativeJournal))))==2
 """,
     )
+
+
+def test_sale_and_purchase_numbers_share_goods_namespace_and_follow_patterns(workspace):
+    from didban.numbering_models import NumberingSystem
+    from didban.numbering_service import ensure_defaults
+    from didban.operation_schemas import OperationInput
+
+    db = workspace
+    ensure_defaults(db, "c")
+    rules = {row.entity_type: row for row in db.scalars(select(NumberingSystem).where(NumberingSystem.company_id == "c"))}
+    rules["sales_invoice"].prefix = "SALE-"
+    rules["sales_invoice"].current_number = 8
+    rules["purchase_invoice"].prefix = "BUY-"
+    rules["purchase_invoice"].current_number = 12
+    accounts = list(db.scalars(select(Account).where(Account.company_id == "c")))
+    common = {
+        "period_id": "p", "date": date(2026, 11, 2), "description": "عملیات",
+        "unit": "IRR", "party_id": "party", "amounts": {"amount": "50"},
+    }
+    sales = OperationInput.model_validate(common | {
+        "kind": "sale_service",
+        "accounts": {"trade_receivable": accounts[0].id, "service_revenue": accounts[1].id},
+    }).model_dump()
+    first = create(db, "c", db.get(m.User, "advisor"), sales)
+    assert first["source_reference"] == "SALE-008"
+    second = create(db, "c", db.get(m.User, "advisor"), sales | {"source_reference": "MANUAL"})
+    assert second["source_reference"] == "SALE-009"
+    purchase = create(db, "c", db.get(m.User, "advisor"), common | {
+        "kind": "purchase_service",
+        "accounts": {"service_expense": accounts[0].id, "trade_payable": accounts[1].id},
+    })
+    assert purchase["source_reference"] == "BUY-012"

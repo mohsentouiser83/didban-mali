@@ -1,9 +1,9 @@
 "use client";
 
+import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { useReportStudio } from "@/hooks/use-report-studio";
 import { useWorkspace } from "@/hooks/workspace";
 import type { StudioWidgetSpec } from "@/lib/report-studio";
@@ -13,21 +13,26 @@ import {
   CheckCircleIcon,
   FilePdfIcon,
   FloppyDiskIcon,
-  FolderOpenIcon,
   PlusIcon,
   SparkleIcon,
   SquaresFourIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
-import { NoCompany, PageHeader, Panel } from "../page-parts";
+import { NoCompany, PageHeader } from "../page-parts";
 import { AiPromptDialog } from "./ai-prompt-dialog";
 import { SaveTemplateDialog } from "./save-template-dialog";
 import { SectionRenderer } from "./section-renderer";
 import { WidgetConfigDialog } from "./widget-config-dialog";
 
-export function ReportStudioView() {
+export function ReportStudioView({ definitionId }: { definitionId?: string }) {
   const workspace = useWorkspace();
-  const studio = useReportStudio();
+  if (!workspace.company) return <NoCompany />;
+  return <StudioWorkspace key={`${workspace.user?.id}:${workspace.company.id}:${definitionId || "new"}`} definitionId={definitionId} />;
+}
+
+function StudioWorkspace({ definitionId }: { definitionId?: string }) {
+  const workspace = useWorkspace();
+  const studio = useReportStudio(definitionId);
 
   // Modals state
   const [aiOpen, setAiOpen] = useState(false);
@@ -39,6 +44,8 @@ export function ReportStudioView() {
 
   if (!workspace.company) return <NoCompany />;
 
+  if (definitionId && studio.definitionsLoading) return <LoadingState />;
+  if (definitionId && studio.definitionsError) return <ErrorState message={studio.definitionsError.message} />;
   const { spec, preview, busy, error, previewLoading } = studio;
 
   function handleConvertToDashboard() {
@@ -97,7 +104,7 @@ export function ReportStudioView() {
 
               <Button variant="soft" onClick={() => setSaveOpen(true)} className="gap-1.5">
                 <FloppyDiskIcon size={18} />
-                ذخیره قالب
+                {studio.selectedDefinition ? "ذخیره تغییرات" : "ذخیره قالب"}
               </Button>
 
               {studio.selectedDefinition?.is_dashboard ? (
@@ -140,66 +147,7 @@ export function ReportStudioView() {
         />
       </div>
 
-      {/* Global Filters & Template Bar */}
       <div className="mb-6 space-y-4 print:hidden">
-        <Panel>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Period Selector */}
-              <div className="w-56">
-                <label className="mb-1 block text-xs font-medium text-muted">دوره مالی</label>
-                <Select
-                  value={spec.global_filters.period_id}
-                  onValueChange={(val) => studio.updateGlobalFilters({ period_id: val })}
-                  options={workspace.periods.map((p) => ({
-                    value: p.id,
-                    label: p.name,
-                  }))}
-                />
-              </div>
-
-              {/* Currency Unit Switch */}
-              <div className="w-36">
-                <label className="mb-1 block text-xs font-medium text-muted">واحد ارقام</label>
-                <Select
-                  value={spec.global_filters.unit}
-                  onValueChange={(val) =>
-                    studio.updateGlobalFilters({ unit: val as "IRR" | "TOMAN" })
-                  }
-                  options={[
-                    { value: "IRR", label: "ریال" },
-                    { value: "TOMAN", label: "تومان" },
-                  ]}
-                />
-              </div>
-            </div>
-
-            {/* Saved Templates Quick Bar */}
-            {studio.definitions.length > 0 && (
-              <div className="flex items-center gap-2">
-                <FolderOpenIcon size={16} className="text-muted" />
-                <span className="text-xs text-muted">قالب‌های ذخیره‌شده:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {studio.definitions.map((def) => (
-                    <button
-                      key={def.id}
-                      type="button"
-                      onClick={() => studio.loadTemplate(def)}
-                      className={`rounded-control border px-2.5 py-1 text-xs transition-colors ${
-                        studio.selectedDefinition?.id === def.id
-                          ? "border-primary bg-primary text-white"
-                          : "border-border bg-surface text-secondary hover:border-primary/40 hover:text-foreground"
-                      }`}
-                    >
-                      {def.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </Panel>
-
         {studio.aiMessage && (
           <div className="flex items-center gap-2 rounded-panel border border-primary/20 bg-soft-accent/60 p-3 text-xs text-primary animate-[slide-down_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
             <SparkleIcon size={18} className="animate-pulse" />
@@ -231,6 +179,7 @@ export function ReportStudioView() {
         {preview && preview.sections.length > 0 ? (
           preview.sections.map((section, idx) => (
             <SectionRenderer
+              readOnly={!workspace.canWrite}
               key={section.id}
               section={section}
               index={idx}
@@ -287,7 +236,7 @@ export function ReportStudioView() {
         }}
         onSave={(name, isDashboard) => studio.saveTemplate(name, isDashboard)}
         initialName={studio.selectedDefinition?.name || spec.title}
-        defaultIsDashboard={saveAsDashboard}
+        defaultIsDashboard={saveAsDashboard || !!studio.selectedDefinition?.is_dashboard}
       />
 
       <WidgetConfigDialog

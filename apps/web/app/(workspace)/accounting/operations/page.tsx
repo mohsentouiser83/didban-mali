@@ -1,2 +1,5 @@
-import { OperationDraftView } from '@/components/workspace/operation-draft-view';
-export default function Page(){return <OperationDraftView/>;}
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/accounting");
+}

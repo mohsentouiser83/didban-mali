@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
+import type { AccountLevel } from "@/lib/account-catalogue";
 import type { AccountNature } from "@/lib/accounting";
 export interface Setup {
   mode: "analysis" | "primary";
@@ -16,6 +17,8 @@ export interface ChartRow {
   name: string;
   nature?: AccountNature;
   active: boolean;
+  level?: AccountLevel | null;
+  parent_code?: string | null;
 }
 export function useCompanyAccountingSetup() {
   const workspace = useWorkspace();
@@ -102,7 +105,7 @@ export function useChartSetup(onImported: () => void) {
     page,
     visibleRows: rows
       .slice(page * 25, (page + 1) * 25)
-      .map((row, index) => ({ ...row, index: page * 25 + index })),
+      .map((row, index) => ({ ...row, index: page * 25 + index, parentRequired: row.level === "general" || row.level === "subsidiary" || row.level === "detail" })),
     loadTemplate,
     loadFile,
     preview,

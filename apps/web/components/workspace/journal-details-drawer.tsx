@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/content-states";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import {
@@ -55,7 +54,7 @@ export function JournalDetailsDrawer({
         <div className="space-y-5">
           <p>{journal.snapshot.description}</p>
           <p className="text-sm text-muted">
-            سند {persian(journal.sequence)} · {displayDate(journal.date)} · ثبت
+            سند {journal.snapshot.number ?? persian(journal.sequence)} · {displayDate(journal.date)} · ثبت
             نهایی
           </p>
           <Table>
@@ -112,15 +111,7 @@ export function JournalDetailsDrawer({
               <StatusMessage>
                 برگشت به‌صورت پیش‌نویس ساخته می‌شود و نیاز به تأیید نهایی دارد.
               </StatusMessage>
-              <Field id="document-reversal-period" label="دوره مالی">
-                <Select
-                  id="document-reversal-period"
-                  value={view.period}
-                  onValueChange={view.setPeriod}
-                  options={view.periods}
-                />
-              </Field>
-              <Field id="document-reversal-date" label="تاریخ برگشت">
+              <Field id="document-reversal-date" label="تاریخ برگشت" required>
                 <PersianDatePicker
                   id="document-reversal-date"
                   value={view.date}

@@ -15,7 +15,7 @@ export interface NativeJournal {
   draft_version: number;
   reversal_of: string | null;
   replacement_of: string | null;
-  snapshot: PostingPreview["snapshot"] & { period_id: string };
+  snapshot: PostingPreview["snapshot"] & { period_id: string; number?: string };
 }
 interface BookBalance {
   items: {
@@ -44,9 +44,7 @@ export function useNativeJournals() {
   const capabilities = useResource<AccountingCapabilities>(
     path ? path + "/capabilities" : null,
   );
-  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
-  const period =
-    selectedPeriod ?? (workspace.periodId || workspace.periods[0]?.id || "");
+  const period = workspace.periodId;
   const balance = useResource<BookBalance>(
     path && period ? path + `/trial-balance?period_id=${period}` : null,
   );
@@ -84,7 +82,6 @@ export function useNativeJournals() {
     reportRuns,
     capabilities,
     period,
-    setPeriod: setSelectedPeriod,
     balance,
     command,
     selected,

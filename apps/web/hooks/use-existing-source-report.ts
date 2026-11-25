@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Manifest, ProcessingSession } from "@/lib/api";
@@ -21,7 +22,7 @@ export function useExistingSourceReport() {
     if (!available || !latest.data) return;
     const intent = latest.data.id + ":" + workspace.periodId;
     if (!keys.current.has(intent))
-      keys.current.set(intent, crypto.randomUUID());
+      keys.current.set(intent, randomId());
     void command.run<ProcessingSession>(
       workspace.companyPath("processing-sessions/from-result"),
       {

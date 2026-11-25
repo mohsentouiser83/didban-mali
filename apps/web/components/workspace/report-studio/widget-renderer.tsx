@@ -1,5 +1,7 @@
 "use client";
 
+import { amount, displayDate, persian } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { RenderedWidget } from "@/lib/report-studio";
@@ -48,7 +50,8 @@ interface DonutPoint {
 }
 
 interface TableData {
-  columns?: { key: string; label: string }[];
+  columns?: { key: string; label: string; format?: string }[];
+  reason?: string | null;
   rows?: Record<string, unknown>[];
   total_count?: number;
 }
@@ -88,24 +91,24 @@ export function WidgetRenderer({
         {!readOnly && (
           <div className="flex items-center gap-1">
             {onEdit && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={onEdit}
                 className="rounded-control p-1 text-muted transition-all active:scale-90 hover:bg-neutral-soft hover:text-foreground"
                 title="ویرایش ویجت"
               >
                 <PencilSimpleIcon size={16} />
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={onDelete}
                 className="rounded-control p-1 text-muted transition-all active:scale-90 hover:bg-rose-soft hover:text-rose"
                 title="حذف ویجت"
               >
                 <TrashIcon size={16} />
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -315,13 +318,18 @@ function DataTableContent({ data }: { data: TableData | null }) {
   if (rows.length === 0) {
     return (
       <div className="flex h-40 items-center justify-center text-sm text-muted">
-        ردیفی برای نمایش وجود ندارد
+        {data?.reason || "ردیفی برای نمایش وجود ندارد"}
       </div>
     );
   }
 
   return (
-    <div className="max-h-72 overflow-y-auto">
+    <div>
+      {data?.reason && <p className="mb-3 text-xs text-muted">{data.reason}</p>}
+      {!!data?.total_count && data.total_count > rows.length && <p className="mb-3 text-xs text-muted">
+        {persian(rows.length)} ردیف از {persian(data.total_count)}
+      </p>}
+      <div className="max-h-72 overflow-y-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -337,13 +345,17 @@ function DataTableContent({ data }: { data: TableData | null }) {
             <TableRow key={String(row.id || idx)}>
               {columns.map((col) => (
                 <TableCell key={col.key} className="text-xs">
-                  {String(row[col.key] ?? "—")}
+                  {col.format === "money" ? amount(row[col.key] == null ? null : String(row[col.key]))
+                    : col.format === "date" ? displayDate(String(row[col.key] || ""))
+                    : col.format === "number" ? persian(String(row[col.key] ?? "—"))
+                    : String(row[col.key] ?? "—")}
                 </TableCell>
               ))}
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

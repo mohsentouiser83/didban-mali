@@ -90,7 +90,7 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
         />
       ) : (
         <>
-          <Field id="native-bank-statement" label="نسخهٔ دفتر دیدبان">
+          <Field id="native-bank-statement" label="نسخهٔ دفتر دیدبان" required>
             <Select
               id="native-bank-statement"
               value={view.current.statementId}
@@ -126,6 +126,7 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
                       <Field
                         id="native-match-bank-account"
                         label="حساب گردش بانک"
+                        required
                       >
                         <Select
                           id="native-match-bank-account"
@@ -140,6 +141,7 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
                       <Field
                         id="native-match-ledger-account"
                         label="حساب متناظر در دفتر دیدبان"
+                        required
                       >
                         <Select
                           id="native-match-ledger-account"

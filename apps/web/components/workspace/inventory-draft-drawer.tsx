@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BarcodeIcon,
   CalendarBlankIcon,
   CoinsIcon,
   HashIcon,
@@ -41,7 +40,7 @@ export function InventoryDraftDrawer({
   });
   const { value, change, command } = view;
   const item = view.availableItems.find((item) => item.id === value.item_id);
-  const unitLabel = value.unit === "IRR" ? "ریال" : "تومان";
+  const unitLabel = "ریال";
   return (
     <Drawer
       open={open}
@@ -65,7 +64,7 @@ export function InventoryDraftDrawer({
         }}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="inventory-item_id" name="item_id" label="کالا" icon={PackageIcon}>
+          <Field id="inventory-item_id" name="item_id" label="کالا" icon={PackageIcon} required>
             <Select
               id="inventory-item_id"
               label="کالا"
@@ -76,7 +75,7 @@ export function InventoryDraftDrawer({
               }))}
             />
           </Field>
-          <Field id="inventory-warehouse_id" name="warehouse_id" label="انبار" icon={StorefrontIcon}>
+          <Field id="inventory-warehouse_id" name="warehouse_id" label="انبار" icon={StorefrontIcon} required>
             <Select
               id="inventory-warehouse_id"
               label="انبار"
@@ -87,31 +86,14 @@ export function InventoryDraftDrawer({
               }))}
             />
           </Field>
-          <Field id="inventory-period_id" name="period_id" label="دوره مالی" icon={CalendarBlankIcon}>
-            <Select
-              id="inventory-period_id"
-              label="دوره مالی"
-              value={value.period_id}
-              onValueChange={(period_id) => change({ period_id })}
-              options={view.periods.map(({ id, name }) => ({ value: id, label: name }))}
-            />
-          </Field>
-          <Field id="inventory-date" label="تاریخ سند" icon={CalendarBlankIcon}>
+          <Field id="inventory-date" label="تاریخ سند" icon={CalendarBlankIcon} required>
             <PersianDatePicker
               id="inventory-date"
               value={value.date}
               onChange={(date) => change({ date })}
             />
           </Field>
-          <Field id="inventory-source_reference" name="source_reference" label="شماره مرجع" icon={BarcodeIcon}>
-            <Input
-              id="inventory-source_reference"
-              required
-              maxLength={120}
-              value={value.source_reference}
-              onChange={(event) => change({ source_reference: event.target.value })}
-            />
-          </Field>
+          
           <Field id="inventory-party_id" name="party_id" label={view.sale ? "مشتری" : "تأمین‌کننده"} icon={UserIcon}>
             <Input
               id="inventory-party_id"
@@ -131,18 +113,6 @@ export function InventoryDraftDrawer({
               onChange={(event) => change({ quantity: event.target.value })}
             />
           </Field>
-          <Field id="inventory-unit" label="واحد پول" icon={CoinsIcon}>
-            <Select
-              id="inventory-unit"
-              label="واحد پول"
-              value={value.unit}
-              onValueChange={(unit) => change({ unit: unit === "TOMAN" ? "TOMAN" : "IRR" })}
-              options={[
-                { value: "IRR", label: "ریال" },
-                { value: "TOMAN", label: "تومان" },
-              ]}
-            />
-          </Field>
           <Field id="inventory-unit_price" name="unit_price" label={`قیمت واحد (${unitLabel})`} icon={CoinsIcon}>
             <AmountInput
               id="inventory-unit_price"
@@ -156,6 +126,7 @@ export function InventoryDraftDrawer({
             name="counterparty_account_id"
             label={view.sale ? "حساب دریافتنی تجاری" : "حساب پرداختنی تجاری"}
             icon={WalletIcon}
+            required
           >
             <Select
               id="inventory-counterparty_account_id"
@@ -167,7 +138,7 @@ export function InventoryDraftDrawer({
           </Field>
           {view.sale && (
             <>
-              <Field id="inventory-revenue_account_id" name="revenue_account_id" label="حساب درآمد فروش" icon={WalletIcon}>
+              <Field id="inventory-revenue_account_id" name="revenue_account_id" label="حساب درآمد فروش" icon={WalletIcon} required>
                 <Select
                   id="inventory-revenue_account_id"
                   label="حساب درآمد فروش"
@@ -176,7 +147,7 @@ export function InventoryDraftDrawer({
                   options={accounts}
                 />
               </Field>
-              <Field id="inventory-cost_account_id" name="cost_account_id" label="حساب بهای تمام‌شده" icon={WalletIcon}>
+              <Field id="inventory-cost_account_id" name="cost_account_id" label="حساب بهای تمام‌شده" icon={WalletIcon} required>
                 <Select
                   id="inventory-cost_account_id"
                   label="حساب بهای تمام‌شده"
@@ -196,7 +167,7 @@ export function InventoryDraftDrawer({
             onChange={(event) => change({ description: event.target.value })}
           />
         </Field>
-        <FormMessage error>{command.error?.message}</FormMessage>
+        <FormMessage error>{!value.period_id ? "دوره را از هدر انتخاب کنید." : command.error?.message}</FormMessage>
       </Form>
     </Drawer>
   );

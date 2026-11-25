@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form } from "@/components/ui/form";
-import { FormMessage } from "@/components/ui/field";
+import { FormMessage, RequiredIndicator } from "@/components/ui/field";
 import { SingleFilePicker } from "@/components/ui/single-file-picker";
 import { StatusMessage } from "@/components/ui/content-states";
 import {
@@ -22,6 +22,7 @@ import {
   ACCOUNT_NATURE_OPTIONS,
   type AccountNature,
 } from "@/lib/accounting";
+import { ACCOUNT_LEVEL_OPTIONS, type AccountLevel } from "@/lib/account-catalogue";
 import { persian } from "@/lib/utils";
 import { DrawerAction } from "@/components/ui/drawer-action";
 export function ChartSetupPanel({
@@ -66,9 +67,11 @@ export function ChartSetupPanel({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>کد حساب</TableHead>
-                <TableHead>نام حساب</TableHead>
-                <TableHead>ماهیت حساب</TableHead>
+                <TableHead>کد حساب <RequiredIndicator /></TableHead>
+                <TableHead>نام حساب <RequiredIndicator /></TableHead>
+                <TableHead>سطح حساب</TableHead>
+                <TableHead>کد حساب بالادست</TableHead>
+                <TableHead>ماهیت حساب <RequiredIndicator /></TableHead>
                 <TableHead>فعال</TableHead>
               </TableRow>
             </TableHeader>
@@ -101,8 +104,23 @@ export function ChartSetupPanel({
                     />
                   </TableCell>
                   <TableCell>
+                    <Select label={`سطح حساب ردیف ${row.index + 1}`}
+                      value={row.level || "unclassified"} disabled={c.command.busy}
+                      options={[{ value: "unclassified", label: "تعیین‌نشده" }, ...ACCOUNT_LEVEL_OPTIONS]}
+                      onValueChange={(level) => c.change(row.index, { level: level === "unclassified" ? null : level as AccountLevel, parent_code: null })} />
+                  </TableCell>
+                  <TableCell>
+                    {row.parentRequired ? <div className="flex items-center gap-2">
+                      <Input required aria-label={`کد حساب بالادست ردیف ${row.index + 1}`} dir="ltr"
+                        maxLength={100} value={row.parent_code || ""} disabled={c.command.busy}
+                        onChange={(event) => c.change(row.index, { parent_code: event.target.value })} />
+                      <RequiredIndicator />
+                    </div> : "—"}
+                  </TableCell>
+                  <TableCell>
                     <Select
-                      aria-label={`ماهیت حساب ردیف ${row.index + 1}`}
+                      aria-required
+                      label={`ماهیت حساب ردیف ${row.index + 1}`}
                       value={row.nature ?? "debit"}
                       disabled={c.command.busy}
                       onValueChange={(nature) =>

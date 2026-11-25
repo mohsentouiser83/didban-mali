@@ -333,7 +333,7 @@ def test_real_native_invoice_history_generates_d09_forecast_without_imported_fac
         {
             "operation_id": source["operation_id"],
             "journal_digest": source["journal_digest"],
-            "reference": "OPEN",
+            "reference": source["reference"],
             "due_date": date(2026, 9, 5),
             "due_unknown": False,
             "expected_date": None,

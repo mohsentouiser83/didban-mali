@@ -109,6 +109,8 @@ export interface StudioPreviewResult {
 }
 
 export interface StudioDefinition {
+  system_key?: string | null;
+  can_delete?: boolean;
   id: string;
   name: string;
   version: number;

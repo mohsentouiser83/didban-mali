@@ -16,18 +16,21 @@ import {
   useOperationDrafts,
   operationAmountLabels,
 } from "@/hooks/use-operation-drafts";
+import { isTreasuryRoleKey } from "@/lib/account-catalogue";
 import { useWorkspace } from "@/hooks/workspace";
 import { PageHeader, NoCompany } from "./page-parts";
 export function OperationDraftView({
   embedded = false,
   onCreated,
-}: { embedded?: boolean; onCreated?: () => void } = {}) {
+  initialKind,
+}: { embedded?: boolean; onCreated?: () => void; initialKind?: string } = {}) {
   const w = useWorkspace();
   return w.company ? (
     <Workspace
       key={`${w.user?.id}:${w.company.id}`}
       embedded={embedded}
       onCreated={onCreated}
+      initialKind={initialKind}
     />
   ) : (
     <NoCompany />
@@ -36,11 +39,13 @@ export function OperationDraftView({
 function Workspace({
   embedded,
   onCreated,
+  initialKind,
 }: {
   embedded: boolean;
   onCreated?: () => void;
+  initialKind?: string;
 }) {
-  const c = useOperationDrafts(onCreated);
+  const c = useOperationDrafts(onCreated, initialKind);
   return (
     <>
       {!embedded && (
@@ -70,46 +75,29 @@ function Workspace({
               fieldErrors={c.command.error?.fields}
             >
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field id="op-kind" label="نوع عملیات">
-                  <Select
-                    id="op-kind"
-                    value={c.form.kind}
-                    onValueChange={c.choose}
-                    options={(c.catalogue.data?.items || []).map((item) => ({
-                      value: item.kind,
-                      label: item.label,
-                    }))}
-                  />
-                </Field>
-                <Field id="op-period" label="دوره مالی">
-                  <Select
-                    id="op-period"
-                    value={c.form.period_id}
-                    onValueChange={(period_id) => c.change({ period_id })}
-                    options={c.workspace.periods.map((p) => ({
-                      value: p.id,
-                      label: p.name,
-                    }))}
-                  />
-                </Field>
-                <Field id="op-date" label="تاریخ">
+                {!embedded && (
+                  <Field id="op-kind" label="نوع عملیات" required>
+                    <Select
+                      id="op-kind"
+                      value={c.form.kind}
+                      onValueChange={c.choose}
+                      searchable
+                      searchPlaceholder="جستجوی نوع سند..."
+                      options={(c.catalogue.data?.items || []).map((item) => ({
+                        value: item.kind,
+                        label: item.label,
+                      }))}
+                    />
+                  </Field>
+                )}
+                <Field id="op-date" label="تاریخ" required>
                   <PersianDatePicker
                     id="op-date"
                     value={c.form.date}
                     onChange={(date) => c.change({ date })}
                   />
                 </Field>
-                <Field id="op-ref" label="شماره مرجع عملیات">
-                  <Input
-                    id="op-ref"
-                    required
-                    maxLength={120}
-                    value={c.form.source_reference}
-                    onChange={(event) =>
-                      c.change({ source_reference: event.target.value })
-                    }
-                  />
-                </Field>
+                
                 <Field id="op-party" label="طرف حساب">
                   <Input
                     id="op-party"
@@ -119,17 +107,6 @@ function Workspace({
                     onChange={(event) =>
                       c.change({ party_id: event.target.value })
                     }
-                  />
-                </Field>
-                <Field id="op-unit" label="واحد">
-                  <Select
-                    id="op-unit"
-                    value={c.form.unit}
-                    onValueChange={(unit) => c.change({ unit })}
-                    options={[
-                      { value: "IRR", label: "ریال" },
-                      { value: "TOMAN", label: "تومان" },
-                    ]}
                   />
                 </Field>
               </div>
@@ -146,7 +123,7 @@ function Workspace({
               </Field>
               {c.template?.cheque_event_required && (
                 <div>
-                  <Field id="op-event" label="رویداد چک">
+                  <Field id="op-event" label="رویداد چک" required>
                     <Select
                       id="op-event"
                       value={c.form.cheque_event_id}
@@ -188,7 +165,7 @@ function Workspace({
                   نمی‌شود.
                 </StatusMessage>
               )}
-              <FormMessage error>{c.command.error?.message}</FormMessage>
+              <FormMessage error>{!c.workspace.periodId ? "دوره را از هدر انتخاب کنید." : c.command.error?.message}</FormMessage>
               {c.created && (
                 <FormMessage>
                   پیش‌نویس ساخته شد.{" "}
@@ -219,7 +196,7 @@ function OperationFields({ c }: { c: ReturnType<typeof useOperationDrafts> }) {
           <Field
             key={key}
             id={`op-amount-${key}`}
-            label={operationAmountLabels[key] || key}
+            label={`${operationAmountLabels[key] || key} (ریال)`}
           >
             <AmountInput
               id={`op-amount-${key}`}
@@ -233,24 +210,44 @@ function OperationFields({ c }: { c: ReturnType<typeof useOperationDrafts> }) {
         ))}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {c.template?.roles.map((role) => (
-          <Field
-            key={role.key}
-            id={`op-account-${role.key}`}
-            label={role.label}
-          >
-            <Select
+        {c.template?.roles.map((role) => {
+          const isTreasury =
+            isTreasuryRoleKey(role.key) ||
+            role.label.includes("بانک") ||
+            role.label.includes("صندوق") ||
+            role.label.includes("تنخواه");
+          const options = isTreasury
+            ? c.treasuryAccountOptions.length > 0
+              ? c.treasuryAccountOptions
+              : c.accountOptions
+            : c.accountOptions;
+          return (
+            <Field
+              key={role.key}
               id={`op-account-${role.key}`}
-              value={c.form.accounts[role.key] || ""}
-              onValueChange={(value) =>
-                c.change({
-                  accounts: { ...c.form.accounts, [role.key]: value },
-                })
-              }
-              options={c.accountOptions}
-            />
-          </Field>
-        ))}
+              label={role.label}
+              required
+            >
+              <Select
+                id={`op-account-${role.key}`}
+                value={c.form.accounts[role.key] || ""}
+                searchable
+                searchPlaceholder="جستجوی کد یا نام حساب..."
+                placeholder={
+                  isTreasury && c.treasuryAccountOptions.length === 0
+                    ? "حساب بانک، صندوق یا تنخواه یافت نشد"
+                    : "انتخاب حساب"
+                }
+                onValueChange={(value) =>
+                  c.change({
+                    accounts: { ...c.form.accounts, [role.key]: value },
+                  })
+                }
+                options={options}
+              />
+            </Field>
+          );
+        })}
       </div>
     </>
   );

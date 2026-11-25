@@ -164,7 +164,7 @@ sale = goods("sale_goods", "not-sent", 1, "150", "2026-09-04")
 journal = post_draft(sale["draft"]["id"])
 checked(command(advisor, "POST", invoices, {
     "operation_id": sale["operation_id"], "journal_digest": journal["digest"],
-    "reference": "not-sent", "due_date": "2026-09-20", "due_unknown": False,
+    "reference": sale["source_reference"], "due_date": "2026-09-20", "due_unknown": False,
     "expected_date": None, "expected_unknown": True,
 }), 201)
 populated = checked(owner.get(url))

@@ -5,7 +5,8 @@ import { useResource } from "./use-resource";
 import { usePagedResource } from "./use-paged-resource";
 import { useCommand } from "./use-command";
 import { useAccountOptions } from "./use-accounting";
-interface Template {
+import { isAccountPostable, isTreasuryAccount, treasuryRoleLabel } from "@/lib/account-catalogue";
+export interface OperationTemplate {
   kind: string;
   label: string;
   roles: { key: string; label: string }[];
@@ -22,20 +23,22 @@ export const operationAmountLabels: Record<string, string> = {
   other_deductions: "سایر کسورات",
   net_pay: "خالص حقوق",
 };
-export function useOperationDrafts(onCreated?: () => void) {
+export function useOperationDrafts(
+  onCreated?: () => void,
+  initialKind = "sale_service",
+) {
   const workspace = useWorkspace();
-  const catalogue = useResource<{ items: Template[] }>(
+  const catalogue = useResource<{ items: OperationTemplate[] }>(
     workspace.companyPath("accounting/operations/catalogue"),
   );
   const accounts = useAccountOptions(workspace.company?.id || "");
   const command = useCommand();
   const [created, setCreated] = useState<string>();
-  const [form, setForm] = useState({
-    kind: "sale_service",
-    period_id: workspace.periodId || workspace.periods[0]?.id || "",
+  const [formState, setForm] = useState({
+    kind: initialKind,
+    period_id: workspace.periodId,
     date: "",
     description: "",
-    source_reference: "",
     unit: "IRR",
     party_id: "",
     accounts: {} as Record<string, string>,
@@ -43,6 +46,7 @@ export function useOperationDrafts(onCreated?: () => void) {
     cheque_event_id: "",
     endorsee_party_id: "",
   });
+  const form = { ...formState, period_id: workspace.periodId };
   const template = catalogue.data?.items.find(
     (item) => item.kind === form.kind,
   );
@@ -70,14 +74,13 @@ export function useOperationDrafts(onCreated?: () => void) {
     change({ kind, accounts: {}, amounts: {}, cheque_event_id: "" });
   }
   function save() {
-    if (!template) return;
+    if (!template || !workspace.periodId) return;
     void command.run<{ draft: { id: string } }>(
       workspace.companyPath("accounting/operations"),
       {
         body: {
           ...form,
           description: form.description.trim(),
-          source_reference: form.source_reference.trim(),
           party_id: form.party_id.trim(),
           amounts: Object.fromEntries(
             template.amounts.map((key) => [key, form.amounts[key] || "0"]),
@@ -118,15 +121,20 @@ export function useOperationDrafts(onCreated?: () => void) {
           party_id: event.party_id,
           unit: "IRR",
           amounts: { amount: event.amount },
-          source_reference: `چک ${event.number}`,
           endorsee_party_id: event.endorsee_party_id || "",
         });
     },
     accountOptions: accounts.items
-      .filter((item) => item.active)
+      .filter((item) => isAccountPostable(item))
       .map((item) => ({
         value: item.id,
         label: `${item.code} · ${item.name}`,
+      })),
+    treasuryAccountOptions: accounts.items
+      .filter((item) => isAccountPostable(item) && isTreasuryAccount(item))
+      .map((item) => ({
+        value: item.id,
+        label: `${item.code} · ${item.name}${item.role ? ` (${treasuryRoleLabel(item.role)})` : ""}`,
       })),
   };
 }

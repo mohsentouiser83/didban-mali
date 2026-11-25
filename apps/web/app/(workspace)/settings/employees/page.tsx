@@ -1,5 +1,5 @@
-import { EmployeesManagementView } from "@/components/workspace/employees-management-view";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <EmployeesManagementView />;
+  redirect("/payroll/employees");
 }

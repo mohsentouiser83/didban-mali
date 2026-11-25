@@ -236,7 +236,7 @@ def detect_liquidity_cliff(
             db.scalars(
                 select(NativeAccountRole.account_id).where(
                     NativeAccountRole.company_id == company,
-                    NativeAccountRole.role.in_(["bank", "cash_bank"]),
+                    NativeAccountRole.role.in_(["bank", "cash_bank", "cash", "petty_cash"]),
                 )
             ).all()
         )

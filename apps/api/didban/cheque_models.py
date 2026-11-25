@@ -15,7 +15,7 @@ class Cheque(Entity, Tenant, Versioned, Base):
         UniqueConstraint("company_id", "id"),
         UniqueConstraint("company_id", "direction", "bank_account", "number"),
     )
-    direction: Mapped[str] = mapped_column(String(12))
+    direction: Mapped[str] = mapped_column(String(20))
     number: Mapped[str] = mapped_column(String(100))
     bank_name: Mapped[str] = mapped_column(String(120))
     bank_account: Mapped[str] = mapped_column(String(100))

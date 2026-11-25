@@ -10,6 +10,12 @@ This file is an execution handoff, not an implementation claim. The user request
 
 Read `AGENTS.md`, `design.md`, `docs/current-implementation.fa.md`, `docs/rebuild-spec.fa.md`, `docs/rebuild-financial-contract.fa.md`, `docs/rebuild-technical-contract.fa.md`, and decisions D01–D34/P01–P28 before implementation. Read the relevant design skills before frontend work. Current code is `apps/api/didban` and `apps/web`; do not implement in `apps/api/app`, copy legacy implementation/data, or reset a legacy/operational database.
 
+Navigation update (2026-11-23): counterparties now belongs to gear → financial/accounting definitions; the sales/purchases sidebar entry was removed. The existing route and company access remain. All 20 targeted navigation/gear tests passed; authenticated desktop/mobile browser verification remains open because the built-in browser reached login.
+
+Required-field indicators (2026-11-23): shared red asterisks and accessible required state are implemented, including conditional dates and mandatory selectors. All 314 web tests passed; TypeScript and targeted ESLint passed. Built-in browser verification covered login labels and keyboard focus, with a mobile viewport capture. **OPEN / VALIDATE**: authenticated form coverage (accounting, inventory, payroll, contracts, reports), loading/error states and reduced motion. See `design.md` and `docs/current-implementation.fa.md`.
+
+Counterparty types (2026-11-23): implemented one required type (`supplier`, `customer`, `employee`, `other`) for new commercial cards; edit/read views and list show the type. Additive startup upgrade preserves old cards with `other`. Generated API/DDL updated. Verified: 15 commercial API tests, including SQLite data-preserving upgrade and restart; 4 targeted web tests; TypeScript and targeted ESLint. **OPEN / VALIDATE**: PostgreSQL upgrade and authenticated desktop/mobile/reduced-motion form checks; built-in browser reached login.
+
 ### Status labels
 
 - **OPEN / IMPLEMENT**: concrete local implementation gap within the approved direction. Check existing code before extending it.
@@ -22,7 +28,15 @@ Priorities describe order, not deadlines: P0 = correctness/analysis foundation a
 
 ### Already implemented — extend, do not rebuild
 
-Native chart/drafts and the explicit posting flow; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices/allocations/snapshots; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions/comparison/selected 100%-owned-company eliminations; document discussions; bot intake/extraction review/explicit journal approval; coordinated backup; single-item FIFO purchase/sale, opening stock, transfer and adjustment; bounded direct Moadian submission/inquiry. Existing boundaries are described in [current implementation](docs/current-implementation.fa.md). The [entity inventory](docs/entity-inventory.fa.md) maps all runtime classes and tables.
+Unified DateInput / PersianDatePicker (2026-11-23): all date inputs unified into a single shared component (`PersianDatePicker`, aliased and exported as `DateInput`) directly adapting Hesab's implementation. It combines calendar date selection via Popover and DayPicker with direct formatted typing, automatic slash masking, Persian/Arabic digit conversion, backspace handling, blur validation/reversion, and popover toggle via Alt+ArrowDown or F4. Raw `type="date"` controls in contracts and counterparty reconciliation migrated to the shared component. 306 web tests pass across 79 test files with zero TypeScript or ESLint errors.
+
+System report templates (2026-11-23): five protected company templates and saved Studio definitions share the reports table. Clicking a template opens Studio for version-checked in-place editing. The saved-templates toolbar was removed from Studio. Default listing does not write to the database; first authorized edit materializes the company-specific definition. Existing financial runs/approvals and fixed dashboard snapshots remain immutable. Source adapters preserve explicit native/imported scope, unavailable values and exact units; table previews are bounded and show total counts. Authenticated desktop/mobile, keyboard and reduced-motion checks remain OPEN / VALIDATE: the built-in browser reached login. See current implementation for evidence and source limits.
+
+Personnel navigation (2026-11-23): moved employee and contract management out of settings into payroll. Child order and labels: employees, contract, payslip. New employee/contract routes under `/payroll` retain redirects from old settings URLs. Existing permissions/data are preserved. Authenticated desktop/mobile and motion verification remain open: the built-in browser reached login.
+
+Header fiscal-period selection (2026-11-23): removed “latest result”; preserve the company's valid saved period, otherwise select today's period or the newest defined period. Empty/foreign selections are rejected. Eight focused tests, TypeScript and scoped ESLint passed; authenticated browser/mobile verification remains open because the available browser session reached login.
+
+Native chart/drafts and the explicit posting flow; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices/allocations/snapshots; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions; document discussions; bot intake/extraction review/explicit journal approval; coordinated backup; single-item FIFO purchase/sale, opening stock, transfer and adjustment; bounded direct Moadian submission/inquiry. Existing boundaries are described in [current implementation](docs/current-implementation.fa.md). The [entity inventory](docs/entity-inventory.fa.md) maps all runtime classes and tables.
 
 ### Non-negotiable invariants
 
@@ -286,7 +300,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### FIN-02 — Coverage and consistency across financial surfaces
 
-**P0 · OPEN / VALIDATE, implement fixes found.** Verify dashboard, invoices, collections, assistant, reports, forecasts, scenarios, dimensions and group outputs agree for the same basis/version.
+**P0 · OPEN / VALIDATE, implement fixes found.** Verify dashboard, invoices, collections, assistant, reports, forecasts, scenarios and dimension outputs agree for the same basis/version.
 
 - Identify entry points that read imported facts, posted native data or a selected snapshot. In custom reports, native-only journal/employee datasets must show accurate coverage. D28 fixed and explicit live modes are implemented and covered by API tests. Verify them in the browser alongside the shared reporting scope. Propagate null and specific missing coverage instead of displaying zero.
 - Exercise missing opening evidence, incomplete future obligations, changed account roles, reversed/replaced documents, retired module preferences and primary/external mode switches.
@@ -301,13 +315,12 @@ Tasks with independent modules may run in parallel if repository instructions pe
 - Check income/expense exclusion of opening/closing transfers, inventory/COGS roles, current permissions and stale readiness hashes.
 - **Acceptance:** expected journals and statements reconcile exactly; reopening does not rewrite historical approvals; the next opening reflects approved policy; accountant review findings become versioned changes, retaining D22 provisional provenance until genuinely reviewed.
 
-### FIN-04 — Management/group report acceptance
+### FIN-04 — Management-dimension report acceptance
 
-**P1 · OPEN / VALIDATE, implement bounded fixes.** Dimensions and selected eliminations for 100%-owned subsidiaries already exist.
+**P1 · OPEN / VALIDATE, implement bounded fixes.** Dimension allocations and reports already exist. Company comparison and intercompany eliminations were removed from scope and executable code at the user's explicit request on 2026-11-23.
 
-- Verify incomplete/shared-cost allocation, role changes, counterparty mappings, source freshness, parent/subsidiary access and evidence of selected intercompany eliminations.
-- Keep comparative aggregation distinct from a consolidation claim; never silently mix imported and native bases.
-- **Acceptance:** allocated plus unallocated amounts reconcile, all origin-company permissions are checked on execution/approval/export, and unsupported ownership/transaction cases remain explicitly unavailable.
+- Verify incomplete/shared-cost allocation, role changes, source freshness and the selected imported/native basis.
+- **Acceptance:** allocated plus unallocated amounts reconcile; current company permissions are checked on execution and export, without mixing imported and native bases.
 
 ### FIN-05 — Reviewed recurring-payment suggestions
 
@@ -457,7 +470,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 Independent multiple accounting books, FX/revaluation, partial ownership/minority interests, manufacturing, fixed assets, statutory payroll calculation/filing, corporate income tax and general VAT accounting are not mandatory current tasks. Full statutory financial-statement parity, universal fraud detection, unlimited natural-language understanding, unrestricted ML training and guaranteed support for every vendor/file format are not current implementation promises.
 
-Advanced ratios/industry benchmarks and broader consolidation types need separate data/definition/scope decisions. A need identified during implementation should be recorded with evidence, not silently turned into a requirement. Do not recreate legacy self-signup, cloud multi-tenant packaging, direct bank money movement, subscription/billing or fictional commercial operating processes.
+Advanced ratios/industry benchmarks need separate data/definition/scope decisions. Company comparison and intercompany eliminations are removed from the current product scope. A need identified during implementation should be recorded with evidence, not silently turned into a requirement. Do not recreate legacy self-signup, cloud multi-tenant packaging, direct bank money movement, subscription/billing or fictional commercial operating processes.
 
 ## 10. Definition of done and agent handoff
 
@@ -522,3 +535,29 @@ This map prevents a future agent from rebuilding completed capabilities or overl
 | P28 | Staged implementation and retained evidence | All task-specific gates, OPS-01…OPS-05, QA-01…QA-04 |
 
 Any new gap found while executing these tasks should be added with its current-code evidence, scope classification, dependencies and acceptance before it is treated as part of “all remaining work.”
+
+### Journal entry navigation — 2026-11-23
+
+- Implemented per user decision: remove the separate accounting-operations sidebar destination; offer manual and catalogue-backed operation types directly in New journal, reuse their forms and refresh the shared draft list after creation; redirect the old page to accounting.
+- OPEN / VALIDATE: authenticated built-in-browser checks of the unified entry form, mobile, keyboard and reduced motion. The available fixture login was rejected by the existing local installation; no real journals were created or posted.
+
+### Header period ownership — implemented 2026-11-23
+
+Removed duplicate financial-period controls across entity forms and report workspaces. New requests use the header period; changing it resets transient page forms and approvals. Persisted period links and frozen financial evidence remain intact. Opening carries into the header period from its explicit or uniquely adjacent predecessor. Regression coverage checks operation payloads, bot review/import and opening source/target; 292 web tests, typecheck and lint passed. Browser verification covered header selection, empty accounting and cheque entry at desktop/mobile sizes; populated/error states across every affected workflow and live reduced motion remain acceptance work.
+
+- Scope update, 2026-11-23: the user superseded sidebar-only removal with complete removal of intercompany eliminations and company comparison. Their pages, API, services and runtime models are removed; existing installation data is untouched. Reports is a direct sidebar link named «گزارش‌ها» with no financial-reports subgroup.
+
+- Verification for the 2026-11-23 retirement/report-navigation change: 574 API tests passed, one PostgreSQL-dependent skip; 17 retirement checks passed separately; all 290 web tests passed. Typecheck, scoped ESLint/Ruff and entity-inventory reconciliation passed. Built-in browser verified both removed pages as not found and the direct Reports destination on desktop/mobile, including keyboard activation. Existing installation data was not changed.
+
+## Automatic internal codes — 2026-11-23
+
+- [x] Record user policy: company numbering patterns generate internal codes; creation/edit forms do not request codes.
+- [x] Connect catalogue, personnel, commercial, operation and inventory creation to transactional server numbering; retain source identifiers and existing codes.
+- [x] Reserve journal numbers before exact-version approval and freeze them in the digest/snapshot; retain historical sequence.
+- [x] Verify synthetic code-free browser creation, mobile form and keyboard dismissal; live reduced-motion and PostgreSQL concurrency are not established by SQLite tests.
+
+### Manual account codes and account hierarchy (2026-11-23)
+
+Implemented company-unique manual account codes, explicit general/subsidiary/detail parents, tenant/level/version validation, server-side filters and atomic hierarchical chart import. Existing codes and journal evidence remain intact; unclassified accounts are explicit. This supersedes automatic numbering only for accounts. Full checks: 620 API passed with one PostgreSQL skip; 317 web passed. Built-in browser covered three-level creation, duplicate-code error, filters, empty search, mobile and Escape in an isolated synthetic installation. OPEN / VALIDATE: slow-network/loading and network-error behavior, live reduced motion, PostgreSQL hierarchy acceptance.
+
+CSS parsing fix: Tailwind now scans only app/components/hooks/lib; it no longer reads generated QA build/cache files that produced malformed svg selectors. Production build passed; built-in browser reached the existing port-3000 login without the CSS error.

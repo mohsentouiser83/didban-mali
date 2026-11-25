@@ -41,7 +41,7 @@ it("rejects negative, dual-sided, empty and overprecision lines", () => {
     expect(draftValidation(value).errors["line-0-debit"]).toBeTruthy();
   }
 });
-it("reopens a toman draft using the original values and sends only editable fields", () => {
+it("reopens a draft in IRR using canonical rial values and sends only editable fields", () => {
   const draft: JournalDraft = {
     ...balanced(),
     id: "draft-a",
@@ -57,9 +57,12 @@ it("reopens a toman draft using the original values and sends only editable fiel
     })),
   };
   const value = draftFormValue(draft);
-  expect(value.unit).toBe("TOMAN");
-  expect(value.lines[0].debit).toBe("12000000");
-  expect(draftPayload(value)).toEqual(balanced());
+  expect(value.unit).toBe("IRR");
+  expect(value.lines[0].debit).toBe("120000000");
+  expect(draftPayload(value)).toEqual({
+    ...balanced("120000000"),
+    unit: "IRR",
+  });
   expect(draftPayload(value).lines[0]).not.toHaveProperty("original_debit");
 });
 it("requires explicit period, date, account and nonblank description", () => {

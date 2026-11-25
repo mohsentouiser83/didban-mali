@@ -123,11 +123,11 @@ def _validate_clearance(db: Session, company: str, item: Cheque, data: dict) -> 
     )
     value = Decimal(bank.amount)
     require(
-        (value > 0 if item.direction == "received" else value < 0),
+        (value > 0 if item.direction in ("received", "guarantee_in") else value < 0),
         "cheque_bank_direction",
         "جهت گردش بانک با چک سازگار نیست.",
     )
-    if item.direction == "issued":
+    if item.direction in ("issued", "guarantee_out"):
         require(
             bank.account == item.bank_account, "cheque_bank_account", "برداشت باید از حساب صادرکننده باشد."
         )
@@ -185,11 +185,13 @@ def act(db: Session, company: str, user: m.User, cheque_id: str, data: dict, ver
     allowed = {
         "received": {"deposit", "endorse", "clear", "return", "cancel"},
         "issued": {"clear", "return", "cancel"},
+        "guarantee_in": {"deposit", "clear", "return", "cancel"},
+        "guarantee_out": {"clear", "return", "cancel"},
         "deposited": {"clear", "return"},
         "endorsed": {"return"},
         "cleared": {"return"},
         "returned": {"deposit", "endorse", "clear", "cancel"}
-        if item.direction == "received"
+        if item.direction in ("received", "guarantee_in")
         else {"clear", "cancel"},
         "cancelled": set(),
     }

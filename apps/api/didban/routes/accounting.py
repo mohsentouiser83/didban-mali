@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 
 from .. import accounting_schemas as s
 from .. import accounting_service as service
+from ..account_catalogue_service import catalogue_filters, enrich_accounts
 from ..accounting_models import Account, Draft
 from ..http import C, access, expected, mutate, paginate
 
@@ -18,19 +19,23 @@ def capabilities(company_id: str, request: Request):
 
 
 @router.get(A + "/accounts")
-def accounts(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
+def accounts(company_id: str, request: Request, limit: int = 50, cursor: str | None = None,
+             level: str | None = None, parent_id: str | None = None):
     with access(request, company_id) as (db, _user, _member):
-        return paginate(db, Account, company_id, limit, cursor)
+        page = paginate(db, Account, company_id, limit, cursor, catalogue_filters(company_id, level, parent_id))
+        page["items"] = enrich_accounts(db, company_id, page["items"])
+        return page
 
 
 @router.post(A + "/accounts", status_code=201)
-def create_account(company_id: str, data: s.AccountInput, request: Request):
+def create_account(company_id: str, data: s.AccountCreateInput, request: Request):
+    payload = data.model_dump(exclude_unset=True)
     return mutate(
         request,
         company_id,
-        data.model_dump(),
+        payload,
         "read",
-        lambda db, user: service.save_account(db, company_id, user, data.model_dump()),
+        lambda db, user: service.save_account(db, company_id, user, payload),
     )
 
 
@@ -39,10 +44,10 @@ def update_account(company_id: str, account_id: str, data: s.AccountInput, reque
     return mutate(
         request,
         company_id,
-        data.model_dump(),
+        data.model_dump(exclude_unset=True),
         "read",
         lambda db, user: service.save_account(
-            db, company_id, user, data.model_dump(), account_id, expected(request)
+            db, company_id, user, data.model_dump(exclude_unset=True), account_id, expected(request)
         ),
     )
 

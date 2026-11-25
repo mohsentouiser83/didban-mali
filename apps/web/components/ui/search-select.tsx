@@ -28,6 +28,7 @@ export function SearchSelect({
   disabled = false,
   "aria-invalid": invalid,
   "aria-describedby": describedBy,
+  "aria-required": ariaRequired,
 }: {
   id?: string;
   value: string;
@@ -44,6 +45,7 @@ export function SearchSelect({
   disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  "aria-required"?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -76,6 +78,7 @@ export function SearchSelect({
           aria-controls={listId}
           aria-invalid={invalid}
           aria-describedby={describedBy}
+          aria-required={ariaRequired}
           disabled={disabled}
           className="group w-full justify-between text-start font-normal data-[state=open]:border-primary data-[state=open]:ring-2 data-[state=open]:ring-primary/10"
         >

@@ -301,6 +301,10 @@ def save(
     )
     if definition_id:
         definition = get_entity(db, SavedReportDefinition, company, definition_id)
+        from .system_report_templates import template_key
+
+        require(template_key(company, definition_id) is None, "system_report_format",
+                "قالب سامانه را در گزارش‌ساز ویرایش کنید.")
         check_version(definition, version)
         definition.name, definition.spec = data.name, data.spec.model_dump()
         definition.version += 1

@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, type Metric } from "@/lib/api";
@@ -170,16 +171,16 @@ export function useFloatingAssistant(options?: { defaultOpen?: boolean }) {
   const send = (overrideText?: string) => {
     const question = (overrideText ?? draft).trim();
     if (lock.current || !question || busy || !workspace.company || voice.phase !== "idle") return;
-    const replyId = crypto.randomUUID();
+    const replyId = randomId();
     const intent: Intent = {
-      replyId, question, key: crypto.randomUUID(),
+      replyId, question, key: randomId(),
       history: messages.filter((message) => !message.pending && !message.error && message.text.trim())
         .slice(-12).map(({ role, text }) => ({ role, text: text.slice(0, 12000) })),
     };
     intents.current.set(replyId, intent);
     setMessages((previous) => [
       ...previous,
-      { id: crypto.randomUUID(), role: "user", text: question },
+      { id: randomId(), role: "user", text: question },
       { id: replyId, role: "assistant", text: "", pending: true },
     ]);
     if (!overrideText) setDraft("");

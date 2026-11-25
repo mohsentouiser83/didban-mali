@@ -45,13 +45,18 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
     period = get_entity(db, m.Period, company, draft.period_id)
     require_open_period(db, company, period.id)
     require(period.start <= draft.date <= period.end, "date_outside_period", "تاریخ سند خارج از دوره است.")
+    link = _correction(db, company, draft.id)
     # Stored draft amounts are already IRR. Revalidating must never multiply TOMAN twice.
-    validate_lines(db, company, {"unit": "IRR", "lines": draft.lines})
+    validate_lines(
+        db,
+        company,
+        {"unit": "IRR", "lines": draft.lines},
+        allow_non_leaf=(link is not None and link.kind == "reversal"),
+    )
     lines = []
     for line in draft.lines:
         account = get_entity(db, Account, company, line["account_id"])
         lines.append({**line, "code": account.code, "name": account.name, "account_version": account.version})
-    link = _correction(db, company, draft.id)
     correction = None
     if link:
         original = get_entity(db, NativeJournal, company, link.original_journal_id)
@@ -159,6 +164,9 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
     payroll = payroll_posting_evidence(db, company, draft)
     if payroll:
         snapshot["payroll"] = payroll
+    from .numbering_assignment_service import assign_number
+
+    snapshot["number"] = assign_number(db, company, "journal_entry", draft.id)
     digest = sha256(
         json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -370,6 +378,7 @@ def create_reversal(db: Session, company: str, user: m.User, journal_id: str, da
             "unit": "IRR",
             "lines": lines,
         },
+        allow_non_leaf=True,
     )
     db.add(
         JournalCorrectionDraft(

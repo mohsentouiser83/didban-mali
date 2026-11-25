@@ -7,7 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models as m
-from .accounting_models import Account, AccountingPermission, Draft
+from .account_catalogue_service import (
+    enrich_accounts,
+    require_postable_account,
+    resolve_account_code,
+    save_hierarchy,
+    validate_hierarchy,
+)
+from .accounting_models import Account, AccountHierarchy, AccountingPermission, Draft
 from .accounting_setup_models import CompanyAccountingSetup
 from .errors import DomainError, require
 from .money_type import canonical_money
@@ -45,6 +52,8 @@ def save_account(
     data: dict[str, Any],
     account_id: str | None = None,
     version: int | None = None,
+    *,
+    imported_code: str | None = None,
 ) -> dict[str, Any]:
     require(
         capabilities(db, company, user)["can_manage_accounts"],
@@ -52,19 +61,56 @@ def save_account(
         "اجازه مدیریت حساب‌ها ندارید.",
         403,
     )
-    item = get_entity(db, Account, company, account_id) if account_id else Account(company_id=company)
-    if account_id:
+    item = get_entity(db, Account, company, account_id) if account_id else None
+    if item:
         check_version(item, version)
+    current = db.scalar(select(AccountHierarchy).where(
+        AccountHierarchy.company_id == company, AccountHierarchy.account_id == account_id,
+    )) if account_id else None
+    level = data.get("level", current.level if current else None)
+    parent_id = data.get("parent_id", current.parent_id if current else None)
+    parent_code = validate_hierarchy(db, company, account_id, level, parent_id)
+    code = resolve_account_code(db, company, imported_code or data.get("code"), level, parent_code, item)
+    if item:
         item.version += 1
-    for key, value in data.items():
-        setattr(item, key, value)
+    else:
+        item = Account(company_id=company, code=code)
+    for key in ("name", "nature", "active"):
+        if key in data:
+            setattr(item, key, data[key])
     db.add(item)
     db.flush()
-    audit(db, company, user.id, "accounting.account_saved", item.id)
-    return serialize_fact(item)
+    save_hierarchy(db, company, item, level, parent_id)
+    if "role" in data:
+        from .native_reporting_models import NativeAccountRole
+        role_val = (data["role"] or "").strip() or None
+        role_row = db.scalar(
+            select(NativeAccountRole).where(
+                NativeAccountRole.company_id == company, NativeAccountRole.account_id == item.id
+            )
+        )
+        if role_val is None:
+            if role_row:
+                db.delete(role_row)
+        else:
+            if role_row:
+                role_row.role = role_val
+                role_row.actor_id = user.id
+                role_row.version += 1
+            else:
+                role_row = NativeAccountRole(
+                    company_id=company, account_id=item.id, role=role_val, actor_id=user.id, version=1
+                )
+                db.add(role_row)
+        db.flush()
+    audit(db, company, user.id, "accounting.account_saved", item.id,
+          {"code": item.code, "level": level, "parent_id": parent_id, "version": item.version})
+    return enrich_accounts(db, company, [serialize_fact(item)])[0]
 
 
-def validate_lines(db: Session, company: str, data: dict[str, Any]) -> list[dict[str, Any]]:
+def validate_lines(
+    db: Session, company: str, data: dict[str, Any], *, allow_non_leaf: bool = False
+) -> list[dict[str, Any]]:
     require(data["unit"] in ("IRR", "TOMAN"), "unsupported_unit", "واحد سند باید ریال یا تومان باشد.")
     require(2 <= len(data["lines"]) <= 200, "invalid_journal_lines", "سند باید بین ۲ تا ۲۰۰ ردیف داشته باشد.")
     lines = []
@@ -74,6 +120,8 @@ def validate_lines(db: Session, company: str, data: dict[str, Any]) -> list[dict
         for line in data["lines"]:
             account = get_entity(db, Account, company, line["account_id"])
             require(account.active, "inactive_account", "حساب غیرفعال است.")
+            if not allow_non_leaf:
+                require_postable_account(db, company, account)
             try:
                 debit = Decimal(canonical_money(line["debit"]))
                 credit = Decimal(canonical_money(line["credit"]))
@@ -109,6 +157,8 @@ def save_draft(
     data: dict[str, Any],
     draft_id: str | None = None,
     version: int | None = None,
+    *,
+    allow_non_leaf: bool = False,
 ) -> dict[str, Any]:
     from .period_lock_service import require_open_period
 
@@ -118,7 +168,7 @@ def save_draft(
     period = get_entity(db, m.Period, company, data["period_id"])
     require_open_period(db, company, period.id)
     require(period.start <= data["date"] <= period.end, "date_outside_period", "تاریخ سند خارج از دوره است.")
-    lines = validate_lines(db, company, data)
+    lines = validate_lines(db, company, data, allow_non_leaf=allow_non_leaf)
     item = (
         get_entity(db, Draft, company, draft_id) if draft_id else Draft(company_id=company, actor_id=user.id)
     )

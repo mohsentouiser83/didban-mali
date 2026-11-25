@@ -423,9 +423,16 @@ def resolve_accounts_for_operation(
     text: str,
 ) -> dict[str, str] | None:
     """Find appropriate accounts for operation kind and prompt context."""
-    accounts = db.scalars(
-        select(Account).where(Account.company_id == company_id, Account.active.is_(True))
-    ).all()
+    from .account_catalogue_service import non_postable_account_ids
+
+    blocked_ids = non_postable_account_ids(db, company_id)
+    accounts = [
+        acc
+        for acc in db.scalars(
+            select(Account).where(Account.company_id == company_id, Account.active.is_(True))
+        ).all()
+        if acc.id not in blocked_ids
+    ]
     if not accounts:
         return None
 
@@ -443,10 +450,11 @@ def resolve_accounts_for_operation(
                 for acc in accounts:
                     if kw in acc.name:
                         return acc
-        if acc_by_role.get("bank"):
-            return acc_by_role["bank"][0]
+        for role_key in ("bank", "cash", "petty_cash", "cash_bank"):
+            if acc_by_role.get(role_key):
+                return acc_by_role[role_key][0]
         for acc in accounts:
-            if "بانک" in acc.name or "صندوق" in acc.name:
+            if any(term in acc.name for term in ("بانک", "صندوق", "تنخواه")):
                 return acc
         return accounts[0] if accounts else None
 

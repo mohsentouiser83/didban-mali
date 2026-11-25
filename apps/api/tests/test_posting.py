@@ -276,3 +276,28 @@ def test_aggregate_report_totals_can_exceed_single_line_storage_limit(book):
     report = trial_balance(db, "c", user, "p")
     assert report["total_debit"] == str(int(value) * 12)
     assert report["total_credit"] == str(int(value) * 12)
+
+
+def test_journal_number_is_reserved_in_exact_preview_and_remains_stable(book):
+    from didban.numbering_models import NumberingSystem
+    from didban.numbering_service import ensure_defaults
+
+    db = book
+    user = db.get(m.User, "finance_manager")
+    ensure_defaults(db, "c")
+    rule = db.scalar(select(NumberingSystem).where(
+        NumberingSystem.company_id == "c", NumberingSystem.entity_type == "journal_entry"
+    ))
+    rule.prefix, rule.suffix, rule.padding, rule.current_number = "J-", "-A", 4, 7
+    db.flush()
+    draft = save_draft(db, "c", user, data(db))
+    first = preview(db, "c", user, draft["id"])
+    assert first["snapshot"]["number"] == "J-0007-A"
+    rule.prefix, rule.current_number = "CHANGED-", 99
+    db.flush()
+    repeated = preview(db, "c", user, draft["id"])
+    assert repeated["snapshot"]["number"] == "J-0007-A"
+    assert repeated["digest"] == first["digest"]
+    posted = post_batch(db, "c", user, [{key: first[key] for key in ("draft_id", "expected_version", "digest")}])["items"][0]
+    assert posted["snapshot"]["number"] == "J-0007-A"
+    assert posted["digest"] == first["digest"]

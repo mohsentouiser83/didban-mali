@@ -23,6 +23,10 @@ const METRIC_OPTIONS: Record<StudioEntityType, { value: string; label: string }[
     { value: "invoice_count", label: "تعداد کل فاکتورها" },
   ],
   ledger: [
+    { value: "journal_lines", label: "ردیف‌های دفتر روزنامه" },
+    { value: "statement_metrics", label: "شاخص‌های صورت مالی" },
+    { value: "statement_accounts", label: "مانده حساب‌های صورت مالی" },
+    { value: "daily_cash", label: "گردش روزانه نقد واردشده" },
     { value: "revenue", label: "درآمد کل دفتر" },
     { value: "expense", label: "هزینه‌های جاری دفتر" },
     { value: "pre_tax_profit", label: "سود پیش از مالیات" },
@@ -41,6 +45,7 @@ const METRIC_OPTIONS: Record<StudioEntityType, { value: string; label: string }[
     { value: "cheques_maturity", label: "سررسید چک‌ها" },
   ],
   payroll: [
+    { value: "imported_payroll", label: "حقوق و کسورات واردشده" },
     { value: "gross_salary", label: "مجموع ناخالص حقوق" },
     { value: "net_payable", label: "خالص پرداختی پرسنل" },
     { value: "insurance_tax", label: "بیمه و مالیات حقوق" },
@@ -51,6 +56,7 @@ const METRIC_OPTIONS: Record<StudioEntityType, { value: string; label: string }[
     { value: "item_turnover", label: "گردش اقلام کالا" },
   ],
   dimensions: [
+    { value: "dimension_totals", label: "درآمد و هزینه به تفکیک مرکز هزینه" },
     { value: "cost_by_dimension", label: "هزینه به تفکیک مرکز هزینه" },
     { value: "revenue_by_dimension", label: "درآمد به تفکیک پروژه" },
   ],
@@ -122,7 +128,7 @@ function WidgetConfigForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field id="w-type" label="نوع ویجت">
+        <Field id="w-type" label="نوع ویجت" required>
           <Select
             id="w-type"
             value={type}
@@ -131,7 +137,7 @@ function WidgetConfigForm({
           />
         </Field>
 
-        <Field id="w-entity" label="انتیتی منبع">
+        <Field id="w-entity" label="انتیتی منبع" required>
           <Select
             id="w-entity"
             value={entity}
@@ -142,7 +148,7 @@ function WidgetConfigForm({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field id="w-metric" label="شاخص محاسباتی">
+        <Field id="w-metric" label="شاخص محاسباتی" required>
           <Select
             id="w-metric"
             value={metric}
@@ -192,7 +198,7 @@ function WidgetConfigForm({
         </div>
       )}
 
-      <Field id="w-color" label="تم رنگی ویجت">
+      <Field id="w-color" label="تم رنگی ویجت" required>
         <Select
           id="w-color"
           value={color}

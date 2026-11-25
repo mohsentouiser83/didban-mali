@@ -26,7 +26,7 @@ class TermsInput(StrictInput):
 class InvoiceInput(TermsInput):
     operation_id: str = Field(min_length=1, max_length=36)
     journal_digest: str = Field(min_length=64, max_length=64)
-    reference: str = Field(min_length=1, max_length=120)
+    reference: str | None = Field(default=None, min_length=1, max_length=120)
 
 
 class TermsUpdate(TermsInput):

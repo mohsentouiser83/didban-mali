@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Input, Textarea } from "@/components/ui/input";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Drawer } from "@/components/ui/drawer";
 import { StatusBadge } from "@/components/ui/badge";
 import {
@@ -117,7 +118,7 @@ export function CounterpartyReconciliationPanel() {
     <div className="space-y-6">
       <Panel title="انتخاب طرف‌حساب و پارامترهای تطبیق">
         <div className="grid gap-4 md:grid-cols-3">
-          <Field id="recon-party-select" label="طرف‌حساب (مشتری / تأمین‌کننده)">
+          <Field id="recon-party-select" label="طرف‌حساب (مشتری / تأمین‌کننده)" required>
             <Select
               id="recon-party-select"
               value={recon.selectedPartyId}
@@ -141,12 +142,12 @@ export function CounterpartyReconciliationPanel() {
             />
           </Field>
 
-          <Field id="recon-as-of-date" label="تا تاریخ (مبنای صورت‌حساب)" icon={CalendarBlankIcon}>
-            <Input
+          <Field id="recon-as-of-date" label="تا تاریخ (مبنای صورت‌حساب)" icon={CalendarBlankIcon} required>
+            <PersianDatePicker
               id="recon-as-of-date"
-              type="date"
               value={recon.asOfDate}
-              onChange={(e) => recon.setAsOfDate(e.target.value)}
+              onChange={(val) => recon.setAsOfDate(val)}
+              label="تا تاریخ (مبنای صورت‌حساب)"
             />
           </Field>
 
@@ -458,7 +459,7 @@ export function CounterpartyReconciliationPanel() {
                   <div className="rounded-xl border border-border p-4">
                     <h4 className="mb-2 font-medium text-sm">ثبت تصمیم و نتیجه رسیدگی مغایرت</h4>
                     <div className="grid gap-3 sm:grid-cols-3">
-                      <Field id="recon-decision-status" label="وضعیت نتیجه">
+                      <Field id="recon-decision-status" label="وضعیت نتیجه" required>
                         <Select
                           id="recon-decision-status"
                           value={decisionStatus}

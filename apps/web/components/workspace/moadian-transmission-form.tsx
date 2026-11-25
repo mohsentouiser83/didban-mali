@@ -34,7 +34,7 @@ function FiscalFields({ view }: { view: MoadianTransmissionController }) {
         void view.prepare();
       }}
     >
-      <Field id="moadian-invoice" name="invoice_id" label="فاکتور فروش">
+      <Field id="moadian-invoice" name="invoice_id" label="فاکتور فروش" required>
         <Select
           id="moadian-invoice"
           value={view.invoiceId}
@@ -61,7 +61,7 @@ function FiscalFields({ view }: { view: MoadianTransmissionController }) {
               disabled={view.working}
             />
           </Field>
-          <Field id="moadian-buyer-type" name="buyer_type" label="نوع خریدار">
+          <Field id="moadian-buyer-type" name="buyer_type" label="نوع خریدار" required>
             <Select
               id="moadian-buyer-type"
               value={view.form.buyer_type}
@@ -91,7 +91,7 @@ function FiscalFields({ view }: { view: MoadianTransmissionController }) {
             </Field>
           ))}
         </div>
-        <Field id="moadian-vat" name="vat_treatment" label="وضعیت ارزش افزوده">
+        <Field id="moadian-vat" name="vat_treatment" label="وضعیت ارزش افزوده" required>
           <Select
             id="moadian-vat"
             value={view.form.vat_treatment}

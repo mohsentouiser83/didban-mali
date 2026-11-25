@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, FormMessage } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import { Form } from "@/components/ui/form";
 import { AmountInput, Textarea } from "@/components/ui/input";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -52,6 +53,8 @@ export function SettlementsView() {
   const [invoiceId, setInvoiceId] = useState("");
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
+  const [directionFilter, setDirectionFilter] = useState<"all" | "received" | "paid">("all");
+  const [operationType, setOperationType] = useState<"received" | "paid">("received");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "reversed">("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -65,16 +68,21 @@ export function SettlementsView() {
   const filteredAllocations = allAllocations.filter((allocation) => {
     if (statusFilter === "active" && allocation.reversed_at) return false;
     if (statusFilter === "reversed" && !allocation.reversed_at) return false;
+    const inv = listItems(invoices.data).find((i) => i.id === allocation.invoice_id);
+    const bank = listItems(banks.data).find((b) => b.id === allocation.bank_id);
+    const isReceived = (bank && Number(bank.amount) > 0) || (inv && (inv.direction === "sales" || Number(inv.amount) > 0));
+    if (directionFilter === "received" && !isReceived) return false;
+    if (directionFilter === "paid" && isReceived) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const invRef = (
         allocation.invoice_reference ||
-        listItems(invoices.data).find((i) => i.id === allocation.invoice_id)?.reference ||
+        inv?.reference ||
         allocation.invoice_id
       ).toLowerCase();
       const bankRef = (
         allocation.bank_reference ||
-        listItems(banks.data).find((b) => b.id === allocation.bank_id)?.reference ||
+        bank?.reference ||
         allocation.bank_id
       ).toLowerCase();
       if (!invRef.includes(q) && !bankRef.includes(q)) return false;
@@ -94,7 +102,7 @@ export function SettlementsView() {
               command.clearError();
             }}
           >
-            تخصیص پرداخت
+            تخصیص دریافت و پرداخت
             <PlusIcon size={16} aria-hidden />
           </Button>
         )}
@@ -157,7 +165,30 @@ export function SettlementsView() {
             <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
               {(
                 [
-                  { key: "all", label: "همه" },
+                  { key: "all", label: "همه تراکنش‌ها" },
+                  { key: "received", label: "دریافت‌ها" },
+                  { key: "paid", label: "پرداخت‌ها" },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setDirectionFilter(f.key)}
+                  className={cn(
+                    "rounded px-3 py-1 text-xs transition-colors",
+                    directionFilter === f.key
+                      ? "bg-surface text-primary font-medium shadow-xs"
+                      : "text-muted hover:text-foreground",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
+              {(
+                [
+                  { key: "all", label: "همه وضعیت‌ها" },
                   { key: "active", label: "فعال" },
                   { key: "reversed", label: "برگشت‌شده" },
                 ] as const
@@ -289,7 +320,7 @@ export function SettlementsView() {
           </>
         )}
       </Panel>
-      <Drawer title="تخصیص پرداخت به فاکتور" open={open} onOpenChange={setOpen}>
+      <Drawer title="تخصیص دریافت و پرداخت به فاکتور" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={command.error?.fields}
           onSubmit={(event) => {
@@ -308,7 +339,18 @@ export function SettlementsView() {
             );
           }}
         >
-          <Field name="bank_id" id="allocation-bank" label="گردش بانک">
+          <Field id="allocation-direction" label="نوع عملیات" required>
+            <Select
+              id="allocation-direction"
+              value={operationType}
+              onValueChange={(val) => setOperationType(val as "received" | "paid")}
+              options={[
+                { value: "received", label: "دریافت (از مشتری / فاکتور فروش)" },
+                { value: "paid", label: "پرداخت (به تأمین‌کننده / فاکتور خرید)" },
+              ]}
+            />
+          </Field>
+          <Field name="bank_id" id="allocation-bank" label="گردش بانک" required>
             <SearchSelect
               id="allocation-bank"
               value={bankId}
@@ -326,7 +368,7 @@ export function SettlementsView() {
               searchLabel="جستجوی مرجع یا حساب بانک"
             />
           </Field>
-          <Field name="invoice_id" id="allocation-invoice" label="فاکتور">
+          <Field name="invoice_id" id="allocation-invoice" label="فاکتور" required>
             <SearchSelect
               id="allocation-invoice"
               value={invoiceId}

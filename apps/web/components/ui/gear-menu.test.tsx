@@ -25,7 +25,7 @@ describe("GearMenu", () => {
     expect(categoriesNav).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /کارمندان و پرسنل/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /کارمندان و پرسنل/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /شرکت و دسترسی/ })).toBeVisible();
     expect(screen.getByRole("link", { name: /^اسناد/ })).toHaveAttribute("href", "/settings/documents");
     expect(screen.queryByRole("button", { name: /میز کار تطبیق و مغایرت/ })).not.toBeInTheDocument();
@@ -57,11 +57,15 @@ describe("GearMenu", () => {
     expect(accountsLink).toBeVisible();
     expect(accountsLink).toHaveAttribute("href", "/settings/accounts");
 
+    const counterpartiesLink = screen.getByRole("link", { name: /طرف‌حساب‌ها/ });
+    expect(counterpartiesLink).toBeVisible();
+    expect(counterpartiesLink).toHaveAttribute("href", "/commercial/counterparties");
+
     const periodsLink = screen.getByRole("link", { name: /دوره‌های مالی/ });
     expect(periodsLink).toBeVisible();
     expect(periodsLink).toHaveAttribute("href", "/settings/periods");
 
-    const dimensionsLink = screen.getByRole("link", { name: /ابعاد مالی/ });
+    const dimensionsLink = screen.getByRole("link", { name: /مرکز حساب‌ها/ });
     expect(dimensionsLink).toBeVisible();
     expect(dimensionsLink).toHaveAttribute("href", "/settings/dimensions");
 
@@ -84,13 +88,13 @@ describe("GearMenu", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /کارمندان و پرسنل/ }));
+    fireEvent.click(screen.getByRole("button", { name: /شرکت و دسترسی/ }));
 
     expect(
-      screen.getByRole("navigation", { name: "کارمندان و پرسنل" }),
+      screen.getByRole("navigation", { name: "شرکت و دسترسی" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^کارمندان/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: /قرارداد کارمندان/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /دسترسی و کاربران/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /اطلاعات شرکت/ })).toBeVisible();
 
     const backBtn = screen.getByRole("button", { name: /بازگشت به دسته‌بندی‌ها/ });
     fireEvent.click(backBtn);

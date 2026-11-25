@@ -43,7 +43,7 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
             }}
             fieldErrors={c.command.error?.fields}
           >
-            <Field id="cheque-action" label="رویداد">
+            <Field id="cheque-action" label="رویداد" required>
               <Select
                 id="cheque-action"
                 value={c.action}
@@ -51,24 +51,13 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
                 options={c.actionOptions}
               />
             </Field>
-            <Field
-              id="cheque-event-period"
-              name="period_id"
-              label="دوره رویداد"
-              error={c.errors["cheque-event-period"]}
-            >
-              <Select
-                id="cheque-event-period"
-                value={c.eventPeriod}
-                onValueChange={c.setEventPeriod}
-                options={c.periodOptions}
-              />
-            </Field>
+
             <Field
               id="cheque-event-date"
               name="event_date"
               label="تاریخ رویداد"
               error={c.errors["cheque-event-date"]}
+              required
             >
               <PersianDatePicker
                 id="cheque-event-date"
@@ -82,6 +71,7 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
                 name="bank_id"
                 label="گردش واقعی بانک"
                 error={c.errors["cheque-event-bank"]}
+                required
               >
                 <SearchSelect
                   id="cheque-event-bank"
@@ -127,7 +117,7 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
                 onChange={(event) => c.setReason(event.target.value)}
               />
             </Field>
-            <FormMessage error>{c.command.error?.message}</FormMessage>
+            <FormMessage error>{!c.workspace.periodId ? "دوره را از هدر انتخاب کنید." : c.command.error?.message}</FormMessage>
             <Button type="submit" busy={c.command.busy}>
               ثبت رویداد
             </Button>

@@ -9,7 +9,7 @@ Kind = Literal["project", "branch", "cost_center"]
 
 class DimensionInput(StrictInput):
     kind: Kind
-    code: str = Field(min_length=1, max_length=80)
+    code: str | None = Field(default=None, min_length=1, max_length=80)
     name: str = Field(min_length=1, max_length=120)
     active: bool = True
 

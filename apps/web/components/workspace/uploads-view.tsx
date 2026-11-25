@@ -6,10 +6,9 @@ import { Drawer } from "@/components/ui/drawer";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConditionalRegion } from "@/components/ui/conditional-region";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Field, FormMessage } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/field";
 import { FilePicker } from "@/components/ui/file-picker";
 import { CursorPagination } from "@/components/ui/pagination";
-import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -25,7 +24,6 @@ import { useUploadWorkspace } from "@/hooks/use-upload-workspace";
 import { displayDate, persian } from "@/lib/utils";
 import {
   ArrowUpLeftIcon,
-  CalendarBlankIcon,
   CheckCircleIcon,
   CircleNotchIcon,
   ClockIcon,
@@ -58,29 +56,6 @@ function UploadsWorkspace() {
             if (!upload.busy) setOpen(value);
           }}
         >
-          <div className="mb-5 max-w-sm">
-            <Field
-              id="upload-period"
-              label="دوره مالی"
-              icon={CalendarBlankIcon}
-            >
-              <Select
-                id="upload-period"
-                value={upload.periodId || "ask"}
-                disabled={upload.busy}
-                onValueChange={(id) =>
-                  upload.setPeriodId(id === "ask" ? "" : id)
-                }
-                options={[
-                  { value: "ask", label: "انتخاب هنگام پردازش" },
-                  ...upload.periods.map((period) => ({
-                    value: period.id,
-                    label: period.name,
-                  })),
-                ]}
-              />
-            </Field>
-          </div>
           <FilePicker
             onFiles={(files) => void upload.upload(files)}
             disabled={upload.busy}

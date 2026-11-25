@@ -316,7 +316,7 @@ def test_convert_proforma_mixed_settlement(env, db_session):
     prev_op = preview(db_session, c.id, u, op_res["draft"]["id"])
     post_batch(db_session, c.id, u, [prev_op])
 
-    add_counterparty(db_session, c.id, u, {"code": "CUST-VIP", "name": "مشتری آزمایشی"})
+    party = add_counterparty(db_session, c.id, u, {"name": "مشتری آزمایشی"})
     # Create proforma
     pf_res = create_proforma(
         db_session,
@@ -327,7 +327,7 @@ def test_convert_proforma_mixed_settlement(env, db_session):
             "direction": "sale",
             "date": date.today(),
             "expiry_date": date.today() + timedelta(days=30),
-            "party_id": "CUST-VIP",
+            "party_id": party["id"],
             "currency": "IRR",
             "lines": [
                 {

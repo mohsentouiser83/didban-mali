@@ -11,9 +11,10 @@ P = C + "/cheques"
 
 
 @router.get(P)
-def listing(company_id: str, request: Request, limit: int = 25, cursor: str | None = None):
+def listing(company_id: str, request: Request, limit: int = 25, cursor: str | None = None, direction: str | None = None):
     with access(request, company_id) as (db, _u, _m):
-        return paginate(db, Cheque, company_id, limit, cursor, transform=service._public)
+        filters = [Cheque.direction == direction] if direction else []
+        return paginate(db, Cheque, company_id, limit, cursor, filters, transform=service._public)
 
 
 @router.post(P, status_code=201)

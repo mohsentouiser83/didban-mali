@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { AmountInput, Input, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { counterpartyTypeOptions, type CounterpartyType } from "@/lib/commercial";
 import { Switch } from "@/components/ui/switch";
 import { counterpartyForm } from "@/hooks/use-commercial";
 import type { Counterparty, CounterpartyForm } from "@/lib/commercial";
 
 const fields = [
-  ["code", "کد طرف‌حساب", 100],
   ["name", "نام", 200],
   ["national_id", "شناسه ملی", 20],
   ["economic_code", "کد اقتصادی", 20],
@@ -35,10 +36,15 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
           {fields.map(([key, label, maxLength]) => (
             <Field key={key} id={`party-${key}`} label={label}>
               <Input id={`party-${key}`} value={form[key]} maxLength={maxLength}
-                required={key === "name" || key === "code"} readOnly={readOnly}
+                required={key === "name"} readOnly={readOnly}
                 onChange={(event) => update(key, event.target.value)} />
             </Field>
           ))}
+          <Field id="party-type" label="نوع طرف‌حساب" required>
+            <Select id="party-type" value={form.type} options={[...counterpartyTypeOptions]}
+              disabled={readOnly || busy} aria-required
+              onValueChange={(value) => update("type", value as CounterpartyType)} />
+          </Field>
           <Field id="party-credit" label="سقف اعتبار (ریال)">
             <AmountInput id="party-credit" value={form.credit_limit_irr} maxLength={80}
               readOnly={readOnly} onValueChange={(value) => update("credit_limit_irr", value)} />
@@ -54,7 +60,7 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
             onCheckedChange={(value) => update("active", value)} />
         </div>
         <FormMessage error>{error}</FormMessage>
-        {!readOnly && <Button type="submit" busy={busy} disabled={!form.code.trim() || !form.name.trim()}>ذخیره</Button>}
+        {!readOnly && <Button type="submit" busy={busy} disabled={!form.name.trim() || !form.type}>ذخیره</Button>}
       </form>
     </Drawer>
   );

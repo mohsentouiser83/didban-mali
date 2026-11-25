@@ -9,6 +9,7 @@ export function Field({
   icon: IconComponent = TextAaIcon,
   error,
   description,
+  required,
   children,
 }: {
   id: string;
@@ -17,8 +18,26 @@ export function Field({
   icon?: Icon;
   error?: string;
   description?: string;
+  required?: boolean;
   children: ReactNode;
 }) {
+  const child = isValidElement<{
+    id?: string;
+    name?: string;
+    required?: boolean;
+    "aria-required"?: boolean | "true" | "false";
+    "aria-invalid"?: boolean;
+    "aria-describedby"?: string;
+  }>(children)
+    ? children
+    : null;
+  const isRequired =
+    required ??
+    Boolean(
+      child?.props.required ||
+        child?.props["aria-required"] === true ||
+        child?.props["aria-required"] === "true",
+    );
   const validation = useFormErrors();
   const fieldName = name || id.split("-").at(-1) || id;
   const message = error || validation[id] || validation[fieldName];
@@ -28,26 +47,24 @@ export function Field({
   ]
     .filter(Boolean)
     .join(" ");
-  const control = isValidElement<{
-    name?: string;
-    "aria-invalid"?: boolean;
-    "aria-describedby"?: string;
-  }>(children)
-    ? cloneElement(children, {
+  const control = child
+    ? cloneElement(child, {
+        id: child.props.id || id,
         name: fieldName,
+        "aria-required": isRequired || undefined,
         "aria-invalid": message ? true : undefined,
         "aria-describedby": descriptions || undefined,
       })
     : children;
   return (
     <div className="min-w-0 space-y-2">
-      <label
-        htmlFor={id}
-        className="flex min-h-6 items-center gap-2 font-medium"
-      >
-        <IconComponent size={18} aria-hidden className="text-primary" />
-        {label}
-      </label>
+      <div className="flex min-h-6 items-center gap-2 font-medium">
+        <label htmlFor={id} className="flex items-center gap-2">
+          <IconComponent size={18} aria-hidden className="text-primary" />
+          {label}
+        </label>
+        {isRequired && <RequiredIndicator />}
+      </div>
       {control}
       {message && <FieldError id={`${id}-error`}>{message}</FieldError>}
       {description && (
@@ -57,6 +74,9 @@ export function Field({
       )}
     </div>
   );
+}
+export function RequiredIndicator() {
+  return <span aria-hidden="true" className="shrink-0 text-danger">*</span>;
 }
 export function FieldError({
   children,

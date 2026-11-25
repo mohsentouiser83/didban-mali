@@ -195,15 +195,16 @@ it("manages ledger accounts with nature in creation and editing", async () => {
 
   const { result } = renderHook(useLedgerAccounts);
 
-  // Initial state for new account
+  // Initial state for new account defaults to group with auto-suggested 2-digit code
   act(() => result.current.open(null));
   expect(result.current.value.nature).toBe("debit");
-  expect(result.current.value.code).toBe("");
+  expect(result.current.value.code).toBe("01");
+  expect(result.current.value.level).toBe("group");
   expect(result.current.value.active).toBe(true);
 
-  // Change fields including nature
+  // Change fields including nature and 2-digit group code
   act(() => {
-    result.current.change({ code: "201", name: "بستانکاران", nature: "credit" });
+    result.current.change({ code: "21", name: "بستانکاران", nature: "credit" });
   });
   expect(result.current.value.nature).toBe("credit");
 
@@ -217,10 +218,12 @@ it("manages ledger accounts with nature in creation and editing", async () => {
       );
     expect(postCall).toBeTruthy();
     expect(postCall?.[1]?.body).toEqual({
-      code: "201",
+      code: "21",
       name: "بستانکاران",
       nature: "credit",
       active: true,
+      level: "group",
+      parent_id: null,
     });
   });
 
@@ -228,7 +231,7 @@ it("manages ledger accounts with nature in creation and editing", async () => {
   act(() =>
     result.current.open({
       id: "acc-1",
-      code: "101",
+      code: "11",
       name: "بانک",
       nature: "debit",
       active: true,
@@ -239,7 +242,7 @@ it("manages ledger accounts with nature in creation and editing", async () => {
   expect(result.current.value.nature).toBe("debit");
 
   // Change nature to floating and save
-  act(() => result.current.change({ nature: "floating" }));
+  act(() => result.current.change({ nature: "floating", level: "group" }));
   act(() => result.current.save());
   await waitFor(() => {
     const patchCall = vi
@@ -250,10 +253,40 @@ it("manages ledger accounts with nature in creation and editing", async () => {
       );
     expect(patchCall).toBeTruthy();
     expect(patchCall?.[1]?.body).toEqual({
-      code: "101",
+      code: "11",
       name: "بانک",
       nature: "floating",
       active: true,
+      level: "group",
+      parent_id: null,
     });
   });
+});
+
+
+it("preserves source account codes through the chart import workflow", async () => {
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.endsWith("chart-preview")) return { preview_id: "preview-source-code" };
+    return { items: [] };
+  });
+  const { result } = renderHook(useLedgerAccounts);
+  await act(async () => result.current.importFromExcel({
+    headers: ["کد حساب", "نام حساب", "ماهیت"],
+    rows: [["001205", "حساب واردشده", "بستانکار"]],
+    totalRows: 1,
+  }));
+  expect(api).toHaveBeenCalledWith(
+    "/companies/company-a/accounting/setup/chart-preview",
+    {
+      method: "POST",
+      body: { rows: [{ code: "001205", name: "حساب واردشده", nature: "credit", active: true }] },
+    },
+  );
+  expect(api).toHaveBeenCalledWith(
+    "/companies/company-a/accounting/setup/chart-import",
+    { method: "POST", body: { preview_id: "preview-source-code" } },
+  );
+  expect(vi.mocked(api).mock.calls.some(([path, options]) =>
+    path.endsWith("accounting/accounts") && options?.method === "POST",
+  )).toBe(false);
 });

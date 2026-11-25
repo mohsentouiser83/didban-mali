@@ -59,7 +59,6 @@ export function CurrentPageHeader() {
     "/cashflow/scenarios": { title: "سناریوی نقدینگی", icon: FilesIcon },
     "/receivables/followups": { title: "پیگیری وصول", icon: UsersThreeIcon },
     "/moadian/transmissions": { title: "ارسال و استعلام صورتحساب", icon: ReceiptIcon },
-    "/reports/companies": { title: "مقایسه شرکت‌ها", icon: FilesIcon },
     "/reports/dimensions": { title: "گزارش پروژه و مرکز هزینه", icon: FilesIcon },
     "/reports/builder": { title: "گزارش‌ساز", icon: FilesIcon },
     "/employee-reports": { title: "حقوق و دستمزد", icon: UsersThreeIcon },

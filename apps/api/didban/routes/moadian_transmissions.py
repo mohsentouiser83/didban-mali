@@ -22,9 +22,9 @@ def history(company_id: str, request: Request, limit: int = 50, cursor: str | No
 
 
 @router.get(P + "/candidates")
-def candidates(company_id: str, request: Request):
+def candidates(company_id: str, request: Request, include_all: bool = False):
     with access(request, company_id) as (db, user, member):
-        return service.candidates(db, company_id, user, member)
+        return service.candidates(db, company_id, user, member, include_all=include_all)
 
 
 @router.post(P + "/preview")

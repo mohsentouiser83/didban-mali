@@ -31,6 +31,13 @@ def build_statement(
     db: Session, company: str, user: m.User, period_id: str, as_of: date | None = None
 ) -> dict:
     membership(db, company, user)
+    return calculate_statement(db, company, period_id, as_of)
+
+
+def calculate_statement(
+    db: Session, company: str, period_id: str, as_of: date | None = None
+) -> dict:
+    """Company-scoped calculation; callers enforce request authorization."""
     period = get_entity(db, m.Period, company, period_id)
     cutoff = as_of or period.end
     require(period.start <= cutoff <= period.end, "date_outside_period", "تاریخ گزارش خارج از دوره است.")

@@ -9,7 +9,7 @@ from .accounting_schemas import StrictInput
 
 
 class WarehouseInput(StrictInput):
-    code: str = Field(min_length=1, max_length=100)
+    code: str | None = Field(default=None, min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
 
 
@@ -20,7 +20,7 @@ class UpdateWarehouseInput(StrictInput):
 
 
 class InventoryItemInput(WarehouseInput):
-    inventory_account_id: str = Field(min_length=1, max_length=36)
+    inventory_account_id: str | None = Field(default=None, max_length=36)
 
 
 class UpdateInventoryItemInput(UpdateWarehouseInput):
@@ -37,7 +37,7 @@ class InventoryDraftInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     date: date
     description: str = Field(min_length=1, max_length=500)
-    source_reference: str = Field(min_length=1, max_length=120)
+    source_reference: str | None = Field(default=None, max_length=120)
     party_id: str = Field(default="", max_length=100)
     counterparty_account_id: str | None = Field(default=None, max_length=36)
     revenue_account_id: str | None = Field(default=None, min_length=1, max_length=36)
@@ -60,7 +60,7 @@ class InventoryTransferInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     date: date
     description: str = Field(min_length=1, max_length=500)
-    source_reference: str = Field(min_length=1, max_length=120)
+    source_reference: str | None = Field(default=None, max_length=120)
 
 
 class StockAdjustmentInput(StrictInput):
@@ -72,7 +72,7 @@ class StockAdjustmentInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     date: date
     description: str = Field(min_length=1, max_length=500)
-    source_reference: str = Field(min_length=1, max_length=120)
+    source_reference: str | None = Field(default=None, max_length=120)
     adjustment_account_id: str = Field(min_length=1, max_length=36)
 
 
@@ -85,5 +85,5 @@ class OpeningStockInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     date: date
     description: str = Field(min_length=1, max_length=500)
-    source_reference: str = Field(min_length=1, max_length=120)
+    source_reference: str | None = Field(default=None, max_length=120)
     equity_account_id: str = Field(min_length=1, max_length=36)

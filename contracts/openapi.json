@@ -17,7 +17,7 @@
         "title": "AIComposeInput",
         "type": "object"
       },
-      "AccountInput": {
+      "AccountCreateInput": {
         "additionalProperties": false,
         "properties": {
           "active": {
@@ -26,10 +26,33 @@
             "type": "boolean"
           },
           "code": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "group",
+                  "general",
+                  "subsidiary",
+                  "detail"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
           },
           "name": {
             "maxLength": 150,
@@ -47,10 +70,120 @@
             ],
             "title": "Nature",
             "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
           }
         },
         "required": [
-          "code",
+          "name"
+        ],
+        "title": "AccountCreateInput",
+        "type": "object"
+      },
+      "AccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "group",
+                  "general",
+                  "subsidiary",
+                  "detail"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "nature": {
+            "default": "debit",
+            "enum": [
+              "debit",
+              "credit",
+              "floating",
+              "none"
+            ],
+            "title": "Nature",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "required": [
           "name"
         ],
         "title": "AccountInput",
@@ -176,28 +309,6 @@
           "expected_version"
         ],
         "title": "AnswerInput",
-        "type": "object"
-      },
-      "ApprovalInput": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_digest": {
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Expected Digest",
-            "type": "string"
-          },
-          "policy_version": {
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Policy Version",
-            "type": "string"
-          }
-        },
-        "required": [
-          "expected_digest",
-          "policy_version"
-        ],
-        "title": "ApprovalInput",
         "type": "object"
       },
       "AssistantInput": {
@@ -485,6 +596,100 @@
         "title": "CaseUpdate",
         "type": "object"
       },
+      "ChartAccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "code": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "group",
+                  "general",
+                  "subsidiary",
+                  "detail"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "nature": {
+            "default": "debit",
+            "enum": [
+              "debit",
+              "credit",
+              "floating",
+              "none"
+            ],
+            "title": "Nature",
+            "type": "string"
+          },
+          "parent_code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Code"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "ChartAccountInput",
+        "type": "object"
+      },
       "ChartImportInput": {
         "additionalProperties": false,
         "properties": {
@@ -506,7 +711,7 @@
         "properties": {
           "rows": {
             "items": {
-              "$ref": "#/components/schemas/AccountInput"
+              "$ref": "#/components/schemas/ChartAccountInput"
             },
             "maxItems": 20000,
             "minItems": 1,
@@ -609,7 +814,9 @@
           "direction": {
             "enum": [
               "received",
-              "issued"
+              "issued",
+              "guarantee_in",
+              "guarantee_out"
             ],
             "title": "Direction",
             "type": "string"
@@ -722,28 +929,6 @@
         "title": "CompanyInput",
         "type": "object"
       },
-      "ComparisonInput": {
-        "additionalProperties": false,
-        "properties": {
-          "expected_version": {
-            "minimum": 1.0,
-            "title": "Expected Version",
-            "type": "integer"
-          },
-          "period_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Period Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "period_id",
-          "expected_version"
-        ],
-        "title": "ComparisonInput",
-        "type": "object"
-      },
       "ContractInput": {
         "additionalProperties": false,
         "properties": {
@@ -774,10 +959,17 @@
             "title": "Child Allowance"
           },
           "contract_number": {
-            "maxLength": 50,
-            "minLength": 1,
-            "title": "Contract Number",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Number"
           },
           "contract_type": {
             "default": "full_time",
@@ -785,7 +977,8 @@
               "full_time",
               "part_time",
               "hourly",
-              "project"
+              "project",
+              "honorarium"
             ],
             "title": "Contract Type",
             "type": "string"
@@ -926,7 +1119,6 @@
         },
         "required": [
           "employee_id",
-          "contract_number",
           "start_date"
         ],
         "title": "ContractInput",
@@ -1157,10 +1349,17 @@
             "title": "Address"
           },
           "code": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           },
           "credit_limit_irr": {
             "anyOf": [
@@ -1218,10 +1417,20 @@
               }
             ],
             "title": "Phone"
+          },
+          "type": {
+            "enum": [
+              "supplier",
+              "customer",
+              "employee",
+              "other"
+            ],
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
-          "code",
+          "type",
           "name"
         ],
         "title": "CounterpartyInput",
@@ -1341,10 +1550,17 @@
             "type": "boolean"
           },
           "code": {
-            "maxLength": 80,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           },
           "kind": {
             "enum": [
@@ -1364,7 +1580,6 @@
         },
         "required": [
           "kind",
-          "code",
           "name"
         ],
         "title": "DimensionInput",
@@ -1607,6 +1822,54 @@
         "title": "DocumentThreadInput",
         "type": "object"
       },
+      "DraftInput": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/DraftLine"
+            },
+            "maxItems": 200,
+            "minItems": 2,
+            "title": "Lines",
+            "type": "array"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period_id",
+          "date",
+          "description",
+          "unit",
+          "lines"
+        ],
+        "title": "DraftInput",
+        "type": "object"
+      },
       "DraftLine": {
         "additionalProperties": false,
         "properties": {
@@ -1705,10 +1968,17 @@
             "title": "Department"
           },
           "employee_code": {
-            "maxLength": 50,
-            "minLength": 1,
-            "title": "Employee Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employee Code"
           },
           "father_name": {
             "anyOf": [
@@ -1856,7 +2126,6 @@
           }
         },
         "required": [
-          "employee_code",
           "first_name",
           "last_name"
         ],
@@ -2102,32 +2371,6 @@
           "reason"
         ],
         "title": "GroupDecisionInput",
-        "type": "object"
-      },
-      "GroupInput": {
-        "additionalProperties": false,
-        "properties": {
-          "company_ids": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 20,
-            "minItems": 2,
-            "title": "Company Ids",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "company_ids"
-        ],
-        "title": "GroupInput",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -2462,10 +2705,16 @@
             "type": "string"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "unit": {
             "enum": [
@@ -2504,8 +2753,7 @@
           "unit",
           "period_id",
           "date",
-          "description",
-          "source_reference"
+          "description"
         ],
         "title": "InventoryDraftInput",
         "type": "object"
@@ -2514,16 +2762,29 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           },
           "inventory_account_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Inventory Account Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inventory Account Id"
           },
           "name": {
             "maxLength": 150,
@@ -2533,9 +2794,7 @@
           }
         },
         "required": [
-          "code",
-          "name",
-          "inventory_account_id"
+          "name"
         ],
         "title": "InventoryItemInput",
         "type": "object"
@@ -2579,10 +2838,16 @@
             "type": "integer"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "source_warehouse_id": {
             "maxLength": 36,
@@ -2598,8 +2863,7 @@
           "quantity",
           "period_id",
           "date",
-          "description",
-          "source_reference"
+          "description"
         ],
         "title": "InventoryTransferInput",
         "type": "object"
@@ -2652,18 +2916,24 @@
             "type": "string"
           },
           "reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
           }
         },
         "required": [
           "due_unknown",
           "expected_unknown",
           "operation_id",
-          "journal_digest",
-          "reference"
+          "journal_digest"
         ],
         "title": "InvoiceInput",
         "type": "object"
@@ -2766,63 +3036,6 @@
           "ledger_ids"
         ],
         "title": "ManualGroupInput",
-        "type": "object"
-      },
-      "MappingInput": {
-        "additionalProperties": false,
-        "properties": {
-          "group_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Group Id",
-            "type": "string"
-          },
-          "left_company": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Left Company",
-            "type": "string"
-          },
-          "left_party_id": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Left Party Id",
-            "type": "string"
-          },
-          "ownership_100": {
-            "const": true,
-            "title": "Ownership 100",
-            "type": "boolean"
-          },
-          "ownership_note": {
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Ownership Note",
-            "type": "string"
-          },
-          "right_company": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Right Company",
-            "type": "string"
-          },
-          "right_party_id": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Right Party Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "group_id",
-          "left_company",
-          "right_company",
-          "left_party_id",
-          "right_party_id",
-          "ownership_100",
-          "ownership_note"
-        ],
-        "title": "MappingInput",
         "type": "object"
       },
       "MemberInput": {
@@ -3634,10 +3847,16 @@
             "type": "integer"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "unit": {
             "enum": [
@@ -3676,7 +3895,6 @@
           "period_id",
           "date",
           "description",
-          "source_reference",
           "equity_account_id"
         ],
         "title": "OpeningStockInput",
@@ -3883,10 +4101,16 @@
             "title": "Settlement Type"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "unit": {
             "enum": [
@@ -3902,58 +4126,11 @@
           "period_id",
           "date",
           "description",
-          "source_reference",
           "unit",
           "accounts",
           "amounts"
         ],
         "title": "OperationInput",
-        "type": "object"
-      },
-      "PairInput": {
-        "additionalProperties": false,
-        "properties": {
-          "kind": {
-            "enum": [
-              "balance",
-              "services"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "left_line_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Left Line Id",
-            "type": "string"
-          },
-          "mapping_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Mapping Id",
-            "type": "string"
-          },
-          "review_reason": {
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Review Reason",
-            "type": "string"
-          },
-          "right_line_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Right Line Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "mapping_id",
-          "left_line_id",
-          "right_line_id",
-          "kind",
-          "review_reason"
-        ],
-        "title": "PairInput",
         "type": "object"
       },
       "PairingInput": {
@@ -4546,10 +4723,17 @@
             "type": "array"
           },
           "number": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Number",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
           },
           "party_id": {
             "maxLength": 100,
@@ -4571,7 +4755,6 @@
           }
         },
         "required": [
-          "number",
           "date",
           "party_id",
           "lines"
@@ -5399,10 +5582,16 @@
             "type": "string"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "unit": {
             "default": "IRR",
@@ -5443,7 +5632,6 @@
           "period_id",
           "date",
           "description",
-          "source_reference",
           "adjustment_account_id"
         ],
         "title": "StockAdjustmentInput",
@@ -6063,7 +6251,8 @@
                   "full_time",
                   "part_time",
                   "hourly",
-                  "project"
+                  "project",
+                  "honorarium"
                 ],
                 "type": "string"
               },
@@ -6343,6 +6532,17 @@
               }
             ],
             "title": "Phone"
+          },
+          "type": {
+            "default": "other",
+            "enum": [
+              "supplier",
+              "customer",
+              "employee",
+              "other"
+            ],
+            "title": "Type",
+            "type": "string"
           }
         },
         "title": "UpdateCounterpartyInput",
@@ -6822,10 +7022,17 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           },
           "name": {
             "maxLength": 150,
@@ -6835,7 +7042,6 @@
           }
         },
         "required": [
-          "code",
           "name"
         ],
         "title": "WarehouseInput",
@@ -6862,80 +7068,6 @@
           "reason"
         ],
         "title": "ZeroOpeningInput",
-        "type": "object"
-      },
-      "didban__accounting_schemas__DraftInput": {
-        "additionalProperties": false,
-        "properties": {
-          "date": {
-            "format": "date",
-            "title": "Date",
-            "type": "string"
-          },
-          "description": {
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Description",
-            "type": "string"
-          },
-          "lines": {
-            "items": {
-              "$ref": "#/components/schemas/DraftLine"
-            },
-            "maxItems": 200,
-            "minItems": 2,
-            "title": "Lines",
-            "type": "array"
-          },
-          "period_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Period Id",
-            "type": "string"
-          },
-          "unit": {
-            "enum": [
-              "IRR",
-              "TOMAN"
-            ],
-            "title": "Unit",
-            "type": "string"
-          }
-        },
-        "required": [
-          "period_id",
-          "date",
-          "description",
-          "unit",
-          "lines"
-        ],
-        "title": "DraftInput",
-        "type": "object"
-      },
-      "didban__consolidation_schemas__DraftInput": {
-        "additionalProperties": false,
-        "properties": {
-          "comparison_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Comparison Id",
-            "type": "string"
-          },
-          "pairs": {
-            "items": {
-              "$ref": "#/components/schemas/PairInput"
-            },
-            "maxItems": 1000,
-            "minItems": 1,
-            "title": "Pairs",
-            "type": "array"
-          }
-        },
-        "required": [
-          "comparison_id",
-          "pairs"
-        ],
-        "title": "DraftInput",
         "type": "object"
       },
       "didban__dimensions_schemas__AllocationInput": {
@@ -7722,6 +7854,38 @@
               ],
               "title": "Cursor"
             }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Level"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
           }
         ],
         "responses": {
@@ -7763,7 +7927,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountInput"
+                "$ref": "#/components/schemas/AccountCreateInput"
               }
             }
           },
@@ -8243,7 +8407,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/didban__accounting_schemas__DraftInput"
+                "$ref": "#/components/schemas/DraftInput"
               }
             }
           },
@@ -8299,7 +8463,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/didban__accounting_schemas__DraftInput"
+                "$ref": "#/components/schemas/DraftInput"
               }
             }
           },
@@ -8428,6 +8592,111 @@
           }
         },
         "summary": "Preview"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/electronic-ledgers": {
+      "get": {
+        "operationId": "electronic_ledgers_api_v1_companies__company_id__accounting_electronic_ledgers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "default": "general",
+              "enum": [
+                "general",
+                "subsidiary"
+              ],
+              "title": "Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_turnover",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Turnover",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "auto_daily_numbering",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Auto Daily Numbering",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Electronic Ledgers"
       }
     },
     "/api/v1/companies/{company_id}/accounting/inventory": {
@@ -13766,6 +14035,22 @@
               ],
               "title": "Cursor"
             }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
           }
         ],
         "responses": {
@@ -14219,6 +14504,22 @@
               "default": false,
               "title": "Active Only",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
             }
           }
         ],
@@ -14695,820 +14996,6 @@
           }
         },
         "summary": "Export Proforma Pdf"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups": {
-      "get": {
-        "operationId": "groups_api_v1_companies__company_id__company_groups_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 25,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Groups"
-      },
-      "post": {
-        "operationId": "create_api_v1_companies__company_id__company_groups_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GroupInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups/runs/history": {
-      "get": {
-        "operationId": "runs_api_v1_companies__company_id__company_groups_runs_history_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 25,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Runs"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups/runs/{run_id}": {
-      "get": {
-        "operationId": "detail_api_v1_companies__company_id__company_groups_runs__run_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "run_id",
-            "required": true,
-            "schema": {
-              "title": "Run Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Detail"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups/runs/{run_id}/export": {
-      "get": {
-        "operationId": "export_api_v1_companies__company_id__company_groups_runs__run_id__export_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "run_id",
-            "required": true,
-            "schema": {
-              "title": "Run Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Export"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups/{group_id}": {
-      "patch": {
-        "operationId": "update_api_v1_companies__company_id__company_groups__group_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "group_id",
-            "required": true,
-            "schema": {
-              "title": "Group Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GroupInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update"
-      }
-    },
-    "/api/v1/companies/{company_id}/company-groups/{group_id}/runs": {
-      "post": {
-        "operationId": "compare_api_v1_companies__company_id__company_groups__group_id__runs_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "group_id",
-            "required": true,
-            "schema": {
-              "title": "Group Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ComparisonInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Compare"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/drafts": {
-      "get": {
-        "operationId": "drafts_api_v1_companies__company_id__consolidation_drafts_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 25,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Drafts"
-      },
-      "post": {
-        "operationId": "create_api_v1_companies__company_id__consolidation_drafts_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/didban__consolidation_schemas__DraftInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/drafts/{draft_id}": {
-      "get": {
-        "operationId": "detail_api_v1_companies__company_id__consolidation_drafts__draft_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Detail"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/drafts/{draft_id}/approval-preview": {
-      "get": {
-        "operationId": "preview_api_v1_companies__company_id__consolidation_drafts__draft_id__approval_preview_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Preview"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/drafts/{draft_id}/approvals": {
-      "post": {
-        "operationId": "approve_api_v1_companies__company_id__consolidation_drafts__draft_id__approvals_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApprovalInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Approve"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/drafts/{draft_id}/export": {
-      "get": {
-        "operationId": "export_api_v1_companies__company_id__consolidation_drafts__draft_id__export_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "draft_id",
-            "required": true,
-            "schema": {
-              "title": "Draft Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Export"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/mappings": {
-      "get": {
-        "operationId": "mappings_api_v1_companies__company_id__consolidation_mappings_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "group_id",
-            "required": true,
-            "schema": {
-              "title": "Group Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Mappings"
-      },
-      "post": {
-        "operationId": "mapping_api_v1_companies__company_id__consolidation_mappings_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MappingInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Mapping"
-      }
-    },
-    "/api/v1/companies/{company_id}/consolidation/sources": {
-      "get": {
-        "operationId": "sources_api_v1_companies__company_id__consolidation_sources_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "comparison_id",
-            "required": true,
-            "schema": {
-              "title": "Comparison Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Sources"
       }
     },
     "/api/v1/companies/{company_id}/contracts": {
@@ -17533,6 +17020,62 @@
         "summary": "Update Employee"
       }
     },
+    "/api/v1/companies/{company_id}/employees/{employee_id}/settlement": {
+      "get": {
+        "operationId": "get_employee_settlement_api_v1_companies__company_id__employees__employee_id__settlement_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "employee_id",
+            "required": true,
+            "schema": {
+              "title": "Employee Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "used_leave_days",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "title": "Used Leave Days",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Employee Settlement"
+      }
+    },
     "/api/v1/companies/{company_id}/financial-periods": {
       "get": {
         "operationId": "periods_api_v1_companies__company_id__financial_periods_get",
@@ -18587,6 +18130,16 @@
             "schema": {
               "title": "Company Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_all",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include All",
+              "type": "boolean"
             }
           }
         ],
@@ -20284,6 +19837,52 @@
         "summary": "Create Payroll Operation Draft"
       }
     },
+    "/api/v1/companies/{company_id}/payroll/runs/{run_id}/insurance-disk": {
+      "get": {
+        "operationId": "export_insurance_disk_api_v1_companies__company_id__payroll_runs__run_id__insurance_disk_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Insurance Disk"
+      }
+    },
     "/api/v1/companies/{company_id}/payroll/runs/{run_id}/slips/batch": {
       "post": {
         "operationId": "batch_update_timesheets_api_v1_companies__company_id__payroll_runs__run_id__slips_batch_post",
@@ -20403,6 +20002,52 @@
           }
         },
         "summary": "Update Slip Timesheet"
+      }
+    },
+    "/api/v1/companies/{company_id}/payroll/runs/{run_id}/tax-disk": {
+      "get": {
+        "operationId": "export_tax_disk_api_v1_companies__company_id__payroll_runs__run_id__tax_disk_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Tax Disk"
       }
     },
     "/api/v1/companies/{company_id}/personnel-directory": {

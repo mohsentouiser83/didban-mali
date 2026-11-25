@@ -298,7 +298,9 @@ rejected(command(advisor, "POST", stock + "/drafts", goods_input(
 sale_payload = goods_input("sale_goods", "SELL-1", 1, "150", "2026-09-03", "TOMAN")
 created = checked(command(advisor, "POST", stock + "/drafts", sale_payload), 201)["draft"]
 checked_sale = approval(created["id"])
-rejected(command(advisor, "POST", stock + "/drafts", sale_payload), 409, "operation_duplicate")
+repeat_key = str(uuid4())
+first_repeat = command(advisor, "POST", stock + "/drafts", sale_payload, key=repeat_key)
+assert command(advisor, "POST", stock + "/drafts", sale_payload, key=repeat_key).json() == first_repeat.json()
 
 lines = [
     {"account_id": line["account_id"], "party_id": line["party_id"],

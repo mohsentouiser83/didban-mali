@@ -1,16 +1,17 @@
 "use client";
 import { useState } from "react";
-import { Select } from "@/components/ui/select";
-import { AccountRoleField } from "./account-role-field";
-import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
+import { AccountEditor } from "./account-editor";
+import { AccountFilters } from "./account-filters";
+import {
+  accountLevelLabel,
+  accountRoleLabel,
+  treasuryRoleLabel,
+} from "@/lib/account-catalogue";
+import { BankIcon, BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
-import { Field, FormMessage } from "@/components/ui/field";
-import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { CursorPagination } from "@/components/ui/pagination";
 import {
   Table,
@@ -23,13 +24,10 @@ import {
   TableRowHeader,
 } from "@/components/ui/table";
 import { ChartSetupPanel } from "./chart-setup-panel";
+import { TreasuryAccountDrawer } from "./treasury-account-drawer";
 import { useLedgerAccounts } from "@/hooks/use-accounting";
 import { useWorkspace } from "@/hooks/workspace";
-import {
-  ACCOUNT_NATURE_OPTIONS,
-  accountNatureLabel,
-  type AccountNature,
-} from "@/lib/accounting";
+import { accountNatureLabel } from "@/lib/accounting";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 export function AccountsView() {
@@ -40,6 +38,7 @@ export function AccountsView() {
 function AccountsWorkspace() {
   const view = useLedgerAccounts();
   const [importOpen, setImportOpen] = useState(false);
+  const [treasuryOpen, setTreasuryOpen] = useState(false);
   const editable = !!view.capabilities.data?.can_manage_accounts;
   const error = view.resource.error || view.capabilities.error;
   return (
@@ -50,6 +49,13 @@ function AccountsWorkspace() {
         action={
           editable && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setTreasuryOpen(true)}
+              >
+                <BankIcon size={18} aria-hidden />
+                تعریف بانک / صندوق / تنخواه
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => setImportOpen(true)}
@@ -65,13 +71,14 @@ function AccountsWorkspace() {
         }
       />
       <Panel>
+        <AccountFilters view={view} />
         {view.resource.loading || view.capabilities.loading ? (
           <LoadingState label="در حال دریافت حساب‌ها" variant="panels" />
         ) : error ? (
           <ErrorState
             message={error.message}
             onRetry={() => {
-              view.resource.refresh();
+              view.refresh();
               view.capabilities.refresh();
             }}
           />
@@ -82,6 +89,9 @@ function AccountsWorkspace() {
                 <TableRow>
                   <TableHead>کد حساب</TableHead>
                   <TableHead>نام حساب</TableHead>
+                  <TableHead>نقش حساب</TableHead>
+                  <TableHead>سطح حساب</TableHead>
+                  <TableHead>حساب بالادست</TableHead>
                   <TableHead>ماهیت حساب</TableHead>
                   <TableHead>وضعیت</TableHead>
                   <TableHead>
@@ -99,6 +109,26 @@ function AccountsWorkspace() {
                         </span>
                       </TableRowHeader>
                       <TableCell>{account.name}</TableCell>
+                      <TableCell>
+                        {account.role ? (
+                          <Badge
+                            tone={
+                              ["bank", "cash", "petty_cash", "cash_bank"].includes(
+                                account.role,
+                              )
+                                ? "primary"
+                                : "neutral"
+                            }
+                          >
+                            {treasuryRoleLabel(account.role) ||
+                              accountRoleLabel(account.role)}
+                          </Badge>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell><Badge tone="neutral">{accountLevelLabel(account.level)}</Badge></TableCell>
+                      <TableCell>{account.parent_code ? <><bdi>{account.parent_code}</bdi> — {account.parent_name}</> : "—"}</TableCell>
                       <TableCell>
                         <Badge
                           tone={
@@ -132,7 +162,7 @@ function AccountsWorkspace() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={5} title="هنوز حسابی تعریف نشده است" />
+                  <TableEmptyCell colSpan={8} title={view.filtersActive ? "حسابی برای این فیلترها پیدا نشد" : "هنوز حسابی تعریف نشده است"} />
                 )}
               </TableBody>
             </Table>
@@ -147,61 +177,17 @@ function AccountsWorkspace() {
           if (!open && !view.command.busy) view.close();
         }}
       >
-        <Form
-          fieldErrors={view.command.error?.fields}
-          onSubmit={(event) => {
-            event.preventDefault();
-            view.save();
-          }}
-        >
-          <Field id="ledger-code" name="code" label="کد حساب">
-            <Input
-              id="ledger-code"
-              required
-              dir="ltr"
-              maxLength={100}
-              value={view.value.code}
-              disabled={!editable || view.command.busy}
-              onChange={(event) => view.change({ code: event.target.value })}
-            />
-          </Field>
-          <Field id="ledger-name" name="name" label="نام حساب">
-            <Input
-              id="ledger-name"
-              required
-              maxLength={150}
-              value={view.value.name}
-              disabled={!editable || view.command.busy}
-              onChange={(event) => view.change({ name: event.target.value })}
-            />
-          </Field>
-          <Field id="ledger-nature" name="nature" label="ماهیت حساب">
-            <Select
-              id="ledger-nature"
-              value={view.value.nature}
-              disabled={!editable || view.command.busy}
-              onValueChange={(nature) =>
-                view.change({ nature: nature as AccountNature })
-              }
-              options={ACCOUNT_NATURE_OPTIONS}
-            />
-          </Field>
-          <Checkbox
-            id="ledger-active"
-            label="حساب فعال"
-            checked={view.value.active}
-            disabled={!editable || view.command.busy}
-            onCheckedChange={(active) => view.change({ active })}
-          />
-          {view.editing && <AccountRoleField accountId={view.editing.id} />}
-          <FormMessage error>{view.command.error?.message}</FormMessage>
-          {editable && (
-            <Button type="submit" busy={view.command.busy}>
-              ذخیره حساب
-            </Button>
-          )}
-        </Form>
+        <AccountEditor view={view} editable={editable} />
       </Drawer>
+      {editable && (
+        <TreasuryAccountDrawer
+          open={treasuryOpen}
+          onClose={() => setTreasuryOpen(false)}
+          onSuccess={() => {
+            view.refresh();
+          }}
+        />
+      )}
       {editable && (
         <Drawer
           title="الگو و ورود کدینگ حساب‌ها"
@@ -214,7 +200,7 @@ function AccountsWorkspace() {
             embedded
             onImported={() => {
               setImportOpen(false);
-              view.resource.refresh();
+              view.refresh();
             }}
           />
         </Drawer>

@@ -16,7 +16,7 @@ import { persian } from "@/lib/utils";
 
 function ActivityForm({ view }: { view: DocumentDiscussionController }) {
   return <Form fieldErrors={view.command.error?.fields} onSubmit={event => { event.preventDefault(); view.add(); }}>
-    <Field id="document-comment-kind" label="فعالیت"><Select id="document-comment-kind" value={view.comment.kind} onValueChange={kind => view.commentChange({ kind })} options={[{ value: "comment", label: "نظر" }, { value: "document_request", label: "درخواست مدرک" }]} disabled={view.command.busy}/></Field>
+    <Field id="document-comment-kind" label="فعالیت" required><Select id="document-comment-kind" value={view.comment.kind} onValueChange={kind => view.commentChange({ kind })} options={[{ value: "comment", label: "نظر" }, { value: "document_request", label: "درخواست مدرک" }]} disabled={view.command.busy}/></Field>
     <Field id="document-comment-text" label="متن"><Textarea id="document-comment-text" value={view.comment.message} onChange={event => view.commentChange({ message: event.target.value })} required maxLength={2000} disabled={view.command.busy}/></Field>
     <Button type="submit" busy={view.command.busy} disabled={view.blocked || !view.comment.message.trim()}>ثبت فعالیت</Button>
   </Form>;
@@ -24,7 +24,7 @@ function ActivityForm({ view }: { view: DocumentDiscussionController }) {
 function FollowupForm({ view }: { view: DocumentDiscussionController }) {
   return <Form className="space-y-4 rounded-control border border-border p-4" fieldErrors={view.command.error?.fields} onSubmit={event => { event.preventDefault(); view.saveFollowup(); }}>
     <h3 className="font-medium">مسئول و پیگیری</h3>
-    <Field id="document-thread-state" label="وضعیت"><Select id="document-thread-state" value={view.form.state} onValueChange={state => view.formChange({ state: state as typeof view.form.state })} options={[{ value: "open", label: "باز" }, { value: "in_progress", label: "در حال رسیدگی" }, { value: "resolved", label: "رسیدگی‌شده" }]} disabled={view.command.busy}/></Field>
+    <Field id="document-thread-state" label="وضعیت" required><Select id="document-thread-state" value={view.form.state} onValueChange={state => view.formChange({ state: state as typeof view.form.state })} options={[{ value: "open", label: "باز" }, { value: "in_progress", label: "در حال رسیدگی" }, { value: "resolved", label: "رسیدگی‌شده" }]} disabled={view.command.busy}/></Field>
     <Field id="document-thread-assignee" label="مسئول"><Select id="document-thread-assignee" value={view.form.assignee_membership_id} onValueChange={assignee_membership_id => view.formChange({ assignee_membership_id })} options={view.assigneeOptions} disabled={view.command.busy || view.assignees.loading || !!view.assignees.error}/></Field>
     {view.assignees.error && <ErrorState message={view.assignees.error.message} onRetry={view.assignees.refresh}/>}
     <Field id="document-thread-due" label="مهلت پیگیری"><PersianDatePicker id="document-thread-due" value={view.form.due_date} onChange={due_date => view.formChange({ due_date })} disabled={view.command.busy}/></Field>

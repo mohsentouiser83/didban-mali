@@ -8,9 +8,9 @@ import {listItems} from "@/lib/api";
 interface BotIntake{id:string;name:string;provider:string;state:string;version:number;duplicate_original?:boolean;session_id?:string|null}
 const labels:Record<string,string>={awaiting_import:"انتخاب دوره و ورود به پردازش",imported:"وارد پردازش شده",pending_extraction:"در انتظار استخراج و بازبینی",awaiting_review:"نیازمند بازبینی"};
 export function useBotIntakes(){
- const workspace=useWorkspace();const base=workspace.companyPath("bot-intakes");const resource=usePagedResource<BotIntake>(base);const command=useCommand();const [period,setPeriod]=useState("");
+ const workspace=useWorkspace();const base=workspace.companyPath("bot-intakes");const resource=usePagedResource<BotIntake>(base);const command=useCommand();const period=workspace.periodId;
  function importFile(item:BotIntake){if(!period)return;void command.run(base+`/${item.id}/import`,{body:{period_id:period},version:item.version},resource.refresh,"فایل آمادهٔ پردازش شد.");}
- return {resource,command,period,setPeriod,importFile,canImport:workspace.canWrite,periodOptions:workspace.periods.map(item=>({value:item.id,label:item.name})),rows:listItems(resource.data).map(item=>({...item,stateLabel:labels[item.state]||"نامشخص",providerLabel:item.provider==="telegram"?"تلگرام":"بله",download:`/api/v1${base}/${item.id}/download`,sessionLink:item.session_id?`/uploads/${item.session_id}`:undefined}))};
+ return {resource,command,period,importFile,canImport:workspace.canWrite,periodOptions:workspace.periods.map(item=>({value:item.id,label:item.name})),rows:listItems(resource.data).map(item=>({...item,stateLabel:labels[item.state]||"نامشخص",providerLabel:item.provider==="telegram"?"تلگرام":"بله",download:`/api/v1${base}/${item.id}/download`,sessionLink:item.session_id?`/uploads/${item.session_id}`:undefined}))};
 }
 
 interface ExtractionRow{date:string|null;reference:string|null;party_id:string|null;account:string|null;amount:string|null;evidence_refs:string[]}
@@ -19,7 +19,8 @@ export function useBotExtraction(onRefresh:()=>void){
  const workspace=useWorkspace();const base=workspace.companyPath("bot-intakes");const command=useCommand();
  const status=useResource<{enabled:boolean;vision:boolean;voice:boolean;max_pages:number}>(base?base+"/extraction-status":null);
  const [selected,setSelected]=useState<BotIntake>();const [proposal,setProposal]=useState<ExtractionProposal>();
- const [form,setForm]=useState({period_id:"",family:"unknown",unit:"unknown",calendar:"unknown",rows:[] as ExtractionRow[]});
+ const [formState,setForm]=useState({period_id:"",family:"unknown",unit:"unknown",calendar:"unknown",rows:[] as ExtractionRow[]});
+ const form={...formState,period_id:workspace.periodId};
  function load(item:BotIntake,value:ExtractionProposal){setSelected(item);setProposal(value);setForm({period_id:"",family:value.proposal.family,unit:value.proposal.unit,calendar:value.proposal.calendar,rows:value.proposal.rows});}
  function extract(item:BotIntake){void command.run<ExtractionProposal>(base+`/${item.id}/extract`,{version:item.version},result=>{load({...item,version:item.version+1},result);onRefresh();},"پیشنهاد استخراج آمادهٔ بازبینی است.");}
  function open(item:BotIntake){void command.run<{items:ExtractionProposal[]}>(base+`/${item.id}/extractions`,{method:"GET"},result=>{if(result.items[0])load(item,result.items[0]);});}

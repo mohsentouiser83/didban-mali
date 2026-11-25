@@ -123,7 +123,7 @@ function Workspace() {
             className="space-y-4"
             disabled={!view.workspace.canWrite || view.command.busy}
           >
-            <Field id="dimension-kind" label="نوع">
+            <Field id="dimension-kind" label="نوع" required>
               <Select
                 id="dimension-kind"
                 value={view.value.kind}
@@ -132,15 +132,7 @@ function Workspace() {
                 onValueChange={(kind) => view.change({ kind })}
               />
             </Field>
-            <Field id="dimension-code" label="کد">
-              <Input
-                id="dimension-code"
-                required
-                maxLength={80}
-                value={view.value.code}
-                onChange={(event) => view.change({ code: event.target.value })}
-              />
-            </Field>
+            
             <Field id="dimension-name" label="نام">
               <Input
                 id="dimension-name"

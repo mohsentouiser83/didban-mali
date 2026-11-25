@@ -24,7 +24,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
         fieldErrors={c.command.error?.fields}
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field id="cheque-direction" label="نوع چک">
+          <Field id="cheque-direction" label="نوع چک" required>
             <Select
               id="cheque-direction"
               value={c.form.direction}
@@ -33,22 +33,11 @@ export function ChequeForm({ c }: { c: ChequeController }) {
                 c.change({ direction: direction as "received" | "issued" })
               }
               options={[
-                { value: "received", label: "دریافتی" },
-                { value: "issued", label: "پرداختی" },
+                { value: "received", label: "دریافتنی" },
+                { value: "issued", label: "پرداختنی" },
+                { value: "guarantee_in", label: "تضمین دیگران نزد ما" },
+                { value: "guarantee_out", label: "تضمین ما نزد دیگران" },
               ]}
-            />
-          </Field>
-          <Field
-            id="cheque-period"
-            name="period_id"
-            label="دوره"
-            error={c.errors["cheque-period"]}
-          >
-            <Select
-              id="cheque-period"
-              value={c.form.period_id}
-              onValueChange={(period_id) => c.change({ period_id })}
-              options={c.periodOptions}
             />
           </Field>
           <Field id="cheque-number" name="number" label="شماره چک">
@@ -97,7 +86,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               onChange={(e) => c.change({ bank_account: e.target.value })}
             />
           </Field>
-          <Field id="cheque-amount" name="amount" label="مبلغ">
+          <Field id="cheque-amount" name="amount" label="مبلغ (ریال)">
             <AmountInput
               id="cheque-amount"
               required
@@ -105,24 +94,12 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               onValueChange={(amount) => c.change({ amount })}
             />
           </Field>
-          <Field id="cheque-unit" label="واحد">
-            <Select
-              id="cheque-unit"
-              value={c.form.unit}
-              onValueChange={(unit) =>
-                c.change({ unit: unit as "IRR" | "TOMAN" })
-              }
-              options={[
-                { value: "IRR", label: "ریال" },
-                { value: "TOMAN", label: "تومان" },
-              ]}
-            />
-          </Field>
           <Field
             id="cheque-issue"
             name="issue_date"
             label="تاریخ دریافت یا صدور"
             error={c.errors["cheque-issue"]}
+            required
           >
             <PersianDatePicker
               id="cheque-issue"
@@ -135,6 +112,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
             name="due_date"
             label="سررسید"
             error={c.errors["cheque-due"]}
+            required
           >
             <PersianDatePicker
               id="cheque-due"
@@ -143,7 +121,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
             />
           </Field>
         </div>
-        <FormMessage error>{c.command.error?.message}</FormMessage>
+        <FormMessage error>{!c.workspace.periodId ? "دوره را از هدر انتخاب کنید." : c.command.error?.message}</FormMessage>
         <Button type="submit" busy={c.command.busy}>
           ثبت اطلاعات چک
         </Button>

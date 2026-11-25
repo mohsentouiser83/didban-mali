@@ -1,6 +1,6 @@
 # فهرست موجودیت‌های اجرایی
 
-بازبینی کد ۲۰۲۶/۱۱/۲۲. پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۲۳ کلاس و ۱۲۳ جدول مدل در ۳۹ ماژول است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
+بازبینی کد ۲۰۲۶/۱۱/۲۳. پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۲۰ کلاس و ۱۲۰ جدول مدل در ۳۶ ماژول است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
 
 بازخوانی رجیستری از ریشهٔ مخزن
 
@@ -21,6 +21,7 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `AccountingPermission` | `accounting_permissions` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `CompanyAccountingSetup` | `company_accounting_setup` | [accounting_setup_models.py](../apps/api/didban/accounting_setup_models.py) |
 | `NumberingSystem` | `numbering_systems` | [numbering_models.py](../apps/api/didban/numbering_models.py) |
+| `NumberingAssignment` | `numbering_assignments` | [numbering_models.py](../apps/api/didban/numbering_models.py) |
 
 جدول‌های `bot_notification_*`، `native_control_runs`، `automation_*`، `native_automation_*`، `learning_patterns` و `operation_learning_*` برای سازگاری و حفظ سابقه نگهداری می‌شوند. مسیرهای مدیریتی و اجرای دوره‌ای یا خودکار آن‌ها حذف شده‌اند.
 
@@ -29,6 +30,7 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | کلاس | جدول | منبع |
 |---|---|---|
 | `Account` | `accounting_accounts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
+| `AccountHierarchy` | `accounting_account_hierarchy` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `AccountImportPreview` | `account_import_previews` | [accounting_setup_models.py](../apps/api/didban/accounting_setup_models.py) |
 | `Draft` | `accounting_drafts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `OperationDraft` | `accounting_operations` | [operation_models.py](../apps/api/didban/operation_models.py) |
@@ -151,7 +153,7 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `NativeDocumentThread` | `native_document_threads` | [document_thread_models.py](../apps/api/didban/document_thread_models.py) |
 | `NativeDocumentActivity` | `native_document_activities` | [document_thread_models.py](../apps/api/didban/document_thread_models.py) |
 
-## ابعاد و گروه شرکت‌ها
+## ابعاد مدیریتی
 
 | کلاس | جدول | منبع |
 |---|---|---|
@@ -160,11 +162,6 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `DimensionReportRun` | `dimension_report_runs` | [dimensions_models.py](../apps/api/didban/dimensions_models.py) |
 | `NativeDimensionAllocation` | `native_dimension_allocations` | [dimensions_models.py](../apps/api/didban/dimensions_models.py) |
 | `NativeDimensionReportRun` | `native_dimension_report_runs` | [dimensions_models.py](../apps/api/didban/dimensions_models.py) |
-| `CompanyGroup` | `company_groups` | [company_group_models.py](../apps/api/didban/company_group_models.py) |
-| `CompanyComparisonRun` | `company_comparison_runs` | [company_group_models.py](../apps/api/didban/company_group_models.py) |
-| `IntercompanyMapping` | `intercompany_mappings` | [consolidation_models.py](../apps/api/didban/consolidation_models.py) |
-| `DraftConsolidationRun` | `draft_consolidation_runs` | [consolidation_models.py](../apps/api/didban/consolidation_models.py) |
-| `ConsolidationApproval` | `consolidation_approvals` | [consolidation_approval_models.py](../apps/api/didban/consolidation_approval_models.py) |
 
 ## قواعد و یادگیری
 
@@ -224,3 +221,11 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `InstallationIdempotency` | `installation_idempotency_keys` | [models.py](../apps/api/didban/models.py) |
 | `Job` | `outbox_jobs` | [models.py](../apps/api/didban/models.py) |
 | `Notification` | `notifications` | [models.py](../apps/api/didban/models.py) |
+
+مدل‌های اختصاصی مقایسهٔ شرکت‌ها و حذف‌های درون‌گروهی طبق تصمیم ۲۰۲۶/۱۱/۲۳ از رجیستری اجرایی و DDL نصب تازه حذف شدند. این تغییر، جدول‌ها یا شواهد نصب موجود را حذف نمی‌کند.
+
+### قالب‌های سامانه، ۲۰۲۶/۱۱/۲۳
+
+قالب‌های پیش‌فرض گزارش موجودیت یا جدول جدید نیستند. قبل از ویرایش به‌شکل تعریف محاسبه‌شده با شناسهٔ پایدار شرکت ارائه می‌شوند؛ اولین ذخیره در `SavedReportDefinition` و JSON موجود `spec` با `system_key` ثبت می‌شود. نسخهٔ مالی تولیدشده و تعریف قابل ویرایش همچنان مدل‌های جدا هستند. رجیستری ۱۱۸ جدول مدل باقی ماند.
+
+به‌روزرسانی ۲۰۲۶/۱۱/۲۳: کارت `CommercialCounterparty` در `commercial_counterparties` فیلد `type` غیرتهی با چهار مقدار `supplier/customer/employee/other` دارد؛ موجودیت تازه‌ای اضافه نشده است. قرارداد DDL بازتولید شد.

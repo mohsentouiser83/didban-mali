@@ -24,7 +24,7 @@ export function CollectionReminderDialog({
         <ErrorState message={c.command.error.message} />
       ) : c.current?.draft ? (
         <div className="space-y-4">
-          <Field id="collection-reminder-text" label="متن قابل ویرایش">
+          <Field required id="collection-reminder-text" label="متن قابل ویرایش">
             <Textarea
               id="collection-reminder-text"
               value={c.current.text}

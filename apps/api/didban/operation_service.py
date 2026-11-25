@@ -3,7 +3,7 @@
 from decimal import Decimal, localcontext
 
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from . import models as m
@@ -200,7 +200,7 @@ def validate_and_build_settlement_lines(
             "حساب وجه نقد / بانک را انتخاب کنید.",
         )
         if db is not None and company is not None:
-            _require_settlement_role(db, company, cash_account_id, ["cash_bank", "bank"])
+            _require_settlement_role(db, company, cash_account_id, ["cash_bank", "bank", "cash", "petty_cash"])
 
     if cheque_dec > 0:
         require(
@@ -461,18 +461,9 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
     require(
         capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تهیه سند ندارید.", 403
     )
-    require(
-        not db.scalar(
-            select(OperationDraft.id).where(
-                OperationDraft.company_id == company,
-                OperationDraft.kind == data["kind"],
-                OperationDraft.source_reference == data["source_reference"],
-            )
-        ),
-        "operation_duplicate",
-        "این مرجع عملیات قبلاً ثبت شده است.",
-        409,
-    )
+    from .operation_numbering import allocate_reference
+
+    data = data | {"source_reference": allocate_reference(db, company, data["kind"])}
     if data["kind"] != "transfer":
         require(bool(data["party_id"].strip()), "operation_party_required", "طرف حساب را مشخص کنید.")
     if data["kind"].startswith("cheque_"):
@@ -542,7 +533,7 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
         origin.id,
         {"draft_id": result["id"], "kind": origin.kind, "policy_version": POLICY},
     )
-    return {"operation_id": origin.id, "draft": result, "financial_effect": False, "policy_version": POLICY}
+    return {"operation_id": origin.id, "draft": result, "source_reference": data["source_reference"], "financial_effect": False, "policy_version": POLICY}
 
 
 def _validate_cheque(db: Session, company: str, data: dict) -> None:
@@ -590,14 +581,16 @@ def _validate_cheque(db: Session, company: str, data: dict) -> None:
         not db.scalar(
             select(OperationDraft.id).where(
                 OperationDraft.company_id == company,
-                OperationDraft.source_reference == "cheque-event:" + event.id,
+                or_(
+                    OperationDraft.source_reference == "cheque-event:" + event.id,
+                    OperationDraft.payload["cheque_event_id"].as_string() == event.id,
+                ),
             )
         ),
         "operation_duplicate",
         "برای این رویداد قبلاً پیش‌نویس ساخته شده است.",
         409,
     )
-    data["source_reference"] = "cheque-event:" + event.id
 
 
 def _current_endorsee(db: Session, company: str, cheque, event) -> str | None:

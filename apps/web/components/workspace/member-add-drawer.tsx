@@ -34,7 +34,8 @@ export function MemberAddDrawer({
         fieldErrors={c.command.error?.fields}
       >
         {c.canCreateAccount && !c.userId && (
-          <Select
+          <Field id="member-method" label="روش افزودن" required>
+<Select
             label="روش افزودن"
             value={c.method}
             onValueChange={c.setMethod}
@@ -44,6 +45,7 @@ export function MemberAddDrawer({
               { value: "new", label: "ایجاد حساب جدید" },
             ]}
           />
+</Field>
         )}
         {c.method === "new" && !c.userId ? (
           <>
@@ -92,7 +94,7 @@ export function MemberAddDrawer({
             حساب ایجاد شده؛ افزودن به شرکت هنوز کامل نشده است.
           </StatusMessage>
         ) : (
-          <Field id="member-user" label="حساب کاربر">
+          <Field id="member-user" label="حساب کاربر" required>
             {c.canCreateAccount ? (
               c.users.loading ? (
                 <LoadingState />
@@ -128,7 +130,7 @@ export function MemberAddDrawer({
             )}
           </Field>
         )}
-        <Field id="new-member-role" label="نقش">
+        <Field id="new-member-role" label="نقش" required>
           <Select
             id="new-member-role"
             value={c.newRole}

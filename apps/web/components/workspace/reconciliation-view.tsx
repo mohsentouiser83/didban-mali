@@ -271,7 +271,7 @@ export function ImportedReconciliationWorkspace() {
                     );
                   }}
                 >
-                  <Field id="reconciliation-decision" label="تصمیم">
+                  <Field id="reconciliation-decision" label="تصمیم" required>
                     <Select
                       id="reconciliation-decision"
                       value={decision}

@@ -27,3 +27,16 @@ class NumberingSystem(Entity, Tenant, Versioned, Base):
     def sample(self) -> str:
         padded = str(self.current_number).zfill(self.padding)
         return f"{self.prefix}{padded}{self.suffix}"
+
+
+class NumberingAssignment(Entity, Tenant, Base):
+    """A stable reservation included in the exact journal approval snapshot."""
+
+    __tablename__ = "numbering_assignments"
+    __table_args__ = (
+        UniqueConstraint("company_id", "entity_type", "record_id"),
+        UniqueConstraint("company_id", "entity_type", "number"),
+    )
+    entity_type: Mapped[str] = mapped_column(String(60))
+    record_id: Mapped[str] = mapped_column(String(36))
+    number: Mapped[str] = mapped_column(String(120))

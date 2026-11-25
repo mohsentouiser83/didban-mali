@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useRef, useState } from "react";
 import { useWorkspace } from "./workspace";
 import { usePagedResource } from "./use-paged-resource";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 export interface Cheque {
   id: string;
   version: number;
-  direction: "received" | "issued";
+  direction: "received" | "issued" | "guarantee_in" | "guarantee_out";
   number: string;
   bank_name: string;
   bank_account: string;
@@ -38,9 +39,17 @@ interface Bank {
   amount: string;
   date: string;
 }
+export const chequeDirectionLabels: Record<string, string> = {
+  received: "دریافتنی",
+  issued: "پرداختنی",
+  guarantee_in: "تضمین دیگران نزد ما",
+  guarantee_out: "تضمین ما نزد دیگران",
+};
 export const chequeStateLabels: Record<string, string> = {
   received: "دریافت‌شده",
   issued: "صادرشده",
+  guarantee_in: "تضمین نزد ما",
+  guarantee_out: "تضمین نزد دیگران",
   deposited: "تحویل بانک",
   endorsed: "واگذارشده",
   cleared: "وصول یا پرداخت بانکی",
@@ -56,7 +65,7 @@ export const chequeActionLabels: Record<string, string> = {
   registered: "ثبت چک",
 };
 const blank = () => ({
-  direction: "received" as "received" | "issued",
+  direction: "received" as "received" | "issued" | "guarantee_in" | "guarantee_out",
   number: "",
   bank_name: "",
   bank_account: "",
@@ -70,6 +79,8 @@ const blank = () => ({
 const allowed: Record<string, string[]> = {
   received: ["deposit", "endorse", "clear", "return", "cancel"],
   issued: ["clear", "return", "cancel"],
+  guarantee_in: ["deposit", "clear", "return", "cancel"],
+  guarantee_out: ["clear", "return", "cancel"],
   deposited: ["clear", "return"],
   endorsed: ["return"],
   cleared: ["return"],
@@ -78,19 +89,22 @@ const allowed: Record<string, string[]> = {
 };
 export function useCheques() {
   const workspace = useWorkspace();
-  const base = workspace.companyPath("cheques");
+  const [directionFilter, setDirectionFilter] = useState<string>("all");
+  const path = directionFilter === "all" ? "cheques" : `cheques?direction=${directionFilter}`;
+  const base = workspace.companyPath(path);
   const resource = usePagedResource<Cheque>(base);
   const command = useCommand();
   const importing = useRef(false);
   const importKeys = useRef(new Map<string, string>());
   const [importBusy, setImportBusy] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState(blank);
+  const [formState, setForm] = useState(blank);
+  const form = { ...formState, period_id: workspace.periodId };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Cheque | null>(null);
   const [action, setAction] = useState("return");
   const [eventDate, setEventDate] = useState("");
-  const [eventPeriod, setEventPeriod] = useState("");
+  const eventPeriod = workspace.periodId;
   const [reason, setReason] = useState("");
   const [endorsedTo, setEndorsedTo] = useState("");
   const [bankId, setBankId] = useState("");
@@ -116,7 +130,7 @@ export function useCheques() {
     setCreating(true);
     setForm({
       ...blank(),
-      period_id: workspace.periodId || workspace.periods[0]?.id || "",
+      period_id: workspace.periodId,
     });
     setErrors({});
     command.clearError();
@@ -131,7 +145,6 @@ export function useCheques() {
       )[0] || "",
     );
     setEventDate("");
-    setEventPeriod(workspace.periodId || workspace.periods[0]?.id || "");
     setReason("");
     setEndorsedTo("");
     setBankId("");
@@ -152,6 +165,7 @@ export function useCheques() {
     return true;
   }
   function create() {
+    if (!workspace.periodId) return;
     const problem: Record<string, string> = {};
     if (!form.period_id) problem["cheque-period"] = "دوره را انتخاب کنید.";
     if (!form.issue_date)
@@ -169,7 +183,7 @@ export function useCheques() {
     );
   }
   function apply() {
-    if (!selected) return;
+    if (!selected || !workspace.periodId) return;
     const problem: Record<string, string> = {};
     if (!eventPeriod) problem["cheque-event-period"] = "دوره را انتخاب کنید.";
     if (!eventDate) problem["cheque-event-date"] = "تاریخ رویداد لازم است.";
@@ -224,7 +238,6 @@ export function useCheques() {
     setSelected,
     setAction,
     setEventDate,
-    setEventPeriod,
     setReason,
     setEndorsedTo,
     setQuery,
@@ -245,6 +258,8 @@ export function useCheques() {
         !!banks.data?.items.find((bank) => bank.id === id)?.party_id,
       );
     },
+    directionFilter,
+    setDirectionFilter,
     importBusy,
     importFromExcel: async (parsed: ParsedTableImport) => {
       if (!base || !workspace.canWrite || !parsed.rows.length || importing.current) return;
@@ -265,7 +280,7 @@ export function useCheques() {
       try {
         for (const body of prepared.rows) {
           const fingerprint = base + JSON.stringify(body);
-          const key = importKeys.current.get(fingerprint) ?? crypto.randomUUID();
+          const key = importKeys.current.get(fingerprint) ?? randomId();
           importKeys.current.set(fingerprint, key);
           await api(base, { method: "POST", body, key });
           saved++;

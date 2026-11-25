@@ -197,8 +197,8 @@ def test_studio_crud_definition(book):
     assert saved["version"] == 1
 
     defs = list_definitions(db, "c")
-    assert len(defs) == 1
-    assert defs[0]["id"] == saved["id"]
+    assert len(defs) == 6
+    assert next(row for row in defs if row["id"] == saved["id"])["name"] == "قالب من"
 
     one = get_definition(db, "c", saved["id"])
     assert one["name"] == "قالب من"
@@ -387,7 +387,7 @@ def test_studio_api_routes():
     from uuid import uuid4
 
     from fastapi.testclient import TestClient
-    from sqlalchemy import text
+    from sqlalchemy import select, text
 
     from didban.api import app
     from didban.config import settings
@@ -461,8 +461,8 @@ def test_studio_api_routes():
     resp_list = client.get(f"/api/v1/companies/{c_id}/report-studio/definitions", headers=headers)
     assert resp_list.status_code == 200, resp_list.text
     defs = resp_list.json()
-    assert len(defs) == 1
-    assert defs[0]["id"] == saved_def["id"]
+    assert len(defs) == 6
+    assert any(row["id"] == saved_def["id"] for row in defs)
 
     # 5. Test Get Definition endpoint
     resp_get = client.get(
@@ -497,3 +497,21 @@ def test_studio_api_routes():
     resp_active2 = client.get(f"/api/v1/companies/{c_id}/report-studio/active-dashboard", headers=headers)
     assert resp_active2.status_code == 200
     assert resp_active2.json()["has_custom_dashboard"] is False
+
+    # Built-in definitions are editable in place, version checked and non-deletable.
+    system = next(row for row in defs if row.get("system_key") == "journals")
+    system["spec"]["global_filters"]["period_id"] = p_id
+    payload = {"name": "روزنامه ویرایش‌شده", "spec": system["spec"]}
+    target = f"/api/v1/companies/{c_id}/report-studio/definitions/{system['id']}"
+    edited = client.patch(target, headers={**headers, "If-Match": "1", "Idempotency-Key": str(uuid4())}, json=payload)
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["version"] == 2 and edited.json()["system_key"] == "journals"
+    stale = client.patch(target, headers={**headers, "If-Match": "1", "Idempotency-Key": str(uuid4())}, json=payload)
+    assert stale.status_code == 409
+    assert client.delete(target, headers={**headers, "Idempotency-Key": str(uuid4())}).status_code == 405
+    assert len(client.get(f"/api/v1/companies/{c_id}/report-studio/definitions").json()) == 6
+    with transaction() as db:
+        member = db.scalar(select(m.Membership).where(m.Membership.company_id == c_id, m.Membership.user_id == u_id))
+        member.role = "viewer"
+    denied = client.patch(target, headers={**headers, "If-Match": "2", "Idempotency-Key": str(uuid4())}, json=payload)
+    assert denied.status_code == 403

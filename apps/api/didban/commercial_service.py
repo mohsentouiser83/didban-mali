@@ -21,6 +21,7 @@ from .inventory_models import InventoryItem
 from .inventory_service import create_draft
 from .money_type import aggregate_money, canonical_money
 from .native_invoice_models import NativeInvoice, NativeInvoiceSourceRevision
+from .numbering_service import allocate_number
 from .operation_models import OperationDraft
 from .posting_models import NativeJournal
 from .security import membership
@@ -32,21 +33,15 @@ def add_counterparty(db: Session, company: str, user: m.User, data: dict) -> dic
     ability = capabilities(db, company, user)
     require(ability["can_manage_accounts"], "permission_denied", "اجازه مدیریت طرف حساب‌ها ندارید.", 403)
     require(
-        not db.scalar(
-            select(CommercialCounterparty.id).where(
-                CommercialCounterparty.company_id == company,
-                CommercialCounterparty.code == data["code"],
-            )
-        ),
-        "duplicate_counterparty_code",
-        "این شناسه طرف حساب قبلاً ثبت شده است.",
-        409,
+        data.get("type", "other") in {"supplier", "customer", "employee", "other"},
+        "invalid_counterparty_type", "نوع طرف‌حساب معتبر نیست.",
     )
     limit = canonical_money(data["credit_limit_irr"]) if data.get("credit_limit_irr") else None
     row = CommercialCounterparty(
         company_id=company,
-        code=data["code"],
+        code=allocate_number(db, company, "counterparty", CommercialCounterparty, "code"),
         name=data["name"],
+        type=data.get("type", "other"),
         national_id=data.get("national_id"),
         economic_code=data.get("economic_code"),
         phone=data.get("phone"),
@@ -68,28 +63,12 @@ def update_counterparty(
     cp = get_entity(db, CommercialCounterparty, company, counterparty_id)
     if version is not None:
         check_version(cp, version)
-    if "code" in data and data["code"] != cp.code:
-        for model, party_field in (
-            (ProformaInvoice, ProformaInvoice.party_id),
-            (OperationDraft, OperationDraft.payload["party_id"].as_string()),
-            (m.Invoice, m.Invoice.party_id),
-            (m.JournalLine, m.JournalLine.party_id),
-        ):
-            require(
-                not db.scalar(select(model.id).where(model.company_id == company, party_field == cp.code).limit(1)),
-                "counterparty_code_in_use",
-                "شناسهٔ طرف‌حساب در سوابق مالی استفاده شده و قابل تغییر نیست.",
-                409,
-            )
-        duplicate = db.scalar(
-            select(CommercialCounterparty.id).where(
-                CommercialCounterparty.company_id == company,
-                CommercialCounterparty.code == data["code"],
-                CommercialCounterparty.id != counterparty_id,
-            )
+    if "type" in data:
+        require(
+            data["type"] in {"supplier", "customer", "employee", "other"},
+            "invalid_counterparty_type", "نوع طرف‌حساب معتبر نیست.",
         )
-        require(not duplicate, "duplicate_counterparty_code", "این شناسه طرف حساب قبلاً ثبت شده است.", 409)
-        cp.code = data["code"]
+        cp.type = data["type"]
     if data.get("name") is not None:
         cp.name = data["name"]
     for field in ("national_id", "economic_code", "phone", "address"):
@@ -115,11 +94,14 @@ def list_counterparties(
     offset: int = 0,
     search: str | None = None,
     active_only: bool = False,
+    counterparty_type: str | None = None,
 ) -> dict:
     membership(db, company, user)
     stmt = select(CommercialCounterparty).where(CommercialCounterparty.company_id == company)
     if active_only:
         stmt = stmt.where(CommercialCounterparty.active.is_(True))
+    if counterparty_type and counterparty_type != "all":
+        stmt = stmt.where(CommercialCounterparty.type == counterparty_type)
     if search:
         term = f"%{search.strip()}%"
         stmt = stmt.where(
@@ -365,23 +347,12 @@ def _validate_proforma(db: Session, company: str, data: dict) -> None:
 def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict:
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه صدور پیش‌فاکتور ندارید.", 403)
-    require(
-        not db.scalar(
-            select(ProformaInvoice.id).where(
-                ProformaInvoice.company_id == company,
-                ProformaInvoice.number == data["number"],
-            )
-        ),
-        "duplicate_proforma_number",
-        "این شماره پیش‌فاکتور قبلاً ثبت شده است.",
-        409,
-    )
     _validate_proforma(db, company, data)
     currency = data.get("currency", "IRR")
     lines, total, total_irr = _process_lines(data["lines"], currency)
     row = ProformaInvoice(
         company_id=company,
-        number=data["number"],
+        number=allocate_number(db, company, "proforma_invoice", ProformaInvoice, "number"),
         direction="sale",
         date=data["date"],
         expiry_date=data.get("expiry_date"),
@@ -415,16 +386,6 @@ def update_proforma(
         company,
         {"direction": pf.direction, "date": pf.date, "expiry_date": pf.expiry_date, "party_id": pf.party_id} | data,
     )
-    if "number" in data and data["number"] != pf.number:
-        duplicate = db.scalar(
-            select(ProformaInvoice.id).where(
-                ProformaInvoice.company_id == company,
-                ProformaInvoice.number == data["number"],
-                ProformaInvoice.id != proforma_id,
-            )
-        )
-        require(not duplicate, "duplicate_proforma_number", "این شماره پیش‌فاکتور قبلاً ثبت شده است.", 409)
-        pf.number = data["number"]
     if "lines" in data:
         lines, total, total_irr = _process_lines(data["lines"], pf.currency)
         pf.lines = lines

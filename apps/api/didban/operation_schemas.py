@@ -29,7 +29,7 @@ class OperationInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
     date: date
     description: str = Field(min_length=1, max_length=500)
-    source_reference: str = Field(min_length=1, max_length=120)
+    source_reference: str | None = Field(default=None, max_length=120)
     unit: Literal["IRR", "TOMAN"]
     party_id: str = Field(default="", max_length=100)
     accounts: dict[str, str] = Field(min_length=2, max_length=10)

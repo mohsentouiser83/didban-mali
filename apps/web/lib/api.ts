@@ -1,3 +1,4 @@
+import { randomId } from "@/lib/random-id";
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -26,7 +27,7 @@ export async function api<T>(
   const method = options.method || "GET";
   if (!["GET", "HEAD"].includes(method)) {
     headers["X-CSRF-Token"] = csrf;
-    headers["Idempotency-Key"] = options.key || crypto.randomUUID();
+    headers["Idempotency-Key"] = options.key || randomId();
   }
   if (options.version !== undefined)
     headers["If-Match"] = String(options.version);
@@ -479,7 +480,7 @@ export interface Employee {
 }
 
 export interface EmployeeInput {
-  employee_code: string;
+  employee_code?: string;
   first_name: string;
   last_name: string;
   identity_type?: "national_id" | "foreign_national_id";
@@ -512,7 +513,7 @@ export interface EmployeeContract {
   employee_code?: string;
   employee_name?: string;
   contract_number: string;
-  contract_type: "full_time" | "part_time" | "hourly" | "project";
+  contract_type: "full_time" | "part_time" | "hourly" | "project" | "honorarium";
   start_date: string;
   end_date: string | null;
   status: "draft" | "active" | "terminated";
@@ -532,8 +533,8 @@ export interface EmployeeContract {
 
 export interface EmployeeContractInput {
   employee_id: string;
-  contract_number: string;
-  contract_type?: "full_time" | "part_time" | "hourly" | "project";
+  contract_number?: string;
+  contract_type?: "full_time" | "part_time" | "hourly" | "project" | "honorarium";
   start_date: string;
   end_date?: string | null;
   status?: "draft" | "active" | "terminated";
@@ -610,4 +611,84 @@ export interface PayrollSlip {
   applied_exemptions: Record<string, boolean | string | number | null>;
   version: number;
 }
+
+export interface SettlementCalculation {
+  days_worked: number;
+  years_worked: string;
+  days_worked_in_year: number;
+  base_salary: string;
+  daily_wage: string;
+  eydi_amount: string;
+  eydi_ceiling: string;
+  eydi_floor: string;
+  sanavat_amount: string;
+  accrued_leave_days: string;
+  used_leave_days: string;
+  remaining_leave_days: string;
+  leave_settlement_amount: string;
+  total_settlement: string;
+}
+
+export interface EmployeeSettlementResponse {
+  employee: Employee;
+  contract: EmployeeContract | null;
+  calculation_date: string;
+  settlement: SettlementCalculation;
+}
+
+export interface InsuranceDiskResponse {
+  run_id: string;
+  title: string;
+  year: number;
+  month: number;
+  summary: {
+    total_insured_employees: number;
+    total_days_worked: number;
+    total_insured_wage: string;
+    total_employee_share_7pct: string;
+    total_employer_share_23pct: string;
+    total_insurance_payable: string;
+  };
+  dskkar00: string;
+  dskwor00: string;
+  rows: Array<{
+    row_number: number;
+    employee_code: string;
+    employee_name: string;
+    national_id: string;
+    insurance_number: string;
+    job_title: string;
+    days_worked: number;
+    insured_earnings: string;
+    employee_insurance: string;
+    employer_insurance: string;
+    total_insurance: string;
+  }>;
+}
+
+export interface TaxDiskResponse {
+  run_id: string;
+  title: string;
+  year: number;
+  month: number;
+  summary: {
+    total_employees: number;
+    total_gross_pay: string;
+    total_taxable_earnings: string;
+    total_payroll_tax: string;
+  };
+  tax_file: string;
+  rows: Array<{
+    row_number: number;
+    employee_code: string;
+    employee_name: string;
+    national_id: string;
+    contract_type: string;
+    work_days: string;
+    gross_pay: string;
+    taxable_earnings: string;
+    payroll_tax: string;
+  }>;
+}
+
 

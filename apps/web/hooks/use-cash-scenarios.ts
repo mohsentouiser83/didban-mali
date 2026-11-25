@@ -137,7 +137,7 @@ export function useCashScenarios() {
             date: baseline?.start || "",
             direction: "payment",
             amount: "",
-            unit: view.workspace.unit,
+            unit: "IRR",
           },
         ],
       }),

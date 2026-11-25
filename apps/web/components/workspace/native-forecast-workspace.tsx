@@ -1,4 +1,5 @@
 "use client";
+import { Field } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,7 +42,8 @@ export function NativeForecastWorkspace() {
           />
         ) : c.statements.data?.items.length ? (
           <div className="space-y-4">
-            <Select
+            <Field id="forecast-basis-statement" label="گزارش ثابت ماندهٔ نقد" required>
+<Select
               label="گزارش ثابت ماندهٔ نقد"
               value={c.statementId}
               onValueChange={c.setStatementId}
@@ -50,6 +52,7 @@ export function NativeForecastWorkspace() {
                 label: `${displayDate(row.snapshot.as_of)} · ${row.id.slice(0, 8)}`,
               }))}
             />
+</Field>
             <CursorPagination {...c.statements} />
             {c.workspace.canWrite && (
               <>
@@ -225,7 +228,8 @@ export function NativeForecastWorkspace() {
               : "مقایسه با گردش واقعی هم‌مبنا"
           }
         >
-          <Select
+          <Field id="forecast-actual-statement" label="گزارش ثابت پایان افق" required>
+<Select
             label="گزارش ثابت پایان افق"
             value={c.actualId}
             onValueChange={c.setActualId}
@@ -234,6 +238,7 @@ export function NativeForecastWorkspace() {
               label: `${displayDate(row.snapshot.as_of)} · ${row.id.slice(0, 8)}`,
             }))}
           />
+</Field>
           <CursorPagination {...c.statements} />
           {c.evaluation.loading ? (
             <LoadingState />

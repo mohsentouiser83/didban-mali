@@ -273,7 +273,10 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
           )}
         </Panel>
 
-      <JournalDraftForm view={view} />
+      <JournalDraftForm
+        key={view.editing === undefined ? "closed" : view.editing?.id ?? "new"}
+        view={view}
+      />
       <PostingReviewDialog view={posting} />
       <JournalDetailsDrawer view={details} drafts={view} />
       <ConfirmDialog

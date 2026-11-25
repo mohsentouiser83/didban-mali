@@ -33,7 +33,7 @@ export function MemberAccessDrawer({
             c.saveMember();
           }}
         >
-          <Field id="edit-member-role" label="نقش">
+          <Field id="edit-member-role" label="نقش" required>
             <Select
               id="edit-member-role"
               value={c.value.role}

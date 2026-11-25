@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { isAccountPostable } from "@/lib/account-catalogue";
 import { api } from "@/lib/api";
 import type { AccountingCapabilities } from "@/lib/accounting";
 import type {
@@ -36,7 +37,7 @@ function useInventoryAccounts() {
   const accounts = useAccountOptions(company?.id || "");
   return {
     ...accounts,
-    options: accounts.items.filter((account) => account.active).map((account) => ({
+    options: accounts.items.filter((account) => isAccountPostable(account)).map((account) => ({
       value: account.id,
       label: `${account.code} · ${account.name}`,
     })),
@@ -144,7 +145,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | InventoryWarehouse>();
   const [deleting, setDeleting] = useState<InventoryItem | InventoryWarehouse>();
-  const [value, setValue] = useState({ code: "", name: "", inventory_account_id: "", active: true });
+  const [value, setValue] = useState({ name: "", inventory_account_id: "", active: true });
   const data = inventory.data;
   const isItem = entity === "items";
   const label = isItem ? "کالا" : "انبار";
@@ -164,9 +165,9 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const index = Math.min(page, Math.max(0, Math.ceil(items.length / pageSize) - 1));
 
   function save() {
-    if (!canManage || !value.code.trim() || !value.name.trim() || (isItem && !value.inventory_account_id)) return;
-    const body = { code: value.code.trim(), name: value.name.trim() };
-    const catalogueData = isItem && !accountLocked ? { ...body, inventory_account_id: value.inventory_account_id } : body;
+    if (!canManage || !value.name.trim()) return;
+    const body = { name: value.name.trim() };
+    const catalogueData = isItem && !accountLocked && value.inventory_account_id ? { ...body, inventory_account_id: value.inventory_account_id } : body;
     void command.run(
       workspace.companyPath(editing ? `${inventoryPath}/${editing.id}` : inventoryPath),
       editing
@@ -200,7 +201,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
     accountOptions,
     accountLocked,
     canManage,
-    canAdd: canManage && (!isItem || (!accounts.loading && !accounts.error && accounts.options.length > 0)),
+    canAdd: canManage,
     command,
     open,
     editing,
@@ -221,7 +222,6 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
     show: (record?: InventoryItem | InventoryWarehouse) => {
       setEditing(record);
       setValue({
-        code: record?.code ?? "",
         name: record?.name ?? "",
         inventory_account_id: record && "inventory_account_id" in record ? record.inventory_account_id : "",
         active: record?.active ?? true,
@@ -320,25 +320,22 @@ export function useInventoryDraft(
   const command = useCommand();
   const availableItems = inventory.items.filter((item) => item.active);
   const availableWarehouses = inventory.warehouses.filter((warehouse) => warehouse.active);
-  const [value, setValue] = useState(() => ({
+  const [valueState, setValue] = useState(() => ({
     kind,
-    period_id: workspace.periodId || workspace.periods.find((period) => {
-      const today = tehranToday();
-      return period.start <= today && period.end >= today;
-    })?.id || "",
+    period_id: workspace.periodId,
     date: tehranToday(),
     item_id: availableItems.length === 1 ? availableItems[0].id : "",
     warehouse_id: availableWarehouses.length === 1 ? availableWarehouses[0].id : "",
     quantity: "",
     unit_price: "",
-    unit: workspace.unit,
+    unit: "IRR" as const,
     party_id: "",
     description: "",
-    source_reference: "",
     counterparty_account_id: "",
     revenue_account_id: "",
     cost_account_id: "",
   }));
+  const value = { ...valueState, period_id: workspace.periodId };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const sale = kind === "sale_goods";
   const fields = { ...command.error?.fields, ...errors };
@@ -367,7 +364,6 @@ export function useInventoryDraft(
       return;
     }
     const { revenue_account_id, cost_account_id, ...common } = value;
-    const reference = value.source_reference.trim();
     void command.run<InventoryDraftResult>(
       workspace.companyPath(`${base}/drafts`),
       {
@@ -376,11 +372,10 @@ export function useInventoryDraft(
           ...(sale ? { revenue_account_id, cost_account_id } : {}),
           quantity,
           party_id: value.party_id.trim(),
-          source_reference: reference,
-          description: value.description.trim() || `${inventoryTitle[kind]} · ${reference}`,
+          description: value.description.trim() || inventoryTitle[kind],
         },
       },
-      (result) => onCreated(result, kind, reference),
+      (result) => onCreated(result, kind, result.source_reference ?? result.operation_id),
       "پیش‌نویس ساخته شد.",
     );
   }

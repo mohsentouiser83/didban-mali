@@ -12,7 +12,7 @@ export function DimensionAllocationForm({ view }: {
 }) { return <Drawer title="بررسی تخصیص ردیف" open={!!view.selected} onOpenChange={open => { if (!open)
     view.close(); }}>
 <Form fieldErrors={view.command.error?.fields} onSubmit={event => { event.preventDefault(); view.assign(); }}>{view.shares.map((share, index) => <div className="space-y-3 rounded-control border border-border p-4" key={index}>
-<Field id={`share-dimension-${index}`} label={`بُعد ${persian(index + 1)}`}>
+<Field id={`share-dimension-${index}`} label={`بُعد ${persian(index + 1)}`} required>
 <Select id={`share-dimension-${index}`} value={share.dimension_id} options={view.options} onValueChange={dimension_id => view.changeShare(index, { dimension_id })}/>
 </Field>
 <Field id={`share-percent-${index}`} label="سهم (درصد)">

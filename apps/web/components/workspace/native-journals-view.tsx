@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { BooksIcon, ChartLineUpIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/input";
@@ -85,7 +84,7 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
                   {c.journals.data?.items.length ? (
                     c.journals.data.items.map((item) => (
                       <TableRow key={item.id}>
-                        <TableRowHeader>{persian(item.sequence)}</TableRowHeader>
+                        <TableRowHeader>{item.snapshot.number ?? persian(item.sequence)}</TableRowHeader>
                         <TableCell>{item.snapshot.description}</TableCell>
                         <TableCell>{displayDate(item.date)}</TableCell>
                         <TableCell>
@@ -196,18 +195,7 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
             c.saveReversal();
           }}
         >
-          <Field id="reversal-period" label="دوره">
-            <Select
-              id="reversal-period"
-              value={c.period}
-              onValueChange={c.setPeriod}
-              options={c.workspace.periods.map((item) => ({
-                value: item.id,
-                label: item.name,
-              }))}
-            />
-          </Field>
-          <Field id="reversal-date" label="تاریخ برگشت">
+          <Field id="reversal-date" label="تاریخ برگشت" required>
             <PersianDatePicker
               id="reversal-date"
               value={c.date}
@@ -232,7 +220,10 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
           </Button>
         </Form>
       </Drawer>
-      <JournalDraftForm view={drafts} />
+      <JournalDraftForm
+        key={drafts.editing === undefined ? "closed" : drafts.editing?.id ?? "new"}
+        view={drafts}
+      />
       <OpeningEvidenceDialog c={opening} />
     </>
   );
@@ -243,17 +234,6 @@ function BookBalance({ c }: { c: ReturnType<typeof useNativeJournals> }) {
       title="گردش حساب‌های دفتر اصلی"
       className="mt-5"
     >
-      <Field id="native-period" label="دوره">
-        <Select
-          id="native-period"
-          value={c.period}
-          onValueChange={c.setPeriod}
-          options={c.workspace.periods.map((p) => ({
-            value: p.id,
-            label: p.name,
-          }))}
-        />
-      </Field>
       {c.balance.loading ? (
         <LoadingState />
       ) : c.balance.error ? (

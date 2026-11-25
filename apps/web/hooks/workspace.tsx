@@ -20,6 +20,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePeriodOptions } from "./use-period-options";
+import { resolveWorkspacePeriod } from "@/lib/workspace-period";
 interface Workspace {
   user?: User;
   companies: Company[];
@@ -46,8 +47,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyId, setCompanyId] = useState("");
-  const [periodId, setPeriodId] = useState("");
-  const [unit, setUnitState] = useState<"IRR" | "TOMAN">("IRR");
+  const [savedPeriodId, setPeriodId] = useState("");
+  const [unit] = useState<"IRR" | "TOMAN">("IRR");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const refreshCompanies = useCallback(async () => {
@@ -78,12 +79,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         const auth = await api<{ user: User; csrf: string }>("/auth/me");
         if (!alive) return;
         setUser(auth.user);
-        try {
-          const savedUnit = localStorage.getItem(`didban-unit:${auth.user.id}`);
-          setUnitState(savedUnit === "TOMAN" ? "TOMAN" : "IRR");
-        } catch {
-          // A blocked browser store must not prevent opening the workspace.
-        }
         setCsrf(auth.csrf);
         await refreshCompanies();
       } catch (error) {
@@ -106,6 +101,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const company = companies.find((item) => item.id === companyId);
   const periodsResource = usePeriodOptions(companyId);
   const periods = periodsResource.data;
+  const periodId = resolveWorkspacePeriod(
+    periods,
+    savedPeriodId,
+    new Date().toLocaleDateString("en-CA"),
+  );
+  useEffect(() => {
+    if (!companyId || periodsResource.loading || periodsResource.error) return;
+    try {
+      if (periodId) localStorage.setItem(`didban-period:${companyId}`, periodId);
+      else localStorage.removeItem(`didban-period:${companyId}`);
+    } catch {
+      // The selection still applies when browser storage is unavailable.
+    }
+  }, [companyId, periodId, periodsResource.loading, periodsResource.error]);
   const setCompany = useCallback((id: string) => {
     setCompanyId(id);
     let savedPeriod = "";
@@ -119,33 +128,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }, []);
   const handleSetPeriodId = useCallback(
     (id: string) => {
+      if (!periods.some((period) => period.id === id)) return;
       setPeriodId(id);
       if (companyId) {
         try {
-          if (id) {
-            localStorage.setItem(`didban-period:${companyId}`, id);
-          } else {
-            localStorage.removeItem(`didban-period:${companyId}`);
-          }
+          localStorage.setItem(`didban-period:${companyId}`, id);
         } catch {
           // Ignore storage errors
         }
       }
     },
-    [companyId],
+    [companyId, periods],
   );
-  const setUnit = useCallback(
-    (value: "IRR" | "TOMAN") => {
-      setUnitState(value);
-      if (!user) return;
-      try {
-        localStorage.setItem(`didban-unit:${user.id}`, value);
-      } catch {
-        // The selection still applies to the current session.
-      }
-    },
-    [user],
-  );
+  const setUnit = useCallback(() => {
+    // Workspace display unit is fixed to Rial (IRR).
+  }, []);
   const updateUser = useCallback((patch: Partial<User>) => {
     setUser((previous) => (previous ? { ...previous, ...patch } : previous));
   }, []);
@@ -163,8 +160,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         periods,
         periodId,
         unit,
-        loading,
-        error,
+        loading: loading || periodsResource.loading,
+        error: error || periodsResource.error?.message,
         setCompany,
         setPeriodId: handleSetPeriodId,
         setUnit,

@@ -1,10 +1,12 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 import { useRef, useState } from "react";
 import type { AccountingCapabilities } from "@/lib/accounting";
 import type { Counterparty, CounterpartyForm, Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
 import type { InventoryState } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
 import { useAccountOptions } from "./use-accounting";
+import { isAccountPostable, isTreasuryAccount, treasuryRoleLabel } from "@/lib/account-catalogue";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
@@ -12,6 +14,7 @@ import { useWorkspace } from "./workspace";
 function useCommercialList<T extends { id: string; version: number }>(
   entity: "counterparties" | "proformas",
   search = "",
+  typeFilter = "",
 ) {
   const workspace = useWorkspace();
   const base = workspace.companyPath(`commercial/${entity}`);
@@ -19,6 +22,7 @@ function useCommercialList<T extends { id: string; version: number }>(
   const [page, setPage] = useState(0);
   const query = new URLSearchParams({ limit: String(pageSize), offset: String(page * pageSize) });
   if (search) query.set("search", search);
+  if (typeFilter && typeFilter !== "all") query.set("type", typeFilter);
   const resource = useResource<{ items: T[]; total: number }>(base && `${base}?${query}`);
   const capabilities = useResource<AccountingCapabilities>(workspace.companyPath("accounting/capabilities"));
   const command = useCommand();
@@ -40,7 +44,7 @@ function useCommercialList<T extends { id: string; version: number }>(
     const row = editor.row;
     const fingerprint = JSON.stringify([row?.id, row?.version, body]);
     if (pendingRequest.current?.fingerprint !== fingerprint) {
-      pendingRequest.current = { fingerprint, key: crypto.randomUUID() };
+      pendingRequest.current = { fingerprint, key: randomId() };
     }
     void command.run<T>(row ? `${base}/${row.id}` : base, {
       method: row ? "PATCH" : "POST",
@@ -67,18 +71,23 @@ function useCommercialList<T extends { id: string; version: number }>(
 
 export function useCounterparties() {
   const [search, setSearch] = useState("");
-  const list = useCommercialList<Counterparty>("counterparties", search);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const list = useCommercialList<Counterparty>("counterparties", search, typeFilter);
   const canEdit = list.capabilities.data?.can_manage_accounts === true;
   return {
-    ...list, search, canEdit,
+    ...list, search, typeFilter, canEdit,
     changeSearch(value: string) {
       list.resetPage();
       setSearch(value);
     },
+    changeTypeFilter(value: string) {
+      list.resetPage();
+      setTypeFilter(value);
+    },
     save(form: CounterpartyForm) {
-      if (!canEdit) return;
+      if (!canEdit || !form.type) return;
       list.save({
-        ...form, name: form.name.trim(), code: form.code.trim(),
+        ...form, name: form.name.trim(),
         national_id: form.national_id.trim() || null,
         economic_code: form.economic_code.trim() || null,
         phone: form.phone.trim() || null,
@@ -91,7 +100,7 @@ export function useCounterparties() {
 
 export function counterpartyForm(row?: Counterparty): CounterpartyForm {
   return {
-    code: row?.code ?? "", name: row?.name ?? "",
+    name: row?.name ?? "", type: row?.type ?? "",
     national_id: row?.national_id ?? "", economic_code: row?.economic_code ?? "",
     phone: row?.phone ?? "", address: row?.address ?? "",
     credit_limit_irr: row?.credit_limit_irr ?? "", active: row?.active ?? true,
@@ -104,7 +113,7 @@ export function emptyProformaLine(key: number): ProformaLineForm {
 
 export function proformaForm(row?: Proforma): ProformaForm {
   return {
-    number: row?.number ?? "", direction: "sale",
+    direction: "sale",
     date: row?.date ?? tehranToday(), expiry_date: row?.expiry_date ?? "",
     party_id: row?.party_id ?? "", currency: row?.currency ?? "IRR", terms: row?.terms ?? "",
     lines: row?.lines.map((line, key) => ({
@@ -121,7 +130,7 @@ export function useProformas() {
   );
   const [partyQuery, setPartyQuery] = useState("");
   const parties = useResource<{ items: Counterparty[] }>(
-    list.editor && !list.editor.readOnly && partyQuery.trim()
+    list.editor && !list.editor.readOnly
       ? list.workspace.companyPath(`commercial/counterparties?active_only=true&limit=25&search=${encodeURIComponent(partyQuery.trim())}`)
       : null,
   );
@@ -143,7 +152,7 @@ export function useProformas() {
     save(form: ProformaForm) {
       if (!canPrepare) return;
       list.save({
-        ...form, number: form.number.trim(), party_id: form.party_id.trim(),
+        ...form, party_id: form.party_id.trim(),
         expiry_date: form.expiry_date || null, terms: form.terms.trim() || null,
         lines: form.lines.map((line) => ({
           item_id: line.item_id || null, description: line.description.trim(),
@@ -160,16 +169,22 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
   const accountResource = useAccountOptions(operation.company?.id ?? "");
   const accounts = {
     ...accountResource,
-    options: accountResource.items.filter((item) => item.active).map(({ id, code, name }) => ({
+    options: accountResource.items.filter((item) => isAccountPostable(item)).map(({ id, code, name }) => ({
       value: id, label: `${code} · ${name}`,
     })),
+    treasuryOptions: accountResource.items
+      .filter((item) => isAccountPostable(item) && isTreasuryAccount(item))
+      .map(({ id, code, name, role }) => ({
+        value: id,
+        label: `${code} · ${name}${role ? ` (${treasuryRoleLabel(role)})` : ""}`,
+      })),
   };
   const inventory = useResource<InventoryState>(operation.companyPath("accounting/inventory"));
   const command = useCommand();
   const today = tehranToday();
   const periods = operation.periods.filter((period) => period.start <= today && period.end >= today);
-  const [values, setValues] = useState({
-    period_id: periods.find((period) => period.id === operation.periodId)?.id ?? periods[0]?.id ?? "",
+  const [valuesState, setValues] = useState({
+    period_id: operation.periodId,
     warehouse_id: "",
     counterparty_account_id: "",
     revenue_account_id: "",
@@ -183,6 +198,7 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     cheque_number: "",
     cheque_due_date: "",
   });
+  const values = { ...valuesState, period_id: operation.periodId };
   const request = useRef<{ fingerprint: string; key: string }>(null);
   const mixed = values.settlement_type === "mixed";
   const cash = values.settlement_type === "cash" || (mixed && /[1-9]/.test(values.cash_amount));
@@ -212,7 +228,7 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     };
     const fingerprint = JSON.stringify(body);
     if (request.current?.fingerprint !== fingerprint) {
-      request.current = { fingerprint, key: crypto.randomUUID() };
+      request.current = { fingerprint, key: randomId() };
     }
     void command.run(operation.companyPath(`commercial/proformas/${row.id}/convert`), {
       method: "POST",

@@ -2,8 +2,7 @@
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Hint } from "@/components/ui/tooltip";
-import { Field, FormMessage } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
+import { FormMessage } from "@/components/ui/field";
 import { LoadingState, ErrorState, EmptyState } from "@/components/ui/content-states";
 import {
   Table, TableHeader, TableHead, TableBody, TableRow, TableRowHeader, TableCell,
@@ -36,9 +35,7 @@ export function BotIntakesPanel() {
           <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
         ) : view.rows.length ? (
           <>
-            <Field id="bot-import-period" label="دورهٔ مقصد پردازش">
-              <Select id="bot-import-period" value={view.period} onValueChange={view.setPeriod} options={view.periodOptions} />
-            </Field>
+
             <Table>
               <TableHeader>
                 <TableRow>

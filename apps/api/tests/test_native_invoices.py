@@ -243,9 +243,11 @@ def posted(kind,ref,amount,day):
 sale,digest=posted('sale_service','INV-native','100','2026-09-01')
 receipt,receipt_digest=posted('receipt','REC-native','80','2026-09-15')
 path=base+'/accounting/native-invoices'
-assert viewer.get(path+'/candidates',params={'kind':'sale_service'}).json()['items'][0]['operation_id']==sale
-payload={'operation_id':sale,'journal_digest':digest,'reference':'INV-native','due_date':'2026-09-10','due_unknown':False,'expected_date':None,'expected_unknown':True}
+source=next(item for item in viewer.get(path+'/candidates',params={'kind':'sale_service'}).json()['items'] if item['operation_id']==sale)
+payload={'operation_id':sale,'journal_digest':digest,'reference':source['reference'],'due_date':'2026-09-10','due_unknown':False,'expected_date':None,'expected_unknown':True}
 assert command(viewer,'POST',path,payload).status_code==403
+mismatch=command(advisor,'POST',path,dict(payload,reference='WRONG-REFERENCE'))
+assert mismatch.status_code==422 and mismatch.json()['code']=='native_invoice_reference',mismatch.text
 response=command(advisor,'POST',path,payload);assert response.status_code==201,response.text
 item=response.json();assert item['remaining']=='100'
 assert outsider.get(path+'/'+item['id']).status_code==404

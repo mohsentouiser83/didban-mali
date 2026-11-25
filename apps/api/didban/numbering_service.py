@@ -1,7 +1,8 @@
 """Configurable numbering system service with default 001 starting values and deletion restrictions."""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from . import models as m
 from .errors import require
@@ -11,6 +12,9 @@ from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
 DEFAULT_NUMBERING_ENTITIES = [
+    {"entity_type": "account", "entity_title": "حساب دفتر", "description": "کد حساب‌های جدید دفتر"},
+    {"entity_type": "employee_contract", "entity_title": "قرارداد کارکنان", "description": "شماره قرارداد کارکنان"},
+    {"entity_type": "operation", "entity_title": "عملیات مالی", "description": "شماره عملیات دریافت، پرداخت و انتقال"},
     {
         "entity_type": "journal_entry",
         "entity_title": "اسناد حسابداری",
@@ -69,8 +73,46 @@ DEFAULT_NUMBERING_ENTITIES = [
 ]
 
 
+def _locked_rule(db: Session, company_id: str, entity_type: str) -> NumberingSystem:
+    # Serialize first-use defaults as well as rule edits/allocation for this tenant.
+    db.execute(select(m.Company.id).where(m.Company.id == company_id).with_for_update())
+    ensure_defaults(db, company_id)
+    rule = db.scalar(select(NumberingSystem).where(
+        NumberingSystem.company_id == company_id,
+        NumberingSystem.entity_type == entity_type,
+    ).with_for_update().execution_options(populate_existing=True))
+    require(rule is not None, "entity_numbering_not_found", "الگوی شماره‌گذاری تعریف نشده است.", 409)
+    require(rule.active, "numbering_inactive", "الگوی شماره‌گذاری غیرفعال است.", 409)
+    return rule
+
+
+def allocate_number(
+    db: Session, company_id: str, entity_type: str, model: type | None = None, field: str | None = None,
+    filters: tuple[ColumnElement[bool], ...] = (),
+) -> str:
+    """Allocate within the caller's transaction; rollback also restores the counter."""
+    rule = _locked_rule(db, company_id, entity_type)
+    while True:
+        value = db.execute(update(NumberingSystem).where(NumberingSystem.id == rule.id).values(
+            current_number=NumberingSystem.current_number + 1,
+            version=NumberingSystem.version + 1,
+        ).returning(NumberingSystem.current_number)).scalar_one() - 1
+        number = f"{rule.prefix}{str(value).zfill(rule.padding)}{rule.suffix}"
+        if model is not None and field:
+            column = getattr(model, field)
+            length = getattr(column.type, "length", None)
+            require(not length or len(number) <= length, "numbering_too_long", "طول کد از ظرفیت فیلد بیشتر است؛ الگو را کوتاه کنید.", 422)
+            if db.scalar(select(model.id).where(model.company_id == company_id, column == number, *filters)):
+                continue
+        db.flush()
+        return number
+
+
 def ensure_defaults(db: Session, company_id: str) -> None:
     """Ensure all default numbering entities exist for the company starting with 001."""
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(update(m.Company).where(m.Company.id == company_id).values(name=m.Company.name))
+    db.execute(select(m.Company.id).where(m.Company.id == company_id).with_for_update())
     existing = set(
         db.scalars(select(NumberingSystem.entity_type).where(NumberingSystem.company_id == company_id)).all()
     )
@@ -109,7 +151,8 @@ def list_rules(db: Session, company_id: str, user: m.User) -> list[dict]:
     # Order rules matching default entities order first
     order_map = {item["entity_type"]: i for i, item in enumerate(DEFAULT_NUMBERING_ENTITIES)}
     sorted_rules = sorted(rules, key=lambda r: order_map.get(r.entity_type, 999))
-    return [_serialize_rule(r) for r in sorted_rules]
+    # Retain historical account rules; accounts now use manually entered codes.
+    return [_serialize_rule(r) for r in sorted_rules if r.entity_type != "account"]
 
 
 def create_rule(
@@ -196,6 +239,7 @@ def update_rule(
     version: int | None = None,
 ) -> dict:
     membership(db, company_id, user, "write")
+    db.execute(select(m.Company.id).where(m.Company.id == company_id).with_for_update())
     rule = get_entity(db, NumberingSystem, company_id, rule_id)
     check_version(rule, version)
 
@@ -287,12 +331,7 @@ def generate_next_number(
     require(
         rule is not None, "entity_numbering_not_found", "سیستم شماره‌گذاری برای این موجودیت یافت نشد.", 404
     )
-    formatted = rule.sample
-    if consume:
-        rule.current_number += 1
-        rule.version += 1
-        db.add(rule)
-        db.flush()
+    formatted = allocate_number(db, company_id, entity_type) if consume else rule.sample
     return {
         "entity_type": entity_type,
         "number": formatted,

@@ -33,7 +33,8 @@ export function NativeForecastQuestionDialog({
             {amount(c.question.amount, c.workspace.unit)}
           </p>
           {c.question.kind === "choice" ? (
-            <Select
+            <Field id="forecast-invoice-link" label="ارتباط با فاکتور" required>
+<Select
               label="ارتباط با فاکتور"
               value={c.choice}
               onValueChange={c.setChoice}
@@ -49,13 +50,14 @@ export function NativeForecastQuestionDialog({
                 { value: "unknown", label: "نامعلوم" },
               ]}
             />
+</Field>
           ) : (
             <>
               <p className="text-sm text-muted">
                 {nativeForecastReasons[c.question.reason_code] ||
                   "تاریخ مورد انتظار را مشخص کنید."}
               </p>
-              <Field id="native-forecast-answer-date" label="تاریخ مورد انتظار">
+              <Field id="native-forecast-answer-date" label="تاریخ مورد انتظار" required={!c.unknown}>
                 <PersianDatePicker
                   id="native-forecast-answer-date"
                   label="تاریخ مورد انتظار دریافت یا پرداخت"

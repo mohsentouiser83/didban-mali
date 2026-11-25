@@ -8,7 +8,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
 import { Drawer } from "@/components/ui/drawer";
 import { Field } from "@/components/ui/field";
-import { Input, AmountInput } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/input";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
@@ -19,6 +20,7 @@ const contractTypeLabels: Record<string, string> = {
   part_time: "پاره‌وقت (ماده ۳۹)",
   hourly: "ساعتی",
   project: "پروژه‌ای / مشاوره‌ای",
+  honorarium: "حق‌الزحمه‌ای (مشاوره‌ای / ماده ۳۸ و تبصره ۱ ماده ۸۶)",
 };
 
 export function ContractsManagementView() {
@@ -166,7 +168,7 @@ export function ContractsManagementView() {
           <div className="space-y-4">
             <h4 className="text-xs font-semibold text-muted">۱. مشخصات و طرف قرارداد</h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field id="con-emp" label="کارمند *">
+              <Field id="con-emp" label="کارمند" required>
                 <Select
                   value={v.form.employee_id}
                   onValueChange={(val) => v.setForm({ ...v.form, employee_id: val })}
@@ -177,40 +179,37 @@ export function ContractsManagementView() {
                   disabled={!!v.editing}
                 />
               </Field>
-              <Field id="con-number" label="شماره قرارداد *">
-                <Input
-                  value={v.form.contract_number}
-                  onChange={(e) => v.setForm({ ...v.form, contract_number: e.target.value })}
-                  placeholder="مثال: CON-1403-01"
-                />
-              </Field>
+              
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Field id="con-type" label="نوع قرارداد *">
+              <Field id="con-type" label="نوع قرارداد" required>
                 <Select
                   value={v.form.contract_type || "full_time"}
-                  onValueChange={(val) => v.setForm({ ...v.form, contract_type: val as "full_time" | "part_time" | "hourly" | "project" })}
+                  onValueChange={(val) => v.setForm({ ...v.form, contract_type: val as any })}
                   options={[
                     { value: "full_time", label: "تمام‌وقت (مبنای قانون کار)" },
                     { value: "part_time", label: "پاره‌وقت (ماده ۳۹ نسبت به ساعت)" },
                     { value: "hourly", label: "ساعتی" },
                     { value: "project", label: "پروژه‌ای / مشاوره‌ای" },
+                    { value: "honorarium", label: "حق‌الزحمه‌ای (مشاوره‌ای / ماده ۳۸ و تبصره ۱ ماده ۸۶)" },
                   ]}
                 />
               </Field>
-              <Field id="con-start" label="تاریخ شروع قرارداد *">
-                <Input
-                  type="date"
+              <Field id="con-start" label="تاریخ شروع قرارداد" required>
+                <PersianDatePicker
+                  id="con-start"
                   value={String(v.form.start_date || "")}
-                  onChange={(e) => v.setForm({ ...v.form, start_date: e.target.value })}
+                  onChange={(val) => v.setForm({ ...v.form, start_date: val })}
+                  label="تاریخ شروع قرارداد"
                 />
               </Field>
               <Field id="con-end" label="تاریخ پایان قرارداد">
-                <Input
-                  type="date"
+                <PersianDatePicker
+                  id="con-end"
                   value={String(v.form.end_date || "")}
-                  onChange={(e) => v.setForm({ ...v.form, end_date: e.target.value || null })}
+                  onChange={(val) => v.setForm({ ...v.form, end_date: val || null })}
+                  label="تاریخ پایان قرارداد"
                 />
               </Field>
             </div>
@@ -220,7 +219,7 @@ export function ContractsManagementView() {
           <div className="space-y-4">
             <h4 className="text-xs font-semibold text-muted">۲. اقلام حقوق پایه و مزایای قانونی (به ریال)</h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field id="con-base" label="حقوق پایه ماهانه *">
+              <Field id="con-base" label="حقوق پایه ماهانه" required>
                 <AmountInput
                   value={String(v.form.base_salary || "0")}
                   onValueChange={(val: string) => v.setForm({ ...v.form, base_salary: val })}

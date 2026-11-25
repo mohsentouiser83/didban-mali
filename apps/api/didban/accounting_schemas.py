@@ -15,11 +15,38 @@ class StrictInput(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+AccountLevel = Literal["group", "general", "subsidiary", "detail"]
+
+
 class AccountInput(StrictInput):
-    code: str = Field(min_length=1, max_length=100)
+    code: str | None = Field(default=None, max_length=100)
+    level: AccountLevel | None = None
+    parent_id: str | None = Field(default=None, min_length=1, max_length=36)
     name: str = Field(min_length=1, max_length=150)
     nature: Literal["debit", "credit", "floating", "none"] = "debit"
+    role: str | None = Field(default=None, max_length=40)
     active: bool = True
+
+    @field_validator("code", mode="before")
+    @classmethod
+    def normalize_code(cls, value):
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def normalize_level(cls, value):
+        if isinstance(value, str):
+            return {
+                "گروه": "group",
+                "کل": "general",
+                "معین": "subsidiary",
+                "تفصیلی": "detail",
+                "": None,
+            }.get(value.strip(), value.strip())
+        return value
 
     @field_validator("nature", mode="before")
     @classmethod
@@ -43,6 +70,11 @@ class AccountInput(StrictInput):
             }
             return aliases.get(val, val)
         return value
+
+
+class AccountCreateInput(AccountInput):
+    code: str | None = Field(default=None, max_length=100)
+    level: AccountLevel | None = None
 
 
 class DraftLine(StrictInput):

@@ -25,8 +25,15 @@ export function accountNatureLabel(nature?: string): string {
 export interface LedgerAccount {
   id: string;
   code: string;
+  level?: import("./account-catalogue").AccountLevel | null;
+  parent_id?: string | null;
+  parent_code?: string | null;
+  parent_name?: string | null;
+  has_children?: boolean;
+  postable?: boolean;
   name: string;
   nature: AccountNature;
+  role?: string | null;
   active: boolean;
   version: number;
 }
@@ -86,14 +93,14 @@ export function draftFormValue(
 ): DraftFormValue {
   return draft
     ? {
-        unit: draft.original_unit,
+        unit: "IRR",
         period_id: draft.period_id,
         date: draft.date,
         description: draft.description,
         lines: draft.lines.map((line) => ({
           ...line,
-          debit: line.original_debit ?? line.debit,
-          credit: line.original_credit ?? line.credit,
+          debit: line.debit,
+          credit: line.credit,
         })),
       }
     : {

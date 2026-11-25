@@ -108,7 +108,7 @@ export function ScenarioForm({
                 }
               />
             </Field>
-            <Field id={`hyp-direction-${index}`} label="نوع">
+            <Field id={`hyp-direction-${index}`} label="نوع" required>
               <Select
                 id={`hyp-direction-${index}`}
                 value={event.direction}
@@ -123,7 +123,7 @@ export function ScenarioForm({
                 ]}
               />
             </Field>
-            <Field id={`hyp-amount-${index}`} label="مبلغ">
+            <Field id={`hyp-amount-${index}`} label="مبلغ (ریال)">
               <AmountInput
                 id={`hyp-amount-${index}`}
                 required
@@ -133,22 +133,7 @@ export function ScenarioForm({
                 }
               />
             </Field>
-            <Field id={`hyp-unit-${index}`} label="واحد">
-              <Select
-                id={`hyp-unit-${index}`}
-                value={event.unit}
-                onValueChange={(value) =>
-                  c.updateHypothetical(index, {
-                    unit: value as "IRR" | "TOMAN",
-                  })
-                }
-                options={[
-                  { value: "IRR", label: "ریال" },
-                  { value: "TOMAN", label: "تومان" },
-                ]}
-              />
-            </Field>
-            <Field id={`hyp-date-${index}`} label="تاریخ">
+            <Field id={`hyp-date-${index}`} label="تاریخ" required>
               <PersianDatePicker
                 id={`hyp-date-${index}`}
                 value={event.date}

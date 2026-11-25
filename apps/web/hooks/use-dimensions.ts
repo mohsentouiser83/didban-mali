@@ -24,7 +24,6 @@ export function useDimensionManagement() {
   const [editing, setEditing] = useState<Dimension | null | undefined>();
   const [value, setValue] = useState({
     kind: "project",
-    code: "",
     name: "",
     active: true,
   });
@@ -41,11 +40,10 @@ export function useDimensionManagement() {
         item
           ? {
               kind: item.kind,
-              code: item.code,
               name: item.name,
               active: item.active,
             }
-          : { kind: "project", code: "", name: "", active: true },
+          : { kind: "project", name: "", active: true },
       );
       command.clearError();
     },
@@ -53,7 +51,7 @@ export function useDimensionManagement() {
     change: (patch: Partial<typeof value>) =>
       setValue((previous) => ({ ...previous, ...patch })),
     save: () => {
-      if (!value.name.trim() || !value.code.trim()) return;
+      if (!value.name.trim()) return;
       void command.run(
         workspace.companyPath(`dimensions${editing ? `/${editing.id}` : ""}`),
         {

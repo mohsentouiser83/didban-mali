@@ -277,7 +277,7 @@ export function useNativeCashScenarios() {
             date: baseline?.start || "",
             direction: "payment",
             amount: "",
-            unit: workspace.unit,
+            unit: "IRR",
           },
         ],
       }),

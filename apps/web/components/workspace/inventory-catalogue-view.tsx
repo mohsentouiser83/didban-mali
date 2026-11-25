@@ -141,7 +141,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
             form="inventory-catalogue"
             type="submit"
             busy={view.command.busy}
-            disabled={isItem && !view.value.inventory_account_id}
+            disabled={!view.value.name.trim()}
           >
             ذخیره
           </Button>
@@ -155,16 +155,13 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
             view.save();
           }}
         >
-          <Field id="inventory-code" label={`کد ${singular}`} icon={BarcodeIcon}>
-            <Input id="inventory-code" required maxLength={100} value={view.value.code}
-              onChange={(event) => view.change({ code: event.target.value })} />
-          </Field>
+          
           <Field id="inventory-name" label={`نام ${singular}`} icon={isItem ? PackageIcon : StorefrontIcon}>
             <Input id="inventory-name" required maxLength={150} value={view.value.name}
               onChange={(event) => view.change({ name: event.target.value })} />
           </Field>
           {isItem && (
-            <Field id="inventory-account" name="inventory_account_id" label="حساب موجودی" icon={WalletIcon}>
+            <Field id="inventory-account" name="inventory_account_id" label="حساب موجودی (اختیاری)" icon={WalletIcon}>
               <Select id="inventory-account" label="حساب موجودی" value={view.value.inventory_account_id}
                 onValueChange={(inventory_account_id) => view.change({ inventory_account_id })}
                 options={view.accountOptions} disabled={view.accountLocked} />

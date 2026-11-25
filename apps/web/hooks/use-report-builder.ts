@@ -20,9 +20,10 @@ export function useReportBuilder() {
   const definitions = usePagedResource<BuilderDefinition>(
     workspace.companyPath("report-builder/definitions"),
   );
-  const [spec, setSpec] = useState<BuilderSpec>(() =>
+  const [specState, setSpec] = useState<BuilderSpec>(() =>
     defaultSpec(workspace.periodId),
   );
+  const spec = { ...specState, period_id: workspace.periodId };
   const runs = usePagedResource<BuilderRun>(
     workspace.companyPath(
       `report-builder/runs?source=${spec.source || "imported_manifest"}`,

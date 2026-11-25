@@ -157,10 +157,10 @@ def test_counterparty_crud_and_credit_limit(commercial_env, db_session):
     assert cp["name"] == "مشتری الف"
     assert cp["credit_limit_irr"] == "50000000"
 
-    # Duplicate code check
-    with pytest.raises(DomainError) as exc:
-        add_counterparty(db_session, c_id, user, payload)
-    assert exc.value.code == "duplicate_counterparty_code"
+    # Client codes cannot override the configured sequence.
+    second = add_counterparty(db_session, c_id, user, payload | {"name": "طرف دیگر"})
+    assert cp["code"] == "001"
+    assert second["code"] == "002"
 
     # Update
     update_payload = {"credit_limit_irr": "80000000", "phone": "02199999999"}
@@ -171,7 +171,7 @@ def test_counterparty_crud_and_credit_limit(commercial_env, db_session):
     # List
     parties = list_counterparties(db_session, c_id, user, search="مشتری")
     assert parties["total"] == 1
-    assert parties["items"][0]["code"] == "CUST-001"
+    assert parties["items"][0]["code"] == cp["code"]
 
     # Credit limit check (no outstanding invoices yet -> passes for 30M)
     check_credit_limit(db_session, c_id, user, cp["code"], "30000000")
@@ -232,9 +232,10 @@ def test_direct_sales_recheck_credit_for_batch_and_unlinked_journal(commercial_e
     with pytest.raises(DomainError) as exc:
         post_batch(db_session, company, user, previews[1:])
     assert exc.value.code == "credit_limit_exceeded"
-    with pytest.raises(DomainError) as exc:
-        update_counterparty(db_session, company, user, counterparty["id"], {"code": "MOVED"}, counterparty["version"])
-    assert exc.value.code == "counterparty_code_in_use"
+    unchanged = update_counterparty(
+        db_session, company, user, counterparty["id"], {"code": "MOVED"}, counterparty["version"]
+    )
+    assert unchanged["code"] == counterparty["code"]
 
 
 def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
@@ -273,14 +274,13 @@ def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
     }
 
     pf = create_proforma(db_session, c_id, user, proforma_payload)
-    assert pf["number"] == "PF-1403-001"
+    assert pf["number"] == "001"
     assert pf["total_amount"] == "9500000"
     assert pf["status"] == "issued"
 
-    # Duplicate number check
-    with pytest.raises(DomainError) as exc:
-        create_proforma(db_session, c_id, user, proforma_payload)
-    assert exc.value.code == "duplicate_proforma_number"
+    # A repeated client number still receives the next server number.
+    second = create_proforma(db_session, c_id, user, proforma_payload)
+    assert second["number"] == "002"
 
     # Ensure warehouse has stock for sale
     opening = create_opening_stock_draft(
@@ -407,3 +407,106 @@ def test_commercial_document_pdf(commercial_env, db_session):
     assert isinstance(pdf_bytes, bytes)
     assert pdf_bytes.startswith(b"%PDF")
     assert len(pdf_bytes) > 500
+
+
+def test_catalogue_codes_follow_company_patterns_and_stay_fixed(commercial_env, db_session):
+    from sqlalchemy import select
+
+    from didban.inventory_service import update_item, update_warehouse
+    from didban.numbering_models import NumberingSystem
+    from didban.numbering_service import ensure_defaults
+
+    company = commercial_env["company"].id
+    user = commercial_env["user"]
+    ensure_defaults(db_session, company)
+    for entity in ("counterparty", "proforma_invoice", "inventory_item", "inventory_warehouse"):
+        rule = db_session.scalar(select(NumberingSystem).where(
+            NumberingSystem.company_id == company, NumberingSystem.entity_type == entity,
+        ))
+        rule.prefix = f"{entity}-"
+        rule.current_number = 7
+        rule.padding = 4
+        rule.suffix = "-X"
+    db_session.flush()
+
+    cp = add_counterparty(db_session, company, user, {"name": "مشتری الگو"})
+    assert cp["code"] == "counterparty-0007-X"
+    item = add_item(db_session, company, user, {
+        "name": "کالای الگو", "inventory_account_id": commercial_env["accounts"]["inventory"].id,
+    })
+    assert item["code"] == "inventory_item-0007-X"
+    wh = add_warehouse(db_session, company, user, {"name": "انبار الگو"})
+    assert wh["code"] == "inventory_warehouse-0007-X"
+    pf = create_proforma(db_session, company, user, {
+        "date": date.today(), "party_id": cp["id"],
+        "lines": [{"description": "خدمت", "quantity": 1, "unit_price": "100"}],
+    })
+    assert pf["number"] == "proforma_invoice-0007-X"
+    assert update_proforma(db_session, company, user, pf["id"], {"number": "MANUAL"})["number"] == pf["number"]
+    assert update_item(db_session, company, user, item["id"], {"code": "MANUAL"})["code"] == item["code"]
+    assert update_warehouse(db_session, company, user, wh["id"], {"code": "MANUAL"})["code"] == wh["code"]
+
+
+@pytest.mark.parametrize("party_type", ["supplier", "customer", "employee", "other"])
+def test_counterparty_type_persists(commercial_env, db_session, party_type):
+    company = commercial_env["company"].id
+    user = commercial_env["user"]
+    row = add_counterparty(db_session, company, user, {"name": "طرف‌حساب", "type": party_type})
+    assert row["type"] == party_type
+    updated = update_counterparty(db_session, company, user, row["id"], {"type": "other"}, row["version"])
+    assert updated["type"] == "other"
+    assert list_counterparties(db_session, company, user)["items"][0]["type"] == "other"
+
+
+@pytest.mark.parametrize("bad_type", ["", "vendor", "customer,supplier", None])
+def test_counterparty_type_rejects_invalid_input(bad_type):
+    from pydantic import ValidationError
+
+    from didban.commercial_schemas import CounterpartyInput, UpdateCounterpartyInput
+
+    with pytest.raises(ValidationError):
+        CounterpartyInput(name="طرف‌حساب", type=bad_type)
+    with pytest.raises(ValidationError):
+        UpdateCounterpartyInput(type=bad_type)
+
+
+def test_new_counterparty_requires_type():
+    from pydantic import ValidationError
+
+    from didban.commercial_schemas import CounterpartyInput, UpdateCounterpartyInput
+
+    with pytest.raises(ValidationError):
+        CounterpartyInput(name="طرف‌حساب")
+    assert "type" not in UpdateCounterpartyInput(name="نام جدید").model_dump(exclude_unset=True)
+
+
+def test_counterparty_type_upgrade_preserves_existing_rows(tmp_path, monkeypatch):
+    from sqlalchemy import MetaData, create_engine, select
+
+    from didban import db as database
+    from didban.commercial_models import CommercialCounterparty
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'upgrade.db'}")
+    old_metadata = MetaData()
+    for table in m.Base.metadata.sorted_tables:
+        table.to_metadata(old_metadata)
+    old_parties = old_metadata.tables["commercial_counterparties"]
+    old_parties._columns.remove(old_parties.c.type)
+    old_parties.constraints = {
+        constraint for constraint in old_parties.constraints
+        if constraint.name != "counterparty_type_valid"
+    }
+    old_metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.execute(old_parties.insert().values(
+            id="existing-party", company_id="existing-company", code="001", name="طرف قبلی",
+        ))
+    monkeypatch.setattr(database, "engine", engine)
+    database.initialize()
+    database.initialize()  # The additive upgrade is safe on restart.
+    with engine.begin() as connection:
+        row = connection.execute(select(CommercialCounterparty.__table__)).mappings().one()
+        assert row["name"] == "طرف قبلی"
+        assert row["code"] == "001"
+        assert row["type"] == "other"
+    engine.dispose()

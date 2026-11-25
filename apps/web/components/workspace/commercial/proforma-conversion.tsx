@@ -69,17 +69,13 @@ export function ProformaConversion({ row, onClose, onComplete }: {
         }}>
           <p>مبلغ فاکتور <bdi>{amount(row.total_amount)} {unit}</bdi></p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="proforma-conversion-period" label="دوره مالی">
-              <Select id="proforma-conversion-period" value={view.values.period_id}
-                options={view.periods.map(({ id, name }) => ({ value: id, label: name }))}
-                onValueChange={(period_id) => view.setValues((previous) => ({ ...previous, period_id }))} />
-            </Field>
-            <Field id="proforma-conversion-warehouse" label="انبار">
+
+            <Field id="proforma-conversion-warehouse" label="انبار" required>
               <Select id="proforma-conversion-warehouse" value={view.values.warehouse_id}
                 options={view.inventory.data?.warehouses.map(({ id, name }) => ({ value: id, label: name })) ?? []}
                 onValueChange={(warehouse_id) => view.setValues((previous) => ({ ...previous, warehouse_id }))} />
             </Field>
-            <Field id="proforma-conversion-settlement" label="نوع تسویه">
+            <Field id="proforma-conversion-settlement" label="نوع تسویه" required>
               <Select id="proforma-conversion-settlement" value={view.values.settlement_type} options={settlementOptions}
                 onValueChange={(settlement_type) => view.setValues((previous) => ({ ...previous, settlement_type }))} />
             </Field>
@@ -91,22 +87,28 @@ export function ProformaConversion({ row, onClose, onComplete }: {
             ))}
             {view.cheque && (
               <>
-                <Field id="proforma-conversion-cheque-number" label="شماره چک">
+                <Field id="proforma-conversion-cheque-number" label="شماره چک" required>
                   <Input id="proforma-conversion-cheque-number" value={view.values.cheque_number} maxLength={100}
                     onChange={(event) => view.setValues((previous) => ({ ...previous, cheque_number: event.target.value }))} />
                 </Field>
-                <Field id="proforma-conversion-cheque-date" label="سررسید چک">
+                <Field id="proforma-conversion-cheque-date" label="سررسید چک" required>
                   <PersianDatePicker id="proforma-conversion-cheque-date" value={view.values.cheque_due_date}
                     onChange={(cheque_due_date) => view.setValues((previous) => ({ ...previous, cheque_due_date }))} />
                 </Field>
               </>
             )}
-            {accountFields.map(([key, label]) => (
-              <Field key={key} id={`proforma-conversion-${key}`} label={label}>
-                <Select id={`proforma-conversion-${key}`} value={view.values[key]} options={view.accounts.options}
-                  onValueChange={(value) => view.setValues((previous) => ({ ...previous, [key]: value }))} />
-              </Field>
-            ))}
+            {accountFields.map(([key, label]) => {
+              const options =
+                key === "cash_account_id" && view.accounts.treasuryOptions.length > 0
+                  ? view.accounts.treasuryOptions
+                  : view.accounts.options;
+              return (
+                <Field key={key} id={`proforma-conversion-${key}`} label={label} required>
+                  <Select id={`proforma-conversion-${key}`} value={view.values[key]} options={options}
+                    onValueChange={(value) => view.setValues((previous) => ({ ...previous, [key]: value }))} />
+                </Field>
+              );
+            })}
           </div>
           <FormMessage error>{view.command.error?.message}</FormMessage>
         </form>

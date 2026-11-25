@@ -8,6 +8,7 @@ import { FormMessage } from "@/components/ui/field";
 import { CursorPagination } from "@/components/ui/pagination";
 import { useMoadianTransmissions } from "@/hooks/use-moadian-transmissions";
 import { useWorkspace } from "@/hooks/workspace";
+import { MoadianBatchCollection } from "./moadian-batch-collection";
 import { MoadianTransmissionForm } from "./moadian-transmission-form";
 import { MoadianTransmissionTable } from "./moadian-transmission-table";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
@@ -64,6 +65,14 @@ function TransmissionWorkspace() {
         </Panel>
       )}
       <MoadianTransmissionForm view={view} />
+      <div className="mt-6">
+        <MoadianBatchCollection
+          onSelectForTransmission={(id) => {
+            view.show();
+            view.selectInvoice(id);
+          }}
+        />
+      </div>
       <Dialog
         title="ارسال دوباره به مؤدیان"
         open={!!view.retryTarget}

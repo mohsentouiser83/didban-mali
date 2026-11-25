@@ -1,5 +1,5 @@
-import { ContractsManagementView } from "@/components/workspace/contracts-management-view";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ContractsManagementView />;
+  redirect("/payroll/contracts");
 }

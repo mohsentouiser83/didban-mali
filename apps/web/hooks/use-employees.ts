@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { persian } from "@/lib/utils";
 
 const defaultEmployeeInput: EmployeeInput = {
-  employee_code: "",
   first_name: "",
   last_name: "",
   identity_type: "national_id",
@@ -68,7 +67,6 @@ export function useEmployees() {
   const openEdit = (emp: Employee) => {
     setEditing(emp);
     setForm({
-      employee_code: emp.employee_code,
       first_name: emp.first_name,
       last_name: emp.last_name,
       identity_type: emp.identity_type,

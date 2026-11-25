@@ -2,6 +2,8 @@
 import { ReceiptIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Field } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import { LoadingState, ErrorState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
 import {
@@ -14,7 +16,7 @@ import {
   TableRowHeader,
   TableEmptyCell,
 } from "@/components/ui/table";
-import { useCheques, chequeStateLabels } from "@/hooks/use-cheques";
+import { useCheques, chequeStateLabels, chequeDirectionLabels } from "@/hooks/use-cheques";
 import { useWorkspace } from "@/hooks/workspace";
 import { amount, displayDate } from "@/lib/utils";
 import { PageHeader, Panel, NoCompany } from "./page-parts";
@@ -41,9 +43,27 @@ function ChequeWorkspace() {
           />
         ) : (
           <>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="w-64">
+                <Field id="cheque-filter-direction" label="گزارش نوع چک">
+                  <Select
+                    id="cheque-filter-direction"
+                    value={c.directionFilter}
+                    onValueChange={c.setDirectionFilter}
+                    options={[
+                      { value: "all", label: "همه چک‌ها" },
+                      { value: "received", label: "دریافتنی" },
+                      { value: "issued", label: "پرداختنی" },
+                      { value: "guarantee_in", label: "تضمین دیگران نزد ما" },
+                      { value: "guarantee_out", label: "تضمین ما نزد دیگران" },
+                    ]}
+                  />
+                </Field>
+              </div>
+            </div>
             {c.importBusy && <LoadingState label="در حال ورود چک‌ها..." />}
             <Table
-              title="فهرست چک‌ها"
+              title="فهرست و گزارش چک‌های صیادی"
               onImport={c.workspace.canWrite && !c.importBusy ? c.importFromExcel : undefined}
             >
               <TableHeader>
@@ -65,9 +85,7 @@ function ChequeWorkspace() {
                         <span dir="ltr">{cheque.number}</span>
                       </TableRowHeader>
                       <TableCell>
-                        {cheque.direction === "received"
-                          ? "دریافتی"
-                          : "پرداختی"}
+                        {chequeDirectionLabels[cheque.direction] || cheque.direction}
                       </TableCell>
                       <TableCell>{cheque.party_id}</TableCell>
                       <TableCell>{displayDate(cheque.due_date)}</TableCell>

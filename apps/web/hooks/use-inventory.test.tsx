@@ -29,7 +29,7 @@ const inventory: InventoryState = {
   sale_enabled: true,
   movements_truncated: false,
 };
-const draft = { operation_id: "operation", draft: { id: "draft" } };
+const draft = { source_reference: "BUY-1", operation_id: "operation", draft: { id: "draft" } };
 
 beforeEach(() => {
   vi.mocked(api).mockReset().mockResolvedValue(draft);
@@ -43,7 +43,6 @@ it("creates only a purchase draft using normalized whole quantities and an exact
     quantity: "۳",
     unit_price: "9007199254740993",
     party_id: " supplier ",
-    source_reference: " BUY-1 ",
     counterparty_account_id: "payable",
   }));
   act(() => result.current.save());
@@ -59,10 +58,9 @@ it("creates only a purchase draft using normalized whole quantities and an exact
         warehouse_id: "warehouse",
         quantity: 3,
         unit_price: "9007199254740993",
-        unit: "TOMAN",
+        unit: "IRR",
         party_id: "supplier",
-        source_reference: "BUY-1",
-        description: "خرید کالا · BUY-1",
+        description: "خرید کالا",
         counterparty_account_id: "payable",
       },
     }),
@@ -76,7 +74,6 @@ it("requires both posting accounts for sales and keeps the currency exact", asyn
     quantity: "٢",
     unit_price: "2000",
     party_id: "customer",
-    source_reference: "SELL-1",
     counterparty_account_id: "receivable",
   }));
   act(() => result.current.save());
@@ -119,7 +116,7 @@ it("edits an active warehouse with its selected version and deletes the current 
   await waitFor(() => expect(result.current.rows[0]?.record).toEqual(savedWarehouse));
   expect(vi.mocked(api)).toHaveBeenCalledWith(
     "/companies/company/accounting/inventory/warehouses/warehouse",
-    { method: "PATCH", version: 1, body: { code: "WH", name: savedWarehouse.name, active: false } },
+    { method: "PATCH", version: 1, body: { name: savedWarehouse.name, active: false } },
   );
 
   act(() => result.current.confirmRemove(savedWarehouse));

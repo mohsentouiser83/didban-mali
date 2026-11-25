@@ -125,10 +125,10 @@ def test_inv_05_catalog_lifecycle_and_validation(inv_lifecycle_env):
     wh_a_id = wh_a_res["id"]
     wh_b_id = wh_b_res["id"]
 
-    # 2. Update item name and code
+    # 2. Update item name while preserving the generated code
     upd_item = update_item(db, c_id, user, item_id, {"name": "کالای الف اصلاح‌شده", "code": "ITM-A1"})
     assert upd_item["name"] == "کالای الف اصلاح‌شده"
-    assert upd_item["code"] == "ITM-A1"
+    assert upd_item["code"] == item_res["code"] == "001"
 
     # 3. Deactivate item and warehouse
     update_item(db, c_id, user, item_id, {"active": False})

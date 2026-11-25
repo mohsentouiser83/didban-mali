@@ -44,7 +44,8 @@ export default async function Page({
   if (["tax", "insurance"].includes(route))
     redirect("/employee-reports");
   if (route === "employees")
-    redirect("/settings/employees");
+    redirect("/payroll/employees");
+  if (route === "settings/personnel") redirect("/payroll/employees");
   if (route === "notifications")
     redirect("/");
   if (route === "chat")
@@ -95,7 +96,6 @@ export default async function Page({
       <SettingsOverviewView categoryKey="company-access" />
     ),
     "settings/documents": () => <SourcesView />,
-    "settings/personnel": () => <SettingsOverviewView categoryKey="personnel" />,
     "commercial/counterparties": () => <CounterpartiesView />,
     "commercial/proformas": () => <ProformasView />,
     "settings/accounting": () => (

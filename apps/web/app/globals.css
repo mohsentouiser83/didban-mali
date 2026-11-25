@@ -1,4 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./";
+@source "../components";
+@source "../hooks";
+@source "../lib";
 @theme inline {
   --font-body: var(--font-yekan);
   --font-display: var(--font-yekan);

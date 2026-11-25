@@ -181,14 +181,14 @@ function PeriodWorkspace() {
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="period-start" label="از تاریخ" icon={CalendarBlankIcon}>
+            <Field id="period-start" label="از تاریخ" icon={CalendarBlankIcon} required>
               <PersianDatePicker
                 id="period-start"
                 value={start}
                 onChange={setStart}
               />
             </Field>
-            <Field id="period-end" label="تا تاریخ" icon={CalendarBlankIcon}>
+            <Field id="period-end" label="تا تاریخ" icon={CalendarBlankIcon} required>
               <PersianDatePicker
                 id="period-end"
                 value={end}

@@ -9,8 +9,13 @@ class AccountingModeInput(StrictInput):
     mode: Literal["analysis", "primary"]
 
 
+class ChartAccountInput(AccountInput):
+    code: str = Field(min_length=1, max_length=100)
+    parent_code: str | None = Field(default=None, min_length=1, max_length=100)
+
+
 class ChartPreviewInput(StrictInput):
-    rows: list[AccountInput] = Field(min_length=1, max_length=20000)
+    rows: list[ChartAccountInput] = Field(min_length=1, max_length=20000)
 
 
 class ChartImportInput(StrictInput):

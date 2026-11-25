@@ -8,7 +8,7 @@ from .accounting_schemas import StrictInput
 
 class ChequeInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
-    direction: Literal["received", "issued"]
+    direction: Literal["received", "issued", "guarantee_in", "guarantee_out"]
     number: str = Field(min_length=1, max_length=100)
     bank_name: str = Field(min_length=1, max_length=120)
     bank_account: str = Field(min_length=1, max_length=100)

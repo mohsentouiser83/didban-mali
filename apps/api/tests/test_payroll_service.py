@@ -57,25 +57,26 @@ def test_employee_crud_and_exemptions(db_session, payroll_env):
     }
     created = service.add_employee(db_session, company, user, emp_data)
     assert created["id"] is not None
-    assert created["employee_code"] == "EMP-101"
+    assert created["employee_code"] == "001"
     assert created["is_veteran_or_child"] is True
 
-    # 2. Duplicate code rejected
+    # 2. External national IDs remain unique
     with pytest.raises(DomainError) as err:
         service.add_employee(db_session, company, user, emp_data)
-    assert err.value.code == "duplicate_employee_code"
+    assert err.value.code == "duplicate_national_id"
 
     # 3. List employees
     listing = service.list_employees(db_session, company, user)
     assert listing["total"] == 1
-    assert listing["items"][0]["employee_code"] == "EMP-101"
+    assert listing["items"][0]["employee_code"] == "001"
 
     # 4. Update employee
     updated = service.update_employee(
-        db_session, company, user, created["id"], {"job_title": "مدیر مالی", "children_count": 3}
+        db_session, company, user, created["id"], {"job_title": "مدیر مالی", "children_count": 3, "employee_code": "MANUAL"}
     )
     assert updated["job_title"] == "مدیر مالی"
     assert updated["children_count"] == 3
+    assert updated["employee_code"] == created["employee_code"]
 
 
 def test_contract_crud(db_session, payroll_env):
@@ -109,7 +110,7 @@ def test_contract_crud(db_session, payroll_env):
     }
     contract = service.add_contract(db_session, company, user, con_data)
     assert contract["id"] is not None
-    assert contract["contract_number"] == "CON-2024-001"
+    assert contract["contract_number"] == "001"
     assert contract["base_salary"] == "150000000"
 
     # List contracts
@@ -285,3 +286,127 @@ def test_payroll_posting_preserves_the_reviewed_run(db_session, payroll_env):
     posted = service.get_payroll_run(db_session, company, run["id"])
     assert posted["journal_id"] == journal["id"]
     assert posted["status"] == "posted"
+
+
+def test_employee_and_contract_codes_use_patterns_without_input(db_session, payroll_env):
+    from sqlalchemy import select
+
+    from didban.numbering_models import NumberingSystem
+    from didban.numbering_service import ensure_defaults
+
+    company = payroll_env["company"]
+    user = payroll_env["user"]
+    ensure_defaults(db_session, company)
+    for entity, prefix in (("personnel", "EMP-"), ("employee_contract", "CON-")):
+        rule = db_session.scalar(select(NumberingSystem).where(
+            NumberingSystem.company_id == company, NumberingSystem.entity_type == entity,
+        ))
+        rule.prefix = prefix
+        rule.current_number = 12
+        rule.padding = 4
+    db_session.flush()
+    employee = service.add_employee(db_session, company, user, {"first_name": "علی", "last_name": "احمدی"})
+    assert employee["employee_code"] == "EMP-0012"
+    contract = service.add_contract(db_session, company, user, {
+        "employee_id": employee["id"], "start_date": date(2024, 3, 21),
+    })
+    assert contract["contract_number"] == "CON-0012"
+    changed = service.update_contract(db_session, company, user, contract["id"], {
+        "contract_number": "MANUAL", "notes": "اصلاح",
+    })
+    assert changed["contract_number"] == contract["contract_number"]
+    assert changed["notes"] == "اصلاح"
+
+
+def test_calculate_end_of_service_eydi_sanavat_leave():
+    from decimal import Decimal
+    from didban.payroll_engine import calculate_end_of_service
+
+    base_salary = Decimal("100000000")  # 100,000,000 IRR
+    hire_date = date(2023, 1, 1)
+    calc_date = date(2024, 1, 1)  # exactly 366 days (leap year or ~1 year)
+
+    res = calculate_end_of_service(
+        base_salary=base_salary,
+        hire_date=hire_date,
+        calculation_date=calc_date,
+        used_leave_days=Decimal("5"),
+    )
+
+    assert int(res["eydi_amount"]) > 0
+    assert int(res["sanavat_amount"]) > 0
+    assert Decimal(res["remaining_leave_days"]) == Decimal("25.0")
+    assert int(res["leave_settlement_amount"]) > 0
+    assert int(res["total_settlement"]) == (
+        int(res["eydi_amount"]) + int(res["sanavat_amount"]) + int(res["leave_settlement_amount"])
+    )
+
+
+def test_honorarium_contract_payroll_statutory_rates(db_session, payroll_env):
+    from didban.payroll_engine import calculate_slip
+
+    emp = {"marital_status": "single", "children_count": 0}
+    con = {
+        "contract_type": "honorarium",
+        "base_salary": "200000000",
+        "is_insured": True,
+        "is_taxable": True,
+    }
+    timesheet = {"work_days": 30}
+
+    res = calculate_slip(emp, con, timesheet, days_in_month=30)
+    # Gross: 200,000,000
+    assert res["gross_pay"] == "200000000"
+    # Tax: 10% flat under Note 1 to Art. 86 -> 20,000,000
+    assert res["payroll_tax"] == "20000000"
+    # Insurance: Employer 16.67% under Art. 38 -> 33,340,000; Employee 0
+    assert res["employee_insurance"] == "0"
+    assert res["employer_insurance"] == "33340000"
+    assert res["applied_exemptions"]["honorarium_article_86_flat_tax"] == "10%"
+    assert res["applied_exemptions"]["honorarium_article_38_insurance"] == "16.67%"
+
+
+def test_settlement_and_diskettes_export(db_session, payroll_env):
+    company = payroll_env["company"]
+    user = payroll_env["user"]
+    period = payroll_env["period"]
+
+    emp = service.add_employee(db_session, company, user, {
+        "employee_code": "EXP-1",
+        "first_name": "سهراب",
+        "last_name": "سپهری",
+        "national_id": "0012345678",
+        "hire_date": date(2023, 1, 1),
+    })
+    service.add_contract(db_session, company, user, {
+        "employee_id": emp["id"],
+        "contract_type": "full_time",
+        "start_date": date(2023, 1, 1),
+        "base_salary": "150000000",
+    })
+
+    # Test Settlement
+    settlement = service.get_employee_settlement(db_session, company, user, emp["id"], calculation_date=date(2024, 1, 1))
+    assert settlement["employee"]["id"] == emp["id"]
+    assert int(settlement["settlement"]["eydi_amount"]) > 0
+    assert int(settlement["settlement"]["sanavat_amount"]) > 0
+
+    # Create run and test Diskettes
+    run = service.create_payroll_run(db_session, company, user, {
+        "period_id": period.id,
+        "title": "حقوق فروردین",
+        "year": 1403,
+        "month": 1,
+        "calculation_date": date(2024, 4, 20),
+    })
+
+    insurance_disk = service.export_insurance_disk(db_session, company, user, run["id"])
+    assert "DSKKAR00" in insurance_disk or "DSK_ID" in insurance_disk["dskkar00"]
+    assert "DSK_ROW" in insurance_disk["dskwor00"]
+    assert len(insurance_disk["rows"]) >= 1
+
+    tax_disk = service.export_tax_disk(db_session, company, user, run["id"])
+    assert "ROW,NATIONAL_ID" in tax_disk["tax_file"]
+    assert len(tax_disk["rows"]) >= 1
+    assert int(tax_disk["summary"]["total_gross_pay"]) > 0
+

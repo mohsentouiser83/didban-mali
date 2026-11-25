@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, func, or_, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from . import models as m
 from .accounting_models import Account, Draft
@@ -17,7 +17,9 @@ from .errors import DomainError, require
 from .inventory_models import InventoryItem, InventoryMovement, InventoryWarehouse
 from .money_type import aggregate_money, canonical_money
 from .native_reporting_models import NativeAccountRole
+from .numbering_service import allocate_number
 from .operation_models import OperationDraft
+from .operation_numbering import allocate_reference
 from .operation_service import POLICY
 from .posting_models import NativeJournal
 from .security import membership
@@ -39,25 +41,29 @@ class Lot:
 
 def _require_catalog_permission(db: Session, company: str, user: m.User) -> None:
     ability = capabilities(db, company, user)
-    require(ability["can_manage_accounts"], "permission_denied", "اجازه تعریف کالا و انبار ندارید.", 403)
     require(
-        ability["posting_available"],
-        "primary_accounting_required",
-        "تعریف کالا و انبار در کاربرد حسابداری اصلی در دسترس است.",
-        409,
+        ability["can_manage_accounts"] or ability["can_prepare"],
+        "permission_denied",
+        "اجازه تعریف کالا و انبار ندارید.",
+        403,
     )
 
 
-def _require_account(db: Session, company: str, account_id: str, expected_role: str) -> None:
+def _require_account(db: Session, company: str, account_id: str | None, expected_role: str) -> None:
+    if not account_id:
+        return
+    from .account_catalogue_service import require_postable_account
+
     account = get_entity(db, Account, company, account_id)
     require(account.active, "inactive_account", "حساب غیرفعال است.")
+    require_postable_account(db, company, account)
     role = db.scalar(
         select(NativeAccountRole.role).where(
             NativeAccountRole.company_id == company, NativeAccountRole.account_id == account_id
         )
     )
     require(
-        role is None or role == expected_role,
+        role is None or role == expected_role or role in ("asset", "other_asset"),
         "inventory_account_role",
         f"نقش حساب «{account.name}» با کاربرد آن در عملیات کالا سازگار نیست.",
         409,
@@ -72,13 +78,9 @@ def _add_catalog(
     model: type[InventoryItem] | type[InventoryWarehouse],
     event: str,
 ) -> dict:
-    require(
-        not db.scalar(select(model.id).where(model.company_id == company, model.code == data["code"])),
-        "inventory_duplicate_code",
-        "این کد قبلاً ثبت شده است.",
-        409,
-    )
-    row = model(company_id=company, **data)
+    entity_type = "inventory_item" if model is InventoryItem else "inventory_warehouse"
+    code = allocate_number(db, company, entity_type, model, "code")
+    row = model(company_id=company, **(data | {"code": code}))
     db.add(row)
     db.flush()
     audit(db, company, user.id, event, row.id)
@@ -87,7 +89,26 @@ def _add_catalog(
 
 def add_item(db: Session, company: str, user: m.User, data: dict) -> dict:
     _require_catalog_permission(db, company, user)
-    _require_account(db, company, data["inventory_account_id"], "other_asset")
+    if not data.get("inventory_account_id"):
+        from .account_catalogue_service import non_postable_account_ids
+
+        blocked = non_postable_account_ids(db, company)
+        default_acc = next(
+            (
+                acc_id
+                for acc_id in db.scalars(
+                    select(Account.id)
+                    .where(Account.company_id == company, Account.active.is_(True))
+                    .order_by(Account.code)
+                )
+                if acc_id not in blocked
+            ),
+            None,
+        )
+        if default_acc:
+            data["inventory_account_id"] = default_acc
+    if data.get("inventory_account_id"):
+        _require_account(db, company, data["inventory_account_id"], "other_asset")
     return _add_catalog(db, company, user, data, InventoryItem, "inventory.item_created")
 
 
@@ -103,16 +124,6 @@ def update_item(
     item = get_entity(db, InventoryItem, company, item_id)
     if version is not None:
         check_version(item, version)
-    if "code" in data and data["code"] is not None and data["code"] != item.code:
-        duplicate = db.scalar(
-            select(InventoryItem.id).where(
-                InventoryItem.company_id == company,
-                InventoryItem.code == data["code"],
-                InventoryItem.id != item_id,
-            )
-        )
-        require(not duplicate, "inventory_duplicate_code", "این کد قبلاً ثبت شده است.", 409)
-        item.code = data["code"]
     if "name" in data and data["name"] is not None:
         item.name = data["name"]
     if "active" in data and data["active"] is not None:
@@ -144,16 +155,6 @@ def update_warehouse(
     wh = get_entity(db, InventoryWarehouse, company, warehouse_id)
     if version is not None:
         check_version(wh, version)
-    if "code" in data and data["code"] is not None and data["code"] != wh.code:
-        duplicate = db.scalar(
-            select(InventoryWarehouse.id).where(
-                InventoryWarehouse.company_id == company,
-                InventoryWarehouse.code == data["code"],
-                InventoryWarehouse.id != warehouse_id,
-            )
-        )
-        require(not duplicate, "inventory_duplicate_code", "این کد قبلاً ثبت شده است.", 409)
-        wh.code = data["code"]
     if "name" in data and data["name"] is not None:
         wh.name = data["name"]
     if "active" in data and data["active"] is not None:
@@ -292,7 +293,7 @@ def summary(db: Session, company: str, user: m.User) -> dict:
         "movements": list(reversed(recent)),
         "movements_truncated": movement_count > MOVEMENT_LIMIT,
         "can_prepare": ability["can_prepare"] and ability["posting_available"],
-        "can_manage_catalog": ability["can_manage_accounts"] and ability["posting_available"],
+        "can_manage_catalog": ability["can_manage_accounts"] or ability["can_prepare"],
         "purchase_enabled": True,
         "sale_enabled": True,
     }
@@ -544,26 +545,6 @@ def _check_capacity(lots: dict[str, Lot], delta: int) -> None:
     )
 
 
-def _require_unused_reference(db: Session, company: str, data: dict) -> None:
-    journal = aliased(NativeJournal)
-    reversal = aliased(NativeJournal)
-    duplicate = db.scalar(
-        select(OperationDraft.id)
-        .join(Draft, and_(Draft.company_id == company, Draft.id == OperationDraft.draft_id))
-        .outerjoin(journal, and_(journal.company_id == company, journal.draft_id == Draft.id))
-        .outerjoin(reversal, and_(reversal.company_id == company, reversal.reversal_of == journal.id))
-        .where(
-            OperationDraft.company_id == company,
-            OperationDraft.kind == data["kind"],
-            OperationDraft.payload["source_reference"].as_string() == data["source_reference"],
-            Draft.state != "discarded",
-            reversal.id.is_(None),
-        )
-        .limit(1)
-    )
-    require(not duplicate, "operation_duplicate", "این مرجع عملیات کالا قبلاً استفاده شده است.", 409)
-
-
 def create_draft(
     db: Session,
     company: str,
@@ -578,7 +559,7 @@ def create_draft(
     require(
         ability["posting_available"], "primary_accounting_required", "کاربرد حسابداری اصلی لازم است.", 409
     )
-    _require_unused_reference(db, company, data)
+    data = data | {"source_reference": allocate_reference(db, company, data["kind"])}
     identifier = m.uid()
     stock, lines, accounts, amount = _stock_and_lines(db, company, data, identifier)
     if data["kind"] == "sale_goods":
@@ -594,7 +575,7 @@ def create_draft(
         company_id=company,
         draft_id=result["id"],
         kind=data["kind"],
-        source_reference="inventory:" + identifier,
+        source_reference=data["source_reference"],
         payload=jsonable_encoder(
             data | {
                 "amounts": {"amount": amount}, "accounts": accounts, "lines": lines, "stock": stock,
@@ -614,7 +595,7 @@ def create_draft(
         identifier,
         {"draft_id": result["id"], "kind": origin.kind, "policy_version": STOCK_POLICY},
     )
-    return {"operation_id": identifier, "draft": result, "financial_effect": False, "policy_version": POLICY}
+    return {"operation_id": identifier, "draft": result, "source_reference": data["source_reference"], "financial_effect": False, "policy_version": POLICY}
 
 
 def _opening_stock_and_lines(
@@ -691,7 +672,7 @@ def create_opening_stock_draft(db: Session, company: str, user: m.User, data: di
     )
     period = get_entity(db, m.Period, company, data["period_id"])
     data = {"date": period.start, "description": "موجودی اول دوره انبار", "unit": "IRR"} | data
-    _require_unused_reference(db, company, data | {"kind": "opening_stock"})
+    data = data | {"source_reference": allocate_reference(db, company, 'opening_stock')}
     identifier = m.uid()
     stock, lines, accounts, amount = _opening_stock_and_lines(db, company, data, identifier)
     result = save_draft(db, company, user, data | {"lines": lines})
@@ -700,7 +681,7 @@ def create_opening_stock_draft(db: Session, company: str, user: m.User, data: di
         company_id=company,
         draft_id=result["id"],
         kind="opening_stock",
-        source_reference="inventory:" + identifier,
+        source_reference=data["source_reference"],
         payload=jsonable_encoder(
             data
             | {
@@ -724,7 +705,7 @@ def create_opening_stock_draft(db: Session, company: str, user: m.User, data: di
         identifier,
         {"draft_id": result["id"], "kind": origin.kind, "policy_version": STOCK_POLICY},
     )
-    return {"operation_id": identifier, "draft": result, "financial_effect": False, "policy_version": POLICY}
+    return {"operation_id": identifier, "draft": result, "source_reference": data["source_reference"], "financial_effect": False, "policy_version": POLICY}
 
 
 def _transfer_stock_and_lines(
@@ -800,7 +781,7 @@ def create_transfer_draft(db: Session, company: str, user: m.User, data: dict) -
     require(
         ability["posting_available"], "primary_accounting_required", "کاربرد حسابداری اصلی لازم است.", 409
     )
-    _require_unused_reference(db, company, data | {"kind": "transfer_goods"})
+    data = data | {"source_reference": allocate_reference(db, company, 'transfer_goods')}
     identifier = m.uid()
     stock, lines, accounts, amount = _transfer_stock_and_lines(db, company, data, identifier)
     result = save_draft(db, company, user, data | {"unit": "IRR", "lines": lines})
@@ -809,7 +790,7 @@ def create_transfer_draft(db: Session, company: str, user: m.User, data: dict) -
         company_id=company,
         draft_id=result["id"],
         kind="transfer_goods",
-        source_reference="inventory:" + identifier,
+        source_reference=data["source_reference"],
         payload=jsonable_encoder(
             data
             | {
@@ -834,7 +815,7 @@ def create_transfer_draft(db: Session, company: str, user: m.User, data: dict) -
         identifier,
         {"draft_id": result["id"], "kind": origin.kind, "policy_version": STOCK_POLICY},
     )
-    return {"operation_id": identifier, "draft": result, "financial_effect": False, "policy_version": POLICY}
+    return {"operation_id": identifier, "draft": result, "source_reference": data["source_reference"], "financial_effect": False, "policy_version": POLICY}
 
 
 def _adjustment_stock_and_lines(
@@ -941,7 +922,7 @@ def create_adjustment_draft(db: Session, company: str, user: m.User, data: dict)
     require(
         ability["posting_available"], "primary_accounting_required", "کاربرد حسابداری اصلی لازم است.", 409
     )
-    _require_unused_reference(db, company, data | {"kind": "stock_adjustment"})
+    data = data | {"source_reference": allocate_reference(db, company, 'stock_adjustment')}
     identifier = m.uid()
     stock, lines, accounts, amount = _adjustment_stock_and_lines(db, company, data, identifier)
     unit = data.get("unit", "IRR")
@@ -951,7 +932,7 @@ def create_adjustment_draft(db: Session, company: str, user: m.User, data: dict)
         company_id=company,
         draft_id=result["id"],
         kind="stock_adjustment",
-        source_reference="inventory:" + identifier,
+        source_reference=data["source_reference"],
         payload=jsonable_encoder(
             data
             | {
@@ -976,7 +957,7 @@ def create_adjustment_draft(db: Session, company: str, user: m.User, data: dict)
         identifier,
         {"draft_id": result["id"], "kind": origin.kind, "policy_version": STOCK_POLICY},
     )
-    return {"operation_id": identifier, "draft": result, "financial_effect": False, "policy_version": POLICY}
+    return {"operation_id": identifier, "draft": result, "source_reference": data["source_reference"], "financial_effect": False, "policy_version": POLICY}
 
 
 def _reversal_stock(db: Session, company: str, draft: Draft, correction: dict) -> dict | None:

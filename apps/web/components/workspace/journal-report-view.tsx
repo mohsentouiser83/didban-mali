@@ -55,12 +55,12 @@ function JournalReport() {
               <TableBody>
                 {journals.data?.items.length ? journals.data.items.map((journal) => (
                   <TableRow key={journal.id}>
-                    <TableRowHeader>{persian(journal.sequence)}</TableRowHeader>
+                    <TableRowHeader>{journal.snapshot.number ?? persian(journal.sequence)}</TableRowHeader>
                     <TableCell>{displayDate(journal.date)}</TableCell>
                     <TableCell>{journal.snapshot.description}</TableCell>
                     <TableCell>
                       <Button variant="secondary" onClick={() => setSelected(journal)}>
-                        جزئیات<span className="sr-only"> سند {persian(journal.sequence)}</span>
+                        جزئیات<span className="sr-only"> سند {journal.snapshot.number ?? persian(journal.sequence)}</span>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -74,7 +74,7 @@ function JournalReport() {
         )}
       </Panel>
       <Drawer
-        title={selected ? `جزئیات سند ${persian(selected.sequence)}` : "جزئیات سند"}
+        title={selected ? `جزئیات سند ${selected.snapshot.number ?? persian(selected.sequence)}` : "جزئیات سند"}
         open={!!selected}
         onOpenChange={(open) => { if (!open) setSelected(null); }}
       >

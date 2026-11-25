@@ -1,4 +1,5 @@
 "use client";
+import { randomId } from "@/lib/random-id";
 
 import { useState } from "react";
 import type {
@@ -87,7 +88,7 @@ export function useMoadianTransmissions() {
       vat_evidence: form.vat_evidence.trim(),
     };
     await previewCommand.run<MoadianPreview>(base + "/preview", { body: payload }, (preview) => {
-      setReview({ preview, payload, key: crypto.randomUUID() });
+      setReview({ preview, payload, key: randomId() });
     });
   }
 

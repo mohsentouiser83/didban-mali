@@ -32,7 +32,7 @@ export function CompanyAccountingSetup() {
             void c.save();
           }}
         >
-          <Field id="company-accounting-mode" label="کاربرد دیدبان">
+          <Field id="company-accounting-mode" label="کاربرد دیدبان" required>
             <Select
               id="company-accounting-mode"
               value={c.mode}

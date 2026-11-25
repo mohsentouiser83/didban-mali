@@ -1,154 +1,59 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
+import { createDefaultStudioSpec, type StudioDefinition } from "@/lib/report-studio";
 import { useReportStudio } from "./use-report-studio";
 
 const workspace = vi.hoisted(() => ({
-  company: { id: "comp-1", name: "شرکت تست" },
-  periodId: "period-1",
-  periods: [{ id: "period-1", name: "پاییز ۱۴۰۵" }],
-  canWrite: true,
-  companyPath: (res: string) => `/companies/comp-1/${res}`,
+  company: { id: "c" }, periodId: "p", companyPath: (path: string) => `/companies/c/${path}`,
 }));
-
 vi.mock("./workspace", () => ({ useWorkspace: () => workspace }));
-vi.mock("@/lib/api", async (original) => ({
-  ...(await original<typeof import("@/lib/api")>()),
-  api: vi.fn(),
+vi.mock("@/components/ui/sonner", () => ({ notify: { success: vi.fn() } }));
+vi.mock("@/lib/api", async original => ({
+  ...(await original<typeof import("@/lib/api")>()), api: vi.fn(),
 }));
-
+let definition: StudioDefinition;
 beforeEach(() => {
+  definition = { id: "system", name: "دفتر روزنامه", system_key: "journals", can_delete: false,
+    version: 1, spec: { ...createDefaultStudioSpec("stored-period"), title: "دفتر روزنامه" } };
   vi.mocked(api).mockReset().mockImplementation(async (path, options) => {
-    if (!options?.method || options.method === "GET") {
-      if (path.includes("definitions")) {
-        return [
-          {
-            id: "def-1",
-            name: "قالب تستی",
-            version: 1,
-            spec: {
-              title: "قالب تستی",
-              description: "",
-              global_filters: { period_id: "period-1", basis: "all", unit: "IRR" },
-              sections: [],
-            },
-          },
-        ];
-      }
-      return [];
+    if (String(path).endsWith("/definitions")) return [definition];
+    if (String(path).endsWith("/definitions/system")) {
+      const body = options?.body as { name: string; spec: StudioDefinition["spec"]; is_dashboard: boolean };
+      definition = { ...definition, ...body, version: definition.version + 1 };
+      return definition;
     }
-    if (path.includes("preview")) {
-      return {
-        title: "پیش‌نمایش داشبورد",
-        description: "",
-        company_name: "شرکت تست",
-        period: { id: "period-1", name: "پاییز ۱۴۰۵", start: "2026-09-23", end: "2026-12-21" },
-        global_filters: { period_id: "period-1", basis: "all", unit: "IRR" },
-        sections: [
-          {
-            id: "sec-1",
-            title: "شاخص‌ها",
-            layout: "grid-4",
-            widgets: [
-              {
-                id: "w-1",
-                title: "فروش",
-                type: "kpi_card",
-                entity: "invoices",
-                metric: "sales_total",
-                data: { value: 1000000, formatted_value: "۱٬۰۰۰٬۰۰۰", unit: "ریال" },
-              },
-            ],
-          },
-        ],
-      };
-    }
-    if (path.includes("interpret")) {
-      return {
-        title: "داشبورد هوشمند فروش",
-        description: "",
-        global_filters: { period_id: "period-1", basis: "all", unit: "IRR" },
-        sections: [
-          {
-            id: "sec-ai-1",
-            title: "فروش و مطالبات",
-            layout: "grid-2",
-            widgets: [],
-          },
-        ],
-      };
-    }
-    return { id: "saved-id", name: "ذخیره‌شده" };
+    return { sections: [], company_name: "شرکت", period: { name: "دوره" } };
   });
 });
 
-it("initializes with default sections and fetches live preview", async () => {
-  const { result } = renderHook(() => useReportStudio());
-
-  expect(result.current.spec.title).toBe("گزارش جدید");
-  expect(result.current.spec.sections.length).toBeGreaterThanOrEqual(2);
-
-  await waitFor(() => {
-    expect(result.current.preview?.title).toBe("پیش‌نمایش داشبورد");
-  });
-
-  expect(result.current.definitions.length).toBe(1);
-  expect(result.current.definitions[0].name).toBe("قالب تستی");
+it("loads the clicked system definition with the header period and saves it in place", async () => {
+  const { result } = renderHook(() => useReportStudio("system"));
+  await waitFor(() => expect(result.current.selectedDefinition?.id).toBe("system"));
+  expect(result.current.spec.title).toBe("دفتر روزنامه");
+  expect(result.current.spec.global_filters.period_id).toBe("p");
+  act(() => result.current.updateSection("sec-kpis", { title: "بخش ویرایش‌شده" }));
+  await act(async () => { result.current.saveTemplate("روزنامه من"); });
+  await waitFor(() => expect(result.current.selectedDefinition?.version).toBe(2));
+  const write = vi.mocked(api).mock.calls.find(([path]) => String(path).endsWith("/definitions/system"));
+  expect(write?.[1]).toMatchObject({ method: "PATCH", version: 1, body: { name: "روزنامه من" } });
+  expect(result.current.spec.sections[0].title).toBe("بخش ویرایش‌شده");
+  await act(async () => { result.current.saveTemplate("روزنامه من"); });
+  await waitFor(() => expect(result.current.selectedDefinition?.version).toBe(3));
+  expect(vi.mocked(api).mock.calls.filter(([path]) => String(path).endsWith("/definitions/system"))[1][1]?.version).toBe(2);
 });
 
-it("allows adding, updating, and removing sections", async () => {
-  const { result } = renderHook(() => useReportStudio());
-
-  act(() => {
-    result.current.addSection("grid-3");
-  });
-
-  const lastSection = result.current.spec.sections[result.current.spec.sections.length - 1];
-  expect(lastSection.layout).toBe("grid-3");
-
-  act(() => {
-    result.current.updateSection(lastSection.id, { title: "بخش تست به‌روزرسانی" });
-  });
-
-  const updated = result.current.spec.sections.find((s) => s.id === lastSection.id);
-  expect(updated?.title).toBe("بخش تست به‌روزرسانی");
-
-  act(() => {
-    result.current.removeSection(lastSection.id);
-  });
-
-  expect(result.current.spec.sections.some((s) => s.id === lastSection.id)).toBe(false);
+it("does not show or preview a different default when the requested definition is missing", async () => {
+  const { result } = renderHook(() => useReportStudio("missing"));
+  await waitFor(() => expect(result.current.definitionsError?.message).toBe("قالب گزارش یافت نشد."));
+  expect(vi.mocked(api).mock.calls.some(([path]) => String(path).endsWith("/preview"))).toBe(false);
 });
 
-it("supports reordering sections by target index and setting basis per section", async () => {
-  const { result } = renderHook(() => useReportStudio());
-
-  act(() => {
-    result.current.addSection("grid-2", "bank");
-    result.current.addSection("grid-1", "payroll");
-  });
-
-  const secCount = result.current.spec.sections.length;
-  const targetId = result.current.spec.sections[secCount - 1].id;
-
-  // Move the last section to position 0 (order 1)
-  act(() => {
-    result.current.reorderSection(targetId, 0);
-  });
-
-  expect(result.current.spec.sections[0].id).toBe(targetId);
-  expect(result.current.spec.sections[0].basis).toBe("payroll");
-});
-
-it("handles AI prompt interpretation", async () => {
-  const { result } = renderHook(() => useReportStudio());
-
-  act(() => {
-    result.current.interpretPrompt("گزارش فروش فصلی بساز");
-  });
-
-  await waitFor(() => {
-    expect(result.current.spec.title).toBe("داشبورد هوشمند فروش");
-    expect(result.current.aiMessage).toContain("پیکربندی شد");
-  });
+it("preserves the exact selected template when save fails and uses its version again", async () => {
+  const { result } = renderHook(() => useReportStudio("system"));
+  await waitFor(() => expect(result.current.selectedDefinition?.id).toBe("system"));
+  vi.mocked(api).mockRejectedValueOnce(new Error("conflict"));
+  await act(async () => { result.current.saveTemplate("ویرایش"); });
+  expect(result.current.selectedDefinition?.version).toBe(1);
+  expect(result.current.error).toBeTruthy();
 });

@@ -22,6 +22,7 @@ SCHEMA_VERSION = 1
 SCHEMA_LOCK = 2026110101
 SCHEMA_TABLE_DDL = "CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)"
 IMMUTABLE = (
+    "numbering_assignments",
     "personnel_records",
     "reconciliation_runs",
     "reconciliation_decisions",
@@ -54,9 +55,6 @@ IMMUTABLE += (
     "moadian_transmissions",
     "moadian_transmission_events",
     "operation_learning_events",
-    "intercompany_mappings",
-    "draft_consolidation_runs",
-    "consolidation_approvals",
     "cheque_events",
     "cheque_clearances",
     "cash_scenarios",
@@ -81,7 +79,6 @@ IMMUTABLE += (
     "group_match_decisions",
     "manual_group_previews",
     "account_import_previews",
-    "company_comparison_runs",
     "dimension_allocations",
     "native_dimension_allocations",
     "native_dimension_report_runs",
@@ -301,10 +298,85 @@ def initialize() -> None:
                         "ALTER TABLE accounting_accounts ADD COLUMN nature VARCHAR(20) NOT NULL DEFAULT 'debit'"
                     )
                 )
+        if inspect(conn).has_table("commercial_counterparties"):
+            cols = {c["name"] for c in inspect(conn).get_columns("commercial_counterparties")}
+            if "type" not in cols:
+                conn.execute(
+                    text(
+                        "ALTER TABLE commercial_counterparties ADD COLUMN type VARCHAR(20) NOT NULL "
+                        "DEFAULT 'other' CONSTRAINT counterparty_type_valid "
+                        "CHECK (type IN ('supplier', 'customer', 'employee', 'other'))"
+                    )
+                )
         if inspect(conn).has_table("users"):
             cols = {c["name"] for c in inspect(conn).get_columns("users")}
             if "avatar" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN avatar TEXT"))
+        if inspect(conn).has_table("accounting_account_hierarchy"):
+            if engine.dialect.name == "sqlite":
+                ddl = conn.execute(
+                    text(
+                        "SELECT sql FROM sqlite_master WHERE type='table' AND name='accounting_account_hierarchy'"
+                    )
+                ).scalar()
+                if ddl and "'group'" not in ddl:
+                    conn.execute(
+                        text(
+                            "CREATE TABLE accounting_account_hierarchy_new ("
+                            "company_id VARCHAR(36) NOT NULL, "
+                            "account_id VARCHAR(36) NOT NULL PRIMARY KEY, "
+                            "level VARCHAR(20) NOT NULL, "
+                            "parent_id VARCHAR(36), "
+                            "CONSTRAINT account_hierarchy_level CHECK (level IN ('group', 'general', 'subsidiary', 'detail')), "
+                            "CONSTRAINT account_hierarchy_parent CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)), "
+                            "CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id), "
+                            "FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id), "
+                            "FOREIGN KEY(company_id, parent_id) REFERENCES accounting_accounts (company_id, id))"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "INSERT INTO accounting_account_hierarchy_new (company_id, account_id, level, parent_id) "
+                            "SELECT company_id, account_id, level, parent_id FROM accounting_account_hierarchy"
+                        )
+                    )
+                    conn.execute(text("DROP TABLE accounting_account_hierarchy"))
+                    conn.execute(
+                        text(
+                            "ALTER TABLE accounting_account_hierarchy_new RENAME TO accounting_account_hierarchy"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "CREATE INDEX IF NOT EXISTS ix_accounting_account_hierarchy_company_id "
+                            "ON accounting_account_hierarchy (company_id)"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "CREATE INDEX IF NOT EXISTS ix_accounting_account_hierarchy_parent_id "
+                            "ON accounting_account_hierarchy (parent_id)"
+                        )
+                    )
+            else:
+                conn.execute(
+                    text("ALTER TABLE accounting_account_hierarchy DROP CONSTRAINT IF EXISTS account_hierarchy_level")
+                )
+                conn.execute(
+                    text(
+                        "ALTER TABLE accounting_account_hierarchy ADD CONSTRAINT account_hierarchy_level "
+                        "CHECK (level IN ('group', 'general', 'subsidiary', 'detail'))"
+                    )
+                )
+                conn.execute(
+                    text("ALTER TABLE accounting_account_hierarchy DROP CONSTRAINT IF EXISTS account_hierarchy_parent")
+                )
+                conn.execute(
+                    text(
+                        "ALTER TABLE accounting_account_hierarchy ADD CONSTRAINT account_hierarchy_parent "
+                        "CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL))"
+                    )
+                )
         Base.metadata.create_all(conn)
         require_current_schema(conn, Base.metadata)
         if engine.dialect.name == "postgresql":

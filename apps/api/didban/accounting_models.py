@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from sqlalchemy import JSON, Boolean, Date, ForeignKeyConstraint, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, CheckConstraint, Date, ForeignKeyConstraint, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .models import Base, Entity, Tenant, Versioned
@@ -15,6 +15,22 @@ class Account(Entity, Tenant, Versioned, Base):
     name: Mapped[str] = mapped_column(String(150))
     nature: Mapped[str] = mapped_column(String(20), default="debit")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AccountHierarchy(Tenant, Base):
+    """Explicit classification; existing accounts remain unclassified until assigned."""
+
+    __tablename__ = "accounting_account_hierarchy"
+    __table_args__ = (
+        ForeignKeyConstraint(["company_id", "account_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]),
+        ForeignKeyConstraint(["company_id", "parent_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]),
+        CheckConstraint("level IN ('group', 'general', 'subsidiary', 'detail')", name="account_hierarchy_level"),
+        CheckConstraint("(level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)", name="account_hierarchy_parent"),
+        CheckConstraint("parent_id IS NULL OR parent_id != account_id", name="account_hierarchy_no_self_parent"),
+    )
+    account_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    level: Mapped[str] = mapped_column(String(20))
+    parent_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
 
 class Draft(Entity, Tenant, Versioned, Base):

@@ -48,48 +48,38 @@ function Workspace() {
               c.save();
             }}
           >
-            <Field id="period-operation" label="عملیات">
+            <Field id="period-operation" label="عملیات بستن یا افتتاح حساب‌ها" required>
               <Select
                 id="period-operation"
                 value={c.kind}
                 onValueChange={c.setKind}
                 options={[
                   {
-                    value: "closing",
-                    label: "بستن حساب‌های انتخابی به حساب نتیجه",
+                    value: "temporary_closing",
+                    label: "مرحله ۱: بستن حساب‌های موقت (هزینه‌ها و درآمدها به سود و زیان جاری)",
+                  },
+                  {
+                    value: "permanent_closing",
+                    label: "مرحله ۲: صدور سند اختتامیه (بستن حساب‌های دائم به تراز اختتامیه)",
                   },
                   {
                     value: "opening",
-                    label: "انتقال مانده‌های انتخابی به دوره بعد",
+                    label: "مرحله ۳: صدور سند افتتاحیه (انتقال مانده‌های دائم به سال جدید)",
                   },
                 ]}
               />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                id="closing-period"
-                label={
-                  c.kind === "closing" ? "دوره مالی" : "دوره مبدأ؛ بسته‌شده"
-                }
-              >
-                <Select
-                  id="closing-period"
-                  value={c.period}
-                  onValueChange={c.setPeriod}
-                  options={c.periodOptions}
-                />
-              </Field>
-              {c.kind === "opening" ? (
-                <Field id="opening-period" label="دوره مقصد">
-                  <Select
-                    id="opening-period"
-                    value={c.target}
-                    onValueChange={c.setTarget}
-                    options={c.periodOptions}
-                  />
-                </Field>
-              ) : (
-                <Field id="closing-result" label="حساب نتیجه">
+              {(c.kind === "temporary_closing" || c.kind === "permanent_closing" || c.kind === "closing") && (
+                <Field
+                  id="closing-result"
+                  label={
+                    c.kind === "temporary_closing" || c.kind === "closing"
+                      ? "حساب سود و زیان جاری (خلاصه سود و زیان)"
+                      : "حساب تراز اختتامیه"
+                  }
+                  required
+                >
                   <Select
                     id="closing-result"
                     value={c.resultAccount}
@@ -99,18 +89,34 @@ function Workspace() {
                 </Field>
               )}
             </div>
-            <Field id="closing-search" label="جستجوی حساب">
-              <Input
-                id="closing-search"
-                value={c.query}
-                onChange={(event) => c.setQuery(event.target.value)}
-              />
-            </Field>
+            {c.kind === "opening" && !c.period && (
+              <FormMessage error>دورهٔ قبل به دورهٔ انتخابی متصل نیست.</FormMessage>
+            )}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div className="w-72">
+                <Field id="closing-search" label="جستجوی حساب">
+                  <Input
+                    id="closing-search"
+                    value={c.query}
+                    onChange={(event) => c.setQuery(event.target.value)}
+                    placeholder="جستجو در کد یا نام حساب..."
+                  />
+                </Field>
+              </div>
+              <div className="flex gap-2">
+                <Button type="button" variant="secondary" onClick={c.selectAll}>
+                  انتخاب همه
+                </Button>
+                <Button type="button" variant="ghost" onClick={c.deselectAll}>
+                  لغو انتخاب
+                </Button>
+              </div>
+            </div>
             <fieldset className="max-h-80 space-y-3 overflow-y-auto rounded-panel border border-border p-4">
               <legend className="px-2 font-medium">
-                {c.kind === "closing"
-                  ? "حساب‌های سود و زیان انتخابی"
-                  : "حساب‌های ترازنامه‌ای انتخابی"}
+                {c.kind === "temporary_closing" || c.kind === "closing"
+                  ? "حساب‌های موقت (درآمد و هزینه) انتخابی"
+                  : "حساب‌های دائم (ترازنامه‌ای) انتخابی"}
               </legend>
               {!c.visibleAccounts.length && (
                 <p className="text-sm text-muted">حسابی با نقش موردنیاز تعریف نشده است.</p>

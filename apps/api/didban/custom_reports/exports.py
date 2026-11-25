@@ -110,12 +110,16 @@ def export_custom_report_pdf(
         story.append(Spacer(1, 2 * mm))
 
         if columns and rows:
-            table_headers = [c.get("label_fa") or c.get("key") for c in columns]
+            rtl_columns = list(reversed(columns))
+            table_headers = [RTLText(c.get("label_fa") or c.get("key"), 8, FONT_MEDIUM) for c in rtl_columns]
             table_data = [table_headers]
-            for r in rows[:40]:  # limit for PDF print
-                table_data.append([str(r.get(c["key"]) or "-") for c in columns])
+            for row in rows[:40]:  # bounded PDF preview; caller includes its total count
+                table_data.append([
+                    RTLText("—" if row.get(column["key"]) is None else str(row[column["key"]]), 8, FONT_REGULAR)
+                    for column in rtl_columns
+                ])
 
-            t = Table(table_data, hAlign="RIGHT")
+            t = Table(table_data, colWidths=[doc.width / len(columns)] * len(columns), repeatRows=1, hAlign="RIGHT")
             t.setStyle(
                 TableStyle(
                     [

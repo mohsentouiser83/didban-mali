@@ -1,8 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PayrollRun, PayrollSlip } from "@/lib/api";
+import type {
+  EmployeeContract,
+  EmployeeSettlementResponse,
+  InsuranceDiskResponse,
+  PayrollRun,
+  PayrollSlip,
+  TaxDiskResponse,
+} from "@/lib/api";
 import { tehranToday } from "@/lib/native-invoices";
+import { isAccountPostable } from "@/lib/account-catalogue";
 import { useAccountOptions } from "./use-accounting";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
@@ -146,6 +154,90 @@ export function usePayrollDashboard() {
     );
   };
 
+  // Insurance & Tax Diskettes
+  const [insuranceDiskOpen, setInsuranceDiskOpen] = useState(false);
+  const insuranceDiskResource = useResource<InsuranceDiskResponse>(
+    insuranceDiskOpen && selectedRunId
+      ? workspace.companyPath(`payroll/runs/${selectedRunId}/insurance-disk`)
+      : null,
+  );
+
+  const [taxDiskOpen, setTaxDiskOpen] = useState(false);
+  const taxDiskResource = useResource<TaxDiskResponse>(
+    taxDiskOpen && selectedRunId
+      ? workspace.companyPath(`payroll/runs/${selectedRunId}/tax-disk`)
+      : null,
+  );
+
+  // Settlement (Eydi, Sanavat, Leave)
+  const [settlementEmployeeId, setSettlementEmployeeId] = useState<string | null>(null);
+  const settlementResource = useResource<EmployeeSettlementResponse>(
+    settlementEmployeeId
+      ? workspace.companyPath(`employees/${settlementEmployeeId}/settlement`)
+      : null,
+  );
+
+  // Batch Monthly Attendance / Timesheet
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [batchAttendance, setBatchAttendance] = useState<
+    Array<{
+      employee_id: string;
+      employee_code?: string;
+      employee_name?: string;
+      work_days: string;
+      work_hours: string;
+      overtime_hours: string;
+      absence_days: string;
+      bonus_amount: string;
+      advance_payment: string;
+    }>
+  >([]);
+
+  function openAttendance() {
+    if (!selectedRun?.slips) return;
+    setBatchAttendance(
+      selectedRun.slips.map((s) => ({
+        employee_id: s.employee_id,
+        employee_code: s.employee_code,
+        employee_name: s.employee_name,
+        work_days: s.work_days || "30",
+        work_hours: s.work_hours || "0",
+        overtime_hours: s.overtime_hours || "0",
+        absence_days: s.absence_days || "0",
+        bonus_amount: s.bonus_amount || "0",
+        advance_payment: s.advance_payment || "0",
+      })),
+    );
+    setAttendanceOpen(true);
+  }
+
+  const handleSaveBatchAttendance = async () => {
+    if (!workspace.company || !selectedRunId) return;
+    await command.run(
+      `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/slips/batch`,
+      {
+        method: "POST",
+        body: {
+          slips: batchAttendance.map((item) => ({
+            employee_id: item.employee_id,
+            work_days: item.work_days,
+            work_hours: item.work_hours,
+            overtime_hours: item.overtime_hours,
+            absence_days: item.absence_days,
+            bonus_amount: item.bonus_amount,
+            advance_payment: item.advance_payment,
+          })),
+        },
+      },
+      () => {
+        runResource.refresh();
+        runsResource.refresh();
+        setAttendanceOpen(false);
+      },
+      "کارکرد ماهانه پرسنل با موفقیت ثبت و فیش‌ها باز‌محاسبه شدند.",
+    );
+  };
+
   const handleCreateDraft = async () => {
     if (!workspace.company || !selectedRunId || !selectedRun || !canCreateDraft) return;
     await command.run(
@@ -192,13 +284,35 @@ export function usePayrollDashboard() {
     setDraftAccount: (key: string, value: string) => setDraftAccounts((current) => ({ ...current, [key]: value })),
     roles,
     canCreateDraft,
-    accountOptions: accounts.items.filter((account) => account.active).map((account) => ({
+    accountOptions: accounts.items.filter((account) => isAccountPostable(account)).map((account) => ({
       value: account.id, label: `${account.code} · ${account.name}`,
     })),
     accountsLoading: accounts.loading,
     accountsError: accounts.error?.message,
     viewingSlip,
     setViewingSlip,
+    // Insurance Diskette
+    insuranceDiskOpen,
+    setInsuranceDiskOpen,
+    insuranceDiskData: insuranceDiskResource.data,
+    insuranceDiskLoading: insuranceDiskResource.loading,
+    // Tax Diskette
+    taxDiskOpen,
+    setTaxDiskOpen,
+    taxDiskData: taxDiskResource.data,
+    taxDiskLoading: taxDiskResource.loading,
+    // Attendance Batch
+    attendanceOpen,
+    setAttendanceOpen,
+    openAttendance,
+    batchAttendance,
+    setBatchAttendance,
+    handleSaveBatchAttendance,
+    // Settlement
+    settlementEmployeeId,
+    setSettlementEmployeeId,
+    settlementData: settlementResource.data,
+    settlementLoading: settlementResource.loading,
     refresh: () => {
       runsResource.refresh();
       runResource.refresh();

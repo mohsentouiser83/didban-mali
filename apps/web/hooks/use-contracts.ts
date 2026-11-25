@@ -11,7 +11,6 @@ import { persian } from "@/lib/utils";
 
 const defaultContractInput: EmployeeContractInput = {
   employee_id: "",
-  contract_number: "",
   contract_type: "full_time",
   start_date: new Date().toISOString().slice(0, 10),
   end_date: null,
@@ -73,7 +72,6 @@ export function useContracts() {
     setEditing(con);
     setForm({
       employee_id: con.employee_id,
-      contract_number: con.contract_number,
       contract_type: con.contract_type,
       start_date: con.start_date,
       end_date: con.end_date,

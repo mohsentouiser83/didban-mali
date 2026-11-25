@@ -14,7 +14,6 @@ it("shows categorized settings with cards in gear settings catalog", () => {
   });
   expect(viewer.map((c) => c.key)).toEqual([
     "accounting",
-    "personnel",
     "company-access",
     "documents",
   ]);
@@ -22,23 +21,24 @@ it("shows categorized settings with cards in gear settings catalog", () => {
     viewer.flatMap((group) => group.items.map((item) => item.href)),
   ).toEqual([
     "/settings/accounts",
+    "/commercial/counterparties",
     "/settings/periods",
     "/settings/dimensions",
     "/settings/numbering",
-    "/settings/employees",
-    "/settings/contracts",
     "/settings/members",
     "/settings/company",
     "/settings/documents",
   ]);
   expect(searchSettings(viewer, "مدارک بات")[0].href).toBe("/settings/documents");
-  for (const removed of ["تطبیق", "مغایرت", "کالا", "انبارها", "کاردکس", "اعلان‌های بات", "موارد نیازمند بررسی", "کنترل‌های دفتر", "تحلیل تغییر هزینه‌ها", "نقش حساب‌ها در صورت‌های مالی", "قواعد و پیشنهادهای حسابداری", "الگوهای ثبت و نگاشت"]) {
+  for (const removed of ["کارمندان", "پرسنل", "قرارداد کارمندان", "تطبیق", "مغایرت", "کالا", "انبارها", "کاردکس", "اعلان‌های بات", "موارد نیازمند بررسی", "کنترل‌های دفتر", "تحلیل تغییر هزینه‌ها", "نقش حساب‌ها در صورت‌های مالی", "قواعد و پیشنهادهای حسابداری", "الگوهای ثبت و نگاشت"]) {
     expect(searchSettings(viewer, removed)).toEqual([]);
   }
   expect(searchSettings(viewer, "دسترسی")[0].href).toBe("/settings/members");
   expect(searchSettings(viewer, "اعضا")[0].href).toBe("/settings/members");
   expect(searchSettings(viewer, "کدینگ")[0].href).toBe("/settings/accounts");
   expect(searchSettings(viewer, "حساب‌ها")[0].href).toBe("/settings/accounts");
+  expect(searchSettings(viewer, "طرف حساب")[0].href).toBe("/commercial/counterparties");
+  expect(searchSettings(viewer, "مشتریان")[0].categoryTitle).toBe("تعاریف مالی و حسابداری");
   expect(searchSettings(viewer, "دوره")[0].href).toBe("/settings/periods");
   expect(searchSettings(viewer, "ابعاد")[0].href).toBe("/settings/dimensions");
   expect(searchSettings(viewer, "شماره‌گذاری")[0].href).toBe(
@@ -59,11 +59,6 @@ it("shows categorized settings with cards in gear settings catalog", () => {
       viewer.find((category) => category.key === "accounting")!,
     ),
   ).toBe("/settings/accounting");
-  expect(
-    settingsCategoryDestination(
-      viewer.find((category) => category.key === "personnel")!,
-    ),
-  ).toBe("/settings/personnel");
   expect(
     settingsCategoryDestination(
       viewer.find((category) => category.key === "documents")!,
@@ -89,7 +84,6 @@ it("checks active state for settings destinations and categories", () => {
   });
   expect(categories.map((c) => c.key)).toEqual([
     "accounting",
-    "personnel",
     "company-access",
     "documents",
   ]);
@@ -100,12 +94,8 @@ it("checks active state for settings destinations and categories", () => {
   expect(isSettingsCategoryActive(accounting, "/settings/periods")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/dimensions")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/numbering")).toBe(true);
+  expect(isSettingsCategoryActive(accounting, "/commercial/counterparties")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/members")).toBe(false);
-
-  const personnel = categories.find((c) => c.key === "personnel")!;
-  expect(isSettingsCategoryActive(personnel, "/settings/employees")).toBe(true);
-  expect(isSettingsCategoryActive(personnel, "/settings/contracts")).toBe(true);
-  expect(isSettingsCategoryActive(personnel, "/settings/accounts")).toBe(false);
 
   expect(categories.some((category) =>
     isSettingsCategoryActive(category, "/accounting/inventory/items"),

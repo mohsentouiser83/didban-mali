@@ -2,7 +2,6 @@
 import { ChartLineUpIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, FormMessage } from "@/components/ui/field";
 import { StatCards } from "@/components/ui/financial/stat-cards";
@@ -37,18 +36,6 @@ function Workspace() {
       />
       <Panel>
         <div className="flex flex-wrap items-end gap-3">
-          <Field id="statement-period" label="دوره">
-            <Select
-              id="statement-period"
-              disabled={c.command.busy}
-              value={c.period}
-              onValueChange={c.setPeriod}
-              options={c.workspace.periods.map((p) => ({
-                value: p.id,
-                label: p.name,
-              }))}
-            />
-          </Field>
           <Field id="statement-as-of" label="تاریخ مبنا">
             <PersianDatePicker
               id="statement-as-of"

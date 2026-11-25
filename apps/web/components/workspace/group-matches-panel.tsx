@@ -67,7 +67,7 @@ function GroupSummary({ item }: { item: GroupMatch }) {
 function GroupDecisionForm({ view }: { view: GroupView }) {
   return (
     <Form fieldErrors={view.command.error?.fields} onSubmit={event => { event.preventDefault(); void view.submit(); }}>
-      <Field id="group-decision" label="تصمیم">
+      <Field id="group-decision" label="تصمیم" required>
         <Select id="group-decision" value={view.decision} onValueChange={view.setDecision}
           options={view.options} disabled={view.command.busy} />
       </Field>

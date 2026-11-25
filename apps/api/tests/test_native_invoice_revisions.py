@@ -167,7 +167,7 @@ with transaction('company-a') as db:
     op=create(db,'company-a',actor,{'kind':'sale_service','period_id':period_id,'date':date(2026,9,1),'description':'اصلی','source_reference':'INV-CORRECTION','unit':'IRR','party_id':'customer','accounts':{'trade_receivable':'ar','service_revenue':'rev'},'amounts':{'amount':'100'}})
     check=preview(db,'company-a',actor,op['draft']['id']);original=post_batch(db,'company-a',actor,[{k:check[k] for k in ('draft_id','expected_version','digest')}])['items'][0]
 path=base+'/accounting/native-invoices'
-item=command(advisor,'POST',path,{'operation_id':op['operation_id'],'journal_digest':original['digest'],'reference':'INV-CORRECTION','due_date':'2026-09-10','due_unknown':False,'expected_date':None,'expected_unknown':True}).json()
+item=command(advisor,'POST',path,{'operation_id':op['operation_id'],'journal_digest':original['digest'],'reference':op['source_reference'],'due_date':'2026-09-10','due_unknown':False,'expected_date':None,'expected_unknown':True}).json()
 old=command(advisor,'POST',path+'/snapshots',{'as_of':'2026-09-15','direction':'sale'}).json()
 with transaction('company-a') as db:
     actor=db.get(m.User,users['finance_manager'])

@@ -161,6 +161,15 @@ def calculate_slip(
         child_pay = ZERO
         tenure_pay = ZERO
         custom_pay = custom_fixed
+    elif contract_type == "honorarium":
+        applied_exemptions["contract_type"] = "honorarium"
+        base_pay = base_salary if base_salary > ZERO else (daily_rate * work_days if work_days > ZERO else ZERO)
+        housing_pay = ZERO
+        grocery_pay = ZERO
+        marital_pay = ZERO
+        child_pay = ZERO
+        tenure_pay = ZERO
+        custom_pay = custom_fixed
     else:  # full_time
         applied_exemptions["contract_type"] = "full_time"
         day_ratio = work_days / Decimal(days_in_month) if days_in_month > 0 else ONE
@@ -196,7 +205,12 @@ def calculate_slip(
 
     # Social Security Insurance
     # Under labor law, child allowance is exempt from social security insurance
-    if is_insured:
+    if contract_type == "honorarium":
+        insured_earnings = gross_pay
+        employee_insurance = ZERO
+        employer_insurance = round_irr(gross_pay * Decimal("0.1667"))
+        applied_exemptions["honorarium_article_38_insurance"] = "16.67%"
+    elif is_insured:
         insured_earnings = max(ZERO, gross_pay - child_pay)
 
         # Employee share (7%): exempt if veteran/child under Art. 56
@@ -223,7 +237,11 @@ def calculate_slip(
         employer_insurance = ZERO
 
     # Payroll Tax calculation
-    if is_taxable:
+    if contract_type == "honorarium":
+        taxable_earnings = gross_pay
+        payroll_tax = round_irr(gross_pay * Decimal("0.10"))
+        applied_exemptions["honorarium_article_86_flat_tax"] = "10%"
+    elif is_taxable:
         # Check complete tax exemptions:
         # 1. Veteran / child of martyr/veteran (Art. 56)
         # 2. Science park / knowledge-based staff (Art. 10 / Art. 91)
@@ -291,3 +309,70 @@ def calculate_slip(
         "net_pay": canonical_money(net_pay),
         "applied_exemptions": applied_exemptions,
     }
+
+
+def calculate_end_of_service(
+    base_salary: Decimal,
+    hire_date: Any,
+    calculation_date: Any,
+    used_leave_days: Decimal = ZERO,
+    total_days_worked_override: int | None = None,
+) -> dict[str, Any]:
+    """Calculates statutory Eydi (عیدی), Sanavat (حق سنوات), and leave settlement (تسویه مانده مرخصی).
+
+    Statutory rules:
+    - Eydi: 60 days of base salary per full year, capped between 2x and 3x monthly minimum wage.
+    - Sanavat: 1 month base salary for each full year of service (pro-rated for partial years).
+    - Leave: 30 days per year (2.5 days/month). Unused days redeemed at daily base rate.
+    """
+    salary = max(ZERO, d(base_salary))
+
+    if total_days_worked_override is not None and total_days_worked_override >= 0:
+        days_worked = total_days_worked_override
+    elif hire_date and calculation_date:
+        # Date difference
+        delta = (calculation_date - hire_date).days + 1
+        days_worked = max(0, delta)
+    else:
+        days_worked = 365
+
+    years_worked = (Decimal(days_worked) / Decimal("365")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    days_worked_in_year = min(365, days_worked)
+
+    # 1. Eydi calculation
+    min_wage_monthly = DAILY_MIN_WAGE_1403 * Decimal("30")
+    eydi_floor = Decimal("2") * min_wage_monthly
+    eydi_ceiling = Decimal("3") * min_wage_monthly
+    full_year_eydi = min(max(Decimal("2") * salary, eydi_floor), eydi_ceiling)
+    eydi_amount = round_irr(full_year_eydi * Decimal(days_worked_in_year) / Decimal("365"))
+
+    # 2. Sanavat calculation (Article 24 Labor Law)
+    sanavat_amount = round_irr(salary * Decimal(days_worked) / Decimal("365"))
+
+    # 3. Leave calculation & settlement (Article 64 / 66 Labor Law)
+    accrued_leave_days = (Decimal(days_worked_in_year) / Decimal("365") * Decimal("30")).quantize(
+        Decimal("0.1"), rounding=ROUND_HALF_UP
+    )
+    remaining_leave_days = max(ZERO, accrued_leave_days - d(used_leave_days))
+    daily_wage = round_irr(salary / Decimal("30")) if salary > ZERO else ZERO
+    leave_settlement_amount = round_irr(remaining_leave_days * daily_wage)
+
+    total_settlement = eydi_amount + sanavat_amount + leave_settlement_amount
+
+    return {
+        "days_worked": days_worked,
+        "years_worked": str(years_worked),
+        "days_worked_in_year": days_worked_in_year,
+        "base_salary": canonical_money(salary),
+        "daily_wage": canonical_money(daily_wage),
+        "eydi_amount": canonical_money(eydi_amount),
+        "eydi_ceiling": canonical_money(eydi_ceiling),
+        "eydi_floor": canonical_money(eydi_floor),
+        "sanavat_amount": canonical_money(sanavat_amount),
+        "accrued_leave_days": str(accrued_leave_days),
+        "used_leave_days": str(used_leave_days),
+        "remaining_leave_days": str(remaining_leave_days),
+        "leave_settlement_amount": canonical_money(leave_settlement_amount),
+        "total_settlement": canonical_money(total_settlement),
+    }
+

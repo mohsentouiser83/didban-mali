@@ -22,7 +22,7 @@ export function useJournalDetails(onCreated: () => void) {
   );
   const command = useCommand();
   const [correcting, setCorrecting] = useState(false);
-  const [period, setPeriod] = useState("");
+  const period = workspace.periodId;
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
   return {
@@ -34,13 +34,11 @@ export function useJournalDetails(onCreated: () => void) {
     period,
     date,
     reason,
-    setPeriod,
     setDate,
     setReason,
     open: (item: JournalDraft) => {
       setSelected(item);
       setCorrecting(false);
-      setPeriod(item.period_id);
       setDate("");
       setReason("");
       command.clearError();

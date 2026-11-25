@@ -7,9 +7,12 @@ from pydantic import Field, StrictInt
 
 from .accounting_schemas import StrictInput
 
+CounterpartyType = Literal["supplier", "customer", "employee", "other"]
+
 
 class CounterpartyInput(StrictInput):
-    code: str = Field(min_length=1, max_length=100)
+    type: CounterpartyType
+    code: str | None = Field(default=None, min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=200)
     national_id: str | None = Field(default=None, max_length=20)
     economic_code: str | None = Field(default=None, max_length=20)
@@ -20,6 +23,7 @@ class CounterpartyInput(StrictInput):
 
 
 class UpdateCounterpartyInput(StrictInput):
+    type: CounterpartyType = Field(default="other")
     code: str | None = Field(default=None, min_length=1, max_length=100)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     national_id: str | None = Field(default=None, max_length=20)
@@ -39,7 +43,7 @@ class ProformaLineInput(StrictInput):
 
 
 class ProformaInput(StrictInput):
-    number: str = Field(min_length=1, max_length=100)
+    number: str | None = Field(default=None, min_length=1, max_length=100)
     direction: Literal["sale"] = "sale"
     date: date
     expiry_date: date | None = None

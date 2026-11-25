@@ -29,7 +29,8 @@ function ScenarioBasis({ c }: { c: Controller }) {
           می‌کنید. سناریو سند یا تعهد ایجاد نمی‌کند.
         </StatusMessage>
         {!c.local.item && (
-          <Select
+          <Field id="scenario-basis-type" label="نوع مبنای سناریو" required>
+<Select
             label="نوع مبنای سناریو"
             value={c.sourceMode}
             onValueChange={c.setSourceMode}
@@ -38,6 +39,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
               { value: "forecast", label: "پیش‌بینی خودکار ذخیره‌شده" },
             ]}
           />
+</Field>
         )}
         {c.local.item ? (
           <p>
@@ -54,7 +56,8 @@ function ScenarioBasis({ c }: { c: Controller }) {
             />
           ) : c.forecasts.data?.items.length ? (
             <>
-              <Select
+              <Field id="scenario-basis-forecast" label="پیش‌بینی ثابت مبنا" required>
+<Select
                 label="پیش‌بینی ثابت مبنا"
                 value={c.local.forecastId}
                 onValueChange={(forecastId) =>
@@ -65,6 +68,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
                   label: `${displayDate(row.as_of)} · ${row.status === "limited" ? "محدود" : "برآوردی"} · ${row.id.slice(0, 8)}`,
                 }))}
               />
+</Field>
               <CursorPagination {...c.forecasts} />
             </>
           ) : (
@@ -82,7 +86,8 @@ function ScenarioBasis({ c }: { c: Controller }) {
           />
         ) : c.statements.data?.items.length ? (
           <>
-            <Select
+            <Field id="scenario-basis-statement" label="گزارش ثابت مبنا" required>
+<Select
               label="گزارش ثابت مبنا"
               value={c.local.statementId}
               onValueChange={(statementId) => c.set({ statementId })}
@@ -91,8 +96,9 @@ function ScenarioBasis({ c }: { c: Controller }) {
                 label: `${row.snapshot.period_name || "گزارش مالی"} · ${displayDate(row.snapshot.as_of)} · ${row.id.slice(0, 8)}`,
               }))}
             />
+</Field>
             <CursorPagination {...c.statements} />
-            <Field id="native-scenario-horizon" label="افق سناریو (روز)">
+            <Field id="native-scenario-horizon" label="افق سناریو (روز)" required>
               <Input
                 id="native-scenario-horizon"
                 type="number"
@@ -143,7 +149,8 @@ function ActualStatement({ c }: { c: Controller }) {
         />
       ) : (
         <>
-          <Select
+          <Field id="scenario-actual-statement" label="گزارش ثابت برای مقایسه ماندهٔ پایان" required>
+<Select
             label="گزارش ثابت برای مقایسه ماندهٔ پایان"
             value={c.actualId}
             onValueChange={c.setActualId}
@@ -152,6 +159,7 @@ function ActualStatement({ c }: { c: Controller }) {
               label: `${displayDate(row.snapshot.as_of)} · ${row.id.slice(0, 8)}`,
             }))}
           />
+</Field>
           <CursorPagination {...c.statements} />
         </>
       )}

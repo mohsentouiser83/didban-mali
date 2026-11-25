@@ -27,7 +27,7 @@ export const navigationGroups: NavigationGroup[] = [
         href: "/accounting", label: "اسناد حسابداری", icon: BooksIcon,
         children: [
           { href: "/accounting", label: "فهرست اسناد", icon: FilesIcon },
-          { href: "/accounting/operations", label: "عملیات حسابداری", icon: ArrowsLeftRightIcon },
+          { href: "/accounting/electronic-ledgers", label: "دفاتر الکترونیک", icon: BooksIcon },
           { href: "/accounting/period-end", label: "بستن و افتتاح دوره", icon: CalendarBlankIcon },
         ],
       },
@@ -37,17 +37,14 @@ export const navigationGroups: NavigationGroup[] = [
           { href: "/receivables", label: "فاکتورهای فروش", icon: ReceiptIcon },
           { href: "/payables", label: "فاکتورهای خرید", icon: ShoppingCartIcon },
           { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
-          { href: "/commercial/counterparties", label: "طرف‌حساب‌ها", icon: UsersThreeIcon },
           { href: "/reconciliation/counterparties", label: "تطبیق طرف‌حساب‌ها", icon: ArrowsLeftRightIcon, matches: ["/reconciliation/counterparty"] },
         ],
       },
       {
         href: "/settlements", label: "دریافت و پرداخت", icon: ArrowsLeftRightIcon,
         children: [
-          { href: "/settlements", label: "تسویه‌ها", icon: ArrowsLeftRightIcon },
+          { href: "/settlements", label: "دریافت‌ها و پرداخت‌ها", icon: ArrowsLeftRightIcon },
           { href: "/settlements/cheques", label: "چک‌های صیادی", icon: ReceiptIcon },
-          { href: "/settlements/plans", label: "برنامه پرداخت", icon: CalendarBlankIcon },
-          { href: "/receivables/followups", label: "پیگیری وصول", icon: UsersThreeIcon },
           { href: "/reconciliation", label: "تطبیق بانک و دفتر", icon: BankIcon, matches: ["/reconciliation/bank"] },
         ],
       },
@@ -62,14 +59,16 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/payroll", label: "حقوق و دستمزد", icon: UsersThreeIcon,
         children: [
-          { href: "/payroll", label: "لیست حقوق و فیش‌ها", icon: WalletIcon },
+          { href: "/payroll/contracts", label: "قرارداد", icon: BooksIcon },
+          { href: "/payroll", label: "فیش حقوقی", icon: WalletIcon },
         ],
       },
       {
         href: "/moadian", label: "مؤدیان", icon: ReceiptIcon,
         children: [
           { href: "/moadian", label: "صورتحساب‌های کارپوشه", icon: ReceiptIcon },
-          { href: "/moadian/transmissions", label: "ارسال و استعلام", icon: ArrowsLeftRightIcon },
+          { href: "/moadian/transmissions", label: "جمع‌آوری و ارسال", icon: ArrowsLeftRightIcon },
+          { href: "/moadian/reports", label: "گزارش صورتحساب‌های مؤدیان", icon: FilesIcon },
           { href: "/reconciliation/moadian", label: "تطبیق کارپوشه مؤدیان", icon: ArrowsLeftRightIcon },
         ],
       },
@@ -79,19 +78,10 @@ export const navigationGroups: NavigationGroup[] = [
     label: "گزارش‌ها",
     items: [
       {
-        href: "/reports", label: "گزارش‌های مالی", icon: FilesIcon,
-        children: [
-          {
-            href: "/reports",
-            label: "آرشیو گزارش‌ها",
-            icon: FilesIcon,
-            matches: [
-              "/reports/studio", "/reports/builder", "/accounting/journals",
-              ...builtInReports.map(({ href }) => href),
-            ],
-          },
-          { href: "/reports/companies", label: "مقایسه شرکت‌ها", icon: BankIcon },
-          { href: "/reports/consolidation", label: "حذف‌های درون‌گروهی", icon: FilesIcon },
+        href: "/reports", label: "گزارش‌ها", icon: FilesIcon,
+        matches: [
+          "/reports/studio", "/reports/builder", "/accounting/journals",
+          ...builtInReports.map(({ href }) => href),
         ],
       },
       {

@@ -5,10 +5,9 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
-import { Field, FormMessage } from "@/components/ui/field";
+import { FormMessage } from "@/components/ui/field";
 import { FilePicker } from "@/components/ui/file-picker";
 import { CursorPagination } from "@/components/ui/pagination";
-import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -149,18 +148,7 @@ function CompanyDocuments() {
           }}
         >
           <div className="space-y-4">
-            <Field id="source-upload-period" label="دوره مالی (اختیاری)">
-              <Select
-                id="source-upload-period"
-                value={workspace.periodId || ""}
-                onValueChange={(value) => workspace.setPeriodId(value || "")}
-                placeholder="انتخاب دوره مالی..."
-                options={workspace.periods.map((p) => ({
-                  value: p.id,
-                  label: p.name,
-                }))}
-              />
-            </Field>
+
             <FilePicker
               onFiles={async (files) => {
                 await upload.upload(files);

@@ -5,6 +5,7 @@ from datetime import date
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     String,
     UniqueConstraint,
@@ -20,9 +21,11 @@ class CommercialCounterparty(Entity, Tenant, Versioned, Base):
     __table_args__ = (
         UniqueConstraint("company_id", "id"),
         UniqueConstraint("company_id", "code"),
+        CheckConstraint("type IN ('supplier', 'customer', 'employee', 'other')", name="counterparty_type_valid"),
     )
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(20), default="other", server_default="other")
     national_id: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     economic_code: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)

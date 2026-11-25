@@ -21,6 +21,7 @@ from .errors import require
 from .finance import EXPENSE_ROLES, NON_FLOW_ENTRIES, REVENUE_ROLES, text_amount
 from .money_type import canonical_money
 from .native_ledger_source import statement_source
+from .numbering_service import allocate_number
 from .security import membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
@@ -40,6 +41,9 @@ def save_dimension(
         check_version(item, version)
         require(item.kind == data["kind"], "dimension_kind_immutable", "نوع بُعد قابل تغییر نیست.", 409)
         item.version += 1
+    data = {key: value for key, value in data.items() if key != "code"}
+    if not identifier:
+        item.code = allocate_number(db, company, "dimension", Dimension, "code")
     for key, value in data.items():
         setattr(item, key, value)
     db.add(item)

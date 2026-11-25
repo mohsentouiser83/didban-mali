@@ -54,6 +54,7 @@ export interface InventoryPostingEvidence {
 }
 
 export interface InventoryDraftResult {
+  source_reference?: string;
   operation_id: string;
   draft: JournalDraft;
 }

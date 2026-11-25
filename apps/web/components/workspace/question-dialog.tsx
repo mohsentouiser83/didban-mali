@@ -154,7 +154,7 @@ export function QuestionDialog({
             </div>
           ) : isMapping ? (
             <div className="space-y-4">
-              <Field id="issue-family" label="نوع منبع" icon={FilesIcon}>
+              <Field id="issue-family" label="نوع منبع" icon={FilesIcon} required>
                 <Select
                   id="issue-family"
                   value={family}
@@ -169,6 +169,7 @@ export function QuestionDialog({
                     id={`mapping-${field}`}
                     label={fieldLabels[field] || field}
                     icon={mappingIcon(field)}
+                    required
                   >
                     <Select
                       id={`mapping-${field}`}
@@ -225,6 +226,7 @@ export function QuestionDialog({
                   ? issue.evidence.label
                   : "پاسخ"
               }
+              required={value !== "unknown"}
             >
               {issue.evidence.kind === "text" ? (
                 <Input

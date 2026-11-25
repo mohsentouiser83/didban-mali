@@ -180,7 +180,7 @@ CREATE TABLE budget_policies (
 CREATE INDEX ix_budget_policies_company_id ON budget_policies (company_id);
 
 CREATE TABLE cheques (
-	direction VARCHAR(12) NOT NULL,
+	direction VARCHAR(20) NOT NULL,
 	number VARCHAR(100) NOT NULL,
 	bank_name VARCHAR(120) NOT NULL,
 	bank_account VARCHAR(100) NOT NULL,
@@ -209,6 +209,7 @@ CREATE INDEX ix_cheques_company_id ON cheques (company_id);
 CREATE TABLE commercial_counterparties (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(200) NOT NULL,
+	type VARCHAR(20) DEFAULT 'other' NOT NULL,
 	national_id VARCHAR(20),
 	economic_code VARCHAR(20),
 	phone VARCHAR(50),
@@ -222,6 +223,7 @@ CREATE TABLE commercial_counterparties (
 	PRIMARY KEY (id),
 	UNIQUE (company_id, id),
 	UNIQUE (company_id, code),
+	CONSTRAINT counterparty_type_valid CHECK (type IN ('supplier', 'customer', 'employee', 'other')),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_commercial_counterparties_credit_limit_irr CHECK (credit_limit_irr > -100000000000000000000000000000000 AND credit_limit_irr < 100000000000000000000000000000000)
 );
@@ -235,21 +237,6 @@ CREATE TABLE company_accounting_setup (
 	PRIMARY KEY (company_id),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
-
-CREATE TABLE company_groups (
-	name VARCHAR(120) NOT NULL,
-	company_ids JSON NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	version INTEGER NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_company_groups_company_id ON company_groups (company_id);
 
 CREATE TABLE company_modules (
 	key VARCHAR(40) NOT NULL,
@@ -591,6 +578,21 @@ CREATE TABLE notifications (
 
 CREATE INDEX ix_notifications_company_id ON notifications (company_id);
 
+CREATE TABLE numbering_assignments (
+	entity_type VARCHAR(60) NOT NULL,
+	record_id VARCHAR(36) NOT NULL,
+	number VARCHAR(120) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, entity_type, record_id),
+	UNIQUE (company_id, entity_type, number),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_numbering_assignments_company_id ON numbering_assignments (company_id);
+
 CREATE TABLE numbering_systems (
 	entity_type VARCHAR(60) NOT NULL,
 	entity_title VARCHAR(120) NOT NULL,
@@ -657,6 +659,24 @@ CREATE TABLE report_builder_definitions (
 );
 
 CREATE INDEX ix_report_builder_definitions_company_id ON report_builder_definitions (company_id);
+
+CREATE TABLE accounting_account_hierarchy (
+	account_id VARCHAR(36) NOT NULL,
+	level VARCHAR(20) NOT NULL,
+	parent_id VARCHAR(36),
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (account_id),
+	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id, parent_id) REFERENCES accounting_accounts (company_id, id),
+	CONSTRAINT account_hierarchy_level CHECK (level IN ('group', 'general', 'subsidiary', 'detail')),
+	CONSTRAINT account_hierarchy_parent CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)),
+	CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_accounting_account_hierarchy_company_id ON accounting_account_hierarchy (company_id);
+
+CREATE INDEX ix_accounting_account_hierarchy_parent_id ON accounting_account_hierarchy (parent_id);
 
 CREATE TABLE accounting_drafts (
 	period_id VARCHAR(36) NOT NULL,
@@ -769,22 +789,6 @@ CREATE TABLE cheque_events (
 
 CREATE INDEX ix_cheque_events_company_id ON cheque_events (company_id);
 
-CREATE TABLE company_comparison_runs (
-	group_id VARCHAR(36) NOT NULL,
-	group_version INTEGER NOT NULL,
-	snapshot JSON NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	digest VARCHAR(64) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(company_id, group_id) REFERENCES company_groups (company_id, id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_company_comparison_runs_company_id ON company_comparison_runs (company_id);
-
 CREATE TABLE employee_contracts (
 	employee_id VARCHAR(36) NOT NULL,
 	contract_number VARCHAR(50) NOT NULL,
@@ -823,29 +827,6 @@ CREATE TABLE employee_contracts (
 );
 
 CREATE INDEX ix_employee_contracts_company_id ON employee_contracts (company_id);
-
-CREATE TABLE intercompany_mappings (
-	group_id VARCHAR(36) NOT NULL,
-	version INTEGER NOT NULL,
-	left_company VARCHAR(36) NOT NULL,
-	right_company VARCHAR(36) NOT NULL,
-	left_party_id VARCHAR(100) NOT NULL,
-	right_party_id VARCHAR(100) NOT NULL,
-	ownership_declaration JSON NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, group_id, left_company, right_company, version),
-	FOREIGN KEY(company_id, group_id) REFERENCES company_groups (company_id, id),
-	FOREIGN KEY(left_company) REFERENCES companies (id),
-	FOREIGN KEY(right_company) REFERENCES companies (id),
-	FOREIGN KEY(actor_id) REFERENCES users (id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_intercompany_mappings_company_id ON intercompany_mappings (company_id);
 
 CREATE TABLE inventory_items (
 	code VARCHAR(100) NOT NULL,
@@ -1191,22 +1172,6 @@ CREATE TABLE accounting_operations (
 );
 
 CREATE INDEX ix_accounting_operations_company_id ON accounting_operations (company_id);
-
-CREATE TABLE draft_consolidation_runs (
-	comparison_id VARCHAR(36) NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	snapshot JSON NOT NULL,
-	digest VARCHAR(64) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(comparison_id) REFERENCES company_comparison_runs (id),
-	FOREIGN KEY(actor_id) REFERENCES users (id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_draft_consolidation_runs_company_id ON draft_consolidation_runs (company_id);
 
 CREATE TABLE journal_correction_drafts (
 	draft_id VARCHAR(36) NOT NULL,
@@ -1574,25 +1539,6 @@ CREATE TABLE cash_scenarios (
 );
 
 CREATE INDEX ix_cash_scenarios_company_id ON cash_scenarios (company_id);
-
-CREATE TABLE consolidation_approvals (
-	draft_id VARCHAR(36) NOT NULL,
-	draft_digest VARCHAR(64) NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	permission_provenance VARCHAR(150) NOT NULL,
-	policy_version VARCHAR(80) NOT NULL,
-	scope VARCHAR(80) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, draft_id, actor_id, draft_digest),
-	FOREIGN KEY(draft_id) REFERENCES draft_consolidation_runs (id),
-	FOREIGN KEY(actor_id) REFERENCES users (id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_consolidation_approvals_company_id ON consolidation_approvals (company_id);
 
 CREATE TABLE dimension_report_runs (
 	manifest_id VARCHAR(36) NOT NULL,
@@ -2560,14 +2506,6 @@ DROP POLICY IF EXISTS tenant_isolation ON company_accounting_setup;
 
 CREATE POLICY tenant_isolation ON company_accounting_setup USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE company_groups ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE company_groups FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON company_groups;
-
-CREATE POLICY tenant_isolation ON company_groups USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE company_modules ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE company_modules FORCE ROW LEVEL SECURITY;
@@ -2696,6 +2634,14 @@ DROP POLICY IF EXISTS tenant_isolation ON notifications;
 
 CREATE POLICY tenant_isolation ON notifications USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE numbering_assignments ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE numbering_assignments FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON numbering_assignments;
+
+CREATE POLICY tenant_isolation ON numbering_assignments USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE numbering_systems ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE numbering_systems FORCE ROW LEVEL SECURITY;
@@ -2719,6 +2665,14 @@ ALTER TABLE report_builder_definitions FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON report_builder_definitions;
 
 CREATE POLICY tenant_isolation ON report_builder_definitions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE accounting_account_hierarchy ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE accounting_account_hierarchy FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON accounting_account_hierarchy;
+
+CREATE POLICY tenant_isolation ON accounting_account_hierarchy USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE accounting_drafts ENABLE ROW LEVEL SECURITY;
 
@@ -2760,14 +2714,6 @@ DROP POLICY IF EXISTS tenant_isolation ON cheque_events;
 
 CREATE POLICY tenant_isolation ON cheque_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE company_comparison_runs ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE company_comparison_runs FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON company_comparison_runs;
-
-CREATE POLICY tenant_isolation ON company_comparison_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE employee_contracts ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE employee_contracts FORCE ROW LEVEL SECURITY;
@@ -2775,14 +2721,6 @@ ALTER TABLE employee_contracts FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON employee_contracts;
 
 CREATE POLICY tenant_isolation ON employee_contracts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
-ALTER TABLE intercompany_mappings ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE intercompany_mappings FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON intercompany_mappings;
-
-CREATE POLICY tenant_isolation ON intercompany_mappings USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
 
@@ -2920,14 +2858,6 @@ DROP POLICY IF EXISTS tenant_isolation ON accounting_operations;
 
 CREATE POLICY tenant_isolation ON accounting_operations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE draft_consolidation_runs ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE draft_consolidation_runs FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON draft_consolidation_runs;
-
-CREATE POLICY tenant_isolation ON draft_consolidation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE journal_correction_drafts ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE journal_correction_drafts FORCE ROW LEVEL SECURITY;
@@ -3047,14 +2977,6 @@ ALTER TABLE cash_scenarios FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON cash_scenarios;
 
 CREATE POLICY tenant_isolation ON cash_scenarios USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
-ALTER TABLE consolidation_approvals ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE consolidation_approvals FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON consolidation_approvals;
-
-CREATE POLICY tenant_isolation ON consolidation_approvals USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE dimension_report_runs ENABLE ROW LEVEL SECURITY;
 
@@ -3450,14 +3372,6 @@ DROP TRIGGER IF EXISTS immutable_fact ON cheque_events;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON cheque_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON company_comparison_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON company_comparison_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON consolidation_approvals;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON consolidation_approvals FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
 DROP TRIGGER IF EXISTS immutable_fact ON control_activities;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON control_activities FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
@@ -3470,10 +3384,6 @@ DROP TRIGGER IF EXISTS immutable_fact ON dimension_report_runs;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON dimension_report_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
-DROP TRIGGER IF EXISTS immutable_fact ON draft_consolidation_runs;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON draft_consolidation_runs FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
 DROP TRIGGER IF EXISTS immutable_fact ON group_match_decisions;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON group_match_decisions FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
@@ -3481,10 +3391,6 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON group_match_decisions F
 DROP TRIGGER IF EXISTS immutable_fact ON installation_audit_events;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON installation_audit_events FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
-
-DROP TRIGGER IF EXISTS immutable_fact ON intercompany_mappings;
-
-CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON intercompany_mappings FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON interpretations;
 
@@ -3613,6 +3519,10 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_statement_runs F
 DROP TRIGGER IF EXISTS immutable_fact ON native_zero_opening_evidence;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_zero_opening_evidence FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON numbering_assignments;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON numbering_assignments FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON operation_learning_corrections;
 
