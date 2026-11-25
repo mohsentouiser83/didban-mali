@@ -15,7 +15,7 @@ from didban.custom_reports import (
     get_entity_registry,
     list_data_sources,
 )
-from didban.db import transaction
+from didban.db import initialize, transaction
 from didban.security import hasher
 
 
@@ -72,6 +72,7 @@ def test_ai_composer():
 
 
 def test_custom_report_block_query_engine_cheques():
+    initialize()
     c_id = f"c-cr-{uuid4().hex[:6]}"
     u_id = f"u-cr-{uuid4().hex[:6]}"
     with transaction() as db:
@@ -155,6 +156,7 @@ def test_custom_report_block_query_engine_cheques():
 
 
 def test_custom_reports_http_endpoints():
+    initialize()
     c_id = f"c-api-cr-{uuid4().hex[:6]}"
     u_id = f"u-api-cr-{uuid4().hex[:6]}"
     email = f"{u_id}@test.local"

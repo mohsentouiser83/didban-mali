@@ -3,9 +3,15 @@
 from datetime import date as CalendarDate
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt
+from pydantic import Field, StrictInt, field_validator
 
 from .accounting_schemas import StrictInput
+
+
+def _empty_to_none(value):
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
 
 
 class EmployeeInput(StrictInput):
@@ -36,6 +42,25 @@ class EmployeeInput(StrictInput):
     is_underdeveloped_region: bool = False
     is_retired: bool = False
 
+    @field_validator(
+        "employee_code",
+        "national_id",
+        "father_name",
+        "birth_date",
+        "hire_date",
+        "insurance_number",
+        "phone",
+        "iban",
+        "bank_name",
+        "account_number",
+        "job_title",
+        "department",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional(cls, value):
+        return _empty_to_none(value)
+
 
 class UpdateEmployeeInput(StrictInput):
     employee_code: str | None = Field(default=None, min_length=1, max_length=50)
@@ -64,6 +89,24 @@ class UpdateEmployeeInput(StrictInput):
     is_underdeveloped_region: bool | None = None
     is_retired: bool | None = None
 
+    @field_validator(
+        "national_id",
+        "father_name",
+        "birth_date",
+        "hire_date",
+        "insurance_number",
+        "phone",
+        "iban",
+        "bank_name",
+        "account_number",
+        "job_title",
+        "department",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional(cls, value):
+        return _empty_to_none(value)
+
 
 class ContractInput(StrictInput):
     employee_id: str = Field(min_length=1, max_length=36)
@@ -84,7 +127,28 @@ class ContractInput(StrictInput):
 
     is_insured: bool = True
     is_taxable: bool = True
+    workshop_id: str | None = Field(default=None, max_length=36)
+    work_location: str | None = Field(default=None, max_length=200)
+    work_description: str | None = Field(default=None, max_length=300)
+    weekly_hours: Annotated[str, Field(max_length=20)] | StrictInt | None = "44"
+    conclusion_date: CalendarDate | None = None
+    amendment_of_contract_id: str | None = Field(default=None, max_length=36)
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator(
+        "contract_number",
+        "end_date",
+        "workshop_id",
+        "work_location",
+        "work_description",
+        "conclusion_date",
+        "amendment_of_contract_id",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional(cls, value):
+        return _empty_to_none(value)
 
 
 class UpdateContractInput(StrictInput):
@@ -105,7 +169,56 @@ class UpdateContractInput(StrictInput):
 
     is_insured: bool | None = None
     is_taxable: bool | None = None
+    workshop_id: str | None = Field(default=None, max_length=36)
+    work_location: str | None = Field(default=None, max_length=200)
+    work_description: str | None = Field(default=None, max_length=300)
+    weekly_hours: Annotated[str, Field(max_length=20)] | StrictInt | None = None
+    conclusion_date: CalendarDate | None = None
+    amendment_of_contract_id: str | None = Field(default=None, max_length=36)
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator(
+        "end_date",
+        "workshop_id",
+        "work_location",
+        "work_description",
+        "conclusion_date",
+        "amendment_of_contract_id",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def normalize_optional(cls, value):
+        return _empty_to_none(value)
+
+
+class PayrollWorkshopInput(StrictInput):
+    workshop_code: str = Field(min_length=4, max_length=20, pattern=r"^[0-9]{4,20}$")
+    employer_name: str = Field(min_length=1, max_length=200)
+    tamin_branch_code: str | None = Field(default=None, max_length=30)
+    tamin_branch_name: str | None = Field(default=None, max_length=120)
+    tax_office_code: str | None = Field(default=None, max_length=30)
+    address: str | None = Field(default=None, max_length=500)
+    active: bool = True
+
+
+class UpdatePayrollWorkshopInput(StrictInput):
+    workshop_code: str | None = Field(default=None, min_length=4, max_length=20, pattern=r"^[0-9]{4,20}$")
+    employer_name: str | None = Field(default=None, min_length=1, max_length=200)
+    tamin_branch_code: str | None = Field(default=None, max_length=30)
+    tamin_branch_name: str | None = Field(default=None, max_length=120)
+    tax_office_code: str | None = Field(default=None, max_length=30)
+    address: str | None = Field(default=None, max_length=500)
+    active: bool | None = None
+
+
+class PayrollPaymentDraftInput(StrictInput):
+    date: CalendarDate
+    bank_account_id: str = Field(min_length=1, max_length=36)
+    payroll_payable_account_id: str = Field(min_length=1, max_length=36)
+    slip_ids: list[str] | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=500)
+    expected_version: StrictInt = Field(ge=1)
 
 
 class PayrollRunCreateInput(StrictInput):

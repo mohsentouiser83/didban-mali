@@ -10,6 +10,7 @@ from sqlalchemy import (
     Date,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -31,6 +32,8 @@ class InventoryItem(Entity, Tenant, Versioned, Base):
     )
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(150))
+    base_unit: Mapped[str] = mapped_column(String(40), default="عدد", server_default="عدد")
+    item_kind: Mapped[str] = mapped_column(String(20), default="goods", server_default="goods")
     inventory_account_id: Mapped[str] = mapped_column(String(36))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -49,7 +52,7 @@ class InventoryWarehouse(Entity, Tenant, Versioned, Base):
 class InventoryMovement(Entity, Tenant, Base):
     __tablename__ = "inventory_movements"
     __table_args__ = (
-        UniqueConstraint("company_id", "journal_id", "warehouse_id", "kind"),
+        UniqueConstraint("company_id", "journal_id", "warehouse_id", "kind", "line_index"),
         UniqueConstraint("company_id", "sequence"),
         ForeignKeyConstraint(["company_id", "item_id"], ["inventory_items.company_id", "inventory_items.id"]),
         ForeignKeyConstraint(
@@ -64,6 +67,9 @@ class InventoryMovement(Entity, Tenant, Base):
         CheckConstraint(
             "(kind = 'purchase_goods' AND quantity > 0) OR "
             "(kind = 'sale_goods' AND quantity < 0) OR "
+            "(kind = 'sale_return' AND quantity > 0) OR "
+            "(kind = 'purchase_return' AND quantity < 0) OR "
+            "(kind = 'restock' AND quantity > 0) OR "
             "(kind = 'opening_stock' AND quantity > 0) OR "
             "(kind = 'transfer_in' AND quantity > 0) OR "
             "(kind = 'transfer_out' AND quantity < 0) OR "
@@ -77,6 +83,8 @@ class InventoryMovement(Entity, Tenant, Base):
     warehouse_id: Mapped[str] = mapped_column(String(36))
     journal_id: Mapped[str] = mapped_column(String(36))
     operation_id: Mapped[str] = mapped_column(String(36))
+    line_index: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    document_line_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     kind: Mapped[str] = mapped_column(String(30))
     date: Mapped[date] = mapped_column(Date)
     sequence: Mapped[int] = mapped_column(BigInteger)

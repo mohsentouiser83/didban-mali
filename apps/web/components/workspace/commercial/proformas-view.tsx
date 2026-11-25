@@ -17,7 +17,12 @@ import { ProformaConversion } from "./proforma-conversion";
 import { ProformaEditor } from "./proforma-editor";
 
 const statuses: Record<string, string> = {
-  draft: "پیش‌نویس", issued: "صادرشده", converted: "تبدیل‌شده", expired: "منقضی", cancelled: "لغوشده",
+  draft: "پیش‌نویس",
+  issued: "صادرشده",
+  conversion_pending: "در انتظار ثبت سند",
+  converted: "تبدیل‌شده",
+  expired: "منقضی",
+  cancelled: "لغوشده",
 };
 const units = { IRR: "ریال", TOMAN: "تومان" };
 
@@ -70,11 +75,12 @@ function ProformasWorkspace() {
                             onClick={() => view.open(row)}>ویرایش</Button>}
                         {view.canPrepare && view.capabilities.data?.posting_available &&
                           row.direction === "sale" && row.status === "issued" &&
-                          (!row.expiry_date || row.expiry_date >= tehranToday()) &&
-                          row.lines.length === 1 && row.lines[0].item_id &&
-                          !/[1-9]/.test(row.lines[0].discount) && (
+                          (!row.expiry_date || row.expiry_date >= tehranToday()) && (
                             <Button variant="ghost" onClick={() => setConversion(row)}>تبدیل به پیش‌نویس فروش</Button>
                           )}
+                        {view.canPrepare && ["draft", "issued"].includes(row.status) && (
+                          <Button variant="ghost" onClick={() => view.cancel(row, "لغو از کارپوشه پیش‌فاکتور")}>لغو</Button>
+                        )}
 
                       </div>
                     </TableCell>

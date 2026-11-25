@@ -327,9 +327,10 @@ def test_assistant_api_route_end_to_end():
 
     from didban.api import app
     from didban.config import settings
-    from didban.db import transaction
+    from didban.db import initialize, transaction
     from didban.security import hasher
 
+    initialize()
     c_id = f"c-api-{uuid4().hex[:8]}"
     u_id = f"u-api-{uuid4().hex[:8]}"
     email = f"ai-{uuid4().hex[:8]}@example.com"

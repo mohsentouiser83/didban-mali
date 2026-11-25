@@ -13,6 +13,8 @@ export interface InventoryWarehouse {
 
 export interface InventoryItem extends InventoryWarehouse {
   inventory_account_id: string;
+  base_unit?: string;
+  item_kind?: "goods" | "service";
 }
 
 export interface InventoryBalance {

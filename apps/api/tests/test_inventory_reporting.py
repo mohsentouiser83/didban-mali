@@ -188,9 +188,10 @@ def test_inventory_reporting_http_endpoints():
 
     from didban.api import app
     from didban.config import settings
-    from didban.db import transaction
+    from didban.db import initialize, transaction
     from didban.security import hasher
 
+    initialize()
     c_id = f"c-api-inv-{uuid4().hex[:6]}"
     u_id = f"u-api-inv-{uuid4().hex[:6]}"
     email = f"{u_id}@test.local"

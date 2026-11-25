@@ -53,6 +53,7 @@ def calculate_slip(
     contract: dict[str, Any] | None,
     timesheet: dict[str, Any],
     days_in_month: int = 30,
+    year: int = 1403,
 ) -> dict[str, Any]:
     """Calculates an employee's detailed monthly payslip using statutory rules and special conditions.
 
@@ -308,6 +309,8 @@ def calculate_slip(
         "total_deductions": canonical_money(total_deductions),
         "net_pay": canonical_money(net_pay),
         "applied_exemptions": applied_exemptions,
+        "rate_table_year": 1403,
+        "rate_status": "verified_1403" if year == 1403 else "unverified_period_rates",
     }
 
 

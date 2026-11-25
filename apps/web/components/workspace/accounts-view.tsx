@@ -7,7 +7,13 @@ import {
   accountRoleLabel,
   treasuryRoleLabel,
 } from "@/lib/account-catalogue";
-import { BankIcon, BooksIcon, PlusIcon } from "@phosphor-icons/react";
+import {
+  BankIcon,
+  BooksIcon,
+  CaretDownIcon,
+  CaretLeftIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
@@ -27,6 +33,7 @@ import { ChartSetupPanel } from "./chart-setup-panel";
 import { TreasuryAccountDrawer } from "./treasury-account-drawer";
 import { useLedgerAccounts } from "@/hooks/use-accounting";
 import { useWorkspace } from "@/hooks/workspace";
+import { cn, persian } from "@/lib/utils";
 import { accountNatureLabel } from "@/lib/accounting";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
@@ -40,7 +47,20 @@ function AccountsWorkspace() {
   const [importOpen, setImportOpen] = useState(false);
   const [treasuryOpen, setTreasuryOpen] = useState(false);
   const editable = !!view.capabilities.data?.can_manage_accounts;
-  const error = view.resource.error || view.capabilities.error;
+  const loading =
+    (view.filtersActive ? view.resource.loading : view.catalogue.loading) ||
+    view.capabilities.loading;
+  const error =
+    (view.filtersActive ? view.resource.error : view.catalogue.error) ||
+    view.capabilities.error;
+  const levelTone = (level?: string | null) =>
+    level === "group"
+      ? "primary"
+      : level === "general"
+        ? "success"
+        : level === "subsidiary"
+          ? "warning"
+          : "neutral";
   return (
     <>
       <PageHeader
@@ -72,7 +92,7 @@ function AccountsWorkspace() {
       />
       <Panel>
         <AccountFilters view={view} />
-        {view.resource.loading || view.capabilities.loading ? (
+        {loading ? (
           <LoadingState label="در حال دریافت حساب‌ها" variant="panels" />
         ) : error ? (
           <ErrorState
@@ -100,15 +120,68 @@ function AccountsWorkspace() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {view.rows.length ? (
-                  view.rows.map((account) => (
-                    <TableRow key={account.id}>
+                {view.treeRows.length ? (
+                  view.treeRows.map(({ account, depth, hasChildren, childCount, expanded, childLevel }) => (
+                    <TableRow
+                      key={account.id}
+                      className={cn(
+                        depth === 0 && account.level === "group" && "bg-canvas/70",
+                      )}
+                    >
                       <TableRowHeader>
-                        <span dir="ltr" className="inline-block font-mono">
-                          {account.code}
-                        </span>
+                        <div
+                          className="flex items-center gap-1.5"
+                          style={depth > 0 ? { paddingInlineStart: `${depth * 22}px` } : undefined}
+                        >
+                          {depth > 0 && (
+                            <span
+                              aria-hidden
+                              className="inline-block h-4 w-2.5 shrink-0 border-b border-s border-border"
+                            />
+                          )}
+                          {!view.filtersActive && hasChildren ? (
+                            <button
+                              type="button"
+                              aria-expanded={expanded}
+                              aria-label={`${expanded ? "بستن" : "باز کردن"} زیرمجموعه ${account.name}`}
+                              onClick={() => view.toggleExpand(account.id)}
+                              className="grid size-6 shrink-0 place-items-center rounded-md text-secondary transition-colors hover:bg-primary-soft hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            >
+                              {expanded ? (
+                                <CaretDownIcon size={14} weight="bold" aria-hidden />
+                              ) : (
+                                <CaretLeftIcon size={14} weight="bold" aria-hidden />
+                              )}
+                            </button>
+                          ) : (
+                            <span className="inline-block size-6 shrink-0" aria-hidden />
+                          )}
+                          <span
+                            dir="ltr"
+                            className={cn(
+                              "inline-block font-mono",
+                              depth <= 1 ? "font-semibold text-foreground" : "text-foreground",
+                            )}
+                          >
+                            {account.code}
+                          </span>
+                          {account.code_status === "legacy" && (
+                            <Badge tone="warning">کد قدیمی</Badge>
+                          )}
+                        </div>
                       </TableRowHeader>
-                      <TableCell>{account.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className={cn(depth <= 1 && "font-medium text-foreground")}>
+                            {account.name}
+                          </span>
+                          {!view.filtersActive && hasChildren && (
+                            <span className="rounded-full bg-canvas px-2 py-0.5 text-[11px] text-muted tabular-nums">
+                              {persian(childCount)} زیرمجموعه
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {account.role ? (
                           <Badge
@@ -127,7 +200,11 @@ function AccountsWorkspace() {
                           "—"
                         )}
                       </TableCell>
-                      <TableCell><Badge tone="neutral">{accountLevelLabel(account.level)}</Badge></TableCell>
+                      <TableCell>
+                        <Badge tone={levelTone(account.level)}>
+                          {accountLevelLabel(account.level)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{account.parent_code ? <><bdi>{account.parent_code}</bdi> — {account.parent_name}</> : "—"}</TableCell>
                       <TableCell>
                         <Badge
@@ -150,14 +227,24 @@ function AccountsWorkspace() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {
+                        <div className="flex items-center gap-1.5">
+                          {editable && childLevel && account.can_add_standard_child !== false && (
+                            <Button
+                              variant="ghost"
+                              className="h-8 gap-1 px-2 text-xs text-primary hover:bg-primary-soft"
+                              onClick={() => view.openChild(account)}
+                            >
+                              <PlusIcon size={14} aria-hidden />
+                              {accountLevelLabel(childLevel)}
+                            </Button>
+                          )}
                           <Button
                             variant="secondary"
                             onClick={() => view.open(account)}
                           >
                             {editable ? "ویرایش" : "مشاهده"}
                           </Button>
-                        }
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -166,7 +253,7 @@ function AccountsWorkspace() {
                 )}
               </TableBody>
             </Table>
-            <CursorPagination {...view.resource} />
+            {view.filtersActive && <CursorPagination {...view.resource} />}
           </>
         )}
       </Panel>

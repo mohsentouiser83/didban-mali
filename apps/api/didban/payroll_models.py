@@ -57,6 +57,24 @@ class Employee(Entity, Tenant, Versioned, Base):
     is_retired: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class CompanyPayrollWorkshop(Entity, Tenant, Versioned, Base):
+    """Employer Social Security / tax workshop registration details for payroll outputs."""
+
+    __tablename__ = "company_payroll_workshops"
+    __table_args__ = (
+        UniqueConstraint("company_id", "id"),
+        UniqueConstraint("company_id", "workshop_code"),
+    )
+
+    workshop_code: Mapped[str] = mapped_column(String(20))
+    employer_name: Mapped[str] = mapped_column(String(200))
+    tamin_branch_code: Mapped[str | None] = mapped_column(String(30), nullable=True, default=None)
+    tamin_branch_name: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
+    tax_office_code: Mapped[str | None] = mapped_column(String(30), nullable=True, default=None)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class EmployeeContract(Entity, Tenant, Versioned, Base):
     """Employment terms, contract type (full-time, part-time, hourly, project), and base financial amounts."""
 
@@ -92,6 +110,12 @@ class EmployeeContract(Entity, Tenant, Versioned, Base):
     # Inclusions
     is_insured: Mapped[bool] = mapped_column(Boolean, default=True)
     is_taxable: Mapped[bool] = mapped_column(Boolean, default=True)
+    workshop_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    work_location: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
+    work_description: Mapped[str | None] = mapped_column(String(300), nullable=True, default=None)
+    weekly_hours: Mapped[str | None] = mapped_column(Money(), nullable=True, default="44", server_default="44")
+    conclusion_date: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
+    amendment_of_contract_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
 
 
@@ -178,4 +202,8 @@ class PayrollSlip(Entity, Tenant, Versioned, Base):
     net_pay: Mapped[str] = mapped_column(Money(), default="0")
 
     status: Mapped[str] = mapped_column(String(20), default="unpaid")  # unpaid, paid
+    attendance_status: Mapped[str] = mapped_column(String(30), default="verified", server_default="verified")
     applied_exemptions: Mapped[dict] = mapped_column(JSON, default=dict)
+    contract_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    calculation_meta: Mapped[dict] = mapped_column(JSON, default=dict)
+    payment_journal_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)

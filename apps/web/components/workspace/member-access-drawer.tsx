@@ -120,6 +120,20 @@ export function MemberAccessDrawer({
                       c.command.busy
                     }
                   />
+                  <Checkbox
+                    label="دسترسی حقوق و دستمزد"
+                    checked={c.accessValue.view_payroll}
+                    onCheckedChange={(view_payroll) =>
+                      c.setAccessValue({ ...c.accessValue, view_payroll })
+                    }
+                    disabled={
+                      c.membershipDirty ||
+                      !c.selected?.active ||
+                      c.selected?.role === "viewer" ||
+                      c.accessCommand.busy ||
+                      c.command.busy
+                    }
+                  />
                   {c.membershipDirty && (
                     <StatusMessage>
                       ابتدا تغییر عضویت و نقش را ذخیره کنید.

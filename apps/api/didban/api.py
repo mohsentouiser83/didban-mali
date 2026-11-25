@@ -26,6 +26,7 @@ from .routes import (
     closing,
     collection_assistant,
     commercial,
+    commercial_docs,
     companies,
     control,
     counterparty_reconciliation,
@@ -57,6 +58,7 @@ from .routes import (
     reporting,
     scenarios,
     sources,
+    treasury,
 )
 
 
@@ -122,6 +124,7 @@ for router_module in (
     closing,
     posting,
     commercial,
+    commercial_docs,
     counterparty_reconciliation,
     accounting_operations,
     inventory,
@@ -152,6 +155,7 @@ for router_module in (
     personnel,
     payroll_routes,
     scenarios,
+    treasury,
 ):
     app.include_router(router_module.router)
 

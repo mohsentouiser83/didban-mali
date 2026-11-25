@@ -79,6 +79,96 @@ def test_employee_crud_and_exemptions(db_session, payroll_env):
     assert updated["employee_code"] == created["employee_code"]
 
 
+def test_http_employee_and_contract_patch_versions_and_null_clearing(tmp_path):
+    from test_api_delivery import scenario
+
+    scenario(
+        tmp_path,
+        r"""
+manager = client_for("finance_manager")
+viewer = client_for("viewer")
+
+# Create employee
+emp_res = command(manager, "POST", base + "/employees", {
+    "first_name": "علی",
+    "last_name": "رضایی",
+    "national_id": "0011223344",
+    "job_title": "حسابدار",
+    "birth_date": "1990-01-01",
+    "hire_date": "2024-01-01",
+})
+assert emp_res.status_code == 201, emp_res.text
+emp = emp_res.json()
+assert emp["version"] == 1
+
+# Viewer cannot mutate
+assert command(viewer, "PATCH", base + "/employees/" + emp["id"], {"job_title": "تست"}, version=1).status_code == 403
+
+# PATCH with valid If-Match succeeds; omitted fields remain, null clears optional fields
+patched = command(manager, "PATCH", base + "/employees/" + emp["id"], {
+    "job_title": None,
+    "birth_date": None,
+}, version=1)
+assert patched.status_code == 200, patched.text
+p_emp = patched.json()
+assert p_emp["version"] == 2
+assert p_emp["job_title"] is None
+assert p_emp["birth_date"] is None
+assert p_emp["national_id"] == "0011223344"  # omitted field preserved
+
+# Stale version returns 409
+stale = command(manager, "PATCH", base + "/employees/" + emp["id"], {"job_title": "جدید"}, version=1)
+assert stale.status_code == 409
+
+# Null on required field rejected
+bad_null = command(manager, "PATCH", base + "/employees/" + emp["id"], {"first_name": None}, version=2)
+assert bad_null.status_code in (400, 422)
+
+# Duplicate national_id on second employee PATCH rejected
+emp2 = command(manager, "POST", base + "/employees", {"first_name": "رضا", "last_name": "سعیدی"}).json()
+dup_res = command(manager, "PATCH", base + "/employees/" + emp2["id"], {"national_id": "0011223344"}, version=1)
+assert dup_res.status_code == 409
+
+# Contract CRUD and PATCH with version & null clearing
+con_res = command(manager, "POST", base + "/contracts", {
+    "employee_id": emp["id"],
+    "contract_type": "full_time",
+    "start_date": "2024-03-21",
+    "end_date": "2025-03-20",
+    "base_salary": "120000000",
+    "notes": "یادداشت اولیه",
+})
+assert con_res.status_code == 201, con_res.text
+con = con_res.json()
+assert con["version"] == 1
+
+con_patched = command(manager, "PATCH", base + "/contracts/" + con["id"], {
+    "end_date": None,
+    "notes": None,
+    "base_salary": "130000000",
+}, version=1)
+assert con_patched.status_code == 200, con_patched.text
+c_data = con_patched.json()
+assert c_data["version"] == 2
+assert c_data["end_date"] is None
+assert c_data["notes"] is None
+assert c_data["base_salary"] == "130000000"
+
+# Stale contract version returns 409
+assert command(manager, "PATCH", base + "/contracts/" + con["id"], {"base_salary": "140000000"}, version=1).status_code == 409
+
+# End date before start date rejected
+assert command(manager, "PATCH", base + "/contracts/" + con["id"], {"end_date": "2024-01-01"}, version=2).status_code == 422
+
+# Deleting employee with contract deactivates instead of hard-deleting; deleting emp2 deletes
+del1 = command(manager, "DELETE", base + "/employees/" + emp["id"], version=2)
+assert del1.status_code == 200 and del1.json()["status"] == "deactivated"
+del2 = command(manager, "DELETE", base + "/employees/" + emp2["id"], version=1)
+assert del2.status_code == 200 and del2.json()["status"] == "deleted"
+""",
+    )
+
+
 def test_contract_crud(db_session, payroll_env):
     company = payroll_env["company"]
     user = payroll_env["user"]
@@ -320,6 +410,7 @@ def test_employee_and_contract_codes_use_patterns_without_input(db_session, payr
 
 def test_calculate_end_of_service_eydi_sanavat_leave():
     from decimal import Decimal
+
     from didban.payroll_engine import calculate_end_of_service
 
     base_salary = Decimal("100000000")  # 100,000,000 IRR
@@ -391,7 +482,7 @@ def test_settlement_and_diskettes_export(db_session, payroll_env):
     assert int(settlement["settlement"]["eydi_amount"]) > 0
     assert int(settlement["settlement"]["sanavat_amount"]) > 0
 
-    # Create run and test Diskettes
+    # Create run and verify workshop + insurance identity guards
     run = service.create_payroll_run(db_session, company, user, {
         "period_id": period.id,
         "title": "حقوق فروردین",
@@ -400,12 +491,31 @@ def test_settlement_and_diskettes_export(db_session, payroll_env):
         "calculation_date": date(2024, 4, 20),
     })
 
+    with pytest.raises(DomainError) as missing_ws:
+        service.export_insurance_disk(db_session, company, user, run["id"])
+    assert missing_ws.value.code == "payroll_workshop_missing"
+
+    service.add_workshop(db_session, company, user, {
+        "workshop_code": "1234567890",
+        "employer_name": "کارگاه نمونه",
+    })
+    with pytest.raises(DomainError) as missing_ins:
+        service.export_insurance_disk(db_session, company, user, run["id"])
+    assert missing_ins.value.code == "payroll_employee_identity_missing"
+
+    service.update_employee(db_session, company, user, emp["id"], {"insurance_number": "9988776655"})
+
     insurance_disk = service.export_insurance_disk(db_session, company, user, run["id"])
-    assert "DSKKAR00" in insurance_disk or "DSK_ID" in insurance_disk["dskkar00"]
+    assert insurance_disk["workshop_code"] == "1234567890"
+    assert insurance_disk["official_format_verified"] is False
+    assert insurance_disk["output_scope"] == "internal_draft_only"
+    assert "DSK_ID" in insurance_disk["dskkar00"]
     assert "DSK_ROW" in insurance_disk["dskwor00"]
     assert len(insurance_disk["rows"]) >= 1
 
     tax_disk = service.export_tax_disk(db_session, company, user, run["id"])
+    assert tax_disk["official_format_verified"] is False
+    assert tax_disk["output_scope"] == "internal_draft_only"
     assert "ROW,NATIONAL_ID" in tax_disk["tax_file"]
     assert len(tax_disk["rows"]) >= 1
     assert int(tax_disk["summary"]["total_gross_pay"]) > 0

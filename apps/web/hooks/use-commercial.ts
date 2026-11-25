@@ -85,11 +85,19 @@ export function useCounterparties() {
       setTypeFilter(value);
     },
     save(form: CounterpartyForm) {
-      if (!canEdit || !form.type) return;
+      const roles = form.roles.length ? form.roles : (form.type ? [form.type] : []);
+      if (!canEdit || !roles.length) return;
+      const primaryType = form.type || (roles.length === 1 ? roles[0] : "other");
       list.save({
-        ...form, name: form.name.trim(),
+        ...form,
+        type: primaryType,
+        roles,
+        name: form.name.trim(),
         national_id: form.national_id.trim() || null,
         economic_code: form.economic_code.trim() || null,
+        registration_number: form.registration_number.trim() || null,
+        postal_code: form.postal_code.trim() || null,
+        email: form.email.trim() || null,
         phone: form.phone.trim() || null,
         address: form.address.trim() || null,
         credit_limit_irr: form.credit_limit_irr || null,
@@ -99,11 +107,21 @@ export function useCounterparties() {
 }
 
 export function counterpartyForm(row?: Counterparty): CounterpartyForm {
+  const roles = row?.roles?.length ? row.roles : (row?.type ? [row.type] : []);
   return {
-    name: row?.name ?? "", type: row?.type ?? "",
-    national_id: row?.national_id ?? "", economic_code: row?.economic_code ?? "",
-    phone: row?.phone ?? "", address: row?.address ?? "",
-    credit_limit_irr: row?.credit_limit_irr ?? "", active: row?.active ?? true,
+    name: row?.name ?? "",
+    type: row?.type ?? "",
+    entity_kind: row?.entity_kind ?? "other",
+    roles,
+    national_id: row?.national_id ?? "",
+    economic_code: row?.economic_code ?? "",
+    registration_number: row?.registration_number ?? "",
+    postal_code: row?.postal_code ?? "",
+    email: row?.email ?? "",
+    phone: row?.phone ?? "",
+    address: row?.address ?? "",
+    credit_limit_irr: row?.credit_limit_irr ?? "",
+    active: row?.active ?? true,
   };
 }
 
@@ -115,7 +133,8 @@ export function proformaForm(row?: Proforma): ProformaForm {
   return {
     direction: "sale",
     date: row?.date ?? tehranToday(), expiry_date: row?.expiry_date ?? "",
-    party_id: row?.party_id ?? "", currency: row?.currency ?? "IRR", terms: row?.terms ?? "",
+    party_id: row?.party_id ?? "", currency: row?.currency ?? "IRR",
+    invoice_discount: row?.invoice_discount ?? "0", terms: row?.terms ?? "",
     lines: row?.lines.map((line, key) => ({
       key, item_id: line.item_id ?? "", description: line.description,
       quantity: String(line.quantity), unit_price: line.unit_price, discount: line.discount,
@@ -154,12 +173,26 @@ export function useProformas() {
       list.save({
         ...form, party_id: form.party_id.trim(),
         expiry_date: form.expiry_date || null, terms: form.terms.trim() || null,
+        invoice_discount: form.invoice_discount || "0",
         lines: form.lines.map((line) => ({
-          item_id: line.item_id || null, description: line.description.trim(),
+          item_id: line.item_id || null,
+          line_kind: line.item_id ? "goods" : "service",
+          description: line.description.trim(),
           quantity: Number(line.quantity), unit_price: line.unit_price,
           discount: line.discount || "0",
         })),
       });
+    },
+    cancel(row: Proforma, reason: string, onDone?: () => void) {
+      if (!canPrepare) return;
+      void list.command.run(list.workspace.companyPath(`commercial/proformas/${row.id}/cancel`), {
+        method: "POST",
+        version: row.version,
+        body: { reason: reason.trim() },
+      }, () => {
+        list.resource.refresh();
+        onDone?.();
+      }, "پیش‌فاکتور لغو شد.");
     },
   };
 }

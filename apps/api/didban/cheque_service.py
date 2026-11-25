@@ -9,12 +9,15 @@ from sqlalchemy.orm import Session
 
 from . import models as m
 from .cheque_models import Cheque, ChequeClearance, ChequeEvent
+from .commercial_service import resolve_counterparty
 from .errors import require
 from .finance import ANCHOR_KINDS
 from .ingestion import money
 from .period_lock_service import require_open_period
 from .security import membership
 from .services import check_version, get_entity
+from .treasury_models import TreasuryAccount
+from .treasury_service import bank_movement_used_amount
 from .workflow import audit, serialize_fact
 
 
@@ -39,29 +42,61 @@ def _public(item: Cheque) -> dict:
 def create(db: Session, company: str, user: m.User, data: dict) -> dict:
     membership(db, company, user, "write")
     _period(db, company, data["period_id"], data["issue_date"])
+    today = m.now().astimezone(ZoneInfo("Asia/Tehran")).date()
     require(
-        data["issue_date"] <= m.now().astimezone(ZoneInfo("Asia/Tehran")).date(),
+        data["issue_date"] <= today,
         "cheque_issue_future",
         "تاریخ دریافت یا صدور نباید آینده باشد.",
     )
+    if data.get("received_date") is not None:
+        require(
+            data["received_date"] >= data["issue_date"] and data["received_date"] <= today,
+            "cheque_received_date_invalid",
+            "تاریخ دریافت چک نباید پیش از تاریخ صدور یا در آینده باشد.",
+        )
     require(
         data["due_date"] >= data["issue_date"],
         "cheque_due_before_issue",
         "سررسید نباید پیش از دریافت یا صدور باشد.",
     )
+    sayad_id = (data.get("sayad_id") or "").strip() or None
+    if sayad_id is not None:
+        require(
+            sayad_id.isascii() and sayad_id.isdigit() and len(sayad_id) == 16,
+            "invalid_sayad_id",
+            "شناسه صیادی چک باید دقیقاً ۱۶ رقم عددی باشد.",
+        )
+        require(
+            db.scalar(select(Cheque.id).where(Cheque.company_id == company, Cheque.sayad_id == sayad_id)) is None,
+            "duplicate_sayad_id",
+            "این شناسه صیادی قبلاً در شرکت ثبت شده است.",
+            409,
+        )
+    treasury_account_id = data.get("treasury_account_id")
+    if treasury_account_id:
+        ta = get_entity(db, TreasuryAccount, company, treasury_account_id)
+        require(ta.active and ta.kind == "bank", "invalid_cheque_treasury", "حساب بانکی خزانه معتبر و فعال نیست.", 409)
+    cp = resolve_counterparty(db, company, data["party_id"], require_active=True)
     canonical = money(data["amount"], data["unit"])
     require(Decimal(canonical) > 0, "cheque_amount_positive", "مبلغ چک باید مثبت باشد.")
     item = Cheque(
         company_id=company,
         direction=data["direction"],
         number=data["number"],
+        sayad_id=sayad_id,
+        sayad_status=data.get("sayad_status") or "not_verified",
         bank_name=data["bank_name"],
         bank_account=data["bank_account"],
+        treasury_account_id=treasury_account_id,
         party_id=data["party_id"],
+        counterparty_id=cp.id if cp else None,
+        issuer_name=data.get("issuer_name"),
+        holder_name=data.get("holder_name"),
         amount=canonical,
         original_amount=data["amount"],
         original_unit=data["unit"],
         issue_date=data["issue_date"],
+        received_date=data.get("received_date"),
         due_date=data["due_date"],
         state=data["direction"],
         actor_id=user.id,
@@ -75,8 +110,9 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
         action="registered",
         previous_state=None,
         new_state=item.state,
-        event_date=item.issue_date,
+        event_date=item.received_date or item.issue_date,
         period_id=data["period_id"],
+        treasury_account_id=treasury_account_id,
         reason="ثبت اطلاعات چک؛ بدون سند و تسویه مالی",
     )
     db.add(event)
@@ -115,8 +151,12 @@ def _validate_clearance(db: Session, company: str, item: Cheque, data: dict) -> 
         "cheque_future_bank",
         "گردش آینده شاهد وصول واقعی نیست.",
     )
+    from .commercial_service import resolve_counterparty_id
+
+    bank_cp = resolve_counterparty_id(db, company, bank.party_id) if bank.party_id else None
+    item_cp = item.counterparty_id or resolve_counterparty_id(db, company, item.party_id)
     require(
-        not bank.party_id or bank.party_id == item.party_id,
+        not bank.party_id or bank_cp == item_cp,
         "cheque_bank_party",
         "طرف حساب گردش بانک با چک یکسان نیست.",
         409,
@@ -133,17 +173,7 @@ def _validate_clearance(db: Session, company: str, item: Cheque, data: dict) -> 
         )
     with localcontext() as context:
         context.prec = 60
-        used = sum(
-            (
-                Decimal(row.amount)
-                for row in db.scalars(
-                    select(ChequeClearance).where(
-                        ChequeClearance.company_id == company, ChequeClearance.bank_id == bank.id
-                    )
-                )
-            ),
-            Decimal(0),
-        )
+        used = bank_movement_used_amount(db, company, bank.id)
         require(
             used + Decimal(item.amount) <= value.copy_abs(),
             "cheque_bank_capacity",
@@ -202,12 +232,20 @@ def act(db: Session, company: str, user: m.User, cheque_id: str, data: dict, ver
         "این تغییر وضعیت برای چک مجاز نیست.",
         409,
     )
+    endorsed_cp_id = None
+    endorsed_to = data.get("endorsed_to")
     if action == "endorse":
         require(
-            item.direction == "received" and bool(data.get("endorsed_to")),
+            item.direction == "received" and bool(endorsed_to),
             "cheque_endorse_party",
             "طرف واگذاری را مشخص کنید.",
         )
+        endorsed_cp = resolve_counterparty(db, company, endorsed_to, require_active=True)
+        endorsed_cp_id = endorsed_cp.id if endorsed_cp else None
+    treasury_account_id = data.get("treasury_account_id")
+    if treasury_account_id:
+        ta = get_entity(db, TreasuryAccount, company, treasury_account_id)
+        require(ta.active, "inactive_treasury_account", "حساب خزانه غیرفعال است.", 409)
     bank = _validate_clearance(db, company, item, data) if action == "clear" else None
     newstate = {
         "deposit": "deposited",
@@ -225,6 +263,9 @@ def act(db: Session, company: str, user: m.User, cheque_id: str, data: dict, ver
         new_state=newstate,
         event_date=data["event_date"],
         period_id=data["period_id"],
+        endorsed_to=endorsed_to if action == "endorse" else None,
+        endorsed_to_counterparty_id=endorsed_cp_id if action == "endorse" else None,
+        treasury_account_id=treasury_account_id,
         reason=data["reason"],
     )
     db.add(event)
@@ -238,7 +279,10 @@ def act(db: Session, company: str, user: m.User, cheque_id: str, data: dict, ver
     item.state = newstate
     item.version += 1
     if action == "endorse":
-        item.endorsed_to = data["endorsed_to"]
+        item.endorsed_to = endorsed_to
+        item.endorsed_to_counterparty_id = endorsed_cp_id
+    if treasury_account_id and action in ("deposit", "clear"):
+        item.treasury_account_id = treasury_account_id
     db.flush()
     audit(
         db,

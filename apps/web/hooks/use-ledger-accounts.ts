@@ -7,6 +7,8 @@ import type { AccountNature, AccountingCapabilities, LedgerAccount } from "@/lib
 import {
   accountCodeHint,
   accountImportRows,
+  buildAccountTreeRows,
+  childAccountLevel,
   parentAccountLevel,
   isTreasuryAccount,
   suggestAccountCode,
@@ -54,6 +56,7 @@ export function useLedgerAccounts() {
   const [editing, setEditing] = useState<LedgerAccount | null | undefined>();
   const [value, setValue] = useState<AccountForm>(blank);
   const [codeTouched, setCodeTouched] = useState(false);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const parentLevel = parentAccountLevel(value.level);
   const choices = (level?: string | null) => catalogue.items
@@ -68,6 +71,21 @@ export function useLedgerAccounts() {
     } : {
       ...blank(),
       code: suggestAccountCode(catalogue.items, "group", ""),
+    });
+    setErrors({});
+    command.clearError();
+  }
+  function openChild(parent: LedgerAccount) {
+    const nextLevel = childAccountLevel(parent.level);
+    if (!nextLevel) return;
+    setEditing(null);
+    setCodeTouched(false);
+    setValue({
+      ...blank(),
+      level: nextLevel,
+      parent_id: parent.id,
+      nature: parent.nature ?? "debit",
+      code: suggestAccountCode(catalogue.items, nextLevel, parent.id),
     });
     setErrors({});
     command.clearError();
@@ -107,7 +125,12 @@ export function useLedgerAccounts() {
     const selectedParent = value.parent_id
       ? catalogue.items.find((account) => account.id === value.parent_id)
       : undefined;
-    if (!editing && value.level) {
+    const hierarchyUnchanged = Boolean(
+      editing &&
+      value.level === (editing.level || "") &&
+      value.parent_id === (editing.parent_id || ""),
+    );
+    if ((!editing || !hierarchyUnchanged) && value.level) {
       const patternError = validateAccountCodePattern(value.code, value.level, selectedParent?.code);
       if (patternError) next.code = patternError;
     } else if (!value.code.trim()) {
@@ -135,12 +158,39 @@ export function useLedgerAccounts() {
   }
   const allRows = listItems(resource.data);
   const rows = categoryFilter === "treasury" ? allRows.filter(isTreasuryAccount) : allRows;
+  const filtersActive = levelFilter !== "all" || parentFilter !== "all" || categoryFilter !== "all";
+  const treeRows = filtersActive
+    ? rows.map((account) => ({
+        account,
+        depth: 0,
+        hasChildren: !!account.has_children,
+        childCount: 0,
+        expanded: false,
+        childLevel: childAccountLevel(account.level),
+      }))
+    : buildAccountTreeRows(catalogue.items, collapsedIds);
+  const expandableIds = catalogue.items
+    .filter((item) => catalogue.items.some((child) => child.parent_id === item.id))
+    .map((item) => item.id);
+  const toggleExpand = (accountId: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(accountId)) next.delete(accountId);
+      else next.add(accountId);
+      return next;
+    });
+  };
+  const expandAll = () => setCollapsedIds(new Set());
+  const collapseAll = () => setCollapsedIds(new Set(expandableIds));
   const selectedParentCode = value.parent_id
     ? catalogue.items.find((account) => account.id === value.parent_id)?.code
     : undefined;
   return {
     workspace, resource, catalogue, capabilities, command, editing, value, errors,
-    rows, open, save, change, refresh,
+    rows, treeRows, open, openChild, save, change, refresh,
+    toggleExpand, expandAll, collapseAll,
+    hasExpandableNodes: !filtersActive && expandableIds.length > 0,
+    allCollapsed: expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id)),
     close: () => setEditing(undefined),
     levelFilter, parentFilter, setParentFilter,
     categoryFilter, setCategoryFilter,
@@ -154,7 +204,7 @@ export function useLedgerAccounts() {
         ? "حساب کل بالادست"
         : "حساب معین بالادست",
     canFilterParent: levelFilter !== "group" && levelFilter !== "unclassified",
-    filtersActive: levelFilter !== "all" || parentFilter !== "all" || categoryFilter !== "all",
+    filtersActive,
     filterParentOptions: catalogue.items.filter((account) =>
       levelFilter === "detail" ? account.level === "subsidiary"
         : levelFilter === "subsidiary" ? account.level === "general"

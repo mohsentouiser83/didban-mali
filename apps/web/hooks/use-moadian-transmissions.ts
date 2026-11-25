@@ -19,6 +19,8 @@ import { useWorkspace } from "./workspace";
 
 const initialForm: MoadianFiscalForm = {
   tax_id: "",
+  invoice_subject: "1",
+  reference_tax_id: "",
   issued_time: "",
   buyer_type: "",
   buyer_tax_number: "",
@@ -78,6 +80,10 @@ export function useMoadianTransmissions() {
     const payload: MoadianFiscalPayload = {
       invoice_id: invoice.id,
       invoice_version: invoice.version,
+      invoice_subject: Number(form.invoice_subject) as 1 | 2 | 3 | 4,
+      ...(form.invoice_subject !== "1" && form.reference_tax_id.trim()
+        ? { reference_tax_id: form.reference_tax_id.trim() }
+        : {}),
       tax_id: form.tax_id,
       issued_at: issuedAt,
       buyer_type: form.buyer_type,

@@ -14,11 +14,10 @@ from sqlalchemy.orm import Session, aliased
 from . import models as m
 from .accounting_models import Draft
 from .accounting_service import capabilities, validate_lines
-from .commercial_models import CommercialCounterparty, ProformaInvoice
+from .commercial_models import CommercialCounterparty, CommercialCounterpartyRole, ProformaInvoice
 from .errors import DomainError, require
 from .exports import FONT_MEDIUM, MUTED, RTLText, _table, display_date, localized, register_fonts
 from .inventory_models import InventoryItem
-from .inventory_service import create_draft
 from .money_type import aggregate_money, canonical_money
 from .native_invoice_models import NativeInvoice, NativeInvoiceSourceRevision
 from .numbering_service import allocate_number
@@ -29,21 +28,81 @@ from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
 
+def _normalize_roles(data: dict, fallback: str = "other") -> tuple[list[str], str]:
+    valid_roles = {"supplier", "customer", "employee", "other"}
+    raw_roles = data.get("roles")
+    if raw_roles is not None:
+        roles = []
+        for r in raw_roles:
+            require(r in valid_roles, "invalid_counterparty_type", "نقش طرف‌حساب معتبر نیست.")
+            if r not in roles:
+                roles.append(r)
+        require(bool(roles), "invalid_counterparty_type", "حداقل یک نقش برای طرف‌حساب انتخاب کنید.")
+    else:
+        t = data.get("type") or fallback
+        require(t in valid_roles, "invalid_counterparty_type", "نوع طرف‌حساب معتبر نیست.")
+        roles = [t]
+    primary_type = data.get("type") if data.get("type") in valid_roles else (roles[0] if len(roles) == 1 else "other")
+    return roles, primary_type
+
+
+def _sync_counterparty_roles(db: Session, company: str, cp: CommercialCounterparty, roles: list[str]) -> None:
+    existing = list(
+        db.scalars(
+            select(CommercialCounterpartyRole).where(
+                CommercialCounterpartyRole.company_id == company,
+                CommercialCounterpartyRole.counterparty_id == cp.id,
+            )
+        )
+    )
+    existing_map = {row.role: row for row in existing}
+    for role in list(existing_map):
+        if role not in roles:
+            db.delete(existing_map[role])
+    for role in roles:
+        if role not in existing_map:
+            db.add(CommercialCounterpartyRole(company_id=company, counterparty_id=cp.id, role=role))
+    db.flush()
+
+
+def _validate_identity_fields(data: dict) -> None:
+    if data.get("national_id"):
+        nid = str(data["national_id"]).strip()
+        require(nid.isascii() and nid.isdigit() and 8 <= len(nid) <= 12, "invalid_national_id", "شناسه/کد ملی باید عددی و بین ۸ تا ۱۲ رقم باشد.")
+    if data.get("economic_code"):
+        ec = str(data["economic_code"]).strip()
+        require(ec.isascii() and ec.isdigit() and 8 <= len(ec) <= 16, "invalid_economic_code", "کد اقتصادی باید عددی باشد.")
+    if data.get("postal_code"):
+        pc = str(data["postal_code"]).strip()
+        require(pc.isascii() and pc.isdigit() and len(pc) == 10, "invalid_postal_code", "کد پستی باید ۱۰ رقم باشد.")
+
+
+def _serialize_counterparty(cp: CommercialCounterparty) -> dict:
+    data = serialize_fact(cp)
+    data["roles"] = list(cp.roles) if cp.roles else [cp.type]
+    return data
+
+
 def add_counterparty(db: Session, company: str, user: m.User, data: dict) -> dict:
     ability = capabilities(db, company, user)
     require(ability["can_manage_accounts"], "permission_denied", "اجازه مدیریت طرف حساب‌ها ندارید.", 403)
-    require(
-        data.get("type", "other") in {"supplier", "customer", "employee", "other"},
-        "invalid_counterparty_type", "نوع طرف‌حساب معتبر نیست.",
-    )
+    roles, primary_type = _normalize_roles(data)
+    entity_kind = data.get("entity_kind") or "other"
+    require(entity_kind in {"natural_person", "legal_entity", "other"}, "invalid_entity_kind", "نوع شخصیت معتبر نیست.")
+    _validate_identity_fields(data)
     limit = canonical_money(data["credit_limit_irr"]) if data.get("credit_limit_irr") else None
     row = CommercialCounterparty(
         company_id=company,
         code=allocate_number(db, company, "counterparty", CommercialCounterparty, "code"),
         name=data["name"],
-        type=data.get("type", "other"),
+        type=primary_type,
+        entity_kind=entity_kind,
+        roles=roles,
         national_id=data.get("national_id"),
         economic_code=data.get("economic_code"),
+        registration_number=data.get("registration_number"),
+        postal_code=data.get("postal_code"),
+        email=data.get("email"),
         phone=data.get("phone"),
         address=data.get("address"),
         credit_limit_irr=limit,
@@ -51,8 +110,9 @@ def add_counterparty(db: Session, company: str, user: m.User, data: dict) -> dic
     )
     db.add(row)
     db.flush()
+    _sync_counterparty_roles(db, company, row, roles)
     audit(db, company, user.id, "commercial.counterparty_created", row.id)
-    return serialize_fact(row)
+    return _serialize_counterparty(row)
 
 
 def update_counterparty(
@@ -63,15 +123,22 @@ def update_counterparty(
     cp = get_entity(db, CommercialCounterparty, company, counterparty_id)
     if version is not None:
         check_version(cp, version)
-    if "type" in data:
+    _validate_identity_fields(data)
+    if "roles" in data or "type" in data:
+        roles, primary_type = _normalize_roles(data, fallback=cp.type)
+        cp.type = primary_type
+        cp.roles = roles
+        _sync_counterparty_roles(db, company, cp, roles)
+    if "entity_kind" in data and data["entity_kind"] is not None:
         require(
-            data["type"] in {"supplier", "customer", "employee", "other"},
-            "invalid_counterparty_type", "نوع طرف‌حساب معتبر نیست.",
+            data["entity_kind"] in {"natural_person", "legal_entity", "other"},
+            "invalid_entity_kind",
+            "نوع شخصیت معتبر نیست.",
         )
-        cp.type = data["type"]
+        cp.entity_kind = data["entity_kind"]
     if data.get("name") is not None:
         cp.name = data["name"]
-    for field in ("national_id", "economic_code", "phone", "address"):
+    for field in ("national_id", "economic_code", "registration_number", "postal_code", "email", "phone", "address"):
         if field in data:
             setattr(cp, field, data[field])
     if "credit_limit_irr" in data:
@@ -83,7 +150,7 @@ def update_counterparty(
     cp.version += 1
     db.flush()
     audit(db, company, user.id, "commercial.counterparty_updated", cp.id)
-    return serialize_fact(cp)
+    return _serialize_counterparty(cp)
 
 
 def list_counterparties(
@@ -101,7 +168,17 @@ def list_counterparties(
     if active_only:
         stmt = stmt.where(CommercialCounterparty.active.is_(True))
     if counterparty_type and counterparty_type != "all":
-        stmt = stmt.where(CommercialCounterparty.type == counterparty_type)
+        stmt = stmt.where(
+            or_(
+                CommercialCounterparty.type == counterparty_type,
+                CommercialCounterparty.id.in_(
+                    select(CommercialCounterpartyRole.counterparty_id).where(
+                        CommercialCounterpartyRole.company_id == company,
+                        CommercialCounterpartyRole.role == counterparty_type,
+                    )
+                ),
+            )
+        )
     if search:
         term = f"%{search.strip()}%"
         stmt = stmt.where(
@@ -111,24 +188,66 @@ def list_counterparties(
     rows = list(db.scalars(stmt.order_by(CommercialCounterparty.code).offset(offset).limit(limit)))
     return {
         "total": total,
-        "items": [serialize_fact(row) for row in rows],
+        "items": [_serialize_counterparty(row) for row in rows],
     }
 
 
-def get_counterparty(db: Session, company: str, counterparty_id: str) -> CommercialCounterparty:
-    return get_entity(db, CommercialCounterparty, company, counterparty_id)
+def get_counterparty(db: Session, company: str, counterparty_id: str) -> dict:
+    return _serialize_counterparty(get_entity(db, CommercialCounterparty, company, counterparty_id))
 
 
-def resolve_counterparty(db: Session, company: str, party_id: str) -> CommercialCounterparty | None:
-    cp = db.scalar(
+def resolve_counterparty(
+    db: Session, company: str, party_id: str, *, require_active: bool = True
+) -> CommercialCounterparty | None:
+    if not party_id:
+        return None
+    by_id = db.scalar(
         select(CommercialCounterparty).where(
             CommercialCounterparty.company_id == company,
-            or_(CommercialCounterparty.code == party_id, CommercialCounterparty.id == party_id),
+            CommercialCounterparty.id == party_id,
         )
     )
-    if cp:
+    by_code = db.scalar(
+        select(CommercialCounterparty).where(
+            CommercialCounterparty.company_id == company,
+            CommercialCounterparty.code == party_id,
+        )
+    )
+    if by_id and by_code and by_id.id != by_code.id:
+        raise DomainError(
+            "ambiguous_counterparty_reference",
+            "شناسه طرف‌حساب مبهم است (تطابق هم‌زمان با کد و شناسه متفاوت).",
+            409,
+        )
+    cp = by_id or by_code
+    if cp and require_active:
         require(cp.active, "inactive_counterparty", "طرف‌حساب غیرفعال است.", 409)
     return cp
+
+
+def resolve_counterparty_id(db: Session, company: str, party_ref: str | None) -> str | None:
+    if not party_ref:
+        return None
+    cp = resolve_counterparty(db, company, party_ref, require_active=False)
+    return cp.id if cp else party_ref
+
+
+def counterparty_snapshot(cp: CommercialCounterparty | None, raw_ref: str = "") -> dict | None:
+    if cp is None:
+        return {"raw_party_id": raw_ref} if raw_ref else None
+    return {
+        "id": cp.id,
+        "code": cp.code,
+        "name": cp.name,
+        "type": cp.type,
+        "entity_kind": cp.entity_kind,
+        "roles": list(cp.roles) if cp.roles else [cp.type],
+        "national_id": cp.national_id,
+        "economic_code": cp.economic_code,
+        "phone": cp.phone,
+        "address": cp.address,
+        "version": cp.version,
+    }
 
 
 def sale_credit_amount(data: dict, amount: str) -> str:
@@ -237,7 +356,7 @@ def validate_posting_credit(db: Session, company: str, user: m.User, drafts: lis
             select(OperationDraft).where(
                 OperationDraft.company_id == company,
                 OperationDraft.draft_id.in_(draft_ids),
-                OperationDraft.kind.in_(("sale_goods", "sale_service")),
+                OperationDraft.kind.in_(("sale_goods", "sale_service", "commercial_sale")),
             )
         )
     }
@@ -276,7 +395,11 @@ def validate_posting_credit(db: Session, company: str, user: m.User, drafts: lis
 
                 expected = validate_lines(db, company, {"unit": payload["unit"], "lines": build(payload)})
                 require(draft.lines == expected, "sale_draft_changed", "محتوای سند با عملیات فروش یکسان نیست.", 409)
-            addition = Decimal(sale_credit_amount(payload, payload["amounts"]["amount"]))
+            addition = Decimal(
+                payload["amounts"].get("on_account_amount_irr")
+                if sale.kind == "commercial_sale"
+                else sale_credit_amount(payload, payload["amounts"]["amount"])
+            )
             if not addition:
                 continue
             total = batch_amounts.get(party.id, Decimal(0)) + addition
@@ -288,10 +411,11 @@ def validate_posting_credit(db: Session, company: str, user: m.User, drafts: lis
             batch_amounts[party.id] = total
 
 
-def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str, str]:
+def _process_lines(
+    lines_in: list[dict], currency: str, invoice_discount: str | int | Decimal = 0
+) -> tuple[list[dict], str, str, str]:
     factor = 10 if currency == "TOMAN" else 1
-    total = Decimal(0)
-    total_irr = Decimal(0)
+    subtotal = Decimal(0)
     processed = []
     with localcontext() as context:
         context.prec = 60
@@ -305,11 +429,12 @@ def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str
             require(line_total >= 0, "negative_line_total", "مبلغ ردیف نمی‌تواند منفی باشد.", 422)
             unit_price_irr = price * factor
             line_total_irr = line_total * factor
-            total += line_total
-            total_irr += line_total_irr
+            subtotal += line_total
             processed.append(
                 {
                     "line_id": str(idx + 1),
+                    "line_kind": line.get("line_kind") or ("goods" if line.get("item_id") else "goods"),
+                    "unit": line.get("unit"),
                     "item_id": line.get("item_id"),
                     "description": line["description"],
                     "quantity": qty,
@@ -320,7 +445,12 @@ def _process_lines(lines_in: list[dict], currency: str) -> tuple[list[dict], str
                     "total_irr": canonical_money(line_total_irr),
                 }
             )
-    return processed, canonical_money(total), canonical_money(total_irr)
+        inv_disc = Decimal(canonical_money(invoice_discount or 0))
+        require(inv_disc >= 0, "invalid_proforma_discount", "تخفیف کل نمی‌تواند منفی باشد.", 422)
+        require(inv_disc <= subtotal, "invoice_discount_exceeds_total", "تخفیف کل از جمع پیش‌فاکتور بیشتر است.", 422)
+        total = subtotal - inv_disc
+        total_irr = total * factor
+    return processed, canonical_money(total), canonical_money(total_irr), canonical_money(inv_disc)
 
 
 def _validate_proforma(db: Session, company: str, data: dict) -> None:
@@ -349,7 +479,7 @@ def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict
     require(ability["can_prepare"], "permission_denied", "اجازه صدور پیش‌فاکتور ندارید.", 403)
     _validate_proforma(db, company, data)
     currency = data.get("currency", "IRR")
-    lines, total, total_irr = _process_lines(data["lines"], currency)
+    lines, total, total_irr, inv_disc = _process_lines(data["lines"], currency, data.get("invoice_discount", 0))
     row = ProformaInvoice(
         company_id=company,
         number=allocate_number(db, company, "proforma_invoice", ProformaInvoice, "number"),
@@ -361,6 +491,7 @@ def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict
         lines=lines,
         total_amount=total,
         total_amount_irr=total_irr,
+        invoice_discount=inv_disc,
         terms=data.get("terms"),
         status="issued",
         actor_id=user.id,
@@ -386,11 +517,13 @@ def update_proforma(
         company,
         {"direction": pf.direction, "date": pf.date, "expiry_date": pf.expiry_date, "party_id": pf.party_id} | data,
     )
-    if "lines" in data:
-        lines, total, total_irr = _process_lines(data["lines"], pf.currency)
+    inv_disc_in = data.get("invoice_discount", pf.invoice_discount)
+    if "lines" in data or "invoice_discount" in data:
+        lines, total, total_irr, inv_disc = _process_lines(data.get("lines", pf.lines), pf.currency, inv_disc_in)
         pf.lines = lines
         pf.total_amount = total
         pf.total_amount_irr = total_irr
+        pf.invoice_discount = inv_disc
     if "date" in data:
         pf.date = data["date"]
     if "expiry_date" in data:
@@ -473,53 +606,66 @@ def convert_proforma(
     )
 
     require(pf.direction == "sale", "proforma_sale_only", "پیش‌فاکتور خرید قابل تبدیل نیست.", 409)
-    require(
-        len(pf.lines) == 1 and Decimal(pf.lines[0].get("discount", "0")) == 0,
-        "proforma_unsupported_conversion",
-        "تبدیل فقط برای پیش‌فاکتور تک‌قلم بدون تخفیف در دسترس است.",
-        409,
-    )
     _validate_proforma(
         db, company, {"direction": pf.direction, "party_id": pf.party_id, "date": pf.date, "expiry_date": pf.expiry_date}
     )
-    first_line = pf.lines[0]
-    require(first_line.get("item_id"), "item_required", "شناسه کالا در پیش‌فاکتور موجود نیست.", 422)
 
-    draft_data = {
-        "kind": "sale_goods",
-        "item_id": first_line["item_id"],
-        "warehouse_id": data["warehouse_id"],
-        "quantity": first_line["quantity"],
-        "unit_price": first_line["unit_price"],
-        "unit": pf.currency,
+    from .commercial_doc_service import create_commercial_document_draft
+
+    doc_lines = []
+    for line in pf.lines:
+        l_kind = line.get("line_kind") or ("goods" if line.get("item_id") else "service")
+        if l_kind == "goods":
+            require(line.get("item_id"), "item_required", "شناسه کالا در پیش‌فاکتور موجود نیست.", 422)
+        doc_lines.append(
+            {
+                "line_kind": l_kind,
+                "item_id": line.get("item_id"),
+                "description": line["description"],
+                "unit": line.get("unit"),
+                "quantity": line["quantity"],
+                "unit_price": line["unit_price"],
+                "line_discount": line.get("discount", "0"),
+            }
+        )
+
+    doc_payload = {
+        "direction": "sale",
         "period_id": data["period_id"],
-        "date": data.get("date", today),
-        "description": f"تبدیل پیش‌فاکتور {pf.number}",
-        "source_reference": data["source_reference"],
+        "issue_date": data.get("issue_date") or data.get("date") or today,
         "party_id": pf.party_id,
-        "counterparty_account_id": data.get("counterparty_account_id"),
-        "revenue_account_id": data.get("revenue_account_id"),
-        "cost_account_id": data.get("cost_account_id"),
+        "warehouse_id": data.get("warehouse_id"),
+        "currency": pf.currency,
+        "invoice_discount": data.get("invoice_discount") if data.get("invoice_discount") is not None else pf.invoice_discount,
+        "lines": doc_lines,
+        "description": f"تبدیل پیش‌فاکتور {pf.number}",
+        "source_reference": data.get("source_reference") or f"proforma:{pf.id}",
         "settlement_type": settlement_type,
         "cash_amount": data.get("cash_amount"),
         "cheque_amount": data.get("cheque_amount"),
         "on_account_amount": data.get("on_account_amount"),
+        "counterparty_account_id": data.get("counterparty_account_id"),
+        "revenue_account_id": data.get("revenue_account_id"),
+        "service_revenue_account_id": data.get("service_revenue_account_id"),
+        "discount_account_id": data.get("discount_account_id"),
+        "cost_account_id": data.get("cost_account_id"),
         "cash_account_id": data.get("cash_account_id"),
         "cheque_account_id": data.get("cheque_account_id"),
         "cheque_number": data.get("cheque_number"),
         "cheque_due_date": data.get("cheque_due_date"),
     }
-    operation = create_draft(
+    res = create_commercial_document_draft(
         db,
         company,
         user,
-        draft_data,
+        doc_payload,
+        proforma=pf,
         allow_credit_override=data.get("allow_credit_override", False),
         credit_override_reason=data.get("credit_override_reason", ""),
     )
 
-    pf.status = "converted"
-    pf.converted_operation_id = operation["operation_id"]
+    pf.status = "conversion_pending"
+    pf.converted_operation_id = res["operation_id"]
     pf.version += 1
     db.flush()
     audit(
@@ -528,12 +674,15 @@ def convert_proforma(
         user.id,
         "commercial.proforma_converted",
         pf.id,
-        {"operation_id": operation["operation_id"], "proforma_number": pf.number},
+        {"operation_id": res["operation_id"], "proforma_number": pf.number, "document_id": res["document"]["id"]},
     )
     return {
         "proforma_id": pf.id,
-        "operation_id": operation["operation_id"],
-        "draft": operation["draft"],
+        "proforma_status": pf.status,
+        "operation_id": res["operation_id"],
+        "document": res["document"],
+        "draft": res["draft"],
+        "financial_effect": False,
     }
 
 

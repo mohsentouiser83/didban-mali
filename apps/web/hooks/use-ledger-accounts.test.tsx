@@ -58,3 +58,23 @@ it("submits all imported levels together so parents may follow their children", 
     ] },
   });
 });
+it("builds hierarchical tree rows, supports expand/collapse, and opens child creation pre-filled", async () => {
+  const { result } = renderHook(useLedgerAccounts);
+  await waitFor(() => expect(result.current.catalogue.loading).toBe(false));
+  expect(result.current.treeRows.map((row) => [row.account.code, row.depth])).toEqual([
+    ["11", 0],
+    ["1101", 1],
+    ["110101", 2],
+    ["11010101", 3],
+  ]);
+  act(() => result.current.toggleExpand("g"));
+  expect(result.current.treeRows.map((row) => row.account.code)).toEqual(["11", "1101"]);
+  act(() => result.current.expandAll());
+  expect(result.current.treeRows).toHaveLength(4);
+  act(() => result.current.collapseAll());
+  expect(result.current.treeRows.map((row) => row.account.code)).toEqual(["11"]);
+  act(() => result.current.openChild(accounts[1])); // child under general "1101" -> subsidiary "110102"
+  expect(result.current.value.level).toBe("subsidiary");
+  expect(result.current.value.parent_id).toBe("g");
+  expect(result.current.value.code).toBe("110102");
+});

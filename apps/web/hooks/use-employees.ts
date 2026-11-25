@@ -104,12 +104,28 @@ export function useEmployees() {
     const path = editing
       ? `/companies/${workspace.company.id}/employees/${editing.id}`
       : `/companies/${workspace.company.id}/employees`;
+    const body = editing
+      ? {
+          ...form,
+          national_id: form.national_id?.trim() || null,
+          father_name: form.father_name?.trim() || null,
+          birth_date: form.birth_date || null,
+          hire_date: form.hire_date || null,
+          insurance_number: form.insurance_number?.trim() || null,
+          phone: form.phone?.trim() || null,
+          iban: form.iban?.trim() || null,
+          bank_name: form.bank_name?.trim() || null,
+          account_number: form.account_number?.trim() || null,
+          job_title: form.job_title?.trim() || null,
+          department: form.department?.trim() || null,
+        }
+      : form;
     await command.run(
       path,
       {
         method: editing ? "PATCH" : "POST",
         version: editing?.version,
-        body: form,
+        body,
       },
       () => {
         resource.refresh();
@@ -125,6 +141,7 @@ export function useEmployees() {
       `/companies/${workspace.company.id}/employees/${emp.id}`,
       {
         method: "DELETE",
+        version: emp.version,
       },
       () => {
         resource.refresh();

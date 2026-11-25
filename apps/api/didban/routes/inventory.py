@@ -8,6 +8,8 @@ from ..inventory_schemas import (
     InventoryDraftInput,
     InventoryItemInput,
     InventoryTransferInput,
+    NrvAdjustmentDraftInput,
+    NrvAssessmentInput,
     OpeningStockInput,
     StockAdjustmentInput,
     UpdateInventoryItemInput,
@@ -71,6 +73,40 @@ def profit_report(
 ):
     with access(request, company_id) as (db, user, _member):
         return service.item_profit_report(db, company_id, user, from_date=from_date, to_date=to_date)
+
+
+@router.get(P + "/nrv-assessment")
+def get_nrv_assessment(
+    company_id: str,
+    request: Request,
+    as_of: date | None = None,
+):
+    with access(request, company_id) as (db, user, _member):
+        return service.assess_nrv(db, company_id, user, as_of=as_of)
+
+
+@router.post(P + "/nrv-assessment")
+def post_nrv_assessment(company_id: str, data: NrvAssessmentInput, request: Request):
+    with access(request, company_id) as (db, user, _member):
+        return service.assess_nrv(
+            db,
+            company_id,
+            user,
+            as_of=data.as_of,
+            market_prices=[item.model_dump() for item in data.items],
+        )
+
+
+@router.post(P + "/nrv-draft", status_code=201)
+def create_nrv_draft(company_id: str, data: NrvAdjustmentDraftInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.create_nrv_adjustment_draft(db, company_id, user, payload),
+    )
 
 
 @router.post(P + "/items", status_code=201)

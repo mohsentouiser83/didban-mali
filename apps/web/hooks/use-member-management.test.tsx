@@ -70,6 +70,7 @@ vi.mock("./use-resource", () => ({
               version: state.version,
               post_journal: false,
               reopen_period: false,
+              view_payroll: false,
               implicit_authority: false,
             },
           ]
@@ -96,7 +97,11 @@ it("stages role and permission edits without writing until explicit save", async
   const { result, rerender } = renderHook(useMemberManagement);
   act(() => result.current.openMember(member));
   act(() =>
-    result.current.setAccessValue({ post_journal: true, reopen_period: false }),
+    result.current.setAccessValue({
+      post_journal: true,
+      reopen_period: false,
+      view_payroll: true,
+    }),
   );
   expect(api).not.toHaveBeenCalled();
   state.version = 5;
@@ -107,7 +112,7 @@ it("stages role and permission edits without writing until explicit save", async
     "/companies/c/accounting/permissions/m",
     expect.objectContaining({
       version: 4,
-      body: { post_journal: true, reopen_period: false },
+      body: { post_journal: true, reopen_period: false, view_payroll: true },
     }),
   );
 });

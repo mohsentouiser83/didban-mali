@@ -26,15 +26,23 @@ CODE_ERRORS = {
 }
 
 
+def is_code_pattern_valid(code: str, level: str | None, parent_code: str | None = None) -> bool:
+    if level is None:
+        return True
+    pattern = CODE_REGEX.get(level)
+    if pattern is None or not pattern.fullmatch(code):
+        return False
+    if level != "group":
+        if not parent_code or not code.startswith(parent_code):
+            return False
+    return True
+
+
 def validate_code_pattern(code: str, level: str | None, parent_code: str | None = None) -> None:
     if level is None:
         return
-    pattern = CODE_REGEX.get(level)
-    if pattern is None or not pattern.fullmatch(code):
+    if not is_code_pattern_valid(code, level, parent_code):
         raise DomainError("invalid_account_code_pattern", CODE_ERRORS[level], fields={"code": CODE_ERRORS[level]})
-    if level != "group":
-        if not parent_code or not code.startswith(parent_code):
-            raise DomainError("invalid_account_code_pattern", CODE_ERRORS[level], fields={"code": CODE_ERRORS[level]})
 
 
 def generate_next_code(db: Session, company: str, level: str, parent_code: str | None = None) -> str:
@@ -46,9 +54,18 @@ def generate_next_code(db: Session, company: str, level: str, parent_code: str |
             if 1 <= candidate_num <= 99:
                 candidate = f"{candidate_num:02d}"
                 if candidate not in existing:
+                    validate_code_pattern(candidate, level, None)
                     return candidate
         raise DomainError("account_code_exhausted", "ظرفیت کدهای دو رقمی گروه تکمیل شده است.", 409, {"code": "ظرفیت کدهای گروه تکمیل شده است."})
     require(bool(parent_code), "account_parent_required", "حساب بالادست را انتخاب کنید.")
+    parent_level = PARENT_LEVEL[level]
+    if not CODE_REGEX[parent_level].fullmatch(parent_code or ""):
+        raise DomainError(
+            "legacy_parent_code_incompatible",
+            "کد حساب بالادست با الگوی ۴ سطحی سازگار نیست؛ امکان تولید خودکار یا افزودن زیرمجموعه با الگوی جدید زیر این کد قدیمی وجود ندارد.",
+            409,
+            {"parent_id": "کد حساب بالادست با الگوی جدید سازگار نیست."},
+        )
     prefix = parent_code or ""
     target_len = len(prefix) + 2
     nums = [
@@ -60,12 +77,12 @@ def generate_next_code(db: Session, company: str, level: str, parent_code: str |
     for candidate_num in [*range(start, 100), *range(1, start)]:
         if 1 <= candidate_num <= 99:
             candidate = f"{prefix}{candidate_num:02d}"
-            if candidate not in existing:
+            if candidate not in existing and is_code_pattern_valid(candidate, level, parent_code):
                 return candidate
     if level == "detail":
         for candidate_num in range(100, 1000):
             candidate = f"{prefix}{candidate_num:03d}"
-            if candidate not in existing:
+            if candidate not in existing and is_code_pattern_valid(candidate, level, parent_code):
                 return candidate
     raise DomainError("account_code_exhausted", "ظرفیت کدهای زیرمجموعه این سرفصل تکمیل شده است.", 409, {"code": "ظرفیت کدهای این سرفصل تکمیل شده است."})
 
@@ -96,18 +113,32 @@ def validate_hierarchy(
     return parent_code
 
 
-def save_hierarchy(db: Session, company: str, item: Account, level: str | None, parent_id: str | None) -> None:
+def save_hierarchy(
+    db: Session,
+    company: str,
+    item: Account,
+    level: str | None,
+    parent_id: str | None,
+    code_status: str = "standard",
+) -> None:
     hierarchy = db.scalar(select(AccountHierarchy).where(
         AccountHierarchy.company_id == company, AccountHierarchy.account_id == item.id,
     ))
     if hierarchy is None and level:
-        hierarchy = AccountHierarchy(company_id=company, account_id=item.id, level=level, parent_id=parent_id)
+        hierarchy = AccountHierarchy(
+            company_id=company,
+            account_id=item.id,
+            level=level,
+            parent_id=parent_id,
+            code_status=code_status,
+        )
         db.add(hierarchy)
     elif hierarchy is not None:
         if level is None:
             db.delete(hierarchy)
         else:
             hierarchy.level, hierarchy.parent_id = level, parent_id
+            hierarchy.code_status = code_status
     db.flush()
 
 
@@ -176,6 +207,14 @@ def enrich_accounts(db: Session, company: str, rows: list[dict[str, Any]]) -> li
         parent = parents.get(info.parent_id) if info else None
         level = info.level if info else None
         has_children = row["id"] in parent_ids_with_children
+        code_valid = is_code_pattern_valid(row["code"], level, parent.code if parent else None) if level else None
+        code_status = info.code_status if info else None
+        if info and not code_valid:
+            code_status = "legacy"
+        can_add_child = (
+            level in ("group", "general", "subsidiary")
+            and bool(CODE_REGEX[level].fullmatch(row["code"]))
+        )
         row.update(
             level=level,
             parent_id=info.parent_id if info else None,
@@ -184,6 +223,9 @@ def enrich_accounts(db: Session, company: str, rows: list[dict[str, Any]]) -> li
             role=roles.get(row["id"]),
             has_children=has_children,
             postable=bool(row.get("active", True)) and level != "group" and not has_children,
+            code_status=code_status,
+            code_pattern_valid=code_valid,
+            can_add_standard_child=can_add_child,
         )
     return rows
 
@@ -209,18 +251,22 @@ def resolve_account_code(
     level: str | None,
     parent_code: str | None,
     item: Account | None,
-) -> str:
+    *,
+    preserve_legacy: bool = False,
+) -> tuple[str, str]:
     raw = code.strip() if isinstance(code, str) else ""
     if item:
         value = raw or item.code
         if value != item.code:
             raise DomainError("account_code_immutable", "کد حساب ثبت‌شده تغییر نمی‌کند.", 409, {"code": "کد حساب ثبت‌شده تغییر نمی‌کند."})
         if level is not None:
+            if preserve_legacy and not is_code_pattern_valid(value, level, parent_code):
+                return value, "legacy"
             validate_code_pattern(value, level, parent_code)
-        return value
+        return value, "standard"
     if not raw:
         if level in LEVELS:
-            return generate_next_code(db, company, level, parent_code)
+            return generate_next_code(db, company, level, parent_code), "standard"
         raise DomainError("account_code_required", "کد حساب را وارد کنید.", fields={"code": "کد حساب لازم است."})
     if len(raw) > 100:
         raise DomainError("account_code_required", "کد حساب بیش از حد طولانی است.", fields={"code": "کد حساب بیش از حد طولانی است."})
@@ -228,8 +274,9 @@ def resolve_account_code(
     duplicate = db.scalar(select(Account.id).where(Account.company_id == company, Account.code == raw))
     if duplicate:
         raise DomainError("duplicate_account_code", "کد حساب تکراری است.", 409, {"code": "این کد حساب موجود است."})
-    return raw
+    return raw, "standard"
 
 
 def require_manual_code(db: Session, company: str, code: str | None, item: Account | None) -> str:
-    return resolve_account_code(db, company, code, None, None, item)
+    resolved, _ = resolve_account_code(db, company, code, None, None, item)
+    return resolved

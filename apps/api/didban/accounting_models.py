@@ -2,7 +2,16 @@
 
 from datetime import date
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, Date, ForeignKeyConstraint, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKeyConstraint,
+    String,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .models import Base, Entity, Tenant, Versioned
@@ -27,10 +36,12 @@ class AccountHierarchy(Tenant, Base):
         CheckConstraint("level IN ('group', 'general', 'subsidiary', 'detail')", name="account_hierarchy_level"),
         CheckConstraint("(level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)", name="account_hierarchy_parent"),
         CheckConstraint("parent_id IS NULL OR parent_id != account_id", name="account_hierarchy_no_self_parent"),
+        CheckConstraint("code_status IN ('standard', 'legacy')", name="account_hierarchy_code_status"),
     )
     account_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     level: Mapped[str] = mapped_column(String(20))
     parent_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    code_status: Mapped[str] = mapped_column(String(20), default="standard", server_default="standard")
 
 
 class Draft(Entity, Tenant, Versioned, Base):
@@ -59,3 +70,27 @@ class AccountingPermission(Entity, Tenant, Versioned, Base):
     membership_id: Mapped[str] = mapped_column(String(36))
     post_journal: Mapped[bool] = mapped_column(Boolean, default=False)
     reopen_period: Mapped[bool] = mapped_column(Boolean, default=False)
+    view_payroll: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+
+
+class AccountDetailLink(Entity, Tenant, Base):
+    """Explicit allowed relationship between a detail account, subsidiary accounts, and an optional counterparty."""
+
+    __tablename__ = "account_detail_links"
+    __table_args__ = (
+        UniqueConstraint("company_id", "detail_account_id", "subsidiary_account_id"),
+        ForeignKeyConstraint(
+            ["company_id", "detail_account_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "subsidiary_account_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "counterparty_id"],
+            ["commercial_counterparties.company_id", "commercial_counterparties.id"],
+        ),
+    )
+    detail_account_id: Mapped[str] = mapped_column(String(36))
+    subsidiary_account_id: Mapped[str] = mapped_column(String(36))
+    counterparty_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)

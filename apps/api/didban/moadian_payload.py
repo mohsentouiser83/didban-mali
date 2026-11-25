@@ -76,14 +76,14 @@ def _whole_rial(value: object) -> int:
     return int(exact)
 
 
-def _sale_line(invoice: dict) -> tuple[int, int, int]:
+def _sale_lines(invoice: dict, commercial_lines: list[dict] | None = None) -> tuple[list[dict], int, int, int]:
     source = invoice.get("source") or {}
     require(
         invoice.get("basis") == "native_invoice"
         and invoice.get("direction") == "sale"
         and invoice.get("status") == "available"
         and invoice.get("unit") == "IRR"
-        and source.get("kind") in ("sale_goods", "sale_service")
+        and source.get("kind") in ("sale_goods", "sale_service", "commercial_sale")
         and source.get("unit") in ("IRR", "TOMAN")
         and not invoice.get("source_history")
         and not source.get("replacement_of")
@@ -93,6 +93,36 @@ def _sale_line(invoice: dict) -> tuple[int, int, int]:
         "برای ارسال، فاکتور فروش بومی با سند اصلی معتبر لازم است.",
         409,
     )
+    if source["kind"] == "commercial_sale" and commercial_lines:
+        lines_out = []
+        tprdis = 0
+        tdis = 0
+        tadis = 0
+        for cl in commercial_lines:
+            qty = cl["quantity"]
+            require(type(qty) is int and qty > 0, "moadian_stock_quantity", "تعداد کالای فاکتور معتبر نیست.", 409)
+            fee = _whole_rial(cl["unit_price_irr"])
+            prdis = qty * fee
+            disc = int(Decimal(cl["line_discount_irr"]) + Decimal(cl["allocated_invoice_discount_irr"]))
+            adis = _whole_rial(cl["net_amount_irr"])
+            require(prdis - disc == adis, "moadian_amount_mismatch", "جمع ردیف فاکتور تجاری تطابق ندارد.", 409)
+            tprdis += prdis
+            tdis += disc
+            tadis += adis
+            lines_out.append(
+                {
+                    "am": qty,
+                    "fee": fee,
+                    "prdis": prdis,
+                    "dis": disc,
+                    "adis": adis,
+                    "tsstam": adis,
+                    "sstt": cl.get("description", "")[:400],
+                    "base_unit": cl.get("unit"),
+                }
+            )
+        return lines_out, tprdis, tdis, tadis
+
     total = _whole_rial(invoice.get("amount"))
     require(
         total == _whole_rial(source.get("amount")),
@@ -101,7 +131,7 @@ def _sale_line(invoice: dict) -> tuple[int, int, int]:
         409,
     )
     if source["kind"] == "sale_service":
-        return 1, total, total
+        return [{"am": 1, "fee": total, "prdis": total, "dis": 0, "adis": total, "tsstam": total}], total, 0, total
     quantity = source.get("quantity")
     require(
         type(quantity) is int and quantity > 0,
@@ -116,12 +146,27 @@ def _sale_line(invoice: dict) -> tuple[int, int, int]:
         "مبلغ فاکتور با تعداد و قیمت واحد ثبت‌شده برابر نیست.",
         409,
     )
-    return quantity, unit_price, total
+    return (
+        [
+            {
+                "am": quantity,
+                "fee": unit_price,
+                "prdis": total,
+                "dis": 0,
+                "adis": total,
+                "tsstam": total,
+                "sstt": source.get("item_name"),
+            }
+        ],
+        total,
+        0,
+        total,
+    )
 
 
-def can_build(invoice: dict) -> bool:
+def can_build(invoice: dict, commercial_lines: list[dict] | None = None) -> bool:
     try:
-        _sale_line(invoice)
+        _sale_lines(invoice, commercial_lines)
     except DomainError:
         return False
     return True
@@ -132,6 +177,8 @@ def build_payload(
     data: MoadianInvoiceInput,
     memory_id: str,
     seller_tax_number: str,
+    *,
+    commercial_lines: list[dict] | None = None,
 ) -> dict:
     require(
         re.fullmatch(FISCAL_MEMORY_PATTERN, memory_id) is not None
@@ -146,7 +193,7 @@ def build_payload(
         "نسخه فاکتور تغییر کرده است. فاکتور را دوباره انتخاب کنید.",
         409,
     )
-    quantity, unit_price, total = _sale_line(invoice)
+    sale_lines, tprdis, tdis, tadis = _sale_lines(invoice, commercial_lines)
     issued_at = data.issued_at
     issue_date = issued_at.astimezone(TEHRAN).date()
     require(
@@ -167,31 +214,35 @@ def build_payload(
         # RC_IITP.IS v7.5 §7-5 specifies a ten-character hexadecimal serial.
         "inno": serial,
         "inp": 1,
-        "ins": 1,
+        "ins": data.invoice_subject,
         "tins": seller_tax_number,
         "tob": 1 if data.buyer_type == "natural" else 2,
         "tinb": data.buyer_tax_number,
-        "tprdis": total,
-        "tdis": 0,
-        "tadis": total,
+        "tprdis": tprdis,
+        "tdis": tdis,
+        "tadis": tadis,
         "tvam": 0,
         "todam": 0,
-        "tbill": total,
+        "tbill": tadis,
         "setm": 2,
     }
-    item = {
-        "sstid": data.item_tax_id,
-        "mu": data.unit_code,
-        "am": quantity,
-        "fee": unit_price,
-        "prdis": total,
-        "dis": 0,
-        "adis": total,
-        "vra": 0,
-        "vam": 0,
-        "tsstam": total,
-    }
-    title = invoice["source"].get("item_name")
-    if title:
-        item["sstt"] = title[:400]
-    return {"header": header, "body": [item], "payments": []}
+    if data.invoice_subject != 1 and data.reference_tax_id:
+        header["irtaxid"] = data.reference_tax_id
+    body = []
+    for sl in sale_lines:
+        item = {
+            "sstid": data.item_tax_id,
+            "mu": data.unit_code,
+            "am": sl["am"],
+            "fee": sl["fee"],
+            "prdis": sl["prdis"],
+            "dis": sl["dis"],
+            "adis": sl["adis"],
+            "vra": 0,
+            "vam": 0,
+            "tsstam": sl["tsstam"],
+        }
+        if sl.get("sstt"):
+            item["sstt"] = str(sl["sstt"])[:400]
+        body.append(item)
+    return {"header": header, "body": body, "payments": []}

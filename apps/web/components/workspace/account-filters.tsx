@@ -38,6 +38,17 @@ export function AccountFilters({ view }: { view: ReturnType<typeof useLedgerAcco
         </Field>
       </div>}
       {view.filtersActive && <Button variant="ghost" onClick={view.resetFilters}>پاک‌کردن فیلترها</Button>}
+      {view.hasExpandableNodes && (
+        <div className="ms-auto flex items-center gap-2">
+          <Button
+            variant="ghost"
+            className="text-xs"
+            onClick={view.allCollapsed ? view.expandAll : view.collapseAll}
+          >
+            {view.allCollapsed ? "باز کردن همه" : "بستن همه"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

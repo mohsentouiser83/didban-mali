@@ -19,6 +19,80 @@ export const parentAccountLevel = (level: string): AccountLevel | null =>
         ? "group"
         : null;
 
+export const childAccountLevel = (level?: string | null): AccountLevel | null =>
+  level === "group"
+    ? "general"
+    : level === "general"
+      ? "subsidiary"
+      : level === "subsidiary"
+        ? "detail"
+        : null;
+
+export interface AccountTreeRow {
+  account: LedgerAccount;
+  depth: number;
+  hasChildren: boolean;
+  childCount: number;
+  expanded: boolean;
+  childLevel: AccountLevel | null;
+}
+
+export function buildAccountTreeRows(
+  accounts: LedgerAccount[],
+  collapsedIds: ReadonlySet<string>,
+): AccountTreeRow[] {
+  const byId = new Map(accounts.map((account) => [account.id, account]));
+  const childrenMap = new Map<string, LedgerAccount[]>();
+  const roots: LedgerAccount[] = [];
+
+  for (const account of accounts) {
+    const parentId = account.parent_id;
+    if (parentId && parentId !== account.id && byId.has(parentId)) {
+      const list = childrenMap.get(parentId) ?? [];
+      list.push(account);
+      childrenMap.set(parentId, list);
+    } else {
+      roots.push(account);
+    }
+  }
+
+  const byCode = (a: LedgerAccount, b: LedgerAccount) =>
+    a.code.localeCompare(b.code, "en", { numeric: true });
+  roots.sort(byCode);
+  for (const list of childrenMap.values()) {
+    list.sort(byCode);
+  }
+
+  const rows: AccountTreeRow[] = [];
+  const visited = new Set<string>();
+
+  function visit(account: LedgerAccount, depth: number) {
+    if (visited.has(account.id)) return;
+    visited.add(account.id);
+    const children = childrenMap.get(account.id) ?? [];
+    const hasChildren = children.length > 0;
+    const expanded = !collapsedIds.has(account.id);
+    rows.push({
+      account,
+      depth,
+      hasChildren,
+      childCount: children.length,
+      expanded,
+      childLevel: childAccountLevel(account.level),
+    });
+    if (hasChildren && expanded) {
+      for (const child of children) {
+        visit(child, depth + 1);
+      }
+    }
+  }
+
+  for (const root of roots) {
+    visit(root, 0);
+  }
+  return rows;
+}
+
 export function isAccountPostable(account: Pick<LedgerAccount, "active" | "level" | "has_children" | "postable">): boolean {
   if (!account.active) return false;
   if (account.level === "group") return false;
@@ -72,6 +146,10 @@ export function suggestAccountCode(
   }
   const parent = accounts.find((a) => a.id === parentId);
   if (!parent) return "";
+  const parentExpectedLen = level === "general" ? 2 : level === "subsidiary" ? 4 : level === "detail" ? 6 : 0;
+  if (!parentExpectedLen || !new RegExp(`^[0-9]{${parentExpectedLen}}$`).test(parent.code)) {
+    return "";
+  }
   const prefix = parent.code;
   const targetLen = prefix.length + 2;
   const nums = accounts
@@ -146,6 +224,7 @@ export const ACCOUNT_ROLE_OPTIONS = [
   { value: "payroll_payable", label: "حقوق پرداختنی" },
   { value: "insurance_payable", label: "بیمه پرداختنی" },
   { value: "payroll_tax_payable", label: "مالیات حقوق پرداختنی" },
+  { value: "other_payroll_deductions", label: "سایر کسورات پرداختنی" },
 ];
 
 export function treasuryRoleLabel(role?: string | null): string {

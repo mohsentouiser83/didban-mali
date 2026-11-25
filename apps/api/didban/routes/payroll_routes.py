@@ -8,14 +8,68 @@ from ..payroll_schemas import (
     BatchTimesheetInput,
     ContractInput,
     EmployeeInput,
+    PayrollPaymentDraftInput,
     PayrollPostJournalInput,
     PayrollRunCreateInput,
     PayrollSlipTimesheetInput,
+    PayrollWorkshopInput,
     UpdateContractInput,
     UpdateEmployeeInput,
+    UpdatePayrollWorkshopInput,
 )
 
 router = APIRouter()
+
+
+# --- Workshops Endpoints ---
+
+
+@router.get(C + "/payroll/workshops")
+def list_workshops(company_id: str, request: Request):
+    with access(request, company_id) as (db, user, _m):
+        return service.list_workshops(db, company_id, user)
+
+
+@router.post(C + "/payroll/workshops", status_code=201)
+def add_workshop(company_id: str, data: PayrollWorkshopInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.add_workshop(db, company_id, user, payload),
+    )
+
+
+@router.patch(C + "/payroll/workshops/{workshop_id}")
+def update_workshop(
+    company_id: str, workshop_id: str, data: UpdatePayrollWorkshopInput, request: Request
+):
+    payload = data.model_dump(exclude_unset=True)
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.update_workshop(
+            db, company_id, user, workshop_id, payload, expected(request)
+        ),
+    )
+
+
+@router.post(C + "/payroll/runs/{run_id}/payment-draft", status_code=201)
+def create_payroll_payment_draft(
+    company_id: str, run_id: str, data: PayrollPaymentDraftInput, request: Request
+):
+    payload = data.model_dump()
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.create_payroll_payment_draft(db, company_id, user, run_id, payload),
+    )
 
 
 # --- Employees Endpoints ---
@@ -50,13 +104,13 @@ def list_employees(
 
 @router.get(C + "/employees/{employee_id}")
 def get_employee(company_id: str, employee_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _m):
-        return service.get_employee(db, company_id, employee_id)
+    with access(request, company_id) as (db, user, _m):
+        return service.get_employee(db, company_id, employee_id, user=user)
 
 
 @router.patch(C + "/employees/{employee_id}")
 def update_employee(company_id: str, employee_id: str, data: UpdateEmployeeInput, request: Request):
-    payload = {k: v for k, v in data.model_dump().items() if v is not None}
+    payload = data.model_dump(exclude_unset=True)
     return mutate(
         request,
         company_id,
@@ -70,12 +124,13 @@ def update_employee(company_id: str, employee_id: str, data: UpdateEmployeeInput
 
 @router.delete(C + "/employees/{employee_id}")
 def delete_employee(company_id: str, employee_id: str, request: Request):
+    version = expected(request) if "if-match" in request.headers else None
     return mutate(
         request,
         company_id,
         {},
         "read",
-        lambda db, user: service.delete_employee(db, company_id, user, employee_id),
+        lambda db, user: service.delete_employee(db, company_id, user, employee_id, version),
     )
 
 
@@ -111,13 +166,13 @@ def list_contracts(
 
 @router.get(C + "/contracts/{contract_id}")
 def get_contract(company_id: str, contract_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _m):
-        return service.get_contract(db, company_id, contract_id)
+    with access(request, company_id) as (db, user, _m):
+        return service.get_contract(db, company_id, contract_id, user=user)
 
 
 @router.patch(C + "/contracts/{contract_id}")
 def update_contract(company_id: str, contract_id: str, data: UpdateContractInput, request: Request):
-    payload = {k: v for k, v in data.model_dump().items() if v is not None}
+    payload = data.model_dump(exclude_unset=True)
     return mutate(
         request,
         company_id,
@@ -160,8 +215,8 @@ def list_payroll_runs(
 
 @router.get(C + "/payroll/runs/{run_id}")
 def get_payroll_run(company_id: str, run_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _m):
-        return service.get_payroll_run(db, company_id, run_id)
+    with access(request, company_id) as (db, user, _m):
+        return service.get_payroll_run(db, company_id, run_id, user=user)
 
 
 @router.patch(C + "/payroll/runs/{run_id}/slips/{slip_id}")

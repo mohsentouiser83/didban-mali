@@ -43,6 +43,7 @@ export function AccountingPermissionsPanel({
               <TableHead>عضو</TableHead>
               <TableHead>ثبت سند</TableHead>
               <TableHead>بازگشایی دوره</TableHead>
+              <TableHead>حقوق و دستمزد</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,10 +85,27 @@ export function AccountingPermissionsPanel({
                       />
                     )}
                   </TableCell>
+                  <TableCell>
+                    {permission.implicit_authority ? (
+                      <Badge tone="success">اختیار مدیر مالی</Badge>
+                    ) : (
+                      <Checkbox
+                        id={`payroll-${permission.membership_id}`}
+                        label={`مجوز حقوق و دستمزد برای ${permission.name}`}
+                        checked={permission.view_payroll}
+                        disabled={
+                          view.command.busy || permission.role === "viewer"
+                        }
+                        onCheckedChange={(view_payroll) =>
+                          view.change(permission, { view_payroll })
+                        }
+                      />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
-              <TableEmptyCell colSpan={3} title="عضوی پیدا نشد" />
+              <TableEmptyCell colSpan={4} title="عضوی پیدا نشد" />
             )}
           </TableBody>
         </Table>

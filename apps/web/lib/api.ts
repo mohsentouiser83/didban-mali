@@ -567,6 +567,8 @@ export interface PayrollRun {
   total_other_deductions: string;
   total_net: string;
   journal_id: string | null;
+  rate_table_year?: number;
+  rate_status?: "verified_1403" | "unverified_period_rates";
   created_by_user_id: string | null;
   version: number;
   slips?: PayrollSlip[];
@@ -641,6 +643,12 @@ export interface InsuranceDiskResponse {
   title: string;
   year: number;
   month: number;
+  workshop_code?: string;
+  employer_name?: string;
+  rate_table_year?: number;
+  rate_status?: "verified_1403" | "unverified_period_rates";
+  output_scope?: "internal_draft_only";
+  official_format_verified?: boolean;
   summary: {
     total_insured_employees: number;
     total_days_worked: number;
@@ -671,6 +679,10 @@ export interface TaxDiskResponse {
   title: string;
   year: number;
   month: number;
+  rate_table_year?: number;
+  rate_status?: "verified_1403" | "unverified_period_rates";
+  output_scope?: "internal_draft_only";
+  official_format_verified?: boolean;
   summary: {
     total_employees: number;
     total_gross_pay: string;

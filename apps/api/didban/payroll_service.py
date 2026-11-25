@@ -16,9 +16,16 @@ from .money_type import canonical_money
 from .numbering_service import allocate_number
 from .operation_models import OperationDraft
 from .payroll_engine import calculate_end_of_service, calculate_slip, d
-from .payroll_models import Employee, EmployeeContract, PayrollRun, PayrollSlip
+from .payroll_models import (
+    CompanyPayrollWorkshop,
+    Employee,
+    EmployeeContract,
+    PayrollRun,
+    PayrollSlip,
+)
 from .period_lock_service import require_open_period
-from .security import membership
+from .posting_models import NativeJournal
+from .security import require_payroll_access
 from .services import check_version, get_entity
 from .workflow import audit
 
@@ -56,6 +63,21 @@ def serialize_employee(emp: Employee) -> dict[str, Any]:
     }
 
 
+def serialize_workshop(row: CompanyPayrollWorkshop) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "company_id": row.company_id,
+        "workshop_code": row.workshop_code,
+        "employer_name": row.employer_name,
+        "tamin_branch_code": row.tamin_branch_code,
+        "tamin_branch_name": row.tamin_branch_name,
+        "tax_office_code": row.tax_office_code,
+        "address": row.address,
+        "active": row.active,
+        "version": row.version,
+    }
+
+
 def serialize_contract(con: EmployeeContract) -> dict[str, Any]:
     return {
         "id": con.id,
@@ -76,6 +98,12 @@ def serialize_contract(con: EmployeeContract) -> dict[str, Any]:
         "custom_fixed_allowances": con.custom_fixed_allowances,
         "is_insured": con.is_insured,
         "is_taxable": con.is_taxable,
+        "workshop_id": con.workshop_id,
+        "work_location": con.work_location,
+        "work_description": con.work_description,
+        "weekly_hours": con.weekly_hours or "44",
+        "conclusion_date": str(con.conclusion_date) if con.conclusion_date else None,
+        "amendment_of_contract_id": con.amendment_of_contract_id,
         "notes": con.notes,
         "version": con.version,
     }
@@ -99,6 +127,8 @@ def serialize_run(run: PayrollRun) -> dict[str, Any]:
         "total_net": run.total_net,
         "journal_id": run.journal_id,
         "created_by_user_id": run.created_by_user_id,
+        "rate_table_year": 1403,
+        "rate_status": "verified_1403" if run.year == 1403 else "unverified_period_rates",
         "version": run.version,
     }
 
@@ -136,7 +166,11 @@ def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, 
         "total_deductions": slip.total_deductions,
         "net_pay": slip.net_pay,
         "status": slip.status,
+        "attendance_status": slip.attendance_status,
         "applied_exemptions": slip.applied_exemptions or {},
+        "contract_snapshot": slip.contract_snapshot or {},
+        "calculation_meta": slip.calculation_meta or {},
+        "payment_journal_id": slip.payment_journal_id,
         "version": slip.version,
     }
     if emp:
@@ -147,12 +181,93 @@ def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, 
     return data
 
 
+def list_workshops(db: Session, company: str, user: m.User) -> dict[str, Any]:
+    require_payroll_access(db, company, user)
+    rows = db.scalars(
+        select(CompanyPayrollWorkshop)
+        .where(CompanyPayrollWorkshop.company_id == company)
+        .order_by(CompanyPayrollWorkshop.active.desc(), CompanyPayrollWorkshop.workshop_code.asc())
+    ).all()
+    return {"items": [serialize_workshop(r) for r in rows]}
+
+
+def add_workshop(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
+    ability = capabilities(db, company, user)
+    require(ability["can_prepare"], "permission_denied", "اجازه تعریف کارگاه حقوق ندارید.", 403)
+    code = data["workshop_code"].strip()
+    require(set(code) != {"0"}, "invalid_workshop_code", "کد کارگاه نمی‌تواند صفر پیش‌فرض باشد.")
+    existing = db.scalar(
+        select(CompanyPayrollWorkshop.id).where(
+            CompanyPayrollWorkshop.company_id == company,
+            CompanyPayrollWorkshop.workshop_code == code,
+        )
+    )
+    require(existing is None, "duplicate_workshop_code", "این کد کارگاه قبلاً ثبت شده است.", 409)
+    row = CompanyPayrollWorkshop(
+        company_id=company,
+        workshop_code=code,
+        employer_name=data["employer_name"].strip(),
+        tamin_branch_code=data.get("tamin_branch_code"),
+        tamin_branch_name=data.get("tamin_branch_name"),
+        tax_office_code=data.get("tax_office_code"),
+        address=data.get("address"),
+        active=bool(data.get("active", True)),
+    )
+    db.add(row)
+    db.flush()
+    audit(db, company, user.id, "payroll_workshop.created", row.id, {"workshop_code": code})
+    return serialize_workshop(row)
+
+
+def update_workshop(
+    db: Session, company: str, user: m.User, workshop_id: str, data: dict[str, Any], expected_version: int
+) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
+    ability = capabilities(db, company, user)
+    require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارگاه حقوق ندارید.", 403)
+    row = get_entity(db, CompanyPayrollWorkshop, company, workshop_id)
+    check_version(row, expected_version)
+    if "workshop_code" in data and data["workshop_code"] is not None:
+        code = data["workshop_code"].strip()
+        require(set(code) != {"0"}, "invalid_workshop_code", "کد کارگاه نمی‌تواند صفر پیش‌فرض باشد.")
+        dup = db.scalar(
+            select(CompanyPayrollWorkshop.id).where(
+                CompanyPayrollWorkshop.company_id == company,
+                CompanyPayrollWorkshop.workshop_code == code,
+                CompanyPayrollWorkshop.id != row.id,
+            )
+        )
+        require(dup is None, "duplicate_workshop_code", "این کد کارگاه قبلاً ثبت شده است.", 409)
+        row.workshop_code = code
+    if "employer_name" in data and data["employer_name"] is not None:
+        row.employer_name = data["employer_name"].strip()
+    for field in ("tamin_branch_code", "tamin_branch_name", "tax_office_code", "address"):
+        if field in data:
+            val = data[field]
+            row_val = val.strip() if isinstance(val, str) and val.strip() else None
+            setattr(row, field, row_val)
+    if "active" in data and data["active"] is not None:
+        row.active = bool(data["active"])
+    row.version += 1
+    db.flush()
+    audit(db, company, user.id, "payroll_workshop.updated", row.id, {"version": row.version})
+    return serialize_workshop(row)
+
+
 # --- Employee Operations ---
 
 
 def add_employee(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه مدیریت کارمندان ندارید.", 403)
+    if data.get("birth_date") and data.get("hire_date"):
+        require(
+            data["hire_date"] >= data["birth_date"],
+            "invalid_employee_dates",
+            "تاریخ استخدام نباید پیش از تاریخ تولد باشد.",
+        )
     if data.get("national_id"):
         require(
             not db.scalar(
@@ -215,7 +330,7 @@ def list_employees(
     search: str | None = None,
     active_only: bool = False,
 ) -> dict[str, Any]:
-    membership(db, company, user, "read")
+    require_payroll_access(db, company, user)
     stmt = select(Employee).where(Employee.company_id == company)
     if active_only:
         stmt = stmt.where(Employee.active.is_(True))
@@ -234,7 +349,9 @@ def list_employees(
     return {"items": [serialize_employee(emp) for emp in items], "total": total}
 
 
-def get_employee(db: Session, company: str, employee_id: str) -> dict[str, Any]:
+def get_employee(db: Session, company: str, employee_id: str, user: m.User | None = None) -> dict[str, Any]:
+    if user is not None:
+        require_payroll_access(db, company, user)
     emp = get_entity(db, Employee, company, employee_id)
     contracts = db.scalars(
         select(EmployeeContract)
@@ -257,16 +374,28 @@ def update_employee(
     data: dict[str, Any],
     expected_version: int | None = None,
 ) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارمند ندارید.", 403)
     emp = get_entity(db, Employee, company, employee_id)
     if expected_version is not None:
-        check_version(emp.version, expected_version)
+        check_version(emp, expected_version)
 
-    for field in (
+    required_fields = (
         "first_name",
         "last_name",
         "identity_type",
+        "marital_status",
+        "children_count",
+        "active",
+        "is_veteran_or_child",
+        "is_foreign_national",
+        "is_science_park_staff",
+        "has_disability_charge",
+        "is_underdeveloped_region",
+        "is_retired",
+    )
+    optional_fields = (
         "national_id",
         "father_name",
         "birth_date",
@@ -278,18 +407,38 @@ def update_employee(
         "account_number",
         "job_title",
         "department",
-        "marital_status",
-        "children_count",
-        "active",
-        "is_veteran_or_child",
-        "is_foreign_national",
-        "is_science_park_staff",
-        "has_disability_charge",
-        "is_underdeveloped_region",
-        "is_retired",
-    ):
-        if field in data and data[field] is not None:
+    )
+    for field in required_fields:
+        if field in data:
+            require(
+                data[field] is not None,
+                "invalid_field_value",
+                f"مقدار فیلد اجباری «{field}» نمی‌تواند خالی باشد.",
+            )
             setattr(emp, field, data[field])
+
+    for field in optional_fields:
+        if field in data:
+            val = data[field]
+            if isinstance(val, str) and not val.strip():
+                val = None
+            if field == "national_id" and val is not None:
+                dup = db.scalar(
+                    select(Employee.id).where(
+                        Employee.company_id == company,
+                        Employee.national_id == val,
+                        Employee.id != emp.id,
+                    )
+                )
+                require(not dup, "duplicate_national_id", "این کد ملی قبلاً برای کارمند دیگری ثبت شده است.", 409)
+            setattr(emp, field, val)
+
+    if emp.birth_date and emp.hire_date:
+        require(
+            emp.hire_date >= emp.birth_date,
+            "invalid_employee_dates",
+            "تاریخ استخدام نباید پیش از تاریخ تولد باشد.",
+        )
 
     emp.version += 1
     db.flush()
@@ -297,10 +446,19 @@ def update_employee(
     return serialize_employee(emp)
 
 
-def delete_employee(db: Session, company: str, user: m.User, employee_id: str) -> dict[str, Any]:
+def delete_employee(
+    db: Session,
+    company: str,
+    user: m.User,
+    employee_id: str,
+    expected_version: int | None = None,
+) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه حذف کارمند ندارید.", 403)
     emp = get_entity(db, Employee, company, employee_id)
+    if expected_version is not None:
+        check_version(emp, expected_version)
     # Check if there are contracts or slips
     has_contracts = db.scalar(
         select(EmployeeContract.id)
@@ -317,7 +475,7 @@ def delete_employee(db: Session, company: str, user: m.User, employee_id: str) -
         emp.version += 1
         db.flush()
         audit(db, company, user.id, "employee.deactivated", emp.id, {"reason": "has_dependencies"})
-        return {"status": "deactivated", "employee_id": employee_id}
+        return {"status": "deactivated", "employee_id": employee_id, "version": emp.version}
 
     db.delete(emp)
     db.flush()
@@ -329,9 +487,21 @@ def delete_employee(db: Session, company: str, user: m.User, employee_id: str) -
 
 
 def add_contract(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه مدیریت قراردادها ندارید.", 403)
     emp = get_entity(db, Employee, company, data["employee_id"])
+    if data.get("end_date") is not None:
+        require(
+            data["end_date"] >= data["start_date"],
+            "invalid_contract_dates",
+            "تاریخ پایان قرارداد نباید پیش از تاریخ شروع باشد.",
+        )
+    if data.get("workshop_id"):
+        get_entity(db, CompanyPayrollWorkshop, company, data["workshop_id"])
+    if data.get("amendment_of_contract_id"):
+        parent_con = get_entity(db, EmployeeContract, company, data["amendment_of_contract_id"])
+        require(parent_con.employee_id == emp.id, "contract_employee_mismatch", "الحاقیه باید متعلق به همان کارمند باشد.")
     contract = EmployeeContract(
         company_id=company,
         employee_id=emp.id,
@@ -350,6 +520,12 @@ def add_contract(db: Session, company: str, user: m.User, data: dict[str, Any]) 
         custom_fixed_allowances=canonical_money(data.get("custom_fixed_allowances", 0)),
         is_insured=bool(data.get("is_insured", True)),
         is_taxable=bool(data.get("is_taxable", True)),
+        workshop_id=data.get("workshop_id"),
+        work_location=data.get("work_location"),
+        work_description=data.get("work_description"),
+        weekly_hours=canonical_money(data["weekly_hours"]) if data.get("weekly_hours") is not None else "44",
+        conclusion_date=data.get("conclusion_date"),
+        amendment_of_contract_id=data.get("amendment_of_contract_id"),
         notes=data.get("notes"),
     )
     db.add(contract)
@@ -374,7 +550,7 @@ def list_contracts(
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, Any]:
-    membership(db, company, user, "read")
+    require_payroll_access(db, company, user)
     stmt = (
         select(EmployeeContract, Employee)
         .join(Employee, EmployeeContract.employee_id == Employee.id)
@@ -396,7 +572,9 @@ def list_contracts(
     return {"items": items, "total": total}
 
 
-def get_contract(db: Session, company: str, contract_id: str) -> dict[str, Any]:
+def get_contract(db: Session, company: str, contract_id: str, user: m.User | None = None) -> dict[str, Any]:
+    if user is not None:
+        require_payroll_access(db, company, user)
     con = get_entity(db, EmployeeContract, company, contract_id)
     emp = get_entity(db, Employee, company, con.employee_id)
     res = serialize_contract(con)
@@ -413,23 +591,44 @@ def update_contract(
     data: dict[str, Any],
     expected_version: int | None = None,
 ) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش قرارداد ندارید.", 403)
     con = get_entity(db, EmployeeContract, company, contract_id)
     if expected_version is not None:
-        check_version(con.version, expected_version)
+        check_version(con, expected_version)
 
-    for field in (
-        "contract_type",
-        "start_date",
-        "end_date",
-        "status",
-        "is_insured",
-        "is_taxable",
-        "notes",
-    ):
-        if field in data and data[field] is not None:
+    required_fields = ("contract_type", "start_date", "status", "is_insured", "is_taxable")
+    for field in required_fields:
+        if field in data:
+            require(
+                data[field] is not None,
+                "invalid_field_value",
+                f"مقدار فیلد اجباری «{field}» نمی‌تواند خالی باشد.",
+            )
             setattr(con, field, data[field])
+
+    for optional_field in (
+        "end_date",
+        "notes",
+        "workshop_id",
+        "work_location",
+        "work_description",
+        "conclusion_date",
+        "amendment_of_contract_id",
+    ):
+        if optional_field in data:
+            val = data[optional_field]
+            if isinstance(val, str) and not val.strip():
+                val = None
+            if optional_field == "workshop_id" and val is not None:
+                get_entity(db, CompanyPayrollWorkshop, company, val)
+            if optional_field == "amendment_of_contract_id" and val is not None:
+                parent_con = get_entity(db, EmployeeContract, company, val)
+                require(parent_con.employee_id == con.employee_id, "contract_employee_mismatch", "الحاقیه باید متعلق به همان کارمند باشد.")
+            setattr(con, optional_field, val)
+    if "weekly_hours" in data and data["weekly_hours"] is not None:
+        con.weekly_hours = canonical_money(data["weekly_hours"])
 
     for money_field in (
         "base_salary",
@@ -441,8 +640,20 @@ def update_contract(
         "tenure_allowance",
         "custom_fixed_allowances",
     ):
-        if money_field in data and data[money_field] is not None:
+        if money_field in data:
+            require(
+                data[money_field] is not None,
+                "invalid_field_value",
+                f"مبلغ «{money_field}» نمی‌تواند خالی باشد.",
+            )
             setattr(con, money_field, canonical_money(data[money_field]))
+
+    if con.end_date is not None:
+        require(
+            con.end_date >= con.start_date,
+            "invalid_contract_dates",
+            "تاریخ پایان قرارداد نباید پیش از تاریخ شروع باشد.",
+        )
 
     con.version += 1
     db.flush()
@@ -465,6 +676,7 @@ def _month_days(year: int, month: int) -> int:
 
 
 def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ایجاد لیست حقوق ندارید.", 403)
 
@@ -550,9 +762,13 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
         )
         emp_dict = serialize_employee(emp)
         contract_dict = serialize_contract(contract)
-        timesheet = {"work_days": days_in_month}
+        month_end = next_month - timedelta(days=1)
+        eff_start = max(month_start, contract.start_date, emp.hire_date or month_start)
+        eff_end = min(month_end, contract.end_date or month_end)
+        active_days = max(0, (eff_end - eff_start).days + 1)
+        timesheet = {"work_days": active_days}
 
-        calc = calculate_slip(emp_dict, contract_dict, timesheet, days_in_month=days_in_month)
+        calc = calculate_slip(emp_dict, contract_dict, timesheet, days_in_month=days_in_month, year=year)
 
         slip = PayrollSlip(
             company_id=company,
@@ -585,7 +801,15 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
             total_deductions=calc["total_deductions"],
             net_pay=calc["net_pay"],
             status="unpaid",
+            attendance_status="prorated_needs_review" if active_days < days_in_month else "full_month_default",
             applied_exemptions=calc["applied_exemptions"],
+            contract_snapshot=contract_dict,
+            calculation_meta={
+                "rate_table_year": calc["rate_table_year"],
+                "rate_status": calc["rate_status"],
+                "days_in_month": days_in_month,
+                "active_days": active_days,
+            },
         )
         db.add(slip)
 
@@ -621,7 +845,7 @@ def list_payroll_runs(
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, Any]:
-    membership(db, company, user, "read")
+    require_payroll_access(db, company, user)
     stmt = select(PayrollRun).where(PayrollRun.company_id == company)
     if period_id:
         stmt = stmt.where(PayrollRun.period_id == period_id)
@@ -632,7 +856,9 @@ def list_payroll_runs(
     return {"items": [serialize_run(r) for r in runs], "total": total}
 
 
-def get_payroll_run(db: Session, company: str, run_id: str) -> dict[str, Any]:
+def get_payroll_run(db: Session, company: str, run_id: str, user: m.User | None = None) -> dict[str, Any]:
+    if user is not None:
+        require_payroll_access(db, company, user)
     run = get_entity(db, PayrollRun, company, run_id)
     stmt = (
         select(PayrollSlip, Employee)
@@ -655,6 +881,7 @@ def update_slip_timesheet(
     slip_id: str,
     timesheet_data: dict[str, Any],
 ) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارکرد ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
@@ -699,13 +926,20 @@ def update_slip_timesheet(
         "other_deductions": slip.other_deductions,
         "bonus_amount": slip.bonus_amount,
     }
-    calc = calculate_slip(emp_dict, con_dict, ts_dict, days_in_month=days_in_month)
+    calc = calculate_slip(emp_dict, con_dict, ts_dict, days_in_month=days_in_month, year=run.year)
 
     for k, v in calc.items():
         if k == "applied_exemptions":
             slip.applied_exemptions = v
         elif hasattr(slip, k):
             setattr(slip, k, v)
+    slip.attendance_status = "verified"
+    slip.calculation_meta = {
+        **(slip.calculation_meta or {}),
+        "rate_table_year": calc["rate_table_year"],
+        "rate_status": calc["rate_status"],
+        "days_in_month": days_in_month,
+    }
 
     slip.version += 1
     db.flush()
@@ -722,6 +956,7 @@ def batch_update_timesheets(
     run_id: str,
     slips_data: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش کارکرد ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
@@ -769,12 +1004,20 @@ def batch_update_timesheets(
                 "bonus_amount": slip.bonus_amount,
             },
             days_in_month=days_in_month,
+            year=run.year,
         )
         for k, v in calc.items():
             if k == "applied_exemptions":
                 slip.applied_exemptions = v
             elif hasattr(slip, k):
                 setattr(slip, k, v)
+        slip.attendance_status = "verified"
+        slip.calculation_meta = {
+            **(slip.calculation_meta or {}),
+            "rate_table_year": calc["rate_table_year"],
+            "rate_status": calc["rate_status"],
+            "days_in_month": days_in_month,
+        }
         slip.version += 1
 
     db.flush()
@@ -895,6 +1138,7 @@ def create_payroll_operation_draft(
     """Generates a balanced native operation draft for identifying the monthly payroll liabilities and expenses."""
     from .operation_service import create as create_operation
 
+    require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ایجاد سند شناسایی حقوق ندارید.", 403)
     run = get_entity(db, PayrollRun, company, run_id)
@@ -945,7 +1189,7 @@ def get_employee_settlement(
     calculation_date: date | None = None,
     used_leave_days: Decimal = Decimal(0),
 ) -> dict[str, Any]:
-    membership(db, company, user, "read")
+    require_payroll_access(db, company, user)
     emp = get_entity(db, Employee, company, employee_id)
     as_of = calculation_date or date.today()
 
@@ -975,6 +1219,83 @@ def get_employee_settlement(
     }
 
 
+def create_payroll_payment_draft(
+    db: Session,
+    company: str,
+    user: m.User,
+    run_id: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    """Prepare a balanced payroll settlement draft linked to specific unpaid slips (effect only on human post)."""
+    from .operation_service import create as create_operation
+
+    require_payroll_access(db, company, user, write=True)
+    ability = capabilities(db, company, user)
+    require(ability["can_prepare"], "permission_denied", "اجازه ایجاد پیش‌نویس پرداخت حقوق ندارید.", 403)
+    run = get_entity(db, PayrollRun, company, run_id)
+    check_version(run, data["expected_version"])
+    require(run.status == "posted", "payroll_run_not_posted", "ابتدا سند شناسایی لیست حقوق باید ثبت نهایی شده باشد.", 409)
+
+    stmt = select(PayrollSlip).where(
+        PayrollSlip.company_id == company,
+        PayrollSlip.payroll_run_id == run.id,
+        PayrollSlip.status == "unpaid",
+    )
+    if data.get("slip_ids"):
+        stmt = stmt.where(PayrollSlip.id.in_(data["slip_ids"]))
+    slips = list(db.scalars(stmt))
+    require(bool(slips), "no_unpaid_slips", "فیش پرداخت‌نشدهٔ معتبری برای پرداخت یافت نشد.", 409)
+    total_pay = sum((d(s.net_pay) for s in slips), Decimal("0"))
+    require(total_pay > 0, "zero_payroll_payment", "جمع قابل پرداخت صفر است.", 409)
+
+    op_data = {
+        "kind": "payroll_payment",
+        "source_reference": f"payroll-pay-{run.id[:8]}-{m.uid()[:6]}",
+        "payroll_run_id": run.id,
+        "slip_ids": [s.id for s in slips],
+        "period_id": run.period_id,
+        "date": data["date"],
+        "party_id": "پرسنل و کارکنان",
+        "description": data.get("description") or f"پرداخت حقوق {run.title}",
+        "unit": "IRR",
+        "amounts": {"amount": canonical_money(total_pay)},
+        "accounts": {
+            "payroll_payable": data["payroll_payable_account_id"],
+            "bank_a": data["bank_account_id"],
+        },
+    }
+    res = create_operation(db, company, user, op_data)
+    audit(db, company, user.id, "payroll_run.payment_draft_created", run.id, {"operation_id": res["operation_id"]})
+    return {"run_id": run.id, "slip_ids": [s.id for s in slips], "amount": canonical_money(total_pay), "operation": res}
+
+
+def on_payroll_payment_posted(db: Session, company: str, user: m.User, draft: Draft, journal: NativeJournal) -> None:
+    """Mark selected payroll slips paid only upon explicit human journal posting."""
+    op = db.scalar(
+        select(OperationDraft).where(
+            OperationDraft.company_id == company,
+            OperationDraft.draft_id == draft.id,
+            OperationDraft.kind == "payroll_payment",
+        )
+    )
+    if op is None:
+        return
+    slip_ids = op.payload.get("slip_ids") or []
+    if not slip_ids:
+        return
+    for slip in db.scalars(
+        select(PayrollSlip).where(
+            PayrollSlip.company_id == company,
+            PayrollSlip.id.in_(slip_ids),
+            PayrollSlip.status == "unpaid",
+        )
+    ):
+        slip.status = "paid"
+        slip.payment_journal_id = journal.id
+        slip.version += 1
+    db.flush()
+
+
 # --- Statutory Insurance & Tax Diskettes ---
 
 
@@ -984,10 +1305,9 @@ def export_insurance_disk(
     user: m.User,
     run_id: str,
 ) -> dict[str, Any]:
-    """Generates standard Iranian Social Security Insurance diskette (DSKKAR00 & DSKWOR00)."""
-    membership(db, company, user, "read")
+    """Generates internal working draft of SSO list (requires registered workshop and real IDs; not officially certified)."""
+    require_payroll_access(db, company, user)
     run = get_entity(db, PayrollRun, company, run_id)
-    comp = db.get(m.Company, company)
 
     stmt = (
         select(PayrollSlip, Employee, EmployeeContract)
@@ -998,8 +1318,28 @@ def export_insurance_disk(
     )
     rows = db.execute(stmt).all()
 
-    workshop_code = "0000000000"
-    employer_name = comp.name if comp else "کارگاه"
+    workshop = None
+    for _slip, _emp, con in rows:
+        if con and con.workshop_id:
+            workshop = db.get(CompanyPayrollWorkshop, con.workshop_id)
+            if workshop and workshop.company_id == company and workshop.active:
+                break
+            workshop = None
+    if workshop is None:
+        workshop = db.scalar(
+            select(CompanyPayrollWorkshop)
+            .where(CompanyPayrollWorkshop.company_id == company, CompanyPayrollWorkshop.active.is_(True))
+            .order_by(CompanyPayrollWorkshop.created_at.desc())
+            .limit(1)
+        )
+    require(
+        workshop is not None and bool(workshop.workshop_code) and set(workshop.workshop_code) != {"0"},
+        "payroll_workshop_missing",
+        "برای تهیه خروجی بیمه، کارگاه فعال با کد کارگاه واقعی ثبت کنید.",
+        409,
+    )
+    workshop_code = workshop.workshop_code
+    employer_name = workshop.employer_name
 
     year_str = str(run.year)[-2:] if len(str(run.year)) == 4 else str(run.year)
     month_str = f"{run.month:02d}"
@@ -1014,11 +1354,26 @@ def export_insurance_disk(
     ui_rows = []
 
     for idx, (slip, emp, con) in enumerate(rows, start=1):
-        # Only include slips with insured earnings > 0
         emp_share = d(slip.employee_insurance)
         empr_share = d(slip.employer_insurance)
         insured_earn = d(slip.insured_earnings)
         days = int(d(slip.work_days))
+
+        nat_id = (emp.national_id or "").strip()
+        insurance_num = (emp.insurance_number or "").strip()
+        require(
+            bool(nat_id) and set(nat_id) != {"0"},
+            "payroll_employee_identity_missing",
+            f"کد ملی واقعی کارمند {emp.employee_code} برای خروجی بیمه ثبت نشده است.",
+            409,
+        )
+        if con is None or con.is_insured:
+            require(
+                bool(insurance_num) and set(insurance_num) != {"0"},
+                "payroll_employee_identity_missing",
+                f"شماره بیمه واقعی کارمند {emp.employee_code} برای خروجی بیمه ثبت نشده است.",
+                409,
+            )
 
         total_insured += 1
         total_days += days
@@ -1026,14 +1381,11 @@ def export_insurance_disk(
         total_emp_share += emp_share
         total_empr_share += empr_share
 
-        insurance_num = emp.insurance_number or "0000000000"
-        nat_id = emp.national_id or "0000000000"
         fname = emp.first_name or ""
         lname = emp.last_name or ""
         fath_name = emp.father_name or ""
         job = emp.job_title or "کارشناس"
 
-        # DSKWOR line: CSV/tab format matching standard SSO specifications
         wor_line = (
             f"{idx},{insurance_num},{nat_id},{fname},{lname},{fath_name},{job},"
             f"{days},{slip.base_pay},{slip.grocery_pay},{slip.housing_pay},"
@@ -1055,7 +1407,6 @@ def export_insurance_disk(
             "total_insurance": canonical_money(emp_share + empr_share),
         })
 
-    # DSKKAR line (Workshop header)
     kar_line = (
         f"{workshop_code},{employer_name},{year_str},{month_str},01,"
         f"{total_insured},{total_days},{canonical_money(total_insured_wage)},"
@@ -1078,6 +1429,12 @@ def export_insurance_disk(
         "title": run.title,
         "year": run.year,
         "month": run.month,
+        "workshop_code": workshop_code,
+        "employer_name": employer_name,
+        "rate_table_year": 1403,
+        "rate_status": "verified_1403" if run.year == 1403 else "unverified_period_rates",
+        "output_scope": "internal_draft_only",
+        "official_format_verified": False,
         "summary": {
             "total_insured_employees": total_insured,
             "total_days_worked": total_days,
@@ -1098,10 +1455,9 @@ def export_tax_disk(
     user: m.User,
     run_id: str,
 ) -> dict[str, Any]:
-    """Generates standard Iranian Payroll Tax List (سامانه امور مالیاتی ماده ۸۶)."""
-    membership(db, company, user, "read")
+    """Generates internal working draft of Payroll Tax List (requires valid employee IDs; not officially certified)."""
+    require_payroll_access(db, company, user)
     run = get_entity(db, PayrollRun, company, run_id)
-    comp = db.get(m.Company, company)
 
     stmt = (
         select(PayrollSlip, Employee, EmployeeContract)
@@ -1127,7 +1483,13 @@ def export_tax_disk(
         total_taxable += taxable
         total_tax += tax
 
-        nat_id = emp.national_id or "0000000000"
+        nat_id = (emp.national_id or "").strip()
+        require(
+            bool(nat_id) and set(nat_id) != {"0"},
+            "payroll_employee_identity_missing",
+            f"کد ملی واقعی کارمند {emp.employee_code} برای خروجی مالیات ثبت نشده است.",
+            409,
+        )
         fname = emp.first_name or ""
         lname = emp.last_name or ""
         contract_type = con.contract_type if con else "full_time"
@@ -1160,6 +1522,10 @@ def export_tax_disk(
         "title": run.title,
         "year": run.year,
         "month": run.month,
+        "rate_table_year": 1403,
+        "rate_status": "verified_1403" if run.year == 1403 else "unverified_period_rates",
+        "output_scope": "internal_draft_only",
+        "official_format_verified": False,
         "summary": {
             "total_employees": len(rows),
             "total_gross_pay": canonical_money(total_gross),

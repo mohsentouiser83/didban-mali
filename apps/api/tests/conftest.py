@@ -8,7 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from didban import commercial_doc_models as _cdm  # noqa: F401
 from didban import models as m
+from didban import treasury_models as _tm  # noqa: F401
 
 
 @pytest.fixture

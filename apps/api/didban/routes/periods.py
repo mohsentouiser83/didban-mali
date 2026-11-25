@@ -50,8 +50,11 @@ def update_period(company_id: str, period_id: str, data: s.PeriodInput, request:
 @router.delete(C + "/financial-periods/{period_id}")
 def delete_period(company_id: str, period_id: str, request: Request):
     def apply(db, user):
+        from ..period_lock_service import require_open_period
+
         period = service.get_entity(db, m.Period, company_id, period_id)
         service.check_version(period, expected(request))
+        require_open_period(db, company_id, period_id)
         used = service.period_has_dependencies(db, company_id, period_id)
         require(not used, "period_in_use", "دوره استفاده‌شده قابل حذف نیست.", 409)
         db.delete(period)

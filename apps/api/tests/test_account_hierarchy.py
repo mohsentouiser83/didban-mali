@@ -11,8 +11,7 @@ from didban import models as m
 from didban.account_catalogue_service import catalogue_filters, enrich_accounts
 from didban.accounting_models import Account, AccountHierarchy
 from didban.accounting_service import save_account, save_draft
-from didban.accounting_setup_service import import_chart, parse_chart, preview_chart
-from didban.accounting_setup_service import update_mode
+from didban.accounting_setup_service import import_chart, parse_chart, preview_chart, update_mode
 from didban.errors import DomainError
 from didban.posting_service import post_batch, preview
 from didban.workflow import serialize_fact
@@ -270,3 +269,75 @@ assert command(owner,"PATCH",path+"/"+sub.json()["id"],{"name":"ویرایش","l
 assert command(owner,"PATCH",path+"/"+sub.json()["id"],{"name":"ویرایش"},version=99).status_code==409
 assert command(owner,"PATCH",path+"/"+sub.json()["id"],{"name":"ویرایش"},version=1).json()["code"]=="010101"
 ''')
+
+
+def test_legacy_three_level_upgrade_preserves_editable_accounts_and_blocks_incompatible_generator(tmp_path):
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import Session
+
+    from didban import db as db_mod
+    from didban.account_catalogue_service import generate_next_code
+    from didban.accounting_service import save_account
+
+    db_file = tmp_path / "legacy3.db"
+    old_engine = db_mod.engine
+    test_engine = create_engine(f"sqlite:///{db_file}", connect_args={"check_same_thread": False})
+    db_mod.engine = test_engine
+    try:
+        # Build a 3-level legacy database prior to 4-level upgrade
+        db_mod.Base.metadata.create_all(test_engine)
+        with test_engine.begin() as conn:
+            conn.execute(text("DROP TABLE accounting_account_hierarchy"))
+            conn.execute(
+                text(
+                    "CREATE TABLE accounting_account_hierarchy ("
+                    "company_id VARCHAR(36) NOT NULL, "
+                    "account_id VARCHAR(36) NOT NULL PRIMARY KEY, "
+                    "level VARCHAR(20) NOT NULL, "
+                    "parent_id VARCHAR(36), "
+                    "CONSTRAINT account_hierarchy_level CHECK (level IN ('general', 'subsidiary', 'detail')), "
+                    "CONSTRAINT account_hierarchy_parent CHECK ((level = 'general' AND parent_id IS NULL) OR (level != 'general' AND parent_id IS NOT NULL)), "
+                    "CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id), "
+                    "FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id), "
+                    "FOREIGN KEY(company_id, parent_id) REFERENCES accounting_accounts (company_id, id))"
+                )
+            )
+            conn.execute(text("INSERT INTO companies (id, created_at, name, timezone, version) VALUES ('c1', '2026-01-01 00:00:00', 'شرکت', 'Asia/Tehran', 1)"))
+            conn.execute(text("INSERT INTO users (id, created_at, email, name, password_hash, installation_admin, active) VALUES ('u1', '2026-01-01 00:00:00', 'o@test.ir', 'مالک', 'x', 0, 1)"))
+            conn.execute(text("INSERT INTO memberships (id, created_at, company_id, user_id, role, approve_financial_report, active, version) VALUES ('m1', '2026-01-01 00:00:00', 'c1', 'u1', 'owner', 1, 1, 1)"))
+            conn.execute(text("INSERT INTO accounting_accounts (id, created_at, company_id, code, name, nature, active, version) VALUES ('a1', '2026-01-01 00:00:00', 'c1', '100', 'گروه قدیمی ۱۰۰', 'debit', 1, 1)"))
+            conn.execute(text("INSERT INTO accounting_accounts (id, created_at, company_id, code, name, nature, active, version) VALUES ('a2', '2026-01-01 00:00:00', 'c1', '10001', 'کل قدیمی ۱۰۰۰۱', 'debit', 1, 1)"))
+            conn.execute(text("INSERT INTO accounting_accounts (id, created_at, company_id, code, name, nature, active, version) VALUES ('a3', '2026-01-01 00:00:00', 'c1', '010', 'بدون سطح با صفر پیشرو', 'debit', 1, 1)"))
+            conn.execute(text("INSERT INTO accounting_account_hierarchy (company_id, account_id, level, parent_id) VALUES ('c1', 'a1', 'general', NULL)"))
+            conn.execute(text("INSERT INTO accounting_account_hierarchy (company_id, account_id, level, parent_id) VALUES ('c1', 'a2', 'subsidiary', 'a1')"))
+
+        # Run upgrade twice to verify idempotency
+        db_mod.initialize()
+        db_mod.initialize()
+
+        with Session(test_engine, expire_on_commit=False) as db:
+            user = db.get(m.User, "u1")
+            h1 = db.get(AccountHierarchy, "a1")
+            h2 = db.get(AccountHierarchy, "a2")
+            assert h1.level == "group" and h1.code_status == "legacy"
+            assert h2.level == "general" and h2.code_status == "legacy"
+
+            # Legacy account "100" must remain visible & editable!
+            edited = save_account(db, "c1", user, {"name": "گروه ۱۰۰ ویرایش‌شده"}, "a1", 1)
+            assert edited["code"] == "100"
+            assert edited["code_status"] == "legacy"
+            assert edited["name"] == "گروه ۱۰۰ ویرایش‌شده"
+            assert edited["can_add_standard_child"] is False
+
+            # Generator MUST NOT emit invalid "10001" under legacy group "100"
+            with pytest.raises(DomainError) as err:
+                generate_next_code(db, "c1", "general", "100")
+            assert err.value.code == "legacy_parent_code_incompatible"
+
+            # Unclassified leading-zero account remains preserved and editable
+            edited_unclassified = save_account(db, "c1", user, {"name": "ویرایش بدون سطح"}, "a3", 1)
+            assert edited_unclassified["code"] == "010"
+            assert edited_unclassified["level"] is None
+    finally:
+        db_mod.engine = old_engine
+        test_engine.dispose()

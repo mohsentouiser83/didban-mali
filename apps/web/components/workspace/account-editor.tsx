@@ -35,7 +35,16 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
         </Field>
       )}
       {view.catalogue.error && view.parentLevel && <ErrorState message={view.catalogue.error.message} onRetry={view.catalogue.refresh} />}
-      <Field id="ledger-code" name="code" label="کد حساب" description={view.codeHint || undefined}>
+      <Field
+        id="ledger-code"
+        name="code"
+        label="کد حساب"
+        description={
+          view.editing?.code_status === "legacy"
+            ? "این حساب دارای کد قدیمی پیش از ساختار چهارسطحی است؛ کد آن ثابت می‌ماند و سایر مشخصات قابل ویرایش‌اند."
+            : view.codeHint || undefined
+        }
+      >
         <Input id="ledger-code" required dir="ltr" maxLength={100} value={view.value.code}
           readOnly={!!view.editing} disabled={disabled}
           onChange={(event) => view.change({ code: event.target.value })} />

@@ -1,6 +1,6 @@
 """Frozen fiscal submissions and append-only transport evidence."""
 
-from sqlalchemy import JSON, ForeignKeyConstraint, String, UniqueConstraint
+from sqlalchemy import JSON, ForeignKeyConstraint, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .models import Base, Entity, Tenant
@@ -10,7 +10,7 @@ class MoadianTransmission(Entity, Tenant, Base):
     __tablename__ = "moadian_transmissions"
     __table_args__ = (
         UniqueConstraint("company_id", "id"),
-        UniqueConstraint("company_id", "invoice_id"),
+        UniqueConstraint("company_id", "invoice_id", "invoice_subject"),
         UniqueConstraint("company_id", "tax_id"),
         UniqueConstraint("company_id", "memory_id", "serial"),
         UniqueConstraint("company_id", "uid"),
@@ -20,6 +20,10 @@ class MoadianTransmission(Entity, Tenant, Base):
     )
     invoice_id: Mapped[str] = mapped_column(String(36))
     invoice_version: Mapped[int]
+    commercial_document_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
+    document_digest: Mapped[str | None] = mapped_column(String(64), nullable=True, default=None)
+    invoice_subject: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    reference_tax_id: Mapped[str | None] = mapped_column(String(22), nullable=True, default=None)
     invoice_reference: Mapped[str] = mapped_column(String(120))
     tax_id: Mapped[str] = mapped_column(String(22))
     uid: Mapped[str] = mapped_column(String(36))

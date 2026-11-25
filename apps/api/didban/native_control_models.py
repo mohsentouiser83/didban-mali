@@ -1,6 +1,6 @@
 """Immutable checks of the native book; findings never rewrite journals."""
 
-from sqlalchemy import JSON, String, UniqueConstraint
+from sqlalchemy import JSON, ForeignKeyConstraint, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .models import Base, Entity, Tenant
@@ -8,7 +8,12 @@ from .models import Base, Entity, Tenant
 
 class NativeControlRun(Entity, Tenant, Base):
     __tablename__ = "native_control_runs"
-    __table_args__ = (UniqueConstraint("company_id", "digest"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "digest"),
+        ForeignKeyConstraint(
+            ["company_id", "period_id"], ["financial_periods.company_id", "financial_periods.id"]
+        ),
+    )
     period_id: Mapped[str] = mapped_column(String(36))
     digest: Mapped[str] = mapped_column(String(64))
     actor_id: Mapped[str] = mapped_column(String(36))

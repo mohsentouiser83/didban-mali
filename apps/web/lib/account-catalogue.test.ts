@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCOUNT_LEVEL_OPTIONS,
+  buildAccountTreeRows,
+  childAccountLevel,
   isAccountPostable,
   parentAccountLevel,
   suggestAccountCode,
   validateAccountCodePattern,
 } from "./account-catalogue";
+import type { LedgerAccount } from "./accounting";
 
 describe("4-level account coding catalogue", () => {
   it("defines group -> general -> subsidiary -> detail hierarchy", () => {
@@ -52,5 +55,33 @@ describe("4-level account coding catalogue", () => {
     expect(isAccountPostable({ active: true, level: "subsidiary", has_children: true })).toBe(false);
     expect(isAccountPostable({ active: true, level: "detail", has_children: false })).toBe(true);
     expect(isAccountPostable({ active: false, level: "detail", has_children: false })).toBe(false);
+  });
+
+  it("builds a 4-level hierarchical tree sorted by code and respects collapsed branches", () => {
+    const accounts: LedgerAccount[] = [
+      { id: "det", code: "11010101", name: "ملت", level: "detail", parent_id: "sub", nature: "debit", active: true, version: 1 },
+      { id: "sub", code: "110101", name: "بانک‌ها", level: "subsidiary", parent_id: "gen", nature: "debit", active: true, version: 1 },
+      { id: "grp2", code: "21", name: "بدهی‌ها", level: "group", parent_id: null, nature: "credit", active: true, version: 1 },
+      { id: "gen", code: "1101", name: "نقد", level: "general", parent_id: "grp1", nature: "debit", active: true, version: 1 },
+      { id: "grp1", code: "11", name: "دارایی جاری", level: "group", parent_id: null, nature: "debit", active: true, version: 1 },
+    ];
+    expect(childAccountLevel("group")).toBe("general");
+    expect(childAccountLevel("detail")).toBeNull();
+
+    const expanded = buildAccountTreeRows(accounts, new Set());
+    expect(expanded.map((r) => [r.account.code, r.depth, r.hasChildren])).toEqual([
+      ["11", 0, true],
+      ["1101", 1, true],
+      ["110101", 2, true],
+      ["11010101", 3, false],
+      ["21", 0, false],
+    ]);
+
+    const collapsedGen = buildAccountTreeRows(accounts, new Set(["gen"]));
+    expect(collapsedGen.map((r) => [r.account.code, r.depth, r.hasChildren, r.expanded])).toEqual([
+      ["11", 0, true, true],
+      ["1101", 1, true, false],
+      ["21", 0, false, true],
+    ]);
   });
 });

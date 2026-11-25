@@ -40,6 +40,8 @@ def capabilities(db: Session, company: str, user: m.User) -> dict[str, Any]:
         or (member.role in ("owner", "advisor") and bool(permission and permission.post_journal)),
         "can_reopen": member.role == "finance_manager"
         or (member.role in ("owner", "advisor") and bool(permission and permission.reopen_period)),
+        "can_view_payroll": member.role == "finance_manager"
+        or (member.role in ("owner", "advisor") and bool(permission and permission.view_payroll)),
         "posting_available": primary,
         "posting_reason": None if primary else "primary_accounting_required",
     }
@@ -69,8 +71,36 @@ def save_account(
     )) if account_id else None
     level = data.get("level", current.level if current else None)
     parent_id = data.get("parent_id", current.parent_id if current else None)
+    hierarchy_unchanged = bool(
+        item
+        and current is not None
+        and level == current.level
+        and parent_id == current.parent_id
+    )
+    if item and current is not None and not hierarchy_unchanged and not data.get("confirm_reclassification"):
+        from .posting_models import NativeJournal
+
+        has_posted = any(
+            line.get("account_id") == item.id
+            for j in db.scalars(select(NativeJournal).where(NativeJournal.company_id == company))
+            for line in (j.snapshot or {}).get("lines", [])
+        )
+        require(
+            not has_posted,
+            "account_reclassification_has_history",
+            "این حساب دارای سابقهٔ سند قطعی است؛ تغییر سطح یا بالادست آن سابقهٔ گزارش‌های زنده را تغییر می‌دهد.",
+            409,
+        )
     parent_code = validate_hierarchy(db, company, account_id, level, parent_id)
-    code = resolve_account_code(db, company, imported_code or data.get("code"), level, parent_code, item)
+    code, code_status = resolve_account_code(
+        db,
+        company,
+        imported_code or data.get("code"),
+        level,
+        parent_code,
+        item,
+        preserve_legacy=hierarchy_unchanged,
+    )
     if item:
         item.version += 1
     else:
@@ -79,11 +109,21 @@ def save_account(
         if key in data:
             setattr(item, key, data[key])
     db.add(item)
-    db.flush()
-    save_hierarchy(db, company, item, level, parent_id)
+    try:
+        db.flush()
+    except Exception as error:
+        from sqlalchemy.exc import IntegrityError
+
+        if isinstance(error, IntegrityError):
+            raise DomainError("duplicate_account_code", "کد حساب تکراری است.", 409, {"code": "این کد حساب موجود است."}) from error
+        raise
+    save_hierarchy(db, company, item, level, parent_id, code_status=code_status)
     if "role" in data:
         from .native_reporting_models import NativeAccountRole
+        from .native_roles_service import ROLE_KEYS
+
         role_val = (data["role"] or "").strip() or None
+        require(role_val is None or role_val in ROLE_KEYS, "account_role_invalid", "نقش حساب معتبر نیست.")
         role_row = db.scalar(
             select(NativeAccountRole).where(
                 NativeAccountRole.company_id == company, NativeAccountRole.account_id == item.id
@@ -111,6 +151,11 @@ def save_account(
 def validate_lines(
     db: Session, company: str, data: dict[str, Any], *, allow_non_leaf: bool = False
 ) -> list[dict[str, Any]]:
+    from .commercial_models import CommercialCounterparty
+    from .commercial_service import resolve_counterparty
+    from .dimensions_models import Dimension
+    from .native_reporting_models import NativeAccountRole
+
     require(data["unit"] in ("IRR", "TOMAN"), "unsupported_unit", "واحد سند باید ریال یا تومان باشد.")
     require(2 <= len(data["lines"]) <= 200, "invalid_journal_lines", "سند باید بین ۲ تا ۲۰۰ ردیف داشته باشد.")
     lines = []
@@ -122,6 +167,43 @@ def validate_lines(
             require(account.active, "inactive_account", "حساب غیرفعال است.")
             if not allow_non_leaf:
                 require_postable_account(db, company, account)
+            dim_ids = list(dict.fromkeys(line.get("dimension_ids") or []))
+            if dim_ids:
+                dims = {
+                    d.id: d
+                    for d in db.scalars(
+                        select(Dimension).where(
+                            Dimension.company_id == company,
+                            Dimension.id.in_(dim_ids),
+                        )
+                    )
+                }
+                require(
+                    len(dims) == len(dim_ids) and all(d.active for d in dims.values()),
+                    "invalid_dimension",
+                    "بُعد مدیریتی انتخاب‌شده معتبر یا فعال نیست.",
+                    409,
+                )
+                acc_role = db.scalar(
+                    select(NativeAccountRole.role).where(
+                        NativeAccountRole.company_id == company,
+                        NativeAccountRole.account_id == account.id,
+                    )
+                )
+                require(
+                    acc_role not in ("equity",),
+                    "dimension_not_allowed_for_account",
+                    "استفاده از بُعد مدیریتی برای حساب حقوق مالکانه مجاز نیست.",
+                    409,
+                )
+            resolved_cp_id = line.get("counterparty_id")
+            if resolved_cp_id:
+                cp = get_entity(db, CommercialCounterparty, company, resolved_cp_id)
+                require(cp.active, "inactive_counterparty", "طرف‌حساب غیرفعال است.", 409)
+            elif line.get("party_id") and not allow_non_leaf:
+                cp = resolve_counterparty(db, company, str(line["party_id"]), require_active=True)
+                if cp:
+                    resolved_cp_id = cp.id
             try:
                 debit = Decimal(canonical_money(line["debit"]))
                 credit = Decimal(canonical_money(line["credit"]))
@@ -144,6 +226,8 @@ def validate_lines(
                     "credit": canonical_credit,
                     "original_debit": line["debit"],
                     "original_credit": line["credit"],
+                    "counterparty_id": resolved_cp_id,
+                    "dimension_ids": dim_ids,
                 }
             )
         require(debit_total == credit_total, "journal_not_balanced", "جمع بدهکار و بستانکار برابر نیست.")
@@ -231,6 +315,7 @@ def permissions(db: Session, company: str, user: m.User) -> dict[str, Any]:
                 "version": item.version if item else 1,
                 "post_journal": bool(item and item.post_journal),
                 "reopen_period": bool(item and item.reopen_period),
+                "view_payroll": bool(item and item.view_payroll),
                 "implicit_authority": member.role == "finance_manager",
             }
         )
@@ -257,6 +342,7 @@ def grant(
     before = {
         "post_journal": bool(item and item.post_journal),
         "reopen_period": bool(item and item.reopen_period),
+        "view_payroll": bool(item and item.view_payroll),
     }
     if item:
         check_version(item, version)
@@ -266,14 +352,92 @@ def grant(
         item = AccountingPermission(company_id=company, membership_id=member.id, version=2)
     item.post_journal = data["post_journal"]
     item.reopen_period = data["reopen_period"]
+    item.view_payroll = bool(data.get("view_payroll", False))
     db.add(item)
     db.flush()
+    after = {
+        "post_journal": item.post_journal,
+        "reopen_period": item.reopen_period,
+        "view_payroll": item.view_payroll,
+    }
     audit(
         db,
         company,
         user.id,
         "accounting.permissions_changed",
         member.id,
-        {"recipient_id": member.user_id, "before": before, "after": data},
+        {"recipient_id": member.user_id, "before": before, "after": after},
     )
-    return {"membership_id": member.id, "version": item.version, **data}
+    return {"membership_id": member.id, "version": item.version, **after}
+
+
+def list_detail_links(db: Session, company: str, user: m.User, detail_account_id: str | None = None) -> dict[str, Any]:
+    from .accounting_models import AccountDetailLink
+
+    membership(db, company, user, "read")
+    stmt = select(AccountDetailLink).where(AccountDetailLink.company_id == company)
+    if detail_account_id:
+        stmt = stmt.where(AccountDetailLink.detail_account_id == detail_account_id)
+    rows = list(db.scalars(stmt.order_by(AccountDetailLink.created_at.asc())))
+    return {"items": [serialize_fact(row) for row in rows]}
+
+
+def save_detail_link(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
+    from .accounting_models import AccountDetailLink
+    from .commercial_models import CommercialCounterparty
+
+    require(
+        capabilities(db, company, user)["can_manage_accounts"],
+        "permission_denied",
+        "اجازه مدیریت ارتباط تفصیلی ندارید.",
+        403,
+    )
+    detail_acc = get_entity(db, Account, company, data["detail_account_id"])
+    sub_acc = get_entity(db, Account, company, data["subsidiary_account_id"])
+    require(detail_acc.id != sub_acc.id, "invalid_account_link", "حساب تفصیلی و معین نمی‌توانند یکسان باشند.")
+    detail_h = db.scalar(
+        select(AccountHierarchy).where(
+            AccountHierarchy.company_id == company, AccountHierarchy.account_id == detail_acc.id
+        )
+    )
+    sub_h = db.scalar(
+        select(AccountHierarchy).where(
+            AccountHierarchy.company_id == company, AccountHierarchy.account_id == sub_acc.id
+        )
+    )
+    require(
+        detail_h is not None and detail_h.level == "detail",
+        "invalid_detail_account",
+        "حساب انتخاب‌شده باید در سطح تفصیلی باشد.",
+    )
+    require(
+        sub_h is not None and sub_h.level == "subsidiary",
+        "invalid_subsidiary_account",
+        "حساب مقصد باید در سطح معین باشد.",
+    )
+    cp_id = data.get("counterparty_id")
+    if cp_id:
+        get_entity(db, CommercialCounterparty, company, cp_id)
+    existing = db.scalar(
+        select(AccountDetailLink).where(
+            AccountDetailLink.company_id == company,
+            AccountDetailLink.detail_account_id == detail_acc.id,
+            AccountDetailLink.subsidiary_account_id == sub_acc.id,
+        )
+    )
+    if existing:
+        existing.counterparty_id = cp_id
+        existing.active = bool(data.get("active", True))
+        link = existing
+    else:
+        link = AccountDetailLink(
+            company_id=company,
+            detail_account_id=detail_acc.id,
+            subsidiary_account_id=sub_acc.id,
+            counterparty_id=cp_id,
+            active=bool(data.get("active", True)),
+        )
+        db.add(link)
+    db.flush()
+    audit(db, company, user.id, "accounting.detail_link_saved", link.id, {"detail": detail_acc.id, "subsidiary": sub_acc.id})
+    return serialize_fact(link)

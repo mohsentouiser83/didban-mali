@@ -16,7 +16,7 @@ from .accounting_setup_models import CompanyAccountingSetup
 from .errors import require
 from .money_type import aggregate_money
 from .period_lock_service import require_open_period
-from .posting_models import JournalCorrectionDraft, NativeJournal
+from .posting_models import JournalCorrectionDraft, NativeJournal, NativeJournalLine
 from .security import membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
@@ -261,8 +261,11 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
             correction_keys.append((link["kind"], link["original_journal_id"]))
         stock = current["snapshot"].get("inventory")
         if stock:
-            wh_id = stock.get("warehouse_id") or stock.get("source_warehouse_id")
-            stock_buckets.append((stock["item_id"], wh_id))
+            for item_id, wh_id in {
+                (mov["item_id"], mov.get("warehouse_id") or mov.get("source_warehouse_id"))
+                for mov in (stock.get("movements") or [stock])
+            }:
+                stock_buckets.append((item_id, wh_id))
         prepared.append((draft, current))
     require(
         len(correction_keys) == len(set(correction_keys)),
@@ -320,13 +323,42 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
         draft.state = "posted"
         draft.version += 1
         db.flush()
+        created_journal_lines = []
+        for idx, line in enumerate(journal.snapshot.get("lines", [])):
+            jl = NativeJournalLine(
+                company_id=company,
+                journal_id=journal.id,
+                line_index=idx,
+                account_id=line["account_id"],
+                debit=line["debit"],
+                credit=line["credit"],
+                original_debit=str(line.get("original_debit") or line["debit"]),
+                original_credit=str(line.get("original_credit") or line["credit"]),
+                description=(line.get("description") or journal.snapshot.get("description") or "")[:500],
+                party_id=line.get("party_id") or "",
+                counterparty_id=line.get("counterparty_id"),
+                reference_kind=line.get("reference_kind"),
+                reference_id=line.get("reference_id"),
+                dimension_ids=list(line.get("dimension_ids") or []),
+            )
+            db.add(jl)
+            created_journal_lines.append(jl)
+        db.flush()
         if payroll := journal.snapshot.get("payroll"):
             run = get_entity(db, PayrollRun, company, payroll["run_id"])
             run.journal_id = journal.id
             run.status = "posted"
             run.version += 1
+        created_movements = []
         if "inventory" in journal.snapshot:
-            add_posted_movement(db, company, journal, journal.snapshot["inventory"])
+            created_movements = add_posted_movement(db, company, journal, journal.snapshot["inventory"])
+        from .commercial_doc_service import on_commercial_journal_posted
+        from .payroll_service import on_payroll_payment_posted
+
+        on_commercial_journal_posted(
+            db, company, user, draft, journal, created_journal_lines, created_movements
+        )
+        on_payroll_payment_posted(db, company, user, draft, journal)
         audit(
             db,
             company,
@@ -527,6 +559,7 @@ def discard_draft(db: Session, company: str, user: m.User, draft_id: str, reason
     draft = get_entity(db, Draft, company, draft_id)
     check_version(draft, version)
     require(draft.state == "draft", "draft_not_editable", "فقط پیش‌نویس ثبت‌نشده را می‌توان کنار گذاشت.", 409)
+    from .commercial_doc_service import on_commercial_draft_discarded
     from .payroll_service import payroll_run_for_draft
 
     run = payroll_run_for_draft(db, company, draft)
@@ -535,6 +568,7 @@ def discard_draft(db: Session, company: str, user: m.User, draft_id: str, reason
     if run and run.status == "approved":
         run.status = "calculated"
         run.version += 1
+    on_commercial_draft_discarded(db, company, user, draft)
     db.flush()
     audit(
         db,

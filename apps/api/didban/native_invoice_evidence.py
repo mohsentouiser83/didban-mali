@@ -20,8 +20,8 @@ from .security import membership
 from .services import get_entity
 
 INVOICE_KINDS = {
-    "sale": ("sale_service", "sale_goods"),
-    "purchase": ("purchase_service", "purchase_goods"),
+    "sale": ("sale_service", "sale_goods", "commercial_sale"),
+    "purchase": ("purchase_service", "purchase_goods", "commercial_purchase"),
 }
 KINDS = {kind for kinds in INVOICE_KINDS.values() for kind in kinds} | {"receipt", "payment"}
 ACCOUNT_ROLES = {
@@ -124,6 +124,15 @@ def _proof(db: Session, company: str, operation_id: str, as_of: date, journal_id
         "تاریخ، دوره یا واحد سند تغییر کرده است.",
         409,
     )
+    if op.kind in ("commercial_sale", "commercial_purchase"):
+        stock = journal.snapshot.get("inventory")
+        require(
+            stock == data.get("stock"),
+            "native_invoice_source_changed",
+            "گردش انبار با سند تأییدشده برابر نیست.",
+            409,
+        )
+        return _source(op, journal, data, data["amounts"]["on_account_amount_irr"])
     if op.kind in GOODS_KINDS:
         stock = journal.snapshot.get("inventory")
         require(

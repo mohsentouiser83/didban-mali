@@ -145,7 +145,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | InventoryWarehouse>();
   const [deleting, setDeleting] = useState<InventoryItem | InventoryWarehouse>();
-  const [value, setValue] = useState({ name: "", inventory_account_id: "", active: true });
+  const [value, setValue] = useState({ name: "", inventory_account_id: "", base_unit: "عدد", active: true });
   const data = inventory.data;
   const isItem = entity === "items";
   const label = isItem ? "کالا" : "انبار";
@@ -166,7 +166,9 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
 
   function save() {
     if (!canManage || !value.name.trim()) return;
-    const body = { name: value.name.trim() };
+    const body = isItem
+      ? { name: value.name.trim(), ...(!accountLocked && value.base_unit.trim() ? { base_unit: value.base_unit.trim() } : {}) }
+      : { name: value.name.trim() };
     const catalogueData = isItem && !accountLocked && value.inventory_account_id ? { ...body, inventory_account_id: value.inventory_account_id } : body;
     void command.run(
       workspace.companyPath(editing ? `${inventoryPath}/${editing.id}` : inventoryPath),
@@ -224,6 +226,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
       setValue({
         name: record?.name ?? "",
         inventory_account_id: record && "inventory_account_id" in record ? record.inventory_account_id : "",
+        base_unit: record && "base_unit" in record && record.base_unit ? record.base_unit : "عدد",
         active: record?.active ?? true,
       });
       command.clearError();

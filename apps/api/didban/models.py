@@ -552,12 +552,17 @@ ReconciliationDecision.__table__.append_constraint(
 
 def register_money_constraints() -> None:
     """Every Money column, including late imported modules, gets finite PG bounds."""
+    from hashlib import sha256
+
     for table in Base.metadata.tables.values():
         existing = {constraint.name for constraint in table.constraints}
         for column in table.c:
             if not isinstance(column.type, Money):
                 continue
             name = f"finite_{table.name}_{column.name}"
+            if len(name) > 63:
+                digest = sha256(name.encode()).hexdigest()[:8]
+                name = f"finite_{digest}_{column.name}"[:63]
             if name in existing:
                 continue
             table.append_constraint(
@@ -650,6 +655,7 @@ from . import bot_notification_models as bot_notification_models  # noqa: E402,F
 from . import bot_posting_models as bot_posting_models  # noqa: E402,F401
 from . import cheque_models as cheque_models  # noqa: E402,F401
 from . import closing_models as closing_models  # noqa: E402,F401
+from . import commercial_doc_models as commercial_doc_models  # noqa: E402,F401
 from . import commercial_models as commercial_models  # noqa: E402,F401
 from . import control_models as control_models  # noqa: E402,F401
 from . import counterparty_reconciliation_models as counterparty_reconciliation_models  # noqa: E402,F401
@@ -674,5 +680,6 @@ from . import payroll_models as payroll_models  # noqa: E402,F401
 from . import period_checklist_models as period_checklist_models  # noqa: E402,F401
 from . import period_lock_models as period_lock_models  # noqa: E402,F401
 from . import posting_models as posting_models  # noqa: E402,F401
+from . import treasury_models as treasury_models  # noqa: E402,F401
 
 register_money_constraints()

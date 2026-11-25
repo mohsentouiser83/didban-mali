@@ -31,6 +31,9 @@ export interface LedgerAccount {
   parent_name?: string | null;
   has_children?: boolean;
   postable?: boolean;
+  code_status?: "standard" | "legacy" | null;
+  code_pattern_valid?: boolean | null;
+  can_add_standard_child?: boolean;
   name: string;
   nature: AccountNature;
   role?: string | null;
@@ -69,6 +72,7 @@ export interface AccountingCapabilities {
   can_manage_permissions: boolean;
   can_post: boolean;
   can_reopen: boolean;
+  can_view_payroll?: boolean;
   posting_available: boolean;
   posting_reason: string;
 }
@@ -79,6 +83,7 @@ export interface AccountingPermission {
   version: number;
   post_journal: boolean;
   reopen_period: boolean;
+  view_payroll: boolean;
   implicit_authority: boolean;
 }
 export const emptyDraftLine = (): JournalDraftLine => ({

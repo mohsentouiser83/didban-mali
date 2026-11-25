@@ -128,12 +128,28 @@ def update_item(
         item.name = data["name"]
     if "active" in data and data["active"] is not None:
         item.active = bool(data["active"])
-    if "inventory_account_id" in data and data["inventory_account_id"] != item.inventory_account_id:
-        has_movements = db.scalar(
-            select(InventoryMovement.id)
-            .where(InventoryMovement.company_id == company, InventoryMovement.item_id == item_id)
-            .limit(1)
+    has_movements = db.scalar(
+        select(InventoryMovement.id)
+        .where(InventoryMovement.company_id == company, InventoryMovement.item_id == item_id)
+        .limit(1)
+    )
+    if "base_unit" in data and data["base_unit"] != item.base_unit:
+        require(
+            not has_movements,
+            "inventory_unit_locked",
+            "واحد پایهٔ کالایی که گردش دارد قابل تغییر نیست.",
+            409,
         )
+        item.base_unit = data["base_unit"]
+    if "item_kind" in data and data["item_kind"] != item.item_kind:
+        require(
+            not has_movements,
+            "inventory_kind_locked",
+            "نوع کالایی که گردش دارد قابل تغییر نیست.",
+            409,
+        )
+        item.item_kind = data["item_kind"]
+    if "inventory_account_id" in data and data["inventory_account_id"] != item.inventory_account_id:
         require(
             not has_movements,
             "inventory_account_locked",
@@ -337,6 +353,14 @@ def _lots(db: Session, company: str, item_id: str, warehouse_id: str) -> tuple[d
             row.kind == "adjustment" and row.quantity > 0
         ):
             lots[row.journal_id] = Lot(row.quantity, row.evidence.get("unit_price_irr", "0"))
+        elif row.kind in ("sale_return", "restock"):
+            for layer in row.evidence.get("cost_layers", []):
+                if layer["journal_id"] in lots:
+                    lots[layer["journal_id"]].remaining += layer["quantity"]
+        elif row.kind == "purchase_return":
+            for layer in row.evidence.get("cost_layers", []):
+                if layer["journal_id"] in lots:
+                    lots[layer["journal_id"]].remaining -= layer["quantity"]
         elif row.kind == "reversal" and row.evidence.get("reversed_kind") in (
             "purchase_goods",
             "opening_stock",
@@ -344,6 +368,10 @@ def _lots(db: Session, company: str, item_id: str, warehouse_id: str) -> tuple[d
         ):
             if row.evidence.get("reversal_of") in lots:
                 del lots[row.evidence["reversal_of"]]
+        elif row.kind == "reversal" and row.evidence.get("reversed_kind") in ("sale_return", "restock"):
+            for layer in row.evidence.get("cost_layers", []):
+                if layer["journal_id"] in lots:
+                    lots[layer["journal_id"]].remaining -= layer["quantity"]
         else:
             sign = 1 if row.kind == "reversal" else -1
             for layer in row.evidence.get("cost_layers", []):
@@ -995,6 +1023,18 @@ def _reversal_stock(db: Session, company: str, draft: Draft, correction: dict) -
 def validate_posting(db: Session, company: str, draft: Draft, correction: dict | None) -> dict | None:
     if correction:
         return _reversal_stock(db, company, draft, correction)
+    from .commercial_doc_service import COMMERCIAL_OPERATION_KINDS
+    from .commercial_doc_service import validate_posting as validate_commercial_posting
+
+    commercial_origin = db.scalar(
+        select(OperationDraft).where(
+            OperationDraft.company_id == company,
+            OperationDraft.draft_id == draft.id,
+            OperationDraft.kind.in_(COMMERCIAL_OPERATION_KINDS),
+        )
+    )
+    if commercial_origin is not None:
+        return validate_commercial_posting(db, company, draft, correction)
     origin = db.scalar(
         select(OperationDraft).where(
             OperationDraft.company_id == company,
@@ -1035,48 +1075,54 @@ def validate_posting(db: Session, company: str, draft: Draft, correction: dict |
     return stock
 
 
-def add_posted_movement(db: Session, company: str, journal: NativeJournal, stock: dict) -> None:
+def add_posted_movement(db: Session, company: str, journal: NativeJournal, stock: dict) -> list[InventoryMovement]:
     movements = stock.get("movements")
     base_seq = (
         db.scalar(select(func.max(InventoryMovement.sequence)).where(InventoryMovement.company_id == company))
         or 0
     )
+    created: list[InventoryMovement] = []
     if movements and isinstance(movements, list):
-        for m_data in movements:
+        for idx, m_data in enumerate(movements):
             base_seq += 1
-            db.add(
-                InventoryMovement(
-                    company_id=company,
-                    journal_id=journal.id,
-                    date=journal.date,
-                    sequence=base_seq,
-                    item_id=m_data["item_id"],
-                    warehouse_id=m_data["warehouse_id"],
-                    operation_id=m_data["operation_id"],
-                    kind=m_data["kind"],
-                    quantity=m_data["quantity"],
-                    value_irr=m_data["value_irr"],
-                    evidence=m_data,
-                )
-            )
-    else:
-        base_seq += 1
-        db.add(
-            InventoryMovement(
+            row = InventoryMovement(
                 company_id=company,
                 journal_id=journal.id,
                 date=journal.date,
                 sequence=base_seq,
-                item_id=stock["item_id"],
-                warehouse_id=stock["warehouse_id"],
-                operation_id=stock["operation_id"],
-                kind=stock["kind"],
-                quantity=stock["quantity"],
-                value_irr=stock["value_irr"],
-                evidence=stock,
+                line_index=int(m_data.get("line_index", idx)),
+                document_line_id=m_data.get("document_line_id"),
+                item_id=m_data["item_id"],
+                warehouse_id=m_data["warehouse_id"],
+                operation_id=m_data["operation_id"],
+                kind=m_data["kind"],
+                quantity=m_data["quantity"],
+                value_irr=m_data["value_irr"],
+                evidence=m_data,
             )
+            db.add(row)
+            created.append(row)
+    else:
+        base_seq += 1
+        row = InventoryMovement(
+            company_id=company,
+            journal_id=journal.id,
+            date=journal.date,
+            sequence=base_seq,
+            line_index=int(stock.get("line_index", 0)),
+            document_line_id=stock.get("document_line_id"),
+            item_id=stock["item_id"],
+            warehouse_id=stock["warehouse_id"],
+            operation_id=stock["operation_id"],
+            kind=stock["kind"],
+            quantity=stock["quantity"],
+            value_irr=stock["value_irr"],
+            evidence=stock,
         )
+        db.add(row)
+        created.append(row)
     db.flush()
+    return created
 
 
 def cardex(
@@ -1353,4 +1399,192 @@ def item_profit_report(
         "total_gross_profit_irr": aggregate_money(total_gp),
         "overall_margin_percent": overall_margin,
         "rows": rows,
+    }
+
+
+def assess_nrv(
+    db: Session,
+    company: str,
+    user: m.User,
+    *,
+    as_of: date | None = None,
+    market_prices: list[dict] | None = None,
+) -> dict:
+    """Assess LCNRV (Standard No. 8) write-down and reversal ceiling per (item, warehouse)."""
+    membership(db, company, user)
+    val = valuation_report(db, company, user, as_of=as_of)
+    price_map: dict[tuple[str, str | None], dict] = {}
+    for entry in market_prices or []:
+        price_map[(entry["item_id"], entry.get("warehouse_id"))] = entry
+
+    items_out = []
+    total_cost = Decimal(0)
+    total_lcnrv = Decimal(0)
+    total_write_down = Decimal(0)
+    total_reversible = Decimal(0)
+
+    with localcontext() as ctx:
+        ctx.prec = 60
+        for row in val["rows"]:
+            qty = row["quantity"]
+            cost_val = Decimal(row["total_value_irr"])
+            total_cost += cost_val
+            quote = price_map.get((row["item_id"], row["warehouse_id"])) or price_map.get((row["item_id"], None))
+            if quote is None or qty <= 0:
+                total_lcnrv += cost_val
+                items_out.append(
+                    row
+                    | {
+                        "nrv_status": "missing_nrv_quote" if qty > 0 else "zero_quantity",
+                        "nrv_unit_irr": None,
+                        "nrv_total_irr": None,
+                        "lcnrv_value_irr": row["total_value_irr"],
+                        "write_down_irr": "0",
+                        "reversible_irr": "0",
+                    }
+                )
+                continue
+            sell_p = Decimal(_stock_money(quote["estimated_selling_price_irr"]))
+            sell_c = Decimal(_stock_money(quote.get("estimated_selling_cost_irr", 0)))
+            prior_wd = Decimal(_stock_money(quote.get("prior_write_down_irr", 0)))
+            nrv_unit = sell_p - sell_c
+            nrv_total = nrv_unit * qty
+            carrying_before = cost_val - prior_wd
+            target_lcnrv = min(cost_val, max(Decimal(0), nrv_total))
+            write_down = max(Decimal(0), carrying_before - target_lcnrv)
+            reversible = max(Decimal(0), target_lcnrv - carrying_before)
+            total_lcnrv += target_lcnrv
+            total_write_down += write_down
+            total_reversible += reversible
+            items_out.append(
+                row
+                | {
+                    "nrv_status": "write_down_required" if write_down > 0 else ("reversal_eligible" if reversible > 0 else "ok"),
+                    "nrv_unit_irr": aggregate_money(nrv_unit),
+                    "nrv_total_irr": aggregate_money(nrv_total),
+                    "lcnrv_value_irr": aggregate_money(target_lcnrv),
+                    "write_down_irr": aggregate_money(write_down),
+                    "reversible_irr": aggregate_money(reversible),
+                }
+            )
+
+    return {
+        "standard": "Iranian Accounting Standard No. 8 (LCNRV)",
+        "method": "allowance_contra_asset",
+        "as_of": val["as_of"],
+        "total_cost_irr": aggregate_money(total_cost),
+        "total_lcnrv_irr": aggregate_money(total_lcnrv),
+        "total_write_down_irr": aggregate_money(total_write_down),
+        "total_reversible_irr": aggregate_money(total_reversible),
+        "policy_status": "approved_allowance_draft_only",
+        "financial_effect": False,
+        "rows": items_out,
+    }
+
+
+def _resolve_nrv_role_account(
+    db: Session, company: str, role_key: str, explicit_id: str | None
+) -> str:
+    if explicit_id:
+        acc = get_entity(db, Account, company, explicit_id)
+        require(acc.active, "inactive_account", "حساب انتخاب‌شده غیرفعال است.", 409)
+        return acc.id
+    assigned_id = db.scalar(
+        select(NativeAccountRole.account_id).where(
+            NativeAccountRole.company_id == company,
+            NativeAccountRole.role == role_key,
+        )
+    )
+    require(
+        bool(assigned_id),
+        f"missing_role_{role_key}",
+        f"حسابی با نقش «{role_key}» برای تعدیل کاهش ارزش موجودی تعیین نشده است.",
+        409,
+    )
+    assert assigned_id
+    acc = get_entity(db, Account, company, assigned_id)
+    require(acc.active, "inactive_account", "حساب انتخاب‌شده غیرفعال است.", 409)
+    return acc.id
+
+
+def create_nrv_adjustment_draft(
+    db: Session,
+    company: str,
+    user: m.User,
+    data: dict,
+) -> dict:
+    """Prepare a balanced LCNRV allowance draft (Standard No. 8 / D35); human approval required to post."""
+    require(
+        capabilities(db, company, user)["can_prepare"],
+        "permission_denied",
+        "اجازه تهیه پیش‌نویس تعدیل موجودی ندارید.",
+        403,
+    )
+    report = assess_nrv(
+        db,
+        company,
+        user,
+        as_of=data.get("as_of") or data["date"],
+        market_prices=data.get("items") or [],
+    )
+    needs_wd = [r for r in report["rows"] if Decimal(r["write_down_irr"]) > 0]
+    needs_rev = [r for r in report["rows"] if Decimal(r["reversible_irr"]) > 0]
+    require(
+        bool(needs_wd or needs_rev),
+        "nrv_no_adjustment_required",
+        "در قیمت‌های اعلام‌شده هیچ تعدیل کاهش ارزش یا برگشت ذخیره لازم نیست.",
+        409,
+    )
+    allowance_id = _resolve_nrv_role_account(
+        db, company, "inventory_nrv_allowance", data.get("allowance_account_id")
+    )
+    lines: list[dict] = []
+    if needs_wd:
+        expense_id = _resolve_nrv_role_account(
+            db, company, "inventory_nrv_expense", data.get("expense_account_id")
+        )
+        for row in needs_wd:
+            amt = row["write_down_irr"]
+            desc = f"ذخیره کاهش ارزش موجودی (استاندارد ۸) — {row['item_name']}"[:500]
+            lines.append({"account_id": expense_id, "party_id": "", "debit": amt, "credit": "0", "description": desc})
+            lines.append({"account_id": allowance_id, "party_id": "", "debit": "0", "credit": amt, "description": desc})
+    if needs_rev:
+        recovery_id = _resolve_nrv_role_account(
+            db, company, "inventory_nrv_recovery", data.get("recovery_account_id")
+        )
+        for row in needs_rev:
+            amt = row["reversible_irr"]
+            desc = f"برگشت ذخیره کاهش ارزش موجودی (استاندارد ۸) — {row['item_name']}"[:500]
+            lines.append({"account_id": allowance_id, "party_id": "", "debit": amt, "credit": "0", "description": desc})
+            lines.append({"account_id": recovery_id, "party_id": "", "debit": "0", "credit": amt, "description": desc})
+
+    draft = save_draft(
+        db,
+        company,
+        user,
+        {
+            "period_id": data["period_id"],
+            "date": data["date"],
+            "description": data["description"],
+            "unit": "IRR",
+            "lines": lines,
+        },
+    )
+    audit(
+        db,
+        company,
+        user.id,
+        "inventory.nrv_adjustment_draft_created",
+        draft["id"],
+        {
+            "method": "allowance_contra_asset",
+            "total_write_down_irr": report["total_write_down_irr"],
+            "total_reversible_irr": report["total_reversible_irr"],
+        },
+    )
+    return {
+        "draft": draft,
+        "assessment": report,
+        "method": "allowance_contra_asset",
+        "financial_effect": False,
     }

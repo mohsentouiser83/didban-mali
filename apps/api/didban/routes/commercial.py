@@ -8,6 +8,7 @@ from .. import commercial_service as service
 from ..commercial_schemas import (
     ConvertProformaInput,
     CounterpartyInput,
+    ProformaCancelInput,
     ProformaInput,
     UpdateCounterpartyInput,
 )
@@ -124,6 +125,20 @@ def convert_proforma(company_id: str, proforma_id: str, data: ConvertProformaInp
         "read",
         lambda db, user: service.convert_proforma(
             db, company_id, user, proforma_id, expected(request), payload
+        ),
+    )
+
+
+@router.post(P + "/proformas/{proforma_id}/cancel")
+def cancel_proforma(company_id: str, proforma_id: str, data: ProformaCancelInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.cancel_proforma(
+            db, company_id, user, proforma_id, payload["reason"], expected(request)
         ),
     )
 

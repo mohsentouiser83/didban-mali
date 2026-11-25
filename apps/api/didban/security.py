@@ -61,6 +61,29 @@ def membership(db: Session, company: str, user: User, operation: str = "read") -
     return member
 
 
+def require_payroll_access(db: Session, company: str, user: User, *, write: bool = False) -> Membership:
+    """Enforce company-scoped confidentiality guard (D36) for payroll and employee endpoints."""
+    member = membership(db, company, user, "write" if write else "read")
+    if member.role == "finance_manager":
+        return member
+    from .accounting_models import AccountingPermission
+
+    permission = db.scalar(
+        select(AccountingPermission).where(
+            AccountingPermission.company_id == company,
+            AccountingPermission.membership_id == member.id,
+        )
+    )
+    allowed = member.role in ("owner", "advisor") and bool(permission and permission.view_payroll)
+    require(
+        allowed,
+        "payroll_access_required",
+        "مجوز مشاهده یا مدیریت اطلاعات حقوق و دستمزد را ندارید.",
+        403,
+    )
+    return member
+
+
 def login(db: Session, email: str, password: str, ip: str) -> tuple[dict, str | None]:
     fingerprint = digest(email.strip().lower() + "|" + ip)
     count = (

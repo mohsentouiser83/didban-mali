@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { BooksIcon, DownloadSimpleIcon, FileTextIcon } from "@phosphor-icons/react";
-import * as XLSX from "xlsx";
+import { useState } from "react";
+import { BooksIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Field } from "@/components/ui/field";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
@@ -18,7 +17,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableRowHeader,
 } from "@/components/ui/table";
 import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
@@ -30,12 +28,18 @@ interface LedgerEntry {
   date: string;
   daily_doc_no: number;
   journal_sequence: number;
+  journal_number?: string | null;
+  is_reversal?: boolean;
+  reversal_of?: string | null;
+  account_code?: string;
+  account_name?: string;
   description: string;
   party_id: string;
-  debit: string;
-  credit: string;
-  balance: string;
+  debit: string | null;
+  credit: string | null;
+  balance: string | null;
   balance_nature: string;
+  amount_unknown?: boolean;
 }
 
 interface LedgerAccountGroup {
@@ -45,13 +49,19 @@ interface LedgerAccountGroup {
     name: string;
     nature: string;
     level: string;
-    parent_code?: string;
-    parent_name?: string;
+    parent_code?: string | null;
+    parent_name?: string | null;
+    mapping_status?: string;
   };
+  opening_debit?: string | null;
+  opening_credit?: string | null;
+  opening_balance?: string | null;
+  opening_nature?: string;
   total_debit: string;
   total_credit: string;
-  final_balance: string;
+  final_balance: string | null;
   final_nature: string;
+  has_unknown_amounts?: boolean;
   entries?: LedgerEntry[];
 }
 
@@ -63,8 +73,12 @@ interface ElectronicLedgerData {
   auto_daily_numbering: boolean;
   dates_count: number;
   total_journals: number;
+  opening_total_debit?: string;
+  opening_total_credit?: string;
   total_debit: string;
   total_credit: string;
+  unmapped_accounts_count?: number;
+  unknown_amount_lines_count?: number;
   items: LedgerAccountGroup[];
 }
 
@@ -75,6 +89,8 @@ export function ElectronicLedgersView() {
   const [toDate, setToDate] = useState("");
   const [includeTurnover, setIncludeTurnover] = useState(true);
   const [autoDailyNumbering, setAutoDailyNumbering] = useState(true);
+  const [downloadingMode, setDownloadingMode] = useState<"management" | "upload_draft" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const queryParams = new URLSearchParams();
   queryParams.set("level", level);
@@ -89,45 +105,32 @@ export function ElectronicLedgersView() {
 
   const data = resource.data;
 
-  const exportExcel = () => {
-    if (!data?.items?.length) return;
-    const rows: Record<string, string | number>[] = [];
-
-    data.items.forEach((group) => {
-      if (group.entries && group.entries.length) {
-        group.entries.forEach((entry) => {
-          rows.push({
-            "کد حساب": group.account.code,
-            "نام حساب": group.account.name,
-            "سطح حساب": level === "general" ? "کل" : "معین",
-            "تاریخ": displayDate(entry.date),
-            "شماره سند روزانه": entry.daily_doc_no,
-            "شماره سند سیستم": entry.journal_sequence,
-            "شرح": entry.description,
-            "طرف حساب": entry.party_id || "—",
-            "بدهکار (ریال)": Number(entry.debit),
-            "بستانکار (ریال)": Number(entry.credit),
-            "مانده (ریال)": Number(entry.balance),
-            "تشخیص": entry.balance_nature,
-          });
-        });
-      } else {
-        rows.push({
-          "کد حساب": group.account.code,
-          "نام حساب": group.account.name,
-          "سطح حساب": level === "general" ? "کل" : "معین",
-          "گردش بدهکار (ریال)": Number(group.total_debit),
-          "گردش بستانکار (ریال)": Number(group.total_credit),
-          "مانده پایان دوره (ریال)": Number(group.final_balance),
-          "تشخیص": group.final_nature,
-        });
+  const downloadExcel = async (exportMode: "management" | "upload_draft") => {
+    if (!workspace.company || !data?.items?.length) return;
+    setExportError(null);
+    setDownloadingMode(exportMode);
+    try {
+      const exportParams = new URLSearchParams(queryParams);
+      exportParams.set("export_mode", exportMode);
+      const url = `/api/v1${workspace.companyPath(`accounting/electronic-ledgers/export?${exportParams.toString()}`)}`;
+      const response = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+      if (!response.ok) {
+        throw new Error("خروجی اکسل دفاتر آماده نشد.");
       }
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, level === "general" ? "دفتر کل" : "دفتر معین");
-    XLSX.writeFile(workbook, `electronic-ledger-${level}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = `electronic-ledger-${exportMode}-${level}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "خطا در دریافت خروجی اکسل.");
+    } finally {
+      setDownloadingMode(null);
+    }
   };
 
   if (!workspace.company) return <NoCompany />;
@@ -138,17 +141,39 @@ export function ElectronicLedgersView() {
         title="دفاتر قانونی الکترونیک"
         icon={BooksIcon}
         action={
-          <Button
-            variant="secondary"
-            onClick={exportExcel}
-            disabled={!data?.items?.length}
-            className="gap-1.5"
-          >
-            <DownloadSimpleIcon size={16} aria-hidden />
-            خروجی اکسل دفاتر
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => downloadExcel("management")}
+              disabled={!data?.items?.length || downloadingMode !== null}
+              busy={downloadingMode === "management"}
+              className="gap-1.5"
+            >
+              <DownloadSimpleIcon size={16} aria-hidden />
+              خروجی اکسل مدیریتی
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => downloadExcel("upload_draft")}
+              disabled={!data?.items?.length || downloadingMode !== null}
+              busy={downloadingMode === "upload_draft"}
+              className="gap-1.5"
+            >
+              <DownloadSimpleIcon size={16} aria-hidden />
+              پیش‌نویس بارگذاری دفاتر
+            </Button>
+          </div>
         }
       />
+
+      {exportError && <StatusMessage tone="danger">{exportError}</StatusMessage>}
+
+      {data && ((data.unmapped_accounts_count ?? 0) > 0 || (data.unknown_amount_lines_count ?? 0) > 0) && (
+        <StatusMessage tone="warning">
+          {data.unmapped_accounts_count ? `${persian(data.unmapped_accounts_count)} حساب بدون نگاشت کامل کل/معین دارد. ` : ""}
+          {data.unknown_amount_lines_count ? `${persian(data.unknown_amount_lines_count)} ردیف دارای مبلغ نامعلوم است.` : ""}
+        </StatusMessage>
+      )}
 
       <Panel title="پارامترها و تنظیمات دفتر">
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 items-end">
@@ -199,7 +224,6 @@ export function ElectronicLedgersView() {
         </div>
       </Panel>
 
-      {/* KPI Cards */}
       {data && (
         <div className="my-5 grid gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
@@ -209,19 +233,19 @@ export function ElectronicLedgersView() {
             </div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs text-muted">کل اسناد دوره</span>
+            <span className="text-xs text-muted">کل اسناد بازه</span>
             <div className="mt-2 text-xl font-medium tabular-nums text-foreground">
               {persian(data.total_journals)} <span className="text-xs text-muted">سند</span>
             </div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs text-muted">جمع بدهکار دوره</span>
+            <span className="text-xs text-muted">گردش بدهکار بازه</span>
             <div className="mt-2 text-xl font-medium tabular-nums text-foreground">
               {amount(data.total_debit)} <span className="text-xs text-muted">ریال</span>
             </div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-            <span className="text-xs text-muted">جمع بستانکار دوره</span>
+            <span className="text-xs text-muted">گردش بستانکار بازه</span>
             <div className="mt-2 text-xl font-medium tabular-nums text-foreground">
               {amount(data.total_credit)} <span className="text-xs text-muted">ریال</span>
             </div>
@@ -240,8 +264,8 @@ export function ElectronicLedgersView() {
           <div className="space-y-6">
             {data.items.map((group) => (
               <div key={group.account.account_id} className="rounded-xl border border-border overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between bg-canvas/70 px-4 py-3 border-b border-border">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-canvas/70 px-4 py-3 border-b border-border">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="primary">{group.account.code}</Badge>
                     <span className="font-medium text-foreground">{group.account.name}</span>
                     {group.account.parent_name && (
@@ -249,11 +273,25 @@ export function ElectronicLedgersView() {
                         (کل: {group.account.parent_code} - {group.account.parent_name})
                       </span>
                     )}
+                    {group.account.mapping_status && group.account.mapping_status !== "mapped" && (
+                      <Badge tone="warning">نگاشت ناقص</Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span>جمع بدهکار: <b>{amount(group.total_debit)}</b></span>
-                    <span>جمع بستانکار: <b>{amount(group.total_credit)}</b></span>
-                    <span>مانده: <b>{amount(group.final_balance)}</b> ({group.final_nature})</span>
+                  <div className="flex flex-wrap items-center gap-4 text-xs">
+                    {data.from_date && (
+                      <span>
+                        مانده ابتدای بازه:{" "}
+                        <b>{group.opening_balance !== null && group.opening_balance !== undefined ? amount(group.opening_balance) : "نامعلوم"}</b>{" "}
+                        ({group.opening_nature || "—"})
+                      </span>
+                    )}
+                    <span>گردش بدهکار: <b>{amount(group.total_debit)}</b></span>
+                    <span>گردش بستانکار: <b>{amount(group.total_credit)}</b></span>
+                    <span>
+                      مانده پایان بازه:{" "}
+                      <b>{group.final_balance !== null ? amount(group.final_balance) : "نامعلوم"}</b>{" "}
+                      ({group.final_nature})
+                    </span>
                   </div>
                 </div>
 
@@ -279,12 +317,23 @@ export function ElectronicLedgersView() {
                           <TableCell className="font-semibold text-primary">
                             <span dir="ltr">#{entry.daily_doc_no}</span>
                           </TableCell>
-                          <TableCell><bdi>{entry.journal_sequence}</bdi></TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <bdi>{entry.journal_sequence}</bdi>
+                              {entry.is_reversal && <Badge tone="warning">برگشت</Badge>}
+                            </div>
+                          </TableCell>
                           <TableCell className="max-w-xs truncate">{entry.description}</TableCell>
                           {level === "subsidiary" && <TableCell>{entry.party_id || "—"}</TableCell>}
-                          <TableCell numeric className="tabular-nums">{amount(entry.debit)}</TableCell>
-                          <TableCell numeric className="tabular-nums">{amount(entry.credit)}</TableCell>
-                          <TableCell numeric className="tabular-nums font-medium">{amount(entry.balance)}</TableCell>
+                          <TableCell numeric className="tabular-nums">
+                            {entry.debit !== null ? amount(entry.debit) : "نامعلوم"}
+                          </TableCell>
+                          <TableCell numeric className="tabular-nums">
+                            {entry.credit !== null ? amount(entry.credit) : "نامعلوم"}
+                          </TableCell>
+                          <TableCell numeric className="tabular-nums font-medium">
+                            {entry.balance !== null ? amount(entry.balance) : "نامعلوم"}
+                          </TableCell>
                           <TableCell>
                             <Badge tone={entry.balance_nature === "بدهکار" ? "success" : entry.balance_nature === "بستانکار" ? "warning" : "neutral"}>
                               {entry.balance_nature}
@@ -296,7 +345,8 @@ export function ElectronicLedgersView() {
                   </Table>
                 ) : (
                   <div className="p-3 text-center text-xs text-muted">
-                    گردش ردیفی غیرفعال است. مانده پایان دوره: {amount(group.final_balance)} ریال ({group.final_nature})
+                    {group.entries ? "گردشی در این بازه ثبت نشده است." : "گردش ردیفی غیرفعال است."} مانده پایان بازه:{" "}
+                    {group.final_balance !== null ? `${amount(group.final_balance)} ریال` : "نامعلوم"} ({group.final_nature})
                   </div>
                 )}
               </div>

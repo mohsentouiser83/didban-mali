@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Table, TableBody, TableCell, TableEmptyCell, TableHead, TableHeader, TableRow, TableRowHeader } from "@/components/ui/table";
 import { useCounterparties } from "@/hooks/use-commercial";
-import { counterpartyTypeLabel } from "@/lib/commercial";
+import { counterpartyEntityKindLabel, counterpartyTypeLabel } from "@/lib/commercial";
 import { amount } from "@/lib/utils";
 import { NoCompany, PageHeader, Panel } from "../page-parts";
 import { CounterpartyEditor } from "./counterparty-editor";
@@ -61,7 +61,14 @@ export function CounterpartiesView() {
                   <TableRow key={row.id}>
                     <TableRowHeader>{row.name}</TableRowHeader>
                     <TableCell><bdi>{row.code}</bdi></TableCell>
-                    <TableCell>{counterpartyTypeLabel(row.type)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge tone="neutral">{counterpartyEntityKindLabel(row.entity_kind)}</Badge>
+                        {(row.roles?.length ? row.roles : [row.type]).map((r) => (
+                          <Badge key={r} tone="primary">{counterpartyTypeLabel(r)}</Badge>
+                        ))}
+                      </div>
+                    </TableCell>
                     <TableCell numeric>{row.credit_limit_irr === null ? "—" : amount(row.credit_limit_irr)}</TableCell>
                     <TableCell><Badge tone={row.active ? "success" : "neutral"}>{row.active ? "فعال" : "غیرفعال"}</Badge></TableCell>
                     <TableCell>

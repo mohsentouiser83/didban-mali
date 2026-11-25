@@ -27,6 +27,8 @@ const invoice = {
 };
 const fiscal: MoadianFiscalForm = {
   tax_id: taxId,
+  invoice_subject: "1",
+  reference_tax_id: "",
   issued_time: "10:15",
   buyer_type: "legal",
   buyer_tax_number: "10000000000",

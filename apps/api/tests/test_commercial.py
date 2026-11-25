@@ -322,33 +322,48 @@ def test_proforma_lifecycle_and_conversion(commercial_env, db_session):
         "revenue_account_id": accs["sales"].id,
         "cost_account_id": accs["cogs"].id,
     }
-    with pytest.raises(DomainError) as exc:
-        convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
-    assert exc.value.code == "proforma_unsupported_conversion"
-    assert get_proforma(db_session, c_id, pf["id"])["status"] == "issued"
-
-    second_line = {**proforma_payload["lines"][0], "discount": "0"}
-    pf = update_proforma(
-        db_session, c_id, user, pf["id"], {"lines": [second_line, second_line]}, pf["version"],
-    )
-    with pytest.raises(DomainError) as exc:
-        convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
-    assert exc.value.code == "proforma_unsupported_conversion"
-    assert get_proforma(db_session, c_id, pf["id"])["status"] == "issued"
-
-    pf = update_proforma(db_session, c_id, user, pf["id"], {"lines": [second_line]}, pf["version"])
+    # Multi-line and discounted proforma converts to conversion_pending, restores to issued on discard,
+    # and transitions to converted only on human draft posting.
     conv_result = convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
     assert conv_result["operation_id"] is not None
     assert conv_result["proforma_id"] == pf["id"]
 
     refreshed_pf = get_proforma(db_session, c_id, pf["id"])
-    assert refreshed_pf["status"] == "converted"
+    assert refreshed_pf["status"] == "conversion_pending"
     assert refreshed_pf["converted_operation_id"] == conv_result["operation_id"]
 
-    # Second conversion attempt must fail
+    # Second conversion attempt while draft is pending must fail
     with pytest.raises(DomainError) as exc2:
         convert_proforma(db_session, c_id, user, pf["id"], refreshed_pf["version"], conv_payload)
     assert exc2.value.code == "proforma_not_convertible"
+
+    # Discard draft restores issued state
+    from didban.posting_service import discard_draft
+
+    discard_draft(db_session, c_id, user, conv_result["draft"]["id"], "تست بازیابی", conv_result["draft"]["version"])
+    restored_pf = get_proforma(db_session, c_id, pf["id"])
+    assert restored_pf["status"] == "issued"
+    assert restored_pf["converted_operation_id"] is None
+
+    # Re-convert with 2 lines and post to reach converted
+    second_line = {**proforma_payload["lines"][0], "discount": "0"}
+    pf = update_proforma(
+        db_session, c_id, user, pf["id"], {"lines": [second_line, second_line]}, restored_pf["version"],
+    )
+    conv_result = convert_proforma(db_session, c_id, user, pf["id"], pf["version"], conv_payload)
+    conv_prev = preview(db_session, c_id, user, conv_result["draft"]["id"])
+    post_batch(
+        db_session,
+        c_id,
+        user,
+        [{
+            "draft_id": conv_result["draft"]["id"],
+            "expected_version": conv_prev["expected_version"],
+            "digest": conv_prev["digest"],
+        }],
+    )
+    final_pf = get_proforma(db_session, c_id, pf["id"])
+    assert final_pf["status"] == "converted"
 
     # Test expired proforma
     expired_payload = {

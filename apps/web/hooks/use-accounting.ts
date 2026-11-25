@@ -247,7 +247,10 @@ export function useAccountingPermissions(
     change: (
       permission: AccountingPermission,
       patch: Partial<
-        Pick<AccountingPermission, "post_journal" | "reopen_period">
+        Pick<
+          AccountingPermission,
+          "post_journal" | "reopen_period" | "view_payroll"
+        >
       >,
     ) => {
       void command.run(
@@ -260,6 +263,7 @@ export function useAccountingPermissions(
           body: {
             post_journal: permission.post_journal,
             reopen_period: permission.reopen_period,
+            view_payroll: permission.view_payroll,
             ...patch,
           },
         },

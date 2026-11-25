@@ -163,10 +163,22 @@ def assign(db: Session, company: str, user: m.User, data: dict, version: int) ->
             "مجموع تخصیص با مبلغ منبع برابر نیست.",
         )
     model = NativeDimensionAllocation if native_id else DimensionAllocation
+    journal_line_id = None
+    if native_id:
+        from .posting_models import NativeJournalLine
+
+        journal_line_id = db.scalar(
+            select(NativeJournalLine.id).where(
+                NativeJournalLine.company_id == company,
+                NativeJournalLine.journal_id == line.journal_id,
+                NativeJournalLine.line_index == line.line_index,
+            )
+        )
     source_fields = (
         {
             "native_statement_id": native_id,
             "journal_id": line.journal_id,
+            "journal_line_id": journal_line_id,
             "line_index": line.line_index,
             "source_role": line.role,
         }

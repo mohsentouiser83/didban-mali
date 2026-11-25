@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 
 from ..http import C, access
 from ..personnel_service import personnel_result
+from ..security import require_payroll_access
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ def personnel(
     basis: str | None = None,
 ):
     area = request.url.path.rsplit("/", 1)[-1]
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
+        require_payroll_access(db, company_id, user)
         kind = "employees" if area == "personnel-directory" else area
         return personnel_result(db, company_id, kind, period_id, basis=basis)

@@ -71,12 +71,14 @@ export function useMemberManagement() {
   const [accessValue, setAccessValue] = useState({
     post_journal: false,
     reopen_period: false,
+    view_payroll: false,
   });
   const [permission, setPermission] = useState<AccountingPermission>();
   const accessDirty =
     !!permission &&
     (permission.post_journal !== accessValue.post_journal ||
-      permission.reopen_period !== accessValue.reopen_period);
+      permission.reopen_period !== accessValue.reopen_period ||
+      Boolean(permission.view_payroll) !== accessValue.view_payroll);
   const membershipDirty =
     !!selected &&
     (selected.role !== value.role ||
@@ -98,6 +100,7 @@ export function useMemberManagement() {
     setAccessValue({
       post_journal: permission?.post_journal || false,
       reopen_period: permission?.reopen_period || false,
+      view_payroll: permission?.view_payroll || false,
     });
   }
   async function add() {

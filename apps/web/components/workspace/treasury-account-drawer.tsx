@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { AmountInput, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useAccountOptions } from "@/hooks/use-accounting";
 import { useCommand } from "@/hooks/use-command";
@@ -66,8 +66,13 @@ export function TreasuryAccountDrawer({
   const [code, setCode] = useState("");
   const [parentId, setParentId] = useState("");
   const [level, setLevel] = useState<AccountLevel>("subsidiary");
+  const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [iban, setIban] = useState("");
+  const [branchName, setBranchName] = useState("");
+  const [branchCode, setBranchCode] = useState("");
   const [holderName, setHolderName] = useState("");
+  const [pettyLimit, setPettyLimit] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isBank = treasuryType === "bank";
@@ -154,25 +159,31 @@ export function TreasuryAccountDrawer({
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    let finalName = trimmedName;
-    if (isBank && accountNumber.trim()) {
-      finalName = `${trimmedName} (${accountNumber.trim()})`;
-    } else if ((isCash || isPettyCash) && holderName.trim()) {
-      finalName = `${trimmedName} — ${holderName.trim()}`;
-    }
-
     void command.run(
-      workspace.companyPath("accounting/accounts"),
+      workspace.companyPath("treasury/accounts"),
       {
         method: "POST",
         body: {
+          kind: treasuryType,
+          name: trimmedName,
           code: trimmedCode,
-          name: finalName,
-          nature: "debit",
           level,
-          parent_id: parentId || null,
-          role: treasuryType,
+          parent_account_id: parentId || null,
           active: true,
+          ...(isBank
+            ? {
+                bank_name: bankName.trim() || null,
+                account_number: accountNumber.trim() || null,
+                iban: iban.trim() || null,
+                branch_name: branchName.trim() || null,
+                branch_code: branchCode.trim() || null,
+              }
+            : {
+                custodian_name: holderName.trim() || null,
+                ...(isPettyCash && pettyLimit.trim()
+                  ? { petty_cash_limit_irr: pettyLimit.trim() }
+                  : {}),
+              }),
         },
       },
       () => {
@@ -184,8 +195,13 @@ export function TreasuryAccountDrawer({
         // Reset form
         setName("");
         setCode("");
+        setBankName("");
         setAccountNumber("");
+        setIban("");
+        setBranchName("");
+        setBranchCode("");
         setHolderName("");
+        setPettyLimit("");
         setErrors({});
       },
     );
@@ -339,36 +355,90 @@ export function TreasuryAccountDrawer({
 
         {/* Extra fields based on type */}
         {isBank && (
-          <Field
-            id="treasury-account-number"
-            label="شماره حساب / شماره شبا (اختیاری)"
-          >
-            <Input
-              id="treasury-account-number"
-              dir="ltr"
-              maxLength={50}
-              placeholder="مثلاً ۰۲۱۸۸۰۰۹۹۰۰۰۱ یا IR..."
-              value={accountNumber}
-              disabled={command.busy}
-              onChange={(e) => setAccountNumber(e.target.value)}
-            />
-          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="treasury-bank-name" label="نام بانک (اختیاری)">
+              <Input
+                id="treasury-bank-name"
+                maxLength={120}
+                placeholder="مثلاً بانک ملت"
+                value={bankName}
+                disabled={command.busy}
+                onChange={(e) => setBankName(e.target.value)}
+              />
+            </Field>
+            <Field id="treasury-account-number" label="شماره حساب (اختیاری)">
+              <Input
+                id="treasury-account-number"
+                dir="ltr"
+                maxLength={60}
+                placeholder="مثلاً 0218800990001"
+                value={accountNumber}
+                disabled={command.busy}
+                onChange={(e) => setAccountNumber(e.target.value)}
+              />
+            </Field>
+            <Field id="treasury-iban" label="شماره شبا (اختیاری)">
+              <Input
+                id="treasury-iban"
+                dir="ltr"
+                maxLength={34}
+                placeholder="IR..."
+                value={iban}
+                disabled={command.busy}
+                onChange={(e) => setIban(e.target.value)}
+              />
+            </Field>
+            <Field id="treasury-branch-name" label="نام شعبه (اختیاری)">
+              <Input
+                id="treasury-branch-name"
+                maxLength={120}
+                placeholder="مثلاً شعبه مرکزی"
+                value={branchName}
+                disabled={command.busy}
+                onChange={(e) => setBranchName(e.target.value)}
+              />
+            </Field>
+            <Field id="treasury-branch-code" label="کد شعبه (اختیاری)">
+              <Input
+                id="treasury-branch-code"
+                dir="ltr"
+                maxLength={30}
+                placeholder="مثلاً 1042"
+                value={branchCode}
+                disabled={command.busy}
+                onChange={(e) => setBranchCode(e.target.value)}
+              />
+            </Field>
+          </div>
         )}
 
         {(isCash || isPettyCash) && (
-          <Field
-            id="treasury-holder"
-            label={isPettyCash ? "نام تنخواه‌دار (اختیاری)" : "مسئول صندوق (اختیاری)"}
-          >
-            <Input
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field
               id="treasury-holder"
-              maxLength={100}
-              placeholder="مثلاً نام همکار یا متصدی"
-              value={holderName}
-              disabled={command.busy}
-              onChange={(e) => setHolderName(e.target.value)}
-            />
-          </Field>
+              label={isPettyCash ? "نام تنخواه‌دار (اختیاری)" : "مسئول صندوق (اختیاری)"}
+            >
+              <Input
+                id="treasury-holder"
+                maxLength={120}
+                placeholder="مثلاً نام همکار یا متصدی"
+                value={holderName}
+                disabled={command.busy}
+                onChange={(e) => setHolderName(e.target.value)}
+              />
+            </Field>
+            {isPettyCash && (
+              <Field id="treasury-petty-limit" label="سقف تنخواه (ریال - اختیاری)">
+                <AmountInput
+                  id="treasury-petty-limit"
+                  maxLength={80}
+                  value={pettyLimit}
+                  disabled={command.busy}
+                  onValueChange={setPettyLimit}
+                />
+              </Field>
+            )}
+          </div>
         )}
 
         <div className="rounded-xl border border-border bg-canvas/60 p-3 text-xs text-secondary leading-relaxed">

@@ -1,6 +1,6 @@
 # فهرست موجودیت‌های اجرایی
 
-بازبینی کد ۲۰۲۶/۱۱/۲۳. پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۲۰ کلاس و ۱۲۰ جدول مدل در ۳۶ ماژول است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
+بازبینی کد ۲۰۲۵/۱۱/۲۶ (ممیزی ۲۰۲۵/۱۱/۲۶: ۲۰۲۵ میلادی / ۱۴۰۵ هجری). پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۳۴ کلاس و ۱۳۴ جدول مدل است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
 
 بازخوانی رجیستری از ریشهٔ مخزن
 
@@ -31,10 +31,12 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 |---|---|---|
 | `Account` | `accounting_accounts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `AccountHierarchy` | `accounting_account_hierarchy` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
+| `AccountDetailLink` | `accounting_detail_links` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `AccountImportPreview` | `account_import_previews` | [accounting_setup_models.py](../apps/api/didban/accounting_setup_models.py) |
 | `Draft` | `accounting_drafts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `OperationDraft` | `accounting_operations` | [operation_models.py](../apps/api/didban/operation_models.py) |
 | `NativeJournal` | `native_journals` | [posting_models.py](../apps/api/didban/posting_models.py) |
+| `NativeJournalLine` | `native_journal_lines` | [posting_models.py](../apps/api/didban/posting_models.py) |
 | `JournalCorrectionDraft` | `journal_correction_drafts` | [posting_models.py](../apps/api/didban/posting_models.py) |
 | `NativeAccountRole` | `native_account_roles` | [native_reporting_models.py](../apps/api/didban/native_reporting_models.py) |
 | `NativeBookReportRun` | `native_book_report_runs` | [posting_models.py](../apps/api/didban/posting_models.py) |
@@ -56,7 +58,14 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | کلاس | جدول | منبع |
 |---|---|---|
 | `CommercialCounterparty` | `commercial_counterparties` | [commercial_models.py](../apps/api/didban/commercial_models.py) |
+| `CommercialCounterpartyRole` | `commercial_counterparty_roles` | [commercial_models.py](../apps/api/didban/commercial_models.py) |
 | `ProformaInvoice` | `proforma_invoices` | [commercial_models.py](../apps/api/didban/commercial_models.py) |
+| `CommercialDocument` | `commercial_documents` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
+| `CommercialDocumentLine` | `commercial_document_lines` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
+| `CommercialReturn` | `commercial_returns` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
+| `CommercialReturnLine` | `commercial_return_lines` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
+| `CounterpartyCredit` | `counterparty_credits` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
+| `CounterpartyCreditApplication` | `counterparty_credit_applications` | [commercial_doc_models.py](../apps/api/didban/commercial_doc_models.py) |
 | `Invoice` | `invoices` | [models.py](../apps/api/didban/models.py) |
 | `InvoiceSnapshot` | `invoice_snapshots` | [models.py](../apps/api/didban/models.py) |
 | `NativeInvoice` | `native_invoices` | [native_invoice_models.py](../apps/api/didban/native_invoice_models.py) |
@@ -85,6 +94,10 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `Cheque` | `cheques` | [cheque_models.py](../apps/api/didban/cheque_models.py) |
 | `ChequeEvent` | `cheque_events` | [cheque_models.py](../apps/api/didban/cheque_models.py) |
 | `ChequeClearance` | `cheque_clearances` | [cheque_models.py](../apps/api/didban/cheque_models.py) |
+| `TreasuryAccount` | `treasury_accounts` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
+| `TreasuryDocument` | `treasury_documents` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
+| `TreasuryToolLine` | `treasury_tool_lines` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
+| `TreasuryAllocation` | `treasury_allocations` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
 
 ## تطبیق و مغایرت
 
@@ -138,6 +151,7 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 |---|---|---|
 | `Employee` | `employees` | [payroll_models.py](../apps/api/didban/payroll_models.py) |
 | `EmployeeContract` | `employee_contracts` | [payroll_models.py](../apps/api/didban/payroll_models.py) |
+| `CompanyPayrollWorkshop` | `company_payroll_workshops` | [payroll_models.py](../apps/api/didban/payroll_models.py) |
 | `PayrollRun` | `payroll_runs` | [payroll_models.py](../apps/api/didban/payroll_models.py) |
 | `PayrollSlip` | `payroll_slips` | [payroll_models.py](../apps/api/didban/payroll_models.py) |
 | `PersonnelRecord` | `personnel_records` | [models.py](../apps/api/didban/models.py) |

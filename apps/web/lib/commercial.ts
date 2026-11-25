@@ -1,3 +1,13 @@
+export const counterpartyEntityKindOptions = [
+  { value: "natural_person", label: "حقیقی" },
+  { value: "legal_entity", label: "حقوقی" },
+  { value: "other", label: "سایر" },
+] as const;
+export type CounterpartyEntityKind = typeof counterpartyEntityKindOptions[number]["value"];
+export function counterpartyEntityKindLabel(kind?: string | null) {
+  return counterpartyEntityKindOptions.find((option) => option.value === kind)?.label ?? "سایر";
+}
+
 export const counterpartyTypeOptions = [
   { value: "supplier", label: "تأمین‌کننده" },
   { value: "customer", label: "مشتری" },
@@ -11,22 +21,35 @@ export function counterpartyTypeLabel(type: CounterpartyType) {
 
 export interface CounterpartyForm {
   type: CounterpartyType | "";
+  entity_kind: CounterpartyEntityKind;
+  roles: CounterpartyType[];
   name: string;
   national_id: string;
   economic_code: string;
+  registration_number: string;
+  postal_code: string;
+  email: string;
   phone: string;
   address: string;
   credit_limit_irr: string;
   active: boolean;
 }
 
-export type Counterparty = Omit<CounterpartyForm, "type" | "national_id" | "economic_code" | "phone" | "address" | "credit_limit_irr"> & {
+export type Counterparty = Omit<
+  CounterpartyForm,
+  "type" | "entity_kind" | "roles" | "national_id" | "economic_code" | "registration_number" | "postal_code" | "email" | "phone" | "address" | "credit_limit_irr"
+> & {
   type: CounterpartyType;
   id: string;
   code: string;
   version: number;
+  entity_kind?: CounterpartyEntityKind;
+  roles?: CounterpartyType[];
   national_id: string | null;
   economic_code: string | null;
+  registration_number?: string | null;
+  postal_code?: string | null;
+  email?: string | null;
   phone: string | null;
   address: string | null;
   credit_limit_irr: string | null;
@@ -47,6 +70,7 @@ export interface ProformaForm {
   expiry_date: string;
   party_id: string;
   currency: "IRR" | "TOMAN";
+  invoice_discount: string;
   terms: string;
   lines: ProformaLineForm[];
 }
@@ -58,6 +82,7 @@ export type Proforma = Omit<ProformaForm, "lines" | "expiry_date" | "terms"> & {
   expiry_date: string | null;
   terms: string | null;
   total_amount: string;
+  invoice_discount?: string;
   status: string;
   lines: (Omit<ProformaLineForm, "key" | "quantity" | "item_id"> & {
     line_id: string;

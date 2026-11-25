@@ -104,3 +104,21 @@ def grant(company_id: str, membership_id: str, data: s.PermissionInput, request:
             db, company_id, user, membership_id, data.model_dump(), expected(request)
         ),
     )
+
+
+@router.get(A + "/detail-links")
+def list_detail_links(company_id: str, request: Request, detail_account_id: str | None = None):
+    with access(request, company_id) as (db, user, _member):
+        return service.list_detail_links(db, company_id, user, detail_account_id)
+
+
+@router.post(A + "/detail-links", status_code=201)
+def save_detail_link(company_id: str, data: s.AccountDetailLinkInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request,
+        company_id,
+        payload,
+        "read",
+        lambda db, user: service.save_detail_link(db, company_id, user, payload),
+    )

@@ -140,6 +140,72 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
                     "reason": error_code,
                 }
             )
+        from .treasury_models import TreasuryAllocation, TreasuryDocument, TreasuryToolLine
+
+        for ta, tl, doc in db.execute(
+            select(TreasuryAllocation, TreasuryToolLine, TreasuryDocument)
+            .join(
+                TreasuryToolLine,
+                (TreasuryToolLine.company_id == TreasuryAllocation.company_id)
+                & (TreasuryToolLine.id == TreasuryAllocation.tool_line_id),
+            )
+            .join(
+                TreasuryDocument,
+                (TreasuryDocument.company_id == TreasuryToolLine.company_id)
+                & (TreasuryDocument.id == TreasuryToolLine.document_id),
+            )
+            .where(
+                TreasuryAllocation.company_id == company,
+                TreasuryAllocation.invoice_id == invoice.id,
+                TreasuryAllocation.date <= as_of,
+            )
+        ).all():
+            is_rev = bool(ta.reversed_at and ta.reversed_at.date() <= as_of) or doc.state == "reversed"
+            if not is_rev:
+                used += Decimal(ta.amount)
+            allocations.append(
+                {
+                    "id": ta.id,
+                    "basis": "treasury_tool",
+                    "document_id": doc.id,
+                    "document_number": doc.number,
+                    "tool_line_id": tl.id,
+                    "tool_kind": tl.tool_kind,
+                    "amount": ta.amount,
+                    "date": ta.date.isoformat(),
+                    "reversed": is_rev,
+                    "reversal": {"reason": ta.reversal_reason} if ta.reversed_at else None,
+                    "status": "available",
+                    "reason": None,
+                }
+            )
+        from .commercial_doc_models import CommercialDocument, CommercialReturn, CounterpartyCreditApplication
+
+        cdoc = db.scalar(
+            select(CommercialDocument).where(
+                CommercialDocument.company_id == company,
+                CommercialDocument.native_invoice_id == invoice.id,
+            )
+        )
+        if cdoc is not None:
+            for ret in db.scalars(
+                select(CommercialReturn).where(
+                    CommercialReturn.company_id == company,
+                    CommercialReturn.document_id == cdoc.id,
+                    CommercialReturn.status == "posted",
+                    CommercialReturn.date <= as_of,
+                )
+            ):
+                if Decimal(ret.invoice_balance_reduced_irr) > 0:
+                    used += Decimal(ret.invoice_balance_reduced_irr)
+            for app in db.scalars(
+                select(CounterpartyCreditApplication).where(
+                    CounterpartyCreditApplication.company_id == company,
+                    CounterpartyCreditApplication.target_document_id == cdoc.id,
+                    CounterpartyCreditApplication.date <= as_of,
+                )
+            ):
+                used += Decimal(app.amount_irr)
         remaining = aggregate_money(Decimal(source["amount"]) - used) if not reason else None
     return {
         "id": invoice.id,
@@ -366,9 +432,13 @@ def allocate(db: Session, company: str, user: m.User, invoice_id: str, data: dic
         409,
     )
     source = _proof(db, company, data["operation_id"], _today(db, company), data.get("journal_id"))
+    from .commercial_service import resolve_counterparty_id
+
+    source_cp = resolve_counterparty_id(db, company, source["party_id"])
+    invoice_cp = resolve_counterparty_id(db, company, status["party_id"])
     require(
         source["kind"] == ("receipt" if invoice.direction == "sale" else "payment")
-        and source["party_id"] == status["party_id"],
+        and source_cp == invoice_cp,
         "native_invoice_allocation_party",
         "نوع دریافت/پرداخت یا طرف حساب یکسان نیست.",
     )
@@ -510,9 +580,12 @@ def reverse_allocation(
 
 
 def receipt_history(db: Session, company: str, user: m.User, party_id: str, as_of: date) -> list[dict]:
+    from .commercial_service import resolve_counterparty_id
+
+    target_cp = resolve_counterparty_id(db, company, party_id)
     result = []
     for invoice in current(db, company, user, as_of, "sale")["items"]:
-        if invoice["party_id"] != party_id or invoice["status"] != "available":
+        if resolve_counterparty_id(db, company, invoice["party_id"]) != target_cp or invoice["status"] != "available":
             continue
         for allocation in invoice["allocations"]:
             if allocation["reversed"] or allocation["status"] != "available":
@@ -521,7 +594,7 @@ def receipt_history(db: Session, company: str, user: m.User, party_id: str, as_o
             head = get_entity(db, NativeInvoice, company, invoice["id"])
             historical_source = selected_source(db, company, head, paid_date)
             raw_allocation = get_entity(db, NativeInvoiceAllocation, company, allocation["id"])
-            if historical_source["party_id"] != party_id:
+            if resolve_counterparty_id(db, company, historical_source["party_id"]) != target_cp:
                 continue
             try:
                 _source_current(db, company, historical_source, paid_date)

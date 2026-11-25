@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import AwareDatetime, Field, field_validator
+from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from .accounting_schemas import StrictInput
 
@@ -15,6 +15,10 @@ ECONOMIC_NUMBER_PATTERN = r"(?:[0-9]{11}|[0-9]{14})"
 class MoadianInvoiceInput(StrictInput):
     invoice_id: str = Field(min_length=1, max_length=36)
     invoice_version: int = Field(strict=True, ge=1)
+    invoice_subject: Literal[1, 2, 3, 4] = 1
+    reference_tax_id: str | None = Field(
+        default=None, pattern=rf"^{FISCAL_MEMORY_PATTERN}[0-9A-F]{{15}}[0-9]$"
+    )
     tax_id: str = Field(pattern=rf"^{FISCAL_MEMORY_PATTERN}[0-9A-F]{{15}}[0-9]$")
     issued_at: AwareDatetime
     buyer_type: Literal["natural", "legal"]
@@ -23,6 +27,14 @@ class MoadianInvoiceInput(StrictInput):
     unit_code: str = Field(pattern=r"^[0-9]{1,8}$")
     vat_treatment: Literal["exempt", "zero_rated"]
     vat_evidence: str = Field(min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def validate_subject_reference(self):
+        if self.invoice_subject in (2, 3, 4) and not self.reference_tax_id:
+            raise ValueError("reference_tax_id is required for correction, cancellation, or return subjects")
+        if self.invoice_subject == 1 and self.reference_tax_id:
+            raise ValueError("reference_tax_id is only allowed for non-original invoice subjects")
+        return self
 
     @field_validator("issued_at", mode="before")
     @classmethod

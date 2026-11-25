@@ -8,6 +8,11 @@ from .models import Base, Entity, Tenant
 
 class NativeAutomationPreview(Entity, Tenant, Base):
     __tablename__ = "native_automation_previews"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["company_id", "period_id"], ["financial_periods.company_id", "financial_periods.id"]
+        ),
+    )
     actor_id: Mapped[str] = mapped_column(String(36))
     period_id: Mapped[str] = mapped_column(String(36))
     source_digest: Mapped[str] = mapped_column(String(64))

@@ -26,6 +26,7 @@ class AccountInput(StrictInput):
     nature: Literal["debit", "credit", "floating", "none"] = "debit"
     role: str | None = Field(default=None, max_length=40)
     active: bool = True
+    confirm_reclassification: bool = False
 
     @field_validator("code", mode="before")
     @classmethod
@@ -80,8 +81,13 @@ class AccountCreateInput(AccountInput):
 class DraftLine(StrictInput):
     account_id: str = Field(min_length=1, max_length=36)
     party_id: str = Field(default="", max_length=100)
+    counterparty_id: str | None = Field(default=None, max_length=36)
     debit: str = Field(max_length=80)
     credit: str = Field(max_length=80)
+    description: str = Field(default="", max_length=500)
+    reference_kind: str | None = Field(default=None, max_length=40)
+    reference_id: str | None = Field(default=None, max_length=36)
+    dimension_ids: list[str] = Field(default_factory=list, max_length=10)
 
 
 class DraftInput(StrictInput):
@@ -95,3 +101,11 @@ class DraftInput(StrictInput):
 class PermissionInput(StrictInput):
     post_journal: bool
     reopen_period: bool
+    view_payroll: bool = False
+
+
+class AccountDetailLinkInput(StrictInput):
+    detail_account_id: str = Field(min_length=1, max_length=36)
+    subsidiary_account_id: str = Field(min_length=1, max_length=36)
+    counterparty_id: str | None = Field(default=None, max_length=36)
+    active: bool = True

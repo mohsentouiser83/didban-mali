@@ -37,6 +37,11 @@
             ],
             "title": "Code"
           },
+          "confirm_reclassification": {
+            "default": false,
+            "title": "Confirm Reclassification",
+            "type": "boolean"
+          },
           "level": {
             "anyOf": [
               {
@@ -103,6 +108,46 @@
         "title": "AccountCreateInput",
         "type": "object"
       },
+      "AccountDetailLinkInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "detail_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Detail Account Id",
+            "type": "string"
+          },
+          "subsidiary_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Subsidiary Account Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail_account_id",
+          "subsidiary_account_id"
+        ],
+        "title": "AccountDetailLinkInput",
+        "type": "object"
+      },
       "AccountInput": {
         "additionalProperties": false,
         "properties": {
@@ -122,6 +167,11 @@
               }
             ],
             "title": "Code"
+          },
+          "confirm_reclassification": {
+            "default": false,
+            "title": "Confirm Reclassification",
+            "type": "boolean"
           },
           "level": {
             "anyOf": [
@@ -309,6 +359,42 @@
           "expected_version"
         ],
         "title": "AnswerInput",
+        "type": "object"
+      },
+      "ApplyCreditInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount Irr"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "target_document_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Target Document Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_document_id",
+          "amount_irr",
+          "date"
+        ],
+        "title": "ApplyCreditInput",
         "type": "object"
       },
       "AssistantInput": {
@@ -610,6 +696,11 @@
             "title": "Code",
             "type": "string"
           },
+          "confirm_reclassification": {
+            "default": false,
+            "title": "Confirm Reclassification",
+            "type": "boolean"
+          },
           "level": {
             "anyOf": [
               {
@@ -779,6 +870,18 @@
             "minLength": 1,
             "title": "Reason",
             "type": "string"
+          },
+          "treasury_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treasury Account Id"
           }
         },
         "required": [
@@ -826,10 +929,34 @@
             "title": "Due Date",
             "type": "string"
           },
+          "holder_name": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Name"
+          },
           "issue_date": {
             "format": "date",
             "title": "Issue Date",
             "type": "string"
+          },
+          "issuer_name": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer Name"
           },
           "number": {
             "maxLength": 100,
@@ -848,6 +975,54 @@
             "minLength": 1,
             "title": "Period Id",
             "type": "string"
+          },
+          "received_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Received Date"
+          },
+          "sayad_id": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sayad Id"
+          },
+          "sayad_status": {
+            "default": "not_verified",
+            "enum": [
+              "not_verified",
+              "registered",
+              "confirmed",
+              "rejected",
+              "unknown"
+            ],
+            "title": "Sayad Status",
+            "type": "string"
+          },
+          "treasury_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treasury Account Id"
           },
           "unit": {
             "enum": [
@@ -913,6 +1088,507 @@
         "title": "ClosingInput",
         "type": "object"
       },
+      "CommercialDocumentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allow_credit_override": {
+            "default": false,
+            "title": "Allow Credit Override",
+            "type": "boolean"
+          },
+          "cash_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Account Id"
+          },
+          "cash_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Amount"
+          },
+          "cheque_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Account Id"
+          },
+          "cheque_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Amount"
+          },
+          "cheque_due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Due Date"
+          },
+          "cheque_number": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Number"
+          },
+          "cost_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Account Id"
+          },
+          "counterparty_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Account Id"
+          },
+          "credit_override_reason": {
+            "default": "",
+            "title": "Credit Override Reason",
+            "type": "string"
+          },
+          "currency": {
+            "default": "IRR",
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "sale",
+              "purchase"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "discount_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Account Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "expense_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Account Id"
+          },
+          "invoice_discount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Invoice Discount"
+          },
+          "issue_date": {
+            "format": "date",
+            "title": "Issue Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialDocumentLineInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "on_account_amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Account Amount"
+          },
+          "party_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Party Id",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "revenue_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revenue Account Id"
+          },
+          "service_revenue_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Revenue Account Id"
+          },
+          "settlement_type": {
+            "default": "on_account",
+            "enum": [
+              "on_account",
+              "cash",
+              "mixed"
+            ],
+            "title": "Settlement Type",
+            "type": "string"
+          },
+          "vendor_reference": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Reference"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          }
+        },
+        "required": [
+          "direction",
+          "period_id",
+          "issue_date",
+          "party_id",
+          "lines"
+        ],
+        "title": "CommercialDocumentInput",
+        "type": "object"
+      },
+      "CommercialDocumentLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "line_discount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Line Discount"
+          },
+          "line_kind": {
+            "default": "goods",
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "title": "Line Kind",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Unit Price"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price"
+        ],
+        "title": "CommercialDocumentLineInput",
+        "type": "object"
+      },
+      "CommercialReturnInput": {
+        "additionalProperties": false,
+        "properties": {
+          "adjustment_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjustment Account Id"
+          },
+          "cost_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Account Id"
+          },
+          "counterparty_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Account Id"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialReturnLineInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "return_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Account Id"
+          }
+        },
+        "required": [
+          "period_id",
+          "date",
+          "reason",
+          "lines"
+        ],
+        "title": "CommercialReturnInput",
+        "type": "object"
+      },
+      "CommercialReturnLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "condition": {
+            "default": "healthy",
+            "enum": [
+              "healthy",
+              "defective"
+            ],
+            "title": "Condition",
+            "type": "string"
+          },
+          "document_line_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Document Line Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document_line_id",
+          "quantity"
+        ],
+        "title": "CommercialReturnLineInput",
+        "type": "object"
+      },
       "CompanyInput": {
         "additionalProperties": false,
         "properties": {
@@ -932,6 +1608,18 @@
       "ContractInput": {
         "additionalProperties": false,
         "properties": {
+          "amendment_of_contract_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amendment Of Contract Id"
+          },
           "base_salary": {
             "anyOf": [
               {
@@ -957,6 +1645,18 @@
             ],
             "default": "0",
             "title": "Child Allowance"
+          },
+          "conclusion_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion Date"
           },
           "contract_number": {
             "anyOf": [
@@ -1115,6 +1815,58 @@
             ],
             "default": "0",
             "title": "Tenure Allowance"
+          },
+          "weekly_hours": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "44",
+            "title": "Weekly Hours"
+          },
+          "work_description": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Description"
+          },
+          "work_location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Location"
+          },
+          "workshop_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workshop Id"
           }
         },
         "required": [
@@ -1240,6 +1992,46 @@
             "title": "Credit Override Reason",
             "type": "string"
           },
+          "discount_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Account Id"
+          },
+          "invoice_discount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Discount"
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Date"
+          },
           "on_account_amount": {
             "anyOf": [
               {
@@ -1274,6 +2066,19 @@
             ],
             "title": "Revenue Account Id"
           },
+          "service_revenue_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Revenue Account Id"
+          },
           "settlement_type": {
             "default": "on_account",
             "enum": [
@@ -1285,22 +2090,34 @@
             "type": "string"
           },
           "source_reference": {
-            "maxLength": 120,
-            "minLength": 1,
-            "title": "Source Reference",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
           },
           "warehouse_id": {
-            "maxLength": 36,
-            "minLength": 1,
-            "title": "Warehouse Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
           }
         },
         "required": [
-          "period_id",
-          "warehouse_id",
-          "source_reference"
+          "period_id"
         ],
         "title": "ConvertProformaInput",
         "type": "object"
@@ -1388,6 +2205,28 @@
             ],
             "title": "Economic Code"
           },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "entity_kind": {
+            "default": "other",
+            "enum": [
+              "natural_person",
+              "legal_entity",
+              "other"
+            ],
+            "title": "Entity Kind",
+            "type": "string"
+          },
           "name": {
             "maxLength": 200,
             "minLength": 1,
@@ -1418,19 +2257,69 @@
             ],
             "title": "Phone"
           },
-          "type": {
-            "enum": [
-              "supplier",
-              "customer",
-              "employee",
-              "other"
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Type",
-            "type": "string"
+            "title": "Postal Code"
+          },
+          "registration_number": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Number"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "supplier",
+                    "customer",
+                    "employee",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "supplier",
+                  "customer",
+                  "employee",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
           }
         },
         "required": [
-          "type",
           "name"
         ],
         "title": "CounterpartyInput",
@@ -1462,6 +2351,63 @@
           "status"
         ],
         "title": "CounterpartyReconciliationDecisionInput",
+        "type": "object"
+      },
+      "CreditRefundInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount Irr"
+          },
+          "cash_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Cash Account Id",
+            "type": "string"
+          },
+          "counterparty_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Counterparty Account Id",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period_id",
+          "date",
+          "amount_irr",
+          "cash_account_id",
+          "counterparty_account_id",
+          "reason"
+        ],
+        "title": "CreditRefundInput",
         "type": "object"
       },
       "CustomExportInput": {
@@ -1879,6 +2825,18 @@
             "title": "Account Id",
             "type": "string"
           },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
           "credit": {
             "maxLength": 80,
             "title": "Credit",
@@ -1889,11 +2847,49 @@
             "title": "Debit",
             "type": "string"
           },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "dimension_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Dimension Ids",
+            "type": "array"
+          },
           "party_id": {
             "default": "",
             "maxLength": 100,
             "title": "Party Id",
             "type": "string"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "reference_kind": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Kind"
           }
         },
         "required": [
@@ -2761,6 +3757,13 @@
       "InventoryItemInput": {
         "additionalProperties": false,
         "properties": {
+          "base_unit": {
+            "default": "عدد",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Base Unit",
+            "type": "string"
+          },
           "code": {
             "anyOf": [
               {
@@ -2785,6 +3788,15 @@
               }
             ],
             "title": "Inventory Account Id"
+          },
+          "item_kind": {
+            "default": "goods",
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "title": "Item Kind",
+            "type": "string"
           },
           "name": {
             "maxLength": 150,
@@ -3136,6 +4148,17 @@
             "title": "Invoice Id",
             "type": "string"
           },
+          "invoice_subject": {
+            "default": 1,
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "title": "Invoice Subject",
+            "type": "integer"
+          },
           "invoice_version": {
             "minimum": 1.0,
             "title": "Invoice Version",
@@ -3150,6 +4173,18 @@
             "pattern": "^[0-9]{13}$",
             "title": "Item Tax Id",
             "type": "string"
+          },
+          "reference_tax_id": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Tax Id"
           },
           "tax_id": {
             "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
@@ -3214,6 +4249,17 @@
             "title": "Invoice Id",
             "type": "string"
           },
+          "invoice_subject": {
+            "default": 1,
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "title": "Invoice Subject",
+            "type": "integer"
+          },
           "invoice_version": {
             "minimum": 1.0,
             "title": "Invoice Version",
@@ -3228,6 +4274,18 @@
             "pattern": "^[0-9]{13}$",
             "title": "Item Tax Id",
             "type": "string"
+          },
+          "reference_tax_id": {
+            "anyOf": [
+              {
+                "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Tax Id"
           },
           "tax_id": {
             "pattern": "^[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]$",
@@ -3599,6 +4657,191 @@
           "read"
         ],
         "title": "NotificationInput",
+        "type": "object"
+      },
+      "NrvAdjustmentDraftInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allowance_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowance Account Id"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "expense_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Account Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NrvItemPriceInput"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "recovery_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Account Id"
+          }
+        },
+        "required": [
+          "period_id",
+          "date",
+          "description",
+          "items"
+        ],
+        "title": "NrvAdjustmentDraftInput",
+        "type": "object"
+      },
+      "NrvAssessmentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NrvItemPriceInput"
+            },
+            "maxItems": 500,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "title": "NrvAssessmentInput",
+        "type": "object"
+      },
+      "NrvItemPriceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "estimated_selling_cost_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Estimated Selling Cost Irr"
+          },
+          "estimated_selling_price_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Estimated Selling Price Irr"
+          },
+          "item_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "prior_write_down_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Prior Write Down Irr"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          }
+        },
+        "required": [
+          "item_id",
+          "estimated_selling_price_irr"
+        ],
+        "title": "NrvItemPriceInput",
         "type": "object"
       },
       "NumberingRuleCreateInput": {
@@ -4150,6 +5393,68 @@
         "title": "PairingInput",
         "type": "object"
       },
+      "PayrollPaymentDraftInput": {
+        "additionalProperties": false,
+        "properties": {
+          "bank_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Bank Account Id",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "payroll_payable_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Payroll Payable Account Id",
+            "type": "string"
+          },
+          "slip_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slip Ids"
+          }
+        },
+        "required": [
+          "date",
+          "bank_account_id",
+          "payroll_payable_account_id",
+          "expected_version"
+        ],
+        "title": "PayrollPaymentDraftInput",
+        "type": "object"
+      },
       "PayrollPostJournalInput": {
         "additionalProperties": false,
         "properties": {
@@ -4389,6 +5694,83 @@
         "title": "PayrollSlipTimesheetInput",
         "type": "object"
       },
+      "PayrollWorkshopInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "employer_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Employer Name",
+            "type": "string"
+          },
+          "tamin_branch_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tamin Branch Code"
+          },
+          "tamin_branch_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tamin Branch Name"
+          },
+          "tax_office_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Office Code"
+          },
+          "workshop_code": {
+            "maxLength": 20,
+            "minLength": 4,
+            "pattern": "^[0-9]{4,20}$",
+            "title": "Workshop Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workshop_code",
+          "employer_name"
+        ],
+        "title": "PayrollWorkshopInput",
+        "type": "object"
+      },
       "PeriodChecklistItemInput": {
         "additionalProperties": false,
         "properties": {
@@ -4532,6 +5914,11 @@
           },
           "reopen_period": {
             "title": "Reopen Period",
+            "type": "boolean"
+          },
+          "view_payroll": {
+            "default": false,
+            "title": "View Payroll",
             "type": "boolean"
           }
         },
@@ -4678,6 +6065,22 @@
         "title": "ProfileUpdateInput",
         "type": "object"
       },
+      "ProformaCancelInput": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ProformaCancelInput",
+        "type": "object"
+      },
       "ProformaInput": {
         "additionalProperties": false,
         "properties": {
@@ -4712,6 +6115,19 @@
               }
             ],
             "title": "Expiry Date"
+          },
+          "invoice_discount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Invoice Discount"
           },
           "lines": {
             "items": {
@@ -4796,11 +6212,33 @@
             ],
             "title": "Item Id"
           },
+          "line_kind": {
+            "default": "goods",
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "title": "Line Kind",
+            "type": "string"
+          },
           "quantity": {
             "maximum": 1000000000.0,
             "minimum": 1.0,
             "title": "Quantity",
             "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           },
           "unit_price": {
             "anyOf": [
@@ -4822,6 +6260,69 @@
           "unit_price"
         ],
         "title": "ProformaLineInput",
+        "type": "object"
+      },
+      "QuarantineDecisionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Account Id"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "restocked",
+              "repaired",
+              "scrapped"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "loss_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loss Account Id"
+          },
+          "note": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "period_id",
+          "date",
+          "note"
+        ],
+        "title": "QuarantineDecisionInput",
         "type": "object"
       },
       "RecalculateInput": {
@@ -5099,6 +6600,22 @@
           "expected_version"
         ],
         "title": "RerunInput",
+        "type": "object"
+      },
+      "ReverseTreasuryAllocationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReverseTreasuryAllocationInput",
         "type": "object"
       },
       "ReviewInput": {
@@ -6198,9 +7715,444 @@
         "title": "TermsUpdate",
         "type": "object"
       },
+      "TreasuryAccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "bank_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Name"
+          },
+          "branch_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Code"
+          },
+          "branch_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Name"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "custodian_counterparty_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Counterparty Id"
+          },
+          "custodian_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Name"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "maxLength": 34,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "kind": {
+            "enum": [
+              "bank",
+              "cash",
+              "petty_cash"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "anyOf": [
+              {
+                "enum": [
+                  "general",
+                  "subsidiary",
+                  "detail"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Account Id"
+          },
+          "petty_cash_limit_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Petty Cash Limit Irr"
+          }
+        },
+        "required": [
+          "kind",
+          "name"
+        ],
+        "title": "TreasuryAccountInput",
+        "type": "object"
+      },
+      "TreasuryAllocationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount"
+          },
+          "invoice_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "tool_line_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Tool Line Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_line_id",
+          "invoice_id",
+          "amount"
+        ],
+        "title": "TreasuryAllocationInput",
+        "type": "object"
+      },
+      "TreasuryAllocationItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount"
+          },
+          "invoice_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "tool_line_index": {
+            "minimum": 0.0,
+            "title": "Tool Line Index",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tool_line_index",
+          "invoice_id",
+          "amount"
+        ],
+        "title": "TreasuryAllocationItemInput",
+        "type": "object"
+      },
+      "TreasuryDocumentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryAllocationItemInput"
+            },
+            "maxItems": 100,
+            "title": "Allocations",
+            "type": "array"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "receipt",
+              "payment"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "party_id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Party Id",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryToolLineInput"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Tools",
+            "type": "array"
+          },
+          "unit": {
+            "default": "IRR",
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction",
+          "date",
+          "period_id",
+          "party_id",
+          "tools"
+        ],
+        "title": "TreasuryDocumentInput",
+        "type": "object"
+      },
+      "TreasuryToolLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount"
+          },
+          "bank_movement_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Movement Id"
+          },
+          "cheque_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "tool_kind": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "cheque",
+              "card",
+              "other"
+            ],
+            "title": "Tool Kind",
+            "type": "string"
+          },
+          "treasury_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treasury Account Id"
+          }
+        },
+        "required": [
+          "tool_kind",
+          "amount"
+        ],
+        "title": "TreasuryToolLineInput",
+        "type": "object"
+      },
       "UpdateContractInput": {
         "additionalProperties": false,
         "properties": {
+          "amendment_of_contract_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amendment Of Contract Id"
+          },
           "base_salary": {
             "anyOf": [
               {
@@ -6230,6 +8182,18 @@
               }
             ],
             "title": "Child Allowance"
+          },
+          "conclusion_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion Date"
           },
           "contract_number": {
             "anyOf": [
@@ -6425,6 +8389,57 @@
               }
             ],
             "title": "Tenure Allowance"
+          },
+          "weekly_hours": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekly Hours"
+          },
+          "work_description": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Description"
+          },
+          "work_location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Location"
+          },
+          "workshop_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workshop Id"
           }
         },
         "title": "UpdateContractInput",
@@ -6496,6 +8511,34 @@
             ],
             "title": "Economic Code"
           },
+          "email": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "entity_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "natural_person",
+                  "legal_entity",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Kind"
+          },
           "name": {
             "anyOf": [
               {
@@ -6533,16 +8576,66 @@
             ],
             "title": "Phone"
           },
-          "type": {
-            "default": "other",
-            "enum": [
-              "supplier",
-              "customer",
-              "employee",
-              "other"
+          "postal_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Type",
-            "type": "string"
+            "title": "Postal Code"
+          },
+          "registration_number": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration Number"
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "supplier",
+                    "customer",
+                    "employee",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roles"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "supplier",
+                  "customer",
+                  "employee",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
           }
         },
         "title": "UpdateCounterpartyInput",
@@ -6860,6 +8953,19 @@
             ],
             "title": "Active"
           },
+          "base_unit": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Unit"
+          },
           "code": {
             "anyOf": [
               {
@@ -6886,6 +8992,21 @@
             ],
             "title": "Inventory Account Id"
           },
+          "item_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "goods",
+                  "service"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Kind"
+          },
           "name": {
             "anyOf": [
               {
@@ -6901,6 +9022,229 @@
           }
         },
         "title": "UpdateInventoryItemInput",
+        "type": "object"
+      },
+      "UpdatePayrollWorkshopInput": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "employer_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employer Name"
+          },
+          "tamin_branch_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tamin Branch Code"
+          },
+          "tamin_branch_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tamin Branch Name"
+          },
+          "tax_office_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tax Office Code"
+          },
+          "workshop_code": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "minLength": 4,
+                "pattern": "^[0-9]{4,20}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workshop Code"
+          }
+        },
+        "title": "UpdatePayrollWorkshopInput",
+        "type": "object"
+      },
+      "UpdateTreasuryAccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_number": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "bank_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Name"
+          },
+          "branch_code": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Code"
+          },
+          "branch_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Name"
+          },
+          "custodian_counterparty_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Counterparty Id"
+          },
+          "custodian_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Name"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "maxLength": 34,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 150,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "petty_cash_limit_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Petty Cash Limit Irr"
+          }
+        },
+        "title": "UpdateTreasuryAccountInput",
         "type": "object"
       },
       "UpdateWarehouseInput": {
@@ -8049,6 +10393,104 @@
         "summary": "Capabilities"
       }
     },
+    "/api/v1/companies/{company_id}/accounting/detail-links": {
+      "get": {
+        "operationId": "list_detail_links_api_v1_companies__company_id__accounting_detail_links_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "detail_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Detail Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Detail Links"
+      },
+      "post": {
+        "operationId": "save_detail_link_api_v1_companies__company_id__accounting_detail_links_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDetailLinkInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Detail Link"
+      }
+    },
     "/api/v1/companies/{company_id}/accounting/discussions": {
       "get": {
         "operationId": "read_api_v1_companies__company_id__accounting_discussions_get",
@@ -8699,6 +11141,125 @@
         "summary": "Electronic Ledgers"
       }
     },
+    "/api/v1/companies/{company_id}/accounting/electronic-ledgers/export": {
+      "get": {
+        "operationId": "export_electronic_ledgers_api_v1_companies__company_id__accounting_electronic_ledgers_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "default": "general",
+              "enum": [
+                "general",
+                "subsidiary"
+              ],
+              "title": "Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_turnover",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Turnover",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "auto_daily_numbering",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Auto Daily Numbering",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "export_mode",
+            "required": false,
+            "schema": {
+              "default": "management",
+              "enum": [
+                "management",
+                "upload_draft"
+              ],
+              "title": "Export Mode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Electronic Ledgers"
+      }
+    },
     "/api/v1/companies/{company_id}/accounting/inventory": {
       "get": {
         "operationId": "summary_api_v1_companies__company_id__accounting_inventory_get",
@@ -9117,6 +11678,152 @@
           }
         },
         "summary": "Update Item"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/nrv-assessment": {
+      "get": {
+        "operationId": "get_nrv_assessment_api_v1_companies__company_id__accounting_inventory_nrv_assessment_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Nrv Assessment"
+      },
+      "post": {
+        "operationId": "post_nrv_assessment_api_v1_companies__company_id__accounting_inventory_nrv_assessment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NrvAssessmentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Nrv Assessment"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/nrv-draft": {
+      "post": {
+        "operationId": "create_nrv_draft_api_v1_companies__company_id__accounting_inventory_nrv_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NrvAdjustmentDraftInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Nrv Draft"
       }
     },
     "/api/v1/companies/{company_id}/accounting/inventory/opening-drafts": {
@@ -14691,6 +17398,410 @@
         "summary": "Update Counterparty"
       }
     },
+    "/api/v1/companies/{company_id}/commercial/credits": {
+      "get": {
+        "operationId": "list_credits_api_v1_companies__company_id__commercial_credits_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "counterparty_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Counterparty Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Credits"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/credits/{credit_id}/apply": {
+      "post": {
+        "operationId": "apply_credit_api_v1_companies__company_id__commercial_credits__credit_id__apply_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "credit_id",
+            "required": true,
+            "schema": {
+              "title": "Credit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyCreditInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Apply Credit"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/credits/{credit_id}/refund-draft": {
+      "post": {
+        "operationId": "refund_credit_draft_api_v1_companies__company_id__commercial_credits__credit_id__refund_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "credit_id",
+            "required": true,
+            "schema": {
+              "title": "Credit Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreditRefundInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refund Credit Draft"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/documents": {
+      "get": {
+        "operationId": "list_documents_api_v1_companies__company_id__commercial_documents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Documents"
+      },
+      "post": {
+        "operationId": "create_document_draft_api_v1_companies__company_id__commercial_documents_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommercialDocumentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Document Draft"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/documents/{document_id}": {
+      "get": {
+        "operationId": "get_document_api_v1_companies__company_id__commercial_documents__document_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Document"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/documents/{document_id}/returns": {
+      "post": {
+        "operationId": "create_return_draft_api_v1_companies__company_id__commercial_documents__document_id__returns_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommercialReturnInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Return Draft"
+      }
+    },
     "/api/v1/companies/{company_id}/commercial/proformas": {
       "get": {
         "operationId": "list_proformas_api_v1_companies__company_id__commercial_proformas_get",
@@ -14896,6 +18007,62 @@
         "summary": "Update Proforma"
       }
     },
+    "/api/v1/companies/{company_id}/commercial/proformas/{proforma_id}/cancel": {
+      "post": {
+        "operationId": "cancel_proforma_api_v1_companies__company_id__commercial_proformas__proforma_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "proforma_id",
+            "required": true,
+            "schema": {
+              "title": "Proforma Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProformaCancelInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Proforma"
+      }
+    },
     "/api/v1/companies/{company_id}/commercial/proformas/{proforma_id}/convert": {
       "post": {
         "operationId": "convert_proforma_api_v1_companies__company_id__commercial_proformas__proforma_id__convert_post",
@@ -14996,6 +18163,99 @@
           }
         },
         "summary": "Export Proforma Pdf"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/quarantine": {
+      "get": {
+        "operationId": "list_quarantine_api_v1_companies__company_id__commercial_quarantine_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Quarantine"
+      }
+    },
+    "/api/v1/companies/{company_id}/commercial/quarantine/{return_line_id}/decide": {
+      "post": {
+        "operationId": "decide_quarantine_api_v1_companies__company_id__commercial_quarantine__return_line_id__decide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "return_line_id",
+            "required": true,
+            "schema": {
+              "title": "Return Line Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuarantineDecisionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decide Quarantine"
       }
     },
     "/api/v1/companies/{company_id}/contracts": {
@@ -19883,6 +23143,62 @@
         "summary": "Export Insurance Disk"
       }
     },
+    "/api/v1/companies/{company_id}/payroll/runs/{run_id}/payment-draft": {
+      "post": {
+        "operationId": "create_payroll_payment_draft_api_v1_companies__company_id__payroll_runs__run_id__payment_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayrollPaymentDraftInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Payroll Payment Draft"
+      }
+    },
     "/api/v1/companies/{company_id}/payroll/runs/{run_id}/slips/batch": {
       "post": {
         "operationId": "batch_update_timesheets_api_v1_companies__company_id__payroll_runs__run_id__slips_batch_post",
@@ -20048,6 +23364,144 @@
           }
         },
         "summary": "Export Tax Disk"
+      }
+    },
+    "/api/v1/companies/{company_id}/payroll/workshops": {
+      "get": {
+        "operationId": "list_workshops_api_v1_companies__company_id__payroll_workshops_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Workshops"
+      },
+      "post": {
+        "operationId": "add_workshop_api_v1_companies__company_id__payroll_workshops_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayrollWorkshopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Workshop"
+      }
+    },
+    "/api/v1/companies/{company_id}/payroll/workshops/{workshop_id}": {
+      "patch": {
+        "operationId": "update_workshop_api_v1_companies__company_id__payroll_workshops__workshop_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "workshop_id",
+            "required": true,
+            "schema": {
+              "title": "Workshop Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePayrollWorkshopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Workshop"
       }
     },
     "/api/v1/companies/{company_id}/personnel-directory": {
@@ -24021,6 +27475,389 @@
           }
         },
         "summary": "Personnel"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/accounts": {
+      "get": {
+        "operationId": "list_accounts_api_v1_companies__company_id__treasury_accounts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "bank",
+                    "cash",
+                    "petty_cash"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "active_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Active Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Accounts"
+      },
+      "post": {
+        "operationId": "create_account_api_v1_companies__company_id__treasury_accounts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TreasuryAccountInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Account"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/accounts/{treasury_id}": {
+      "patch": {
+        "operationId": "update_account_api_v1_companies__company_id__treasury_accounts__treasury_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "treasury_id",
+            "required": true,
+            "schema": {
+              "title": "Treasury Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTreasuryAccountInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Account"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/allocations/{allocation_id}/reverse": {
+      "post": {
+        "operationId": "reverse_allocation_api_v1_companies__company_id__treasury_allocations__allocation_id__reverse_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "allocation_id",
+            "required": true,
+            "schema": {
+              "title": "Allocation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReverseTreasuryAllocationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reverse Allocation"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/documents": {
+      "get": {
+        "operationId": "list_documents_api_v1_companies__company_id__treasury_documents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "receipt",
+                    "payment"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Documents"
+      },
+      "post": {
+        "operationId": "create_document_api_v1_companies__company_id__treasury_documents_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TreasuryDocumentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Document"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/documents/{document_id}/allocations": {
+      "post": {
+        "operationId": "allocate_tool_api_v1_companies__company_id__treasury_documents__document_id__allocations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TreasuryAllocationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Allocate Tool"
       }
     },
     "/api/v1/companies/{company_id}/usage": {

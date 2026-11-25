@@ -88,6 +88,10 @@ def _public(row: Transmission, event: Event, may_inquire: bool, may_send: bool) 
         "id": row.id,
         "invoice_id": row.invoice_id,
         "invoice_version": row.invoice_version,
+        "commercial_document_id": row.commercial_document_id,
+        "document_digest": row.document_digest,
+        "invoice_subject": row.invoice_subject,
+        "reference_tax_id": row.reference_tax_id,
         "invoice_reference": row.invoice_reference,
         "tax_id": row.tax_id,
         "uid": row.uid,
@@ -125,10 +129,59 @@ def history(db, company, member, limit: int, cursor: str | None) -> dict:
     }
 
 
+def _commercial_context(db: Session, company: str, invoice_id: str) -> tuple[dict | None, list[dict] | None]:
+    from .commercial_doc_models import CommercialDocument, CommercialDocumentLine
+
+    cdoc = db.scalar(
+        select(CommercialDocument).where(
+            CommercialDocument.company_id == company, CommercialDocument.native_invoice_id == invoice_id
+        )
+    )
+    if cdoc is None:
+        return None, None
+    clines = list(
+        db.scalars(
+            select(CommercialDocumentLine)
+            .where(
+                CommercialDocumentLine.company_id == company, CommercialDocumentLine.document_id == cdoc.id
+            )
+            .order_by(CommercialDocumentLine.line_index)
+        )
+    )
+    doc_dict = {
+        "id": cdoc.id,
+        "number": cdoc.number,
+        "party_snapshot": cdoc.party_snapshot or {},
+        "net_amount_irr": cdoc.net_amount_irr,
+    }
+    doc_digest = sha256(
+        json.dumps(doc_dict, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
+    doc_dict["digest"] = doc_digest
+    lines_list = [
+        {
+            "id": cline.id,
+            "quantity": cline.quantity,
+            "unit": cline.unit,
+            "description": cline.description,
+            "unit_price_irr": cline.unit_price_irr,
+            "line_discount_irr": cline.line_discount_irr,
+            "allocated_invoice_discount_irr": cline.allocated_invoice_discount_irr,
+            "net_amount_irr": cline.net_amount_irr,
+        }
+        for cline in clines
+    ]
+    return doc_dict, lines_list
+
+
 def candidates(db, company, user, member, include_all: bool = False) -> dict:
     _authority(db, company, member, sending=True)
     sent_ids = set(
-        db.scalars(select(Transmission.invoice_id).where(Transmission.company_id == company))
+        db.scalars(
+            select(Transmission.invoice_id).where(
+                Transmission.company_id == company, Transmission.invoice_subject == 1
+            )
+        )
     )
     stmt = (
         select(NativeInvoice.id)
@@ -144,11 +197,13 @@ def candidates(db, company, user, member, include_all: bool = False) -> dict:
     items = []
     for identifier in ids:
         invoice = invoice_detail(db, company, user, identifier)
-        if can_build(invoice):
+        cdoc, clines = _commercial_context(db, company, identifier)
+        if can_build(invoice, clines):
             items.append(
                 {key: invoice[key] for key in ("id", "version", "reference", "date", "amount", "party_id")}
                 | {
                     "source": {"kind": invoice["source"]["kind"]},
+                    "commercial_document_id": cdoc["id"] if cdoc else None,
                     "moadian_status": "sent" if identifier in sent_ids else "not_sent",
                 }
             )
@@ -163,13 +218,58 @@ def _review(db, company, user, data: MoadianInvoiceInput, profile: MoadianProfil
         "نسخه فاکتور تغییر کرده است. دوباره بررسی کنید.",
         409,
     )
-    packet = build_payload(invoice, data, profile.memory_id, profile.seller_tax_number)
+    cdoc, clines = _commercial_context(db, company, invoice["id"])
+    # Cross-check frozen buyer profile / counterparty identity against fiscal input
+    party_snapshot = (cdoc or {}).get("party_snapshot") or {}
+    if not party_snapshot and invoice.get("party_id"):
+        from .commercial_service import counterparty_snapshot, resolve_counterparty
+
+        cp = resolve_counterparty(db, company, invoice["party_id"])
+        if cp is not None:
+            party_snapshot = counterparty_snapshot(cp)
+    buyer_mismatches = []
+    snap_ek = party_snapshot.get("entity_kind")
+    if snap_ek in ("natural_person", "legal_entity"):
+        expected_bt = "natural" if snap_ek == "natural_person" else "legal"
+        if expected_bt != data.buyer_type:
+            buyer_mismatches.append("buyer_type")
+    expected_tax_ids = [v for v in (party_snapshot.get("economic_code"), party_snapshot.get("national_id")) if v]
+    if expected_tax_ids and data.buyer_tax_number not in expected_tax_ids:
+        buyer_mismatches.append("buyer_tax_number")
+    require(
+        not buyer_mismatches,
+        "moadian_buyer_mismatch",
+        "مشخصات خریدار با کارت طرف‌حساب تثبیت‌شده در فاکتور تطابق ندارد.",
+        409,
+    )
+
+    if data.invoice_subject in (2, 3, 4):
+        orig_tx = db.scalar(
+            select(Transmission).where(
+                Transmission.company_id == company,
+                Transmission.invoice_id == data.invoice_id,
+                Transmission.invoice_subject == 1,
+                Transmission.tax_id == data.reference_tax_id,
+            )
+        )
+        require(
+            orig_tx is not None,
+            "moadian_reference_tax_id_not_found",
+            "شماره مالیاتی مرجع با سابقه ارسال اصلی این فاکتور تطابق ندارد.",
+            409,
+        )
+
+    packet = build_payload(invoice, data, profile.memory_id, profile.seller_tax_number, commercial_lines=clines)
     review = {
         "invoice_id": invoice["id"],
         "invoice_version": invoice["version"],
+        "commercial_document_id": cdoc["id"] if cdoc else None,
+        "document_digest": cdoc["digest"] if cdoc else None,
+        "invoice_subject": data.invoice_subject,
+        "reference_tax_id": data.reference_tax_id,
         "invoice_reference": invoice["reference"],
         "invoice_date": invoice["date"],
-        "amount": invoice["amount"],
+        "amount": str(packet["header"]["tbill"]),
         "tax_id": data.tax_id,
         "seller_tax_number": profile.seller_tax_number,
         "memory_id": profile.memory_id,
@@ -191,11 +291,13 @@ def preview(db, company, user, member, data: MoadianInvoiceInput) -> dict:
     require(
         not db.scalar(
             select(Transmission.id).where(
-                Transmission.company_id == company, Transmission.invoice_id == data.invoice_id
+                Transmission.company_id == company,
+                Transmission.invoice_id == data.invoice_id,
+                Transmission.invoice_subject == data.invoice_subject,
             )
         ),
         "moadian_invoice_already_prepared",
-        "برای این فاکتور سابقهٔ ارسال وجود دارد. وضعیت آن را بررسی کنید.",
+        "برای این فاکتور با این موضوع صورتحساب سابقهٔ ارسال وجود دارد. وضعیت آن را بررسی کنید.",
         409,
     )
     return review
@@ -269,7 +371,9 @@ def submit(request, company, data: MoadianInvoiceInput, digest: str) -> dict:
         profile = _authority(db, company, member, sending=True)
         row = db.scalar(
             select(Transmission).where(
-                Transmission.company_id == company, Transmission.invoice_id == data.invoice_id
+                Transmission.company_id == company,
+                Transmission.invoice_id == data.invoice_id,
+                Transmission.invoice_subject == data.invoice_subject,
             )
         )
         if row is not None:
@@ -306,6 +410,10 @@ def submit(request, company, data: MoadianInvoiceInput, digest: str) -> dict:
             company_id=company,
             invoice_id=data.invoice_id,
             invoice_version=data.invoice_version,
+            commercial_document_id=review.get("commercial_document_id"),
+            document_digest=review.get("document_digest"),
+            invoice_subject=data.invoice_subject,
+            reference_tax_id=data.reference_tax_id,
             invoice_reference=review["invoice_reference"],
             tax_id=data.tax_id,
             uid=str(uuid4()),

@@ -21,10 +21,38 @@ class UpdateWarehouseInput(StrictInput):
 
 class InventoryItemInput(WarehouseInput):
     inventory_account_id: str | None = Field(default=None, max_length=36)
+    base_unit: str = Field(default="عدد", min_length=1, max_length=40)
+    item_kind: Literal["goods", "service"] = "goods"
 
 
 class UpdateInventoryItemInput(UpdateWarehouseInput):
     inventory_account_id: str | None = Field(default=None, min_length=1, max_length=36)
+    base_unit: str | None = Field(default=None, min_length=1, max_length=40)
+    item_kind: Literal["goods", "service"] | None = None
+
+
+class NrvItemPriceInput(StrictInput):
+    item_id: str = Field(min_length=1, max_length=36)
+    warehouse_id: str | None = Field(default=None, max_length=36)
+    estimated_selling_price_irr: Annotated[str, Field(min_length=1, max_length=80)] | StrictInt
+    estimated_selling_cost_irr: Annotated[str, Field(max_length=80)] | StrictInt = 0
+    prior_write_down_irr: Annotated[str, Field(max_length=80)] | StrictInt = 0
+
+
+class NrvAssessmentInput(StrictInput):
+    as_of: date | None = None
+    items: list[NrvItemPriceInput] = Field(default_factory=list, max_length=500)
+
+
+class NrvAdjustmentDraftInput(StrictInput):
+    period_id: str = Field(min_length=1, max_length=36)
+    date: date
+    as_of: date | None = None
+    description: str = Field(min_length=1, max_length=500)
+    items: list[NrvItemPriceInput] = Field(min_length=1, max_length=500)
+    allowance_account_id: str | None = Field(default=None, min_length=1, max_length=36)
+    expense_account_id: str | None = Field(default=None, min_length=1, max_length=36)
+    recovery_account_id: str | None = Field(default=None, min_length=1, max_length=36)
 
 
 class InventoryDraftInput(StrictInput):

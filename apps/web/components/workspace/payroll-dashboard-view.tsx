@@ -123,6 +123,11 @@ export function PayrollDashboardView() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {currentRun?.rate_status === "unverified_period_rates" && (
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                    بر اساس جدول ۱۴۰۳ (نرخ دوره بررسی شود)
+                  </span>
+                )}
                 {currentRun?.status === "posted" ? (
                   <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
                     <CheckCircleIcon size={16} weight="fill" /> سند شناسایی حقوق ثبت شده
@@ -674,6 +679,9 @@ export function PayrollDashboardView() {
             <LoadingState label="در حال آماده‌سازی دیسکت بیمه..." />
           ) : v.insuranceDiskData ? (
             <>
+              <div className="rounded-panel border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
+                گزارش کارکرد داخلی کارگاه <bdi>{v.insuranceDiskData.workshop_code}</bdi> — قالب نهایی سامانه تأمین اجتماعی و جدول نرخ دوره پیش از ارسال رسمی باید راستی‌آزمایی شود.
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-panel bg-canvas p-3 text-xs">
                 <div><span className="text-muted">تعداد بیمه‌شدگان:</span> <span className="font-semibold text-foreground">{persian(v.insuranceDiskData.summary.total_insured_employees)} نفر</span></div>
                 <div><span className="text-muted">مجموع روزها:</span> <span className="font-semibold text-foreground">{persian(v.insuranceDiskData.summary.total_days_worked)} روز</span></div>
@@ -754,6 +762,9 @@ export function PayrollDashboardView() {
             <LoadingState label="در حال آماده‌سازی لیست مالیات..." />
           ) : v.taxDiskData ? (
             <>
+              <div className="rounded-panel border border-warning/30 bg-warning/10 p-3 text-xs text-foreground">
+                فایل پیش‌نویس داخلی مالیات حقوق (ماده ۸۶) — پیش از بارگذاری رسمی در درگاه مالیاتی، قالب نسخهٔ دوره و بخشنامه‌های سال جاری بررسی شوند.
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-panel bg-canvas p-3 text-xs">
                 <div><span className="text-muted">تعداد پرسنل:</span> <span className="font-semibold text-foreground">{persian(v.taxDiskData.summary.total_employees)} نفر</span></div>
                 <div><span className="text-muted">مجموع ناخالص پرداختی:</span> <span className="font-semibold text-foreground">{amount(v.taxDiskData.summary.total_gross_pay, v.workspace.unit)}</span></div>

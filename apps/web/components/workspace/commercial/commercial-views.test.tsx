@@ -45,17 +45,18 @@ it("creates a counterparty without requesting or sending a manual code", async (
     target: { value: "مشتری جدید" },
   });
   expect(screen.getByRole("button", { name: /^ذخیره$/ })).toBeDisabled();
-  fireEvent.keyDown(screen.getByRole("combobox", { name: /نوع طرف‌حساب/ }), { key: "Enter" });
+  fireEvent.keyDown(screen.getByRole("combobox", { name: /نوع شخصیت/ }), { key: "Enter" });
   expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-    "تأمین‌کننده", "مشتری", "کارمند", "سایر",
+    "حقیقی", "حقوقی", "سایر",
   ]);
-  fireEvent.click(screen.getByRole("option", { name: "مشتری" }));
+  fireEvent.click(screen.getByRole("option", { name: "حقوقی" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "مشتری" }));
   fireEvent.click(screen.getByRole("button", { name: /^ذخیره$/ }));
   await waitFor(() => expect(api).toHaveBeenCalledWith(
     "/companies/c1/commercial/counterparties",
     expect.objectContaining({
       method: "POST",
-      body: expect.objectContaining({ name: "مشتری جدید", type: "customer" }),
+      body: expect.objectContaining({ name: "مشتری جدید", type: "customer", entity_kind: "legal_entity", roles: ["customer"] }),
     }),
   ));
   const creation = vi.mocked(api).mock.calls.find(([, options]) => options?.method === "POST");

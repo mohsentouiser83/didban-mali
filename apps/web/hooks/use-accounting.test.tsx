@@ -124,6 +124,7 @@ it("refreshes accounting authority after membership roles change", async () => {
         version: 1,
         post_journal: false,
         reopen_period: false,
+        view_payroll: false,
         implicit_authority: role === "finance_manager",
       },
     ],

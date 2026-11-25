@@ -82,6 +82,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                 <TableRow>
                   <TableHead>نام {singular}</TableHead>
                   <TableHead>کد</TableHead>
+                  {isItem && <TableHead>واحد پایه</TableHead>}
                   {isItem && <TableHead>حساب موجودی</TableHead>}
                   <TableHead>وضعیت</TableHead>
                   {view.canManage && <TableHead>عملیات</TableHead>}
@@ -92,6 +93,9 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                   <TableRow key={row.id}>
                     <TableRowHeader>{row.name}</TableRowHeader>
                     <TableCell><bdi>{row.code}</bdi></TableCell>
+                    {isItem && (
+                      <TableCell>{"base_unit" in row && row.base_unit ? row.base_unit : "عدد"}</TableCell>
+                    )}
                     {"inventory_account_id" in row && (
                       <TableCell>{view.accountNames.get(row.inventory_account_id) || "—"}</TableCell>
                     )}
@@ -116,7 +120,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                   </TableRow>
                 )) : (
                   <TableEmptyCell
-                    colSpan={3 + Number(isItem) + Number(view.canManage)}
+                    colSpan={3 + (isItem ? 2 : 0) + Number(view.canManage)}
                     title={isItem
                       ? view.inventory.data?.can_manage_catalog && !view.accounts.options.length
                         ? "برای تعریف کالا، حساب موجودی لازم است"
@@ -161,11 +165,18 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
               onChange={(event) => view.change({ name: event.target.value })} />
           </Field>
           {isItem && (
-            <Field id="inventory-account" name="inventory_account_id" label="حساب موجودی (اختیاری)" icon={WalletIcon}>
-              <Select id="inventory-account" label="حساب موجودی" value={view.value.inventory_account_id}
-                onValueChange={(inventory_account_id) => view.change({ inventory_account_id })}
-                options={view.accountOptions} disabled={view.accountLocked} />
-            </Field>
+            <>
+              <Field id="inventory-base-unit" name="base_unit" label="واحد پایه کالا" required>
+                <Input id="inventory-base-unit" required maxLength={40} value={view.value.base_unit}
+                  disabled={view.accountLocked}
+                  onChange={(event) => view.change({ base_unit: event.target.value })} />
+              </Field>
+              <Field id="inventory-account" name="inventory_account_id" label="حساب موجودی (اختیاری)" icon={WalletIcon}>
+                <Select id="inventory-account" label="حساب موجودی" value={view.value.inventory_account_id}
+                  onValueChange={(inventory_account_id) => view.change({ inventory_account_id })}
+                  options={view.accountOptions} disabled={view.accountLocked} />
+              </Field>
+            </>
           )}
           {view.editing && (
             <div className="flex items-center justify-between gap-3">

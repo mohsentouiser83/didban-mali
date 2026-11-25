@@ -37,6 +37,9 @@ def check_version(item, version: int) -> None:
 
 
 def save_period(db: Session, company: str, user: User, values: dict, period: Period | None = None) -> dict:
+    from .period_lock_service import require_open_period
+
+    require(values["end"] >= values["start"], "invalid_period_dates", "پایان دوره نباید پیش از آغاز دوره باشد.")
     previous_id = values.get("previous_period_id")
     if previous_id:
         previous = get_entity(db, Period, company, previous_id)
@@ -56,6 +59,7 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
         "این بازه با دوره دیگری هم‌پوشانی دارد.",
     )
     if period:
+        require_open_period(db, company, period.id)
         used = period_has_dependencies(db, company, period.id)
         require(
             not used
@@ -328,13 +332,38 @@ def delete_source(db: Session, company: str, user: User, file: SourceFile, confi
 
 def period_has_dependencies(db: Session, company: str, period_id: str) -> bool:
     """Even an empty frozen report/zero declaration is retained financial evidence."""
+    from sqlalchemy import or_
+
     from .accounting_models import Draft
+    from .cheque_models import ChequeEvent
+    from .closing_models import PeriodAccountingDraft
+    from .native_automation_models import NativeAutomationPreview
     from .native_control_models import NativeControlRun
     from .native_reporting_models import NativeStatementRun, NativeZeroOpeningEvidence
-    from .period_lock_models import PeriodLockEvent
+    from .payroll_models import PayrollRun
+    from .period_checklist_models import PeriodChecklistItem
+    from .period_lock_models import PeriodLock, PeriodLockEvent
     from .posting_models import NativeJournal
     from .report_builder_models import NativeInvoiceBuilderRun
 
+    if db.scalar(
+        select(Period.id)
+        .where(Period.company_id == company, Period.previous_period_id == period_id)
+        .limit(1)
+    ):
+        return True
+    if db.scalar(
+        select(PeriodAccountingDraft.id)
+        .where(
+            PeriodAccountingDraft.company_id == company,
+            or_(
+                PeriodAccountingDraft.source_period_id == period_id,
+                PeriodAccountingDraft.target_period_id == period_id,
+            ),
+        )
+        .limit(1)
+    ):
+        return True
     if db.scalar(
         select(NativeInvoiceBuilderRun.id)
         .where(
@@ -346,11 +375,17 @@ def period_has_dependencies(db: Session, company: str, period_id: str) -> bool:
         return True
     for model in (
         ProcessingSession,
+        ResultManifest,
+        PeriodLock,
         PeriodLockEvent,
+        PeriodChecklistItem,
         Draft,
         NativeJournal,
         NativeZeroOpeningEvidence,
         NativeControlRun,
+        NativeAutomationPreview,
+        ChequeEvent,
+        PayrollRun,
     ):
         if db.scalar(
             select(model.id).where(model.company_id == company, model.period_id == period_id).limit(1)

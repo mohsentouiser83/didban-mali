@@ -74,6 +74,10 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
             setNextKey((key) => key + 1);
           }}>افزودن ردیف</Button>
         </div>
+        <Field id="proforma-invoice-discount" label="تخفیف کل پیش‌فاکتور (ریال)">
+          <AmountInput id="proforma-invoice-discount" value={form.invoice_discount} maxLength={80}
+            onValueChange={(value) => update("invoice_discount", value)} />
+        </Field>
         <Field id="proforma-terms" label="شرایط">
           <Textarea id="proforma-terms" value={form.terms} maxLength={1000}
             onChange={(event) => update("terms", event.target.value)} />

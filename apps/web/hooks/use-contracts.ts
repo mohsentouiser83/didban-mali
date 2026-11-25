@@ -101,12 +101,19 @@ export function useContracts() {
     const path = editing
       ? `/companies/${workspace.company.id}/contracts/${editing.id}`
       : `/companies/${workspace.company.id}/contracts`;
+    const body = editing
+      ? {
+          ...form,
+          end_date: form.end_date || null,
+          notes: form.notes?.trim() || null,
+        }
+      : form;
     await command.run(
       path,
       {
         method: editing ? "PATCH" : "POST",
         version: editing?.version,
-        body: form,
+        body,
       },
       () => {
         contractsResource.refresh();

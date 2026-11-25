@@ -17,6 +17,12 @@ const vatOptions = [
   { value: "exempt", label: "معاف" },
   { value: "zero_rated", label: "نرخ صفر" },
 ];
+const subjectOptions = [
+  { value: "1", label: "اصلی" },
+  { value: "2", label: "اصلاحی" },
+  { value: "3", label: "ابطالی" },
+  { value: "4", label: "برگشت از فروش" },
+];
 const codeFields = [
   { key: "tax_id", label: "شناسه یکتای مالیاتی", pattern: "[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]", max: 22 },
   { key: "buyer_tax_number", label: "شماره اقتصادی خریدار", pattern: "(?:[0-9]{11}|[0-9]{14})", max: 14 },
@@ -45,6 +51,29 @@ function FiscalFields({ view }: { view: MoadianTransmissionController }) {
       </Field>
       {view.invoice && <>
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="moadian-subject" name="invoice_subject" label="موضوع صورتحساب" required>
+            <Select
+              id="moadian-subject"
+              value={view.form.invoice_subject}
+              options={subjectOptions}
+              onValueChange={(value) => view.change("invoice_subject", value)}
+              disabled={view.working}
+            />
+          </Field>
+          {view.form.invoice_subject !== "1" && (
+            <Field id="moadian-reference-tax-id" name="reference_tax_id" label="شماره مالیاتی مرجع" required>
+              <Input
+                id="moadian-reference-tax-id"
+                dir="ltr"
+                pattern="[1-9ADEFGHKMNOPRTWXYZ]{6}[0-9A-F]{15}[0-9]"
+                maxLength={22}
+                required
+                value={view.form.reference_tax_id}
+                onChange={(event) => view.change("reference_tax_id", asciiDigits(event.target.value).toUpperCase())}
+                disabled={view.working}
+              />
+            </Field>
+          )}
           <Field
             id="moadian-issued-time"
             name="issued_at"

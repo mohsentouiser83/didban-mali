@@ -57,9 +57,13 @@ class NativeDimensionAllocation(Entity, Tenant, Base):
         ForeignKeyConstraint(
             ["company_id", "journal_id"], ["native_journals.company_id", "native_journals.id"]
         ),
+        ForeignKeyConstraint(
+            ["company_id", "journal_line_id"], ["native_journal_lines.company_id", "native_journal_lines.id"]
+        ),
     )
     line_id: Mapped[str] = mapped_column(String(36))
     journal_id: Mapped[str] = mapped_column(String(36))
+    journal_line_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     line_index: Mapped[int] = mapped_column(Integer)
     source_role: Mapped[str] = mapped_column(String(40))
     native_statement_id: Mapped[str] = mapped_column(String(36))

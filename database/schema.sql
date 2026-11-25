@@ -179,39 +179,17 @@ CREATE TABLE budget_policies (
 
 CREATE INDEX ix_budget_policies_company_id ON budget_policies (company_id);
 
-CREATE TABLE cheques (
-	direction VARCHAR(20) NOT NULL,
-	number VARCHAR(100) NOT NULL,
-	bank_name VARCHAR(120) NOT NULL,
-	bank_account VARCHAR(100) NOT NULL,
-	party_id VARCHAR(100) NOT NULL,
-	amount NUMERIC(38, 6) NOT NULL,
-	original_amount VARCHAR(80) NOT NULL,
-	original_unit VARCHAR(10) NOT NULL,
-	issue_date DATE NOT NULL,
-	due_date DATE NOT NULL,
-	state VARCHAR(20) NOT NULL,
-	endorsed_to VARCHAR(100),
-	actor_id VARCHAR(36) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	version INTEGER NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, id),
-	UNIQUE (company_id, direction, bank_account, number),
-	FOREIGN KEY(company_id) REFERENCES companies (id),
-	CONSTRAINT finite_cheques_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
-);
-
-CREATE INDEX ix_cheques_company_id ON cheques (company_id);
-
 CREATE TABLE commercial_counterparties (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(200) NOT NULL,
 	type VARCHAR(20) DEFAULT 'other' NOT NULL,
+	entity_kind VARCHAR(20) DEFAULT 'other' NOT NULL,
+	roles JSON NOT NULL,
 	national_id VARCHAR(20),
 	economic_code VARCHAR(20),
+	registration_number VARCHAR(40),
+	postal_code VARCHAR(20),
+	email VARCHAR(150),
 	phone VARCHAR(50),
 	address VARCHAR(500),
 	credit_limit_irr NUMERIC(38, 6),
@@ -224,6 +202,7 @@ CREATE TABLE commercial_counterparties (
 	UNIQUE (company_id, id),
 	UNIQUE (company_id, code),
 	CONSTRAINT counterparty_type_valid CHECK (type IN ('supplier', 'customer', 'employee', 'other')),
+	CONSTRAINT counterparty_entity_kind_valid CHECK (entity_kind IN ('natural_person', 'legal_entity', 'other')),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_commercial_counterparties_credit_limit_irr CHECK (credit_limit_irr > -100000000000000000000000000000000 AND credit_limit_irr < 100000000000000000000000000000000)
 );
@@ -251,6 +230,26 @@ CREATE TABLE company_modules (
 );
 
 CREATE INDEX ix_company_modules_company_id ON company_modules (company_id);
+
+CREATE TABLE company_payroll_workshops (
+	workshop_code VARCHAR(20) NOT NULL,
+	employer_name VARCHAR(200) NOT NULL,
+	tamin_branch_code VARCHAR(30),
+	tamin_branch_name VARCHAR(120),
+	tax_office_code VARCHAR(30),
+	address VARCHAR(500),
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, workshop_code),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_company_payroll_workshops_company_id ON company_payroll_workshops (company_id);
 
 CREATE TABLE counterparty_reconciliation_runs (
 	counterparty_id VARCHAR(100) NOT NULL,
@@ -491,21 +490,6 @@ CREATE TABLE model_tariffs (
 
 CREATE INDEX ix_model_tariffs_company_id ON model_tariffs (company_id);
 
-CREATE TABLE native_automation_previews (
-	actor_id VARCHAR(36) NOT NULL,
-	period_id VARCHAR(36) NOT NULL,
-	source_digest VARCHAR(64) NOT NULL,
-	definition JSON NOT NULL,
-	result JSON NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_native_automation_previews_company_id ON native_automation_previews (company_id);
-
 CREATE TABLE native_book_report_runs (
 	actor_id VARCHAR(36) NOT NULL,
 	digest VARCHAR(64) NOT NULL,
@@ -518,22 +502,6 @@ CREATE TABLE native_book_report_runs (
 );
 
 CREATE INDEX ix_native_book_report_runs_company_id ON native_book_report_runs (company_id);
-
-CREATE TABLE native_control_runs (
-	period_id VARCHAR(36) NOT NULL,
-	digest VARCHAR(64) NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	trigger VARCHAR(40) NOT NULL,
-	snapshot JSON NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, digest),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_native_control_runs_company_id ON native_control_runs (company_id);
 
 CREATE TABLE native_invoice_snapshots (
 	as_of DATE NOT NULL,
@@ -626,6 +594,7 @@ CREATE TABLE proforma_invoices (
 	lines JSON NOT NULL,
 	total_amount NUMERIC(38, 6) NOT NULL,
 	total_amount_irr NUMERIC(38, 6) NOT NULL,
+	invoice_discount NUMERIC(38, 6) DEFAULT '0' NOT NULL,
 	terms VARCHAR(1000),
 	status VARCHAR(20) NOT NULL,
 	converted_operation_id VARCHAR(36),
@@ -639,7 +608,8 @@ CREATE TABLE proforma_invoices (
 	UNIQUE (company_id, number),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_proforma_invoices_total_amount CHECK (total_amount > -100000000000000000000000000000000 AND total_amount < 100000000000000000000000000000000),
-	CONSTRAINT finite_proforma_invoices_total_amount_irr CHECK (total_amount_irr > -100000000000000000000000000000000 AND total_amount_irr < 100000000000000000000000000000000)
+	CONSTRAINT finite_proforma_invoices_total_amount_irr CHECK (total_amount_irr > -100000000000000000000000000000000 AND total_amount_irr < 100000000000000000000000000000000),
+	CONSTRAINT finite_proforma_invoices_invoice_discount CHECK (invoice_discount > -100000000000000000000000000000000 AND invoice_discount < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_proforma_invoices_company_id ON proforma_invoices (company_id);
@@ -660,10 +630,29 @@ CREATE TABLE report_builder_definitions (
 
 CREATE INDEX ix_report_builder_definitions_company_id ON report_builder_definitions (company_id);
 
+CREATE TABLE account_detail_links (
+	detail_account_id VARCHAR(36) NOT NULL,
+	subsidiary_account_id VARCHAR(36) NOT NULL,
+	counterparty_id VARCHAR(36),
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, detail_account_id, subsidiary_account_id),
+	FOREIGN KEY(company_id, detail_account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id, subsidiary_account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_account_detail_links_company_id ON account_detail_links (company_id);
+
 CREATE TABLE accounting_account_hierarchy (
 	account_id VARCHAR(36) NOT NULL,
 	level VARCHAR(20) NOT NULL,
 	parent_id VARCHAR(36),
+	code_status VARCHAR(20) DEFAULT 'standard' NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (account_id),
 	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
@@ -671,6 +660,7 @@ CREATE TABLE accounting_account_hierarchy (
 	CONSTRAINT account_hierarchy_level CHECK (level IN ('group', 'general', 'subsidiary', 'detail')),
 	CONSTRAINT account_hierarchy_parent CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)),
 	CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id),
+	CONSTRAINT account_hierarchy_code_status CHECK (code_status IN ('standard', 'legacy')),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
@@ -702,6 +692,7 @@ CREATE TABLE accounting_permissions (
 	membership_id VARCHAR(36) NOT NULL,
 	post_journal BOOLEAN NOT NULL,
 	reopen_period BOOLEAN NOT NULL,
+	view_payroll BOOLEAN DEFAULT false NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
@@ -770,24 +761,68 @@ CREATE TABLE bot_updates (
 
 CREATE INDEX ix_bot_updates_connection_id ON bot_updates (connection_id);
 
-CREATE TABLE cheque_events (
-	cheque_id VARCHAR(36) NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	action VARCHAR(20) NOT NULL,
-	previous_state VARCHAR(20),
-	new_state VARCHAR(20) NOT NULL,
-	event_date DATE NOT NULL,
-	period_id VARCHAR(36) NOT NULL,
-	reason TEXT NOT NULL,
+CREATE TABLE commercial_counterparty_roles (
+	counterparty_id VARCHAR(36) NOT NULL,
+	role VARCHAR(20) NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (id),
-	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
+	UNIQUE (company_id, counterparty_id, role),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	CONSTRAINT counterparty_role_valid CHECK (role IN ('supplier', 'customer', 'employee', 'other')),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
 );
 
-CREATE INDEX ix_cheque_events_company_id ON cheque_events (company_id);
+CREATE INDEX ix_commercial_counterparty_roles_company_id ON commercial_counterparty_roles (company_id);
+
+CREATE TABLE commercial_documents (
+	number VARCHAR(100) NOT NULL,
+	direction VARCHAR(10) NOT NULL,
+	status VARCHAR(30) NOT NULL,
+	issue_date DATE NOT NULL,
+	posting_date DATE,
+	due_date DATE,
+	period_id VARCHAR(36) NOT NULL,
+	counterparty_id VARCHAR(36) NOT NULL,
+	party_snapshot JSON NOT NULL,
+	warehouse_id VARCHAR(36),
+	proforma_id VARCHAR(36),
+	currency VARCHAR(10) NOT NULL,
+	gross_amount_irr NUMERIC(38, 6) NOT NULL,
+	line_discount_total_irr NUMERIC(38, 6) NOT NULL,
+	invoice_discount_irr NUMERIC(38, 6) NOT NULL,
+	net_amount_irr NUMERIC(38, 6) NOT NULL,
+	settlement_type VARCHAR(20) NOT NULL,
+	cash_amount_irr NUMERIC(38, 6) NOT NULL,
+	cheque_amount_irr NUMERIC(38, 6) NOT NULL,
+	on_account_amount_irr NUMERIC(38, 6) NOT NULL,
+	applied_credit_irr NUMERIC(38, 6) NOT NULL,
+	vendor_reference VARCHAR(120),
+	description VARCHAR(500) NOT NULL,
+	operation_id VARCHAR(36),
+	draft_id VARCHAR(36),
+	journal_id VARCHAR(36),
+	native_invoice_id VARCHAR(36),
+	accounts JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, number),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	CONSTRAINT commercial_doc_direction_valid CHECK (direction IN ('sale', 'purchase')),
+	CONSTRAINT commercial_doc_status_valid CHECK (status IN ('draft', 'posted', 'partially_returned', 'fully_returned', 'reversed', 'discarded')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_commercial_documents_company_date ON commercial_documents (company_id, issue_date);
+
+CREATE INDEX ix_commercial_documents_company_id ON commercial_documents (company_id);
 
 CREATE TABLE employee_contracts (
 	employee_id VARCHAR(36) NOT NULL,
@@ -806,6 +841,12 @@ CREATE TABLE employee_contracts (
 	custom_fixed_allowances NUMERIC(38, 6) NOT NULL,
 	is_insured BOOLEAN NOT NULL,
 	is_taxable BOOLEAN NOT NULL,
+	workshop_id VARCHAR(36),
+	work_location VARCHAR(200),
+	work_description VARCHAR(300),
+	weekly_hours NUMERIC(38, 6) DEFAULT '44',
+	conclusion_date DATE,
+	amendment_of_contract_id VARCHAR(36),
 	notes TEXT,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -823,7 +864,8 @@ CREATE TABLE employee_contracts (
 	CONSTRAINT finite_employee_contracts_marital_allowance CHECK (marital_allowance > -100000000000000000000000000000000 AND marital_allowance < 100000000000000000000000000000000),
 	CONSTRAINT finite_employee_contracts_child_allowance CHECK (child_allowance > -100000000000000000000000000000000 AND child_allowance < 100000000000000000000000000000000),
 	CONSTRAINT finite_employee_contracts_tenure_allowance CHECK (tenure_allowance > -100000000000000000000000000000000 AND tenure_allowance < 100000000000000000000000000000000),
-	CONSTRAINT finite_employee_contracts_custom_fixed_allowances CHECK (custom_fixed_allowances > -100000000000000000000000000000000 AND custom_fixed_allowances < 100000000000000000000000000000000)
+	CONSTRAINT finite_employee_contracts_custom_fixed_allowances CHECK (custom_fixed_allowances > -100000000000000000000000000000000 AND custom_fixed_allowances < 100000000000000000000000000000000),
+	CONSTRAINT finite_employee_contracts_weekly_hours CHECK (weekly_hours > -100000000000000000000000000000000 AND weekly_hours < 100000000000000000000000000000000)
 );
 
 CREATE INDEX ix_employee_contracts_company_id ON employee_contracts (company_id);
@@ -831,6 +873,8 @@ CREATE INDEX ix_employee_contracts_company_id ON employee_contracts (company_id)
 CREATE TABLE inventory_items (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(150) NOT NULL,
+	base_unit VARCHAR(40) DEFAULT 'عدد' NOT NULL,
+	item_kind VARCHAR(20) DEFAULT 'goods' NOT NULL,
 	inventory_account_id VARCHAR(36) NOT NULL,
 	active BOOLEAN NOT NULL,
 	id VARCHAR(36) NOT NULL,
@@ -862,6 +906,22 @@ CREATE TABLE native_account_roles (
 
 CREATE INDEX ix_native_account_roles_company_id ON native_account_roles (company_id);
 
+CREATE TABLE native_automation_previews (
+	actor_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	source_digest VARCHAR(64) NOT NULL,
+	definition JSON NOT NULL,
+	result JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_automation_previews_company_id ON native_automation_previews (company_id);
+
 CREATE TABLE native_cash_scenarios (
 	series_id VARCHAR(36) NOT NULL,
 	version INTEGER NOT NULL,
@@ -881,6 +941,23 @@ CREATE TABLE native_cash_scenarios (
 );
 
 CREATE INDEX ix_native_cash_scenarios_company_id ON native_cash_scenarios (company_id);
+
+CREATE TABLE native_control_runs (
+	period_id VARCHAR(36) NOT NULL,
+	digest VARCHAR(64) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	trigger VARCHAR(40) NOT NULL,
+	snapshot JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, digest),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_control_runs_company_id ON native_control_runs (company_id);
 
 CREATE TABLE native_dimension_report_runs (
 	native_statement_id VARCHAR(36) NOT NULL,
@@ -1153,6 +1230,65 @@ CREATE TABLE processing_sessions (
 
 CREATE INDEX ix_processing_sessions_company_id ON processing_sessions (company_id);
 
+CREATE TABLE treasury_accounts (
+	kind VARCHAR(20) NOT NULL,
+	name VARCHAR(150) NOT NULL,
+	account_id VARCHAR(36) NOT NULL,
+	active BOOLEAN NOT NULL,
+	bank_name VARCHAR(120),
+	account_number VARCHAR(60),
+	iban VARCHAR(34),
+	branch_name VARCHAR(120),
+	branch_code VARCHAR(30),
+	custodian_name VARCHAR(120),
+	custodian_counterparty_id VARCHAR(36),
+	petty_cash_limit_irr NUMERIC(38, 6),
+	needs_completion BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, account_id),
+	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
+	CONSTRAINT treasury_account_kind_valid CHECK (kind IN ('bank', 'cash', 'petty_cash')),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_treasury_accounts_petty_cash_limit_irr CHECK (petty_cash_limit_irr > -100000000000000000000000000000000 AND petty_cash_limit_irr < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_treasury_accounts_company_id ON treasury_accounts (company_id);
+
+CREATE TABLE treasury_documents (
+	direction VARCHAR(20) NOT NULL,
+	number VARCHAR(100) NOT NULL,
+	date DATE NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	counterparty_id VARCHAR(36) NOT NULL,
+	total_amount NUMERIC(38, 6) NOT NULL,
+	original_unit VARCHAR(10) NOT NULL,
+	description VARCHAR(500) NOT NULL,
+	operation_id VARCHAR(36),
+	journal_id VARCHAR(36),
+	state VARCHAR(20) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, direction, number),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	CONSTRAINT treasury_doc_direction_valid CHECK (direction IN ('receipt', 'payment')),
+	CONSTRAINT treasury_doc_state_valid CHECK (state IN ('draft', 'posted', 'reversed')),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_treasury_documents_total_amount CHECK (total_amount > -100000000000000000000000000000000 AND total_amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_treasury_documents_company_id ON treasury_documents (company_id);
+
 CREATE TABLE accounting_operations (
 	draft_id VARCHAR(36) NOT NULL,
 	kind VARCHAR(40) NOT NULL,
@@ -1172,6 +1308,109 @@ CREATE TABLE accounting_operations (
 );
 
 CREATE INDEX ix_accounting_operations_company_id ON accounting_operations (company_id);
+
+CREATE TABLE cheques (
+	direction VARCHAR(20) NOT NULL,
+	number VARCHAR(100) NOT NULL,
+	sayad_id VARCHAR(32),
+	sayad_status VARCHAR(30) DEFAULT 'not_verified' NOT NULL,
+	bank_name VARCHAR(120) NOT NULL,
+	bank_account VARCHAR(100) NOT NULL,
+	treasury_account_id VARCHAR(36),
+	party_id VARCHAR(100) NOT NULL,
+	counterparty_id VARCHAR(36),
+	issuer_name VARCHAR(150),
+	holder_name VARCHAR(150),
+	amount NUMERIC(38, 6) NOT NULL,
+	original_amount VARCHAR(80) NOT NULL,
+	original_unit VARCHAR(10) NOT NULL,
+	issue_date DATE NOT NULL,
+	received_date DATE,
+	due_date DATE NOT NULL,
+	state VARCHAR(20) NOT NULL,
+	endorsed_to VARCHAR(100),
+	endorsed_to_counterparty_id VARCHAR(36),
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, direction, bank_account, number),
+	FOREIGN KEY(company_id, treasury_account_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_cheques_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_cheques_company_id ON cheques (company_id);
+
+CREATE TABLE commercial_document_lines (
+	document_id VARCHAR(36) NOT NULL,
+	line_index INTEGER NOT NULL,
+	line_kind VARCHAR(10) NOT NULL,
+	item_id VARCHAR(36),
+	description VARCHAR(300) NOT NULL,
+	unit VARCHAR(40) NOT NULL,
+	quantity BIGINT NOT NULL,
+	unit_price_irr NUMERIC(38, 6) NOT NULL,
+	gross_amount_irr NUMERIC(38, 6) NOT NULL,
+	line_discount_irr NUMERIC(38, 6) NOT NULL,
+	net_before_inv_disc_irr NUMERIC(38, 6) NOT NULL,
+	allocated_invoice_discount_irr NUMERIC(38, 6) NOT NULL,
+	net_amount_irr NUMERIC(38, 6) NOT NULL,
+	cost_irr NUMERIC(38, 6) NOT NULL,
+	cost_layers JSON NOT NULL,
+	returned_healthy_qty BIGINT NOT NULL,
+	returned_defective_qty BIGINT NOT NULL,
+	journal_line_id VARCHAR(36),
+	inventory_movement_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, document_id, line_index),
+	FOREIGN KEY(company_id, document_id) REFERENCES commercial_documents (company_id, id),
+	CONSTRAINT commercial_doc_line_kind_valid CHECK (line_kind IN ('goods', 'service')),
+	CONSTRAINT commercial_doc_line_qty_positive CHECK (quantity >= 1),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_commercial_document_lines_company_id ON commercial_document_lines (company_id);
+
+CREATE TABLE commercial_returns (
+	number VARCHAR(100) NOT NULL,
+	document_id VARCHAR(36) NOT NULL,
+	direction VARCHAR(20) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	date DATE NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	reason VARCHAR(500) NOT NULL,
+	total_return_amount_irr NUMERIC(38, 6) NOT NULL,
+	invoice_balance_reduced_irr NUMERIC(38, 6) NOT NULL,
+	credit_created_irr NUMERIC(38, 6) NOT NULL,
+	operation_id VARCHAR(36),
+	draft_id VARCHAR(36),
+	journal_id VARCHAR(36),
+	accounts JSON NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, number),
+	FOREIGN KEY(company_id, document_id) REFERENCES commercial_documents (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	CONSTRAINT commercial_return_direction_valid CHECK (direction IN ('sale_return', 'purchase_return')),
+	CONSTRAINT commercial_return_status_valid CHECK (status IN ('draft', 'posted', 'reversed', 'discarded')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_commercial_returns_company_id ON commercial_returns (company_id);
 
 CREATE TABLE journal_correction_drafts (
 	draft_id VARCHAR(36) NOT NULL,
@@ -1208,31 +1447,6 @@ CREATE TABLE native_automation_runs (
 );
 
 CREATE INDEX ix_native_automation_runs_company_id ON native_automation_runs (company_id);
-
-CREATE TABLE native_dimension_allocations (
-	line_id VARCHAR(36) NOT NULL,
-	journal_id VARCHAR(36) NOT NULL,
-	line_index INTEGER NOT NULL,
-	source_role VARCHAR(40) NOT NULL,
-	native_statement_id VARCHAR(36) NOT NULL,
-	kind VARCHAR(20) NOT NULL,
-	version INTEGER NOT NULL,
-	method VARCHAR(20) NOT NULL,
-	shares JSON NOT NULL,
-	review_reason VARCHAR(500) NOT NULL,
-	actor_id VARCHAR(36) NOT NULL,
-	id VARCHAR(36) NOT NULL,
-	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	company_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	UNIQUE (company_id, line_id, kind, version),
-	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
-	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
-	FOREIGN KEY(actor_id) REFERENCES users (id),
-	FOREIGN KEY(company_id) REFERENCES companies (id)
-);
-
-CREATE INDEX ix_native_dimension_allocations_company_id ON native_dimension_allocations (company_id);
 
 CREATE TABLE native_document_threads (
 	draft_id VARCHAR(36) NOT NULL,
@@ -1274,6 +1488,36 @@ CREATE TABLE native_forecast_runs (
 );
 
 CREATE INDEX ix_native_forecast_runs_company_id ON native_forecast_runs (company_id);
+
+CREATE TABLE native_journal_lines (
+	journal_id VARCHAR(36) NOT NULL,
+	line_index INTEGER NOT NULL,
+	account_id VARCHAR(36) NOT NULL,
+	debit NUMERIC(38, 6) NOT NULL,
+	credit NUMERIC(38, 6) NOT NULL,
+	original_debit VARCHAR(80) NOT NULL,
+	original_credit VARCHAR(80) NOT NULL,
+	description VARCHAR(500) NOT NULL,
+	party_id VARCHAR(100) NOT NULL,
+	counterparty_id VARCHAR(36),
+	reference_kind VARCHAR(40),
+	reference_id VARCHAR(36),
+	dimension_ids JSON NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, journal_id, line_index),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_native_journal_lines_debit CHECK (debit > -100000000000000000000000000000000 AND debit < 100000000000000000000000000000000),
+	CONSTRAINT finite_native_journal_lines_credit CHECK (credit > -100000000000000000000000000000000 AND credit < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_native_journal_lines_company_id ON native_journal_lines (company_id);
 
 CREATE TABLE native_opening_evidence (
 	journal_id VARCHAR(36) NOT NULL,
@@ -1343,7 +1587,11 @@ CREATE TABLE payroll_slips (
 	total_deductions NUMERIC(38, 6) NOT NULL,
 	net_pay NUMERIC(38, 6) NOT NULL,
 	status VARCHAR(20) NOT NULL,
+	attendance_status VARCHAR(30) DEFAULT 'verified' NOT NULL,
 	applied_exemptions JSON NOT NULL,
+	contract_snapshot JSON NOT NULL,
+	calculation_meta JSON NOT NULL,
+	payment_journal_id VARCHAR(36),
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
@@ -1540,6 +1788,84 @@ CREATE TABLE cash_scenarios (
 
 CREATE INDEX ix_cash_scenarios_company_id ON cash_scenarios (company_id);
 
+CREATE TABLE cheque_events (
+	cheque_id VARCHAR(36) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	action VARCHAR(20) NOT NULL,
+	previous_state VARCHAR(20),
+	new_state VARCHAR(20) NOT NULL,
+	event_date DATE NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	endorsed_to VARCHAR(100),
+	endorsed_to_counterparty_id VARCHAR(36),
+	treasury_account_id VARCHAR(36),
+	reason TEXT NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_cheque_events_company_id ON cheque_events (company_id);
+
+CREATE TABLE commercial_return_lines (
+	return_id VARCHAR(36) NOT NULL,
+	document_line_id VARCHAR(36) NOT NULL,
+	line_index INTEGER NOT NULL,
+	condition VARCHAR(20) NOT NULL,
+	quantity BIGINT NOT NULL,
+	return_net_amount_irr NUMERIC(38, 6) NOT NULL,
+	return_cost_irr NUMERIC(38, 6) NOT NULL,
+	restored_cost_layers JSON NOT NULL,
+	quarantine_status VARCHAR(30) NOT NULL,
+	quarantine_decision_note TEXT,
+	quarantine_decided_at TIMESTAMP WITH TIME ZONE,
+	quarantine_journal_id VARCHAR(36),
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, return_id, line_index),
+	FOREIGN KEY(company_id, return_id) REFERENCES commercial_returns (company_id, id),
+	FOREIGN KEY(company_id, document_line_id) REFERENCES commercial_document_lines (company_id, id),
+	CONSTRAINT commercial_return_condition_valid CHECK (condition IN ('healthy', 'defective')),
+	CONSTRAINT commercial_return_qty_positive CHECK (quantity >= 1),
+	CONSTRAINT commercial_return_quarantine_valid CHECK (quarantine_status IN ('none', 'pending_inspection', 'restocked', 'repaired', 'scrapped')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_commercial_return_lines_company_id ON commercial_return_lines (company_id);
+
+CREATE TABLE counterparty_credits (
+	counterparty_id VARCHAR(36) NOT NULL,
+	return_id VARCHAR(36) NOT NULL,
+	document_id VARCHAR(36) NOT NULL,
+	credit_kind VARCHAR(30) NOT NULL,
+	original_amount_irr NUMERIC(38, 6) NOT NULL,
+	remaining_amount_irr NUMERIC(38, 6) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	refund_operation_id VARCHAR(36),
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	FOREIGN KEY(company_id, return_id) REFERENCES commercial_returns (company_id, id),
+	CONSTRAINT counterparty_credit_kind_valid CHECK (credit_kind IN ('customer_credit', 'supplier_receivable')),
+	CONSTRAINT counterparty_credit_status_valid CHECK (status IN ('open', 'partially_used', 'consumed', 'refunded', 'reversed')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_counterparty_credits_company_id ON counterparty_credits (company_id);
+
 CREATE TABLE dimension_report_runs (
 	manifest_id VARCHAR(36) NOT NULL,
 	kind VARCHAR(20) NOT NULL,
@@ -1620,6 +1946,8 @@ CREATE TABLE inventory_movements (
 	warehouse_id VARCHAR(36) NOT NULL,
 	journal_id VARCHAR(36) NOT NULL,
 	operation_id VARCHAR(36) NOT NULL,
+	line_index INTEGER DEFAULT '0' NOT NULL,
+	document_line_id VARCHAR(36),
 	kind VARCHAR(30) NOT NULL,
 	date DATE NOT NULL,
 	sequence BIGINT NOT NULL,
@@ -1630,13 +1958,13 @@ CREATE TABLE inventory_movements (
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (id),
-	UNIQUE (company_id, journal_id, warehouse_id, kind),
+	UNIQUE (company_id, journal_id, warehouse_id, kind, line_index),
 	UNIQUE (company_id, sequence),
 	FOREIGN KEY(company_id, item_id) REFERENCES inventory_items (company_id, id),
 	FOREIGN KEY(company_id, warehouse_id) REFERENCES inventory_warehouses (company_id, id),
 	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
 	FOREIGN KEY(company_id, operation_id) REFERENCES accounting_operations (company_id, id),
-	CONSTRAINT inventory_movement_kind_quantity CHECK ((kind = 'purchase_goods' AND quantity > 0) OR (kind = 'sale_goods' AND quantity < 0) OR (kind = 'opening_stock' AND quantity > 0) OR (kind = 'transfer_in' AND quantity > 0) OR (kind = 'transfer_out' AND quantity < 0) OR (kind = 'adjustment' AND quantity <> 0) OR (kind = 'reversal' AND quantity <> 0)),
+	CONSTRAINT inventory_movement_kind_quantity CHECK ((kind = 'purchase_goods' AND quantity > 0) OR (kind = 'sale_goods' AND quantity < 0) OR (kind = 'sale_return' AND quantity > 0) OR (kind = 'purchase_return' AND quantity < 0) OR (kind = 'restock' AND quantity > 0) OR (kind = 'opening_stock' AND quantity > 0) OR (kind = 'transfer_in' AND quantity > 0) OR (kind = 'transfer_out' AND quantity < 0) OR (kind = 'adjustment' AND quantity <> 0) OR (kind = 'reversal' AND quantity <> 0)),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_inventory_movements_value_irr CHECK (value_irr > -100000000000000000000000000000000 AND value_irr < 100000000000000000000000000000000)
 );
@@ -1714,6 +2042,33 @@ CREATE TABLE native_bank_match_previews (
 );
 
 CREATE INDEX ix_native_bank_match_previews_company_id ON native_bank_match_previews (company_id);
+
+CREATE TABLE native_dimension_allocations (
+	line_id VARCHAR(36) NOT NULL,
+	journal_id VARCHAR(36) NOT NULL,
+	journal_line_id VARCHAR(36),
+	line_index INTEGER NOT NULL,
+	source_role VARCHAR(40) NOT NULL,
+	native_statement_id VARCHAR(36) NOT NULL,
+	kind VARCHAR(20) NOT NULL,
+	version INTEGER NOT NULL,
+	method VARCHAR(20) NOT NULL,
+	shares JSON NOT NULL,
+	review_reason VARCHAR(500) NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, line_id, kind, version),
+	FOREIGN KEY(company_id, native_statement_id) REFERENCES native_statement_runs (company_id, id),
+	FOREIGN KEY(company_id, journal_id) REFERENCES native_journals (company_id, id),
+	FOREIGN KEY(company_id, journal_line_id) REFERENCES native_journal_lines (company_id, id),
+	FOREIGN KEY(actor_id) REFERENCES users (id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_native_dimension_allocations_company_id ON native_dimension_allocations (company_id);
 
 CREATE TABLE native_document_activities (
 	thread_id VARCHAR(36) NOT NULL,
@@ -1945,6 +2300,24 @@ CREATE TABLE budget_reservations (
 
 CREATE INDEX ix_budget_reservations_company_id ON budget_reservations (company_id);
 
+CREATE TABLE counterparty_credit_applications (
+	credit_id VARCHAR(36) NOT NULL,
+	target_document_id VARCHAR(36) NOT NULL,
+	amount_irr NUMERIC(38, 6) NOT NULL,
+	date DATE NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, credit_id) REFERENCES counterparty_credits (company_id, id),
+	FOREIGN KEY(company_id, target_document_id) REFERENCES commercial_documents (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_counterparty_credit_applications_company_id ON counterparty_credit_applications (company_id);
+
 CREATE TABLE invoice_snapshots (
 	party_id VARCHAR(100),
 	reference VARCHAR(100) NOT NULL,
@@ -2029,6 +2402,10 @@ CREATE INDEX ix_journal_lines_company_id ON journal_lines (company_id);
 CREATE TABLE moadian_transmissions (
 	invoice_id VARCHAR(36) NOT NULL,
 	invoice_version INTEGER NOT NULL,
+	commercial_document_id VARCHAR(36),
+	document_digest VARCHAR(64),
+	invoice_subject INTEGER DEFAULT '1' NOT NULL,
+	reference_tax_id VARCHAR(22),
 	invoice_reference VARCHAR(120) NOT NULL,
 	tax_id VARCHAR(22) NOT NULL,
 	uid VARCHAR(36) NOT NULL,
@@ -2044,7 +2421,7 @@ CREATE TABLE moadian_transmissions (
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (company_id, id),
-	UNIQUE (company_id, invoice_id),
+	UNIQUE (company_id, invoice_id, invoice_subject),
 	UNIQUE (company_id, tax_id),
 	UNIQUE (company_id, memory_id, serial),
 	UNIQUE (company_id, uid),
@@ -2270,8 +2647,10 @@ CREATE TABLE cheque_clearances (
 	company_id VARCHAR(36) NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (company_id, cheque_id, bank_id),
+	UNIQUE (company_id, event_id),
 	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
 	FOREIGN KEY(company_id, bank_id) REFERENCES bank_movements (company_id, id),
+	FOREIGN KEY(company_id, event_id) REFERENCES cheque_events (company_id, id),
 	FOREIGN KEY(company_id) REFERENCES companies (id),
 	CONSTRAINT finite_cheque_clearances_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
 );
@@ -2390,6 +2769,33 @@ CREATE INDEX ix_reconciliation_decisions_company_id ON reconciliation_decisions 
 
 CREATE INDEX ix_reconciliation_decisions_proposal_id ON reconciliation_decisions (proposal_id);
 
+CREATE TABLE treasury_tool_lines (
+	document_id VARCHAR(36) NOT NULL,
+	line_index INTEGER NOT NULL,
+	tool_kind VARCHAR(20) NOT NULL,
+	treasury_account_id VARCHAR(36),
+	cheque_id VARCHAR(36),
+	bank_movement_id VARCHAR(36),
+	amount NUMERIC(38, 6) NOT NULL,
+	reference VARCHAR(120),
+	due_date DATE,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, document_id, line_index),
+	FOREIGN KEY(company_id, document_id) REFERENCES treasury_documents (company_id, id),
+	FOREIGN KEY(company_id, treasury_account_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id, cheque_id) REFERENCES cheques (company_id, id),
+	FOREIGN KEY(company_id, bank_movement_id) REFERENCES bank_movements (company_id, id),
+	CONSTRAINT treasury_tool_kind_valid CHECK (tool_kind IN ('cash', 'bank_transfer', 'cheque', 'card', 'other')),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_treasury_tool_lines_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_treasury_tool_lines_company_id ON treasury_tool_lines (company_id);
+
 CREATE TABLE bot_extraction_reviews (
 	proposal_id VARCHAR(36) NOT NULL,
 	actor_id VARCHAR(36) NOT NULL,
@@ -2425,6 +2831,28 @@ CREATE TABLE control_activities (
 CREATE INDEX ix_control_activities_case_id ON control_activities (case_id);
 
 CREATE INDEX ix_control_activities_company_id ON control_activities (company_id);
+
+CREATE TABLE treasury_allocations (
+	tool_line_id VARCHAR(36) NOT NULL,
+	invoice_id VARCHAR(36) NOT NULL,
+	amount NUMERIC(38, 6) NOT NULL,
+	date DATE NOT NULL,
+	actor_id VARCHAR(36) NOT NULL,
+	reversed_at TIMESTAMP WITH TIME ZONE,
+	reversed_by VARCHAR(36),
+	reversal_reason TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, tool_line_id) REFERENCES treasury_tool_lines (company_id, id),
+	FOREIGN KEY(company_id, invoice_id) REFERENCES native_invoices (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id),
+	CONSTRAINT finite_treasury_allocations_amount CHECK (amount > -100000000000000000000000000000000 AND amount < 100000000000000000000000000000000)
+);
+
+CREATE INDEX ix_treasury_allocations_company_id ON treasury_allocations (company_id);
 
 ALTER TABLE account_import_previews ENABLE ROW LEVEL SECURITY;
 
@@ -2482,14 +2910,6 @@ DROP POLICY IF EXISTS tenant_isolation ON budget_policies;
 
 CREATE POLICY tenant_isolation ON budget_policies USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE cheques ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE cheques FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON cheques;
-
-CREATE POLICY tenant_isolation ON cheques USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE commercial_counterparties ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE commercial_counterparties FORCE ROW LEVEL SECURITY;
@@ -2513,6 +2933,14 @@ ALTER TABLE company_modules FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON company_modules;
 
 CREATE POLICY tenant_isolation ON company_modules USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE company_payroll_workshops ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE company_payroll_workshops FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON company_payroll_workshops;
+
+CREATE POLICY tenant_isolation ON company_payroll_workshops USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE counterparty_reconciliation_runs ENABLE ROW LEVEL SECURITY;
 
@@ -2586,14 +3014,6 @@ DROP POLICY IF EXISTS tenant_isolation ON model_tariffs;
 
 CREATE POLICY tenant_isolation ON model_tariffs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE native_automation_previews ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE native_automation_previews FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON native_automation_previews;
-
-CREATE POLICY tenant_isolation ON native_automation_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE native_book_report_runs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE native_book_report_runs FORCE ROW LEVEL SECURITY;
@@ -2601,14 +3021,6 @@ ALTER TABLE native_book_report_runs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON native_book_report_runs;
 
 CREATE POLICY tenant_isolation ON native_book_report_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
-ALTER TABLE native_control_runs ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE native_control_runs FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON native_control_runs;
-
-CREATE POLICY tenant_isolation ON native_control_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE native_invoice_snapshots ENABLE ROW LEVEL SECURITY;
 
@@ -2666,6 +3078,14 @@ DROP POLICY IF EXISTS tenant_isolation ON report_builder_definitions;
 
 CREATE POLICY tenant_isolation ON report_builder_definitions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE account_detail_links ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE account_detail_links FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON account_detail_links;
+
+CREATE POLICY tenant_isolation ON account_detail_links USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE accounting_account_hierarchy ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE accounting_account_hierarchy FORCE ROW LEVEL SECURITY;
@@ -2706,13 +3126,21 @@ DROP POLICY IF EXISTS tenant_isolation ON bot_posting_dispatches;
 
 CREATE POLICY tenant_isolation ON bot_posting_dispatches USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE cheque_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commercial_counterparty_roles ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE cheque_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE commercial_counterparty_roles FORCE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS tenant_isolation ON cheque_events;
+DROP POLICY IF EXISTS tenant_isolation ON commercial_counterparty_roles;
 
-CREATE POLICY tenant_isolation ON cheque_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+CREATE POLICY tenant_isolation ON commercial_counterparty_roles USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE commercial_documents ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE commercial_documents FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON commercial_documents;
+
+CREATE POLICY tenant_isolation ON commercial_documents USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE employee_contracts ENABLE ROW LEVEL SECURITY;
 
@@ -2738,6 +3166,14 @@ DROP POLICY IF EXISTS tenant_isolation ON native_account_roles;
 
 CREATE POLICY tenant_isolation ON native_account_roles USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE native_automation_previews ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_automation_previews FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_automation_previews;
+
+CREATE POLICY tenant_isolation ON native_automation_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE native_cash_scenarios ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE native_cash_scenarios FORCE ROW LEVEL SECURITY;
@@ -2745,6 +3181,14 @@ ALTER TABLE native_cash_scenarios FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON native_cash_scenarios;
 
 CREATE POLICY tenant_isolation ON native_cash_scenarios USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_control_runs ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_control_runs FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_control_runs;
+
+CREATE POLICY tenant_isolation ON native_control_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE native_dimension_report_runs ENABLE ROW LEVEL SECURITY;
 
@@ -2850,6 +3294,22 @@ DROP POLICY IF EXISTS tenant_isolation ON processing_sessions;
 
 CREATE POLICY tenant_isolation ON processing_sessions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE treasury_accounts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_accounts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_accounts;
+
+CREATE POLICY tenant_isolation ON treasury_accounts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE treasury_documents ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_documents FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_documents;
+
+CREATE POLICY tenant_isolation ON treasury_documents USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE accounting_operations ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE accounting_operations FORCE ROW LEVEL SECURITY;
@@ -2857,6 +3317,30 @@ ALTER TABLE accounting_operations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON accounting_operations;
 
 CREATE POLICY tenant_isolation ON accounting_operations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE cheques ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cheques FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cheques;
+
+CREATE POLICY tenant_isolation ON cheques USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE commercial_document_lines ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE commercial_document_lines FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON commercial_document_lines;
+
+CREATE POLICY tenant_isolation ON commercial_document_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE commercial_returns ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE commercial_returns FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON commercial_returns;
+
+CREATE POLICY tenant_isolation ON commercial_returns USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE journal_correction_drafts ENABLE ROW LEVEL SECURITY;
 
@@ -2874,14 +3358,6 @@ DROP POLICY IF EXISTS tenant_isolation ON native_automation_runs;
 
 CREATE POLICY tenant_isolation ON native_automation_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
-ALTER TABLE native_dimension_allocations ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE native_dimension_allocations FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS tenant_isolation ON native_dimension_allocations;
-
-CREATE POLICY tenant_isolation ON native_dimension_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
-
 ALTER TABLE native_document_threads ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE native_document_threads FORCE ROW LEVEL SECURITY;
@@ -2897,6 +3373,14 @@ ALTER TABLE native_forecast_runs FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON native_forecast_runs;
 
 CREATE POLICY tenant_isolation ON native_forecast_runs USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_journal_lines ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_journal_lines FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_journal_lines;
+
+CREATE POLICY tenant_isolation ON native_journal_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE native_opening_evidence ENABLE ROW LEVEL SECURITY;
 
@@ -2978,6 +3462,30 @@ DROP POLICY IF EXISTS tenant_isolation ON cash_scenarios;
 
 CREATE POLICY tenant_isolation ON cash_scenarios USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE cheque_events ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE cheque_events FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON cheque_events;
+
+CREATE POLICY tenant_isolation ON cheque_events USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE commercial_return_lines ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE commercial_return_lines FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON commercial_return_lines;
+
+CREATE POLICY tenant_isolation ON commercial_return_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE counterparty_credits ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE counterparty_credits FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON counterparty_credits;
+
+CREATE POLICY tenant_isolation ON counterparty_credits USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE dimension_report_runs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE dimension_report_runs FORCE ROW LEVEL SECURITY;
@@ -3041,6 +3549,14 @@ ALTER TABLE native_bank_match_previews FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON native_bank_match_previews;
 
 CREATE POLICY tenant_isolation ON native_bank_match_previews USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE native_dimension_allocations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE native_dimension_allocations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON native_dimension_allocations;
+
+CREATE POLICY tenant_isolation ON native_dimension_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE native_document_activities ENABLE ROW LEVEL SECURITY;
 
@@ -3137,6 +3653,14 @@ ALTER TABLE budget_reservations FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON budget_reservations;
 
 CREATE POLICY tenant_isolation ON budget_reservations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE counterparty_credit_applications ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE counterparty_credit_applications FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON counterparty_credit_applications;
+
+CREATE POLICY tenant_isolation ON counterparty_credit_applications USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE invoice_snapshots ENABLE ROW LEVEL SECURITY;
 
@@ -3298,6 +3822,14 @@ DROP POLICY IF EXISTS tenant_isolation ON reconciliation_decisions;
 
 CREATE POLICY tenant_isolation ON reconciliation_decisions USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE treasury_tool_lines ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_tool_lines FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_tool_lines;
+
+CREATE POLICY tenant_isolation ON treasury_tool_lines USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE bot_extraction_reviews ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE bot_extraction_reviews FORCE ROW LEVEL SECURITY;
@@ -3313,6 +3845,14 @@ ALTER TABLE control_activities FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON control_activities;
 
 CREATE POLICY tenant_isolation ON control_activities USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE treasury_allocations ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_allocations FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_allocations;
+
+CREATE POLICY tenant_isolation ON treasury_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 DROP POLICY IF EXISTS own_membership ON memberships;
 
@@ -3495,6 +4035,10 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_source_r
 DROP TRIGGER IF EXISTS immutable_fact ON native_invoice_terms;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_invoice_terms FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON native_journal_lines;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON native_journal_lines FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON native_journals;
 

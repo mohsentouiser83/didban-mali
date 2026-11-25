@@ -2,6 +2,10 @@ export interface MoadianTransmission {
   id: string;
   invoice_id: string;
   invoice_version: number;
+  commercial_document_id?: string | null;
+  document_digest?: string | null;
+  invoice_subject?: 1 | 2 | 3 | 4;
+  reference_tax_id?: string | null;
   invoice_reference: string;
   tax_id?: string | null;
   uid?: string | null;
@@ -42,6 +46,8 @@ export interface MoadianPreview {
 
 export interface MoadianFiscalForm {
   tax_id: string;
+  invoice_subject: "1" | "2" | "3" | "4";
+  reference_tax_id: string;
   issued_time: string;
   buyer_type: "" | "natural" | "legal";
   buyer_tax_number: string;
@@ -51,9 +57,11 @@ export interface MoadianFiscalForm {
   vat_evidence: string;
 }
 
-export type MoadianFiscalPayload = Omit<MoadianFiscalForm, "issued_time"> & {
+export type MoadianFiscalPayload = Omit<MoadianFiscalForm, "issued_time" | "invoice_subject" | "reference_tax_id"> & {
   invoice_id: string;
   invoice_version: number;
+  invoice_subject: 1 | 2 | 3 | 4;
+  reference_tax_id?: string | null;
   issued_at: string;
 };
 
