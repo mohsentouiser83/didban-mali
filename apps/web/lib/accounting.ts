@@ -56,8 +56,32 @@ export interface JournalDraft {
   lines: JournalDraftLine[];
   state: string;
   inventory_origin?: boolean;
+  reference?: string | null;
+  operation_kind?: string | null;
   version: number;
   original_unit: "IRR" | "TOMAN";
+}
+export interface JournalDraftResponseLine {
+  account_id: string;
+  debit: string;
+  credit: string;
+  original_debit: string;
+  original_credit: string;
+  party_id?: string | null;
+  counterparty_id?: string | null;
+  description?: string | null;
+  reference_kind?: string | null;
+  reference_id?: string | null;
+  dimension_ids: string[];
+}
+export interface JournalDraftWriteResponse extends Omit<JournalDraft, "lines" | "state"> {
+  company_id: string;
+  actor_id: string;
+  created_at: string;
+  lines: JournalDraftResponseLine[];
+  state: "draft" | "posted" | "discarded";
+  posting_available: boolean;
+  posting_reason: string | null;
 }
 export interface DraftFormValue {
   unit: "IRR" | "TOMAN";
@@ -117,13 +141,13 @@ export function draftFormValue(
       };
 }
 /** Six decimal places match the API's exact Money range; never use float sums. */
-function exactAmount(value: string): bigint | null {
+export function exactAmount(value: string): bigint | null {
   if (!/^\d+(\.\d{1,6})?$/.test(value)) return null;
   const [integer, fraction = ""] = value.split(".");
   if (integer.length > 32) return null;
   return BigInt(integer) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
 }
-function exactText(value: bigint): string {
+export function exactText(value: bigint): string {
   const fraction = String(value % 1_000_000n)
     .padStart(6, "0")
     .replace(/0+$/, "");
@@ -164,6 +188,7 @@ export function draftValidation(value: DraftFormValue) {
     errors,
     totalDebit: invalidAmount ? null : exactText(debit),
     totalCredit: invalidAmount ? null : exactText(credit),
+    difference: invalidAmount ? null : exactText(debit > credit ? debit - credit : credit - debit),
   };
 }
 export function draftPayload(value: DraftFormValue) {

@@ -28,6 +28,7 @@ from .report_studio_schemas import (
     StudioWidgetFilters,
     StudioWidgetSpec,
 )
+from .security import require_payroll_access
 from .services import check_version, get_entity
 from .workflow import audit
 
@@ -531,6 +532,68 @@ def _unavailable_kpi(reason: str) -> dict:
     return {"value": None, "formatted_value": "—", "status": "unavailable", "subtitle": reason}
 
 
+def _layout_uses_payroll(spec: StudioLayoutSpec | dict | None) -> bool:
+    if spec is None:
+        return False
+    sections = spec.sections if isinstance(spec, StudioLayoutSpec) else spec.get("sections", [])
+    if not isinstance(sections, list):
+        return False
+    for section in sections:
+        sec_basis = section.basis if isinstance(section, StudioSectionSpec) else section.get("basis")
+        if sec_basis == "payroll":
+            return True
+        widgets = section.widgets if isinstance(section, StudioSectionSpec) else section.get("widgets", [])
+        if not isinstance(widgets, list):
+            continue
+        for widget in widgets:
+            entity = widget.entity if isinstance(widget, StudioWidgetSpec) else widget.get("entity")
+            metric = widget.metric if isinstance(widget, StudioWidgetSpec) else widget.get("metric")
+            if entity == "payroll" or metric == "imported_payroll":
+                return True
+    return False
+
+
+def _require_payroll_if_needed(
+    db: Session,
+    company_id: str,
+    actor: m.User | None,
+    *payloads: StudioLayoutSpec | dict | None,
+) -> None:
+    uses_payroll = False
+    for payload in payloads:
+        if payload is None:
+            continue
+        if isinstance(payload, StudioLayoutSpec):
+            if _layout_uses_payroll(payload):
+                uses_payroll = True
+                break
+        elif isinstance(payload, dict):
+            candidates = (
+                payload,
+                payload.get("studio_spec"),
+                payload.get("spec"),
+                payload.get("dashboard"),
+                payload.get("dashboard_snapshot", {}).get("spec")
+                if isinstance(payload.get("dashboard_snapshot"), dict)
+                else None,
+                payload.get("dashboard_snapshot", {}).get("dashboard")
+                if isinstance(payload.get("dashboard_snapshot"), dict)
+                else None,
+            )
+            if any(_layout_uses_payroll(item) for item in candidates if item is not None):
+                uses_payroll = True
+                break
+    if uses_payroll:
+        require(
+            actor is not None,
+            "payroll_access_required",
+            "مجوز مشاهده یا مدیریت اطلاعات حقوق و دستمزد را ندارید.",
+            403,
+        )
+        assert actor is not None
+        require_payroll_access(db, company_id, actor)
+
+
 def _evaluate_widget(
     db: Session,
     company_id: str,
@@ -540,6 +603,8 @@ def _evaluate_widget(
     invoices: list[dict],
     ledger_metrics: dict[str, Any],
     section_basis: str = "all",
+    *,
+    actor: m.User | None = None,
 ) -> dict:
     unit = widget.unit or global_filters.unit
     w_type = widget.type
@@ -548,11 +613,21 @@ def _evaluate_widget(
     limit = widget.limit or 8
     filters = widget.filters
 
+    if entity == "payroll" or metric == "imported_payroll" or section_basis == "payroll":
+        require(
+            actor is not None,
+            "payroll_access_required",
+            "مجوز مشاهده یا مدیریت اطلاعات حقوق و دستمزد را ندارید.",
+            403,
+        )
+        assert actor is not None
+        require_payroll_access(db, company_id, actor)
+
     if metric in system_reports.TABLE_METRICS:
         expected_basis = "bank" if metric == "daily_cash" else "payroll" if metric == "imported_payroll" else "ledger"
         require(section_basis in {"all", expected_basis}, "system_report_basis", "مبنای بخش با منبع جدول سازگار نیست.")
         require(w_type == "data_table", "system_report_widget_type", "این منبع باید در جدول نمایش داده شود.")
-        return system_reports.evaluate_table(db, company_id, period, widget, global_filters)
+        return system_reports.evaluate_table(db, company_id, period, widget, global_filters, actor=actor)
 
     # 1. KPI CARD WIDGET
     if w_type == "kpi_card":
@@ -868,8 +943,11 @@ def preview(
     *,
     manifest: m.ResultManifest | None = None,
     live_actor: m.User | None = None,
+    actor: m.User | None = None,
 ) -> dict:
     """Renders the entire Studio Layout by computing all section and widget data."""
+    effective_actor = actor or live_actor
+    _require_payroll_if_needed(db, company_id, effective_actor, spec)
     period = None
     if spec.global_filters.period_id and spec.global_filters.period_id != "default-period":
         period = db.scalar(
@@ -952,6 +1030,7 @@ def preview(
                 invoices=invoices,
                 ledger_metrics=ledger_metrics,
                 section_basis=sec_basis,
+                actor=effective_actor,
             )
             rendered_widgets.append(
                 {
@@ -1103,7 +1182,7 @@ def save(
     db.flush()
     if is_dashboard:
         if "dashboard_mode" not in definition.spec:
-            _configure_dashboard(db, company_id, definition, dashboard_mode, manifest)
+            _configure_dashboard(db, company_id, definition, dashboard_mode, manifest, actor=user)
         all_defs = db.scalars(
             select(SavedReportDefinition).where(
                 SavedReportDefinition.company_id == company_id,
@@ -1200,7 +1279,7 @@ def set_active_dashboard(
             updated["is_dashboard"] = False
             d.spec = updated
 
-    _configure_dashboard(db, company_id, definition, mode)
+    _configure_dashboard(db, company_id, definition, mode, actor=user)
     definition.version += 1
     db.flush()
 
@@ -1283,14 +1362,23 @@ def get_active_dashboard(
         "mode": mode,
     }
     snapshot = active_def.spec.get("dashboard_snapshot")
+    _require_payroll_if_needed(db, company_id, actor, active_def.spec, snapshot)
     if mode == "fixed" and snapshot is not None:
         return result | snapshot
 
     try:
         spec = _dashboard_layout(active_def, period_id)
-        rendered = preview(db, company_id, spec, live_actor=actor if mode == "live" else None)
+        rendered = preview(
+            db,
+            company_id,
+            spec,
+            live_actor=actor if mode == "live" else None,
+            actor=actor,
+        )
         return result | {"spec": spec.model_dump(), "dashboard": rendered}
     except DomainError as exc:
+        if exc.status == 403:
+            raise
         return result | {"error": exc.message, "dashboard": None}
     except ValidationError:
         return result | {"error": "تعریف داشبورد نامعتبر است.", "dashboard": None}
@@ -1381,6 +1469,8 @@ def _configure_dashboard(
     definition: SavedReportDefinition,
     mode: str,
     manifest: m.ResultManifest | None = None,
+    *,
+    actor: m.User | None = None,
 ) -> None:
     require(mode in {"fixed", "live"}, "invalid_dashboard_mode", "نوع داشبورد نامعتبر است.")
     spec = dict(definition.spec)
@@ -1391,7 +1481,7 @@ def _configure_dashboard(
         layout = _dashboard_layout(definition)
         spec["dashboard_snapshot"] = {
             "spec": layout.model_dump(),
-            "dashboard": preview(db, company_id, layout, manifest=manifest),
+            "dashboard": preview(db, company_id, layout, manifest=manifest, actor=actor),
         }
     definition.spec = spec
 
@@ -1401,9 +1491,12 @@ def export_definition_pdf(
     company_id: str,
     definition_id: str,
     period_id: str | None = None,
+    *,
+    actor: m.User | None = None,
 ) -> bytes:
     """Renders a report definition into a downloadable PDF document."""
     definition = get_entity(db, SavedReportDefinition, company_id, definition_id)
+    _require_payroll_if_needed(db, company_id, actor, definition.spec)
     company = db.get(m.Company, company_id)
     company_name = company.name if company else company_id
 
@@ -1414,7 +1507,7 @@ def export_definition_pdf(
             studio_spec_dict["global_filters"]["period_id"] = period_id
 
         spec_obj = StudioLayoutSpec.model_validate(studio_spec_dict)
-        rendered = preview(db, company_id, spec_obj)
+        rendered = preview(db, company_id, spec_obj, actor=actor)
 
         blocks_results = []
         for sec in rendered.get("sections", []):

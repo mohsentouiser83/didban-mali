@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
-import { Field } from "@/components/ui/field";
+import { Field, FormMessage } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,18 +24,18 @@ export function EmployeesManagementView() {
       <PageHeader
         title="کارمندان"
         icon={UsersThreeIcon}
-        action={
+        action={v.canPrepare && (
           <Button variant="primary" onClick={v.openAdd}>
             <PlusIcon size={18} aria-hidden />
             افزودن کارمند جدید
           </Button>
-        }
+        )}
       />
 
       {v.loading ? (
         <LoadingState label="در حال دریافت کارمندان..." />
       ) : v.error ? (
-        <ErrorState message={v.error.message} onRetry={v.refresh} />
+        <ErrorState message={v.error.message} onRetry={v.error.status === 403 ? undefined : v.refresh} />
       ) : (
         <div className="space-y-5">
           <Panel title="فهرست پرسنل">
@@ -54,15 +55,12 @@ export function EmployeesManagementView() {
               <span className="text-xs text-muted">{persian(v.employees.length)} کارمند</span>
             </div>
 
-            <Table title="فهرست کارمندان" onImport={v.importFromExcel}>
+            <Table title="فهرست کارمندان" showSearch={false} onImport={v.canPrepare ? v.importFromExcel : undefined}>
               <TableHeader>
                 <TableRow>
                   <TableHead>کد پرسنلی</TableHead>
                   <TableHead>نام و نام خانوادگی</TableHead>
-                  <TableHead>کد ملی / شناسه اتباع</TableHead>
                   <TableHead>عنوان شغلی / واحد</TableHead>
-                  <TableHead>تعداد اولاد</TableHead>
-                  <TableHead>شرایط ویژه قانونی</TableHead>
                   <TableHead>وضعیت</TableHead>
                   <TableHead className="text-end">عملیات</TableHead>
                 </TableRow>
@@ -72,56 +70,10 @@ export function EmployeesManagementView() {
                   v.employees.map((emp) => (
                     <TableRow key={emp.id}>
                       <TableRowHeader>
-                        <span dir="ltr" className="font-mono">{emp.employee_code}</span>
+                        <span dir="ltr" className="tabular-nums">{emp.employee_code}</span>
                       </TableRowHeader>
                       <TableCell className="font-medium">{emp.full_name}</TableCell>
-                      <TableCell>
-                        <span dir="ltr" className="font-mono">{emp.national_id || "—"}</span>
-                      </TableCell>
                       <TableCell>{emp.job_title || emp.department || "—"}</TableCell>
-                      <TableCell>{persian(emp.children_count)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {emp.is_veteran_or_child && (
-                            <span className="rounded bg-primary-soft px-1.5 py-0.5 text-[11px] font-medium text-primary">
-                              ایثارگر / جانباز (م ۵۶)
-                            </span>
-                          )}
-                          {emp.is_science_park_staff && (
-                            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-800">
-                              دانش‌بنیان / پارک
-                            </span>
-                          )}
-                          {emp.is_foreign_national && (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
-                              تبعه خارجی (بدون بیمه بیکاری)
-                            </span>
-                          )}
-                          {emp.has_disability_charge && (
-                            <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[11px] font-medium text-purple-800">
-                              معلولیت (م ۲۵)
-                            </span>
-                          )}
-                          {emp.is_underdeveloped_region && (
-                            <span className="rounded bg-teal-100 px-1.5 py-0.5 text-[11px] font-medium text-teal-800">
-                              منطقه محروم (م ۹۲)
-                            </span>
-                          )}
-                          {emp.is_retired && (
-                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">
-                              بازنشسته
-                            </span>
-                          )}
-                          {!emp.is_veteran_or_child &&
-                            !emp.is_science_park_staff &&
-                            !emp.is_foreign_national &&
-                            !emp.has_disability_charge &&
-                            !emp.is_underdeveloped_region &&
-                            !emp.is_retired && (
-                              <span className="text-xs text-muted">عادی</span>
-                            )}
-                        </div>
-                      </TableCell>
                       <TableCell>
                         {emp.active ? (
                           <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
@@ -136,7 +88,7 @@ export function EmployeesManagementView() {
                           <Button variant="ghost" className="size-8 p-0" onClick={() => v.openEdit(emp)} title="ویرایش">
                             <PencilSimpleIcon size={16} />
                           </Button>
-                          <Button variant="ghost" className="size-8 p-0 text-rose-600" onClick={() => v.remove(emp)} title="حذف / غیرفعال">
+                          <Button variant="ghost" className="size-8 p-0 text-rose-600" onClick={() => v.requestRemove(emp)} aria-label={`حذف یا غیرفعال‌سازی ${emp.full_name}`}>
                             <TrashIcon size={16} />
                           </Button>
                         </div>
@@ -145,7 +97,7 @@ export function EmployeesManagementView() {
                   ))
                 ) : (
                   <TableEmptyCell
-                    colSpan={8}
+                    colSpan={5}
                     title="کارمندی یافت نشد"
                     action={
                       <Button variant="secondary" onClick={v.openAdd}>
@@ -162,7 +114,7 @@ export function EmployeesManagementView() {
 
       {/* Add / Edit Employee Drawer */}
       <Drawer
-        open={v.formOpen}
+        open={v.canPrepare && v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش مشخصات کارمند" : "ثبت کارمند جدید"}
         description="اطلاعات هویتی، بانکی و شرایط خاص معافیت‌های قانونی پرسنل را وارد کنید."
@@ -353,6 +305,16 @@ export function EmployeesManagementView() {
           </div>
         </div>
       </Drawer>
+      <ConfirmDialog
+        open={v.canPrepare && !!v.deleting}
+        onOpenChange={(open) => { if (!open) v.cancelRemove(); }}
+        title="حذف یا غیرفعال‌سازی کارمند"
+        busy={v.command.busy}
+        onConfirm={v.remove}
+      >
+        <p>«{v.deleting?.full_name}» حذف می‌شود. در صورت وجود قرارداد یا فیش، پرونده غیرفعال می‌شود.</p>
+        <FormMessage error>{v.command.error?.message}</FormMessage>
+      </ConfirmDialog>
     </>
   );
 }

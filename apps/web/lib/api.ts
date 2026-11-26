@@ -97,6 +97,8 @@ export interface Period {
   end: string;
   version: number;
   in_use?: boolean;
+  closed?: boolean;
+  lock_version?: number;
 }
 export interface Metric {
   metric_key: string;
@@ -192,6 +194,8 @@ export interface FinancialDetails {
 }
 export interface ComparisonRow {
   reference?: string;
+  internal_reference?: string | null;
+  date?: string | null;
   invoice_id?: string;
   tax_id?: string;
   status?: string;
@@ -214,6 +218,9 @@ export interface SourceFile {
   archived: boolean;
   version: number;
   session_id: string;
+  created_at?: string;
+  period_id?: string | null;
+  period_name?: string | null;
 }
 export interface Issue {
   id: string;
@@ -250,6 +257,7 @@ export interface Report {
   title: string;
   version: number;
   created_at: string;
+  period_name?: string | null;
   approvals?: {
     actor_id: string;
     created_at: string;
@@ -420,6 +428,10 @@ export interface NumberingRule {
   padding: number;
   suffix: string;
   sample: string;
+  next_number?: string | null;
+  used_in_workflow?: boolean;
+  connected_process?: string | null;
+  deactivation_impact?: string | null;
   description: string | null;
   is_system: boolean;
   active: boolean;
@@ -527,6 +539,12 @@ export interface EmployeeContract {
   custom_fixed_allowances: string;
   is_insured: boolean;
   is_taxable: boolean;
+  workshop_id?: string | null;
+  work_location?: string | null;
+  work_description?: string | null;
+  conclusion_date?: string | null;
+  amendment_of_contract_id?: string | null;
+  weekly_hours?: string;
   notes: string | null;
   version: number;
 }
@@ -548,6 +566,12 @@ export interface EmployeeContractInput {
   custom_fixed_allowances?: string | number;
   is_insured?: boolean;
   is_taxable?: boolean;
+  workshop_id?: string | null;
+  work_location?: string | null;
+  work_description?: string | null;
+  conclusion_date?: string | null;
+  amendment_of_contract_id?: string | null;
+  weekly_hours?: string | number;
   notes?: string | null;
 }
 

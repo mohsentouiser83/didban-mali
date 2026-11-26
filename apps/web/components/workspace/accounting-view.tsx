@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -27,10 +26,20 @@ import {
 } from "@/components/ui/table";
 import { useJournalDrafts } from "@/hooks/use-accounting";
 import { useWorkspace } from "@/hooks/workspace";
-import { amount, displayDate, persian, cn } from "@/lib/utils";
+import { amount, displayDate, persian } from "@/lib/utils";
 import { JournalDraftForm } from "./journal-draft-form";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { DocumentDiscussionButton } from "./document-discussion-button";
+
+const draftKind: Record<string, string> = {
+  manual: "دستی",
+  reversal: "برگشت",
+  replacement: "جایگزین",
+  purchase_goods: "خرید کالا",
+  sale_goods: "فروش کالا",
+  treasury_receipt: "دریافت خزانه",
+  treasury_payment: "پرداخت خزانه",
+};
 
 export function AccountingView({ reviewDraftId }: { reviewDraftId?: string } = {}) {
   const workspace = useWorkspace();
@@ -44,17 +53,8 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
   const view = useJournalDrafts();
   const posting = usePosting(view.refresh);
   const details = useJournalDetails(view.refresh);
-  const [filterState, setFilterState] = useState<"all" | "draft" | "posted" | "discarded">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
+  const { filterState, setFilterState, searchQuery, setSearchQuery } = view;
   const canSelect = !!view.capabilities.data?.can_post && view.capabilities.data.posting_available;
-  const draftCount = view.rows.filter((r) => r.state === "draft").length;
-
-  const filteredRows = view.rows.filter((draft) => {
-    if (filterState !== "all" && draft.state !== filterState) return false;
-    if (searchQuery.trim() && !draft.description.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
-    return true;
-  });
 
   return (
     <>
@@ -76,42 +76,26 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <SearchInput
-              label="جستجو در شرح اسناد"
+              label="جست‌وجو در شماره، مرجع یا شرح سند"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-56 text-xs"
             />
-            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
-              {(
-                [
-                  { key: "all", label: "همه" },
-                  { key: "draft", label: "در انتظار ثبت", count: draftCount },
-                  { key: "posted", label: "ثبت‌شده" },
-                  { key: "discarded", label: "کنارگذاشته" },
-                ] as Array<{
-                  key: "all" | "draft" | "posted" | "discarded";
-                  label: string;
-                  count?: number;
-                }>
-              ).map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setFilterState(f.key)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors",
-                    filterState === f.key
-                      ? "bg-surface text-primary font-medium shadow-xs"
-                      : "text-muted hover:text-foreground",
-                  )}
+            <div className="flex flex-wrap gap-1">
+              {([
+                ["all", "همه"],
+                ["draft", "در انتظار ثبت"],
+                ["posted", "ثبت‌شده"],
+                ["discarded", "کنارگذاشته"],
+              ] as const).map(([state, label]) => (
+                <Button
+                  key={state}
+                  variant={filterState === state ? "primary" : "ghost"}
+                  aria-pressed={filterState === state}
+                  onClick={() => setFilterState(state)}
                 >
-                  <span>{f.label}</span>
-                  {typeof f.count === "number" && f.count > 0 && (
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary">
-                      {persian(f.count)}
-                    </span>
-                  )}
-                </button>
+                  {label}
+                </Button>
               ))}
             </div>
           </div>
@@ -142,11 +126,13 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
             <ErrorState message={view.error.message} onRetry={view.refresh} />
           ) : (
             <>
-              <Table>
+              <Table showSearch={false}>
                 <TableHeader sticky>
                   <TableRow>
                     {canSelect && <TableHead className="w-12">انتخاب</TableHead>}
+                    <TableHead>شماره / مرجع</TableHead>
                     <TableHead>شرح سند</TableHead>
+                    <TableHead>نوع سند</TableHead>
                     <TableHead className="w-32">تاریخ</TableHead>
                     <TableHead numeric className="w-40">بدهکار (ریال)</TableHead>
                     <TableHead className="w-32">وضعیت</TableHead>
@@ -156,8 +142,8 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.length ? (
-                    filteredRows.map((draft) => (
+                  {view.rows.length ? (
+                    view.rows.map((draft) => (
                       <TableRow key={draft.id}>
                         {canSelect && (
                           <TableCell>
@@ -175,11 +161,13 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
                               )}
                           </TableCell>
                         )}
+                        <TableCell><bdi>{draft.reference || "—"}</bdi></TableCell>
                         <TableRowHeader>
                           <span className="block max-w-sm break-words font-medium text-foreground">
                             {draft.description}
                           </span>
                         </TableRowHeader>
+                        <TableCell>{draftKind[draft.operation_kind || "manual"] ?? "عملیاتی"}</TableCell>
                         <TableCell className="whitespace-nowrap">
                           {displayDate(draft.date)}
                         </TableCell>
@@ -245,7 +233,7 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
                     ))
                   ) : (
                     <TableEmptyCell
-                      colSpan={canSelect ? 6 : 5}
+                      colSpan={canSelect ? 8 : 7}
                       title={
                         searchQuery || filterState !== "all"
                           ? "سندی با این فیلتر یا جستجو پیدا نشد"

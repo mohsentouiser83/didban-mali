@@ -103,6 +103,7 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
         reason = reason or "native_invoice_terms_missing"
     allocations = []
     used = Decimal(0)
+    reserved = Decimal(0)
     with localcontext() as ctx:
         ctx.prec = 60
         for row in _rows(db, NativeInvoiceAllocation, company, invoice_id=invoice.id):
@@ -141,6 +142,7 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
                 }
             )
         from .treasury_models import TreasuryAllocation, TreasuryDocument, TreasuryToolLine
+        from .treasury_service import treasury_allocation_effect
 
         for ta, tl, doc in db.execute(
             select(TreasuryAllocation, TreasuryToolLine, TreasuryDocument)
@@ -160,26 +162,34 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
                 TreasuryAllocation.date <= as_of,
             )
         ).all():
-            is_rev = bool(ta.reversed_at and ta.reversed_at.date() <= as_of) or doc.state == "reversed"
-            if not is_rev:
+            effect = treasury_allocation_effect(db, company, ta, tl, doc, as_of)
+            if effect["effective"]:
                 used += Decimal(ta.amount)
+            elif effect["reserved"]:
+                reserved += Decimal(ta.amount)
+            elif effect["status"] == "unavailable":
+                reason = reason or "treasury_allocation_source_invalid"
             allocations.append(
                 {
                     "id": ta.id,
                     "basis": "treasury_tool",
                     "document_id": doc.id,
                     "document_number": doc.number,
+                    "document_state": doc.state,
                     "tool_line_id": tl.id,
                     "tool_kind": tl.tool_kind,
                     "amount": ta.amount,
                     "date": ta.date.isoformat(),
-                    "reversed": is_rev,
-                    "reversal": {"reason": ta.reversal_reason} if ta.reversed_at else None,
-                    "status": "available",
-                    "reason": None,
+                    "reversed": effect["reversed"],
+                    "effective": effect["effective"],
+                    "reserved": effect["reserved"],
+                    "reversal": effect.get("reversal"),
+                    "status": effect["status"],
+                    "reason": effect["reason"],
                 }
             )
         from .commercial_doc_models import CommercialDocument, CommercialReturn, CounterpartyCreditApplication
+        from .commercial_service import resolve_counterparty
 
         cdoc = db.scalar(
             select(CommercialDocument).where(
@@ -187,6 +197,7 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
                 CommercialDocument.native_invoice_id == invoice.id,
             )
         )
+        cp = resolve_counterparty(db, company, source["party_id"], require_active=False)
         if cdoc is not None:
             for ret in db.scalars(
                 select(CommercialReturn).where(
@@ -207,6 +218,7 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
             ):
                 used += Decimal(app.amount_irr)
         remaining = aggregate_money(Decimal(source["amount"]) - used) if not reason else None
+        reserved_amount = aggregate_money(reserved)
     return {
         "id": invoice.id,
         "version": invoice.version,
@@ -214,11 +226,16 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
         "direction": invoice.direction,
         "reference": source["reference"],
         "party_id": source["party_id"],
+        "party_name": cp.name if cp else None,
+        "party_record_id": cp.id if cp else None,
+        "commercial_document_id": cdoc.id if cdoc else None,
+        "commercial_document_number": cdoc.number if cdoc else None,
         "date": invoice.source["date"],
         "amount": source["amount"],
         "unit": "IRR",
         "original_unit": source["unit"],
         "remaining": remaining,
+        "reserved_amount": reserved_amount,
         "status": "unavailable" if reason else "available",
         "reason": reason,
         "source": source,
@@ -236,7 +253,10 @@ def detail(db: Session, company: str, user: m.User, invoice_id: str, as_of: date
     }
 
 
-def current(db: Session, company: str, user: m.User, as_of: date, direction: str | None = None) -> dict:
+def current(
+    db: Session, company: str, user: m.User, as_of: date, direction: str | None = None,
+    *, counterparty_id: str | None = None,
+) -> dict:
     _access(db, company, user, direction)
     require(as_of <= _today(db, company), "native_invoice_future_asof", "تاریخ گزارش در آینده است.")
     items = []
@@ -244,7 +264,9 @@ def current(db: Session, company: str, user: m.User, as_of: date, direction: str
         if (direction is None or invoice.direction == direction) and date.fromisoformat(
             invoice.source["date"]
         ) <= as_of:
-            items.append(detail(db, company, user, invoice.id, as_of))
+            item = detail(db, company, user, invoice.id, as_of)
+            if counterparty_id is None or item.get("party_record_id") == counterparty_id:
+                items.append(item)
     return {
         "basis": "native_invoice",
         "as_of": as_of.isoformat(),
@@ -255,7 +277,25 @@ def current(db: Session, company: str, user: m.User, as_of: date, direction: str
     }
 
 
+def _require_disjoint_treasury_operation(db: Session, company: str, operation_id: str) -> None:
+    from .treasury_models import TreasuryDocument
+
+    require(
+        not db.scalar(
+            select(TreasuryDocument.id).where(
+                TreasuryDocument.company_id == company,
+                TreasuryDocument.operation_id == operation_id,
+                TreasuryDocument.state != "reversed",
+            )
+        ),
+        "settlement_managed_by_treasury",
+        "این عملیات از طریق سند خزانه مدیریت می‌شود و قابل تخصیص مجدد نیست.",
+        409,
+    )
+
+
 def _capacity(db: Session, company: str, source: dict) -> str:
+    _require_disjoint_treasury_operation(db, company, source["operation_id"])
     require_released_receipt(db, company, source)
     amount = Decimal(source["amount"])
     with localcontext() as ctx:
@@ -424,6 +464,7 @@ def allocate(db: Session, company: str, user: m.User, invoice_id: str, data: dic
     invoice = get_entity(db, NativeInvoice, company, invoice_id)
     _access(db, company, user, invoice.direction, True)
     check_version(invoice, version)
+    _require_disjoint_treasury_operation(db, company, data["operation_id"])
     status = detail(db, company, user, invoice.id)
     require(
         status["status"] == "available",
@@ -469,9 +510,13 @@ def allocate(db: Session, company: str, user: m.User, invoice_id: str, data: dic
         amount = canonical_money(data["amount"])
     except ValueError as error:
         raise DomainError("invalid_amount", "مبلغ دقیق معتبر نیست.") from error
+    allocatable_remaining = max(
+        Decimal(0),
+        Decimal(status["remaining"]) - Decimal(status.get("reserved_amount") or "0"),
+    )
     require(
         Decimal(amount) > 0
-        and Decimal(amount) <= Decimal(status["remaining"])
+        and Decimal(amount) <= allocatable_remaining
         and Decimal(amount) <= Decimal(_capacity(db, company, source)),
         "native_invoice_capacity",
         "مبلغ از مانده فاکتور یا ظرفیت دریافت/پرداخت بیشتر است.",

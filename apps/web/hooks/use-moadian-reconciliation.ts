@@ -14,6 +14,8 @@ export interface MoadianInvoiceItem {
   vat_amount: string;
   status: string;
   status_label: string;
+  submitted_amount?: string;
+  difference?: string;
 }
 
 export interface MoadianReconciliationSummary {
@@ -33,6 +35,7 @@ export interface MoadianReconciliationSummary {
 
 export interface MoadianReconciliationData {
   configured: boolean;
+  has_portal_evidence?: boolean;
   summary: MoadianReconciliationSummary;
   accepted: MoadianInvoiceItem[];
   pending: MoadianInvoiceItem[];
@@ -55,6 +58,7 @@ export function useMoadianReconciliation() {
     rejected: resource.data?.rejected ?? [],
     untransmitted: resource.data?.untransmitted ?? [],
     configured: resource.data?.configured ?? false,
+    hasPortalEvidence: resource.data?.has_portal_evidence ?? false,
     loading: resource.loading,
     error: resource.error,
     refresh: resource.refresh,

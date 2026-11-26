@@ -1,5 +1,7 @@
 """API routes for counterparty statement reconciliation."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Request
 
 from .. import counterparty_reconciliation_service as service
@@ -25,9 +27,12 @@ def get_statement_ledger(
     counterparty_id: str,
     request: Request,
     as_of_date: str | None = None,
+    basis: Literal["native"] | None = None,
 ):
     with access(request, company_id) as (db, user, _):
-        return service.get_counterparty_ledger(db, company_id, user, counterparty_id, as_of_date)
+        return service.get_counterparty_ledger(
+            db, company_id, user, counterparty_id, as_of_date, include_imported=basis is None,
+        )
 
 
 @router.post(P + "/reconcile", status_code=201)

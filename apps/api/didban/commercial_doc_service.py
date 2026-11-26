@@ -101,6 +101,19 @@ def _serialize_document(db: Session, doc: CommercialDocument) -> dict:
         )
     )
     payload = serialize_fact(doc)
+    warehouse_name = None
+    if doc.warehouse_id:
+        wh = db.get(InventoryWarehouse, doc.warehouse_id)
+        if wh and wh.company_id == doc.company_id:
+            warehouse_name = wh.name
+    open_balance_irr = (
+        _stock_money(_open_invoice_balance(db, doc.company_id, doc))
+        if doc.status in ("posted", "partially_returned", "fully_returned")
+        else None
+    )
+    payload["party_name"] = (doc.party_snapshot or {}).get("name")
+    payload["warehouse_name"] = warehouse_name
+    payload["open_balance_irr"] = open_balance_irr
     payload["lines"] = [
         serialize_fact(line)
         | {
@@ -132,6 +145,7 @@ def list_documents(
     user: m.User,
     *,
     direction: str | None = None,
+    counterparty_id: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
@@ -139,6 +153,8 @@ def list_documents(
     stmt = select(CommercialDocument).where(CommercialDocument.company_id == company)
     if direction:
         stmt = stmt.where(CommercialDocument.direction == direction)
+    if counterparty_id:
+        stmt = stmt.where(CommercialDocument.counterparty_id == counterparty_id)
     rows = list(
         db.scalars(
             stmt.order_by(CommercialDocument.issue_date.desc(), CommercialDocument.id.desc())
@@ -171,13 +187,47 @@ def list_credits(
     if status:
         stmt = stmt.where(CounterpartyCredit.status == status)
     rows = list(db.scalars(stmt.order_by(CounterpartyCredit.created_at.desc())))
-    return {"items": [serialize_fact(r) for r in rows]}
+    items = []
+    for r in rows:
+        cp = resolve_counterparty(db, company, r.counterparty_id, require_active=False)
+        src_doc = db.get(CommercialDocument, r.document_id)
+        src_ret = db.get(CommercialReturn, r.return_id)
+        apps = list(
+            db.scalars(
+                select(CounterpartyCreditApplication)
+                .where(
+                    CounterpartyCreditApplication.company_id == company,
+                    CounterpartyCreditApplication.credit_id == r.id,
+                )
+                .order_by(CounterpartyCreditApplication.date.desc(), CounterpartyCreditApplication.created_at.desc())
+            )
+        )
+        app_rows = []
+        for a in apps:
+            t_doc = db.get(CommercialDocument, a.target_document_id)
+            app_rows.append(
+                serialize_fact(a)
+                | {"target_document_number": t_doc.number if t_doc and t_doc.company_id == company else None}
+            )
+        consumed = max(Decimal(0), Decimal(r.original_amount_irr) - Decimal(r.remaining_amount_irr))
+        items.append(
+            serialize_fact(r)
+            | {
+                "counterparty_name": cp.name if cp else None,
+                "counterparty_code": cp.code if cp else None,
+                "document_number": src_doc.number if src_doc and src_doc.company_id == company else None,
+                "return_number": src_ret.number if src_ret and src_ret.company_id == company else None,
+                "consumed_amount_irr": _stock_money(consumed),
+                "applications": app_rows,
+            }
+        )
+    return {"items": items}
 
 
 def list_quarantine(db: Session, company: str, user: m.User) -> dict:
     membership(db, company, user)
     rows = db.execute(
-        select(CommercialReturnLine, CommercialReturn, CommercialDocumentLine)
+        select(CommercialReturnLine, CommercialReturn, CommercialDocumentLine, CommercialDocument)
         .join(
             CommercialReturn,
             (CommercialReturn.company_id == CommercialReturnLine.company_id)
@@ -188,6 +238,11 @@ def list_quarantine(db: Session, company: str, user: m.User) -> dict:
             (CommercialDocumentLine.company_id == CommercialReturnLine.company_id)
             & (CommercialDocumentLine.id == CommercialReturnLine.document_line_id),
         )
+        .join(
+            CommercialDocument,
+            (CommercialDocument.company_id == CommercialReturn.company_id)
+            & (CommercialDocument.id == CommercialReturn.document_id),
+        )
         .where(
             CommercialReturnLine.company_id == company,
             CommercialReturnLine.condition == "defective",
@@ -196,13 +251,18 @@ def list_quarantine(db: Session, company: str, user: m.User) -> dict:
         .order_by(CommercialReturnLine.created_at.desc())
     ).all()
     items = []
-    for rl, ret, dl in rows:
+    for rl, ret, dl, doc in rows:
+        wh = db.get(InventoryWarehouse, doc.warehouse_id) if doc.warehouse_id else None
         items.append(
             serialize_fact(rl)
             | {
                 "return_number": ret.number,
                 "return_date": ret.date.isoformat(),
                 "document_id": ret.document_id,
+                "document_number": doc.number,
+                "counterparty_id": doc.counterparty_id,
+                "warehouse_id": doc.warehouse_id,
+                "warehouse_name": wh.name if wh and wh.company_id == company else None,
                 "item_id": dl.item_id,
                 "description": dl.description,
                 "unit": dl.unit,
@@ -734,7 +794,6 @@ def create_commercial_document_draft(
 def _open_invoice_balance(db: Session, company: str, doc: CommercialDocument) -> Decimal:
     """Compute remaining unpaid receivable/payable IRR balance on a commercial document (D25/D26/D29)."""
     from .native_invoice_models import NativeInvoiceAllocation, NativeInvoiceAllocationReversal
-    from .treasury_models import TreasuryAllocation
 
     base = Decimal(doc.on_account_amount_irr)
     # Subtract posted commercial return balance reductions
@@ -780,14 +839,9 @@ def _open_invoice_balance(db: Session, company: str, doc: CommercialDocument) ->
             )
             if not rev:
                 paid += Decimal(alloc.amount)
-        for ta in db.scalars(
-            select(TreasuryAllocation).where(
-                TreasuryAllocation.company_id == company,
-                TreasuryAllocation.invoice_id == doc.native_invoice_id,
-                TreasuryAllocation.reversed_at.is_(None),
-            )
-        ):
-            paid += Decimal(ta.amount)
+        from .treasury_service import effective_treasury_paid_for_invoice
+
+        paid += effective_treasury_paid_for_invoice(db, company, doc.native_invoice_id)
     return max(Decimal(0), base - prior_reduced - credits_applied - paid)
 
 
@@ -861,7 +915,12 @@ def create_commercial_return_draft(
 
     is_sale_ret = doc.direction == "sale"
     ret_dir = "sale_return" if is_sale_ret else "purchase_return"
-    return_account_id = data.get("return_account_id") or doc.accounts.get("revenue_account_id") or doc.accounts.get("expense_account_id")
+    return_account_id = (
+        data.get("return_account_id")
+        or doc.accounts.get("revenue_account_id")
+        or doc.accounts.get("service_revenue_account_id")
+        or doc.accounts.get("expense_account_id")
+    )
     counterparty_account_id = data.get("counterparty_account_id") or doc.accounts.get("counterparty_account_id")
     cost_account_id = data.get("cost_account_id") or doc.accounts.get("cost_account_id")
 

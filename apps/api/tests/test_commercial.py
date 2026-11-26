@@ -517,7 +517,7 @@ def test_counterparty_type_upgrade_preserves_existing_rows(tmp_path, monkeypatch
             id="existing-party", company_id="existing-company", code="001", name="طرف قبلی",
         ))
     monkeypatch.setattr(database, "engine", engine)
-    database.initialize()
+    database.migrate_schema()
     database.initialize()  # The additive upgrade is safe on restart.
     with engine.begin() as connection:
         row = connection.execute(select(CommercialCounterparty.__table__)).mappings().one()

@@ -47,6 +47,7 @@ export interface CashScenario {
   series_id: string;
   version: number;
   name: string;
+  created_at?: string;
   manifest_id: string;
   baseline: FrozenForecast;
   changes: ScenarioChanges;

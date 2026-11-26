@@ -197,7 +197,7 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     render(sampleTable);
 
     const pinButtons = screen.getAllByLabelText("پین ستون");
-    expect(pinButtons.length).toBe(4);
+    expect(pinButtons.length).toBe(3);
 
     // Pin first column
     fireEvent.click(pinButtons[0]);
@@ -211,18 +211,15 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     expect(ths[0].className).not.toContain("sticky z-20");
   });
 
-  it("hides sort and filter on 'عملیات' column but keeps pin button", () => {
+  it("hides sort, pin, and filter controls on 'عملیات' column", () => {
     render(sampleTable);
 
     const opTh = screen.getByRole("columnheader", { name: /عملیات/i });
     expect(opTh).toBeInTheDocument();
 
-    // Inside operations th: pin button exists, but sort and filter are not present
-    const pinInOp = opTh.querySelector("button[aria-label='پین ستون']");
-    expect(pinInOp).toBeInTheDocument();
-
-    const sortInOp = opTh.querySelector("button[aria-label='مرتب‌سازی ستون']");
-    expect(sortInOp).toBeNull();
+    expect(opTh.querySelector("button[aria-label='پین ستون']")).toBeNull();
+    expect(opTh.querySelector("button[aria-label='مرتب‌سازی ستون']")).toBeNull();
+    expect(opTh.querySelector("button[aria-label*='فیلتر']")).toBeNull();
   });
 
   it("toggles fullscreen mode and exits via Escape key", () => {

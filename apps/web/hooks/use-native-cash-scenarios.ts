@@ -31,6 +31,7 @@ export interface NativeScenario {
   series_id: string;
   version: number;
   name: string;
+  created_at?: string;
   native_statement_id: string;
   baseline: NativeScenarioBaseline;
   changes: {
@@ -46,6 +47,9 @@ export interface NativeScenario {
     projection_scope: string;
   };
 }
+type NativeScenarioSummary = Pick<NativeScenario, "id" | "name" | "version" | "created_at"> & {
+  baseline?: Pick<NativeScenarioBaseline, "as_of_date" | "forecast_run_id">;
+};
 interface StatementSummary {
   id: string;
   digest: string;
@@ -63,8 +67,7 @@ export function useNativeCashScenarios() {
     status: string;
   }>(workspace.companyPath("native-forecasts/runs"));
   const [sourceMode, setSourceModeState] = useState("manual");
-  const list =
-    usePagedResource<Pick<NativeScenario, "id" | "name" | "version">>(base);
+  const list = usePagedResource<NativeScenarioSummary>(base);
   const command = useCommand();
   const generation = useRef(0);
   const [local, setLocal] = useState<{

@@ -27,7 +27,9 @@ interface NativeInvoiceSource {
 export interface NativeInvoice {
   as_of?: string;
   id: string; version: number; direction: InvoiceDirection; reference: string;
-  party_id: string; date: string; amount: string; remaining: string | null;
+  party_id: string; party_name?: string | null; party_record_id?: string | null;
+  commercial_document_id?: string | null; commercial_document_number?: string | null;
+  date: string; amount: string; remaining: string | null;
   status: string; reason: string | null; unit: string;
   original_source?: NativeInvoiceCandidate; source_history?: {id:string;source:NativeInvoiceCandidate;reason:string;effective_date:string;created_at:string;actor_id:string}[];
   source: NativeInvoiceSource;

@@ -1,17 +1,16 @@
 "use client";
 import { useState } from "react";
-import { toast } from "sonner";
-import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
-import { api, listItems } from "@/lib/api";
+import { listItems } from "@/lib/api";
 import type { AccountNature, AccountingCapabilities, LedgerAccount } from "@/lib/accounting";
 import {
   accountCodeHint,
-  accountImportRows,
+  accountRoleLabel,
   buildAccountTreeRows,
   childAccountLevel,
   parentAccountLevel,
   isTreasuryAccount,
   suggestAccountCode,
+  treasuryRoleLabel,
   validateAccountCodePattern,
   type AccountLevel,
 } from "@/lib/account-catalogue";
@@ -39,8 +38,19 @@ const blank = (): AccountForm => ({
   parent_id: "",
   role: "",
 });
+function normalizeSearch(value: string) {
+  return value
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/\u200c/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 export function useLedgerAccounts() {
   const workspace = useWorkspace();
+  const [search, setSearch] = useState("");
+  const [localPage, setLocalPage] = useState(0);
   const [levelFilter, setLevelFilter] = useState("all");
   const [parentFilter, setParentFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | "treasury">("all");
@@ -156,9 +166,24 @@ export function useLedgerAccounts() {
       body,
     }, () => { setEditing(undefined); refresh(); }, "حساب ذخیره شد.");
   }
-  const allRows = listItems(resource.data);
-  const rows = categoryFilter === "treasury" ? allRows.filter(isTreasuryAccount) : allRows;
-  const filtersActive = levelFilter !== "all" || parentFilter !== "all" || categoryFilter !== "all";
+  const normalizedTerm = normalizeSearch(search);
+  const localFiltersActive = Boolean(normalizedTerm) || categoryFilter === "treasury";
+  const serverFiltersActive = !localFiltersActive && (levelFilter !== "all" || parentFilter !== "all");
+  const filtersActive = serverFiltersActive || localFiltersActive;
+  const localRows = localFiltersActive ? catalogue.items.filter((account) => {
+    if (levelFilter !== "all" && (account.level || "unclassified") !== levelFilter) return false;
+    if (parentFilter !== "all" && account.parent_id !== parentFilter) return false;
+    if (categoryFilter === "treasury" && !isTreasuryAccount(account)) return false;
+    const roleText = account.role ? (treasuryRoleLabel(account.role) || accountRoleLabel(account.role)) : "";
+    return normalizeSearch(
+      [account.code, account.name, account.parent_code, account.parent_name, roleText].filter(Boolean).join(" "),
+    ).includes(normalizedTerm);
+  }) : [];
+  const pageSize = 25;
+  const page = Math.min(localPage, Math.max(0, Math.ceil(localRows.length / pageSize) - 1));
+  const rows = localFiltersActive
+    ? localRows.slice(page * pageSize, (page + 1) * pageSize)
+    : serverFiltersActive ? listItems(resource.data) : catalogue.items;
   const treeRows = filtersActive
     ? rows.map((account) => ({
         account,
@@ -185,17 +210,32 @@ export function useLedgerAccounts() {
   const selectedParentCode = value.parent_id
     ? catalogue.items.find((account) => account.id === value.parent_id)?.code
     : undefined;
+  const suggestedCode = !editing && value.level
+    ? suggestAccountCode(catalogue.items, value.level, value.parent_id)
+    : "";
   return {
     workspace, resource, catalogue, capabilities, command, editing, value, errors,
     rows, treeRows, open, openChild, save, change, refresh,
+    suggestedCode,
+    applySuggestedCode: () => {
+      if (suggestedCode) change({ code: suggestedCode });
+    },
     toggleExpand, expandAll, collapseAll,
     hasExpandableNodes: !filtersActive && expandableIds.length > 0,
     allCollapsed: expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id)),
     close: () => setEditing(undefined),
-    levelFilter, parentFilter, setParentFilter,
-    categoryFilter, setCategoryFilter,
-    setLevelFilter: (level: string) => { setLevelFilter(level); setParentFilter("all"); },
-    resetFilters: () => { setLevelFilter("all"); setParentFilter("all"); setCategoryFilter("all"); },
+    search, setSearch: (term: string) => { setLocalPage(0); setSearch(term); },
+    levelFilter, parentFilter,
+    setParentFilter: (parent: string) => { setLocalPage(0); setParentFilter(parent); },
+    categoryFilter,
+    setCategoryFilter: (category: "all" | "treasury") => { setLocalPage(0); setCategoryFilter(category); },
+    setLevelFilter: (level: string) => { setLocalPage(0); setLevelFilter(level); setParentFilter("all"); },
+    resetFilters: () => { setLocalPage(0); setSearch(""); setLevelFilter("all"); setParentFilter("all"); setCategoryFilter("all"); },
+    localPagination: {
+      page, total: localRows.length, pageSize,
+      onPrevious: () => setLocalPage(Math.max(0, page - 1)),
+      onNext: () => setLocalPage(page + 1),
+    },
     parentLevel, parentOptions: choices(parentLevel),
     codeHint: accountCodeHint(value.level, selectedParentCode),
     parentLabel: parentLevel === "group"
@@ -205,27 +245,12 @@ export function useLedgerAccounts() {
         : "حساب معین بالادست",
     canFilterParent: levelFilter !== "group" && levelFilter !== "unclassified",
     filtersActive,
+    serverFiltersActive,
     filterParentOptions: catalogue.items.filter((account) =>
       levelFilter === "detail" ? account.level === "subsidiary"
         : levelFilter === "subsidiary" ? account.level === "general"
           : levelFilter === "general" ? account.level === "group"
             : !!account.level && account.level !== "detail",
     ).map((account) => ({ value: account.id, label: `${account.code} — ${account.name}` })),
-    importFromExcel: async (parsed: ParsedTableImport) => {
-      if (!workspace.company || !parsed.rows.length) return;
-      try {
-        const preview = await api<{ preview_id: string }>(workspace.companyPath("accounting/setup/chart-preview")!, {
-          method: "POST", body: { rows: accountImportRows(parsed) },
-        });
-        await api(workspace.companyPath("accounting/setup/chart-import")!, {
-          method: "POST", body: { preview_id: preview.preview_id },
-        });
-        refresh();
-        toast.success("کدینگ وارد شد.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "ورود کدینگ انجام نشد.");
-        throw error;
-      }
-    },
   };
 }

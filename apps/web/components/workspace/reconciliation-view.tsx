@@ -317,8 +317,10 @@ const reconciliationTitles = {
 
 export function ReconciliationView({
   initialTab = "bank",
+  initialPartyId,
 }: {
   initialTab?: "bank" | "counterparty" | "moadian";
+  initialPartyId?: string;
 } = {}) {
   const view = useReconciliationBasis();
   if (!view.workspace.company) return <NoCompany />;
@@ -331,7 +333,7 @@ export function ReconciliationView({
       />
 
       {initialTab === "bank" && <NativeBankMatchesPanel key={view.scope + ":native"} />}
-      {initialTab === "counterparty" && <CounterpartyReconciliationPanel />}
+      {initialTab === "counterparty" && <CounterpartyReconciliationPanel initialPartyId={initialPartyId} />}
       {initialTab === "moadian" && <MoadianReconciliationPanel />}
     </div>
   );

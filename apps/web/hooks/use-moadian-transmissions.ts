@@ -67,10 +67,10 @@ export function useMoadianTransmissions() {
     clearReview();
   }
 
-  function show() {
+  function show(preselectedInvoiceId = "") {
     if (!canSend) return;
     setForm(initialForm);
-    setInvoiceId("");
+    setInvoiceId(preselectedInvoiceId);
     clearReview();
     setOpen(true);
   }

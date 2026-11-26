@@ -2,6 +2,7 @@
 
 import io
 import json
+from collections import Counter
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,7 @@ from .account_catalogue_service import PARENT_LEVEL, validate_code_pattern
 from .accounting_models import Account, AccountHierarchy
 from .accounting_service import capabilities, save_account
 from .accounting_setup_models import AccountImportPreview, CompanyAccountingSetup
-from .errors import require
+from .errors import DomainError, require
 from .ingestion import read_file, scan
 from .security import membership
 from .services import check_version, get_entity
@@ -94,22 +95,30 @@ def validate_chart_hierarchy(db: Session, company: str, rows: list[dict]) -> Non
     structures = {h.account_id: h for h in db.scalars(select(AccountHierarchy).where(AccountHierarchy.company_id == company))}
     levels = {a.code: structures[a.id].level if a.id in structures else None for a in existing.values()}
     levels.update({row["code"]: row.get("level") for row in rows})
-    for row in rows:
-        require(bool(row.get("code")), "account_code_required", "کد حساب را وارد کنید.")
-        parent_code = row.get("parent_code")
-        parent_id = row.get("parent_id")
-        require(not (parent_code and parent_id), "ambiguous_account_parent", "فقط یک حساب بالادست تعیین کنید.")
-        if parent_id:
-            require(parent_id in existing, "not_found", "حساب بالادست یافت نشد.", 404)
-            parent_code = existing[parent_id].code
-        level = row.get("level")
-        if level in (None, "group"):
-            require(not parent_code, "invalid_account_parent", "حساب گروه بالادست ندارد.")
-        else:
-            require(bool(parent_code), "account_parent_required", "کد حساب بالادست را وارد کنید.")
-            require(parent_code in levels and levels[parent_code] == PARENT_LEVEL.get(level),
-                    "invalid_account_parent_level", "سطح حساب بالادست سازگار نیست.")
-        validate_code_pattern(row["code"], level, parent_code)
+    failures = {}
+    first_error = None
+    for index, row in enumerate(rows):
+        try:
+            require(bool(row.get("code")), "account_code_required", "کد حساب را وارد کنید.")
+            parent_code = row.get("parent_code")
+            parent_id = row.get("parent_id")
+            require(not (parent_code and parent_id), "ambiguous_account_parent", "فقط یک حساب بالادست تعیین کنید.")
+            if parent_id:
+                require(parent_id in existing, "not_found", "حساب بالادست یافت نشد.", 404)
+                parent_code = existing[parent_id].code
+            level = row.get("level")
+            if level in (None, "group"):
+                require(not parent_code, "invalid_account_parent", "حساب گروه بالادست ندارد.")
+            else:
+                require(bool(parent_code), "account_parent_required", "کد حساب بالادست را وارد کنید.")
+                require(parent_code in levels and levels[parent_code] == PARENT_LEVEL.get(level),
+                        "invalid_account_parent_level", "سطح حساب بالادست سازگار نیست.")
+            validate_code_pattern(row["code"], level, parent_code)
+        except DomainError as exc:
+            first_error = first_error or exc
+            failures[f"chart-row-{index}"] = exc.message
+    if first_error:
+        raise DomainError(first_error.code, first_error.message, first_error.status, failures)
 
 
 def preview_chart(db: Session, company: str, user: m.User, rows: list[dict]) -> dict:
@@ -124,14 +133,18 @@ def preview_chart(db: Session, company: str, user: m.User, rows: list[dict]) -> 
 
     rows = [row.model_dump() for row in ChartPreviewInput.model_validate({"rows": rows}).rows]
     codes = [row["code"] for row in rows]
-    require(len(set(codes)) == len(codes), "duplicate_account_code", "کد حساب در فایل تکرار شده است.", 409)
+    duplicates = {code for code, count in Counter(codes).items() if count > 1}
+    if duplicates:
+        message = "کد حساب در فایل تکرار شده است."
+        raise DomainError("duplicate_account_code", message, 409, {
+            f"chart-row-{index}": message for index, code in enumerate(codes) if code in duplicates
+        })
     existing = set(db.scalars(select(Account.code).where(Account.company_id == company)))
-    require(
-        not (existing & set(codes)),
-        "account_code_conflict",
-        "کد حساب موجود است؛ واردسازی حساب‌های موجود را تغییر نمی‌دهد.",
-        409,
-    )
+    conflicts = existing.intersection(codes)
+    if conflicts:
+        raise DomainError("account_code_conflict", "کد حساب موجود است؛ واردسازی حساب‌های موجود را تغییر نمی‌دهد.", 409, {
+            f"chart-row-{index}": "کد حساب از قبل موجود است." for index, code in enumerate(codes) if code in conflicts
+        })
     validate_chart_hierarchy(db, company, rows)
     item = AccountImportPreview(
         company_id=company, actor_id=user.id, catalog_digest=_digest(db, company), rows=rows

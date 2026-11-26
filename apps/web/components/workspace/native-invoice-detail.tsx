@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { CoinsIcon, HashIcon, PackageIcon, StorefrontIcon, ClockCounterClockwiseIcon, ListBulletsIcon, FileTextIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { DetailField } from "@/components/ui/field-layout";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
@@ -19,7 +19,7 @@ export function NativeInvoiceDetail({view}:{view:NativeInvoicesController}) {
   const goods = source?.kind === "sale_goods" || source?.kind === "purchase_goods";
   return <Drawer open={!!invoice||view.detail.loading||!!view.detail.error} onOpenChange={open=>{if(!open)view.closeDetail();}} title="فاکتور دفتر دیدبان">
     {view.detail.loading?<LoadingState label="در حال دریافت فاکتور"/>:view.detail.error?<ErrorState message={view.detail.error.message} onRetry={view.detail.refresh}/>:invoice&&<div className="space-y-6">
-      <dl className="grid gap-4 sm:grid-cols-2">{[["مرجع",invoice.reference],["طرف حساب",invoice.party_id],["تاریخ سند",displayDate(invoice.date)],["مبلغ سند (ریال)",amount(invoice.amount)],["مانده تا تاریخ انتخابی (ریال)",amount(invoice.remaining)],["سررسید",invoice.terms?.due_date?displayDate(invoice.terms?.due_date):"نامشخص"],["وعدهٔ دریافت یا پرداخت",invoice.terms?.expected_date?displayDate(invoice.terms.expected_date):expectedDateLabel(invoice.terms,invoice.direction)],["نسخهٔ فاکتور",persian(invoice.version)]].map(([label,value])=><DetailField key={label} label={label} value={value}/>)}</dl>
+      <dl className="grid gap-4 sm:grid-cols-2">{[["مرجع",invoice.reference],["طرف حساب",invoice.party_name ? `${invoice.party_name} (${invoice.party_id})` : invoice.party_id],["تاریخ سند",displayDate(invoice.date)],["مبلغ سند (ریال)",amount(invoice.amount)],["مانده تا تاریخ برش (ریال)",amount(invoice.remaining)],["سررسید",invoice.terms?.due_date?displayDate(invoice.terms?.due_date):"نامشخص"],["وعدهٔ دریافت یا پرداخت",invoice.terms?.expected_date?displayDate(invoice.terms.expected_date):expectedDateLabel(invoice.terms,invoice.direction)],["نسخهٔ فاکتور",persian(invoice.version)]].map(([label,value])=><DetailField key={label} label={label} value={value}/>)}</dl>
       {goods && source && (
         <dl className="grid gap-4 sm:grid-cols-2">
           <DetailField icon={PackageIcon} label="کالا" value={source.item_name || source.item_id || "—"} />
@@ -33,7 +33,7 @@ export function NativeInvoiceDetail({view}:{view:NativeInvoicesController}) {
         </dl>
       )}
       {invoice.reason&&<StatusMessage>{nativeInvoiceReason(invoice.reason)}</StatusMessage>}
-      <div className="flex flex-wrap gap-2"><DocumentDiscussionButton subjectKind="journal" subjectId={invoice.source.journal_id}/>{invoice.original_source&&invoice.original_source.journal_id!==invoice.source.journal_id&&<DocumentDiscussionButton subjectKind="journal" subjectId={invoice.original_source.journal_id} label="سابقهٔ پیگیری سند اولیه"/>}{invoice.direction==="sale"&&view.workspace.canWrite&&<Button variant="secondary" onClick={view.prepareReminder} disabled={view.command.busy||invoice.status!=="available"}>پیش‌نویس یادآوری وصول</Button>}{view.workspace.canWrite&&<>{!goods && <Button variant="secondary" onClick={view.openSourceRevision} disabled={view.command.busy}>پذیرش سند جایگزین</Button>}<Button variant="secondary" onClick={()=>view.openTerms(invoice)} disabled={view.command.busy}>اصلاح موعد و وعدهٔ پرداخت</Button><Button onClick={()=>view.openAllocation()} disabled={view.command.busy||invoice.status!=="available"}>تخصیص دریافت یا پرداخت</Button></>}</div>
+      <div className="flex flex-wrap gap-2"><DocumentDiscussionButton subjectKind="journal" subjectId={invoice.source.journal_id}/>{invoice.original_source&&invoice.original_source.journal_id!==invoice.source.journal_id&&<DocumentDiscussionButton subjectKind="journal" subjectId={invoice.original_source.journal_id} label="سابقهٔ پیگیری سند اولیه"/>}<ButtonLink variant="secondary" href={`/reconciliation/counterparties?party_id=${encodeURIComponent(invoice.party_record_id || invoice.party_id)}`}>تطبیق طرف‌حساب</ButtonLink>{invoice.direction==="sale"&&view.workspace.canWrite&&<Button variant="secondary" onClick={view.prepareReminder} disabled={view.command.busy||invoice.status!=="available"}>پیش‌نویس یادآوری وصول</Button>}{view.workspace.canWrite&&<>{!goods && <Button variant="secondary" onClick={view.openSourceRevision} disabled={view.command.busy}>پذیرش سند جایگزین</Button>}<Button variant="secondary" onClick={()=>view.openTerms(invoice)} disabled={view.command.busy}>اصلاح موعد و وعدهٔ پرداخت</Button><Button onClick={()=>view.openAllocation()} disabled={view.command.busy||invoice.status!=="available"}>تخصیص دریافت یا پرداخت</Button></>}</div>
       <Tabs
         value={tab}
         onChange={setTab}

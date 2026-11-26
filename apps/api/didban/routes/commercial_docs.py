@@ -5,7 +5,10 @@ from fastapi import APIRouter, Query, Request
 from .. import commercial_doc_service as service
 from ..commercial_doc_schemas import (
     ApplyCreditInput,
+    CommercialDocumentDraftResponse,
     CommercialDocumentInput,
+    CommercialDocumentListResponse,
+    CommercialDocumentResponse,
     CommercialReturnInput,
     CreditRefundInput,
     QuarantineDecisionInput,
@@ -16,25 +19,33 @@ router = APIRouter()
 P = C + "/commercial"
 
 
-@router.get(P + "/documents")
+@router.get(P + "/documents", response_model=CommercialDocumentListResponse)
 def list_documents(
     company_id: str,
     request: Request,
     direction: str | None = None,
+    counterparty_id: str | None = Query(None, min_length=1, max_length=36),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     with access(request, company_id) as (db, user, _m):
-        return service.list_documents(db, company_id, user, direction=direction, limit=limit, offset=offset)
+        return service.list_documents(
+            db, company_id, user, direction=direction, counterparty_id=counterparty_id, limit=limit, offset=offset
+        )
 
 
-@router.get(P + "/documents/{document_id}")
+@router.get(P + "/documents/{document_id}", response_model=CommercialDocumentResponse)
 def get_document(company_id: str, document_id: str, request: Request):
     with access(request, company_id) as (db, user, _m):
         return service.get_document(db, company_id, user, document_id)
 
 
-@router.post(P + "/documents", status_code=201)
+@router.post(
+    P + "/documents",
+    status_code=201,
+    response_model=CommercialDocumentDraftResponse,
+    response_model_exclude_unset=True,
+)
 def create_document_draft(company_id: str, data: CommercialDocumentInput, request: Request):
     payload = data.model_dump()
     return mutate(

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useWorkspace } from "./workspace";
 import type { Company } from "@/lib/api";
 import { useCommand } from "./use-command";
+
 export function useCompanyManagement() {
   const workspace = useWorkspace();
   const command = useCommand();
@@ -10,7 +11,10 @@ export function useCompanyManagement() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [snapshot, setSnapshot] = useState<Company | null>(null);
-  const selected = workspace.company?.id === selectedId ? snapshot : null;
+  const selected = selectedId
+    ? (workspace.companies.find((item) => item.id === selectedId) ?? snapshot)
+    : null;
+
   return {
     workspace,
     command,
@@ -21,6 +25,7 @@ export function useCompanyManagement() {
     setName,
     openCreate: () => {
       setName("");
+      setSelectedId(null);
       setCreating(true);
       command.clearError();
     },
@@ -29,11 +34,11 @@ export function useCompanyManagement() {
     },
     openCompany: (id: string) => {
       const company = workspace.companies.find((item) => item.id === id);
+      setCreating(false);
       setSnapshot(company || null);
       setName(company?.name || "");
       setSelectedId(id);
       command.clearError();
-      workspace.setCompany(id);
     },
     closeCompany: () => {
       if (!command.busy) setSelectedId(null);

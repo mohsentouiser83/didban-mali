@@ -33,6 +33,10 @@ def authenticate(db: Session, token: str | None) -> tuple[User, LoginSession]:
     return user, session
 
 
+def may_manage_accounts(member: Membership) -> bool:
+    return member.role in ("owner", "finance_manager")
+
+
 def membership(db: Session, company: str, user: User, operation: str = "read") -> Membership:
     member = db.scalar(
         select(Membership).where(
@@ -43,6 +47,8 @@ def membership(db: Session, company: str, user: User, operation: str = "read") -
     assert member
     if operation == "owner":
         require(member.role == "owner", "permission_denied", "فقط مالک شرکت مجاز است.", 403)
+    elif operation == "manage_accounts":
+        require(may_manage_accounts(member), "permission_denied", "مجوز مدیریت حساب‌ها را ندارید.", 403)
     elif operation == "write":
         require(
             member.role in ("owner", "finance_manager", "advisor"),

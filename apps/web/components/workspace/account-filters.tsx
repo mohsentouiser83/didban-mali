@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import type { useLedgerAccounts } from "@/hooks/use-ledger-accounts";
 import { ACCOUNT_LEVEL_OPTIONS } from "@/lib/account-catalogue";
@@ -8,7 +9,14 @@ import { ACCOUNT_LEVEL_OPTIONS } from "@/lib/account-catalogue";
 export function AccountFilters({ view }: { view: ReturnType<typeof useLedgerAccounts> }) {
   return (
     <div className="mb-5 flex flex-wrap items-end gap-3">
-      <div className="w-full sm:w-52">
+      <div className="w-full sm:w-64">
+        <SearchInput
+          label="جستجو در کد، نام، بالادست یا نقش..."
+          value={view.search}
+          onChange={(e) => view.setSearch(e.target.value)}
+        />
+      </div>
+      <div className="w-full sm:w-48">
         <Field id="account-category-filter" label="فیلتر نقد و بانک">
           <Select
             id="account-category-filter"
@@ -23,7 +31,7 @@ export function AccountFilters({ view }: { view: ReturnType<typeof useLedgerAcco
           />
         </Field>
       </div>
-      <div className="w-full sm:w-44">
+      <div className="w-full sm:w-40">
         <Field id="account-level-filter" label="سطح حساب">
           <Select id="account-level-filter" value={view.levelFilter} onValueChange={view.setLevelFilter}
             options={[{ value: "all", label: "همه سطح‌ها" }, ...ACCOUNT_LEVEL_OPTIONS, { value: "unclassified", label: "تعیین‌نشده" }]} />

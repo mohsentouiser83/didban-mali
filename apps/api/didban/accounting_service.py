@@ -3,7 +3,7 @@
 from decimal import Decimal, localcontext
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 from sqlalchemy.orm import Session
 
 from . import models as m
@@ -18,7 +18,7 @@ from .accounting_models import Account, AccountHierarchy, AccountingPermission, 
 from .accounting_setup_models import CompanyAccountingSetup
 from .errors import DomainError, require
 from .money_type import canonical_money
-from .security import membership
+from .security import may_manage_accounts, membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
@@ -34,7 +34,7 @@ def capabilities(db: Session, company: str, user: m.User) -> dict[str, Any]:
     primary = setup is not None and setup.mode == "primary"
     return {
         "can_prepare": member.role in ("owner", "finance_manager", "advisor"),
-        "can_manage_accounts": member.role in ("owner", "finance_manager"),
+        "can_manage_accounts": may_manage_accounts(member),
         "can_manage_permissions": member.role == "owner",
         "can_post": member.role == "finance_manager"
         or (member.role in ("owner", "advisor") and bool(permission and permission.post_journal)),
@@ -276,6 +276,69 @@ def save_draft(
     audit(db, company, user.id, "accounting.draft_saved", item.id, {"version": item.version})
     ability = capabilities(db, company, user)
     return serialize_fact(item) | {key: ability[key] for key in ("posting_available", "posting_reason")}
+
+
+def draft_list_filters(company: str, state: str | None, search: str) -> list:
+    from .operation_models import OperationDraft
+    from .posting_models import NativeJournal
+
+    filters = [Draft.state == state] if state else []
+    if not search:
+        return filters
+    operation = select(OperationDraft.draft_id).where(
+        OperationDraft.company_id == company,
+        or_(
+            OperationDraft.source_reference.icontains(search, autoescape=True),
+            OperationDraft.payload["source_reference"].as_string().icontains(search, autoescape=True),
+        ),
+    )
+    journal = select(NativeJournal.draft_id).where(
+        NativeJournal.company_id == company,
+        or_(
+            NativeJournal.snapshot["number"].as_string().icontains(search, autoescape=True),
+            cast(NativeJournal.sequence, String).contains(search, autoescape=True),
+        ),
+    )
+    filters.append(or_(
+        Draft.description.icontains(search, autoescape=True),
+        Draft.id.icontains(search, autoescape=True),
+        Draft.id.in_(operation),
+        Draft.id.in_(journal),
+    ))
+    return filters
+
+
+def enrich_draft_list(db: Session, company: str, items: list[dict]) -> None:
+    from .inventory_service import GOODS_KINDS
+    from .operation_models import OperationDraft
+    from .posting_models import NativeJournal
+
+    if not items:
+        return
+    ids = [row["id"] for row in items]
+    journals = {
+        row.draft_id: row for row in db.scalars(select(NativeJournal).where(
+            NativeJournal.company_id == company, NativeJournal.draft_id.in_(ids)
+        ))
+    }
+    operations = {
+        row.draft_id: row for row in db.scalars(select(OperationDraft).where(
+            OperationDraft.company_id == company, OperationDraft.draft_id.in_(ids)
+        ))
+    }
+    for item in items:
+        journal, operation = journals.get(item["id"]), operations.get(item["id"])
+        item["reference"] = (
+            (journal.snapshot or {}).get("number") or str(journal.sequence)
+            if journal else operation.business_reference if operation else None
+        )
+        item["operation_kind"] = (
+            "reversal" if journal and journal.reversal_of
+            else "replacement" if journal and journal.replacement_of
+            else operation.kind if operation else None
+        )
+        if operation and operation.kind in GOODS_KINDS:
+            item["inventory_origin"] = True
 
 
 def inventory_draft_ids(db: Session, company: str, ids: list[str]) -> set[str]:

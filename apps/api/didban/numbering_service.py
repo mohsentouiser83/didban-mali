@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
 from . import models as m
-from .errors import require
+from .errors import DomainError, require
 from .numbering_models import NumberingSystem
 from .security import membership
 from .services import check_version, get_entity
@@ -86,26 +86,43 @@ def _locked_rule(db: Session, company_id: str, entity_type: str) -> NumberingSys
     return rule
 
 
+def _available_number(
+    db: Session,
+    rule: NumberingSystem,
+    start: int,
+    model: type | None,
+    field: str | None,
+    filters: tuple[ColumnElement[bool], ...] = (),
+) -> tuple[int, str]:
+    column = getattr(model, field) if model is not None and field else None
+    length = getattr(column.type, "length", None) if column is not None else None
+    value = start
+    while True:
+        number = f"{rule.prefix}{str(value).zfill(rule.padding)}{rule.suffix}"
+        require(not length or len(number) <= length, "numbering_too_long", "طول کد از ظرفیت فیلد بیشتر است؛ الگو را کوتاه کنید.", 422)
+        if column is None or not db.scalar(
+            select(model.id).where(model.company_id == rule.company_id, column == number, *filters)
+        ):
+            return value, number
+        value += 1
+
+
 def allocate_number(
-    db: Session, company_id: str, entity_type: str, model: type | None = None, field: str | None = None,
+    db: Session,
+    company_id: str,
+    entity_type: str,
+    model: type | None = None,
+    field: str | None = None,
     filters: tuple[ColumnElement[bool], ...] = (),
 ) -> str:
     """Allocate within the caller's transaction; rollback also restores the counter."""
     rule = _locked_rule(db, company_id, entity_type)
-    while True:
-        value = db.execute(update(NumberingSystem).where(NumberingSystem.id == rule.id).values(
-            current_number=NumberingSystem.current_number + 1,
-            version=NumberingSystem.version + 1,
-        ).returning(NumberingSystem.current_number)).scalar_one() - 1
-        number = f"{rule.prefix}{str(value).zfill(rule.padding)}{rule.suffix}"
-        if model is not None and field:
-            column = getattr(model, field)
-            length = getattr(column.type, "length", None)
-            require(not length or len(number) <= length, "numbering_too_long", "طول کد از ظرفیت فیلد بیشتر است؛ الگو را کوتاه کنید.", 422)
-            if db.scalar(select(model.id).where(model.company_id == company_id, column == number, *filters)):
-                continue
-        db.flush()
-        return number
+    start = rule.current_number
+    value, number = _available_number(db, rule, start, model, field, filters)
+    rule.current_number = value + 1
+    rule.version += value - start + 1
+    db.flush()
+    return number
 
 
 def ensure_defaults(db: Session, company_id: str) -> None:
@@ -138,9 +155,59 @@ def ensure_defaults(db: Session, company_id: str) -> None:
         db.flush()
 
 
-def _serialize_rule(rule: NumberingSystem) -> dict:
+WORKFLOW_CONNECTIONS: dict[str, str] = {
+    "employee_contract": "ثبت قرارداد جدید کارکنان",
+    "operation": "ثبت عملیات مالی و سند دریافت/پرداخت خزانه",
+    "journal_entry": "ثبت قطعی اسناد حسابداری",
+    "sales_invoice": "صدور سند بازرگانی فروش",
+    "purchase_invoice": "صدور سند بازرگانی خرید",
+    "proforma_invoice": "صدور پیش‌فاکتور جدید",
+    "counterparty": "تعریف طرف‌حساب تجاری",
+    "inventory_item": "تعریف کالای جدید انبار",
+    "inventory_warehouse": "تعریف انبار جدید",
+    "inventory_movement": "ثبت برگشت کالا از فروش/خرید و گردش‌های انبار",
+    "dimension": "تعریف پروژه، شعبه و مرکز هزینه",
+    "personnel": "تعریف کارمند جدید",
+}
+
+
+def _single_workflow_target(entity_type: str) -> tuple[type | None, str | None]:
+    from .commercial_models import CommercialCounterparty, ProformaInvoice
+    from .dimensions_models import Dimension
+    from .inventory_models import InventoryItem, InventoryWarehouse
+    from .payroll_models import Employee, EmployeeContract
+
+    return {
+        "counterparty": (CommercialCounterparty, "code"),
+        "proforma_invoice": (ProformaInvoice, "number"),
+        "dimension": (Dimension, "code"),
+        "inventory_item": (InventoryItem, "code"),
+        "inventory_warehouse": (InventoryWarehouse, "code"),
+        "personnel": (Employee, "employee_code"),
+        "employee_contract": (EmployeeContract, "contract_number"),
+    }.get(entity_type, (None, None))
+
+
+def _serialize_rule(db: Session, rule: NumberingSystem) -> dict:
     data = serialize_fact(rule)
     data["sample"] = rule.sample
+    model, field = _single_workflow_target(rule.entity_type)
+    data["next_number"] = None
+    if rule.active and model is not None:
+        try:
+            _, data["next_number"] = _available_number(db, rule, rule.current_number, model, field)
+        except DomainError as exc:
+            if exc.code != "numbering_too_long":
+                raise
+
+    connected = WORKFLOW_CONNECTIONS.get(rule.entity_type) if rule.is_system else None
+    data["used_in_workflow"] = connected is not None
+    data["connected_process"] = connected
+    data["deactivation_impact"] = (
+        f"غیرفعالسازی این قاعده، فرایند «{connected}» را متوقف می‌کند."
+        if connected
+        else "این قاعده به فرایند ثبت خودکار متصل نیست."
+    )
     return data
 
 
@@ -152,7 +219,7 @@ def list_rules(db: Session, company_id: str, user: m.User) -> list[dict]:
     order_map = {item["entity_type"]: i for i, item in enumerate(DEFAULT_NUMBERING_ENTITIES)}
     sorted_rules = sorted(rules, key=lambda r: order_map.get(r.entity_type, 999))
     # Retain historical account rules; accounts now use manually entered codes.
-    return [_serialize_rule(r) for r in sorted_rules if r.entity_type != "account"]
+    return [_serialize_rule(db, r) for r in sorted_rules if r.entity_type != "account"]
 
 
 def create_rule(
@@ -221,13 +288,13 @@ def create_rule(
             "current_number": rule.current_number,
         },
     )
-    return _serialize_rule(rule)
+    return _serialize_rule(db, rule)
 
 
 def get_rule(db: Session, company_id: str, user: m.User, rule_id: str) -> dict:
     membership(db, company_id, user, "read")
     rule = get_entity(db, NumberingSystem, company_id, rule_id)
-    return _serialize_rule(rule)
+    return _serialize_rule(db, rule)
 
 
 def update_rule(
@@ -286,7 +353,7 @@ def update_rule(
             "current_number": rule.current_number,
         },
     )
-    return _serialize_rule(rule)
+    return _serialize_rule(db, rule)
 
 
 def delete_rule(db: Session, company_id: str, user: m.User, rule_id: str) -> None:
@@ -331,7 +398,11 @@ def generate_next_number(
     require(
         rule is not None, "entity_numbering_not_found", "سیستم شماره‌گذاری برای این موجودیت یافت نشد.", 404
     )
-    formatted = allocate_number(db, company_id, entity_type) if consume else rule.sample
+    model, field = _single_workflow_target(entity_type)
+    if consume:
+        formatted = allocate_number(db, company_id, entity_type, model, field)
+    else:
+        _, formatted = _available_number(db, rule, rule.current_number, model, field)
     return {
         "entity_type": entity_type,
         "number": formatted,

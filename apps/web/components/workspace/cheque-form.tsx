@@ -30,7 +30,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               value={c.form.direction}
               disabled={c.command.busy}
               onValueChange={(direction) =>
-                c.change({ direction: direction as "received" | "issued" })
+                c.change({ direction: direction as typeof c.form.direction, received_date: "" })
               }
               options={[
                 { value: "received", label: "دریافتنی" },
@@ -40,7 +40,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               ]}
             />
           </Field>
-          <Field id="cheque-number" name="number" label="شماره چک">
+          <Field id="cheque-number" name="number" label="شماره برگه چک">
             <Input
               id="cheque-number"
               dir="ltr"
@@ -49,6 +49,11 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               value={c.form.number}
               onChange={(e) => c.change({ number: e.target.value })}
             />
+          </Field>
+          <Field id="cheque-sayad-id" name="sayad_id" label="شناسهٔ صیادی"
+            error={c.errors["cheque-sayad-id"]}>
+            <Input id="cheque-sayad-id" dir="ltr" inputMode="numeric" maxLength={16}
+              value={c.form.sayad_id} onChange={(event) => c.change({ sayad_id: event.target.value })} />
           </Field>
           <Field id="cheque-party" name="party_id" label="طرف حساب">
             <Input
@@ -97,7 +102,7 @@ export function ChequeForm({ c }: { c: ChequeController }) {
           <Field
             id="cheque-issue"
             name="issue_date"
-            label="تاریخ دریافت یا صدور"
+            label="تاریخ صدور"
             error={c.errors["cheque-issue"]}
             required
           >
@@ -107,6 +112,12 @@ export function ChequeForm({ c }: { c: ChequeController }) {
               onChange={(issue_date) => c.change({ issue_date })}
             />
           </Field>
+          {(c.form.direction === "received" || c.form.direction === "guarantee_in") && (
+            <Field id="cheque-received" name="received_date" label="تاریخ دریافت">
+              <PersianDatePicker id="cheque-received" value={c.form.received_date}
+                onChange={(received_date) => c.change({ received_date })} />
+            </Field>
+          )}
           <Field
             id="cheque-due"
             name="due_date"

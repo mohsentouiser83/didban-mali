@@ -185,6 +185,13 @@ export function useNumberingSystem() {
     setDeleting,
     value,
     livePreview,
+    hasPatternChanges:
+      !!editing &&
+      (value.prefix !== (editing.prefix || "") ||
+        value.suffix !== (editing.suffix || "") ||
+        Number(value.padding) !== (editing.padding || 3) ||
+        Number(value.current_number) !== (editing.current_number || 1)),
+    willDeactivate: !!editing && editing.active !== false && !value.active,
     open,
     close,
     change,

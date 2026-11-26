@@ -1,6 +1,8 @@
 """Accounting workspace HTTP adapters; no final-post action before accountant review."""
 
-from fastapi import APIRouter, Request
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Query, Request
 
 from .. import accounting_schemas as s
 from .. import accounting_service as service
@@ -53,13 +55,17 @@ def update_account(company_id: str, account_id: str, data: s.AccountInput, reque
 
 
 @router.get(A + "/drafts")
-def drafts(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
+def drafts(
+    company_id: str,
+    request: Request,
+    limit: int = 50,
+    cursor: str | None = None,
+    state: Literal["draft", "posted", "discarded"] | None = None,
+    q: Annotated[str, Query(max_length=100)] = "",
+):
     with access(request, company_id) as (db, _user, _member):
-        page = paginate(db, Draft, company_id, limit, cursor)
-        inventory_ids = service.inventory_draft_ids(db, company_id, [item["id"] for item in page["items"]])
-        for item in page["items"]:
-            if item["id"] in inventory_ids:
-                item["inventory_origin"] = True
+        page = paginate(db, Draft, company_id, limit, cursor, service.draft_list_filters(company_id, state, q.strip()))
+        service.enrich_draft_list(db, company_id, page["items"])
         return page
 
 

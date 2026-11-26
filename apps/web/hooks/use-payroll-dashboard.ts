@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import type {
-  EmployeeContract,
   EmployeeSettlementResponse,
   InsuranceDiskResponse,
   PayrollRun,
@@ -15,6 +14,7 @@ import { useAccountOptions } from "./use-accounting";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+import { usePayrollAccess } from "./use-payroll-access";
 
 function payrollForm(calculationDate: string) {
   const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", {
@@ -30,11 +30,12 @@ function payrollForm(calculationDate: string) {
 
 export function usePayrollDashboard() {
   const workspace = useWorkspace();
+  const access = usePayrollAccess(workspace);
   const command = useCommand();
 
   const periodQuery = workspace.periodId ? `?period_id=${encodeURIComponent(workspace.periodId)}` : "";
   const runsResource = useResource<{ items: PayrollRun[]; total: number }>(
-    workspace.companyPath("payroll/runs" + periodQuery),
+    access.canView ? workspace.companyPath("payroll/runs" + periodQuery) : null,
   );
 
   const runs = useMemo(() => runsResource.data?.items || [], [runsResource.data]);
@@ -42,12 +43,13 @@ export function usePayrollDashboard() {
   const selectedRunId = runs.find((run) => run.id === selectedRunIdState)?.id ?? runs[0]?.id ?? null;
 
   const runResource = useResource<PayrollRun>(
-    selectedRunId ? workspace.companyPath(`payroll/runs/${selectedRunId}`) : null,
+    access.canView && selectedRunId ? workspace.companyPath(`payroll/runs/${selectedRunId}`) : null,
   );
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(() => payrollForm(tehranToday()));
   function openCreateRun() {
+    if (!access.canPrepare) return;
     const today = tehranToday();
     const period = workspace.periods.find((item) => item.id === workspace.periodId);
     if (!period) return;
@@ -72,6 +74,7 @@ export function usePayrollDashboard() {
   ].filter((role) => role.required);
   const canCreateDraft = roles.length > 0 && roles.every((role) => draftAccounts[role.key]);
   function openDraft() {
+    if (!access.canPrepare) return;
     setDraftAccounts({});
     command.clearError();
     setDraftRunId(selectedRunId);
@@ -97,6 +100,7 @@ export function usePayrollDashboard() {
   const [viewingSlip, setViewingSlip] = useState<PayrollSlip | null>(null);
 
   const openEditSlip = (slip: PayrollSlip) => {
+    if (!access.canPrepare) return;
     setEditingSlip(slip);
     setSlipForm({
       work_days: slip.work_days || "30",
@@ -114,7 +118,7 @@ export function usePayrollDashboard() {
   };
 
   const handleCreateRun = async () => {
-    if (!workspace.company || !workspace.periodId) return;
+    if (!access.canPrepare || !workspace.company || !workspace.periodId) return;
     const payload = {
       period_id: workspace.periodId,
       title: createForm.title || `لیست حقوق ماه ${createForm.month} سال ${createForm.year}`,
@@ -138,7 +142,7 @@ export function usePayrollDashboard() {
   };
 
   const handleSaveSlipTimesheet = async () => {
-    if (!workspace.company || !selectedRunId || !editingSlip) return;
+    if (!access.canPrepare || !workspace.company || !selectedRunId || !editingSlip) return;
     await command.run(
       `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/slips/${editingSlip.id}`,
       {
@@ -157,14 +161,14 @@ export function usePayrollDashboard() {
   // Insurance & Tax Diskettes
   const [insuranceDiskOpen, setInsuranceDiskOpen] = useState(false);
   const insuranceDiskResource = useResource<InsuranceDiskResponse>(
-    insuranceDiskOpen && selectedRunId
+    access.canView && insuranceDiskOpen && selectedRunId
       ? workspace.companyPath(`payroll/runs/${selectedRunId}/insurance-disk`)
       : null,
   );
 
   const [taxDiskOpen, setTaxDiskOpen] = useState(false);
   const taxDiskResource = useResource<TaxDiskResponse>(
-    taxDiskOpen && selectedRunId
+    access.canView && taxDiskOpen && selectedRunId
       ? workspace.companyPath(`payroll/runs/${selectedRunId}/tax-disk`)
       : null,
   );
@@ -172,7 +176,7 @@ export function usePayrollDashboard() {
   // Settlement (Eydi, Sanavat, Leave)
   const [settlementEmployeeId, setSettlementEmployeeId] = useState<string | null>(null);
   const settlementResource = useResource<EmployeeSettlementResponse>(
-    settlementEmployeeId
+    access.canView && settlementEmployeeId
       ? workspace.companyPath(`employees/${settlementEmployeeId}/settlement`)
       : null,
   );
@@ -194,7 +198,7 @@ export function usePayrollDashboard() {
   >([]);
 
   function openAttendance() {
-    if (!selectedRun?.slips) return;
+    if (!access.canPrepare || !selectedRun?.slips) return;
     setBatchAttendance(
       selectedRun.slips.map((s) => ({
         employee_id: s.employee_id,
@@ -212,7 +216,7 @@ export function usePayrollDashboard() {
   }
 
   const handleSaveBatchAttendance = async () => {
-    if (!workspace.company || !selectedRunId) return;
+    if (!access.canPrepare || !workspace.company || !selectedRunId) return;
     await command.run(
       `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/slips/batch`,
       {
@@ -239,7 +243,7 @@ export function usePayrollDashboard() {
   };
 
   const handleCreateDraft = async () => {
-    if (!workspace.company || !selectedRunId || !selectedRun || !canCreateDraft) return;
+    if (!access.canPrepare || !workspace.company || !selectedRunId || !selectedRun || !canCreateDraft) return;
     await command.run(
       `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/create-draft`,
       {
@@ -258,11 +262,13 @@ export function usePayrollDashboard() {
   return {
     workspace,
     command,
+    canPrepare: access.canPrepare,
     runs,
     selectedRunId,
     setSelectedRunId,
     selectedRun,
-    loading: runsResource.loading,
+    loading: access.loading || runsResource.loading,
+    error: access.error ?? runsResource.error,
     runLoading: runResource.loading && !!selectedRunId,
     createOpen,
     setCreateOpen,
@@ -314,6 +320,7 @@ export function usePayrollDashboard() {
     settlementData: settlementResource.data,
     settlementLoading: settlementResource.loading,
     refresh: () => {
+      access.refresh();
       runsResource.refresh();
       runResource.refresh();
     },

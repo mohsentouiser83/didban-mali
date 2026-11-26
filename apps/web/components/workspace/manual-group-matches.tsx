@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/badge";
-import { amount } from "@/lib/utils";
+import { amount, displayDate } from "@/lib/utils";
 import { EvidenceList } from "./evidence-list";
 import { ManualGroupSelection } from "./manual-group-selection";
 import type { ManualGroupPreview } from "@/hooks/use-manual-groups";
@@ -47,6 +47,32 @@ export function GroupPreviewReview({ view, ledgerLabel = "جمع دفتر (ری�
         <div><dt>اختلاف (ریال)</dt><dd>{amount(item.snapshot.difference)}</dd></div>
       </dl>
       <p className="text-sm text-muted">تاریخ‌های انتخابی: {view.selectedDateLabels}</p>
+      {(item.snapshot.banks?.length > 0 || item.snapshot.ledgers?.length > 0) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2 rounded-lg border border-border/80 bg-canvas/50 p-3">
+            <h4 className="text-xs font-medium text-foreground">ردیف‌های سمت بانک</h4>
+            <ul className="space-y-1.5 text-xs">
+              {item.snapshot.banks.map((b) => (
+                <li key={b.id} className="flex items-center justify-between gap-2 border-b border-border/40 pb-1 last:border-0 last:pb-0">
+                  <span className="truncate">{b.reference || "بدون مرجع"} · {displayDate(b.date)}</span>
+                  <span className="tabular-nums font-medium">{amount(b.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="space-y-2 rounded-lg border border-border/80 bg-canvas/50 p-3">
+            <h4 className="text-xs font-medium text-foreground">ردیف‌های سمت دفتر</h4>
+            <ul className="space-y-1.5 text-xs">
+              {item.snapshot.ledgers.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-2 border-b border-border/40 pb-1 last:border-0 last:pb-0">
+                  <span className="truncate">{l.reference || "بدون مرجع"} · {displayDate(l.date)}</span>
+                  <span className="tabular-nums font-medium">{amount(l.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       <StatusMessage>
         انتخاب دستی و برابری مبلغ، ارتباط تراکنش‌ها را ثابت نمی‌کند؛ دلیل بررسی لازم است.
       </StatusMessage>

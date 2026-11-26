@@ -11,7 +11,7 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Select } from "@/components/ui/select";
-import { memberRoles } from "@/hooks/use-member-management";
+import { memberRoles } from "@/lib/members";
 import type { useMemberManagement } from "@/hooks/use-member-management";
 export function MemberAddDrawer({
   c,
@@ -33,23 +33,26 @@ export function MemberAddDrawer({
         }}
         fieldErrors={c.command.error?.fields}
       >
+        <StatusMessage tone="primary">
+          حساب کاربری در سطح کل نصب دیدبان مالی تعریف می‌شود، اما عضویت و نقش فقط برای شرکت فعال جاری اعمال می‌گردد. رمزهای قبلی کاربران هرگز نمایش داده نمی‌شود.
+        </StatusMessage>
         {c.canCreateAccount && !c.userId && (
           <Field id="member-method" label="روش افزودن" required>
-<Select
-            label="روش افزودن"
-            value={c.method}
-            onValueChange={c.setMethod}
-            disabled={c.command.busy}
-            options={[
-              { value: "existing", label: "انتخاب حساب موجود" },
-              { value: "new", label: "ایجاد حساب جدید" },
-            ]}
-          />
-</Field>
+            <Select
+              label="روش افزودن"
+              value={c.method}
+              onValueChange={c.setMethod}
+              disabled={c.command.busy}
+              options={[
+                { value: "existing", label: "انتخاب حساب موجود" },
+                { value: "new", label: "ایجاد حساب جدید" },
+              ]}
+            />
+          </Field>
         )}
         {c.method === "new" && !c.userId ? (
           <>
-            <Field id="member-name" label="نام">
+            <Field id="member-name" label="نام" required>
               <Input
                 id="member-name"
                 required
@@ -60,7 +63,7 @@ export function MemberAddDrawer({
                 }
               />
             </Field>
-            <Field id="member-email" label="ایمیل">
+            <Field id="member-email" label="ایمیل" required>
               <Input
                 id="member-email"
                 type="email"
@@ -73,7 +76,7 @@ export function MemberAddDrawer({
                 }
               />
             </Field>
-            <Field id="member-password" label="رمز اولیه">
+            <Field id="member-password" label="رمز اولیه (حداقل ۱۲ کاراکتر)" required>
               <Input
                 id="member-password"
                 type="password"

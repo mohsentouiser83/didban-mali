@@ -730,6 +730,8 @@ def _moadian(invoices: list[dict], snapshots: list[dict], period: dict) -> dict:
                 {
                     "tax_id": tax_id,
                     "reference": (left or right)[0].get("reference"),
+                    "internal_reference": left[0].get("reference") if len(left) == 1 else None,
+                    "date": day(right[0]["date"]).isoformat() if len(right) == 1 else None,
                     "status": status,
                     "internal_amount": str(left[0]["amount"]) if len(left) == 1 else None,
                     "portal_amount": str(right[0]["amount"]) if len(right) == 1 else None,

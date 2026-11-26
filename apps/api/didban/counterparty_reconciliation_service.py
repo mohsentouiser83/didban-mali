@@ -6,7 +6,7 @@ identifies open items, discrepancies, and generates formal reconciliation statem
 
 from collections import defaultdict
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from uuid import uuid4
 
 from sqlalchemy import or_, select
@@ -17,7 +17,7 @@ from .commercial_models import CommercialCounterparty
 from .counterparty_reconciliation_models import CounterpartyReconciliationRun
 from .errors import require
 from .models import JournalLine
-from .money_type import canonical_money
+from .money_type import aggregate_money, canonical_money
 from .posting_models import NativeJournal
 from .security import membership
 from .services import get_entity
@@ -102,6 +102,8 @@ def get_counterparty_ledger(
     user: m.User,
     counterparty_id: str,
     as_of_date: str | None = None,
+    *,
+    include_imported: bool = True,
 ) -> dict:
     membership(db, company, user, "read")
     cp = db.scalar(
@@ -152,14 +154,17 @@ def get_counterparty_ledger(
                 )
 
     # Retrieve matching lines from Imported Facts
-    jlines = db.scalars(
-        select(JournalLine)
-        .where(
-            JournalLine.company_id == company,
-            or_(JournalLine.party_id == cp.id, JournalLine.party_id == cp.code),
-        )
-        .order_by(JournalLine.date.asc())
-    ).all()
+    jlines = (
+        db.scalars(
+            select(JournalLine)
+            .where(
+                JournalLine.company_id == company,
+                or_(JournalLine.party_id == cp.id, JournalLine.party_id == cp.code),
+            )
+            .order_by(JournalLine.date.asc())
+        ).all()
+        if include_imported else []
+    )
 
     for jl in jlines:
         jl_date = _parse_date(jl.date)
@@ -191,13 +196,15 @@ def get_counterparty_ledger(
     total_debit = Decimal(0)
     total_credit = Decimal(0)
 
-    for e in entries:
-        total_debit += e["_debit_dec"]
-        total_credit += e["_credit_dec"]
-        running += e["_debit_dec"] - e["_credit_dec"]
-        e["running_balance"] = canonical_money(running)
-        del e["_debit_dec"]
-        del e["_credit_dec"]
+    with localcontext() as context:
+        context.prec = 60
+        for entry in entries:
+            debit = entry.pop("_debit_dec")
+            credit = entry.pop("_credit_dec")
+            total_debit += debit
+            total_credit += credit
+            running += debit - credit
+            entry["running_balance"] = aggregate_money(running)
 
     direction = "debtor" if running > 0 else "creditor" if running < 0 else "settled"
 
@@ -212,10 +219,10 @@ def get_counterparty_ledger(
         },
         "entries": entries,
         "totals": {
-            "debit_total": canonical_money(total_debit),
-            "credit_total": canonical_money(total_credit),
-            "net_balance": canonical_money(abs(running)),
-            "raw_balance": canonical_money(running),
+            "debit_total": aggregate_money(total_debit),
+            "credit_total": aggregate_money(total_credit),
+            "net_balance": aggregate_money(running.copy_abs()),
+            "raw_balance": aggregate_money(running),
             "direction": direction,
             "entry_count": len(entries),
         },

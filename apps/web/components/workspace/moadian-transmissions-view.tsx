@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowClockwiseIcon, PlusIcon, ReceiptIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Dialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
@@ -42,11 +42,12 @@ function TransmissionWorkspace() {
                 تازه‌سازی
               </Button>
               {data.configured && data.can_submit && (
-                <Button onClick={view.show} disabled={view.rowCommand.busy}>
+                <Button onClick={() => view.show()} disabled={view.rowCommand.busy}>
                   <PlusIcon size={18} aria-hidden />
                   آماده‌سازی صورتحساب
                 </Button>
               )}
+              <ButtonLink variant="ghost" href="/moadian/reports">کارنامه ارسال</ButtonLink>
             </div>
           }
         >
@@ -66,12 +67,7 @@ function TransmissionWorkspace() {
       )}
       <MoadianTransmissionForm view={view} />
       <div className="mt-6">
-        <MoadianBatchCollection
-          onSelectForTransmission={(id) => {
-            view.show();
-            view.selectInvoice(id);
-          }}
-        />
+        {view.canSend && <MoadianBatchCollection onSelectForTransmission={view.show} />}
       </div>
       <Dialog
         title="ارسال دوباره به مؤدیان"

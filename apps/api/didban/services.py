@@ -179,6 +179,9 @@ def active_rows(db: Session, company: str) -> set[str]:
 
 
 def allocate(db: Session, company: str, user: User, values: dict) -> dict:
+    from .treasury_service import bank_movement_used_amount, lock_treasury_capacity
+
+    lock_treasury_capacity(db, company)
     bank = get_entity(db, BankMovement, company, values["bank_id"])
     invoice = get_entity(db, Invoice, company, values["invoice_id"])
     selected = active_rows(db, company)
@@ -248,7 +251,7 @@ def allocate(db: Session, company: str, user: User, values: dict) -> dict:
     )
     with localcontext() as context:
         context.prec = 50
-        bank_used = sum((Decimal(a.amount) for a in current if a.bank_id == bank.id), Decimal(0))
+        bank_used = bank_movement_used_amount(db, company, bank.id)
         invoice_used = sum((Decimal(a.amount) for a in current if a.invoice_id == invoice.id), Decimal(0))
         settled = sum(
             (

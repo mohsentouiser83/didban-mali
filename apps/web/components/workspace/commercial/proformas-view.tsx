@@ -53,23 +53,38 @@ function ProformasWorkspace() {
           <>
             <Table>
               <TableHeader><TableRow>
-                <TableHead>شماره</TableHead><TableHead>نوع</TableHead><TableHead>طرف‌حساب</TableHead>
-                <TableHead>تاریخ صدور</TableHead><TableHead numeric>مبلغ</TableHead><TableHead>وضعیت</TableHead>
+                <TableHead>شماره</TableHead><TableHead>مشتری</TableHead>
+                <TableHead>تاریخ صدور</TableHead><TableHead>اعتبار تا</TableHead>
+                <TableHead numeric>مبلغ</TableHead><TableHead>وضعیت</TableHead>
                 <TableHead>عملیات</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {view.resource.data?.items.map((row) => (
                   <TableRow key={row.id}>
                     <TableRowHeader><bdi>{row.number}</bdi></TableRowHeader>
-                    <TableCell>{row.direction === "sale" ? "فروش" : "خرید"}</TableCell>
-                    <TableCell><bdi>{row.party_id}</bdi></TableCell>
-                    <TableCell>{displayDate(row.date)}</TableCell>
-                    <TableCell numeric>{amount(row.total_amount)} {units[row.currency]}</TableCell>
-                    <TableCell><Badge>{statuses[row.status] ?? row.status}</Badge></TableCell>
+                    <TableCell>
+                      <span>{row.party_name ? `${row.party_name} (${row.party_code || row.party_id})` : <bdi>{row.party_id}</bdi>}</span>
+                      {row.direction === "purchase" && (
+                        <Badge tone="neutral" className="ms-1.5 text-[11px]">خرید (تاریخی)</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{displayDate(row.date)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{row.expiry_date ? displayDate(row.expiry_date) : "—"}</TableCell>
+                    <TableCell numeric className="whitespace-nowrap">{amount(row.total_amount)} {units[row.currency]}</TableCell>
+                    <TableCell>
+                      <Badge tone={row.status === "converted" ? "success" : row.status === "conversion_pending" ? "primary" : row.status === "cancelled" ? "neutral" : "warning"}>
+                        {statuses[row.status] ?? row.status}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         <Button variant="ghost" aria-label={`مشاهده پیش‌فاکتور ${row.number}`}
                           onClick={() => view.open(row, true)}>مشاهده</Button>
+                        {view.base && (
+                          <ButtonLink href={`/api/v1${view.base}/${row.id}/export`} download variant="ghost">
+                            خروجی PDF
+                          </ButtonLink>
+                        )}
                         {view.canPrepare && row.direction === "sale" && ["draft", "issued"].includes(row.status) &&
                           <Button variant="ghost" aria-label={`ویرایش پیش‌فاکتور ${row.number}`}
                             onClick={() => view.open(row)}>ویرایش</Button>}
@@ -78,6 +93,16 @@ function ProformasWorkspace() {
                           (!row.expiry_date || row.expiry_date >= tehranToday()) && (
                             <Button variant="ghost" onClick={() => setConversion(row)}>تبدیل به پیش‌نویس فروش</Button>
                           )}
+                        {row.status === "conversion_pending" && row.converted_draft_id && (
+                          <ButtonLink variant="soft" href={`/accounting?review_draft=${encodeURIComponent(row.converted_draft_id)}`}>
+                            پیش‌نویس در اسناد
+                          </ButtonLink>
+                        )}
+                        {row.status === "converted" && (
+                          <ButtonLink variant="soft" href={`/receivables${row.converted_operation_id ? `?operation=${encodeURIComponent(row.converted_operation_id)}` : ""}`}>
+                            {row.converted_document_number ? `فاکتور ${row.converted_document_number}` : "فاکتور فروش"}
+                          </ButtonLink>
+                        )}
                         {view.canPrepare && ["draft", "issued"].includes(row.status) && (
                           <Button variant="ghost" onClick={() => view.cancel(row, "لغو از کارپوشه پیش‌فاکتور")}>لغو</Button>
                         )}
@@ -109,6 +134,8 @@ function ProformasWorkspace() {
       ) : (
         <ProformaEditor row={view.editor.row} busy={view.command.busy} error={view.command.error?.message}
           partyQuery={view.partyQuery} partyOptions={view.partyOptions} partyError={view.partyError} itemOptions={view.itemOptions}
+          canManageParties={view.canManageAccounts}
+          onPartyCreated={() => view.refreshParties()}
           onPartySearch={view.setPartyQuery} onClose={view.close} onSave={view.save} />
       ))}
     </>

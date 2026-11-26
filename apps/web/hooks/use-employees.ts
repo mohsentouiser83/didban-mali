@@ -5,6 +5,7 @@ import { api, type Employee, type EmployeeInput } from "@/lib/api";
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+import { usePayrollAccess } from "./use-payroll-access";
 import type { ParsedTableImport } from "@/components/ui/table";
 import { toast } from "sonner";
 import { persian } from "@/lib/utils";
@@ -34,13 +35,15 @@ const defaultEmployeeInput: EmployeeInput = {
 
 export function useEmployees() {
   const workspace = useWorkspace();
+  const access = usePayrollAccess(workspace);
   const command = useCommand();
   const resource = useResource<{ items: Employee[]; total: number }>(
-    workspace.companyPath("employees"),
+    access.canView ? workspace.companyPath("employees") : null,
   );
 
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Employee | null>(null);
+  const [deleting, setDeleting] = useState<Employee | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<EmployeeInput>(defaultEmployeeInput);
 
@@ -59,12 +62,14 @@ export function useEmployees() {
   }, [employees, search]);
 
   const openAdd = () => {
+    if (!access.canPrepare) return;
     setEditing(null);
     setForm(defaultEmployeeInput);
     setFormOpen(true);
   };
 
   const openEdit = (emp: Employee) => {
+    if (!access.canPrepare) return;
     setEditing(emp);
     setForm({
       first_name: emp.first_name,
@@ -100,7 +105,7 @@ export function useEmployees() {
   };
 
   const save = async () => {
-    if (!workspace.company) return;
+    if (!access.canPrepare || !workspace.company) return;
     const path = editing
       ? `/companies/${workspace.company.id}/employees/${editing.id}`
       : `/companies/${workspace.company.id}/employees`;
@@ -135,8 +140,9 @@ export function useEmployees() {
     );
   };
 
-  const remove = async (emp: Employee) => {
-    if (!workspace.company) return;
+  const remove = async () => {
+    if (!access.canPrepare || !workspace.company || !deleting) return;
+    const emp = deleting;
     await command.run(
       `/companies/${workspace.company.id}/employees/${emp.id}`,
       {
@@ -145,13 +151,14 @@ export function useEmployees() {
       },
       () => {
         resource.refresh();
+        setDeleting(null);
       },
       "کارمند حذف/غیرفعال شد.",
     );
   };
 
   const importFromExcel = async (parsed: ParsedTableImport) => {
-    if (!workspace.company || !parsed.rows.length) return;
+    if (!access.canPrepare || !workspace.company || !parsed.rows.length) return;
 
     const headerMap: Record<string, number> = {};
     parsed.headers.forEach((h, i) => {
@@ -248,10 +255,11 @@ export function useEmployees() {
   return {
     workspace,
     command,
+    canPrepare: access.canPrepare,
     employees: filtered,
     total: resource.data?.total || 0,
-    loading: resource.loading,
-    error: resource.error,
+    loading: access.loading || resource.loading,
+    error: access.error ?? resource.error,
     search,
     setSearch,
     formOpen,
@@ -262,8 +270,15 @@ export function useEmployees() {
     form,
     setForm,
     save,
+    deleting,
+    requestRemove: (employee: Employee) => {
+      if (!access.canPrepare) return;
+      command.clearError();
+      setDeleting(employee);
+    },
+    cancelRemove: () => { if (!command.busy) setDeleting(null); },
     remove,
     importFromExcel,
-    refresh: resource.refresh,
+    refresh: () => { access.refresh(); resource.refresh(); },
   };
 }

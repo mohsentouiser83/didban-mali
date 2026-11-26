@@ -91,9 +91,9 @@ export function useFinancialView(
     dayChoices,
   };
 }
-export function useInvoiceView(direction: "sales" | "purchases") {
+export function useInvoiceView(direction: "sales" | "purchases", initialReference = "") {
   const view = useFinancialView("invoices");
-  const [query, setQueryValue] = useState("");
+  const [query, setQueryValue] = useState(initialReference);
   const [overdue, setOverdueValue] = useState(false);
   const [page, setPage] = useState(0);
   const filtered = useMemo(() => {

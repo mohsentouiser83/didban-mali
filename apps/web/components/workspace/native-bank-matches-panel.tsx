@@ -1,12 +1,22 @@
 "use client";
 import { useState } from "react";
 import { Drawer } from "@/components/ui/drawer";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
 import { CursorPagination, Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/badge";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableRowHeader,
+  TableEmptyCell,
+} from "@/components/ui/table";
 import {
   LoadingState,
   ErrorState,
@@ -17,7 +27,7 @@ import {
   useNativeBankMatches,
   type NativeBankController,
 } from "@/hooks/use-native-bank-matches";
-import { persian, displayDate } from "@/lib/utils";
+import { amount, persian, displayDate } from "@/lib/utils";
 import { Panel } from "./page-parts";
 import { GroupPreviewReview } from "./manual-group-matches";
 import { ReconciliationSelectedRows } from "./reconciliation-selected-rows";
@@ -85,9 +95,17 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
           onRetry={view.statements.refresh}
         />
       ) : !view.statementChoices.length ? (
-        <EmptyState
-          title="نسخهٔ ثابت دفتر دیدبان موجود نیست"
-        />
+        <div className="space-y-3">
+          <EmptyState
+            title="نسخهٔ ثابت دفتر دیدبان موجود نیست"
+            description="برای تطبیق حساب بانکی، ابتدا یک نسخهٔ ثابت از صورت‌های دفتر بومی تولید کنید."
+          />
+          <div className="flex justify-center">
+            <ButtonLink variant="secondary" href="/reports/native">
+              تولید نسخهٔ ثابت دفتر دیدبان
+            </ButtonLink>
+          </div>
+        </div>
       ) : (
         <>
           <Field id="native-bank-statement" label="نسخهٔ دفتر دیدبان" required>
@@ -108,18 +126,30 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
               onRetry={view.sources.refresh}
             />
           ) : !view.sources.data?.bank_accounts.length ? (
-            <EmptyState
-              title="گردش بانکی برای تطبیق موجود نیست"
-              description="تراکنش‌های بانکی را ثبت کنید تا تطبیق خودکار انجام شود."
-            />
+            <div className="space-y-3">
+              <EmptyState
+                title="گردش بانکی برای تطبیق موجود نیست"
+                description="ابتدا فایل صورتحساب بانکی را بارگذاری کنید تا گردش‌های باز در دسترس تطبیق قرار گیرند."
+              />
+              <div className="flex justify-center">
+                <ButtonLink variant="secondary" href="/settings/documents">
+                  بارگذاری صورتحساب بانکی در مدارک
+                </ButtonLink>
+              </div>
+            </div>
           ) : (
             view.current.statementId && (
               <div className="space-y-5">
                 {!view.ledgerAccountChoices.length ? (
-                  <StatusMessage>
-                    این نسخه ردیف حساب بانکی ندارد؛ نقش حساب‌ها و گزارش را بررسی
-                    کنید.
-                  </StatusMessage>
+                  <div className="space-y-2">
+                    <StatusMessage>
+                      این نسخه ردیف حساب بانکی ندارد؛ نقش حساب‌ها و گزارش را بررسی
+                      کنید.
+                    </StatusMessage>
+                    <ButtonLink variant="secondary" href="/settings/accounts">
+                      بررسی کدینگ و نقش حساب‌های بانکی
+                    </ButtonLink>
+                  </div>
                 ) : (
                   <>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -205,31 +235,56 @@ export function NativeBankMatchesPanel() {
             onRetry={view.history.refresh}
           />
         ) : !view.historyRows.length ? (
-          <EmptyState compact title="تطبیقی ذخیره نشده" />
+          <EmptyState
+            compact
+            title="تطبیقی ذخیره نشده"
+            description="برای تطبیق گردش‌های بانکی واردشده با حساب بانک در دفتر دیدبان، روی «تطبیق جدید» بزنید."
+          />
         ) : (
-          <ul className="divide-y divide-border">
-            {view.historyRows.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3"
-              >
-                <span>{item.label}</span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge status={item.status} />
-                  <Button
-                    variant="secondary"
-                    disabled={view.command.busy}
-                    onClick={() => {
-                      view.view(item);
-                      setMode("details");
-                    }}
-                  >
-                    مشاهده
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>دوره و مبنا</TableHead>
+                <TableHead>حساب بانک</TableHead>
+                <TableHead>حساب دفتر</TableHead>
+                <TableHead>تعداد ردیف‌ها</TableHead>
+                <TableHead numeric>جمع مبلغ (ریال)</TableHead>
+                <TableHead>وضعیت</TableHead>
+                <TableHead>عملیات</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {view.historyRows.length ? view.historyRows.map((item) => (
+                <TableRow key={item.id}>
+                  <TableRowHeader>
+                    <span>{item.snapshot.statement_period?.name || "دوره جاری"}</span>
+                    <div className="text-xs text-muted">
+                      تا {displayDate(item.snapshot.statement_as_of)} · دفتر بومی
+                    </div>
+                  </TableRowHeader>
+                  <TableCell dir="ltr" className="font-mono text-xs">{item.snapshot.bank_account}</TableCell>
+                  <TableCell dir="ltr" className="font-mono text-xs">{item.snapshot.ledger_account}</TableCell>
+                  <TableCell className="tabular-nums text-xs">
+                    {persian(item.snapshot.bank_ids.length)} بانک / {persian(item.snapshot.ledger_ids.length)} دفتر
+                  </TableCell>
+                  <TableCell className="tabular-nums">{amount(item.snapshot.bank_total)}</TableCell>
+                  <TableCell><StatusBadge status={item.status} /></TableCell>
+                  <TableCell>
+                    <Button
+                      variant="secondary"
+                      disabled={view.command.busy}
+                      onClick={() => {
+                        view.view(item);
+                        setMode("details");
+                      }}
+                    >
+                      مشاهده و تصمیم
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )) : <TableEmptyCell colSpan={7} title="تطبیقی ذخیره نشده" />}
+            </TableBody>
+          </Table>
         )}
         <CursorPagination {...view.history} />
       </Panel>

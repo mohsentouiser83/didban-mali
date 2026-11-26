@@ -67,6 +67,7 @@ export const TableContext = createContext<Partial<TableContextType>>({});
 export interface TableProps extends ComponentProps<"table"> {
   stickyFirstColumn?: boolean;
   toolbar?: boolean;
+  showSearch?: boolean;
   columnControls?: boolean;
   title?: string;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
@@ -78,6 +79,7 @@ export function Table({
   className,
   stickyFirstColumn = false,
   toolbar = true,
+  showSearch = true,
   columnControls = true,
   title,
   toolbarVariant = "primary",
@@ -485,6 +487,7 @@ export function Table({
             onExportPdf={handleExportPdf}
             onOpenImport={onImport ? handleOpenImport : undefined}
             hasActiveFilters={hasActiveFilters}
+            showSearch={showSearch}
             toolbarVariant={toolbarVariant}
           />
         )}
@@ -633,21 +636,35 @@ export function TableHead({
   // Resolved column index (injected automatically by TableRow or explicitly passed)
   const resolvedIndex = columnIndex ?? 0;
 
-  // Extract label text from children
+  // Extract label text from children (including nested sr-only spans)
   const columnTitle = useMemo(() => {
-    if (typeof children === "string") return children.trim();
-    if (typeof children === "number") return String(children);
-    return "";
+    const extract = (node: ReactNode): string => {
+      if (typeof node === "string") return node;
+      if (typeof node === "number") return String(node);
+      if (Array.isArray(node)) return node.map(extract).join(" ");
+      if (node && typeof node === "object" && "props" in node) {
+        const el = node as { props?: { children?: ReactNode } };
+        return extract(el.props?.children);
+      }
+      return "";
+    };
+    return extract(children).replace(/\s+/g, " ").trim();
   }, [children]);
 
-  // Detect operations/actions column: only pinnable, not sortable or filterable
+  // Detect operations/actions column: disable sort, pin, and filter
   const isOperations = useMemo(() => {
     const text = columnTitle.toLowerCase();
-    return text === "عملیات" || text === "actions" || text === "عملیات‌ها" || text === "action";
+    return (
+      text === "عملیات" ||
+      text === "اقدام" ||
+      text === "actions" ||
+      text === "عملیات‌ها" ||
+      text === "action"
+    );
   }, [columnTitle]);
 
   const canSort = sortable !== undefined ? sortable : !isOperations;
-  const canPin = pinnable !== undefined ? pinnable : true;
+  const canPin = pinnable !== undefined ? pinnable : !isOperations;
   const canFilter = filterable !== undefined ? filterable : !isOperations;
 
   const alignment = align ? `text-${align}` : numeric ? "text-end" : "text-start";

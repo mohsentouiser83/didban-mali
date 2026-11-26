@@ -17,10 +17,14 @@ router = APIRouter()
 @router.get(C + "/financial-periods")
 def periods(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
     with access(request, company_id) as (db, _user, _member):
+        from ..period_lock_service import lock_for
 
         def transform(period):
             data = service.serialize_fact(period)
+            lock = lock_for(db, company_id, period.id)
             data["in_use"] = service.period_has_dependencies(db, company_id, period.id)
+            data["closed"] = bool(lock and lock.closed)
+            data["lock_version"] = lock.version if lock else 1
             return data
 
         return paginate(db, m.Period, company_id, limit, cursor, transform=transform)

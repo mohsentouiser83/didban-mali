@@ -1088,6 +1088,61 @@
         "title": "ClosingInput",
         "type": "object"
       },
+      "CommercialCostLayerResponse": {
+        "properties": {
+          "journal_id": {
+            "title": "Journal Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_cost_irr": {
+            "title": "Unit Cost Irr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "journal_id",
+          "quantity",
+          "unit_cost_irr"
+        ],
+        "title": "CommercialCostLayerResponse",
+        "type": "object"
+      },
+      "CommercialDocumentDraftResponse": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/CommercialDocumentResponse"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftWriteResponse"
+          },
+          "financial_effect": {
+            "const": false,
+            "title": "Financial Effect",
+            "type": "boolean"
+          },
+          "operation_id": {
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "operation_id",
+          "draft",
+          "source_reference",
+          "financial_effect"
+        ],
+        "title": "CommercialDocumentDraftResponse",
+        "type": "object"
+      },
       "CommercialDocumentInput": {
         "additionalProperties": false,
         "properties": {
@@ -1468,6 +1523,497 @@
           "unit_price"
         ],
         "title": "CommercialDocumentLineInput",
+        "type": "object"
+      },
+      "CommercialDocumentLineResponse": {
+        "properties": {
+          "allocated_invoice_discount_irr": {
+            "title": "Allocated Invoice Discount Irr",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "cost_irr": {
+            "title": "Cost Irr",
+            "type": "string"
+          },
+          "cost_layers": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialCostLayerResponse"
+            },
+            "title": "Cost Layers",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "gross_amount_irr": {
+            "title": "Gross Amount Irr",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "inventory_movement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inventory Movement Id"
+          },
+          "item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Id"
+          },
+          "journal_line_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Journal Line Id"
+          },
+          "line_discount_irr": {
+            "title": "Line Discount Irr",
+            "type": "string"
+          },
+          "line_index": {
+            "title": "Line Index",
+            "type": "integer"
+          },
+          "line_kind": {
+            "enum": [
+              "goods",
+              "service"
+            ],
+            "title": "Line Kind",
+            "type": "string"
+          },
+          "net_amount_irr": {
+            "title": "Net Amount Irr",
+            "type": "string"
+          },
+          "net_before_inv_disc_irr": {
+            "title": "Net Before Inv Disc Irr",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "remaining_returnable_qty": {
+            "title": "Remaining Returnable Qty",
+            "type": "integer"
+          },
+          "returned_defective_qty": {
+            "title": "Returned Defective Qty",
+            "type": "integer"
+          },
+          "returned_healthy_qty": {
+            "title": "Returned Healthy Qty",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unit_price_irr": {
+            "title": "Unit Price Irr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "created_at",
+          "document_id",
+          "line_index",
+          "line_kind",
+          "item_id",
+          "description",
+          "unit",
+          "quantity",
+          "unit_price_irr",
+          "gross_amount_irr",
+          "line_discount_irr",
+          "net_before_inv_disc_irr",
+          "allocated_invoice_discount_irr",
+          "net_amount_irr",
+          "cost_irr",
+          "cost_layers",
+          "returned_healthy_qty",
+          "returned_defective_qty",
+          "journal_line_id",
+          "inventory_movement_id",
+          "remaining_returnable_qty"
+        ],
+        "title": "CommercialDocumentLineResponse",
+        "type": "object"
+      },
+      "CommercialDocumentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialDocumentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "items"
+        ],
+        "title": "CommercialDocumentListResponse",
+        "type": "object"
+      },
+      "CommercialDocumentResponse": {
+        "properties": {
+          "accounts": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Accounts",
+            "type": "object"
+          },
+          "actor_id": {
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "applied_credit_irr": {
+            "title": "Applied Credit Irr",
+            "type": "string"
+          },
+          "cash_amount_irr": {
+            "title": "Cash Amount Irr",
+            "type": "string"
+          },
+          "cheque_amount_irr": {
+            "title": "Cheque Amount Irr",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "counterparty_id": {
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Currency",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "sale",
+              "purchase"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "gross_amount_irr": {
+            "title": "Gross Amount Irr",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invoice_discount_irr": {
+            "title": "Invoice Discount Irr",
+            "type": "string"
+          },
+          "issue_date": {
+            "format": "date",
+            "title": "Issue Date",
+            "type": "string"
+          },
+          "journal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Journal Id"
+          },
+          "line_discount_total_irr": {
+            "title": "Line Discount Total Irr",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialDocumentLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "native_invoice_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Native Invoice Id"
+          },
+          "net_amount_irr": {
+            "title": "Net Amount Irr",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "on_account_amount_irr": {
+            "title": "On Account Amount Irr",
+            "type": "string"
+          },
+          "open_balance_irr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Balance Irr"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "party_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Name"
+          },
+          "party_snapshot": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Party Snapshot",
+            "type": "object"
+          },
+          "period_id": {
+            "title": "Period Id",
+            "type": "string"
+          },
+          "posting_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posting Date"
+          },
+          "proforma_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proforma Id"
+          },
+          "settlement_type": {
+            "enum": [
+              "on_account",
+              "cash",
+              "mixed"
+            ],
+            "title": "Settlement Type",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "posted",
+              "partially_returned",
+              "fully_returned",
+              "reversed",
+              "discarded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "vendor_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Reference"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "warehouse_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Id"
+          },
+          "warehouse_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warehouse Name"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "created_at",
+          "version",
+          "number",
+          "direction",
+          "status",
+          "issue_date",
+          "posting_date",
+          "due_date",
+          "period_id",
+          "counterparty_id",
+          "party_snapshot",
+          "party_name",
+          "warehouse_id",
+          "warehouse_name",
+          "proforma_id",
+          "currency",
+          "gross_amount_irr",
+          "line_discount_total_irr",
+          "invoice_discount_irr",
+          "net_amount_irr",
+          "open_balance_irr",
+          "settlement_type",
+          "cash_amount_irr",
+          "cheque_amount_irr",
+          "on_account_amount_irr",
+          "applied_credit_irr",
+          "vendor_reference",
+          "description",
+          "operation_id",
+          "draft_id",
+          "journal_id",
+          "native_invoice_id",
+          "accounts",
+          "actor_id",
+          "lines"
+        ],
+        "title": "CommercialDocumentResponse",
         "type": "object"
       },
       "CommercialReturnInput": {
@@ -2900,6 +3446,197 @@
         "title": "DraftLine",
         "type": "object"
       },
+      "DraftLineResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "credit": {
+            "title": "Credit",
+            "type": "string"
+          },
+          "debit": {
+            "title": "Debit",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "dimension_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dimension Ids",
+            "type": "array"
+          },
+          "original_credit": {
+            "title": "Original Credit",
+            "type": "string"
+          },
+          "original_debit": {
+            "title": "Original Debit",
+            "type": "string"
+          },
+          "party_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Party Id"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "reference_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Kind"
+          }
+        },
+        "required": [
+          "account_id",
+          "debit",
+          "credit",
+          "original_debit",
+          "original_credit",
+          "dimension_ids"
+        ],
+        "title": "DraftLineResponse",
+        "type": "object"
+      },
+      "DraftWriteResponse": {
+        "properties": {
+          "actor_id": {
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/DraftLineResponse"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "original_unit": {
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Original Unit",
+            "type": "string"
+          },
+          "period_id": {
+            "title": "Period Id",
+            "type": "string"
+          },
+          "posting_available": {
+            "title": "Posting Available",
+            "type": "boolean"
+          },
+          "posting_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posting Reason"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "posted",
+              "discarded"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "period_id",
+          "date",
+          "created_at",
+          "description",
+          "lines",
+          "original_unit",
+          "actor_id",
+          "state",
+          "version",
+          "posting_available",
+          "posting_reason"
+        ],
+        "title": "DraftWriteResponse",
+        "type": "object"
+      },
       "EmployeeInput": {
         "additionalProperties": false,
         "properties": {
@@ -3950,6 +4687,7 @@
         "title": "InvoiceInput",
         "type": "object"
       },
+      "JsonValue": {},
       "LoginInput": {
         "additionalProperties": false,
         "properties": {
@@ -6024,6 +6762,34 @@
         "title": "PostingItem",
         "type": "object"
       },
+      "PrepareTreasuryDraftInput": {
+        "additionalProperties": false,
+        "properties": {
+          "cheque_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Account Id"
+          },
+          "counterparty_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Counterparty Account Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "counterparty_account_id"
+        ],
+        "title": "PrepareTreasuryDraftInput",
+        "type": "object"
+      },
       "PreviewInput": {
         "additionalProperties": false,
         "properties": {
@@ -7715,6 +8481,213 @@
         "title": "TermsUpdate",
         "type": "object"
       },
+      "TreasuryAccountDetails": {
+        "properties": {
+          "account_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Active"
+          },
+          "account_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Code"
+          },
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Name"
+          },
+          "account_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Number"
+          },
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "bank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Name"
+          },
+          "branch_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Code"
+          },
+          "branch_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch Name"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "custodian_counterparty_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Counterparty Id"
+          },
+          "custodian_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custodian Name"
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "bank",
+              "cash",
+              "petty_cash"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_completion": {
+            "title": "Needs Completion",
+            "type": "boolean"
+          },
+          "petty_cash_limit_irr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Petty Cash Limit Irr"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "active",
+          "company_id",
+          "account_id",
+          "account_code",
+          "account_name",
+          "account_active",
+          "bank_name",
+          "account_number",
+          "iban",
+          "branch_name",
+          "branch_code",
+          "custodian_name",
+          "custodian_counterparty_id",
+          "petty_cash_limit_irr",
+          "needs_completion",
+          "version",
+          "created_at"
+        ],
+        "title": "TreasuryAccountDetails",
+        "type": "object"
+      },
+      "TreasuryAccountDetailsList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryAccountDetails"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TreasuryAccountDetailsList",
+        "type": "object"
+      },
       "TreasuryAccountInput": {
         "additionalProperties": false,
         "properties": {
@@ -7899,6 +8872,55 @@
         "title": "TreasuryAccountInput",
         "type": "object"
       },
+      "TreasuryAccountOption": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "bank",
+              "cash",
+              "petty_cash"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "active"
+        ],
+        "title": "TreasuryAccountOption",
+        "type": "object"
+      },
+      "TreasuryAccountOptions": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryAccountOption"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TreasuryAccountOptions",
+        "type": "object"
+      },
       "TreasuryAllocationInput": {
         "additionalProperties": false,
         "properties": {
@@ -7972,6 +8994,105 @@
         "title": "TreasuryAllocationItemInput",
         "type": "object"
       },
+      "TreasuryAllocationResponse": {
+        "properties": {
+          "actor_id": {
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "invoice_id": {
+            "title": "Invoice Id",
+            "type": "string"
+          },
+          "invoice_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Reference"
+          },
+          "reversal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reversal Reason"
+          },
+          "reversed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reversed At"
+          },
+          "reversed_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reversed By"
+          },
+          "tool_line_id": {
+            "title": "Tool Line Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "created_at",
+          "tool_line_id",
+          "invoice_id",
+          "invoice_reference",
+          "amount",
+          "date",
+          "actor_id",
+          "reversed_at",
+          "reversed_by",
+          "reversal_reason"
+        ],
+        "title": "TreasuryAllocationResponse",
+        "type": "object"
+      },
       "TreasuryDocumentInput": {
         "additionalProperties": false,
         "properties": {
@@ -8041,6 +9162,215 @@
           "tools"
         ],
         "title": "TreasuryDocumentInput",
+        "type": "object"
+      },
+      "TreasuryDocumentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryDocumentResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TreasuryDocumentListResponse",
+        "type": "object"
+      },
+      "TreasuryDocumentResponse": {
+        "properties": {
+          "actor_id": {
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "allocatable_amount": {
+            "title": "Allocatable Amount",
+            "type": "string"
+          },
+          "allocated_amount": {
+            "title": "Allocated Amount",
+            "type": "string"
+          },
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryAllocationResponse"
+            },
+            "title": "Allocations",
+            "type": "array"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "counterparty_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Code"
+          },
+          "counterparty_id": {
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "counterparty_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "receipt",
+              "payment"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "has_payment_proof": {
+            "title": "Has Payment Proof",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "journal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Journal Id"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "original_unit": {
+            "enum": [
+              "IRR",
+              "TOMAN"
+            ],
+            "title": "Original Unit",
+            "type": "string"
+          },
+          "period_id": {
+            "title": "Period Id",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "posted",
+              "reversed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/TreasuryToolLineResponse"
+            },
+            "title": "Tools",
+            "type": "array"
+          },
+          "total_amount": {
+            "title": "Total Amount",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "created_at",
+          "version",
+          "direction",
+          "number",
+          "date",
+          "period_id",
+          "counterparty_id",
+          "counterparty_name",
+          "counterparty_code",
+          "total_amount",
+          "allocated_amount",
+          "allocatable_amount",
+          "has_payment_proof",
+          "original_unit",
+          "description",
+          "operation_id",
+          "journal_id",
+          "state",
+          "actor_id",
+          "tools",
+          "allocations"
+        ],
+        "title": "TreasuryDocumentResponse",
+        "type": "object"
+      },
+      "TreasuryPreparedDraftResponse": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/TreasuryDocumentResponse"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/DraftWriteResponse"
+          },
+          "operation_id": {
+            "title": "Operation Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "draft",
+          "operation_id"
+        ],
+        "title": "TreasuryPreparedDraftResponse",
         "type": "object"
       },
       "TreasuryToolLineInput": {
@@ -8136,6 +9466,133 @@
           "amount"
         ],
         "title": "TreasuryToolLineInput",
+        "type": "object"
+      },
+      "TreasuryToolLineResponse": {
+        "properties": {
+          "allocated_amount": {
+            "title": "Allocated Amount",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "bank_movement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Movement Id"
+          },
+          "cheque_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cheque Id"
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "document_id": {
+            "title": "Document Id",
+            "type": "string"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "has_payment_proof": {
+            "title": "Has Payment Proof",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "line_index": {
+            "title": "Line Index",
+            "type": "integer"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
+          "remaining_amount": {
+            "title": "Remaining Amount",
+            "type": "string"
+          },
+          "tool_kind": {
+            "enum": [
+              "cash",
+              "bank_transfer",
+              "cheque",
+              "card",
+              "other"
+            ],
+            "title": "Tool Kind",
+            "type": "string"
+          },
+          "treasury_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Treasury Account Id"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "created_at",
+          "document_id",
+          "line_index",
+          "tool_kind",
+          "treasury_account_id",
+          "cheque_id",
+          "bank_movement_id",
+          "amount",
+          "allocated_amount",
+          "remaining_amount",
+          "has_payment_proof",
+          "reference",
+          "due_date"
+        ],
+        "title": "TreasuryToolLineResponse",
         "type": "object"
       },
       "UpdateContractInput": {
@@ -10808,6 +12265,38 @@
               ],
               "title": "Cursor"
             }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "draft",
+                    "posted",
+                    "discarded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -11271,6 +12760,23 @@
             "schema": {
               "title": "Company Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
             }
           }
         ],
@@ -12523,6 +14029,22 @@
                 }
               ],
               "title": "Priority"
+            }
+          },
+          {
+            "in": "query",
+            "name": "counterparty_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Counterparty Id"
             }
           }
         ],
@@ -17228,6 +18750,22 @@
               ],
               "title": "Type"
             }
+          },
+          {
+            "in": "query",
+            "name": "entity_kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entity Kind"
+            }
           }
         ],
         "responses": {
@@ -17610,6 +19148,24 @@
           },
           {
             "in": "query",
+            "name": "counterparty_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Counterparty Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "limit",
             "required": false,
             "schema": {
@@ -17636,7 +19192,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialDocumentListResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -17681,7 +19239,9 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialDocumentDraftResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -17727,7 +19287,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialDocumentResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -19218,6 +20780,23 @@
                 }
               ],
               "title": "As Of Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "basis",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "native",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Basis"
             }
           }
         ],
@@ -21308,6 +22887,57 @@
                 }
               ],
               "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 20,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Id"
             }
           }
         ],
@@ -27526,7 +29156,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryAccountDetailsList"
+                }
               }
             },
             "description": "Successful Response"
@@ -27571,7 +29203,9 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryAccountDetails"
+                }
               }
             },
             "description": "Successful Response"
@@ -27588,6 +29222,76 @@
           }
         },
         "summary": "Create Account"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/accounts/options": {
+      "get": {
+        "operationId": "list_account_options_api_v1_companies__company_id__treasury_accounts_options_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "bank",
+                    "cash",
+                    "petty_cash"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "active_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Active Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryAccountOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Account Options"
       }
     },
     "/api/v1/companies/{company_id}/treasury/accounts/{treasury_id}": {
@@ -27627,7 +29331,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryAccountDetails"
+                }
               }
             },
             "description": "Successful Response"
@@ -27683,7 +29389,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryDocumentResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -27740,7 +29448,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryDocumentListResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -27785,7 +29495,9 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryDocumentResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -27841,7 +29553,9 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryDocumentResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -27858,6 +29572,64 @@
           }
         },
         "summary": "Allocate Tool"
+      }
+    },
+    "/api/v1/companies/{company_id}/treasury/documents/{document_id}/prepare-draft": {
+      "post": {
+        "operationId": "prepare_document_draft_api_v1_companies__company_id__treasury_documents__document_id__prepare_draft_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareTreasuryDraftInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreasuryPreparedDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare Document Draft"
       }
     },
     "/api/v1/companies/{company_id}/usage": {

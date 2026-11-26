@@ -15,6 +15,7 @@ function useCommercialList<T extends { id: string; version: number }>(
   entity: "counterparties" | "proformas",
   search = "",
   typeFilter = "",
+  entityKindFilter = "",
 ) {
   const workspace = useWorkspace();
   const base = workspace.companyPath(`commercial/${entity}`);
@@ -23,6 +24,7 @@ function useCommercialList<T extends { id: string; version: number }>(
   const query = new URLSearchParams({ limit: String(pageSize), offset: String(page * pageSize) });
   if (search) query.set("search", search);
   if (typeFilter && typeFilter !== "all") query.set("type", typeFilter);
+  if (entityKindFilter && entityKindFilter !== "all") query.set("entity_kind", entityKindFilter);
   const resource = useResource<{ items: T[]; total: number }>(base && `${base}?${query}`);
   const capabilities = useResource<AccountingCapabilities>(workspace.companyPath("accounting/capabilities"));
   const command = useCommand();
@@ -72,10 +74,12 @@ function useCommercialList<T extends { id: string; version: number }>(
 export function useCounterparties() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
-  const list = useCommercialList<Counterparty>("counterparties", search, typeFilter);
+  const [entityKindFilter, setEntityKindFilter] = useState("all");
+  const list = useCommercialList<Counterparty>("counterparties", search, typeFilter, entityKindFilter);
   const canEdit = list.capabilities.data?.can_manage_accounts === true;
+  const canViewReports = Boolean(list.workspace.company?.role);
   return {
-    ...list, search, typeFilter, canEdit,
+    ...list, search, typeFilter, entityKindFilter, canEdit, canViewReports,
     changeSearch(value: string) {
       list.resetPage();
       setSearch(value);
@@ -83,6 +87,10 @@ export function useCounterparties() {
     changeTypeFilter(value: string) {
       list.resetPage();
       setTypeFilter(value);
+    },
+    changeEntityKindFilter(value: string) {
+      list.resetPage();
+      setEntityKindFilter(value);
     },
     save(form: CounterpartyForm) {
       const roles = form.roles.length ? form.roles : (form.type ? [form.type] : []);
@@ -154,9 +162,11 @@ export function useProformas() {
       : null,
   );
   const canPrepare = list.capabilities.data?.can_prepare === true;
+  const canManageAccounts = list.capabilities.data?.can_manage_accounts === true;
 
   return {
-    ...list, canPrepare, partyQuery, setPartyQuery,
+    ...list, canPrepare, canManageAccounts, partyQuery, setPartyQuery,
+    refreshParties: () => parties.refresh(),
     partyError: parties.error?.message,
     partyOptions: parties.data?.items.map((party) => ({
       value: party.code, label: `${party.name} · ${party.code}`,
@@ -213,14 +223,29 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
       })),
   };
   const inventory = useResource<InventoryState>(operation.companyPath("accounting/inventory"));
+  const rolesResource = useResource<{ items: { account_id: string; role: string | null }[] }>(
+    operation.companyPath("accounting/account-roles?limit=200"),
+  );
   const command = useCommand();
   const today = tehranToday();
   const periods = operation.periods.filter((period) => period.start <= today && period.end >= today);
+  const hasGoods = row.lines.some((l) => l.line_kind !== "service" && !!l.item_id);
+  const hasService = row.lines.some((l) => l.line_kind === "service" || !l.item_id);
+  const roleItems = rolesResource.data?.items ?? [];
+  const postableIds = new Set(accounts.options.map((o) => o.value));
+  const suggestRole = (...roles: string[]) => {
+    for (const r of roles) {
+      const found = roleItems.find((item) => item.role === r && postableIds.has(item.account_id));
+      if (found) return found.account_id;
+    }
+    return "";
+  };
   const [valuesState, setValues] = useState({
     period_id: operation.periodId,
     warehouse_id: "",
     counterparty_account_id: "",
     revenue_account_id: "",
+    service_revenue_account_id: "",
     cost_account_id: "",
     settlement_type: "on_account",
     cash_amount: "",
@@ -231,27 +256,41 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     cheque_number: "",
     cheque_due_date: "",
   });
-  const values = { ...valuesState, period_id: operation.periodId };
+  const values = {
+    ...valuesState,
+    period_id: operation.periodId,
+    counterparty_account_id: valuesState.counterparty_account_id || suggestRole("trade_receivable"),
+    revenue_account_id: valuesState.revenue_account_id || suggestRole("revenue"),
+    service_revenue_account_id: valuesState.service_revenue_account_id || suggestRole("revenue"),
+    cost_account_id: valuesState.cost_account_id || suggestRole("expense"),
+    cash_account_id: valuesState.cash_account_id || suggestRole("cash_bank", "bank", "cash"),
+    cheque_account_id: valuesState.cheque_account_id || suggestRole("notes_receivable"),
+  };
   const request = useRef<{ fingerprint: string; key: string }>(null);
   const mixed = values.settlement_type === "mixed";
   const cash = values.settlement_type === "cash" || (mixed && /[1-9]/.test(values.cash_amount));
   const cheque = mixed && /[1-9]/.test(values.cheque_amount);
   const onAccount = values.settlement_type === "on_account" || (mixed && /[1-9]/.test(values.on_account_amount));
-  const valid = !!(values.period_id && values.warehouse_id && values.revenue_account_id && values.cost_account_id)
+  const mixedSumMatch = !mixed || (
+    BigInt(values.cash_amount || "0") + BigInt(values.cheque_amount || "0") + BigInt(values.on_account_amount || "0") ===
+    BigInt(row.total_amount || "0")
+  );
+  const valid = !!values.period_id
+    && (!hasGoods || !!(values.warehouse_id && values.revenue_account_id && values.cost_account_id))
+    && (!hasService || !!values.service_revenue_account_id)
     && (!onAccount || !!values.counterparty_account_id)
     && (!cash || !!values.cash_account_id)
     && (!cheque || !!(values.cheque_account_id && values.cheque_number.trim() && values.cheque_due_date))
-    && (!mixed || cash || cheque || onAccount);
+    && (!mixed || ((cash || cheque || onAccount) && mixedSumMatch));
 
   function save() {
     if (!valid) return;
     const body = {
       period_id: values.period_id,
-      warehouse_id: values.warehouse_id,
+      ...(hasGoods ? { warehouse_id: values.warehouse_id, revenue_account_id: values.revenue_account_id, cost_account_id: values.cost_account_id } : {}),
+      ...(hasService ? { service_revenue_account_id: values.service_revenue_account_id } : {}),
       source_reference: `proforma:${row.id}`,
       settlement_type: values.settlement_type,
-      revenue_account_id: values.revenue_account_id,
-      cost_account_id: values.cost_account_id,
       ...(onAccount ? { counterparty_account_id: values.counterparty_account_id } : {}),
       ...(cash ? { cash_account_id: values.cash_account_id } : {}),
       ...(cheque ? { cheque_account_id: values.cheque_account_id,
@@ -271,5 +310,5 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     }, onComplete, "پیش‌نویس فروش ساخته شد.");
   }
 
-  return { accounts, inventory, command, periods, values, setValues, mixed, cash, cheque, onAccount, valid, save };
+  return { accounts, inventory, command, periods, values, setValues, hasGoods, hasService, mixed, mixedSumMatch, cash, cheque, onAccount, valid, save };
 }

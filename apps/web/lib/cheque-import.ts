@@ -2,7 +2,8 @@ import type { ParsedTableImport } from "@/components/ui/table";
 import { asciiDigits, persian } from "@/lib/utils";
 
 const columns = {
-  number: ["شماره چک", "شماره", "number"],
+  number: ["شماره چک", "شماره برگه", "شماره", "number"],
+  sayad_id: ["شناسه صیادی", "صیادی", "sayad_id"],
   direction: ["نوع چک", "نوع", "جهت", "direction"],
   bank_name: ["نام بانک", "بانک", "bank_name"],
   bank_account: ["شماره حساب بانکی", "شماره حساب", "حساب بانکی", "bank_account"],
@@ -15,6 +16,7 @@ const columns = {
 
 const fieldLabels = {
   number: "شماره چک",
+  sayad_id: "شناسه صیادی",
   direction: "جهت چک",
   bank_name: "نام بانک",
   bank_account: "شماره حساب",
@@ -26,6 +28,33 @@ const fieldLabels = {
 };
 
 type Field = keyof typeof columns;
+
+export interface ChequeImportRow {
+  period_id: string;
+  direction: "received" | "issued";
+  number: string;
+  sayad_id?: string | null;
+  bank_name: string;
+  bank_account: string;
+  party_id: string;
+  amount: string;
+  unit: "IRR" | "TOMAN";
+  issue_date: string;
+  due_date: string;
+}
+
+export interface ChequeImportPreviewRow {
+  rowNumber: number;
+  valid: boolean;
+  error?: string;
+  summary: string;
+  payload?: ChequeImportRow;
+}
+
+export interface ChequeImportPreview {
+  headerError?: string;
+  rows: ChequeImportPreviewRow[];
+}
 
 function normalized(value: string) {
   return value.trim().toLowerCase().replace(/‌/g, " ").replace(/ي/g, "ی").replace(/ك/g, "ک");
@@ -39,26 +68,31 @@ function isoDate(raw: string) {
   return value;
 }
 
-export function prepareChequeImport(
+export function previewChequeImport(
   data: ParsedTableImport, period: { id: string; start: string; end: string },
-) {
+): ChequeImportPreview {
   const headers = data.headers.map(normalized);
   const fields = Object.keys(columns) as Field[];
+  const requiredFields = fields.filter((f) => f !== "sayad_id");
   const indexes = Object.fromEntries(fields.map((field) => [
     field,
     columns[field].map((name) => headers.indexOf(name)).find((index) => index >= 0) ?? -1,
   ])) as Record<Field, number>;
   const amountHeader = headers[indexes.amount];
   const headerUnit = amountHeader === "مبلغ ریال" ? "irr" : amountHeader === "مبلغ تومان" ? "toman" : "";
-  const missing = fields.filter((field) => indexes[field] < 0 && (field !== "unit" || !headerUnit));
+  const missing = requiredFields.filter((field) => indexes[field] < 0 && (field !== "unit" || !headerUnit));
   if (missing.length) {
-    return { error: `ستون لازم موجود نیست: ${missing.map((field) => fieldLabels[field]).join("، ")}` } as const;
+    return {
+      headerError: `ستون لازم موجود نیست: ${missing.map((field) => fieldLabels[field]).join("، ")}`,
+      rows: [],
+    };
   }
 
   const identities = new Set<string>();
-  const rows = [];
+  const sayadIds = new Set<string>();
+  const previewRows: ChequeImportPreviewRow[] = [];
   for (const [index, row] of data.rows.entries()) {
-    const cell = (field: Field) => String(row[indexes[field]] ?? "").trim();
+    const cell = (field: Field) => (indexes[field] >= 0 ? String(row[indexes[field]] ?? "").trim() : "");
     const rawDirection = normalized(cell("direction"));
     const direction = ["issued", "صادره", "صادر شده", "پرداختی"].includes(rawDirection)
       ? "issued"
@@ -70,43 +104,73 @@ export function prepareChequeImport(
     const rawAmount = asciiDigits(cell("amount")).replaceAll("٬", ",").replace("٫", ".");
     const amount = rawAmount.replaceAll(",", "");
     const label = `ردیف دادهٔ ${persian(index + 1)}`;
+    const sayadRaw = asciiDigits(cell("sayad_id"));
+    const summary = `${cell("number") || "—"} · ${cell("party_id") || "—"} · ${cell("amount") || "—"}`;
     const missingIdentity = (["number", "bank_name", "bank_account", "party_id"] as const)
       .find((field) => !cell(field));
 
-    if (missingIdentity) return { error: `${label}: ${fieldLabels[missingIdentity]} را وارد کنید.` } as const;
-    if (!direction) return { error: `${label}: جهت دریافتنی یا صادره را مشخص کنید.` } as const;
-    if (!unit) return { error: `${label}: واحد ریال یا تومان را مشخص کنید.` } as const;
-    if (headerUnit && unit.toLowerCase() !== headerUnit) {
-      return { error: `${label}: واحد مبلغ با عنوان ستون سازگار نیست.` } as const;
+    let errorMsg: string | undefined;
+    if (missingIdentity) errorMsg = `${label}: ${fieldLabels[missingIdentity]} را وارد کنید.`;
+    else if (!direction) errorMsg = `${label}: جهت دریافتنی یا صادره را مشخص کنید.`;
+    else if (!unit) errorMsg = `${label}: واحد ریال یا تومان را مشخص کنید.`;
+    else if (headerUnit && unit.toLowerCase() !== headerUnit) {
+      errorMsg = `${label}: واحد مبلغ با عنوان ستون سازگار نیست.`;
+    } else if (!issueDate || !dueDate || dueDate < issueDate) {
+      errorMsg = `${label}: تاریخ صدور و سررسید میلادی معتبر لازم است (YYYY-MM-DD).`;
+    } else if (issueDate < period.start || issueDate > period.end) {
+      errorMsg = `${label}: تاریخ صدور در دورهٔ مالی انتخاب‌شده نیست.`;
+    } else if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,6})?$/.test(rawAmount) || !/[1-9]/.test(amount)) {
+      errorMsg = `${label}: مبلغ مثبت معتبر لازم است.`;
+    } else if (sayadRaw && (!/^\d{16}$/.test(sayadRaw))) {
+      errorMsg = `${label}: شناسه صیادی باید دقیقاً ۱۶ رقم عددی باشد.`;
+    } else {
+      const number = asciiDigits(cell("number"));
+      const bankAccount = asciiDigits(cell("bank_account"));
+      const identity = JSON.stringify([direction, bankAccount, number]);
+      if (identities.has(identity)) {
+        errorMsg = `${label}: شمارهٔ چک برای همین حساب و جهت تکراری است.`;
+      } else if (sayadRaw && sayadIds.has(sayadRaw)) {
+        errorMsg = `${label}: شناسه صیادی تکراری است.`;
+      } else {
+        identities.add(identity);
+        if (sayadRaw) sayadIds.add(sayadRaw);
+        previewRows.push({
+          rowNumber: index + 1,
+          valid: true,
+          summary,
+          payload: {
+            period_id: period.id,
+            direction,
+            number,
+            ...(sayadRaw ? { sayad_id: sayadRaw } : {}),
+            bank_name: cell("bank_name"),
+            bank_account: bankAccount,
+            party_id: cell("party_id"),
+            amount,
+            unit,
+            issue_date: issueDate,
+            due_date: dueDate,
+          },
+        });
+        continue;
+      }
     }
-    if (!issueDate || !dueDate || dueDate < issueDate) {
-      return { error: `${label}: تاریخ صدور و سررسید میلادی معتبر لازم است (YYYY-MM-DD).` } as const;
-    }
-    if (issueDate < period.start || issueDate > period.end) {
-      return { error: `${label}: تاریخ صدور در دورهٔ مالی انتخاب‌شده نیست.` } as const;
-    }
-    if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,6})?$/.test(rawAmount) || !/[1-9]/.test(amount)) {
-      return { error: `${label}: مبلغ مثبت معتبر لازم است.` } as const;
-    }
-    const number = asciiDigits(cell("number"));
-    const bankAccount = asciiDigits(cell("bank_account"));
-    const identity = JSON.stringify([direction, bankAccount, number]);
-    if (identities.has(identity)) {
-      return { error: `${label}: شمارهٔ چک برای همین حساب و جهت تکراری است.` } as const;
-    }
-    identities.add(identity);
-    rows.push({
-      period_id: period.id,
-      direction,
-      number,
-      bank_name: cell("bank_name"),
-      bank_account: bankAccount,
-      party_id: cell("party_id"),
-      amount,
-      unit,
-      issue_date: issueDate,
-      due_date: dueDate,
+    previewRows.push({
+      rowNumber: index + 1,
+      valid: false,
+      error: errorMsg,
+      summary,
     });
   }
-  return { rows } as const;
+  return { rows: previewRows };
+}
+
+export function prepareChequeImport(
+  data: ParsedTableImport, period: { id: string; start: string; end: string },
+) {
+  const preview = previewChequeImport(data, period);
+  if (preview.headerError) return { error: preview.headerError } as const;
+  const firstBad = preview.rows.find((r) => !r.valid);
+  if (firstBad) return { error: firstBad.error || "ردیف نامعتبر" } as const;
+  return { rows: preview.rows.map((r) => r.payload!) } as const;
 }

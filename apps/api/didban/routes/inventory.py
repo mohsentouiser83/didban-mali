@@ -22,9 +22,9 @@ P = C + "/accounting/inventory"
 
 
 @router.get(P)
-def summary(company_id: str, request: Request):
+def summary(company_id: str, request: Request, as_of: date | None = None):
     with access(request, company_id) as (db, user, _member):
-        return service.summary(db, company_id, user)
+        return service.summary(db, company_id, user, as_of=as_of)
 
 
 @router.get(P + "/cardex")

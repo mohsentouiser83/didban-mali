@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from didban import numbering_service as service
 from didban.api import app
+from didban.commercial_models import CommercialCounterparty
 from didban.config import settings
 from didban.db import initialize, transaction
 from didban.errors import DomainError
@@ -149,6 +150,22 @@ def test_generate_next_number_preview_and_consume(auth_context):
         preview2 = service.generate_next_number(db, cid, user, "journal_entry", consume=False)
         assert preview2["number"] == "002"
         assert preview2["current_number"] == 2
+
+
+def test_counterparty_preview_skips_already_issued_numbers(auth_context):
+    cid = auth_context["company_id"]
+    with transaction(cid) as db:
+        user = db.get(User, auth_context["user_id"])
+        db.add(CommercialCounterparty(company_id=cid, name="طرف‌حساب قبلی", code="001"))
+        db.flush()
+
+        selected = next(rule for rule in service.list_rules(db, cid, user) if rule["entity_type"] == "counterparty")
+        assert selected["sample"] == "001"
+        assert selected["next_number"] == "002"
+        assert selected["current_number"] == 1
+        assert service.generate_next_number(db, cid, user, "counterparty")["number"] == "002"
+        allocated = service.allocate_number(db, cid, "counterparty", CommercialCounterparty, "code")
+        assert allocated == "002"
 
 
 def test_api_numbering_endpoints(auth_context):

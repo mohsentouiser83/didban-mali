@@ -11,7 +11,7 @@ import {
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Select } from "@/components/ui/select";
-import { memberRoles } from "@/hooks/use-member-management";
+import { memberRoles } from "@/lib/members";
 import type { useMemberManagement } from "@/hooks/use-member-management";
 export function MemberAccessDrawer({
   c,
@@ -28,11 +28,18 @@ export function MemberAccessDrawer({
     >
       <div className="space-y-6">
         <Form
+          className="space-y-4 rounded-control border border-border/70 bg-canvas/40 p-3.5"
           onSubmit={(event) => {
             event.preventDefault();
             c.saveMember();
           }}
         >
+          <div>
+            <h3 className="text-sm font-medium">۱. عضویت و نقش در شرکت جاری</h3>
+            <p className="mt-0.5 text-xs text-muted">
+              تغییر نقش یا وضعیت عضویت فقط بر این شرکت اثر می‌گذارد و جدا از حساب کاربری کل نصب است.
+            </p>
+          </div>
           <Field id="edit-member-role" label="نقش" required>
             <Select
               id="edit-member-role"
@@ -49,11 +56,11 @@ export function MemberAccessDrawer({
             disabled={c.command.busy || c.accessCommand.busy}
           />
           {c.value.role === "finance_manager" ? (
-            <Badge>تأیید گزارش با اختیار مدیر مالی</Badge>
+            <Badge>تأیید گزارش مالی با اختیار ذاتی نقش مدیر مالی</Badge>
           ) : (
             ["owner", "advisor"].includes(c.value.role) && (
               <Checkbox
-                label="اجازه تأیید گزارش"
+                label="اجازه صریح تأیید گزارش مالی (مستقل از نقش مالک)"
                 checked={c.value.approve_financial_report}
                 onCheckedChange={(approve_financial_report) =>
                   c.change({ approve_financial_report })
@@ -62,11 +69,24 @@ export function MemberAccessDrawer({
               />
             )
           )}
+          {c.selected && c.lastActiveOwnerId === c.selected.id && (c.value.role !== "owner" || !c.value.active) && (
+            <StatusMessage tone="warning">
+              این کاربر تنها مالک فعال شرکت است و تغییر نقش یا غیرفعال‌سازی آن مجاز نیست.
+            </StatusMessage>
+          )}
           <FormMessage error>{c.command.error?.message}</FormMessage>
           <Button
             type="submit"
             busy={c.command.busy}
-            disabled={!c.membershipDirty || c.accessCommand.busy}
+            disabled={
+              !c.membershipDirty ||
+              c.accessCommand.busy ||
+              Boolean(
+                c.selected &&
+                  c.lastActiveOwnerId === c.selected.id &&
+                  (c.value.role !== "owner" || !c.value.active),
+              )
+            }
           >
             ذخیره عضویت و نقش
           </Button>
@@ -81,13 +101,18 @@ export function MemberAccessDrawer({
         ) : (
           c.permission && (
             <Form
-              className="space-y-4 border-t border-border pt-5"
+              className="space-y-4 rounded-control border border-border/70 bg-canvas/40 p-3.5"
               onSubmit={(event) => {
                 event.preventDefault();
                 c.saveAccess();
               }}
             >
-              <h3 className="text-sm font-medium">دسترسی‌های حسابداری</h3>
+              <div>
+                <h3 className="text-sm font-medium">۲. مجوزهای حساس حسابداری (تخصیص صریح)</h3>
+                <p className="mt-0.5 text-xs text-muted">
+                  اختیارات ثبت سند، بازگشایی دوره و حقوق به‌صورت صریح و شرکت‌به‌شرکت توسط مالک اعطا یا سلب می‌شوند.
+                </p>
+              </div>
               {c.permission.implicit_authority ? (
                 <Badge>دسترسی خودکار مدیر مالی</Badge>
               ) : (

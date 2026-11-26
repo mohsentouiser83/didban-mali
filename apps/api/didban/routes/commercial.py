@@ -39,11 +39,12 @@ def list_counterparties(
     search: str | None = None,
     active_only: bool = False,
     type: str | None = None,
+    entity_kind: str | None = None,
 ):
     with access(request, company_id) as (db, user, _m):
         return service.list_counterparties(
             db, company_id, user, limit=limit, offset=offset, search=search, active_only=active_only,
-            counterparty_type=type,
+            counterparty_type=type, entity_kind=entity_kind,
         )
 
 

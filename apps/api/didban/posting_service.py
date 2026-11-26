@@ -354,11 +354,13 @@ def post_batch(db: Session, company: str, user: m.User, items: list[dict]) -> di
             created_movements = add_posted_movement(db, company, journal, journal.snapshot["inventory"])
         from .commercial_doc_service import on_commercial_journal_posted
         from .payroll_service import on_payroll_payment_posted
+        from .treasury_service import on_treasury_journal_posted
 
         on_commercial_journal_posted(
             db, company, user, draft, journal, created_journal_lines, created_movements
         )
         on_payroll_payment_posted(db, company, user, draft, journal)
+        on_treasury_journal_posted(db, company, user, draft, journal)
         audit(
             db,
             company,

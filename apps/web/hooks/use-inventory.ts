@@ -7,10 +7,12 @@ import type {
   InventoryCatalogue,
   InventoryDraftResult,
   InventoryItem,
+  InventoryItemKind,
   InventoryOperation,
   InventoryState,
   InventoryWarehouse,
 } from "@/lib/inventory";
+import { previewInventoryCatalogue, type InventoryImportRow } from "@/lib/inventory-import";
 import { inventoryTitle } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
 import { asciiDigits, persian } from "@/lib/utils";
@@ -26,9 +28,9 @@ import { useWorkspace } from "./workspace";
 const base = "accounting/inventory";
 const all = "all";
 
-function useInventoryResource() {
+function useInventoryResource(asOf?: string) {
   const workspace = useWorkspace();
-  const inventory = useResource<InventoryState>(workspace.companyPath(base));
+  const inventory = useResource<InventoryState>(workspace.companyPath(asOf ? `${base}?as_of=${asOf}` : base));
   return { workspace, inventory };
 }
 
@@ -44,8 +46,9 @@ function useInventoryAccounts() {
   };
 }
 
-export function useInventoryOverview() {
-  const { workspace, inventory } = useInventoryResource();
+export function useInventoryOverview(initialWarehouse = all) {
+  const [asOf, setAsOf] = useState(tehranToday);
+  const { workspace, inventory } = useInventoryResource(asOf);
   const accounts = useInventoryAccounts();
   const capabilities = useResource<AccountingCapabilities>(
     workspace.companyPath("accounting/capabilities"),
@@ -61,16 +64,17 @@ export function useInventoryOverview() {
     setPending((value) => value && { ...value, posted: true });
     inventory.refresh();
   });
-  const [warehouseId, setWarehouseId] = useState(all);
+  const [warehouseId, setWarehouseId] = useState(initialWarehouse);
   const [itemId, setItemId] = useState(all);
   const [movementPage, setMovementPage] = useState(0);
   const [balancePage, setBalancePage] = useState(0);
   const journal = useNativeJournal();
   const data = inventory.data;
-  const canCreate = !!data?.items.some((item) => item.active) &&
+  const canCreate = !!data?.items.some((item) => item.active && item.item_kind !== "service") &&
     data.warehouses.some((warehouse) => warehouse.active) && workspace.periods.length > 0 &&
     !accounts.loading && !accounts.error && accounts.options.length > 0;
   const itemNames = new Map(data?.items.map((item) => [item.id, item.name]));
+  const itemUnits = new Map(data?.items.map((item) => [item.id, item.base_unit ?? "عدد"]));
   const warehouseNames = new Map(data?.warehouses.map((item) => [item.id, item.name]));
   const filter = (row: { item_id: string; warehouse_id: string }) =>
     (itemId === all || row.item_id === itemId) &&
@@ -95,6 +99,9 @@ export function useInventoryOverview() {
     pending,
     journal,
     itemNames,
+    itemUnits,
+    asOf,
+    chooseAsOf: (value: string) => { setAsOf(value || tehranToday()); resetPages(); },
     warehouseNames,
     warehouseId,
     itemId,
@@ -110,6 +117,7 @@ export function useInventoryOverview() {
     resetFilters: () => {
       setWarehouseId(all);
       setItemId(all);
+      setAsOf(tehranToday());
       resetPages();
     },
     balances: balances.slice(balanceIndex * pageSize, (balanceIndex + 1) * pageSize),
@@ -145,7 +153,9 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InventoryItem | InventoryWarehouse>();
   const [deleting, setDeleting] = useState<InventoryItem | InventoryWarehouse>();
-  const [value, setValue] = useState({ name: "", inventory_account_id: "", base_unit: "عدد", active: true });
+  const [importRows, setImportRows] = useState<InventoryImportRow[] | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [value, setValue] = useState({ name: "", inventory_account_id: "", base_unit: "عدد", item_kind: "goods" as InventoryItemKind, active: true });
   const data = inventory.data;
   const isItem = entity === "items";
   const label = isItem ? "کالا" : "انبار";
@@ -154,10 +164,13 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const referenced = new Set(data?.balances.map((row) => isItem ? row.item_id : row.warehouse_id));
   const accountLocked = isItem && !!editing && referenced.has(editing.id);
   const accountNames = new Map(accounts.items.map((account) => [account.id, `${account.code} · ${account.name}`]));
-  const accountOptions = accounts.options.some((option) => option.value === value.inventory_account_id) || !value.inventory_account_id
-    ? accounts.options
+  const eligibleAccounts = accounts.items
+    .filter((account) => isAccountPostable(account) && (!account.role || ["asset", "other_asset"].includes(account.role)));
+  const stockAccounts = eligibleAccounts.map((account) => ({ value: account.id, label: `${account.code} · ${account.name}` }));
+  const accountOptions = stockAccounts.some((option) => option.value === value.inventory_account_id) || !value.inventory_account_id
+    ? stockAccounts
     : [
-        ...accounts.options,
+        ...stockAccounts,
         { value: value.inventory_account_id, label: accountNames.get(value.inventory_account_id) || value.inventory_account_id },
       ];
   const inventoryPath = `${base}/${entity}`;
@@ -165,11 +178,15 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const index = Math.min(page, Math.max(0, Math.ceil(items.length / pageSize) - 1));
 
   function save() {
-    if (!canManage || !value.name.trim()) return;
-    const body = isItem
-      ? { name: value.name.trim(), ...(!accountLocked && value.base_unit.trim() ? { base_unit: value.base_unit.trim() } : {}) }
+    if (!canManage || !value.name.trim() || (isItem && !accountLocked && (!value.inventory_account_id || !value.base_unit.trim()))) return;
+    const catalogueData = isItem && !accountLocked
+      ? {
+          name: value.name.trim(),
+          base_unit: value.base_unit.trim(),
+          item_kind: value.item_kind,
+          inventory_account_id: value.inventory_account_id,
+        }
       : { name: value.name.trim() };
-    const catalogueData = isItem && !accountLocked && value.inventory_account_id ? { ...body, inventory_account_id: value.inventory_account_id } : body;
     void command.run(
       workspace.companyPath(editing ? `${inventoryPath}/${editing.id}` : inventoryPath),
       editing
@@ -227,6 +244,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
         name: record?.name ?? "",
         inventory_account_id: record && "inventory_account_id" in record ? record.inventory_account_id : "",
         base_unit: record && "base_unit" in record && record.base_unit ? record.base_unit : "عدد",
+        item_kind: record && "item_kind" in record ? record.item_kind ?? "goods" : "goods",
         active: record?.active ?? true,
       });
       command.clearError();
@@ -247,68 +265,33 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
       command.clearError();
     },
     save,
-    importFromExcel: async (parsed: ParsedTableImport) => {
-      if (!canManage || !workspace.company || !parsed.rows.length) return;
-      const headerMap: Record<string, number> = {};
-      parsed.headers.forEach((h, i) => {
-        headerMap[h.trim().toLowerCase()] = i;
-      });
-
-      const getCol = (names: string[]) => {
-        for (const name of names) {
-          for (const [h, idx] of Object.entries(headerMap)) {
-            if (h.includes(name.toLowerCase())) return idx;
-          }
+    importRows,
+    importBusy,
+    previewImport: (file: ParsedTableImport) => {
+      if (canManage && !importBusy) setImportRows(previewInventoryCatalogue(file, entity, items, eligibleAccounts));
+    },
+    closeImport: () => { if (!importBusy) setImportRows(null); },
+    confirmImport: async () => {
+      const path = workspace.companyPath(inventoryPath);
+      if (!canManage || !path || !importRows?.length || importBusy || importRows.some((row) => !!row.error)) return;
+      setImportBusy(true);
+      let saved = 0;
+      try {
+        for (const { body } of importRows) {
+          if (!body) return;
+          await api(path, { method: "POST", body });
+          saved++;
         }
-        return -1;
-      };
-
-      const nameIdx = getCol(["نام کالا", "نام انبار", "نام", "عنوان", "name"]);
-      const codeIdx = getCol(["کد کالا", "کد انبار", "کد", "شناسه", "code"]);
-      const accountIdx = getCol(["حساب موجودی", "حساب", "inventory_account_id"]);
-
-      const defaultAccount = accounts.options[0]?.value;
-
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const row of parsed.rows) {
-        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
-        const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
-        if (!code || !name) continue;
-
-        const accId = accountIdx >= 0 && row[accountIdx] ? String(row[accountIdx]).trim() : defaultAccount;
-        if (entity === "items" && !accId) {
-          failCount++;
-          continue;
-        }
-
-        const body =
-          entity === "items"
-            ? { code, name, inventory_account_id: accId }
-            : { code, name };
-
-        try {
-          await api(workspace.companyPath(`${base}/${entity}`)!, {
-            method: "POST",
-            body,
-          });
-          successCount++;
-        } catch {
-          failCount++;
-        }
-      }
-
-      inventory.refresh();
-      if (successCount > 0) {
-        toast.success(
-          `${persian(successCount)} ${entity === "items" ? "کالا" : "انبار"} با موفقیت در سامانه تعریف شد.`,
-        );
-      }
-      if (failCount > 0) {
-        toast.warning(
-          `${persian(failCount)} ردیف به دلیل تکراری بودن کد یا عدم وجود حساب موجودی ثبت نشد.`,
-        );
+        setImportRows(null);
+        toast.success(`${persian(saved)} ردیف ثبت شد.`);
+      } catch (error) {
+        const failedRow = importRows[saved]?.row ?? saved + 1;
+        const message = error instanceof Error ? error.message : "ثبت انجام نشد.";
+        toast.error(`${persian(saved)} ردیف ثبت شد. ردیف ${persian(failedRow)}: ${message}`);
+        setImportRows(null);
+      } finally {
+        setImportBusy(false);
+        inventory.refresh();
       }
     },
   };
@@ -321,7 +304,7 @@ export function useInventoryDraft(
 ) {
   const workspace = useWorkspace();
   const command = useCommand();
-  const availableItems = inventory.items.filter((item) => item.active);
+  const availableItems = inventory.items.filter((item) => item.active && item.item_kind !== "service");
   const availableWarehouses = inventory.warehouses.filter((warehouse) => warehouse.active);
   const [valueState, setValue] = useState(() => ({
     kind,

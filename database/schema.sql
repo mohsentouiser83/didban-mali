@@ -8,7 +8,7 @@ SELECT pg_advisory_xact_lock(2026110101);
 
 CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
 
-INSERT INTO didban_schema_version (id, version) VALUES (1, 1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO didban_schema_version (id, version) VALUES (1, 2) ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE companies (
 	name VARCHAR(120) NOT NULL,

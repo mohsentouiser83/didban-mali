@@ -44,12 +44,16 @@ export function NativeInvoicesView({
   direction,
   followups = false,
   operationId,
+  partyId,
+  initialReference,
 }: {
   direction: InvoiceDirection;
   followups?: boolean;
   operationId?: string;
+  partyId?: string;
+  initialReference?: string;
 }) {
-  const view = useNativeInvoices(direction, followups, operationId);
+  const view = useNativeInvoices(direction, followups, operationId, partyId, initialReference);
   const [snapshotsOpen, setSnapshotsOpen] = useState(false);
   const [convertProformaOpen, setConvertProformaOpen] = useState(false);
   const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
@@ -59,13 +63,18 @@ export function NativeInvoicesView({
   return (
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <Field id="native-invoice-asof" label="مانده تا تاریخ">
-          <PersianDatePicker
-            id="native-invoice-asof"
-            value={view.asOf}
-            onChange={view.setAsOf}
-          />
-        </Field>
+        <div className="flex flex-wrap items-end gap-3">
+          <Field id="native-invoice-asof" label="تاریخ برش (مانده تا تاریخ)">
+            <PersianDatePicker
+              id="native-invoice-asof"
+              value={view.asOf}
+              onChange={view.setAsOf}
+            />
+          </Field>
+          <Badge tone="neutral" className="mb-2">
+            مبنای مانده: دفتر بومی دیدبان
+          </Badge>
+        </div>
         <div className="flex flex-wrap gap-2">
           {direction === "sale" && view.workspace.canWrite && (
             <Button
@@ -185,11 +194,14 @@ export function NativeInvoicesView({
               <Table>
                 <TableHeader sticky>
                   <TableRow>
-                    <TableHead>مرجع</TableHead>
+                    <TableHead>شماره / مرجع</TableHead>
+                    <TableHead>تاریخ</TableHead>
                     <TableHead>طرف حساب</TableHead>
                     <TableHead>سررسید</TableHead>
                     <TableHead>وعدهٔ پرداخت</TableHead>
+                    <TableHead numeric>مبلغ (ریال)</TableHead>
                     <TableHead numeric>مانده (ریال)</TableHead>
+                    <TableHead>وضعیت</TableHead>
                     {followups && <TableHead>تأخیر تا تاریخ انتخابی</TableHead>}
                     {followups && view.priority === "history" && (
                       <TableHead>سابقهٔ وصول ۱۸۰ روزه</TableHead>
@@ -199,27 +211,57 @@ export function NativeInvoicesView({
                 </TableHeader>
                 <TableBody>
                   {view.rows.length ? (
-                    view.rows.map((invoice) => (
+                    view.rows.map((invoice) => {
+                      const settled = invoice.status === "available" && invoice.remaining === "0";
+                      const partyDisplay = invoice.party_name
+                        ? `${invoice.party_name} (${invoice.party_id})`
+                        : invoice.party_id;
+                      return (
                       <TableRow key={invoice.id}>
-                        <TableRowHeader>{invoice.reference}</TableRowHeader>
-                        <TableCell>{invoice.party_id}</TableCell>
-                        <TableCell>
+                        <TableRowHeader>
+                          <span dir="ltr">{invoice.reference}</span>
+                        </TableRowHeader>
+                        <TableCell className="whitespace-nowrap">
+                          {displayDate(invoice.date)}
+                        </TableCell>
+                        <TableCell>{partyDisplay}</TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {invoice.terms?.due_date
                             ? displayDate(invoice.terms?.due_date)
                             : "نامشخص"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           {invoice.terms?.expected_date
                             ? displayDate(invoice.terms.expected_date)
                             : expectedDateLabel(invoice.terms, invoice.direction)}
                         </TableCell>
-                        <TableCell numeric>
+                        <TableCell numeric className="whitespace-nowrap">
+                          {amount(invoice.amount)}
+                        </TableCell>
+                        <TableCell numeric className="whitespace-nowrap">
                           {amount(invoice.remaining)}
                           {invoice.reason && (
                             <span className="block text-xs text-muted">
                               {nativeInvoiceReason(invoice.reason)}
                             </span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            tone={
+                              invoice.status !== "available"
+                                ? "warning"
+                                : settled
+                                  ? "success"
+                                  : "primary"
+                            }
+                          >
+                            {invoice.status !== "available"
+                              ? "نامشخص"
+                              : settled
+                                ? "تسویه‌شده"
+                                : "دارای مانده"}
+                          </Badge>
                         </TableCell>
                         {followups && (
                           <TableCell>
@@ -257,11 +299,12 @@ export function NativeInvoicesView({
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   ) : (
                     <TableEmptyCell
                       colSpan={
-                        followups ? (view.priority === "history" ? 8 : 7) : 6
+                        followups ? (view.priority === "history" ? 11 : 10) : 9
                       }
                       title={
                         view.query

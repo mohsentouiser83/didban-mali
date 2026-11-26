@@ -1,6 +1,6 @@
 """Explicit, versioned sending and follow-up for native sales invoices."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import Field
 
 from .. import moadian_service as service
@@ -16,9 +16,14 @@ class MoadianConfirmation(MoadianInvoiceInput):
 
 
 @router.get(P)
-def history(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
+def history(
+    company_id: str, request: Request, limit: int = 50, cursor: str | None = None,
+    q: str | None = Query(None, max_length=120),
+    status: str | None = Query(None, max_length=20),
+    period_id: str | None = Query(None, max_length=36),
+):
     with access(request, company_id) as (db, _, member):
-        return service.history(db, company_id, member, limit, cursor)
+        return service.history(db, company_id, member, limit, cursor, q=q, status=status, period_id=period_id)
 
 
 @router.get(P + "/candidates")

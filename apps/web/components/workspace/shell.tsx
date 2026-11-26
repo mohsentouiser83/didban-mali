@@ -92,25 +92,30 @@ export function Shell({ children }: { children: React.ReactNode }) {
               >
                 <ListIcon size={24} />
               </Button>
-              <div className="hidden size-9 shrink-0 place-items-center rounded-control bg-primary-soft text-primary sm:grid">
-                <BuildingsIcon size={20} />
+              <div className="flex min-w-0 items-center gap-1.5">
+                <div className="hidden size-9 shrink-0 place-items-center rounded-control bg-primary-soft text-primary sm:grid">
+                  <BuildingsIcon size={20} aria-hidden />
+                </div>
+                {workspace.companies.length > 1 ? (
+                  <Select
+                    value={workspace.company?.id || ""}
+                    onValueChange={workspace.setCompany}
+                    options={workspace.companies.map((company) => ({
+                      value: company.id,
+                      label: company.name,
+                    }))}
+                    label="تغییر سریع شرکت فعال"
+                    className="w-28 min-w-0 border-transparent px-1 text-xs font-medium sm:w-52 sm:text-sm"
+                  />
+                ) : (
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span className="hidden text-[11px] text-muted md:inline">شرکت فعال:</span>
+                    <span className="truncate text-xs font-medium sm:text-sm">
+                      {workspace.company?.name || "فضای کاری شما"}
+                    </span>
+                  </div>
+                )}
               </div>
-              {workspace.companies.length > 1 ? (
-                <Select
-                  value={workspace.company?.id || ""}
-                  onValueChange={workspace.setCompany}
-                  options={workspace.companies.map((company) => ({
-                    value: company.id,
-                    label: company.name,
-                  }))}
-                  label="شرکت فعال"
-                  className="w-24 min-w-0 border-transparent px-1 text-xs sm:w-48 sm:text-sm"
-                />
-              ) : (
-                <span className="truncate text-xs font-medium sm:text-sm">
-                  {workspace.company?.name || "فضای کاری شما"}
-                </span>
-              )}
 
               <span className="hidden h-5 w-px bg-border sm:block" aria-hidden />
 

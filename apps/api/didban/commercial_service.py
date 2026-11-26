@@ -162,11 +162,14 @@ def list_counterparties(
     search: str | None = None,
     active_only: bool = False,
     counterparty_type: str | None = None,
+    entity_kind: str | None = None,
 ) -> dict:
     membership(db, company, user)
     stmt = select(CommercialCounterparty).where(CommercialCounterparty.company_id == company)
     if active_only:
         stmt = stmt.where(CommercialCounterparty.active.is_(True))
+    if entity_kind and entity_kind != "all":
+        stmt = stmt.where(CommercialCounterparty.entity_kind == entity_kind)
     if counterparty_type and counterparty_type != "all":
         stmt = stmt.where(
             or_(
@@ -554,9 +557,46 @@ def cancel_proforma(
     return serialize_fact(pf)
 
 
+def _serialize_proforma(db: Session, company: str, pf: ProformaInvoice) -> dict:
+    from .commercial_doc_models import CommercialDocument
+
+    data = serialize_fact(pf)
+    cp = resolve_counterparty(db, company, pf.party_id, require_active=False)
+    data["party_name"] = cp.name if cp else None
+    data["party_code"] = cp.code if cp else None
+    converted_draft_id = None
+    converted_document_id = None
+    converted_document_number = None
+    converted_document_status = None
+    if pf.converted_operation_id:
+        op = db.get(OperationDraft, pf.converted_operation_id)
+        if op and op.company_id == company:
+            converted_draft_id = op.draft_id
+        doc = db.scalar(
+            select(CommercialDocument).where(
+                CommercialDocument.company_id == company,
+                or_(
+                    CommercialDocument.proforma_id == pf.id,
+                    CommercialDocument.operation_id == pf.converted_operation_id,
+                ),
+            )
+        )
+        if doc:
+            converted_document_id = doc.id
+            converted_document_number = doc.number
+            converted_document_status = doc.status
+            if not converted_draft_id:
+                converted_draft_id = doc.draft_id
+    data["converted_draft_id"] = converted_draft_id
+    data["converted_document_id"] = converted_document_id
+    data["converted_document_number"] = converted_document_number
+    data["converted_document_status"] = converted_document_status
+    return data
+
+
 def get_proforma(db: Session, company: str, proforma_id: str) -> dict:
     pf = get_entity(db, ProformaInvoice, company, proforma_id)
-    return serialize_fact(pf)
+    return _serialize_proforma(db, company, pf)
 
 
 def list_proformas(db: Session, company: str, user: m.User, limit: int = 50, offset: int = 0) -> dict:
@@ -570,7 +610,7 @@ def list_proformas(db: Session, company: str, user: m.User, limit: int = 50, off
     )
     return {
         "total": total,
-        "items": [serialize_fact(row) for row in rows],
+        "items": [_serialize_proforma(db, company, row) for row in rows],
     }
 
 

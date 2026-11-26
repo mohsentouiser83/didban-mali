@@ -28,6 +28,7 @@ def current(
     as_of: date | None = None,
     direction: Literal["sale", "purchase"] | None = None,
     priority: Literal["amount", "history"] | None = None,
+    counterparty_id: str | None = None,
 ):
     with access(request, company_id) as (db, user, _):
         if priority is not None:
@@ -36,7 +37,7 @@ def current(
 
             require(direction == "sale", "collection_direction", "اولویت وصول برای فاکتور فروش است.")
             return queue(db, company_id, user, as_of or service._today(db, company_id), priority)
-        return service.current(db, company_id, user, as_of or service._today(db, company_id), direction)
+        return service.current(db, company_id, user, as_of or service._today(db, company_id), direction, counterparty_id=counterparty_id)
 
 
 @router.get(P + "/candidates")

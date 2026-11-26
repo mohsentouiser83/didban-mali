@@ -212,6 +212,20 @@ def test_get_counterparty_ledger(recon_env, db_session):
     assert entries[0]["running_balance"] == "100000000"
     assert entries[1]["running_balance"] == "60000000"
     assert entries[2]["running_balance"] == "110000000"
+    db_session.add(m.JournalLine(
+        company_id=c.id, source_row_id=str(uuid4()), session_id=str(uuid4()),
+        original_unit="IRR", original_amount="50000000", entry_id="imported", date=date(2024, 5, 20),
+        account="1030", role="trade_receivable", party_id=cp1["id"], debit="50000000", credit="0",
+        entry_type="regular",
+    ))
+    db_session.flush()
+    combined = service.get_counterparty_ledger(db_session, c.id, u, cp1["id"])
+    assert combined["totals"]["net_balance"] == "160000000"
+    native = service.get_counterparty_ledger(db_session, c.id, u, cp1["id"], include_imported=False)
+    assert len(native["entries"]) == 3
+    assert {entry["source_kind"] for entry in native["entries"]} == {"native_journal"}
+    assert native["totals"]["net_balance"] == "110000000"
+
 
 
 def test_reconcile_with_exact_and_discrepancy(recon_env, db_session):

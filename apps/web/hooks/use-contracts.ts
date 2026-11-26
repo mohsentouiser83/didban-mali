@@ -5,6 +5,7 @@ import { api, type Employee, type EmployeeContract, type EmployeeContractInput }
 import { useCommand } from "./use-command";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+import { usePayrollAccess } from "./use-payroll-access";
 import type { ParsedTableImport } from "@/components/ui/table";
 import { toast } from "sonner";
 import { persian } from "@/lib/utils";
@@ -25,19 +26,24 @@ const defaultContractInput: EmployeeContractInput = {
   custom_fixed_allowances: "0",
   is_insured: true,
   is_taxable: true,
+  weekly_hours: "44",
   notes: "",
 };
 
 export function useContracts() {
   const workspace = useWorkspace();
+  const access = usePayrollAccess(workspace);
   const command = useCommand();
   const contractsResource = useResource<{ items: EmployeeContract[]; total: number }>(
-    workspace.companyPath("contracts"),
+    access.canView ? workspace.companyPath("contracts") : null,
   );
   const employeesResource = useResource<{ items: Employee[]; total: number }>(
-    workspace.companyPath("employees"),
+    access.canView ? workspace.companyPath("employees") : null,
   );
 
+  const workshops = useResource<{ items: { id: string; workshop_code: string; employer_name: string; active: boolean }[] }>(
+    access.canView ? workspace.companyPath("payroll/workshops") : null,
+  );
   const [search, setSearch] = useState("");
   const [filterEmployeeId, setFilterEmployeeId] = useState<string>("all");
   const [editing, setEditing] = useState<EmployeeContract | null>(null);
@@ -63,12 +69,14 @@ export function useContracts() {
   }, [contracts, filterEmployeeId, search]);
 
   const openAdd = () => {
+    if (!access.canPrepare) return;
     setEditing(null);
     setForm(defaultContractInput);
     setFormOpen(true);
   };
 
   const openEdit = (con: EmployeeContract) => {
+    if (!access.canPrepare) return;
     setEditing(con);
     setForm({
       employee_id: con.employee_id,
@@ -87,6 +95,12 @@ export function useContracts() {
       is_insured: con.is_insured,
       is_taxable: con.is_taxable,
       notes: con.notes || "",
+      workshop_id: con.workshop_id,
+      work_location: con.work_location,
+      work_description: con.work_description,
+      weekly_hours: con.weekly_hours || "44",
+      conclusion_date: con.conclusion_date,
+      amendment_of_contract_id: con.amendment_of_contract_id,
     });
     setFormOpen(true);
   };
@@ -97,17 +111,13 @@ export function useContracts() {
   };
 
   const save = async () => {
-    if (!workspace.company) return;
+    if (!workspace.company || !access.canPrepare) return;
+    const { employee_id, weekly_hours, ...fields } = form;
+    const contractFields = { ...fields, weekly_hours: String(weekly_hours ?? "").trim() || null };
     const path = editing
       ? `/companies/${workspace.company.id}/contracts/${editing.id}`
       : `/companies/${workspace.company.id}/contracts`;
-    const body = editing
-      ? {
-          ...form,
-          end_date: form.end_date || null,
-          notes: form.notes?.trim() || null,
-        }
-      : form;
+    const body = editing ? contractFields : { ...contractFields, employee_id };
     await command.run(
       path,
       {
@@ -124,7 +134,7 @@ export function useContracts() {
   };
 
   const importFromExcel = async (parsed: ParsedTableImport) => {
-    if (!workspace.company || !parsed.rows.length) return;
+    if (!workspace.company || !access.canPrepare || !parsed.rows.length) return;
     const headerMap: Record<string, number> = {};
     parsed.headers.forEach((h, i) => {
       headerMap[h.trim().toLowerCase()] = i;
@@ -211,11 +221,22 @@ export function useContracts() {
   return {
     workspace,
     command,
+    canPrepare: access.canPrepare,
+    contractNumbers: new Map(contracts.map((contract) => [contract.id, contract.contract_number])),
     contracts: filtered,
+    workshopOptions: (workshops.data?.items ?? [])
+      .filter((workshop) => workshop.active || workshop.id === form.workshop_id)
+      .map((workshop) => ({
+        value: workshop.id,
+        label: `${workshop.employer_name} (${workshop.workshop_code})`,
+      })),
+    amendmentOptions: contracts.filter((contract) =>
+      contract.employee_id === form.employee_id && contract.id !== editing?.id
+    ).map((contract) => ({ value: contract.id, label: contract.contract_number })),
     employees,
     total: contractsResource.data?.total || 0,
-    loading: contractsResource.loading,
-    error: contractsResource.error,
+    loading: access.loading || contractsResource.loading,
+    error: access.error ?? contractsResource.error,
     search,
     setSearch,
     filterEmployeeId,
@@ -229,6 +250,6 @@ export function useContracts() {
     setForm,
     save,
     importFromExcel,
-    refresh: contractsResource.refresh,
+    refresh: () => { access.refresh(); contractsResource.refresh(); },
   };
 }

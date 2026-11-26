@@ -48,8 +48,8 @@ it("selects just one destination for nested routes and contextual pages", () => 
   }
   expect(isItemOrChildActive(navigationGroups[1].items[5], "/reconciliation/moadian")).toBe(true);
   expect(isCurrentNavItem("/reports", "/reports-other")).toBe(false);
-  expect(navigationGroups[1].items[4].children?.map(({ href }) => href)).toEqual(["/payroll/contracts", "/payroll"]);
-  expect(navigationGroups[1].items[4].children?.map(({ label }) => label)).toEqual(["قرارداد", "فیش حقوقی"]);
+  expect(navigationGroups[1].items[4].children?.map(({ href }) => href)).toEqual(["/payroll/employees", "/payroll/contracts", "/payroll"]);
+  expect(navigationGroups[1].items[4].children?.map(({ label }) => label)).toEqual(["کارمندان", "قرارداد", "لیست حقوق و فیش‌ها"]);
   expect(isItemOrChildActive(navigationGroups[1].items[4], "/payroll/contracts")).toBe(true);
   expect(isItemOrChildActive(navigationGroups[1].items[4], "/employee-reports")).toBe(false);
   expect(isItemOrChildActive(navigationGroups[2].items[0], "/employee-reports")).toBe(true);

@@ -71,8 +71,10 @@ def test_import_preview_does_not_change_catalog_then_guard_changes_and_company(d
 def test_duplicate_and_stale_catalog_rejected_all_or_none(data):
     db, owner, _ = data
     row = {"code": "001", "name": "بانک", "active": True}
-    with pytest.raises(DomainError):
+    with pytest.raises(DomainError) as duplicate:
         preview_chart(db, "c", owner, [row, row])
+    assert duplicate.value.code == "duplicate_account_code"
+    assert duplicate.value.fields.keys() == {"chart-row-0", "chart-row-1"}
     checked = preview_chart(db, "c", owner, [row])
     db.add(Account(company_id="c", code="002", name="دیگر", active=True))
     db.flush()

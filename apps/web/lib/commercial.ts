@@ -84,9 +84,17 @@ export type Proforma = Omit<ProformaForm, "lines" | "expiry_date" | "terms"> & {
   total_amount: string;
   invoice_discount?: string;
   status: string;
+  party_name?: string | null;
+  party_code?: string | null;
+  converted_operation_id?: string | null;
+  converted_draft_id?: string | null;
+  converted_document_id?: string | null;
+  converted_document_number?: string | null;
+  converted_document_status?: string | null;
   lines: (Omit<ProformaLineForm, "key" | "quantity" | "item_id"> & {
     line_id: string;
     item_id: string | null;
+    line_kind?: "goods" | "service";
     quantity: number;
     total: string;
   })[];

@@ -119,11 +119,12 @@ export interface ReconciliationRunResult {
   };
 }
 
-export function useCounterpartyReconciliation() {
+export function useCounterpartyReconciliation(initialPartyId = "") {
   const workspace = useWorkspace();
-  const [selectedPartyId, setSelectedPartyId] = useState<string>("");
+  const [selectedPartyId, setSelectedPartyId] = useState<string>(initialPartyId);
   const [asOfDate, setAsOfDate] = useState<string>(isoDate(new Date()));
   const [toleranceDays, setToleranceDays] = useState<number>(7);
+  const [statementSource, setStatementSource] = useState<"manual" | "paste" | "excel" | "none">("none");
   const [statementRows, setStatementRows] = useState<StatementRow[]>([]);
   const [activeRun, setActiveRun] = useState<ReconciliationRunResult | null>(null);
   const [rawPastedText, setRawPastedText] = useState("");
@@ -174,11 +175,13 @@ export function useCounterpartyReconciliation() {
     }
     if (parsed.length > 0) {
       setStatementRows(parsed);
+      setStatementSource("paste");
     }
   };
 
   const addManualRow = (row: StatementRow) => {
     setStatementRows((prev) => [...prev, row]);
+    setStatementSource((prev) => (prev === "none" ? "manual" : prev));
   };
 
   const removeRow = (index: number) => {
@@ -188,6 +191,7 @@ export function useCounterpartyReconciliation() {
   const clearRows = () => {
     setStatementRows([]);
     setRawPastedText("");
+    setStatementSource("none");
   };
 
   const executeReconcile = async () => {
@@ -236,6 +240,8 @@ export function useCounterpartyReconciliation() {
     setAsOfDate,
     toleranceDays,
     setToleranceDays,
+    statementSource,
+    setStatementSource,
     statementRows,
     setStatementRows,
     rawPastedText,

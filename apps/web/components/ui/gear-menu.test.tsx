@@ -27,7 +27,7 @@ describe("GearMenu", () => {
     expect(screen.getByRole("button", { name: /تعاریف مالی و حسابداری/ })).toBeVisible();
     expect(screen.queryByRole("button", { name: /کارمندان و پرسنل/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /شرکت و دسترسی/ })).toBeVisible();
-    expect(screen.getByRole("link", { name: /^اسناد/ })).toHaveAttribute("href", "/settings/documents");
+    expect(screen.getByRole("link", { name: /^فایل‌ها و مدارک/ })).toHaveAttribute("href", "/settings/documents");
     expect(screen.queryByRole("button", { name: /میز کار تطبیق و مغایرت/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /انبار و کالا/ })).not.toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe("GearMenu", () => {
     expect(periodsLink).toBeVisible();
     expect(periodsLink).toHaveAttribute("href", "/settings/periods");
 
-    const dimensionsLink = screen.getByRole("link", { name: /مرکز حساب‌ها/ });
+    const dimensionsLink = screen.getByRole("link", { name: /پروژه، شعبه و مرکز هزینه/ });
     expect(dimensionsLink).toBeVisible();
     expect(dimensionsLink).toHaveAttribute("href", "/settings/dimensions");
 

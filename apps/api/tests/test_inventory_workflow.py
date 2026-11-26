@@ -340,16 +340,17 @@ def test_catalogue_http_upgrades_legacy_guards_and_preserves_movements(tmp_path)
         SETUP
         + r"""
 from sqlalchemy import text
-from didban.db import engine
+from didban.db import engine, migrate_schema
 
 with engine.begin() as conn:
+    conn.exec_driver_sql("UPDATE didban_schema_version SET version = 1")
     for table in ("inventory_items", "inventory_warehouses"):
         for operation in ("UPDATE", "DELETE"):
             conn.exec_driver_sql(
                 f"CREATE TRIGGER immutable_{table}_{operation} BEFORE {operation} ON {table} "
                 "BEGIN SELECT RAISE(ABORT, 'immutable fact'); END"
             )
-initialize()
+migrate_schema()
 initialize()
 
 for entity, row in (("items", item), ("warehouses", warehouse)):
@@ -392,3 +393,29 @@ else:
     raise AssertionError("Posted inventory movements must remain immutable")
 """,
     )
+
+
+def test_cardex_uses_requested_date_and_rejects_inventory_movement_for_services(tmp_path):
+    scenario(tmp_path, SETUP + r"""
+service = checked(command(owner, "POST", stock + "/items", {
+    "name": "خدمت آزمایشی", "item_kind": "service", "inventory_account_id": "stock",
+}), 201)
+payload = goods_input("purchase_goods", "SERVICE", 1, "100", "2026-09-10", item_id=service["id"])
+rejected(command(manager, "POST", stock + "/drafts", payload), 422, "item_not_goods")
+
+first = goods("purchase_goods", "A", 3, "100", "2026-09-11")
+post_draft(first["draft"]["id"])
+second = goods("purchase_goods", "B", 2, "200", "2026-09-20")
+second_journal = post_draft(second["draft"]["id"])
+balance = checked(viewer.get(stock + "?as_of=2026-09-15"))
+assert balance["as_of"] == "2026-09-15"
+assert balance["balances"][0]["quantity"] == 3
+cardex = checked(viewer.get(stock + "/cardex", params={
+    "item_id": item["id"], "warehouse_id": warehouse["id"], "from_date": "2026-09-15",
+}))
+assert cardex["opening_quantity"] == 3
+assert cardex["rows"][0]["in_quantity"] == 2
+assert cardex["rows"][0]["balance_quantity"] == 5
+assert cardex["rows"][0]["journal_id"] == second_journal["id"]
+assert cardex["rows"][0]["operation_id"] == second["operation_id"]
+""")

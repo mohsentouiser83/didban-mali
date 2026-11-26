@@ -7,27 +7,10 @@ import {
   type User,
 } from "@/lib/api";
 import type { AccountingPermission } from "@/lib/accounting";
+import { memberRoles } from "@/lib/members";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
-export const memberRoles = [
-  { value: "owner", label: "مالک" },
-  { value: "finance_manager", label: "مدیر مالی" },
-  { value: "advisor", label: "مشاور / حسابدار" },
-  { value: "viewer", label: "مشاهده‌گر" },
-];
-
-export const memberRoleFilterOptions = [
-  { value: "all", label: "همه نقش‌ها" },
-  ...memberRoles,
-];
-
-export const memberStatusFilterOptions = [
-  { value: "all", label: "همه وضعیت‌ها" },
-  { value: "active", label: "فعال" },
-  { value: "inactive", label: "غیرفعال" },
-];
-
 function normalized(value: string) {
   return value
     .replace(/ي/g, "ی")
@@ -197,11 +180,17 @@ export function useMemberManagement() {
       "دسترسی‌های حسابداری ذخیره شد.",
     );
   }
+  const lastActiveOwnerId = (() => {
+    const activeOwners = listItems(members.data).filter((m) => m.role === "owner" && m.active);
+    return activeOwners.length === 1 ? activeOwners[0].id : null;
+  })();
+
   return {
     workspace,
     members,
     users,
     permissions,
+    lastActiveOwnerId,
     command,
     accessCommand,
     validation,

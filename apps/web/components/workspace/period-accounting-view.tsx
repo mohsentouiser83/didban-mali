@@ -1,5 +1,6 @@
 "use client";
-import { BooksIcon } from "@phosphor-icons/react";
+import { useEffect } from "react";
+import { ArrowUpLeftIcon, BooksIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
@@ -13,9 +14,24 @@ import {
 } from "@/components/ui/content-states";
 import { useWorkspace } from "@/hooks/workspace";
 import { usePeriodAccounting } from "@/hooks/use-period-accounting";
+import { displayDate } from "@/lib/utils";
 import { PageHeader, Panel, NoCompany } from "./page-parts";
-export function PeriodAccountingView() {
+import { PeriodLockPanel } from "./period-lock-panel";
+export function PeriodAccountingView({
+  initialPeriodId,
+}: {
+  initialPeriodId?: string;
+} = {}) {
   const w = useWorkspace();
+  useEffect(() => {
+    if (
+      initialPeriodId &&
+      w.periods.some((p) => p.id === initialPeriodId) &&
+      w.periodId !== initialPeriodId
+    ) {
+      w.setPeriodId(initialPeriodId);
+    }
+  }, [initialPeriodId, w]);
   return w.company ? (
     <Workspace key={`${w.user?.id}:${w.company.id}`} />
   ) : (
@@ -24,13 +40,36 @@ export function PeriodAccountingView() {
 }
 function Workspace() {
   const c = usePeriodAccounting();
+  const activePeriod = c.workspace.periods.find((p) => p.id === c.target);
   return (
     <>
       <PageHeader
-        title="اسناد پایان و آغاز دوره"
+        title="بستن و افتتاح دوره"
         icon={BooksIcon}
+        action={
+          <ButtonLink variant="secondary" href="/settings/periods">
+            تعریف و ویرایش دوره‌ها
+            <ArrowUpLeftIcon size={16} aria-hidden />
+          </ButtonLink>
+        }
       />
-      <Panel>
+      <div className="space-y-6">
+        <Panel
+          title={
+            activePeriod
+              ? `وضعیت قفل و آمادگی دوره: ${activePeriod.name} (${displayDate(activePeriod.start)} تا ${displayDate(activePeriod.end)})`
+              : "وضعیت قفل و آمادگی دوره"
+          }
+        >
+          {c.target ? (
+            <PeriodLockPanel periodId={c.target} />
+          ) : (
+            <StatusMessage tone="warning">
+              ابتدا از هدر یا بخش «تعریف و ویرایش دوره‌ها» یک دوره مالی انتخاب کنید.
+            </StatusMessage>
+          )}
+        </Panel>
+        <Panel title="پیش‌نویس اسناد بستن و افتتاحیه">
         {c.accounts.loading || c.roles.resource.loading ? (
           <LoadingState />
         ) : c.accounts.error || c.roles.resource.error ? (
@@ -163,7 +202,8 @@ function Workspace() {
             )}
           </Form>
         )}
-      </Panel>
+        </Panel>
+      </div>
     </>
   );
 }

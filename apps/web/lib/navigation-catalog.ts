@@ -59,8 +59,9 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/payroll", label: "حقوق و دستمزد", icon: UsersThreeIcon,
         children: [
+          { href: "/payroll/employees", label: "کارمندان", icon: UsersThreeIcon },
           { href: "/payroll/contracts", label: "قرارداد", icon: BooksIcon },
-          { href: "/payroll", label: "فیش حقوقی", icon: WalletIcon },
+          { href: "/payroll", label: "لیست حقوق و فیش‌ها", icon: WalletIcon },
         ],
       },
       {

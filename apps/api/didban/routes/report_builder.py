@@ -60,7 +60,7 @@ def get_field_registry(company_id: str, entity_type: str, request: Request):
 @router.post(BASE + "/block-preview")
 def block_preview(company_id: str, data: BlockPreviewInput, request: Request):
     """Safely executes a single custom report block query."""
-    with access(request, company_id) as (db, _user, _member):
+    with access(request, company_id) as (db, user, _member):
         period = db.get(m.Period, data.period_id) if data.period_id else None
         return FinancialBlockQueryEngine.execute(
             db=db,
@@ -68,6 +68,7 @@ def block_preview(company_id: str, data: BlockPreviewInput, request: Request):
             block=data.block,
             period=period,
             limit=data.limit,
+            actor=user,
         )
 
 

@@ -7,12 +7,13 @@ import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
 import { Drawer } from "@/components/ui/drawer";
-import { Field } from "@/components/ui/field";
-import { AmountInput } from "@/components/ui/input";
+import { Field, FormMessage } from "@/components/ui/field";
+import { AmountInput, Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import type { EmployeeContract } from "@/lib/api";
 import { amount, displayDate, persian } from "@/lib/utils";
 
 const contractTypeLabels: Record<string, string> = {
@@ -32,18 +33,18 @@ export function ContractsManagementView() {
       <PageHeader
         title="قرارداد کارمندان"
         icon={BooksIcon}
-        action={
+        action={v.canPrepare && (
           <Button variant="primary" onClick={v.openAdd}>
             <PlusIcon size={18} aria-hidden />
             ثبت قرارداد جدید
           </Button>
-        }
+        )}
       />
 
       {v.loading ? (
         <LoadingState label="در حال بارگذاری قراردادها..." />
       ) : v.error ? (
-        <ErrorState message={v.error.message} onRetry={v.refresh} />
+        <ErrorState message={v.error.message} onRetry={v.error.status === 403 ? undefined : v.refresh} />
       ) : (
         <div className="space-y-5">
           <Panel title="فهرست قراردادهای کارمندان">
@@ -76,7 +77,7 @@ export function ContractsManagementView() {
               <span className="text-xs text-muted">{persian(v.contracts.length)} قرارداد</span>
             </div>
 
-            <Table title="قراردادهای کارمندان" onImport={v.importFromExcel}>
+            <Table title="قراردادهای کارمندان" showSearch={false} onImport={v.canPrepare ? v.importFromExcel : undefined}>
               <TableHeader>
                 <TableRow>
                   <TableHead>شماره قرارداد</TableHead>
@@ -87,6 +88,7 @@ export function ContractsManagementView() {
                   <TableHead>حقوق پایه ({v.workspace.unit === "IRR" ? "ریال" : "تومان"})</TableHead>
                   <TableHead>بن و مسکن</TableHead>
                   <TableHead>وضعیت</TableHead>
+                  <TableHead>قرارداد مبنای الحاقیه</TableHead>
                   <TableHead className="text-end">عملیات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -123,6 +125,11 @@ export function ContractsManagementView() {
                           <span className="text-xs text-amber-600">پیش‌نویس</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {con.amendment_of_contract_id
+                          ? v.contractNumbers.get(con.amendment_of_contract_id) ?? "—"
+                          : "—"}
+                      </TableCell>
                       <TableCell className="text-end">
                         <Button variant="ghost" className="size-8 p-0" onClick={() => v.openEdit(con)} title="ویرایش">
                           <PencilSimpleIcon size={16} />
@@ -132,7 +139,7 @@ export function ContractsManagementView() {
                   ))
                 ) : (
                   <TableEmptyCell
-                    colSpan={9}
+                    colSpan={10}
                     title="قراردادی ثبت نشده است"
                     action={
                       <Button variant="secondary" onClick={v.openAdd}>
@@ -149,7 +156,7 @@ export function ContractsManagementView() {
 
       {/* Add / Edit Contract Drawer */}
       <Drawer
-        open={v.formOpen}
+        open={v.canPrepare && v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش قرارداد" : "ثبت قرارداد جدید"}
         description="شرایط همکاری، نوع قرارداد و مبالغ ثابت ماهانه یا ساعتی را مشخص کنید."
@@ -171,7 +178,7 @@ export function ContractsManagementView() {
               <Field id="con-emp" label="کارمند" required>
                 <Select
                   value={v.form.employee_id}
-                  onValueChange={(val) => v.setForm({ ...v.form, employee_id: val })}
+                  onValueChange={(employee_id) => v.setForm({ ...v.form, employee_id, amendment_of_contract_id: null })}
                   options={v.employees.map((e) => ({
                     value: e.id,
                     label: `${e.full_name} (${e.employee_code})`,
@@ -179,14 +186,19 @@ export function ContractsManagementView() {
                   disabled={!!v.editing}
                 />
               </Field>
-              
+              <Field id="con-workshop" label="کارگاه">
+                <Select id="con-workshop" value={v.form.workshop_id ?? "none"}
+                  options={[{ value: "none", label: "بدون کارگاه" }, ...v.workshopOptions]}
+                  onValueChange={(value) => v.setForm({ ...v.form, workshop_id: value === "none" ? null : value })}
+                  searchable />
+              </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field id="con-type" label="نوع قرارداد" required>
                 <Select
                   value={v.form.contract_type || "full_time"}
-                  onValueChange={(val) => v.setForm({ ...v.form, contract_type: val as any })}
+                  onValueChange={(val) => v.setForm({ ...v.form, contract_type: val as EmployeeContract["contract_type"] })}
                   options={[
                     { value: "full_time", label: "تمام‌وقت (مبنای قانون کار)" },
                     { value: "part_time", label: "پاره‌وقت (ماده ۳۹ نسبت به ساعت)" },
@@ -214,6 +226,38 @@ export function ContractsManagementView() {
               </Field>
             </div>
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="con-location" label="محل کار">
+              <Input id="con-location" maxLength={200} value={v.form.work_location ?? ""}
+                onChange={(event) => v.setForm({ ...v.form, work_location: event.target.value })} />
+            </Field>
+            <Field id="con-description" label="شرح کار">
+              <Input id="con-description" maxLength={300} value={v.form.work_description ?? ""}
+                onChange={(event) => v.setForm({ ...v.form, work_description: event.target.value })} />
+            </Field>
+            <Field id="con-hours" label="ساعت کار هفتگی">
+              <Input id="con-hours" inputMode="decimal" maxLength={20} value={String(v.form.weekly_hours ?? "")}
+                onChange={(event) => v.setForm({ ...v.form, weekly_hours: event.target.value })} />
+            </Field>
+            <Field id="con-status" label="وضعیت" required>
+              <Select id="con-status" value={v.form.status ?? "active"}
+                options={[{ value: "active", label: "فعال" }, { value: "draft", label: "پیش‌نویس" },
+                  { value: "terminated", label: "پایان‌یافته" }]}
+                onValueChange={(status) => v.setForm({ ...v.form, status: status as EmployeeContract["status"] })} />
+            </Field>
+            <Field id="con-conclusion" label="تاریخ انعقاد">
+              <PersianDatePicker id="con-conclusion" label="تاریخ انعقاد" value={v.form.conclusion_date ?? ""}
+                onChange={(value) => v.setForm({ ...v.form, conclusion_date: value || null })} />
+            </Field>
+            <Field id="con-amendment" label="قرارداد مبنای الحاقیه">
+              <Select id="con-amendment" value={v.form.amendment_of_contract_id ?? "none"}
+                options={[{ value: "none", label: "بدون الحاقیه" }, ...v.amendmentOptions]}
+                onValueChange={(value) => v.setForm({ ...v.form, amendment_of_contract_id: value === "none" ? null : value })}
+                searchable />
+            </Field>
+          </div>
+          <FormMessage error>{v.command.error?.message}</FormMessage>
 
           {/* اقلام حقوق و مزایا */}
           <div className="space-y-4">

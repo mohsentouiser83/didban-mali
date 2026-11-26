@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { ReportsView } from "./reports-view";
 
 const state = vi.hoisted(() => ({
-  workspace: { company: { id: "c" }, canWrite: true },
+  workspace: { company: { id: "c" }, canWrite: true, periods: [] },
   resource: {}, command: { busy: false }, approving: null,
   loading: false, error: null, reports: [],
   definitions: [{ id: "builtin", name: "دفتر روزنامه", system_key: "journals" },

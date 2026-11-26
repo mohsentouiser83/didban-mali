@@ -1,17 +1,19 @@
 """Operational treasury accounts (bank, cashbox, petty cash) and receipt/payment documents."""
 
 import re
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal, localcontext
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import Select, select, update
 from sqlalchemy.orm import Session
 
 from . import models as m
-from .accounting_models import Account
-from .accounting_service import capabilities, save_account
-from .cheque_models import Cheque, ChequeClearance
+from .accounting_models import Account, Draft
+from .accounting_service import capabilities, save_account, save_draft
+from .cheque_models import Cheque, ChequeClearance, ChequeEvent
 from .commercial_models import CommercialCounterparty
 from .commercial_service import resolve_counterparty, resolve_counterparty_id
 from .errors import DomainError, require
@@ -25,14 +27,33 @@ from .native_invoice_models import (
 )
 from .native_reporting_models import NativeAccountRole
 from .numbering_service import allocate_number
+from .operation_models import OperationDraft
 from .period_lock_service import require_open_period
+from .posting_models import NativeJournal
 from .security import membership
 from .services import check_version, get_entity
 from .treasury_models import TreasuryAccount, TreasuryAllocation, TreasuryDocument, TreasuryToolLine
+from .treasury_schemas import TreasuryAccountOption
 from .workflow import audit, serialize_fact
 
 IBAN_RE = re.compile(r"^IR[0-9]{24}$")
 DIGITS_OR_DASH_RE = re.compile(r"^[0-9A-Za-z\-/]{3,60}$")
+
+
+def lock_treasury_capacity(db: Session, company: str) -> None:
+    """Serialize shared bank movement, treasury tool, and invoice capacity across concurrent requests."""
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(update(m.Company).where(m.Company.id == company).values(version=m.Company.version))
+    else:
+        db.scalar(select(m.Company).where(m.Company.id == company).with_for_update())
+
+
+def _company_date(db: Session, company: str, stamp: datetime) -> date:
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    tenant = db.get(m.Company, company)
+    assert tenant is not None
+    return stamp.astimezone(ZoneInfo(tenant.timezone)).date()
 
 
 def bank_movement_used_amount(db: Session, company: str, bank_id: str) -> Decimal:
@@ -109,7 +130,21 @@ def _serialize_treasury_account(db: Session, company: str, item: TreasuryAccount
     data = serialize_fact(item)
     data["account_code"] = acc.code if acc else None
     data["account_name"] = acc.name if acc else None
+    data["account_active"] = acc.active if acc else None
     return data
+
+
+def _treasury_account_query(
+    company: str,
+    kind: str | None,
+    active_only: bool,
+) -> Select[tuple[TreasuryAccount]]:
+    stmt = select(TreasuryAccount).where(TreasuryAccount.company_id == company)
+    if kind:
+        stmt = stmt.where(TreasuryAccount.kind == kind)
+    if active_only:
+        stmt = stmt.where(TreasuryAccount.active.is_(True))
+    return stmt.order_by(TreasuryAccount.kind.asc(), TreasuryAccount.name.asc(), TreasuryAccount.id.asc())
 
 
 def list_treasury_accounts(
@@ -119,14 +154,28 @@ def list_treasury_accounts(
     kind: str | None = None,
     active_only: bool = False,
 ) -> dict[str, Any]:
-    membership(db, company, user, "read")
-    stmt = select(TreasuryAccount).where(TreasuryAccount.company_id == company)
-    if kind:
-        stmt = stmt.where(TreasuryAccount.kind == kind)
-    if active_only:
-        stmt = stmt.where(TreasuryAccount.active.is_(True))
-    items = list(db.scalars(stmt.order_by(TreasuryAccount.kind.asc(), TreasuryAccount.name.asc())))
+    require(
+        capabilities(db, company, user)["can_manage_accounts"],
+        "permission_denied",
+        "اجازه مشاهده جزئیات حساب‌های خزانه ندارید.",
+        403,
+    )
+    items = db.scalars(_treasury_account_query(company, kind, active_only))
     return {"items": [_serialize_treasury_account(db, company, row) for row in items]}
+
+
+def list_treasury_account_options(
+    db: Session,
+    company: str,
+    user: m.User,
+    kind: str | None = None,
+    active_only: bool = False,
+) -> dict[str, list[TreasuryAccountOption]]:
+    membership(db, company, user, "read")
+    stmt = _treasury_account_query(company, kind, active_only).with_only_columns(
+        TreasuryAccount.id, TreasuryAccount.name, TreasuryAccount.kind, TreasuryAccount.active,
+    )
+    return {"items": [TreasuryAccountOption.model_validate(dict(row)) for row in db.execute(stmt).mappings()]}
 
 
 def create_treasury_account(
@@ -271,40 +320,288 @@ def update_treasury_account(
     return _serialize_treasury_account(db, company, item)
 
 
+def _posted_treasury_proof_error(
+    db: Session,
+    company: str,
+    ta: TreasuryAllocation,
+    tl: TreasuryToolLine,
+    doc: TreasuryDocument,
+    as_of: date,
+) -> str | None:
+    if not doc.journal_id:
+        return "treasury_payment_proof_missing"
+    journal = db.scalar(
+        select(NativeJournal).where(
+            NativeJournal.company_id == company,
+            NativeJournal.id == doc.journal_id,
+        )
+    )
+    if journal is None or journal.reversal_of or journal.date != doc.date or journal.date > as_of:
+        return "treasury_payment_proof_invalid"
+    draft = db.scalar(
+        select(Draft).where(Draft.company_id == company, Draft.id == journal.draft_id)
+    )
+    if draft is None or draft.state != "posted":
+        return "treasury_payment_proof_invalid"
+    reversed_journal = db.scalar(
+        select(NativeJournal.id).where(
+            NativeJournal.company_id == company,
+            NativeJournal.reversal_of == journal.id,
+            NativeJournal.date <= as_of,
+        )
+    )
+    if reversed_journal is not None:
+        return "treasury_payment_proof_reversed"
+    lines = (journal.snapshot or {}).get("lines") or []
+    with localcontext() as ctx:
+        ctx.prec = 60
+        total_debit = sum((Decimal(str(line.get("debit", "0"))) for line in lines), Decimal(0))
+        total_credit = sum((Decimal(str(line.get("credit", "0"))) for line in lines), Decimal(0))
+        doc_total = Decimal(doc.total_amount)
+        if total_debit != doc_total or total_credit != doc_total:
+            return "treasury_payment_proof_mismatch"
+        side_key = "credit" if doc.direction == "receipt" else "debit"
+        cp_amount = Decimal(0)
+        for line in lines:
+            line_cp = line.get("counterparty_id") or (
+                resolve_counterparty_id(db, company, line.get("party_id", ""))
+                if line.get("party_id")
+                else None
+            )
+            if line_cp == doc.counterparty_id:
+                cp_amount += Decimal(str(line.get(side_key, "0")))
+        if cp_amount < Decimal(ta.amount):
+            return "treasury_payment_proof_mismatch"
+    if doc.operation_id:
+        op = db.scalar(
+            select(OperationDraft).where(
+                OperationDraft.company_id == company,
+                OperationDraft.id == doc.operation_id,
+            )
+        )
+        if op is None or op.draft_id != journal.draft_id:
+            return "treasury_payment_proof_invalid"
+        dup_native = db.scalar(
+            select(NativeInvoiceAllocation.id).where(
+                NativeInvoiceAllocation.company_id == company,
+                NativeInvoiceAllocation.operation_id == op.id,
+                NativeInvoiceAllocation.date <= as_of,
+                ~NativeInvoiceAllocation.id.in_(
+                    select(NativeInvoiceAllocationReversal.allocation_id).where(
+                        NativeInvoiceAllocationReversal.company_id == company,
+                        NativeInvoiceAllocationReversal.date <= as_of,
+                    )
+                ),
+            )
+        )
+        if dup_native is not None:
+            return "settlement_duplicate_path"
+    if tl.bank_movement_id:
+        bm = db.scalar(
+            select(m.BankMovement).where(
+                m.BankMovement.company_id == company,
+                m.BankMovement.id == tl.bank_movement_id,
+            )
+        )
+        if bm is None or bm.kind in ANCHOR_KINDS or bm.date > as_of:
+            return "treasury_bank_proof_invalid"
+        bm_val = Decimal(bm.amount)
+        if (bm_val <= 0) if doc.direction == "receipt" else (bm_val >= 0):
+            return "treasury_bank_proof_invalid"
+        if bank_movement_used_amount(db, company, bm.id) > bm_val.copy_abs():
+            return "treasury_bank_capacity_invalid"
+    if tl.cheque_id:
+        chq = db.scalar(
+            select(Cheque).where(Cheque.company_id == company, Cheque.id == tl.cheque_id)
+        )
+        expected_dir = "received" if doc.direction == "receipt" else "issued"
+        if (
+            chq is None
+            or chq.direction != expected_dir
+            or (chq.received_date or chq.issue_date) > as_of
+            or Decimal(tl.amount) > Decimal(chq.amount)
+        ):
+            return "treasury_cheque_proof_invalid"
+        cheque_state = db.scalar(
+            select(ChequeEvent.new_state)
+            .where(
+                ChequeEvent.company_id == company,
+                ChequeEvent.cheque_id == chq.id,
+                ChequeEvent.event_date <= as_of,
+            )
+            .order_by(ChequeEvent.event_date.desc(), ChequeEvent.created_at.desc(), ChequeEvent.id.desc())
+            .limit(1)
+        )
+        if (cheque_state or chq.state) in ("cancelled", "returned", "bounced"):
+            return "treasury_cheque_proof_invalid"
+    return None
+
+
+def treasury_allocation_effect(
+    db: Session,
+    company: str,
+    ta: TreasuryAllocation,
+    tl: TreasuryToolLine,
+    doc: TreasuryDocument,
+    as_of: date,
+) -> dict[str, Any]:
+    """Separate draft reservation from definitive posted invoice reduction with payment proof."""
+    if ta.reversed_at and _company_date(db, company, ta.reversed_at) <= as_of:
+        return {
+            "reversed": True,
+            "effective": False,
+            "reserved": False,
+            "status": "reversed",
+            "reason": None,
+            "reversal": {"reason": ta.reversal_reason},
+        }
+    if doc.state == "draft":
+        return {
+            "reversed": False,
+            "effective": False,
+            "reserved": True,
+            "status": "reserved",
+            "reason": "treasury_document_unposted",
+        }
+    error_code = _posted_treasury_proof_error(db, company, ta, tl, doc, as_of)
+    if error_code == "treasury_payment_proof_reversed":
+        return {"reversed": True, "effective": False, "reserved": False, "status": "reversed", "reason": None}
+    if error_code is not None:
+        return {
+            "reversed": False,
+            "effective": False,
+            "reserved": False,
+            "status": "unavailable",
+            "reason": error_code,
+        }
+    return {"reversed": False, "effective": True, "reserved": False, "status": "available", "reason": None}
+
+
+def effective_treasury_paid_for_invoice(
+    db: Session, company: str, invoice_id: str, as_of: date | None = None
+) -> Decimal:
+    """Total definitive (posted + valid payment proof) treasury allocations for an invoice."""
+    effective_date = as_of or date.max
+    total = Decimal(0)
+    with localcontext() as ctx:
+        ctx.prec = 60
+        for ta, tl, doc in db.execute(
+            select(TreasuryAllocation, TreasuryToolLine, TreasuryDocument)
+            .join(
+                TreasuryToolLine,
+                (TreasuryToolLine.company_id == TreasuryAllocation.company_id)
+                & (TreasuryToolLine.id == TreasuryAllocation.tool_line_id),
+            )
+            .join(
+                TreasuryDocument,
+                (TreasuryDocument.company_id == TreasuryToolLine.company_id)
+                & (TreasuryDocument.id == TreasuryToolLine.document_id),
+            )
+            .where(
+                TreasuryAllocation.company_id == company,
+                TreasuryAllocation.invoice_id == invoice_id,
+                TreasuryAllocation.date <= effective_date,
+            )
+        ).all():
+            eff = treasury_allocation_effect(db, company, ta, tl, doc, effective_date)
+            if eff["effective"]:
+                total += Decimal(ta.amount)
+    return total
+
+
+def treasury_allocation_has_payment_proof(
+    db: Session, company: str, tl: TreasuryToolLine, doc: TreasuryDocument
+) -> bool:
+    """Return True only when the treasury document is posted with valid payment proof."""
+    if doc.state != "posted":
+        return False
+    return _posted_treasury_proof_error(db, company, TreasuryAllocation(amount=tl.amount), tl, doc, date.max) is None
+
+
 def _invoice_remaining(db: Session, company: str, invoice: NativeInvoice) -> Decimal:
+    """Available invoice capacity for new allocations/reservations across all active paths."""
+    from .commercial_doc_models import CommercialDocument, CommercialReturn, CounterpartyCreditApplication
+
     source = invoice.source or {}
     total = Decimal(canonical_money(source.get("amount", "0")))
-    used_legacy = sum(
-        (
-            Decimal(row.amount)
-            for row in db.scalars(
-                select(NativeInvoiceAllocation).where(
-                    NativeInvoiceAllocation.company_id == company,
-                    NativeInvoiceAllocation.invoice_id == invoice.id,
-                    ~NativeInvoiceAllocation.id.in_(
-                        select(NativeInvoiceAllocationReversal.allocation_id).where(
-                            NativeInvoiceAllocationReversal.company_id == company
+    with localcontext() as ctx:
+        ctx.prec = 60
+        used_legacy = sum(
+            (
+                Decimal(row.amount)
+                for row in db.scalars(
+                    select(NativeInvoiceAllocation).where(
+                        NativeInvoiceAllocation.company_id == company,
+                        NativeInvoiceAllocation.invoice_id == invoice.id,
+                        ~NativeInvoiceAllocation.id.in_(
+                            select(NativeInvoiceAllocationReversal.allocation_id).where(
+                                NativeInvoiceAllocationReversal.company_id == company
+                            )
+                        ),
+                    )
+                )
+            ),
+            Decimal(0),
+        )
+        used_treasury = sum(
+            (
+                Decimal(row.amount)
+                for row in db.scalars(
+                    select(TreasuryAllocation)
+                    .join(
+                        TreasuryToolLine,
+                        (TreasuryToolLine.company_id == TreasuryAllocation.company_id)
+                        & (TreasuryToolLine.id == TreasuryAllocation.tool_line_id),
+                    )
+                    .join(
+                        TreasuryDocument,
+                        (TreasuryDocument.company_id == TreasuryToolLine.company_id)
+                        & (TreasuryDocument.id == TreasuryToolLine.document_id),
+                    )
+                    .where(
+                        TreasuryAllocation.company_id == company,
+                        TreasuryAllocation.invoice_id == invoice.id,
+                        TreasuryAllocation.reversed_at.is_(None),
+                        TreasuryDocument.state != "reversed",
+                    )
+                )
+            ),
+            Decimal(0),
+        )
+        commercial_used = Decimal(0)
+        cdoc = db.scalar(
+            select(CommercialDocument).where(
+                CommercialDocument.company_id == company,
+                CommercialDocument.native_invoice_id == invoice.id,
+            )
+        )
+        if cdoc is not None:
+            commercial_used += sum(
+                (
+                    Decimal(r.invoice_balance_reduced_irr)
+                    for r in db.scalars(
+                        select(CommercialReturn).where(
+                            CommercialReturn.company_id == company,
+                            CommercialReturn.document_id == cdoc.id,
+                            CommercialReturn.status == "posted",
                         )
-                    ),
-                )
+                    )
+                ),
+                Decimal(0),
             )
-        ),
-        Decimal(0),
-    )
-    used_treasury = sum(
-        (
-            Decimal(row.amount)
-            for row in db.scalars(
-                select(TreasuryAllocation).where(
-                    TreasuryAllocation.company_id == company,
-                    TreasuryAllocation.invoice_id == invoice.id,
-                    TreasuryAllocation.reversed_at.is_(None),
-                )
+            commercial_used += sum(
+                (
+                    Decimal(app.amount_irr)
+                    for app in db.scalars(
+                        select(CounterpartyCreditApplication).where(
+                            CounterpartyCreditApplication.company_id == company,
+                            CounterpartyCreditApplication.target_document_id == cdoc.id,
+                        )
+                    )
+                ),
+                Decimal(0),
             )
-        ),
-        Decimal(0),
-    )
-    return max(Decimal(0), total - used_legacy - used_treasury)
+        return max(Decimal(0), total - used_legacy - used_treasury - commercial_used)
 
 
 def _tool_line_allocated(db: Session, company: str, tool_line_id: str) -> Decimal:
@@ -344,9 +641,50 @@ def _serialize_document(db: Session, company: str, doc: TreasuryDocument) -> dic
         if tool_ids
         else []
     )
+    cp = db.get(CommercialCounterparty, doc.counterparty_id)
+    with localcontext() as ctx:
+        ctx.prec = 60
+        alloc_by_tool: dict[str, Decimal] = {}
+        for a in allocs:
+            if a.reversed_at is None:
+                alloc_by_tool[a.tool_line_id] = alloc_by_tool.get(a.tool_line_id, Decimal(0)) + Decimal(a.amount)
+        serialized_tools = []
+        any_proof = False
+        for t in tools:
+            used_amt = alloc_by_tool.get(t.id, Decimal(0))
+            rem_amt = max(Decimal(0), Decimal(t.amount) - used_amt)
+            line_proof = treasury_allocation_has_payment_proof(db, company, t, doc)
+            if line_proof:
+                any_proof = True
+            serialized_tools.append(
+                serialize_fact(t)
+                | {
+                    "allocated_amount": canonical_money(used_amt),
+                    "remaining_amount": canonical_money(rem_amt),
+                    "has_payment_proof": line_proof,
+                }
+            )
+        total_allocated = sum(alloc_by_tool.values(), Decimal(0))
+        allocatable_amount = (
+            Decimal(0) if doc.state == "reversed" else max(Decimal(0), Decimal(doc.total_amount) - total_allocated)
+        )
+        inv_refs: dict[str, str] = {}
+        for a in allocs:
+            if a.invoice_id not in inv_refs:
+                inv = db.get(NativeInvoice, a.invoice_id)
+                if inv and inv.company_id == company:
+                    inv_refs[a.invoice_id] = (inv.source or {}).get("reference", a.invoice_id)
     return serialize_fact(doc) | {
-        "tools": [serialize_fact(t) for t in tools],
-        "allocations": [serialize_fact(a) for a in allocs],
+        "counterparty_name": cp.name if cp and cp.company_id == company else None,
+        "counterparty_code": cp.code if cp and cp.company_id == company else None,
+        "allocated_amount": canonical_money(total_allocated),
+        "allocatable_amount": canonical_money(allocatable_amount),
+        "has_payment_proof": any_proof,
+        "tools": serialized_tools,
+        "allocations": [
+            serialize_fact(a) | {"invoice_reference": inv_refs.get(a.invoice_id)}
+            for a in allocs
+        ],
     }
 
 
@@ -359,6 +697,7 @@ def create_treasury_document(
         "اجازه ثبت دریافت یا پرداخت ندارید.",
         403,
     )
+    lock_treasury_capacity(db, company)
     period = get_entity(db, m.Period, company, data["period_id"])
     require_open_period(db, company, period.id)
     require(period.start <= data["date"] <= period.end, "date_outside_period", "تاریخ خارج از دوره مالی است.")
@@ -372,6 +711,8 @@ def create_treasury_document(
         ctx.prec = 60
         total_irr = Decimal(0)
         normalized_tools = []
+        pending_bank_usage: dict[str, Decimal] = {}
+        pending_cheque_ids: set[str] = set()
         for idx, t in enumerate(tools_data):
             amt_irr = Decimal(money(t["amount"], unit))
             require(amt_irr > 0, "treasury_tool_positive", "مبلغ هر ردیف ابزار باید مثبت باشد.")
@@ -387,6 +728,44 @@ def create_treasury_document(
                     "جهت چک با نوع دریافت/پرداخت هم‌خوان نیست.",
                     409,
                 )
+                require(
+                    chq.state not in ("cancelled", "returned", "bounced"),
+                    "cheque_state_invalid",
+                    "چک باطل‌شده یا برگشتی قابل استفاده در سند خزانه نیست.",
+                    409,
+                )
+                require(
+                    chq.id not in pending_cheque_ids,
+                    "duplicate_cheque_tool",
+                    "یک چک نمی‌تواند در چند ردیف یک سند تکرار شود.",
+                    409,
+                )
+                require(
+                    amt_irr <= Decimal(chq.amount),
+                    "treasury_cheque_capacity",
+                    "مبلغ ابزار بیشتر از مبلغ چک است.",
+                    409,
+                )
+                require(
+                    db.scalar(
+                        select(TreasuryToolLine.id)
+                        .join(
+                            TreasuryDocument,
+                            (TreasuryDocument.company_id == TreasuryToolLine.company_id)
+                            & (TreasuryDocument.id == TreasuryToolLine.document_id),
+                        )
+                        .where(
+                            TreasuryToolLine.company_id == company,
+                            TreasuryToolLine.cheque_id == chq.id,
+                            TreasuryDocument.state != "reversed",
+                        )
+                        .limit(1)
+                    ) is None,
+                    "treasury_cheque_already_used",
+                    "چک پیش‌تر در سند خزانه دیگری استفاده شده است.",
+                    409,
+                )
+                pending_cheque_ids.add(chq.id)
             if t.get("bank_movement_id"):
                 bm = get_entity(db, m.BankMovement, company, t["bank_movement_id"])
                 require(bm.kind not in ANCHOR_KINDS, "anchor_not_payment", "مانده مبنا شاهد دریافت/پرداخت نیست.")
@@ -396,13 +775,14 @@ def create_treasury_document(
                     "bank_direction_mismatch",
                     "جهت گردش بانک با نوع سند هم‌خوان نیست.",
                 )
-                used = bank_movement_used_amount(db, company, bm.id)
+                used = bank_movement_used_amount(db, company, bm.id) + pending_bank_usage.get(bm.id, Decimal(0))
                 require(
                     used + amt_irr <= bm_val.copy_abs(),
                     "bank_movement_capacity",
                     "ظرفیت آزاد گردش بانک برای این مبلغ کافی نیست.",
                     409,
                 )
+                pending_bank_usage[bm.id] = pending_bank_usage.get(bm.id, Decimal(0)) + amt_irr
             total_irr += amt_irr
             normalized_tools.append((idx, t, canonical_money(amt_irr)))
 
@@ -512,6 +892,7 @@ def allocate_treasury_tool(
     db: Session, company: str, user: m.User, document_id: str, data: dict[str, Any], expected_version: int
 ) -> dict[str, Any]:
     require(capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تخصیص ندارید.", 403)
+    lock_treasury_capacity(db, company)
     doc = get_entity(db, TreasuryDocument, company, document_id)
     check_version(doc, expected_version)
     require(doc.state != "reversed", "treasury_doc_reversed", "رسید برگشت‌خورده قابل تخصیص نیست.", 409)
@@ -527,6 +908,8 @@ def reverse_treasury_allocation(
     db: Session, company: str, user: m.User, allocation_id: str, reason: str, expected_version: int
 ) -> dict[str, Any]:
     require(capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه برگشت تخصیص ندارید.", 403)
+    require(bool(reason and reason.strip()), "reason_required", "دلیل برگشت تخصیص الزامی است.")
+    lock_treasury_capacity(db, company)
     row = get_entity(db, TreasuryAllocation, company, allocation_id)
     tl = get_entity(db, TreasuryToolLine, company, row.tool_line_id)
     doc = get_entity(db, TreasuryDocument, company, tl.document_id)
@@ -539,6 +922,175 @@ def reverse_treasury_allocation(
     db.flush()
     audit(db, company, user.id, "treasury.allocation_reversed", row.id, {"reason": row.reversal_reason})
     return _serialize_document(db, company, doc)
+
+
+def prepare_treasury_document_draft(
+    db: Session,
+    company: str,
+    user: m.User,
+    document_id: str,
+    data: dict[str, Any],
+    expected_version: int,
+) -> dict[str, Any]:
+    """Create a balanced accounting draft for a TreasuryDocument; requires exact-version human posting."""
+    ability = capabilities(db, company, user)
+    require(ability["can_prepare"], "permission_denied", "اجازه تهیه سند خزانه ندارید.", 403)
+    require(
+        ability["posting_available"], "primary_accounting_required", "کاربرد حسابداری اصلی لازم است.", 409
+    )
+    lock_treasury_capacity(db, company)
+    doc = get_entity(db, TreasuryDocument, company, document_id)
+    check_version(doc, expected_version)
+    require(doc.state == "draft", "treasury_doc_not_draft", "سند خزانه در وضعیت پیش‌نویس نیست.", 409)
+    require(doc.operation_id is None and doc.journal_id is None, "treasury_draft_exists", "پیش‌نویس حسابداری این سند قبلاً ساخته شده است.", 409)
+    require_open_period(db, company, doc.period_id)
+
+    cp_acc = get_entity(db, Account, company, data["counterparty_account_id"])
+    require(cp_acc.active, "inactive_account", "حساب طرف‌حساب غیرفعال است.", 409)
+    expected_cp_role = "trade_receivable" if doc.direction == "receipt" else "trade_payable"
+    cp_role = db.scalar(
+        select(NativeAccountRole.role).where(
+            NativeAccountRole.company_id == company, NativeAccountRole.account_id == cp_acc.id
+        )
+    )
+    if cp_role is not None:
+        require(cp_role == expected_cp_role, "invalid_account_role", "نقش حساب طرف‌حساب با نوع سند خزانه سازگار نیست.", 409)
+
+    tools = list(
+        db.scalars(
+            select(TreasuryToolLine)
+            .where(TreasuryToolLine.company_id == company, TreasuryToolLine.document_id == doc.id)
+            .order_by(TreasuryToolLine.line_index.asc())
+        )
+    )
+    require(bool(tools), "treasury_tools_empty", "سند خزانه ردیف ابزار ندارد.")
+    journal_lines: list[dict[str, Any]] = []
+    is_receipt = doc.direction == "receipt"
+    for tl in tools:
+        if tl.treasury_account_id:
+            ta = get_entity(db, TreasuryAccount, company, tl.treasury_account_id)
+            tool_acc_id = ta.account_id
+        elif tl.tool_kind == "cheque" and data.get("cheque_account_id"):
+            chq_acc = get_entity(db, Account, company, data["cheque_account_id"])
+            require(chq_acc.active, "inactive_account", "حساب چک غیرفعال است.", 409)
+            tool_acc_id = chq_acc.id
+        else:
+            raise DomainError("treasury_account_required", "حساب خزانه یا حساب چک برای ردیف ابزار مشخص نیست.")
+        journal_lines.append(
+            {
+                "account_id": tool_acc_id,
+                "party_id": "",
+                "debit": tl.amount if is_receipt else "0",
+                "credit": "0" if is_receipt else tl.amount,
+                "description": (doc.description or f"سند خزانه {doc.number}")[:500],
+            }
+        )
+    journal_lines.append(
+        {
+            "account_id": cp_acc.id,
+            "party_id": doc.counterparty_id,
+            "counterparty_id": doc.counterparty_id,
+            "debit": "0" if is_receipt else doc.total_amount,
+            "credit": doc.total_amount if is_receipt else "0",
+            "description": (doc.description or f"سند خزانه {doc.number}")[:500],
+        }
+    )
+    draft_res = save_draft(
+        db,
+        company,
+        user,
+        {
+            "period_id": doc.period_id,
+            "date": doc.date,
+            "description": (doc.description or f"سند خزانه {doc.number}")[:500],
+            "unit": "IRR",
+            "lines": journal_lines,
+        },
+    )
+    op_id = m.uid()
+    op = OperationDraft(
+        id=op_id,
+        company_id=company,
+        draft_id=draft_res["id"],
+        kind=f"treasury_{doc.direction}",
+        source_reference=doc.number,
+        payload=jsonable_encoder(
+            {
+                "kind": f"treasury_{doc.direction}",
+                "treasury_document_id": doc.id,
+                "period_id": doc.period_id,
+                "date": doc.date.isoformat(),
+                "party_id": doc.counterparty_id,
+                "unit": "IRR",
+                "amounts": {"amount": doc.total_amount},
+                "lines": journal_lines,
+            }
+        ),
+        actor_id=user.id,
+        policy_version="user-provisional-2026-11-02-v1",
+    )
+    db.add(op)
+    doc.operation_id = op_id
+    doc.version += 1
+    db.flush()
+    audit(db, company, user.id, "treasury.draft_prepared", doc.id, {"draft_id": draft_res["id"], "operation_id": op_id})
+    return {"document": _serialize_document(db, company, doc), "draft": draft_res, "operation_id": op_id}
+
+
+def on_treasury_journal_posted(
+    db: Session, company: str, user: m.User, draft: Draft, journal: NativeJournal
+) -> None:
+    """Activate TreasuryDocument when its linked accounting draft is approved and posted, or reverse on reversal."""
+    if journal.reversal_of:
+        reversed_doc = db.scalar(
+            select(TreasuryDocument).where(
+                TreasuryDocument.company_id == company,
+                TreasuryDocument.journal_id == journal.reversal_of,
+            )
+        )
+        if reversed_doc is not None and reversed_doc.state != "reversed":
+            reversed_doc.state = "reversed"
+            reversed_doc.version += 1
+            db.flush()
+            audit(
+                db,
+                company,
+                user.id,
+                "treasury.document_reversed",
+                reversed_doc.id,
+                {"reversal_journal_id": journal.id},
+            )
+        return
+
+    op = db.scalar(
+        select(OperationDraft).where(
+            OperationDraft.company_id == company,
+            OperationDraft.draft_id == draft.id,
+        )
+    )
+    if op is None or op.kind not in ("treasury_receipt", "treasury_payment"):
+        return
+    doc = db.scalar(
+        select(TreasuryDocument).where(
+            TreasuryDocument.company_id == company,
+            TreasuryDocument.operation_id == op.id,
+        )
+    )
+    if doc is None:
+        return
+    require(doc.state == "draft", "treasury_doc_not_draft", "سند خزانه در وضعیت پیش‌نویس نیست.", 409)
+    doc.state = "posted"
+    doc.journal_id = journal.id
+    doc.version += 1
+    db.flush()
+    audit(
+        db,
+        company,
+        user.id,
+        "treasury.document_posted",
+        doc.id,
+        {"journal_id": journal.id, "operation_id": op.id},
+    )
 
 
 def list_treasury_documents(db: Session, company: str, user: m.User, direction: str | None = None) -> dict[str, Any]:

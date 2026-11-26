@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckSquareIcon, PlusIcon, ReceiptIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,7 +9,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableEmptyCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -29,7 +27,6 @@ interface CandidateInvoice {
   amount: string;
   party_id: string;
   moadian_status: string;
-  can_send: boolean;
 }
 
 const statusLabels: Record<string, { label: string; tone: "neutral" | "success" | "warning" | "danger" | "primary" }> = {
@@ -53,6 +50,8 @@ export function MoadianBatchCollection({
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const items = candidatesResource.data?.items ?? [];
+  const unsent = items.filter((item) => item.moadian_status === "not_sent");
+  const firstSelected = unsent.find((item) => selectedIds.includes(item.id));
 
   const toggleSelect = (id: string, checked: boolean) => {
     setSelectedIds((prev) =>
@@ -61,8 +60,7 @@ export function MoadianBatchCollection({
   };
 
   const selectAllUnsent = () => {
-    const unsent = items.filter((i) => i.moadian_status === "not_sent").map((i) => i.id);
-    setSelectedIds(unsent);
+    setSelectedIds(unsent.map((item) => item.id));
   };
 
   const clearSelection = () => {
@@ -75,9 +73,17 @@ export function MoadianBatchCollection({
       className="space-y-4"
       action={
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={selectAllUnsent} disabled={!items.length}>
+          <Button variant="secondary" onClick={selectAllUnsent} disabled={!unsent.length}>
             انتخاب همه ارسال‌نشده‌ها
           </Button>
+          {firstSelected && (
+            <Button onClick={() => {
+              toggleSelect(firstSelected.id, false);
+              onSelectForTransmission(firstSelected.id);
+            }}>
+              بازبینی بعدی از انتخاب‌شده‌ها
+            </Button>
+          )}
           {selectedIds.length > 0 && (
             <Button variant="ghost" onClick={clearSelection}>
               لغو انتخاب ({persian(selectedIds.length)})
@@ -86,16 +92,12 @@ export function MoadianBatchCollection({
         </div>
       }
     >
-      <p className="text-xs text-muted leading-relaxed">
-        تمام فاکتورهای فروش ثبت‌شده در سامانه در جدول زیر گردآوری شده‌اند. می‌توانید مشخص کنید کدام فاکتورها باید به کارپوشه مالیاتی مؤدیان ارسال شوند و کدام‌ها ارسال نشوند:
-      </p>
-
       {candidatesResource.loading ? (
         <LoadingState label="در حال بارگذاری فاکتورهای فروش..." />
       ) : candidatesResource.error ? (
         <ErrorState message={candidatesResource.error.message} onRetry={candidatesResource.refresh} />
       ) : !items.length ? (
-        <TableEmptyCell colSpan={7} title="فاکتور فروشی برای ارسال یافت نشد" />
+        <EmptyState title="فاکتور فروشی برای ارسال یافت نشد" />
       ) : (
         <Table>
           <TableHeader>
@@ -113,6 +115,7 @@ export function MoadianBatchCollection({
             {items.map((row) => {
               const status = statusLabels[row.moadian_status] || statusLabels.not_sent;
               const isSelected = selectedIds.includes(row.id);
+              const eligible = row.moadian_status === "not_sent";
               return (
                 <TableRow key={row.id} className={isSelected ? "bg-primary-soft/30" : undefined}>
                   <TableCell>
@@ -120,6 +123,7 @@ export function MoadianBatchCollection({
                       id={`select-${row.id}`}
                       label={`انتخاب ${row.reference}`}
                       hideLabel
+                      disabled={!eligible}
                       checked={isSelected}
                       onCheckedChange={(checked) => toggleSelect(row.id, Boolean(checked))}
                     />
@@ -139,6 +143,7 @@ export function MoadianBatchCollection({
                     <Button
                       variant="secondary"
                       className="text-xs h-8"
+                      disabled={!eligible}
                       onClick={() => onSelectForTransmission(row.id)}
                     >
                       آماده‌سازی ارسال

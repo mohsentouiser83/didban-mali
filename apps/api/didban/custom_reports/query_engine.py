@@ -22,8 +22,10 @@ from .. import (
     moadian_models,
 )
 from .. import models as m
+from ..errors import require
 from ..native_invoice_exports import invoice_rows
 from ..native_invoice_models import NativeInvoiceSnapshot
+from ..security import require_payroll_access
 from .field_registry import get_entity_registry
 
 
@@ -46,8 +48,19 @@ class FinancialBlockQueryEngine:
         block: dict[str, Any],
         period: m.Period | None = None,
         limit: int = 200,
+        *,
+        actor: m.User | None = None,
     ) -> dict[str, Any]:
         entity_type = block.get("entity_type", "journal_lines")
+        if entity_type == "personnel_records":
+            require(
+                actor is not None,
+                "payroll_access_required",
+                "مجوز مشاهده یا مدیریت اطلاعات حقوق و دستمزد را ندارید.",
+                403,
+            )
+            assert actor is not None
+            require_payroll_access(db, company_id, actor)
         reg = get_entity_registry(entity_type)
         if not reg:
             return {

@@ -8,11 +8,22 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { emptyProformaLine, proformaForm } from "@/hooks/use-commercial";
-import type { Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
-import { asciiDigits, persian } from "@/lib/utils";
+import type { Counterparty, Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
+import { amount, asciiDigits, persian } from "@/lib/utils";
+import { CounterpartyQuickDrawer } from "./counterparty-profile-drawer";
+
+function parseBigIntDigits(raw: string): bigint {
+  const digits = asciiDigits(raw || "").replace(/[^\d]/g, "");
+  if (!digits) return BigInt(0);
+  try {
+    return BigInt(digits);
+  } catch {
+    return BigInt(0);
+  }
+}
 
 export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, partyError, itemOptions,
-  onPartySearch, onClose, onSave }: {
+  canManageParties, onPartyCreated, onPartySearch, onClose, onSave }: {
   row?: Proforma;
   busy: boolean;
   error?: string;
@@ -20,6 +31,8 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
   partyOptions: SelectOption[];
   partyError?: string;
   itemOptions: SelectOption[];
+  canManageParties?: boolean;
+  onPartyCreated?: (created: Counterparty) => void;
   onPartySearch: (value: string) => void;
   onClose: () => void;
   onSave: (form: ProformaForm) => void;
@@ -27,6 +40,7 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
   const [form, setForm] = useState(() => proformaForm(row));
   const [partyLabel, setPartyLabel] = useState(row?.party_id ?? "");
   const [nextKey, setNextKey] = useState(form.lines.length);
+  const [quickPartyMode, setQuickPartyMode] = useState<"list" | "create" | null>(null);
   function update<K extends keyof ProformaForm>(key: K, value: ProformaForm[K]) {
     setForm((previous) => ({ ...previous, [key]: value }));
   }
@@ -35,8 +49,18 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
       ...previous, lines: previous.lines.map((current) => current.key === line.key ? line : current),
     }));
   }
+  const lineSubtotal = form.lines.reduce((sum, line) => {
+    const qty = parseBigIntDigits(line.quantity || "0");
+    const price = parseBigIntDigits(line.unit_price || "0");
+    const disc = parseBigIntDigits(line.discount || "0");
+    const gross = qty * price;
+    return sum + (gross > disc ? gross - disc : BigInt(0));
+  }, BigInt(0));
+  const invDisc = parseBigIntDigits(form.invoice_discount || "0");
+  const netTotal = lineSubtotal > invDisc ? lineSubtotal - invDisc : BigInt(0);
   const valid = !!(form.party_id.trim() && form.date) &&
     (!form.expiry_date || form.expiry_date >= form.date) &&
+    invDisc <= lineSubtotal &&
     form.lines.every((line) => line.description.trim() && /^[1-9]\d{0,9}$/.test(line.quantity)
       && Number(line.quantity) <= 1_000_000_000 && /^\d+(\.\d+)?$/.test(line.unit_price) && /[1-9]/.test(line.unit_price)
       && (!line.discount || /^\d+(\.\d+)?$/.test(line.discount)));
@@ -55,12 +79,24 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
           <Field id="proforma-expiry" label="اعتبار تا" error={form.expiry_date && form.expiry_date < form.date ? "تاریخ اعتبار باید از تاریخ صدور زودتر نباشد." : undefined}>
             <PersianDatePicker id="proforma-expiry" value={form.expiry_date} onChange={(value) => update("expiry_date", value)} />
           </Field>
-          <Field id="proforma-party" label="طرف‌حساب" required>
-            <SearchSelect id="proforma-party" value={form.party_id} selectedLabel={partyLabel}
-              query={partyQuery} onQueryChange={onPartySearch} options={partyOptions}
-              error={partyError} searchLabel="جست‌وجوی نام طرف‌حساب"
-              onValueChange={(value, label) => { update("party_id", value); setPartyLabel(label); }} />
-          </Field>
+          <div className="space-y-1.5">
+            <Field id="proforma-party" label="طرف‌حساب" required>
+              <SearchSelect id="proforma-party" value={form.party_id} selectedLabel={partyLabel}
+                query={partyQuery} onQueryChange={onPartySearch} options={partyOptions}
+                error={partyError} searchLabel="جست‌وجوی نام طرف‌حساب"
+                onValueChange={(value, label) => { update("party_id", value); setPartyLabel(label); }} />
+            </Field>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setQuickPartyMode("list")}>
+                مشاهده پرونده طرف‌حساب‌ها
+              </Button>
+              {canManageParties && (
+                <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => setQuickPartyMode("create")}>
+                  تعریف طرف‌حساب جدید
+                </Button>
+              )}
+            </div>
+          </div>
 
         </div>
         <div className="space-y-3">
@@ -82,9 +118,35 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
           <Textarea id="proforma-terms" value={form.terms} maxLength={1000}
             onChange={(event) => update("terms", event.target.value)} />
         </Field>
-        <FormMessage error>{error}</FormMessage>
+        <div className="grid gap-3 rounded-xl border border-border bg-canvas/60 p-3 text-sm sm:grid-cols-3" aria-live="polite">
+          <div>
+            <span className="text-xs text-muted">جمع ردیف‌ها: </span>
+            <span className="font-medium tabular-nums">{amount(lineSubtotal.toString())} ریال</span>
+          </div>
+          <div>
+            <span className="text-xs text-muted">تخفیف کل: </span>
+            <span className="font-medium tabular-nums">{amount(invDisc.toString())} ریال</span>
+          </div>
+          <div>
+            <span className="text-xs text-muted">خالص پیش‌فاکتور: </span>
+            <span className="font-semibold text-primary tabular-nums">{amount(netTotal.toString())} ریال</span>
+          </div>
+        </div>
+        <FormMessage error>{error || (invDisc > lineSubtotal ? "تخفیف کل نمی‌تواند از جمع ردیف‌ها بیشتر باشد." : undefined)}</FormMessage>
         <Button type="submit" busy={busy} disabled={!valid}>{row ? "ذخیره" : "صدور پیش‌فاکتور"}</Button>
       </form>
+      {quickPartyMode && (
+        <CounterpartyQuickDrawer
+          open
+          initialMode={quickPartyMode}
+          onOpenChange={(open) => { if (!open) setQuickPartyMode(null); }}
+          onCreated={(created) => {
+            update("party_id", created.code);
+            setPartyLabel(`${created.name} · ${created.code}`);
+            onPartyCreated?.(created);
+          }}
+        />
+      )}
     </Drawer>
   );
 }

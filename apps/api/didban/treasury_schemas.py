@@ -1,11 +1,12 @@
 """Pydantic schemas for operational treasury accounts, receipts/payments, and tool allocations."""
 
 from datetime import date as CalendarDate
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt, field_validator
+from pydantic import BaseModel, Field, StrictInt, StrictStr, field_validator
 
-from .accounting_schemas import StrictInput
+from .accounting_schemas import DraftWriteResponse, StrictInput
 
 
 def _empty_to_none(value):
@@ -16,6 +17,110 @@ def _empty_to_none(value):
 
 TreasuryAccountKind = Literal["bank", "cash", "petty_cash"]
 TreasuryToolKind = Literal["cash", "bank_transfer", "cheque", "card", "other"]
+TreasuryDirection = Literal["receipt", "payment"]
+
+
+class TreasuryAccountOption(BaseModel):
+    id: str
+    name: str
+    kind: TreasuryAccountKind
+    active: bool
+
+
+class TreasuryAccountOptions(BaseModel):
+    items: list[TreasuryAccountOption]
+
+
+class TreasuryAccountDetails(TreasuryAccountOption):
+    company_id: str
+    account_id: str
+    account_code: str | None
+    account_name: str | None
+    account_active: bool | None
+    bank_name: str | None
+    account_number: str | None
+    iban: str | None
+    branch_name: str | None
+    branch_code: str | None
+    custodian_name: str | None
+    custodian_counterparty_id: str | None
+    petty_cash_limit_irr: str | None
+    needs_completion: bool
+    version: int
+    created_at: datetime
+
+
+class TreasuryAccountDetailsList(BaseModel):
+    items: list[TreasuryAccountDetails]
+
+
+class TreasuryToolLineResponse(BaseModel):
+    id: str
+    company_id: str
+    created_at: datetime
+    document_id: str
+    line_index: int
+    tool_kind: TreasuryToolKind
+    treasury_account_id: str | None
+    cheque_id: str | None
+    bank_movement_id: str | None
+    amount: StrictStr
+    allocated_amount: StrictStr
+    remaining_amount: StrictStr
+    has_payment_proof: bool
+    reference: str | None
+    due_date: CalendarDate | None
+
+
+class TreasuryAllocationResponse(BaseModel):
+    id: str
+    company_id: str
+    created_at: datetime
+    tool_line_id: str
+    invoice_id: str
+    invoice_reference: str | None
+    amount: StrictStr
+    date: CalendarDate
+    actor_id: str
+    reversed_at: datetime | None
+    reversed_by: str | None
+    reversal_reason: str | None
+
+
+class TreasuryDocumentResponse(BaseModel):
+    id: str
+    company_id: str
+    created_at: datetime
+    version: int
+    direction: TreasuryDirection
+    number: str
+    date: CalendarDate
+    period_id: str
+    counterparty_id: str
+    counterparty_name: str | None
+    counterparty_code: str | None
+    total_amount: StrictStr
+    allocated_amount: StrictStr
+    allocatable_amount: StrictStr
+    has_payment_proof: bool
+    original_unit: Literal["IRR", "TOMAN"]
+    description: str
+    operation_id: str | None
+    journal_id: str | None
+    state: Literal["draft", "posted", "reversed"]
+    actor_id: str
+    tools: list[TreasuryToolLineResponse]
+    allocations: list[TreasuryAllocationResponse]
+
+
+class TreasuryDocumentListResponse(BaseModel):
+    items: list[TreasuryDocumentResponse]
+
+
+class TreasuryPreparedDraftResponse(BaseModel):
+    document: TreasuryDocumentResponse
+    draft: DraftWriteResponse
+    operation_id: str
 
 
 class TreasuryAccountInput(StrictInput):
@@ -105,7 +210,7 @@ class TreasuryAllocationItemInput(StrictInput):
 
 
 class TreasuryDocumentInput(StrictInput):
-    direction: Literal["receipt", "payment"]
+    direction: TreasuryDirection
     date: CalendarDate
     period_id: str = Field(min_length=1, max_length=36)
     party_id: str = Field(min_length=1, max_length=100)
@@ -117,3 +222,8 @@ class TreasuryDocumentInput(StrictInput):
 
 class ReverseTreasuryAllocationInput(StrictInput):
     reason: str = Field(min_length=1, max_length=500)
+
+
+class PrepareTreasuryDraftInput(StrictInput):
+    counterparty_account_id: str = Field(min_length=1, max_length=36)
+    cheque_account_id: str | None = Field(default=None, max_length=36)

@@ -37,7 +37,10 @@ export function NativeDashboardView() {
         <ErrorState message={c.error.message} onRetry={c.refresh} />
       ) : !c.data ? (
         <Panel>
-          <EmptyState title="گزارش مالی دفتر اصلی ذخیره نشده" />
+          <EmptyState
+            title="گزارش مالی دفتر اصلی ذخیره نشده"
+            action={<ButtonLink href="/reports/native">صورت‌های مالی</ButtonLink>}
+          />
         </Panel>
       ) : (
         <>

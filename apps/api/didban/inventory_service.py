@@ -93,22 +93,27 @@ def add_item(db: Session, company: str, user: m.User, data: dict) -> dict:
         from .account_catalogue_service import non_postable_account_ids
 
         blocked = non_postable_account_ids(db, company)
+        # Keep the existing default for callers that omit the account, selecting only
+        # active inventory-compatible posting accounts.
         default_acc = next(
             (
                 acc_id
-                for acc_id in db.scalars(
-                    select(Account.id)
+                for acc_id, role in db.execute(
+                    select(Account.id, NativeAccountRole.role)
+                    .outerjoin(NativeAccountRole, and_(
+                        NativeAccountRole.company_id == company,
+                        NativeAccountRole.account_id == Account.id,
+                    ))
                     .where(Account.company_id == company, Account.active.is_(True))
                     .order_by(Account.code)
                 )
-                if acc_id not in blocked
+                if acc_id not in blocked and role in (None, "asset", "other_asset")
             ),
             None,
         )
-        if default_acc:
-            data["inventory_account_id"] = default_acc
-    if data.get("inventory_account_id"):
-        _require_account(db, company, data["inventory_account_id"], "other_asset")
+        require(default_acc is not None, "inventory_account_required", "حساب موجودی معتبر را انتخاب کنید.")
+        data = data | {"inventory_account_id": default_acc}
+    _require_account(db, company, data["inventory_account_id"], "other_asset")
     return _add_catalog(db, company, user, data, InventoryItem, "inventory.item_created")
 
 
@@ -133,7 +138,7 @@ def update_item(
         .where(InventoryMovement.company_id == company, InventoryMovement.item_id == item_id)
         .limit(1)
     )
-    if "base_unit" in data and data["base_unit"] != item.base_unit:
+    if data.get("base_unit") is not None and data["base_unit"] != item.base_unit:
         require(
             not has_movements,
             "inventory_unit_locked",
@@ -141,7 +146,7 @@ def update_item(
             409,
         )
         item.base_unit = data["base_unit"]
-    if "item_kind" in data and data["item_kind"] != item.item_kind:
+    if data.get("item_kind") is not None and data["item_kind"] != item.item_kind:
         require(
             not has_movements,
             "inventory_kind_locked",
@@ -149,7 +154,7 @@ def update_item(
             409,
         )
         item.item_kind = data["item_kind"]
-    if "inventory_account_id" in data and data["inventory_account_id"] != item.inventory_account_id:
+    if data.get("inventory_account_id") is not None and data["inventory_account_id"] != item.inventory_account_id:
         require(
             not has_movements,
             "inventory_account_locked",
@@ -253,8 +258,11 @@ def delete_warehouse(
     return {"deleted": True, "id": warehouse_id}
 
 
-def summary(db: Session, company: str, user: m.User) -> dict:
+def summary(db: Session, company: str, user: m.User, *, as_of: date | None = None) -> dict:
     ability = capabilities(db, company, user)
+    scope = [InventoryMovement.company_id == company]
+    if as_of is not None:
+        scope.append(InventoryMovement.date <= as_of)
     balances: dict[tuple[str, str], tuple[int, Decimal]] = {}
     recent = deque(maxlen=MOVEMENT_LIMIT)
     movement_count = 0
@@ -272,7 +280,7 @@ def summary(db: Session, company: str, user: m.User) -> dict:
                 InventoryMovement.quantity,
                 InventoryMovement.value_irr,
             )
-            .where(InventoryMovement.company_id == company)
+            .where(*scope)
             .order_by(InventoryMovement.sequence)
             .execution_options(yield_per=500)
         ).mappings()
@@ -306,6 +314,7 @@ def summary(db: Session, company: str, user: m.User) -> dict:
             }
             for (item, warehouse), (quantity, value) in balances.items()
         ],
+        "as_of": as_of.isoformat() if as_of else None,
         "movements": list(reversed(recent)),
         "movements_truncated": movement_count > MOVEMENT_LIMIT,
         "can_prepare": ability["can_prepare"] and ability["posting_available"],
@@ -403,6 +412,7 @@ def _stock_and_lines(
     kind = data["kind"]
     purchase = kind == "purchase_goods"
     item = get_entity(db, InventoryItem, company, data["item_id"])
+    require(item.item_kind == "goods", "item_not_goods", "گردش انبار فقط برای کالای انباری مجاز است.")
     warehouse = get_entity(db, InventoryWarehouse, company, data["warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
     require(warehouse.active, "inactive_warehouse", "انبار انتخاب‌شده غیرفعال است.", 409)
@@ -630,6 +640,7 @@ def _opening_stock_and_lines(
     db: Session, company: str, data: dict, operation_id: str
 ) -> tuple[dict, list[dict], dict[str, str], str]:
     item = get_entity(db, InventoryItem, company, data["item_id"])
+    require(item.item_kind == "goods", "item_not_goods", "گردش انبار فقط برای کالای انباری مجاز است.")
     warehouse = get_entity(db, InventoryWarehouse, company, data["warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
     require(warehouse.active, "inactive_warehouse", "انبار انتخاب‌شده غیرفعال است.", 409)
@@ -740,6 +751,7 @@ def _transfer_stock_and_lines(
     db: Session, company: str, data: dict, operation_id: str
 ) -> tuple[dict, list[dict], dict[str, str], str]:
     item = get_entity(db, InventoryItem, company, data["item_id"])
+    require(item.item_kind == "goods", "item_not_goods", "گردش انبار فقط برای کالای انباری مجاز است.")
     src_wh = get_entity(db, InventoryWarehouse, company, data["source_warehouse_id"])
     dst_wh = get_entity(db, InventoryWarehouse, company, data["destination_warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
@@ -850,6 +862,7 @@ def _adjustment_stock_and_lines(
     db: Session, company: str, data: dict, operation_id: str
 ) -> tuple[dict, list[dict], dict[str, str], str]:
     item = get_entity(db, InventoryItem, company, data["item_id"])
+    require(item.item_kind == "goods", "item_not_goods", "گردش انبار فقط برای کالای انباری مجاز است.")
     warehouse = get_entity(db, InventoryWarehouse, company, data["warehouse_id"])
     require(item.active, "inactive_item", "کالای انتخاب‌شده غیرفعال است.", 409)
     require(warehouse.active, "inactive_warehouse", "انبار انتخاب‌شده غیرفعال است.", 409)
@@ -1139,6 +1152,7 @@ def cardex(
     offset: int = 0,
 ) -> dict:
     membership(db, company, user)
+    require(not (from_date and to_date) or from_date <= to_date, "invalid_date_range", "پایان بازه نباید پیش از شروع باشد.")
     items = {
         row.id: row for row in db.scalars(select(InventoryItem).where(InventoryItem.company_id == company))
     }
@@ -1160,9 +1174,11 @@ def cardex(
         if warehouse_id:
             prior_stmt = prior_stmt.where(InventoryMovement.warehouse_id == warehouse_id)
 
-        for pm in db.scalars(prior_stmt):
-            opening_qty += pm.quantity
-            opening_val += Decimal(pm.value_irr)
+        with localcontext() as context:
+            context.prec = 60
+            for pm in db.scalars(prior_stmt):
+                opening_qty += pm.quantity
+                opening_val += Decimal(pm.value_irr)
 
     # Movements in range
     stmt = select(InventoryMovement).where(InventoryMovement.company_id == company)
@@ -1177,7 +1193,7 @@ def cardex(
     if kind:
         stmt = stmt.where(InventoryMovement.kind == kind)
 
-    all_movements = list(db.scalars(stmt.order_by(InventoryMovement.sequence)))
+    all_movements = list(db.scalars(stmt.order_by(InventoryMovement.date, InventoryMovement.sequence)))
     total_records = len(all_movements)
 
     running_qty = opening_qty
@@ -1218,6 +1234,7 @@ def cardex(
 
             rows.append(
                 {
+                    "id": m_row.id,
                     "sequence": m_row.sequence,
                     "date": m_row.date.isoformat(),
                     "kind": m_row.kind,
@@ -1228,6 +1245,7 @@ def cardex(
                     "warehouse_name": wh_obj.name if wh_obj else "",
                     "source_reference": ev.get("source_reference", ""),
                     "journal_id": m_row.journal_id,
+                    "operation_id": m_row.operation_id,
                     "in_quantity": in_qty,
                     "in_value_irr": aggregate_money(in_val),
                     "out_quantity": out_qty,

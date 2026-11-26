@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import {
   listItems,
   type Member,
@@ -16,6 +16,7 @@ import {
   type JournalDraft,
   type JournalDraftLine,
 } from "@/lib/accounting";
+import { asciiDigits } from "@/lib/utils";
 import { isAccountPostable } from "@/lib/account-catalogue";
 import { useAccountOptions } from "./use-account-options";
 import { useCommand } from "./use-command";
@@ -34,8 +35,15 @@ export { useAccountOptions };
 
 export function useJournalDrafts() {
   const workspace = useWorkspace();
+  const [filterState, setFilterState] = useState<"all" | "draft" | "posted" | "discarded">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const q = useDeferredValue(asciiDigits(searchQuery.trim()));
+  const params = new URLSearchParams();
+  if (filterState !== "all") params.set("state", filterState);
+  if (q) params.set("q", q);
+  const query = params.toString();
   const drafts = usePagedResource<JournalDraft>(
-    workspace.companyPath("accounting/drafts"),
+    workspace.companyPath(query ? `accounting/drafts?${query}` : "accounting/drafts"),
   );
   const capabilities = useResource<AccountingCapabilities>(
     workspace.companyPath("accounting/capabilities"),
@@ -184,6 +192,10 @@ export function useJournalDrafts() {
     errors,
     totals,
     rows,
+    filterState,
+    setFilterState,
+    searchQuery,
+    setSearchQuery,
     loading,
     error,
     hasActiveAccounts,

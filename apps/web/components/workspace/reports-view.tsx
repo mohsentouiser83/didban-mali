@@ -4,7 +4,6 @@ import {
   BooksIcon,
   ChartLineUpIcon,
   ChartLineUpIcon as HeaderIcon,
-  ClockAfternoonIcon,
   DownloadSimpleIcon,
   FilePdfIcon,
   FileTextIcon,
@@ -151,9 +150,12 @@ export function ReportsView() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>گزارش</TableHead>
+                    <TableHead>نوع</TableHead>
+                    <TableHead>دوره</TableHead>
+                    <TableHead>مبنا</TableHead>
                     <TableHead>تاریخ</TableHead>
                     <TableHead>وضعیت</TableHead>
-                    <TableHead>عملیات و دریافت</TableHead>
+                    <TableHead sortable={false} pinnable={false} filterable={false}>عملیات و دریافت</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -167,9 +169,14 @@ export function ReportsView() {
                           {definition.name}
                         </ButtonLink>
                       </TableRowHeader>
+                      <TableCell>{definition.system_key ? "قالب سامانه" : "تعریف سفارشی"}</TableCell>
+                      <TableCell>{workspace.periods.find((period) => period.id === definition.spec?.global_filters?.period_id)?.name ?? "هنگام اجرا"}</TableCell>
+                      <TableCell>{definition.spec?.global_filters?.basis === "ledger" ? "دفتر" :
+                        definition.spec?.global_filters?.basis === "invoice" ? "فاکتور" :
+                        definition.spec?.global_filters?.basis === "bank" ? "بانک" : "طبق تعریف گزارش"}</TableCell>
                       <TableCell className="whitespace-nowrap">{definition.created_at ? displayDate(definition.created_at) : "—"}</TableCell>
                       <TableCell><Badge tone={definition.system_key ? "primary" : "neutral"}>
-                        {definition.system_key ? "قالب سامانه" : "قالب گزارش"}
+                        تعریف گزارش
                       </Badge></TableCell>
                       <TableCell><Button variant="ghost" onClick={(event) => {
                         event.stopPropagation(); archive.openDefinition(definition.id);
@@ -181,10 +188,10 @@ export function ReportsView() {
                       <TableRow key={report.id}>
                         <TableRowHeader>
                           <span className="block font-medium">{report.title}</span>
-                          <Badge tone="primary" className="mt-2 text-xs">
-                            تولیدشده سامانه
-                          </Badge>
                         </TableRowHeader>
+                        <TableCell>گزارش ثابت</TableCell>
+                        <TableCell>{report.period_name ?? "—"}</TableCell>
+                        <TableCell>نتیجهٔ پردازش</TableCell>
                         <TableCell className="whitespace-nowrap">
                           {displayDate(report.created_at)}
                         </TableCell>
@@ -259,7 +266,7 @@ export function ReportsView() {
                       </TableRow>
                     ))
                   ) : !archive.definitions.length ? (
-                    <TableEmptyCell colSpan={4} title="هنوز گزارشی تولید نشده است" />
+                    <TableEmptyCell colSpan={7} title="هنوز گزارشی تولید نشده است" />
                   ) : null}
                 </TableBody>
               </Table>

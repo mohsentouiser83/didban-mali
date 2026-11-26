@@ -486,6 +486,18 @@ def delete_employee(
 # --- Contract Operations ---
 
 
+def _validate_contract_parent(
+    db: Session, company: str, employee_id: str, parent_id: str | None, contract_id: str | None = None
+) -> None:
+    seen = {contract_id} if contract_id else set()
+    while parent_id:
+        require(parent_id not in seen, "contract_amendment_cycle", "زنجیرهٔ الحاقیه نمی‌تواند به خودش برگردد.", 409)
+        seen.add(parent_id)
+        parent = get_entity(db, EmployeeContract, company, parent_id)
+        require(parent.employee_id == employee_id, "contract_employee_mismatch", "الحاقیه باید متعلق به همان کارمند باشد.")
+        parent_id = parent.amendment_of_contract_id
+
+
 def add_contract(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
     require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
@@ -500,8 +512,7 @@ def add_contract(db: Session, company: str, user: m.User, data: dict[str, Any]) 
     if data.get("workshop_id"):
         get_entity(db, CompanyPayrollWorkshop, company, data["workshop_id"])
     if data.get("amendment_of_contract_id"):
-        parent_con = get_entity(db, EmployeeContract, company, data["amendment_of_contract_id"])
-        require(parent_con.employee_id == emp.id, "contract_employee_mismatch", "الحاقیه باید متعلق به همان کارمند باشد.")
+        _validate_contract_parent(db, company, emp.id, data["amendment_of_contract_id"])
     contract = EmployeeContract(
         company_id=company,
         employee_id=emp.id,
@@ -594,6 +605,8 @@ def update_contract(
     require_payroll_access(db, company, user, write=True)
     ability = capabilities(db, company, user)
     require(ability["can_prepare"], "permission_denied", "اجازه ویرایش قرارداد ندارید.", 403)
+    if data.get("amendment_of_contract_id"):
+        db.execute(select(m.Company.id).where(m.Company.id == company).with_for_update())
     con = get_entity(db, EmployeeContract, company, contract_id)
     if expected_version is not None:
         check_version(con, expected_version)
@@ -624,8 +637,7 @@ def update_contract(
             if optional_field == "workshop_id" and val is not None:
                 get_entity(db, CompanyPayrollWorkshop, company, val)
             if optional_field == "amendment_of_contract_id" and val is not None:
-                parent_con = get_entity(db, EmployeeContract, company, val)
-                require(parent_con.employee_id == con.employee_id, "contract_employee_mismatch", "الحاقیه باید متعلق به همان کارمند باشد.")
+                _validate_contract_parent(db, company, con.employee_id, val, con.id)
             setattr(con, optional_field, val)
     if "weekly_hours" in data and data["weekly_hours"] is not None:
         con.weekly_hours = canonical_money(data["weekly_hours"])

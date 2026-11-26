@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal, localcontext
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import models as m
@@ -185,6 +185,10 @@ def _validate_clearance(db: Session, company: str, item: Cheque, data: dict) -> 
 
 def act(db: Session, company: str, user: m.User, cheque_id: str, data: dict, version: int) -> dict:
     membership(db, company, user, "write")
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(update(m.Company).where(m.Company.id == company).values(version=m.Company.version))
+    else:
+        db.scalar(select(m.Company).where(m.Company.id == company).with_for_update())
     require(
         isinstance(data.get("reason"), str) and bool(data["reason"].strip()),
         "cheque_reason_required",

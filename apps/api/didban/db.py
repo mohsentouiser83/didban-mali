@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
+from decimal import Decimal, localcontext
 from urllib.parse import urlsplit
 
 from sqlalchemy import CheckConstraint, create_engine, event, inspect, text
@@ -11,6 +12,7 @@ from . import commercial_doc_models as _commercial_doc_models  # noqa: F401
 from . import treasury_models as _treasury_models  # noqa: F401
 from .config import settings
 from .models import Base, register_money_constraints
+from .money_type import canonical_money
 from .schema_readiness import require_current_schema
 
 engine = create_engine(
@@ -20,7 +22,7 @@ engine = create_engine(
     else {},
     pool_pre_ping=True,
 )
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SCHEMA_LOCK = 2026110101
 SCHEMA_TABLE_DDL = "CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)"
 IMMUTABLE = (
@@ -179,6 +181,39 @@ def native_invoice_source_guards(dialect: str) -> list[str]:
     ]
 
 
+def _ensure_money_column(
+    conn: Connection,
+    dialect: str,
+    table_name: str,
+    column_name: str,
+    default_value: str,
+    *,
+    nullable: bool,
+) -> None:
+    """Add or normalize a Money column to PostgreSQL NUMERIC(38, 6) or SQLite TEXT."""
+    cols = {c["name"]: c for c in inspect(conn).get_columns(table_name)}
+    null_sql = "" if nullable else " NOT NULL"
+    if column_name not in cols:
+        ddl = (
+            f"NUMERIC(38, 6){null_sql} DEFAULT {default_value}"
+            if dialect == "postgresql"
+            else f"TEXT{null_sql} DEFAULT '{default_value}'"
+        )
+        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}"))
+        return
+    if dialect == "postgresql" and "NUMERIC" not in str(cols[column_name]["type"]).upper():
+        conn.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} DROP DEFAULT"))
+        expr = (
+            f"NULLIF(TRIM({column_name}), '')::numeric(38, 6)"
+            if nullable
+            else f"COALESCE(NULLIF(TRIM({column_name}), ''), '{default_value}')::numeric(38, 6)"
+        )
+        conn.execute(
+            text(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE NUMERIC(38, 6) USING {expr}")
+        )
+        conn.execute(text(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} SET DEFAULT {default_value}"))
+
+
 def install_missing_money_constraints(connection: Connection) -> None:
     """Add and validate bounds on existing tables without rewriting financial data."""
     inspector = inspect(connection)
@@ -199,6 +234,16 @@ def install_missing_money_constraints(connection: Connection) -> None:
 
 
 def initialize() -> None:
+    """Create a fresh installation or check a versioned installation before startup."""
+    _prepare_schema(upgrade=False)
+
+
+def migrate_schema() -> None:
+    """Apply the supported legacy-to-v2 upgrade in a single transaction."""
+    _prepare_schema(upgrade=True)
+
+
+def _prepare_schema(*, upgrade: bool) -> None:
     register_money_constraints()
     if settings.production and engine.dialect.name != "postgresql":
         raise RuntimeError("Production requires PostgreSQL")
@@ -225,17 +270,17 @@ def initialize() -> None:
                     raise RuntimeError("Application role must not be superuser or bypass RLS")
         else:
             conn.exec_driver_sql("BEGIN IMMEDIATE")
-        conn.execute(text(SCHEMA_TABLE_DDL))
-        conn.execute(
-            text(
-                "INSERT INTO didban_schema_version (id, version) VALUES (1, :version) ON CONFLICT (id) DO NOTHING"
-            ),
-            {"version": SCHEMA_VERSION},
-        )
-        version = conn.execute(text("SELECT version FROM didban_schema_version WHERE id=1")).scalar()
-        if version != SCHEMA_VERSION:
+        inspector = inspect(conn)
+        tracked = inspector.has_table("didban_schema_version")
+        installed = tracked or inspector.has_table("companies")
+        version = conn.execute(text("SELECT version FROM didban_schema_version WHERE id=1")).scalar() if tracked else None
+        if version == SCHEMA_VERSION:
+            require_current_schema(conn, Base.metadata)
+            return
+        if installed and (not upgrade or version not in (None, 1)):
             raise RuntimeError(
-                "Unsupported schema version; run the explicit versioned migration before starting"
+                f"Database schema version {version if version is not None else 'untracked'} is incompatible "
+                f"with version {SCHEMA_VERSION}. Run python -m didban.migrate before starting."
             )
         # Additive company-qualified key required by accounting permission references.
         if inspect(conn).has_table("memberships"):
@@ -280,12 +325,12 @@ def initialize() -> None:
                 ("workshop_id", "VARCHAR(36)"),
                 ("work_location", "VARCHAR(200)"),
                 ("work_description", "VARCHAR(300)"),
-                ("weekly_hours", "VARCHAR(80) DEFAULT '44'"),
                 ("conclusion_date", "DATE"),
                 ("amendment_of_contract_id", "VARCHAR(36)"),
             ):
                 if col_name not in cols:
                     conn.execute(text(f"ALTER TABLE employee_contracts ADD COLUMN {col_name} {col_ddl}"))
+            _ensure_money_column(conn, engine.dialect.name, "employee_contracts", "weekly_hours", "44", nullable=True)
         if inspect(conn).has_table("payroll_slips"):
             cols = {c["name"] for c in inspect(conn).get_columns("payroll_slips")}
             for col_name, col_ddl in (
@@ -385,11 +430,9 @@ def initialize() -> None:
                     text("ALTER TABLE inventory_items ADD COLUMN item_kind VARCHAR(20) NOT NULL DEFAULT 'goods'")
                 )
         if inspect(conn).has_table("proforma_invoices"):
-            cols = {c["name"] for c in inspect(conn).get_columns("proforma_invoices")}
-            if "invoice_discount" not in cols:
-                conn.execute(
-                    text("ALTER TABLE proforma_invoices ADD COLUMN invoice_discount VARCHAR(80) NOT NULL DEFAULT '0'")
-                )
+            _ensure_money_column(
+                conn, engine.dialect.name, "proforma_invoices", "invoice_discount", "0", nullable=False
+            )
         if inspect(conn).has_table("inventory_movements"):
             cols = {c["name"] for c in inspect(conn).get_columns("inventory_movements")}
             needs_line_upgrade = "line_index" not in cols or "document_line_id" not in cols
@@ -858,6 +901,7 @@ def initialize() -> None:
                         f"ALTER TABLE accounting_permissions ADD COLUMN view_payroll BOOLEAN NOT NULL DEFAULT {bool_false}"
                     )
                 )
+        _upgrade_commercial_line_net(conn)
         Base.metadata.create_all(conn)
         _backfill_phase2_data(conn, engine.dialect.name)
         require_current_schema(conn, Base.metadata)
@@ -877,6 +921,56 @@ def initialize() -> None:
                     )
             for statement in native_invoice_source_guards("sqlite"):
                 conn.execute(text(statement))
+        conn.execute(text(SCHEMA_TABLE_DDL))
+        conn.execute(
+            text(
+                "INSERT INTO didban_schema_version (id, version) VALUES (1, :version) "
+                "ON CONFLICT (id) DO UPDATE SET version = excluded.version"
+            ),
+            {"version": SCHEMA_VERSION},
+        )
+
+
+def _upgrade_commercial_line_net(conn: Connection) -> None:
+    table = "commercial_document_lines"
+    inspector = inspect(conn)
+    if not inspector.has_table(table):
+        return
+    columns = {column["name"] for column in inspector.get_columns(table)}
+    if "net_before_inv_disc_irr" in columns:
+        return
+    if "net_before_invoice_discount_irr" in columns:
+        conn.execute(text(
+            "ALTER TABLE commercial_document_lines "
+            "RENAME COLUMN net_before_invoice_discount_irr TO net_before_inv_disc_irr"
+        ))
+        return
+    postgres = conn.dialect.name == "postgresql"
+    _ensure_money_column(conn, conn.dialect.name, table, "net_before_inv_disc_irr", "0", nullable=False)
+    companies = conn.execute(text("SELECT id FROM companies")).scalars().all()
+    for company in companies:
+        if postgres:
+            conn.execute(text("SELECT set_config('didban.company_id', :company, true)"), {"company": company})
+        rows = conn.execute(
+            text("SELECT id, gross_amount_irr, line_discount_irr FROM commercial_document_lines WHERE company_id = :company"),
+            {"company": company},
+        ).mappings()
+        with localcontext() as precision:
+            precision.prec = 60
+            values = [
+                {"company": company, "id": row["id"], "net": canonical_money(
+                    Decimal(row["gross_amount_irr"]) - Decimal(row["line_discount_irr"])
+                )}
+                for row in rows
+            ]
+        if values:
+            value = "CAST(:net AS NUMERIC(38, 6))" if postgres else ":net"
+            conn.execute(
+                text(f"UPDATE commercial_document_lines SET net_before_inv_disc_irr = {value} WHERE company_id = :company AND id = :id"),
+                values,
+            )
+    if postgres:
+        conn.execute(text("ALTER TABLE commercial_document_lines ALTER COLUMN net_before_inv_disc_irr DROP DEFAULT"))
 
 
 def _backfill_phase2_data(conn: Connection, dialect: str) -> None:

@@ -24,6 +24,8 @@ export function useNativeInvoices(
   direction: InvoiceDirection,
   followups = false,
   preferredOperationId?: string,
+  partyId?: string,
+  initialReference = "",
 ) {
   const workspace = useWorkspace();
   const scope = `${workspace.user?.id}:${workspace.company?.id}:${direction}`;
@@ -36,7 +38,7 @@ export function useNativeInvoices(
   const [priority, setPriority] = useState<"amount" | "history">("amount");
   const report = useResource<NativeInvoiceReport>(
     base
-      ? `${base}?direction=${direction}&as_of=${asOf}${followups ? `&priority=${priority}` : ""}`
+      ? `${base}?direction=${direction}&as_of=${asOf}${followups ? `&priority=${priority}` : ""}${partyId && !followups ? `&counterparty_id=${encodeURIComponent(partyId)}` : ""}`
       : null,
   );
   const activePeriodId =
@@ -77,10 +79,11 @@ export function useNativeInvoices(
   const detail = useResource<NativeInvoice>(
     selectedId && base ? `${base}/${selectedId}?as_of=${asOf}` : null,
   );
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialReference);
   const [page, setPage] = useState(0);
   const filtered = (report.data?.items || []).filter((row) =>
-    `${row.reference} ${row.party_id}`.includes(query),
+    (!partyId || row.party_record_id === partyId || row.party_id === partyId) &&
+    `${row.reference} ${row.party_name ?? ""} ${row.party_id}`.includes(query),
   );
   const currentPage = Math.min(
     page,

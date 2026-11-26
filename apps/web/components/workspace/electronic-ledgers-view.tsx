@@ -5,7 +5,7 @@ import { BooksIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
+import { EmptyState, ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Field } from "@/components/ui/field";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
@@ -13,7 +13,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableEmptyCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -259,7 +258,7 @@ export function ElectronicLedgersView() {
         ) : resource.error ? (
           <ErrorState message={resource.error.message} onRetry={resource.refresh} />
         ) : !data?.items?.length ? (
-          <TableEmptyCell colSpan={8} title="سندی در بازهٔ انتخابی برای نمایش در دفاتر وجود ندارد" />
+          <EmptyState title="سندی در بازهٔ انتخابی برای نمایش در دفاتر وجود ندارد" />
         ) : (
           <div className="space-y-6">
             {data.items.map((group) => (

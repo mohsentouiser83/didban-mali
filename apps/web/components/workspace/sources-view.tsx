@@ -1,10 +1,11 @@
 "use client";
-import { FilesIcon as HeaderIcon, PlusIcon } from "@phosphor-icons/react";
+import { FilesIcon as HeaderIcon, PlusIcon, ArchiveIcon, DownloadSimpleIcon, ArrowUpLeftIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Drawer } from "@/components/ui/drawer";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { FormMessage } from "@/components/ui/field";
 import { FilePicker } from "@/components/ui/file-picker";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -23,12 +24,10 @@ import { usePagedResource } from "@/hooks/use-paged-resource";
 import { useUpload } from "@/hooks/use-upload";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems, type SourceFile } from "@/lib/api";
-import { persian } from "@/lib/utils";
-import { ArchiveIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
-import { useState } from "react";
-import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { displayDate, persian } from "@/lib/utils";
 import { BotIntakesPanel } from "./bot-intakes-panel";
 import { DocumentSpreadsheetsPanel } from "./document-spreadsheets-panel";
+import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 export function SourcesView() {
   const workspace = useWorkspace();
@@ -47,11 +46,12 @@ function CompanyDocuments() {
   const command = useCommand();
   const [archiving, setArchiving] = useState<SourceFile | null>(null);
   if (!workspace.company) return <NoCompany />;
+
   return (
     <>
       <PageHeader
         icon={HeaderIcon}
-        title="اسناد"
+        title="فایل‌ها و مدارک"
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/uploads" variant="secondary">نوبت‌های پردازش</ButtonLink>
@@ -77,9 +77,12 @@ function CompanyDocuments() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>فایل</TableHead>
-                  <TableHead>ردیف</TableHead>
+                  <TableHead>نام فایل</TableHead>
+                  <TableHead numeric>تعداد ردیف</TableHead>
+                  <TableHead>دورهٔ مالی</TableHead>
+                  <TableHead>تاریخ</TableHead>
                   <TableHead>وضعیت</TableHead>
+                  <TableHead>نوبت پردازش</TableHead>
                   <TableHead>عملیات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -88,15 +91,31 @@ function CompanyDocuments() {
                   listItems(resource.data).map((file) => (
                     <TableRow key={file.id}>
                       <TableRowHeader>
-                        <p className="max-w-80 break-all">{file.name}</p>
+                        <p className="max-w-72 break-all">{file.name}</p>
                       </TableRowHeader>
-                      <TableCell>{persian(file.row_count)}</TableCell>
+                      <TableCell numeric>{persian(file.row_count)}</TableCell>
+                      <TableCell>{file.period_name || "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {file.created_at ? displayDate(file.created_at) : "—"}
+                      </TableCell>
                       <TableCell>
                         {file.archived ? (
                           <Badge>بایگانی</Badge>
                         ) : (
                           <StatusBadge status={file.state} />
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {file.session_id ? (
+                          <ButtonLink
+                            href={`/uploads/${file.session_id}`}
+                            variant="ghost"
+                            className="text-xs text-primary"
+                          >
+                            مشاهده نوبت
+                            <ArrowUpLeftIcon size={14} aria-hidden />
+                          </ButtonLink>
+                        ) : "—"}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -125,7 +144,7 @@ function CompanyDocuments() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={4} title="هنوز فایلی بارگذاری نشده است" />
+                  <TableEmptyCell colSpan={7} title="هنوز فایلی بارگذاری نشده است" />
                 )}
               </TableBody>
             </Table>
@@ -141,14 +160,26 @@ function CompanyDocuments() {
       </section>
       {workspace.canWrite && (
         <Drawer
-          title="بارگذاری جدید اسناد و مدارک"
+          title="بارگذاری جدید فایل‌ها و مدارک"
           open={openUpload}
           onOpenChange={(value) => {
             if (!upload.busy) setOpenUpload(value);
           }}
         >
           <div className="space-y-4">
-
+            <StatusMessage tone="primary">
+              <div className="space-y-1 text-xs">
+                <div>
+                  دورهٔ هدف:{" "}
+                  <span className="font-medium text-foreground">
+                    {workspace.periods.find((period) => period.id === workspace.periodId)?.name || "انتخاب‌نشده در هدر (بدون تخصیص دوره)"}
+                  </span>
+                </div>
+                <div>
+                  فرمت‌های مجاز: CSV، XLSX، XLS (حداکثر ۱۰ فایل و حدود ۲۰٬۰۰۰ ردیف در هر نوبت)
+                </div>
+              </div>
+            </StatusMessage>
             <FilePicker
               onFiles={async (files) => {
                 await upload.upload(files);
@@ -215,7 +246,7 @@ function CompanyDocuments() {
       >
         <p>{archiving?.name}</p>
         <p className="mt-2 text-sm text-muted">
-          اثر مالی و اصل سند در گزارش‌ها حفظ می‌شود.
+          اثر مالی و اصل فایل در گزارش‌ها حفظ می‌شود.
         </p>
         <FormMessage error>{command.error?.message}</FormMessage>
       </ConfirmDialog>

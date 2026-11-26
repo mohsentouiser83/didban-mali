@@ -93,12 +93,35 @@ export function buildAccountTreeRows(
   return rows;
 }
 
+export function accountPostableStatus(
+  account: Pick<LedgerAccount, "active" | "level" | "has_children" | "postable">,
+): { postable: boolean; label: string; reason?: string } {
+  if (!account.active) {
+    return {
+      postable: false,
+      label: "غیرقابل ثبت (غیرفعال)",
+      reason: "حساب غیرفعال است و در اسناد جدید قابل انتخاب نیست.",
+    };
+  }
+  if (account.level === "group") {
+    return {
+      postable: false,
+      label: "غیرقابل ثبت (گروه)",
+      reason: "حساب سطح گروه مستقیم سند نمی‌گیرد.",
+    };
+  }
+  if (account.has_children || account.postable === false) {
+    return {
+      postable: false,
+      label: "غیرقابل ثبت (دارای زیرمجموعه)",
+      reason: "حساب دارای زیرمجموعه است؛ ثبت سند روی زیرحساب‌ها انجام می‌شود.",
+    };
+  }
+  return { postable: true, label: "قابل ثبت سند" };
+}
+
 export function isAccountPostable(account: Pick<LedgerAccount, "active" | "level" | "has_children" | "postable">): boolean {
-  if (!account.active) return false;
-  if (account.level === "group") return false;
-  if (account.has_children) return false;
-  if (account.postable === false) return false;
-  return true;
+  return accountPostableStatus(account).postable;
 }
 
 export function accountCodeHint(level: string, parentCode?: string | null): string {
@@ -225,6 +248,9 @@ export const ACCOUNT_ROLE_OPTIONS = [
   { value: "insurance_payable", label: "بیمه پرداختنی" },
   { value: "payroll_tax_payable", label: "مالیات حقوق پرداختنی" },
   { value: "other_payroll_deductions", label: "سایر کسورات پرداختنی" },
+  { value: "inventory_nrv_allowance", label: "ذخیره کاهش ارزش موجودی (D35)" },
+  { value: "inventory_nrv_expense", label: "هزینه کاهش ارزش موجودی (D35)" },
+  { value: "inventory_nrv_recovery", label: "برگشت ذخیره کاهش ارزش موجودی (D35)" },
 ];
 
 export function treasuryRoleLabel(role?: string | null): string {

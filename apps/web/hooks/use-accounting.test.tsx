@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import { useChartSetup } from "./use-accounting-setup";
 import { api, ApiError } from "@/lib/api";
 import type { JournalDraft } from "@/lib/accounting";
 import {
@@ -266,22 +267,19 @@ it("manages ledger accounts with nature in creation and editing", async () => {
 
 
 it("preserves source account codes through the chart import workflow", async () => {
+  const rows = [{ code: "001205", name: "حساب واردشده", nature: "credit", active: true }];
   vi.mocked(api).mockImplementation(async (path) => {
     if (path.endsWith("chart-preview")) return { preview_id: "preview-source-code" };
+    if (path.endsWith("chart-file")) return { rows };
     return { items: [] };
   });
-  const { result } = renderHook(useLedgerAccounts);
-  await act(async () => result.current.importFromExcel({
-    headers: ["کد حساب", "نام حساب", "ماهیت"],
-    rows: [["001205", "حساب واردشده", "بستانکار"]],
-    totalRows: 1,
-  }));
+  const { result } = renderHook(() => useChartSetup(vi.fn()));
+  await act(async () => { await result.current.loadFile(new File(["نمونه"], "chart.csv")); });
+  await act(async () => { await result.current.preview(); });
+  await act(async () => { await result.current.apply(); });
   expect(api).toHaveBeenCalledWith(
     "/companies/company-a/accounting/setup/chart-preview",
-    {
-      method: "POST",
-      body: { rows: [{ code: "001205", name: "حساب واردشده", nature: "credit", active: true }] },
-    },
+    { method: "POST", body: { rows } },
   );
   expect(api).toHaveBeenCalledWith(
     "/companies/company-a/accounting/setup/chart-import",

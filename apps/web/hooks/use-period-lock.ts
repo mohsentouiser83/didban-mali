@@ -77,6 +77,7 @@ export function usePeriodLock(periodId: string) {
         setAck(false);
         resource.refresh();
         history.refresh();
+        w.refreshPeriods();
       },
       resource.data?.closed ? "دوره بازگشایی شد." : "دوره بسته شد.",
     );

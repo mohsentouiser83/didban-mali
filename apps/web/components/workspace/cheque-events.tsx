@@ -17,6 +17,7 @@ import { CursorPagination } from "@/components/ui/pagination";
 import {
   chequeActionLabels,
   chequeStateLabels,
+  chequeSayadStatusLabels,
   type ChequeController,
 } from "@/hooks/use-cheques";
 import { displayDate } from "@/lib/utils";
@@ -34,7 +35,14 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
           این بخش فقط سابقه و شاهد بانکی چک را ثبت می‌کند؛ سند حسابداری و تسویه
           فاکتور ایجاد نمی‌شود.
         </StatusMessage>
-        {c.selected && <p>{chequeStateLabels[c.selected.state] || "نامشخص"}</p>}
+        {c.selected && (
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <div><dt className="text-muted">وضعیت چک</dt><dd>{chequeStateLabels[c.selected.state] || "نامشخص"}</dd></div>
+            <div><dt className="text-muted">وضعیت صیاد</dt><dd>{c.selected.sayad_id
+              ? chequeSayadStatusLabels[c.selected.sayad_status || "not_verified"] || "نامشخص"
+              : "شناسه ثبت نشده"}</dd></div>
+          </dl>
+        )}
         {c.workspace.canWrite && c.actionOptions.length > 0 && (
           <Form
             onSubmit={(event) => {
@@ -146,6 +154,8 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
                     {displayDate(event.event_date)}
                   </p>
                   <p className="mt-2 break-words text-muted">{event.reason}</p>
+                  {event.endorsed_to && <p className="mt-1 text-sm">طرف واگذاری <bdi>{event.endorsed_to}</bdi></p>}
+                  {event.bank_reference && <p className="mt-1 text-sm">مرجع بانک <bdi>{event.bank_reference}</bdi></p>}
                 </li>
               ))}
             </ol>

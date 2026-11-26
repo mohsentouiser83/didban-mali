@@ -33,6 +33,7 @@ export interface TableToolbarProps {
   onExportPdf: () => void;
   onOpenImport?: () => void;
   hasActiveFilters: boolean;
+  showSearch?: boolean;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
 }
 
@@ -48,6 +49,7 @@ export function TableToolbar({
   onExportPdf,
   onOpenImport,
   hasActiveFilters,
+  showSearch = true,
   toolbarVariant = "primary",
 }: TableToolbarProps) {
   // Button styling harmonized with the Didban Mali design system (primary token #5556DE)
@@ -68,29 +70,33 @@ export function TableToolbar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-surface border-b border-border/70 rounded-t-control">
       {/* Search Input on the right (in RTL) */}
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="جست‌وجو در جدول"
-          className="w-full h-9 rounded-xl border border-border/80 bg-canvas/40 ps-4 pe-10 text-xs text-foreground placeholder:text-muted transition-all focus:border-primary/60 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/15"
-          aria-label="جست‌وجو در جدول"
-        />
-        <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-muted pointer-events-none">
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              className="pointer-events-auto p-0.5 text-muted hover:text-foreground transition-colors"
-              aria-label="پاک‌کردن جستجو"
-            >
-              <XIcon size={14} />
-            </button>
-          )}
-          <MagnifyingGlassIcon size={16} />
+      {showSearch ? (
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="جست‌وجو در جدول"
+            className="w-full h-9 rounded-xl border border-border/80 bg-canvas/40 ps-4 pe-10 text-xs text-foreground placeholder:text-muted transition-all focus:border-primary/60 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/15"
+            aria-label="جست‌وجو در جدول"
+          />
+          <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-muted pointer-events-none">
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="pointer-events-auto p-0.5 text-muted hover:text-foreground transition-colors"
+                aria-label="پاک‌کردن جستجو"
+              >
+                <XIcon size={14} />
+              </button>
+            )}
+            <MagnifyingGlassIcon size={16} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div />
+      )}
 
       {/* Action Buttons Toolbar on the left (in RTL) */}
       <div className="flex items-center gap-1.5">

@@ -2,7 +2,7 @@
 
 import json
 from datetime import timedelta, timezone
-from decimal import Decimal
+from decimal import Decimal, localcontext
 from hashlib import sha256
 from uuid import uuid4
 
@@ -20,9 +20,10 @@ from .moadian_models import MoadianTransmissionEvent as Event
 from .moadian_payload import build_payload, can_build
 from .moadian_profiles import MoadianProfile, load_profile
 from .moadian_schemas import MoadianInvoiceInput
-from .money_type import canonical_money
+from .money_type import aggregate_money, canonical_money
 from .native_invoice_models import NativeInvoice
 from .native_invoice_service import detail as invoice_detail
+from .posting_models import NativeJournal
 from .services import get_entity
 from .workflow import audit
 
@@ -114,16 +115,57 @@ def _visible(db, row, member, profile):
     )
 
 
-def history(db, company, member, limit: int, cursor: str | None) -> dict:
+def history(
+    db, company, member, limit: int, cursor: str | None, *,
+    q: str | None = None, status: str | None = None, period_id: str | None = None,
+) -> dict:
     profile = load_profile(company)
     may_send = _can_send(db, company, member)
     may_inquire = member.role in ("owner", "finance_manager")
+    filters = []
+    if q and (query := q.strip().lower()):
+        filters.append(or_(*(
+            func.lower(field).contains(query, autoescape=True)
+            for field in (Transmission.invoice_reference, Transmission.tax_id, Transmission.uid)
+        )))
+    if status:
+        latest_status = (
+            select(Event.status)
+            .where(Event.company_id == company, Event.transmission_id == Transmission.id)
+            .order_by(Event.sequence.desc())
+            .limit(1)
+            .scalar_subquery()
+        )
+        filters.append(latest_status == status)
+    if period_id:
+        get_entity(db, m.Period, company, period_id)
+        period_invoices = (
+            select(NativeInvoice.id)
+            .join(NativeJournal, NativeJournal.id == NativeInvoice.source["journal_id"].as_string())
+            .where(NativeInvoice.company_id == company, NativeJournal.company_id == company, NativeJournal.period_id == period_id)
+        )
+        filters.append(Transmission.invoice_id.in_(period_invoices))
 
     def public(row):
         identity = _same_identity(row, profile)
-        return _public(row, _latest(db, row), identity and may_inquire, identity and may_send)
+        inquiry_at = db.scalar(
+            select(func.max(Event.created_at)).where(
+                Event.company_id == company, Event.transmission_id == row.id, Event.kind == "inquiry",
+            )
+        )
+        period_name = db.scalar(
+            select(m.Period.name)
+            .join(NativeJournal, NativeJournal.period_id == m.Period.id)
+            .join(NativeInvoice, NativeInvoice.source["journal_id"].as_string() == NativeJournal.id)
+            .where(m.Period.company_id == company, NativeJournal.company_id == company,
+                   NativeInvoice.company_id == company, NativeInvoice.id == row.invoice_id)
+        )
+        return _public(row, _latest(db, row), identity and may_inquire, identity and may_send) | {
+            "last_inquiry_at": inquiry_at.replace(tzinfo=timezone.utc).isoformat() if inquiry_at else None,
+            "period_name": period_name,
+        }
 
-    return paginate(db, Transmission, company, limit, cursor, transform=public) | {
+    return paginate(db, Transmission, company, limit, cursor, filters, transform=public) | {
         "configured": profile is not None,
         "can_submit": profile is not None and may_send,
     }
@@ -628,8 +670,16 @@ def reconciliation_summary(db: Session, company: str, user: m.User, member) -> d
                 "status": st,
             }
             if st == "accepted":
-                total_sales_accepted += amt
-                total_vat_accepted += vat_amt
+                header = (tx.payload or {}).get("header") or {}
+                with localcontext() as precision:
+                    precision.prec = 60
+                    if header.get("tbill") is not None:
+                        submitted = Decimal(str(header["tbill"]))
+                        total_sales_accepted += submitted
+                        row_data["submitted_amount"] = canonical_money(submitted)
+                        row_data["difference"] = aggregate_money(submitted - amt)
+                    if header.get("tvam") is not None:
+                        total_vat_accepted += Decimal(str(header["tvam"]))
                 row_data["status_label"] = "تأییدشده در کارپوشه"
                 accepted.append(row_data)
             elif st in ("rejected", "failed"):
@@ -643,6 +693,7 @@ def reconciliation_summary(db: Session, company: str, user: m.User, member) -> d
 
     return {
         "configured": profile is not None,
+        "has_portal_evidence": bool(accepted),
         "summary": {
             "total_sales_book": canonical_money(total_sales_book),
             "total_sales_accepted": canonical_money(total_sales_accepted),

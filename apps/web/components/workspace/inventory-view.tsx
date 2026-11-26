@@ -6,12 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
-import { FormMessage } from "@/components/ui/field";
+import { Field, FormMessage } from "@/components/ui/field";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { Select } from "@/components/ui/select";
+import type { InventoryCardexScope } from "@/hooks/use-inventory-cardex";
 import { useInventoryOverview } from "@/hooks/use-inventory";
 import { useWorkspace } from "@/hooks/workspace";
 import { inventoryInvoicePath, inventoryTitle, type InventoryOperation } from "@/lib/inventory";
 import { displayDate, persian } from "@/lib/utils";
 import { InventoryDraftDrawer } from "./inventory-draft-drawer";
+import { InventoryStockDraftDrawer } from "./inventory-stock-draft-drawer";
+import { InventoryNrvDrawer } from "./inventory-nrv-drawer";
 import {
   InventoryBalanceTable,
   InventoryKardexDrawer,
@@ -20,17 +25,19 @@ import { JournalPostingLines } from "./journal-posting-lines";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { PostingReviewDialog } from "./posting-review-dialog";
 
-export function InventoryView() {
+export function InventoryView({ initialWarehouse }: { initialWarehouse?: string }) {
   const workspace = useWorkspace();
   return workspace.company ? (
-    <InventoryWorkspace key={`${workspace.user?.id}:${workspace.company.id}`} />
+    <InventoryWorkspace key={`${workspace.user?.id}:${workspace.company.id}:${initialWarehouse || ""}`} initialWarehouse={initialWarehouse} />
   ) : <NoCompany />;
 }
 
-function InventoryWorkspace() {
-  const view = useInventoryOverview();
+function InventoryWorkspace({ initialWarehouse }: { initialWarehouse?: string }) {
+  const view = useInventoryOverview(initialWarehouse);
   const [editor, setEditor] = useState<{ kind: InventoryOperation; open: boolean; generation: number }>();
-  const [kardexTarget, setKardexTarget] = useState<{ itemId?: string; warehouseId?: string } | null>(null);
+  const [kardexTarget, setKardexTarget] = useState<InventoryCardexScope | null>(null);
+  const [nrvOpen, setNrvOpen] = useState(false);
+  const [stockDraftOpen, setStockDraftOpen] = useState(false);
   const openDraft = (kind: InventoryOperation) =>
     setEditor((previous) => ({ kind, open: true, generation: (previous?.generation ?? 0) + 1 }));
   const closeDraft = () =>
@@ -43,7 +50,7 @@ function InventoryWorkspace() {
   return (
     <>
       <PageHeader
-        title="موجودی و گردش کالا"
+        title="موجودی و کاردکس"
         icon={PackageIcon}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -61,6 +68,15 @@ function InventoryWorkspace() {
                   onClick={() => openDraft("sale_goods")}
                 >
                   فروش کالا
+                </Button>
+                <Button variant="secondary" disabled={!canCreate} onClick={() => setStockDraftOpen(true)}>
+                  سایر گردش‌های انبار
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setNrvOpen(true)}
+                >
+                  ارزیابی کاهش ارزش (استاندارد ۸)
                 </Button>
               </>
             )}
@@ -104,16 +120,32 @@ function InventoryWorkspace() {
           <div className="space-y-6">
             <InventoryBalanceTable
               view={view}
-              onViewKardex={(itemId, warehouseId) =>
-                setKardexTarget({ itemId, warehouseId })
-              }
+              filters={(
+                <div className="mb-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field id="inventory-balance-item" label="کالا">
+                    <Select id="inventory-balance-item" value={view.itemId} onValueChange={view.chooseItem} searchable
+                      options={[{ value: view.all, label: "همه کالاها" },
+                        ...data.items.filter((item) => item.item_kind !== "service").map((item) => ({ value: item.id, label: item.name }))]} />
+                  </Field>
+                  <Field id="inventory-balance-warehouse" label="انبار">
+                    <Select id="inventory-balance-warehouse" value={view.warehouseId} onValueChange={view.chooseWarehouse} searchable
+                      options={[{ value: view.all, label: "همه انبارها" },
+                        ...data.warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))]} />
+                  </Field>
+                  <Field id="inventory-balance-as-of" label="تاریخ ارزیابی">
+                    <PersianDatePicker id="inventory-balance-as-of" value={view.asOf} onChange={view.chooseAsOf} />
+                  </Field>
+                  <Button variant="ghost" onClick={view.resetFilters}>پاک‌کردن فیلترها</Button>
+                </div>
+              )}
+              onViewKardex={(itemId, warehouseId) => setKardexTarget({
+                itemId: itemId ?? (view.itemId === view.all ? undefined : view.itemId),
+                warehouseId: warehouseId ?? (view.warehouseId === view.all ? undefined : view.warehouseId),
+                asOf: view.asOf,
+              })}
             />
           </div>
-          <InventoryKardexDrawer
-            view={view}
-            target={kardexTarget}
-            onClose={() => setKardexTarget(null)}
-          />
+          {kardexTarget && <InventoryKardexDrawer view={view} target={kardexTarget} onClose={() => setKardexTarget(null)} />}
           {editor && (
             <InventoryDraftDrawer
               key={editor.generation}
@@ -125,6 +157,16 @@ function InventoryWorkspace() {
               onCreated={view.onDraftCreated}
             />
           )}
+          {stockDraftOpen && (
+            <InventoryStockDraftDrawer inventory={data} accounts={view.accounts.options}
+              onClose={() => setStockDraftOpen(false)} />
+          )}
+          <InventoryNrvDrawer
+            open={nrvOpen}
+            onOpenChange={setNrvOpen}
+            accounts={view.accounts.options}
+            onDraftCreated={() => view.inventory.refresh()}
+          />
         </div>
       )}
       <PostingReviewDialog view={view.posting} />

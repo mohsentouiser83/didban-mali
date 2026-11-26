@@ -54,20 +54,24 @@ export function PayrollDashboardView() {
   return (
     <>
       <PageHeader
-        title="حقوق و دستمزد"
+        title="لیست حقوق و فیش‌ها"
         icon={UsersThreeIcon}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
-              <PlusIcon size={18} aria-hidden />
-              ایجاد لیست حقوق جدید
-            </Button>
+            {v.canPrepare && (
+              <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
+                <PlusIcon size={18} aria-hidden />
+                ایجاد لیست حقوق جدید
+              </Button>
+            )}
             {currentRun && (
               <>
-                <Button variant="secondary" onClick={v.openAttendance}>
-                  <CalendarCheckIcon size={18} aria-hidden />
-                  کارکرد ماهانه پرسنل
-                </Button>
+                {v.canPrepare && currentRun.status === "calculated" && (
+                  <Button variant="secondary" onClick={v.openAttendance}>
+                    <CalendarCheckIcon size={18} aria-hidden />
+                    کارکرد ماهانه پرسنل
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={() => v.setInsuranceDiskOpen(true)}>
                   <ShieldCheckIcon size={18} aria-hidden />
                   لیست بیمه تامین اجتماعی
@@ -78,7 +82,7 @@ export function PayrollDashboardView() {
                 </Button>
               </>
             )}
-            {currentRun && currentRun.status === "calculated" && (
+            {v.canPrepare && currentRun?.status === "calculated" && (
               <Button variant="secondary" onClick={v.openDraft} busy={v.command.busy}>
                 <BooksIcon size={18} aria-hidden />
                 صدور پیش‌نویس سند حسابداری
@@ -92,16 +96,18 @@ export function PayrollDashboardView() {
 
       {v.loading ? (
         <LoadingState label="در حال بارگذاری لیست‌های حقوق..." />
+      ) : v.error ? (
+        <ErrorState message={v.error.message} onRetry={v.error.status === 403 ? undefined : v.refresh} />
       ) : v.runs.length === 0 ? (
         <Panel>
           <EmptyState
             title="هیچ لیست حقوقی ایجاد نشده است"
             description="برای شروع محاسبه حقوق و صدور فیش‌ها، اولین لیست حقوق دوره را ایجاد کنید."
-            action={
+            action={v.canPrepare && (
               <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
                 ایجاد اولین لیست حقوق
               </Button>
-            }
+            )}
           />
         </Panel>
       ) : (
@@ -252,7 +258,7 @@ export function PayrollDashboardView() {
                         </TableCell>
                         <TableCell className="text-end">
                           <div className="flex items-center justify-end gap-1">
-                            {currentRun.status === "calculated" && (
+                            {v.canPrepare && currentRun.status === "calculated" && (
                               <Button
                                 variant="ghost"
                                 className="size-8 p-0"
@@ -297,7 +303,7 @@ export function PayrollDashboardView() {
 
       {/* مودال ایجاد لیست حقوق جدید */}
       <Drawer
-        open={v.createOpen}
+        open={v.canPrepare && v.createOpen}
         onOpenChange={(open) => !open && v.setCreateOpen(false)}
         title="ایجاد لیست حقوق و دستمزد جدید"
         description="دوره و ماه مالی مورد نظر را انتخاب کنید تا محاسبات اولیه فیش‌ها انجام شود."
@@ -348,7 +354,7 @@ export function PayrollDashboardView() {
       </Drawer>
 
       <Drawer
-        open={v.draftOpen}
+        open={v.canPrepare && v.draftOpen}
         onOpenChange={(open) => !open && v.closeDraft()}
         title="حساب‌های سند حقوق"
         footer={<Button onClick={v.handleCreateDraft} disabled={!v.canCreateDraft} busy={v.command.busy}>تهیه پیش‌نویس</Button>}
@@ -368,7 +374,7 @@ export function PayrollDashboardView() {
 
       {/* مودال ویرایش کارکرد و کسورات کارمند */}
       <Drawer
-        open={!!v.editingSlip}
+        open={v.canPrepare && !!v.editingSlip}
         onOpenChange={(open) => !open && v.closeEditSlip()}
         title={`ثبت کارکرد و کسورات: ${v.editingSlip?.employee_name || ""}`}
         description="ساعات کار، اضافه‌کاری و کسورات این ماه را وارد کنید تا فیش مجدداً محاسبه شود."
@@ -522,7 +528,7 @@ export function PayrollDashboardView() {
 
       {/* مودال ورود کارکرد ماهانه دسته‌جمعی پرسنل */}
       <Drawer
-        open={v.attendanceOpen}
+        open={v.canPrepare && v.attendanceOpen}
         onOpenChange={(open) => !open && v.setAttendanceOpen(false)}
         title="ثبت و ویرایش کارکرد ماهانه پرسنل"
         description={`ثبت ساعات و روزهای کارکرد، اضافه‌کاری، پاداش و مساعده برای لیست ${currentRun?.title || ""}`}

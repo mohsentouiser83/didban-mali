@@ -1,4 +1,5 @@
 "use client";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -22,7 +23,10 @@ import {
   ACCOUNT_NATURE_OPTIONS,
   type AccountNature,
 } from "@/lib/accounting";
-import { ACCOUNT_LEVEL_OPTIONS, type AccountLevel } from "@/lib/account-catalogue";
+import {
+  ACCOUNT_LEVEL_OPTIONS,
+  type AccountLevel,
+} from "@/lib/account-catalogue";
 import { persian } from "@/lib/utils";
 import { DrawerAction } from "@/components/ui/drawer-action";
 export function ChartSetupPanel({
@@ -63,8 +67,14 @@ export function ChartSetupPanel({
             الگوی اولیه قابل ویرایش است؛ نگاشت قانونی یا ثبت مالی تأییدشده نیست.
             کدهای موجود جایگزین نمی‌شوند.
           </StatusMessage>
-          <p>{persian(c.total)} حساب</p>
-          <Table>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span>{persian(c.total)} حساب</span>
+            <Badge tone="success">{persian(c.total - c.invalidCount)} {c.previewId ? "ردیف آماده ورود" : "ردیف آماده بررسی"}</Badge>
+            {c.invalidCount > 0 && (
+              <Badge tone="danger">{persian(c.invalidCount)} ردیف خطادار</Badge>
+            )}
+          </div>
+          <Table showSearch={false}>
             <TableHeader>
               <TableRow>
                 <TableHead>کد حساب <RequiredIndicator /></TableHead>
@@ -73,6 +83,7 @@ export function ChartSetupPanel({
                 <TableHead>کد حساب بالادست</TableHead>
                 <TableHead>ماهیت حساب <RequiredIndicator /></TableHead>
                 <TableHead>فعال</TableHead>
+                <TableHead>اعتبارسنجی</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,6 +152,13 @@ export function ChartSetupPanel({
                         c.change(row.index, { active })
                       }
                     />
+                  </TableCell>
+                  <TableCell>
+                    {row.error ? (
+                      <Badge tone="danger">{row.error}</Badge>
+                    ) : (
+                      <Badge tone={c.previewId ? "success" : "neutral"}>{c.previewId ? "آماده ورود" : "آماده بررسی"}</Badge>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

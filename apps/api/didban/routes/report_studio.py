@@ -28,8 +28,8 @@ def interpret_prompt(company_id: str, data: StudioInterpretInput, request: Reque
 @router.post(BASE + "/preview")
 def preview_dashboard(company_id: str, data: StudioPreviewInput, request: Request):
     """Evaluates and renders all sections and widgets of a Studio dashboard."""
-    with access(request, company_id) as (db, _user, _member):
-        return service.preview(db, company_id, data.spec)
+    with access(request, company_id) as (db, user, _member):
+        return service.preview(db, company_id, data.spec, actor=user)
 
 
 @router.get(BASE + "/definitions")
@@ -116,7 +116,7 @@ def export_definition(
 ):
     """Exports an evaluated report definition to a downloadable PDF document."""
     with access(request, company_id) as (db, user, _member):
-        content = service.export_definition_pdf(db, company_id, definition_id, period_id)
+        content = service.export_definition_pdf(db, company_id, definition_id, period_id, actor=user)
         audit(
             db,
             company_id,

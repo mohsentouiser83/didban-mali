@@ -15,6 +15,8 @@ export interface MoadianTransmission {
   can_retry: boolean;
   error_codes: string[];
   created_at: string;
+  last_inquiry_at?: string | null;
+  period_name?: string | null;
 }
 
 export interface MoadianTransmissions {

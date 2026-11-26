@@ -102,6 +102,15 @@ def reports(company_id: str, request: Request, limit: int = 50, cursor: str | No
     with access(request, company_id) as (db, _user, _member):
 
         def transform(report):
+            period_name = db.scalar(
+                select(m.Period.name)
+                .join(m.ResultManifest, m.ResultManifest.period_id == m.Period.id)
+                .where(
+                    m.Period.company_id == company_id,
+                    m.ResultManifest.company_id == company_id,
+                    m.ResultManifest.id == report.manifest_id,
+                )
+            )
             approvals = db.scalars(
                 select(m.ReportApproval).where(
                     m.ReportApproval.company_id == company_id, m.ReportApproval.report_id == report.id
@@ -110,6 +119,7 @@ def reports(company_id: str, request: Request, limit: int = 50, cursor: str | No
             return serialize_fact(report) | {
                 "approvals": [serialize_fact(v) for v in approvals],
                 "label": "تولیدشده سامانه",
+                "period_name": period_name,
             }
 
         return paginate(db, m.Report, company_id, limit, cursor, transform=transform)

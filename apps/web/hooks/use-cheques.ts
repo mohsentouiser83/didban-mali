@@ -5,9 +5,9 @@ import { useWorkspace } from "./workspace";
 import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
-import { amount, displayDate, persian } from "@/lib/utils";
+import { amount, asciiDigits, displayDate, persian } from "@/lib/utils";
 import { api, type ResourceList } from "@/lib/api";
-import { prepareChequeImport } from "@/lib/cheque-import";
+import { previewChequeImport, type ChequeImportPreview } from "@/lib/cheque-import";
 import type { ParsedTableImport } from "@/components/ui/table";
 import { toast } from "sonner";
 export interface Cheque {
@@ -15,6 +15,8 @@ export interface Cheque {
   version: number;
   direction: "received" | "issued" | "guarantee_in" | "guarantee_out";
   number: string;
+  sayad_id?: string | null;
+  sayad_status?: string;
   bank_name: string;
   bank_account: string;
   party_id: string;
@@ -30,6 +32,8 @@ interface Event {
   reason: string;
   previous_state: string | null;
   new_state: string;
+  bank_reference?: string | null;
+  endorsed_to?: string | null;
 }
 interface Bank {
   party_id?: string;
@@ -56,6 +60,13 @@ export const chequeStateLabels: Record<string, string> = {
   returned: "برگشتی",
   cancelled: "لغوشده",
 };
+export const chequeSayadStatusLabels: Record<string, string> = {
+  not_verified: "احراز نشده",
+  registered: "ثبت‌شده در صیاد",
+  confirmed: "تأییدشده",
+  rejected: "ردشده",
+  unknown: "نامشخص",
+};
 export const chequeActionLabels: Record<string, string> = {
   deposit: "تحویل به بانک",
   endorse: "واگذاری",
@@ -67,12 +78,14 @@ export const chequeActionLabels: Record<string, string> = {
 const blank = () => ({
   direction: "received" as "received" | "issued" | "guarantee_in" | "guarantee_out",
   number: "",
+  sayad_id: "",
   bank_name: "",
   bank_account: "",
   party_id: "",
   amount: "",
   unit: "IRR" as "IRR" | "TOMAN",
   issue_date: "",
+  received_date: "",
   due_date: "",
   period_id: "",
 });
@@ -91,12 +104,13 @@ export function useCheques() {
   const workspace = useWorkspace();
   const [directionFilter, setDirectionFilter] = useState<string>("all");
   const path = directionFilter === "all" ? "cheques" : `cheques?direction=${directionFilter}`;
-  const base = workspace.companyPath(path);
-  const resource = usePagedResource<Cheque>(base);
+  const base = workspace.companyPath("cheques");
+  const resource = usePagedResource<Cheque>(workspace.companyPath(path));
   const command = useCommand();
   const importing = useRef(false);
   const importKeys = useRef(new Map<string, string>());
   const [importBusy, setImportBusy] = useState(false);
+  const [importPreview, setImportPreview] = useState<ChequeImportPreview | null>(null);
   const [creating, setCreating] = useState(false);
   const [formState, setForm] = useState(blank);
   const form = { ...formState, period_id: workspace.periodId };
@@ -165,16 +179,19 @@ export function useCheques() {
     return true;
   }
   function create() {
-    if (!workspace.periodId) return;
+    if (!workspace.canWrite || !workspace.periodId) return;
     const problem: Record<string, string> = {};
     if (!form.period_id) problem["cheque-period"] = "دوره را انتخاب کنید.";
-    if (!form.issue_date)
-      problem["cheque-issue"] = "تاریخ دریافت یا صدور لازم است.";
+    const sayad_id = asciiDigits(form.sayad_id).trim();
+    if (sayad_id && !/^\d{16}$/.test(sayad_id)) {
+      problem["cheque-sayad-id"] = "شناسهٔ صیادی باید ۱۶ رقم باشد.";
+    }
+    if (!form.issue_date) problem["cheque-issue"] = "تاریخ صدور لازم است.";
     if (!form.due_date) problem["cheque-due"] = "سررسید لازم است.";
     if (!validate(problem)) return;
     void command.run(
       base,
-      { body: form },
+      { body: { ...form, sayad_id: sayad_id || null, received_date: form.received_date || null } },
       () => {
         setCreating(false);
         resource.refresh();
@@ -183,7 +200,7 @@ export function useCheques() {
     );
   }
   function apply() {
-    if (!selected || !workspace.periodId) return;
+    if (!selected || !workspace.canWrite || !workspace.periodId) return;
     const problem: Record<string, string> = {};
     if (!eventPeriod) problem["cheque-event-period"] = "دوره را انتخاب کنید.";
     if (!eventDate) problem["cheque-event-date"] = "تاریخ رویداد لازم است.";
@@ -261,24 +278,30 @@ export function useCheques() {
     directionFilter,
     setDirectionFilter,
     importBusy,
-    importFromExcel: async (parsed: ParsedTableImport) => {
+    importPreview,
+    closeImportPreview: () => { if (!importing.current) setImportPreview(null); },
+    previewImport: (parsed: ParsedTableImport) => {
       if (!base || !workspace.canWrite || !parsed.rows.length || importing.current) return;
       const period = workspace.periods.find((item) => item.id === workspace.periodId);
       if (!period) {
         toast.error("دورهٔ مالی ورود چک را انتخاب کنید.");
         return;
       }
-      const prepared = prepareChequeImport(parsed, period);
-      if ("error" in prepared) {
-        toast.error(prepared.error);
+      setImportPreview(previewChequeImport(parsed, period));
+    },
+    confirmImport: async () => {
+      if (!base || !workspace.canWrite || !importPreview || importPreview.headerError ||
+          !importPreview.rows.length || importPreview.rows.some((row) => !row.valid) || importing.current) return;
+      const rows = importPreview.rows.flatMap((row) => row.payload ? [row.payload] : []);
+      if (rows.length !== importPreview.rows.length || rows.some((row) => row.period_id !== workspace.periodId)) {
+        toast.error("دورهٔ مالی تغییر کرده است. فایل را دوباره بررسی کنید.");
         return;
       }
-
       importing.current = true;
       setImportBusy(true);
       let saved = 0;
       try {
-        for (const body of prepared.rows) {
+        for (const body of rows) {
           const fingerprint = base + JSON.stringify(body);
           const key = importKeys.current.get(fingerprint) ?? randomId();
           importKeys.current.set(fingerprint, key);
@@ -286,9 +309,11 @@ export function useCheques() {
           saved++;
         }
         toast.success(`${persian(saved)} فقره چک ثبت شد.`);
+        setImportPreview(null);
       } catch (error) {
         const detail = error instanceof Error ? error.message : "خطای ثبت چک";
         toast.error(`${persian(saved)} فقره ثبت شد. ورود در ردیف دادهٔ ${persian(saved + 1)} متوقف شد. ${detail}`);
+        setImportPreview(null);
       } finally {
         importing.current = false;
         setImportBusy(false);

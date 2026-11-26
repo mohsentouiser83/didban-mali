@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Drawer } from "@/components/ui/drawer";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConditionalRegion } from "@/components/ui/conditional-region";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { FormMessage } from "@/components/ui/field";
 import { FilePicker } from "@/components/ui/file-picker";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -56,6 +56,21 @@ function UploadsWorkspace() {
             if (!upload.busy) setOpen(value);
           }}
         >
+          <div className="mb-4">
+            <StatusMessage tone="primary">
+              <div className="space-y-1 text-xs">
+                <div>
+                  دورهٔ هدف:{" "}
+                  <span className="font-medium text-foreground">
+                    {upload.periods.find((period) => period.id === upload.periodId)?.name || "انتخاب‌نشده در هدر (بدون تخصیص دوره)"}
+                  </span>
+                </div>
+                <div>
+                  فرمت‌های مجاز: CSV، XLSX، XLS (حداکثر ۱۰ فایل و حدود ۲۰٬۰۰۰ ردیف در هر نوبت)
+                </div>
+              </div>
+            </StatusMessage>
+          </div>
           <FilePicker
             onFiles={(files) => void upload.upload(files)}
             disabled={upload.busy}
@@ -143,7 +158,7 @@ function UploadsWorkspace() {
                   <TableHead>وضعیت</TableHead>
                   <TableHead>دوره</TableHead>
                   <TableHead>
-                    <span className="sr-only">بازکردن</span>
+                    <span className="sr-only">عملیات</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>

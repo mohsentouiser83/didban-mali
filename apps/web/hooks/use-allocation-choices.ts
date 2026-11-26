@@ -13,7 +13,7 @@ function useDebouncedQuery(value: string) {
   }, [value]);
   return query;
 }
-export function useAllocationChoices() {
+export function useAllocationChoices(operationType: "received" | "paid" = "received") {
   const workspace = useWorkspace();
   const [bankQuery, setBankQuery] = useState("");
   const [invoiceQuery, setInvoiceQuery] = useState("");
@@ -34,20 +34,29 @@ export function useAllocationChoices() {
   const bankOptions = useMemo(
     () =>
       listItems(banks.data)
-        .filter((bank) => !["opening", "anchor"].includes(bank.kind))
+        .filter((bank) => {
+          if (["opening", "anchor"].includes(bank.kind)) return false;
+          const val = Number(bank.amount || 0);
+          return operationType === "received" ? val > 0 : val < 0;
+        })
         .map((bank) => ({
           value: bank.id,
           label: `${bank.reference || bank.account} · ${amount(bank.amount)} ریال`,
         })),
-    [banks.data],
+    [banks.data, operationType],
   );
   const invoiceOptions = useMemo(
     () =>
-      listItems(invoices.data).map((invoice) => ({
-        value: invoice.id,
-        label: `${invoice.reference} · ${invoice.party_id}`,
-      })),
-    [invoices.data],
+      listItems(invoices.data)
+        .filter((invoice) => {
+          const isSales = invoice.direction === "sales" || Number(invoice.amount || 0) > 0;
+          return operationType === "received" ? isSales : !isSales;
+        })
+        .map((invoice) => ({
+          value: invoice.id,
+          label: `${invoice.reference} · ${invoice.party_id} (مانده: ${amount(invoice.remaining)} ریال)`,
+        })),
+    [invoices.data, operationType],
   );
   return {
     banks,

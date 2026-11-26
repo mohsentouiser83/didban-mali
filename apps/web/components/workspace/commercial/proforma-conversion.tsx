@@ -37,7 +37,8 @@ export function ProformaConversion({ row, onClose, onComplete }: {
   const error = view.inventory.error ?? view.accounts.error;
   const loading = view.inventory.loading || view.accounts.loading;
   const accountFields = [
-    ...baseAccountFields,
+    ...(view.hasGoods ? baseAccountFields : []),
+    ...(view.hasService ? [["service_revenue_account_id", "حساب درآمد خدمات"]] as const : []),
     ...(view.onAccount ? [["counterparty_account_id", "حساب دریافتنی تجاری"]] as const : []),
     ...(view.cash ? [["cash_account_id", "حساب نقد یا بانک"]] as const : []),
     ...(view.cheque ? [["cheque_account_id", "حساب اسناد دریافتنی"]] as const : []),
@@ -70,11 +71,13 @@ export function ProformaConversion({ row, onClose, onComplete }: {
           <p>مبلغ فاکتور <bdi>{amount(row.total_amount)} {unit}</bdi></p>
           <div className="grid gap-4 sm:grid-cols-2">
 
-            <Field id="proforma-conversion-warehouse" label="انبار" required>
-              <Select id="proforma-conversion-warehouse" value={view.values.warehouse_id}
-                options={view.inventory.data?.warehouses.map(({ id, name }) => ({ value: id, label: name })) ?? []}
-                onValueChange={(warehouse_id) => view.setValues((previous) => ({ ...previous, warehouse_id }))} />
-            </Field>
+            {view.hasGoods && (
+              <Field id="proforma-conversion-warehouse" label="انبار" required>
+                <Select id="proforma-conversion-warehouse" value={view.values.warehouse_id}
+                  options={view.inventory.data?.warehouses.map(({ id, name }) => ({ value: id, label: name })) ?? []}
+                  onValueChange={(warehouse_id) => view.setValues((previous) => ({ ...previous, warehouse_id }))} />
+              </Field>
+            )}
             <Field id="proforma-conversion-settlement" label="نوع تسویه" required>
               <Select id="proforma-conversion-settlement" value={view.values.settlement_type} options={settlementOptions}
                 onValueChange={(settlement_type) => view.setValues((previous) => ({ ...previous, settlement_type }))} />
@@ -110,7 +113,11 @@ export function ProformaConversion({ row, onClose, onComplete }: {
               );
             })}
           </div>
-          <FormMessage error>{view.command.error?.message}</FormMessage>
+          <FormMessage error>
+            {view.mixed && !view.mixedSumMatch
+              ? "مجموع مبالغ تسویه باید دقیقاً برابر مبلغ فاکتور باشد."
+              : view.command.error?.message}
+          </FormMessage>
         </form>
       )}
     </Drawer>

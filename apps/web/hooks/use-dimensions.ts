@@ -15,27 +15,93 @@ import { useCommand } from "./use-command";
 import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useFinancialView } from "./use-financial-view";
+export interface DimensionImportPreviewRow {
+  rowNumber: number;
+  name: string;
+  kind: "project" | "branch" | "cost_center";
+  rawKind: string;
+  error?: string;
+}
+
+export interface DimensionImportSummary {
+  succeeded: number;
+  failed: number;
+  errors: string[];
+}
+
 export function useDimensionManagement() {
   const workspace = useWorkspace(),
     command = useCommand();
   const resource = usePagedResource<Dimension>(
     workspace.companyPath("dimensions"),
   );
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [editing, setEditing] = useState<Dimension | null | undefined>();
+  const [readOnly, setReadOnly] = useState(false);
+  const [archiving, setArchiving] = useState<Dimension | null>(null);
+  const [importPreview, setImportPreview] = useState<DimensionImportPreviewRow[] | null>(null);
+  const [importSummary, setImportSummary] = useState<DimensionImportSummary | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
   const [value, setValue] = useState({
     kind: "project",
     name: "",
     active: true,
   });
+  const allRows = listItems(resource.data);
+  const rows = allRows.filter((item) => {
+    if (kindFilter !== "all" && item.kind !== kindFilter) return false;
+    if (statusFilter === "active" && !item.active) return false;
+    if (statusFilter === "archived" && item.active) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (
+        !item.name.toLowerCase().includes(q) &&
+        !item.code.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
   return {
     workspace,
     command,
     resource,
-    rows: listItems(resource.data),
+    rows,
+    totalCount: allRows.length,
+    search,
+    setSearch,
+    kindFilter,
+    setKindFilter,
+    statusFilter,
+    setStatusFilter,
+    hasActiveFilters: Boolean(
+      search.trim() || kindFilter !== "all" || statusFilter !== "all",
+    ),
+    resetFilters: () => {
+      setSearch("");
+      setKindFilter("all");
+      setStatusFilter("all");
+    },
     editing,
+    readOnly,
+    archiving,
+    setArchiving,
     value,
-    open: (item: Dimension | null) => {
+    importPreview,
+    importSummary,
+    importBusy,
+    closeImport: () => {
+      if (!importBusy) {
+        setImportPreview(null);
+        setImportSummary(null);
+      }
+    },
+    open: (item: Dimension | null, viewOnly = false) => {
       setEditing(item);
+      setReadOnly(viewOnly);
       setValue(
         item
           ? {
@@ -47,23 +113,54 @@ export function useDimensionManagement() {
       );
       command.clearError();
     },
-    close: () => setEditing(undefined),
+    close: () => {
+      if (!command.busy) {
+        setEditing(undefined);
+        setReadOnly(false);
+      }
+    },
     change: (patch: Partial<typeof value>) =>
       setValue((previous) => ({ ...previous, ...patch })),
     save: () => {
-      if (!value.name.trim()) return;
+      if (!value.name.trim() || readOnly) return;
       void command.run(
         workspace.companyPath(`dimensions${editing ? `/${editing.id}` : ""}`),
         {
           method: editing ? "PATCH" : "POST",
-          body: value,
+          body: {
+            kind: value.kind,
+            name: value.name.trim(),
+            active: value.active,
+          },
           version: editing?.version,
         },
         () => {
           setEditing(undefined);
+          setReadOnly(false);
           resource.refresh();
         },
-        "بُعد ذخیره شد.",
+        "اطلاعات پروژه، شعبه یا مرکز هزینه ذخیره شد.",
+      );
+    },
+    toggleArchive: () => {
+      if (!archiving) return;
+      const nextActive = !archiving.active;
+      void command.run(
+        workspace.companyPath(`dimensions/${archiving.id}`),
+        {
+          method: "PATCH",
+          version: archiving.version,
+          body: {
+            kind: archiving.kind,
+            name: archiving.name,
+            active: nextActive,
+          },
+        },
+        () => {
+          setArchiving(null);
+          resource.refresh();
+        },
+        nextActive ? "مورد دوباره فعال شد." : "مورد بایگانی شد.",
       );
     },
     importFromExcel: async (parsed: ParsedTableImport) => {
@@ -82,54 +179,67 @@ export function useDimensionManagement() {
         return -1;
       };
 
-      const codeIdx = getCol(["کد", "کد بعد", "code"]);
       const nameIdx = getCol(["نام", "عنوان", "نام بعد", "عنوان بعد", "name", "title"]);
       const kindIdx = getCol(["نوع", "نوع بعد", "دسته", "kind", "type"]);
 
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const row of parsed.rows) {
-        const code = codeIdx >= 0 ? String(row[codeIdx] ?? "").trim() : "";
+      const previewRows: DimensionImportPreviewRow[] = parsed.rows.map((row, idx) => {
         const name = nameIdx >= 0 ? String(row[nameIdx] ?? "").trim() : "";
-        if (!code || !name) continue;
-
+        const rawKind = kindIdx >= 0 ? String(row[kindIdx] ?? "").trim() : "";
+        const normKind = rawKind.toLowerCase();
         let kind: "project" | "branch" | "cost_center" = "project";
-        if (kindIdx >= 0) {
-          const rawKind = String(row[kindIdx] ?? "").toLowerCase();
-          if (rawKind.includes("هزینه") || rawKind.includes("مرکز") || rawKind.includes("cost")) {
-            kind = "cost_center";
-          } else if (rawKind.includes("شعبه") || rawKind.includes("branch")) {
-            kind = "branch";
-          } else {
-            kind = "project";
-          }
+        let error: string | undefined;
+
+        if (!name) {
+          error = "نام الزامی است.";
+        } else if (name.length > 120) {
+          error = "نام حداکثر ۱۲۰ کاراکتر است.";
         }
 
-        const payload = {
-          code,
-          name,
-          kind,
-          active: true,
-        };
-
+        if (kindIdx >= 0 && rawKind) {
+          if (normKind.includes("هزینه") || normKind.includes("مرکز") || normKind.includes("cost")) {
+            kind = "cost_center";
+          } else if (normKind.includes("شعبه") || normKind.includes("branch")) {
+            kind = "branch";
+          } else if (normKind.includes("پروژه") || normKind.includes("project")) {
+            kind = "project";
+          } else if (!error) {
+            error = "نوع باید یکی از پروژه، شعبه یا مرکز هزینه باشد.";
+          }
+        }
+        return { rowNumber: idx + 1, name, kind, rawKind, error };
+      });
+      setImportSummary(null);
+      setImportPreview(previewRows);
+    },
+    applyImport: async () => {
+      if (!workspace.company || !importPreview) return;
+      const validRows = importPreview.filter((row) => !row.error);
+      if (!validRows.length) return;
+      setImportBusy(true);
+      let succeeded = 0;
+      let failed = 0;
+      const errors: string[] = [];
+      for (const row of validRows) {
         try {
           await api(workspace.companyPath("dimensions")!, {
             method: "POST",
-            body: payload,
+            body: { kind: row.kind, name: row.name, active: true },
           });
-          successCount++;
-        } catch {
-          failCount++;
+          succeeded++;
+        } catch (err) {
+          failed++;
+          errors.push(`ردیف ${persian(row.rowNumber)} (${row.name}): ${err instanceof Error ? err.message : "خطا در ثبت"}`);
         }
       }
-
+      setImportBusy(false);
+      setImportSummary({ succeeded, failed, errors });
       resource.refresh();
-      if (successCount > 0) {
-        toast.success(`${persian(successCount)} بُعد مالی با موفقیت در پایگاه داده ثبت شد.`);
-      }
-      if (failCount > 0) {
-        toast.warning(`${persian(failCount)} مورد به دلیل تکراری بودن کد یا خطای اعتبارسنجی ثبت نشد.`);
+      if (succeeded > 0 && failed === 0) {
+        toast.success(`${persian(succeeded)} مورد با کد خودکار ثبت شد.`);
+      } else if (succeeded > 0) {
+        toast.warning(`${persian(succeeded)} مورد ثبت شد و ${persian(failed)} مورد خطا داشت.`);
+      } else if (failed > 0) {
+        toast.error("هیچ ردیفی ثبت نشد؛ جزئیات خطا را بررسی کنید.");
       }
     },
   };

@@ -25,6 +25,7 @@ import {
 import { SessionView, UploadsView } from "@/components/workspace/upload-views";
 import { ReconciliationView } from "@/components/workspace/reconciliation-view";
 import { NumberingSystemView } from "@/components/workspace/numbering-system-view";
+import { TreasuryAccountsView } from "@/components/workspace/treasury-accounts-view";
 import { SettingsOverviewView } from "@/components/workspace/settings-overview-view";
 import { CounterpartiesView } from "@/components/workspace/commercial/counterparties-view";
 import { ProformasView } from "@/components/workspace/commercial/proformas-view";
@@ -34,9 +35,10 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ path?: string[] }>;
-  searchParams: Promise<{ operation?: string | string[]; review_draft?: string | string[] }>;
+  searchParams: Promise<{ operation?: string | string[]; review_draft?: string | string[]; party_id?: string | string[]; tab?: string | string[]; reference?: string | string[] }>;
 }) {
   const { path = [] } = await params;
+  const resolvedSearchParams = await searchParams;
   const route = path.join("/");
   if (route === "sources") redirect("/settings/documents");
   if (route === "settings/connections") redirect("/settings/profile");
@@ -53,29 +55,34 @@ export default async function Page({
   if (path.length === 2 && path[0] === "uploads")
     return <SessionView id={path[1]} />;
   if (route === "receivables" || route === "payables") {
-    const { operation } = await searchParams;
+    const { operation, tab, party_id: partyId, reference } = resolvedSearchParams;
     return (
       <InvoicesView
         direction={route === "receivables" ? "sales" : "purchases"}
         operationId={typeof operation === "string" ? operation : undefined}
+        partyId={typeof partyId === "string" ? partyId : undefined}
+        initialReference={typeof reference === "string" ? reference : undefined}
+        initialTab={tab === "commercial" || tab === "imported" ? tab : "native"}
       />
     );
   }
   if (route === "accounting") {
-    const { review_draft: draft } = await searchParams;
+    const { review_draft: draft } = resolvedSearchParams;
     return <AccountingView reviewDraftId={typeof draft === "string" && /^[0-9a-f-]{36}$/i.test(draft) ? draft : undefined} />;
   }
+  const initialPartyId = typeof resolvedSearchParams.party_id === "string" ? resolvedSearchParams.party_id : undefined;
   const routeRenderers: Record<string, () => React.ReactNode> = {
     "": () => <DashboardView />,
     uploads: () => <UploadsView />,
     "settings/accounts": () => <AccountsView />,
+    "settings/treasury": () => <TreasuryAccountsView />,
     reconciliation: () => <ReconciliationView initialTab="bank" />,
     "reconciliation/bank": () => <ReconciliationView initialTab="bank" />,
     "reconciliation/counterparties": () => (
-      <ReconciliationView initialTab="counterparty" />
+      <ReconciliationView initialTab="counterparty" initialPartyId={initialPartyId} />
     ),
     "reconciliation/counterparty": () => (
-      <ReconciliationView initialTab="counterparty" />
+      <ReconciliationView initialTab="counterparty" initialPartyId={initialPartyId} />
     ),
     "reconciliation/moadian": () => (
       <ReconciliationView initialTab="moadian" />

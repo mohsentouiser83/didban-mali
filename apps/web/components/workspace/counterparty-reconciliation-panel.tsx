@@ -11,7 +11,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useCounterpartyReconciliation } from "@/hooks/use-counterparty-reconciliation";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Input, Textarea } from "@/components/ui/input";
@@ -41,8 +41,8 @@ import { toast } from "sonner";
 import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
 import type { StatementRow } from "@/hooks/use-counterparty-reconciliation";
 
-export function CounterpartyReconciliationPanel() {
-  const recon = useCounterpartyReconciliation();
+export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPartyId?: string } = {}) {
+  const recon = useCounterpartyReconciliation(initialPartyId);
   const [statementDrawerOpen, setStatementDrawerOpen] = useState(false);
   const [decisionNotes, setDecisionNotes] = useState("");
   const [decisionStatus, setDecisionStatus] = useState<"reviewed" | "disputed" | "completed">("reviewed");
@@ -108,11 +108,21 @@ export function CounterpartyReconciliationPanel() {
 
     if (rows.length > 0) {
       recon.setStatementRows((prev) => [...prev, ...rows]);
+      recon.setStatementSource("excel");
       toast.success(`${persian(rows.length)} ردیف صورت‌حساب با موفقیت وارد شد.`);
     } else {
       toast.error("ردیف معتبری در فایل یافت نشد.");
     }
   };
+
+  const sourceLabels = {
+    none: "صورت‌حساب طرف‌حساب وارد نشده",
+    manual: "ورود دستی ردیف‌ها",
+    paste: "چسباندن جدول (Paste)",
+    excel: "فایل اکسل صورت‌حساب",
+  } as const;
+
+  const hasCandidates = (recon.candidates.data?.items.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -151,7 +161,7 @@ export function CounterpartyReconciliationPanel() {
             />
           </Field>
 
-          <Field id="recon-tolerance" label="مهلت تقارن تاریخ (روز)">
+          <Field id="recon-tolerance" label="تلورانس تاریخ (روز)">
             <Input
               id="recon-tolerance"
               type="number"
@@ -161,6 +171,25 @@ export function CounterpartyReconciliationPanel() {
               onChange={(e) => recon.setToleranceDays(Number(e.target.value) || 0)}
             />
           </Field>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/80 bg-canvas/50 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              منبع صورت‌حساب: <b>{sourceLabels[recon.statementSource]}</b> ({persian(recon.statementRows.length)} ردیف)
+            </span>
+            <span>
+              تاریخ برش: <b>{displayDate(recon.asOfDate)}</b>
+            </span>
+            <span>
+              تلورانس تاریخ: <b>{persian(recon.toleranceDays)} روز</b>
+            </span>
+          </div>
+          {!hasCandidates && !recon.candidates.loading && (
+            <ButtonLink variant="secondary" className="min-h-8 px-3 text-xs" href="/commercial/counterparties">
+              تعریف طرف‌حساب
+            </ButtonLink>
+          )}
         </div>
 
         {selectedCandidate && (
@@ -560,6 +589,7 @@ export function CounterpartyReconciliationPanel() {
                     <TableHead>اقلام باز</TableHead>
                     <TableHead>وضعیت</TableHead>
                     <TableHead>یادداشت</TableHead>
+                    <TableHead>عملیات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -575,6 +605,19 @@ export function CounterpartyReconciliationPanel() {
                       <TableCell>{persian(run.open_book_count + run.open_statement_count)}</TableCell>
                       <TableCell><StatusBadge status={run.status} /></TableCell>
                       <TableCell className="max-w-[200px] truncate text-xs text-muted">{run.notes || "—"}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            recon.setActiveRun(run);
+                            setDecisionStatus((run.status as "reviewed" | "disputed" | "completed") || "reviewed");
+                            setDecisionNotes(run.notes || "");
+                          }}
+                        >
+                          مشاهده و اصلاح تصمیم
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -584,8 +627,17 @@ export function CounterpartyReconciliationPanel() {
         </>
       ) : (
         <EmptyState
-          title="لطفاً یک طرف‌حساب انتخاب کنید"
-          description="برای مغایرت‌گیری، ابتدا مشتری یا تأمین‌کننده مورد نظر را از منوی بالا انتخاب کنید."
+          title={hasCandidates ? "لطفاً یک طرف‌حساب انتخاب کنید" : "طرف‌حسابی برای تطبیق موجود نیست"}
+          description={
+            hasCandidates
+              ? "برای مغایرت‌گیری، ابتدا مشتری یا تأمین‌کننده مورد نظر را از منوی بالا انتخاب کنید."
+              : "برای شروع تطبیق، ابتدا طرف‌حساب‌ها را تعریف یا اسناد مالی مرتبط را ثبت کنید."
+          }
+          action={
+            !hasCandidates ? (
+              <ButtonLink href="/commercial/counterparties">مدیریت طرف‌حساب‌ها</ButtonLink>
+            ) : undefined
+          }
         />
       )}
 

@@ -301,3 +301,20 @@ def test_journal_number_is_reserved_in_exact_preview_and_remains_stable(book):
     posted = post_batch(db, "c", user, [{key: first[key] for key in ("draft_id", "expected_version", "digest")}])["items"][0]
     assert posted["snapshot"]["number"] == "J-0007-A"
     assert posted["digest"] == first["digest"]
+
+
+def test_draft_index_filters_by_reference_and_state_before_paginating(book, monkeypatch):
+    from didban.routes import accounting
+
+    actor = book.get(m.User, "finance_manager")
+    posted = save_draft(book, "c", actor, data(book))
+    journal = post_batch(book, "c", actor, [approval(book, posted)])["items"][0]
+    draft = save_draft(book, "c", actor, data(book) | {"description": "شرح پیش‌نویس جدید"})
+    monkeypatch.setattr(accounting, "access", lambda *_: nullcontext((book, actor, None)))
+
+    page = accounting.drafts("c", None, limit=1, state="posted", q=journal["snapshot"]["number"])
+    assert [row["id"] for row in page["items"]] == [posted["id"]]
+    assert page["items"][0]["reference"] == journal["snapshot"]["number"]
+    assert page["next_cursor"] is None
+    page = accounting.drafts("c", None, limit=1, state="draft", q="پیش‌نویس")
+    assert [row["id"] for row in page["items"]] == [draft["id"]]

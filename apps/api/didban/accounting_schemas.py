@@ -1,9 +1,9 @@
 """Strict draft input; decimal amounts are strings, never floats."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 
 
 class StrictInput(BaseModel):
@@ -96,6 +96,38 @@ class DraftInput(StrictInput):
     description: str = Field(min_length=1, max_length=500)
     unit: Literal["IRR", "TOMAN"]
     lines: list[DraftLine] = Field(min_length=2, max_length=200)
+
+
+class DraftLineResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    account_id: str
+    party_id: str | None = None
+    counterparty_id: str | None = None
+    debit: StrictStr
+    credit: StrictStr
+    original_debit: StrictStr
+    original_credit: StrictStr
+    description: str | None = None
+    reference_kind: str | None = None
+    reference_id: str | None = None
+    dimension_ids: list[str]
+
+
+class DraftWriteResponse(BaseModel):
+    id: str
+    company_id: str
+    period_id: str
+    date: date
+    created_at: datetime
+    description: str
+    lines: list[DraftLineResponse]
+    original_unit: Literal["IRR", "TOMAN"]
+    actor_id: str
+    state: Literal["draft", "posted", "discarded"]
+    version: int
+    posting_available: bool
+    posting_reason: str | None
 
 
 class PermissionInput(StrictInput):

@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import { useChartSetup } from "./use-accounting-setup";
 import { api } from "@/lib/api";
 import type { LedgerAccount } from "@/lib/accounting";
 import { useLedgerAccounts } from "./use-ledger-accounts";
@@ -45,17 +46,16 @@ it("filters on the server, clears parent filters on level changes and resets bot
   expect(result.current.filtersActive).toBe(false);
 });
 it("submits all imported levels together so parents may follow their children", async () => {
-  const { result } = renderHook(useLedgerAccounts);
-  vi.mocked(api).mockImplementation(async (path) => path.endsWith("chart-preview") ? { preview_id: "p" } : { items: [] });
-  await act(() => result.current.importFromExcel({
-    headers: ["کد حساب", "نام حساب", "سطح حساب", "کد حساب بالادست"], totalRows: 2,
-    rows: [["020", "معین", "معین", "010"], ["010", "کل", "کل", ""]],
-  }));
+  const rows = [
+    { code: "110101", name: "معین", nature: "debit", active: true, level: "subsidiary", parent_code: "1101" },
+    { code: "1101", name: "کل", nature: "debit", active: true, level: "general", parent_code: "11" },
+  ];
+  const { result } = renderHook(() => useChartSetup(vi.fn()));
+  vi.mocked(api).mockImplementation(async (path) => path.endsWith("chart-preview") ? { preview_id: "p" } : { rows });
+  await act(async () => { await result.current.loadFile(new File(["نمونه"], "chart.csv")); });
+  await act(async () => { await result.current.preview(); });
   expect(api).toHaveBeenCalledWith("/companies/c/accounting/setup/chart-preview", {
-    method: "POST", body: { rows: [
-      { code: "020", name: "معین", nature: "debit", active: true, level: "معین", parent_code: "010" },
-      { code: "010", name: "کل", nature: "debit", active: true, level: "کل" },
-    ] },
+    method: "POST", body: { rows },
   });
 });
 it("builds hierarchical tree rows, supports expand/collapse, and opens child creation pre-filled", async () => {
@@ -77,4 +77,17 @@ it("builds hierarchical tree rows, supports expand/collapse, and opens child cre
   expect(result.current.value.level).toBe("subsidiary");
   expect(result.current.value.parent_id).toBe("g");
   expect(result.current.value.code).toBe("110102");
+});
+
+it("searches the full chart while a server level filter is selected", async () => {
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path.endsWith("capabilities")) return { can_manage_accounts: true };
+    return { items: path.includes("level=subsidiary") ? [] : accounts };
+  });
+  const { result } = renderHook(useLedgerAccounts);
+  await waitFor(() => expect(result.current.catalogue.loading).toBe(false));
+  act(() => result.current.setLevelFilter("subsidiary"));
+  act(() => result.current.setSearch("110101"));
+  expect(result.current.rows.map((row) => row.id)).toEqual(["s"]);
+  expect(result.current.serverFiltersActive).toBe(false);
 });

@@ -1,133 +1,94 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeriodsView } from "./periods-view";
 
-const openCreateMock = vi.fn();
-const closeCreateMock = vi.fn();
-const saveMock = vi.fn();
-const removeMock = vi.fn();
-const setDeletingMock = vi.fn();
-
-vi.mock("@/hooks/workspace", () => ({
-  useWorkspace: () => ({
-    company: { id: "comp-1", name: "شرکت نمونه" },
-    canWrite: true,
-  }),
+const actions = vi.hoisted(() => ({
+  openCreate: vi.fn(),
+  openEdit: vi.fn(),
+  setDeleting: vi.fn(),
 }));
 
+const state = vi.hoisted(() => ({
+  creating: false,
+  workspace: {
+    company: { id: "comp-1", name: "شرکت نمونه" },
+    periodId: "p-active",
+    canWrite: true,
+  },
+  items: [
+    { id: "p-past", name: "دوره ۱۴۰۴", start: "2025-01-01", end: "2025-12-29", version: 1, in_use: true, closed: false },
+    { id: "p-active", name: "دوره ۱۴۰۵", start: "2026-01-01", end: "2026-12-29", version: 1, in_use: false, closed: false },
+    { id: "p-locked", name: "دوره قفل‌شده", start: "2024-01-01", end: "2024-12-29", version: 1, in_use: false, closed: true },
+  ],
+}));
+
+vi.mock("@/hooks/workspace", () => ({ useWorkspace: () => state.workspace }));
 vi.mock("@/hooks/use-period-management", () => ({
-  isPeriodClosed: (p: { end?: string }) => p.end === "2025-12-29",
+  periodDateRangeStatus: (p: { id: string }) => p.id === "p-active" ? "current" : "expired",
   usePeriodManagement: () => ({
-    workspace: {
-      company: { id: "comp-1", name: "شرکت نمونه" },
-      canWrite: true,
-    },
+    ...actions,
+    workspace: state.workspace,
     resource: {
       loading: false,
-      error: undefined,
       refresh: vi.fn(),
-      data: {
-        items: [
-          {
-            id: "p-past",
-            name: "دوره ۱۴۰۴",
-            start: "2025-01-01",
-            end: "2025-12-29",
-            version: 1,
-            in_use: true,
-          },
-          {
-            id: "p-active",
-            name: "دوره ۱۴۰۵",
-            start: "2026-01-01",
-            end: "2026-12-29",
-            version: 1,
-            in_use: false,
-          },
-        ],
-      },
+      data: { items: state.items },
+      page: 1,
+      firstPage: vi.fn(),
+      previousPage: vi.fn(),
+      nextPage: vi.fn(),
     },
-    command: { busy: false, error: undefined, clearError: vi.fn() },
-    creating: false,
-    deleting: null,
-    name: "دوره ۱۴۰۵",
-    start: "2026-01-01",
-    end: "2026-12-29",
-    setCreating: vi.fn(),
-    setDeleting: setDeletingMock,
-    setName: vi.fn(),
-    setStart: vi.fn(),
-    setEnd: vi.fn(),
-    openCreate: openCreateMock,
-    closeCreate: closeCreateMock,
-    save: saveMock,
-    remove: removeMock,
+    command: { busy: false, clearError: vi.fn() },
+    creating: state.creating,
+    name: "",
+    start: "",
+    end: "",
+    previousPeriodId: "",
+    comparisonCandidates: [],
+    closeCreate: vi.fn(),
+    save: vi.fn(),
+    remove: vi.fn(),
   }),
 }));
 
 describe("PeriodsView", () => {
   beforeEach(() => {
-    openCreateMock.mockReset();
-    closeCreateMock.mockReset();
-    saveMock.mockReset();
-    removeMock.mockReset();
-    setDeletingMock.mockReset();
+    vi.clearAllMocks();
+    state.creating = false;
   });
 
-  it("does not render comparison period field or removed guidance text", () => {
+  it("distinguishes the expired date range, posting lock, and current header selection", () => {
     render(<PeriodsView />);
-
-    expect(screen.queryByLabelText("دوره مقایسه")).not.toBeInTheDocument();
-    expect(screen.queryByText("دوره مقایسه")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("ابتدا و انتهای دوره را انتخاب کنید."),
-    ).not.toBeInTheDocument();
+    const expired = within(screen.getByRole("row", { name: /دوره ۱۴۰۴/ }));
+    expect(expired.getByText("تاریخ پایان گذشته")).toBeInTheDocument();
+    expect(expired.getByText("باز برای ثبت")).toBeInTheDocument();
+    expect(expired.getByRole("link", { name: "بستن / افتتاح" }))
+      .toHaveAttribute("href", "/accounting/period-end?period_id=p-past");
+    const locked = within(screen.getByRole("row", { name: /دوره قفل‌شده/ }));
+    expect(locked.getByText("قفل‌شده (بسته)")).toBeInTheDocument();
+    expect(locked.getByRole("button", { name: "ویرایش" })).toBeDisabled();
+    expect(screen.getByText("دوره فعلی هدر")).toBeInTheDocument();
   });
 
-  it("does not render manual management action and shows automatic period status", () => {
+  it("opens edits for unlocked periods and only deletes unused, unlocked periods", () => {
     render(<PeriodsView />);
+    const inUse = within(screen.getByRole("row", { name: /دوره ۱۴۰۴/ }));
+    expect(inUse.getByRole("button", { name: /قابل حذف نیست/ })).toBeDisabled();
+    fireEvent.click(inUse.getByRole("button", { name: "ویرایش" }));
+    expect(actions.openEdit).toHaveBeenCalledWith(state.items[0]);
 
-    expect(screen.queryByText("مشاهده و مدیریت")).not.toBeInTheDocument();
-    expect(screen.getByText("بسته شده (خودکار)")).toBeInTheDocument();
-    expect(screen.getByText("دوره جاری")).toBeInTheDocument();
+    const deleteButton = screen.getByRole("button", { name: "حذف دوره ۱۴۰۵" });
+    expect(deleteButton).toBeEnabled();
+    fireEvent.click(deleteButton);
+    expect(actions.setDeleting).toHaveBeenCalledWith(state.items[1]);
   });
 
-  it("does not render edit action on periods", () => {
-    render(<PeriodsView />);
-
-    expect(
-      screen.queryByRole("button", { name: /ویرایش/ }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("prevents deletion of periods containing data and allows deletion of unused periods", () => {
-    render(<PeriodsView />);
-
-    // In-use period has badge
-    expect(screen.getByText("دارای اطلاعات مالی")).toBeInTheDocument();
-
-    // In-use period delete button is disabled
-    const inUseDeleteBtn = screen.getByRole("button", {
-      name: /دوره ۱۴۰۴ دارای اطلاعات است و قابل حذف نیست/,
-    });
-    expect(inUseDeleteBtn).toBeDisabled();
-
-    // Unused period delete button is enabled
-    const unusedDeleteBtn = screen.getByRole("button", {
-      name: /حذف دوره ۱۴۰۵/,
-    });
-    expect(unusedDeleteBtn).not.toBeDisabled();
-    fireEvent.click(unusedDeleteBtn);
-    expect(setDeletingMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "p-active" }),
-    );
-  });
-
-  it("triggers openCreate when clicking دوره جدید", () => {
-    render(<PeriodsView />);
-
-    const newBtn = screen.getByRole("button", { name: /دوره جدید/ });
-    fireEvent.click(newBtn);
-    expect(openCreateMock).toHaveBeenCalled();
+  it("opens creation and shows the optional comparison period in the form", () => {
+    const { rerender } = render(<PeriodsView />);
+    fireEvent.click(screen.getByRole("button", { name: "دوره جدید" }));
+    expect(actions.openCreate).toHaveBeenCalledOnce();
+    state.creating = true;
+    rerender(<PeriodsView />);
+    const drawer = screen.getByRole("dialog", { name: "دوره مالی جدید" });
+    expect(within(drawer).getByRole("combobox", { name: /دوره مقایسه قبلی/ })).toBeInTheDocument();
   });
 });

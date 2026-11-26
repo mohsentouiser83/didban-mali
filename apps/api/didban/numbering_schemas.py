@@ -35,6 +35,10 @@ class NumberingRuleResponse(BaseModel):
     padding: int
     suffix: str
     sample: str
+    next_number: str | None = None
+    used_in_workflow: bool = False
+    connected_process: str | None = None
+    deactivation_impact: str | None = None
     description: str | None
     is_system: bool
     active: bool

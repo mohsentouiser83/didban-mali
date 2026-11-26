@@ -17,7 +17,7 @@ import { useUpload } from "@/hooks/use-upload";
 import { useWorkspace } from "@/hooks/workspace";
 import { api, type ProcessingSession } from "@/lib/api";
 import { displayDate, persian } from "@/lib/utils";
-import { FileXlsIcon } from "@phosphor-icons/react";
+import { DownloadSimpleIcon, FileXlsIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { QuestionDialog } from "./question-dialog";
@@ -115,6 +115,9 @@ export function SessionView({ id }: { id: string }) {
           </div>
         )}
         <div className="mt-5 flex flex-wrap gap-3">
+          <ButtonLink href="/settings/documents" variant="secondary">
+            فایل‌ها و مدارک شرکت
+          </ButtonLink>
           {session.result_id && (
             <ButtonLink href="/reports">مشاهده گزارش</ButtonLink>
           )}
@@ -159,11 +162,19 @@ export function SessionView({ id }: { id: string }) {
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={file.state} />
                   {file.scan_status === "development_unscanned" && (
                     <StatusBadge status={file.scan_status} />
                   )}
+                  <a
+                    href={`/api/v1${workspace.companyPath(`source-files/${file.id}/download`)}`}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-control px-2.5 text-xs font-medium text-primary hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={`دریافت ${file.name}`}
+                  >
+                    <DownloadSimpleIcon size={16} aria-hidden />
+                    دریافت فایل
+                  </a>
                 </div>
               </div>
             ))

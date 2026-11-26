@@ -312,7 +312,7 @@ def test_legacy_three_level_upgrade_preserves_editable_accounts_and_blocks_incom
             conn.execute(text("INSERT INTO accounting_account_hierarchy (company_id, account_id, level, parent_id) VALUES ('c1', 'a2', 'subsidiary', 'a1')"))
 
         # Run upgrade twice to verify idempotency
-        db_mod.initialize()
+        db_mod.migrate_schema()
         db_mod.initialize()
 
         with Session(test_engine, expire_on_commit=False) as db:

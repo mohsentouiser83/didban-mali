@@ -3,8 +3,8 @@ import { ArrowsLeftRightIcon as HeaderIcon } from "@phosphor-icons/react";
 import { SearchSelect } from "@/components/ui/search-select";
 import { useAllocationChoices } from "@/hooks/use-allocation-choices";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -37,14 +37,18 @@ import {
   WalletIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
+import { Tabs } from "@/components/ui/tabs";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { TreasuryDocumentsPanel } from "./treasury-documents-panel";
+import { CounterpartyQuickDrawer } from "./commercial/counterparty-profile-drawer";
 
 export function SettlementsView() {
   const workspace = useWorkspace();
   const allocations = usePagedResource<Allocation>(
     workspace.companyPath("allocations"),
   );
-  const choices = useAllocationChoices();
+  const [operationType, setOperationType] = useState<"received" | "paid">("received");
+  const choices = useAllocationChoices(operationType);
   const { banks, invoices } = choices;
   const command = useCommand();
   const [open, setOpen] = useState(false);
@@ -54,9 +58,10 @@ export function SettlementsView() {
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
   const [directionFilter, setDirectionFilter] = useState<"all" | "received" | "paid">("all");
-  const [operationType, setOperationType] = useState<"received" | "paid">("received");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "reversed">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [settlementTab, setSettlementTab] = useState<"allocations" | "treasury">("allocations");
+  const [counterpartiesOpen, setCounterpartiesOpen] = useState(false);
 
   if (!workspace.company) return <NoCompany />;
 
@@ -95,18 +100,51 @@ export function SettlementsView() {
       <PageHeader
         icon={HeaderIcon}
         title="دریافت و پرداخت"
-        action={workspace.canWrite && (
-          <Button
-            onClick={() => {
-              setOpen(true);
-              command.clearError();
-            }}
-          >
-            تخصیص دریافت و پرداخت
-            <PlusIcon size={16} aria-hidden />
-          </Button>
-        )}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="secondary" onClick={() => setCounterpartiesOpen(true)}>
+              طرف‌حساب‌ها
+            </Button>
+            <ButtonLink variant="secondary" href="/settings/treasury">
+              مدیریت حساب‌های خزانه
+            </ButtonLink>
+            {workspace.canWrite && settlementTab === "allocations" && (
+              <Button
+                onClick={() => {
+                  setOpen(true);
+                  command.clearError();
+                }}
+              >
+                تخصیص دریافت و پرداخت
+                <PlusIcon size={16} aria-hidden />
+              </Button>
+            )}
+          </div>
+        }
       />
+
+      <div className="mb-5 space-y-3">
+        <Tabs
+          variant="segmented"
+          ariaLabel="بخش‌های دریافت و پرداخت"
+          value={settlementTab}
+          onChange={setSettlementTab}
+          items={[
+            { id: "allocations", label: "تخصیص‌های بانک و فاکتور" },
+            { id: "treasury", label: "سندهای خزانه و ابزارهای تسویه" },
+          ]}
+        />
+        <StatusMessage tone="primary">
+          {settlementTab === "allocations"
+            ? "در «تخصیص‌های بانک و فاکتور»، گردش‌های واقعی بانک را مستقیماً به ماندهٔ فاکتورهای باز وصل می‌کنید."
+            : "در «سندهای خزانه و ابزارهای تسویه»، دریافت یا پرداخت چندابزاری (نقد، حواله، کارت و چک) با پیوند به حساب‌های خزانه، پیش‌نویس سند و تخصیص فاکتور مدیریت می‌شود."}
+        </StatusMessage>
+      </div>
+
+      {settlementTab === "treasury" ? (
+        <TreasuryDocumentsPanel />
+      ) : (
+        <>
 
       {/* Summary KPI Cards */}
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
@@ -236,16 +274,19 @@ export function SettlementsView() {
               </TableHeader>
               <TableBody>
                 {filteredAllocations.length ? (
-                  filteredAllocations.map((allocation) => (
+                  filteredAllocations.map((allocation) => {
+                    const inv = listItems(invoices.data).find((i) => i.id === allocation.invoice_id);
+                    const isSales = inv ? inv.direction === "sales" || Number(inv.amount || 0) > 0 : true;
+                    return (
                     <TableRow key={allocation.id}>
                       <TableRowHeader>
-                        <span className="font-medium text-foreground">
-                          {allocation.invoice_reference ||
-                            listItems(invoices.data).find(
-                              (invoice) => invoice.id === allocation.invoice_id,
-                            )?.reference ||
-                            allocation.invoice_id}
-                        </span>
+                        <ButtonLink
+                          variant="ghost"
+                          className="h-auto px-1 py-0.5 font-medium text-foreground"
+                          href={isSales ? "/receivables" : "/payables"}
+                        >
+                          {allocation.invoice_reference || inv?.reference || allocation.invoice_id}
+                        </ButtonLink>
                       </TableRowHeader>
                       <TableCell>
                         {allocation.bank_reference ||
@@ -281,7 +322,8 @@ export function SettlementsView() {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 ) : (
                   <TableEmptyCell
                     colSpan={5}
@@ -343,7 +385,13 @@ export function SettlementsView() {
             <Select
               id="allocation-direction"
               value={operationType}
-              onValueChange={(val) => setOperationType(val as "received" | "paid")}
+              onValueChange={(val) => {
+                setOperationType(val as "received" | "paid");
+                setBankId("");
+                choices.setBankLabel("");
+                setInvoiceId("");
+                choices.setInvoiceLabel("");
+              }}
               options={[
                 { value: "received", label: "دریافت (از مشتری / فاکتور فروش)" },
                 { value: "paid", label: "پرداخت (به تأمین‌کننده / فاکتور خرید)" },
@@ -451,6 +499,12 @@ export function SettlementsView() {
           </Button>
         </Form>
       </Dialog>
+        </>
+      )}
+      <CounterpartyQuickDrawer
+        open={counterpartiesOpen}
+        onOpenChange={setCounterpartiesOpen}
+      />
     </>
   );
 }

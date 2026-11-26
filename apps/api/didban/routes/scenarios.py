@@ -80,7 +80,11 @@ def native_listing(company_id: str, request: Request, limit: int = 25, cursor: s
                 "name": item.name,
                 "native_statement_id": item.native_statement_id,
                 "created_at": item.created_at,
-                "baseline": {"as_of_date": item.baseline["as_of_date"], "end": item.baseline["end"]},
+                "baseline": {
+                    "as_of_date": item.baseline["as_of_date"],
+                    "end": item.baseline["end"],
+                    "forecast_run_id": item.baseline.get("forecast_run_id"),
+                },
                 "summary_only": True,
             },
         )

@@ -16,11 +16,12 @@ import {
   TableRowHeader,
   TableEmptyCell,
 } from "@/components/ui/table";
-import { useCheques, chequeStateLabels, chequeDirectionLabels } from "@/hooks/use-cheques";
+import { useCheques, chequeStateLabels, chequeDirectionLabels, chequeSayadStatusLabels } from "@/hooks/use-cheques";
 import { useWorkspace } from "@/hooks/workspace";
 import { amount, displayDate } from "@/lib/utils";
 import { PageHeader, Panel, NoCompany } from "./page-parts";
 import { ChequeForm } from "./cheque-form";
+import { ChequeImportPreview } from "./cheque-import-preview";
 import { ChequeEvents } from "./cheque-events";
 function ChequeWorkspace() {
   const c = useCheques();
@@ -64,16 +65,18 @@ function ChequeWorkspace() {
             {c.importBusy && <LoadingState label="در حال ورود چک‌ها..." />}
             <Table
               title="فهرست و گزارش چک‌های صیادی"
-              onImport={c.workspace.canWrite && !c.importBusy ? c.importFromExcel : undefined}
+              onImport={c.workspace.canWrite && !c.importBusy ? c.previewImport : undefined}
             >
               <TableHeader>
                 <TableRow>
-                  <TableHead>شماره</TableHead>
+                  <TableHead>شماره برگه</TableHead>
+                  <TableHead>شناسهٔ صیادی</TableHead>
                   <TableHead>نوع</TableHead>
                   <TableHead>طرف حساب</TableHead>
                   <TableHead>سررسید</TableHead>
                   <TableHead>مبلغ (ریال)</TableHead>
-                  <TableHead>وضعیت</TableHead>
+                  <TableHead>وضعیت چک</TableHead>
+                  <TableHead>وضعیت صیاد</TableHead>
                   <TableHead>عملیات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -84,6 +87,7 @@ function ChequeWorkspace() {
                       <TableRowHeader>
                         <span dir="ltr">{cheque.number}</span>
                       </TableRowHeader>
+                      <TableCell><bdi>{cheque.sayad_id || "—"}</bdi></TableCell>
                       <TableCell>
                         {chequeDirectionLabels[cheque.direction] || cheque.direction}
                       </TableCell>
@@ -96,6 +100,11 @@ function ChequeWorkspace() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        {cheque.sayad_id
+                          ? chequeSayadStatusLabels[cheque.sayad_status || "not_verified"] || "نامشخص"
+                          : "شناسه ثبت نشده"}
+                      </TableCell>
+                      <TableCell>
                         <Button
                           variant="secondary"
                           onClick={() => c.inspect(cheque)}
@@ -106,7 +115,7 @@ function ChequeWorkspace() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableEmptyCell colSpan={7} title="هنوز چکی ثبت نشده است" />
+                  <TableEmptyCell colSpan={9} title="هنوز چکی ثبت نشده است" />
                 )}
               </TableBody>
             </Table>
@@ -116,6 +125,7 @@ function ChequeWorkspace() {
       </Panel>
       <ChequeForm c={c} />
       <ChequeEvents c={c} />
+      <ChequeImportPreview c={c} />
     </>
   );
 }

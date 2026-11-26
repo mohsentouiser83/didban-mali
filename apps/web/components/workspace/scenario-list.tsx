@@ -13,11 +13,17 @@ import {
   TableRowHeader,
 } from "@/components/ui/table";
 import type { usePagedResource } from "@/hooks/use-paged-resource";
-import { persian } from "@/lib/utils";
+import { displayDate, persian } from "@/lib/utils";
 import { Panel } from "./page-parts";
 
 export function ScenarioList<
-  T extends { id: string; name: string; version: number },
+  T extends {
+    id: string;
+    name: string;
+    version: number;
+    created_at?: string;
+    baseline?: { as_of_date: string; manifest_id?: string; forecast_run_id?: string };
+  },
 >({
   title,
   list,
@@ -53,7 +59,9 @@ export function ScenarioList<
             <TableHeader>
               <TableRow>
                 <TableHead>سناریو</TableHead>
+                <TableHead>مبنا</TableHead>
                 <TableHead>نسخه</TableHead>
+                <TableHead>زمان ثبت نسخه</TableHead>
                 <TableHead>عملیات</TableHead>
               </TableRow>
             </TableHeader>
@@ -62,7 +70,11 @@ export function ScenarioList<
                 rows.map((item) => (
                   <TableRow key={item.id}>
                     <TableRowHeader>{item.name}</TableRowHeader>
+                    <TableCell>
+                      {item.baseline ? `${item.baseline.forecast_run_id || item.baseline.manifest_id ? "پیش‌بینی" : "گزارش ثابت"} · ${displayDate(item.baseline.as_of_date)}` : "—"}
+                    </TableCell>
                     <TableCell>{persian(item.version)}</TableCell>
+                    <TableCell>{item.created_at ? displayDate(item.created_at) : "—"}</TableCell>
                     <TableCell>
                       <Button
                         variant="secondary"
@@ -75,7 +87,7 @@ export function ScenarioList<
                   </TableRow>
                 ))
               ) : (
-                <TableEmptyCell colSpan={3} title="سناریویی ذخیره نشده" />
+                <TableEmptyCell colSpan={5} title="سناریویی ذخیره نشده" />
               )}
             </TableBody>
           </Table>

@@ -25,8 +25,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
     <Panel title="مبنای ثابت سناریو">
       <div className="space-y-4">
         <StatusMessage>
-          مانده از گزارش ثابت است؛ دریافت و پرداخت آینده را خودتان تعیین
-          می‌کنید. سناریو سند یا تعهد ایجاد نمی‌کند.
+          ماندهٔ مبنا از گزارش ثابت خوانده می‌شود. دریافت‌ها و پرداخت‌های آینده فرض سناریو هستند.
         </StatusMessage>
         {!c.local.item && (
           <Field id="scenario-basis-type" label="نوع مبنای سناریو" required>
@@ -35,7 +34,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
             value={c.sourceMode}
             onValueChange={c.setSourceMode}
             options={[
-              { value: "manual", label: "ماندهٔ نقد و فرض‌های دستی" },
+              { value: "manual", label: "ماندهٔ گزارش ثابت با فرض‌های دستی" },
               { value: "forecast", label: "پیش‌بینی خودکار ذخیره‌شده" },
             ]}
           />
@@ -75,6 +74,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
             <EmptyState
               compact
               title="پیش‌بینی دفتر اصلی ذخیره نشده"
+              action={<ButtonLink href="/cashflow/forecast">پیش‌بینی ۳۰روزه</ButtonLink>}
             />
           )
         ) : c.statements.loading ? (
@@ -115,6 +115,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
           <EmptyState
             compact
             title="گزارش مالی ثابت موجود نیست"
+            action={<ButtonLink href="/reports/native">صورت‌های مالی</ButtonLink>}
           />
         )}
         {c.sourceHref && (

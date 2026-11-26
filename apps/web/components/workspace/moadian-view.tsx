@@ -18,7 +18,7 @@ import {
 import { Tabs } from "@/components/ui/tabs";
 import { useFinancialView } from "@/hooks/use-financial-view";
 import { useMoadianImport } from "@/hooks/use-moadian-import";
-import { amount, persian } from "@/lib/utils";
+import { amount, displayDate, persian } from "@/lib/utils";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 const comparisonLabels: Record<string, string> = {
@@ -54,7 +54,7 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
 
   return (
     <>
-      <PageHeader icon={HeaderIcon} title="مؤدیان" />
+      <PageHeader icon={HeaderIcon} title="صورتحساب‌های کارپوشه" />
       {view.loading ? (
         <LoadingState label="در حال دریافت اطلاعات کارپوشه مؤدیان..." />
       ) : view.error ? (
@@ -91,9 +91,11 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
               <TableRow>
                 <TableHead>شماره صورتحساب</TableHead>
                 <TableHead>شناسه یکتای مالیاتی</TableHead>
+                <TableHead>تاریخ کارپوشه</TableHead>
                 <TableHead numeric>مبلغ کارپوشه ({unitName})</TableHead>
                 <TableHead numeric>ارزش افزوده کارپوشه ({unitName})</TableHead>
                 <TableHead>نتیجه تطبیق</TableHead>
+                <TableHead>عملیات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -103,6 +105,7 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
                   <TableRow key={`${row.tax_id ?? row.reference ?? "row"}:${index}`}>
                     <TableRowHeader>{row.reference || row.invoice_id || "—"}</TableRowHeader>
                     <TableCell><bdi>{row.tax_id || "—"}</bdi></TableCell>
+                    <TableCell>{row.date ? displayDate(row.date) : "—"}</TableCell>
                     <TableCell numeric>{amount(row.portal_amount ?? row.portal, unit)}</TableCell>
                     <TableCell numeric>{amount(row.tax, unit)}</TableCell>
                     <TableCell>
@@ -110,11 +113,18 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
                         {state ? comparisonLabels[state] ?? "وضعیت نامشخص" : "وضعیت نامشخص"}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      {row.internal_reference && (
+                        <ButtonLink variant="ghost" href={`${activeTab === "sales" ? "/receivables" : "/payables"}?tab=imported&reference=${encodeURIComponent(row.internal_reference)}`}>
+                          جست‌وجوی فاکتور داخلی
+                        </ButtonLink>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {!rows.length && (
-                <TableEmptyCell colSpan={5} title="صورتحساب پردازش‌شده‌ای برای این دوره وجود ندارد" />
+                <TableEmptyCell colSpan={7} title="صورتحساب پردازش‌شده‌ای برای این دوره وجود ندارد" />
               )}
             </TableBody>
           </Table>

@@ -75,6 +75,7 @@ export function NativeForecastWorkspace() {
         ) : (
           <EmptyState
             title="گزارش ثابت نقد موجود نیست"
+            action={<ButtonLink href="/reports/native">صورت‌های مالی</ButtonLink>}
           />
         )}
         <FormMessage error>{c.command.error?.message}</FormMessage>

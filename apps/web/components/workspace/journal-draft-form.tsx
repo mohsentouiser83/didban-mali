@@ -6,12 +6,13 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useJournalEntryType } from "@/hooks/use-journal-entry-type";
+import { JournalLinePartyField } from "./journal-line-party-field";
 import { OperationDraftView } from "./operation-draft-view";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FieldError, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
-import { AmountInput, Input, Textarea } from "@/components/ui/input";
+import { AmountInput, Textarea } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
 import { ErrorState, StatusMessage } from "@/components/ui/content-states";
@@ -41,7 +42,16 @@ export function JournalDraftForm({
       !view.replacement &&
       (view.requiresAccounts || view.requiresPeriod) ? (
         <div className="space-y-4">
-          {view.requiresAccounts && <p>برای ساخت سند، حساب فعال تعریف کنید.</p>}
+          {view.requiresAccounts && (
+            <div className="space-y-3">
+              <p>برای ساخت سند، حساب فعال تعریف کنید.</p>
+              {view.capabilities.data?.can_manage_accounts && (
+                <ButtonLink variant="secondary" href="/settings/accounts">
+                  مدیریت کدینگ
+                </ButtonLink>
+              )}
+            </div>
+          )}
           {view.requiresPeriod && <p>برای ساخت سند، دوره مالی تعریف کنید.</p>}
         </div>
       ) : (
@@ -145,7 +155,18 @@ export function JournalDraftForm({
                         ردیف {persian(index + 1)}
                       </legend>
                       <div className="flex items-start gap-2">
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          {index === 0 && view.capabilities.data?.can_manage_accounts && (
+                            <div className="flex justify-end">
+                              <ButtonLink
+                                variant="ghost"
+                                href="/settings/accounts"
+                                className="h-7 px-2 text-xs"
+                              >
+                                مدیریت کدینگ
+                              </ButtonLink>
+                            </div>
+                          )}
                           <Field
                             id={`line-${index}-account`}
                             label="حساب"
@@ -207,17 +228,12 @@ export function JournalDraftForm({
                           />
                         </Field>
                       </div>
-                      <Field id={`line-${index}-party`} label="شناسه طرف حساب">
-                        <Input
-                          id={`line-${index}-party`}
-                          value={line.party_id}
-                          maxLength={100}
-                          disabled={!editable}
-                          onChange={(event) =>
-                            view.line(index, { party_id: event.target.value })
-                          }
-                        />
-                      </Field>
+                      <JournalLinePartyField
+                        id={`line-${index}-party`}
+                        value={line.party_id}
+                        editable={editable}
+                        onChange={(party_id) => view.line(index, { party_id })}
+                      />
                     </fieldset>
                   ))}
                   {editable && (
@@ -235,7 +251,7 @@ export function JournalDraftForm({
                 </div>
                 <div
                   aria-live="polite"
-                  className="grid gap-3 rounded-control bg-canvas p-4 sm:grid-cols-2"
+                  className="grid gap-3 rounded-control bg-canvas p-4 sm:grid-cols-3"
                 >
                   <p className="text-sm">
                     جمع بدهکار{" "}
@@ -247,6 +263,12 @@ export function JournalDraftForm({
                     جمع بستانکار{" "}
                     <span className="mt-1 block font-medium tabular-nums">
                       {amount(view.totals.totalCredit)} {unitLabel}
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    اختلاف
+                    <span className="mt-1 block font-medium tabular-nums">
+                      {amount(view.totals.difference)} {unitLabel}
                     </span>
                   </p>
                 </div>

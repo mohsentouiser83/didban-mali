@@ -66,10 +66,12 @@ def test_journal_template_uses_only_final_period_journals_and_exact_toman(book):
 
 
 def test_all_default_sources_render_without_inventing_missing_financial_data(book):
+    manager = book.get(m.User, "finance_manager")
     for definition in definitions("c"):
         spec = StudioLayoutSpec.model_validate(definition["spec"])
         spec.global_filters.period_id = "p"
-        result = preview(book, "c", spec)
+        actor = manager if definition["system_key"] == "payroll" else None
+        result = preview(book, "c", spec, actor=actor)
         assert result["sections"]
         if definition["system_key"] == "statements":
             metrics = result["sections"][0]["widgets"][0]["data"]["rows"]

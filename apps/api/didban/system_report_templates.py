@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from . import models as m
 from .errors import DomainError, require
 from .report_studio_schemas import StudioGlobalFilters, StudioLayoutSpec, StudioWidgetSpec
+from .security import require_payroll_access
 
 SYSTEM_REPORTS = (
     ("journals", "دفتر روزنامه", "ledger", (("journal_lines", "ردیف‌های دفتر روزنامه"),)),
@@ -98,9 +99,20 @@ def evaluate_table(
     widget: StudioWidgetSpec,
     filters: StudioGlobalFilters,
     manifest: m.ResultManifest | None = None,
+    *,
+    actor: m.User | None = None,
 ) -> dict:
     """Uses existing financial rules; never replaces unavailable values with zero."""
     metric = widget.metric
+    if metric == "imported_payroll" or widget.entity == "payroll":
+        require(
+            actor is not None,
+            "payroll_access_required",
+            "مجوز مشاهده یا مدیریت اطلاعات حقوق و دستمزد را ندارید.",
+            403,
+        )
+        assert actor is not None
+        require_payroll_access(db, company, actor)
     require(widget.group_by == "none", "system_report_grouping", "این منبع جدول گروه‌بندی آماده دارد.")
     expected_basis = "bank" if metric == "daily_cash" else "ledger"
     require(

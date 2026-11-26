@@ -3,6 +3,10 @@ import { ReceiptIcon as HeaderIcon } from "@phosphor-icons/react";
 import { useWorkspace } from "@/hooks/workspace";
 import { NativeInvoicesView } from "./native-invoices-view";
 import { PageHeader } from "./page-parts";
+import { Tabs } from "@/components/ui/tabs";
+import { ButtonLink } from "@/components/ui/button";
+import { CommercialDocumentsPanel } from "./commercial/commercial-documents-panel";
+import { CounterpartyQuickDrawer } from "./commercial/counterparty-profile-drawer";
 import { DetailField } from "@/components/ui/field-layout";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,10 +61,12 @@ const detailIcons: Record<string, Icon> = {
 };
 export function ImportedInvoicesWorkspace({
   direction,
+  initialReference,
 }: {
   direction: "sales" | "purchases";
+  initialReference?: string;
 }) {
-  const view = useInvoiceView(direction);
+  const view = useInvoiceView(direction, initialReference);
   const searchRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<InvoiceDetail | null>(null);
   const receivable = direction === "sales";
@@ -249,23 +255,88 @@ export function ImportedInvoicesWorkspace({
 export function InvoicesView({
   direction,
   operationId,
+  partyId,
+  initialReference,
+  initialTab = "native",
 }: {
   direction: "sales" | "purchases";
   operationId?: string;
+  partyId?: string;
+  initialReference?: string;
+  initialTab?: "native" | "commercial" | "imported";
 }) {
   const workspace = useWorkspace();
+  const [tab, setTab] = useState<"native" | "commercial" | "imported">(initialTab);
+  const [counterpartiesOpen, setCounterpartiesOpen] = useState(false);
   if (!workspace.company) return <NoCompany />;
   const scope = `${workspace.user?.id}:${workspace.company?.id}`;
   return (
     <>
       <PageHeader
         icon={HeaderIcon}
-        title={direction === "sales" ? "مطالبات" : "بدهی‌ها"}
+        title={direction === "sales" ? "فاکتورهای فروش" : "فاکتورهای خرید"}
+        action={
+          <div className="flex flex-wrap gap-2">
+            {direction === "sales" && (
+              <>
+                <ButtonLink variant="secondary" href="/commercial/proformas">
+                  پیش‌فاکتورها
+                </ButtonLink>
+                <ButtonLink variant="secondary" href="/receivables/followups">
+                  صف وصول
+                </ButtonLink>
+              </>
+            )}
+            <Button variant="secondary" onClick={() => setCounterpartiesOpen(true)}>
+              طرف‌حساب‌ها
+            </Button>
+            <ButtonLink variant="secondary" href={partyId ? `/reconciliation/counterparties?party_id=${encodeURIComponent(partyId)}` : "/reconciliation/counterparties"}>
+              تطبیق طرف‌حساب‌ها
+            </ButtonLink>
+          </div>
+        }
       />
-      <NativeInvoicesView
-        key={`${scope}:${direction}`}
-        direction={direction === "sales" ? "sale" : "purchase"}
-        operationId={operationId}
+      {partyId && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted">
+          فاکتورهای طرف‌حساب انتخاب‌شده
+          <ButtonLink variant="ghost" href={direction === "sales" ? "/receivables" : "/payables"}>
+            نمایش همه
+          </ButtonLink>
+        </div>
+      )}
+      <div className="mb-5">
+        <Tabs
+          variant="segmented"
+          ariaLabel="نمای فاکتورها"
+          value={tab}
+          onChange={setTab}
+          items={[
+            { id: "native", label: "فاکتورهای بومی" },
+            { id: "commercial", label: "فاکتور چندردیفی، مرجوعی و اعتبار" },
+            ...(!partyId ? [{ id: "imported" as const, label: "فاکتورهای ورودی" }] : []),
+          ]}
+        />
+      </div>
+      {tab === "native" ? (
+        <NativeInvoicesView
+          key={`${scope}:${direction}:${initialReference ?? ""}`}
+          direction={direction === "sales" ? "sale" : "purchase"}
+          operationId={operationId}
+          partyId={partyId}
+          initialReference={initialReference}
+        />
+      ) : tab === "commercial" ? (
+        <CommercialDocumentsPanel
+          key={`${scope}:commercial:${direction}`}
+          direction={direction === "sales" ? "sale" : "purchase"}
+          partyId={partyId}
+        />
+      ) : (
+        <ImportedInvoicesWorkspace key={`${scope}:${direction}:${initialReference ?? ""}`} direction={direction} initialReference={initialReference} />
+      )}
+      <CounterpartyQuickDrawer
+        open={counterpartiesOpen}
+        onOpenChange={setCounterpartiesOpen}
       />
     </>
   );
