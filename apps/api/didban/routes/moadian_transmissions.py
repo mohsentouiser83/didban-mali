@@ -19,11 +19,16 @@ class MoadianConfirmation(MoadianInvoiceInput):
 def history(
     company_id: str, request: Request, limit: int = 50, cursor: str | None = None,
     q: str | None = Query(None, max_length=120),
+    invoice_reference: str | None = Query(None, max_length=120),
+    tax_id: str | None = Query(None, max_length=22),
     status: str | None = Query(None, max_length=20),
     period_id: str | None = Query(None, max_length=36),
 ):
     with access(request, company_id) as (db, _, member):
-        return service.history(db, company_id, member, limit, cursor, q=q, status=status, period_id=period_id)
+        return service.history(
+            db, company_id, member, limit, cursor,
+            q=q, invoice_reference=invoice_reference, tax_id=tax_id, status=status, period_id=period_id,
+        )
 
 
 @router.get(P + "/candidates")

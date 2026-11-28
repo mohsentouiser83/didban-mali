@@ -137,7 +137,7 @@ key=str(uuid4());response=command(owner,"POST",base+"/bot-intakes/extractions/"+
 assert response.status_code==201,response.text
 assert command(owner,"POST",base+"/bot-intakes/extractions/"+proposal_id+"/review",review,version=2,key=key).json()==response.json()
 with transaction("company-a") as db:
-    assert db.get(m.ProcessingSession,response.json()["session_id"]).state=="receiving"
+    assert db.get(m.ProcessingSession,response.json()["session_id"]).state=="sealed"
     assert db.scalar(select(m.JournalLine.id)) is None
     assert db.scalar(select(BotExtractionReview)).proposal_id==proposal_id
 try:

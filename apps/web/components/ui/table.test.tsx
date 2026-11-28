@@ -10,6 +10,7 @@ import {
   TableRowHeader,
   DataTable,
 } from "./table";
+import { ColumnFilteredTable } from "./column-filtered-table";
 import * as tableExport from "./table-export";
 import { TableImportArchiveContext } from "@/hooks/table-import-archive";
 
@@ -135,10 +136,11 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     </Table>
   );
 
-  it("shows search and export controls on a read-only table", () => {
+  it("shows column filters and export controls on a read-only table", () => {
     render(sampleTable);
 
-    expect(screen.getByPlaceholderText("جست‌وجو در جدول")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("جست‌وجو در جدول")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("فیلتر ستون وضعیت")).toBeInTheDocument();
     expect(screen.getByLabelText("نمایش تمام صفحه")).toBeInTheDocument();
     expect(screen.getByLabelText("دانلود خروجی اکسل و PDF")).toBeInTheDocument();
     expect(screen.queryByLabelText("ورود اطلاعات از اکسل")).not.toBeInTheDocument();
@@ -146,27 +148,6 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     // Show/hide columns and reset button are removed
     expect(screen.queryByLabelText("مدیریت ستون‌ها")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("بازنشانی فیلترها")).not.toBeInTheDocument();
-  });
-
-  it("filters rows dynamically via global search input", () => {
-    render(sampleTable);
-
-    const searchInput = screen.getByPlaceholderText("جست‌وجو در جدول");
-    fireEvent.change(searchInput, { target: { value: "علی" } });
-
-    const row1 = screen.getByTestId("row-1");
-    const row2 = screen.getByTestId("row-2");
-    const row3 = screen.getByTestId("row-3");
-
-    expect(row1.style.display).toBe("none");
-    expect(row2.style.display).toBe("");
-    expect(row3.style.display).toBe("none");
-
-    // Clear search
-    fireEvent.change(searchInput, { target: { value: "" } });
-    expect(row1.style.display).toBe("");
-    expect(row2.style.display).toBe("");
-    expect(row3.style.display).toBe("");
   });
 
   it("toggles sorting when sort button on column header is clicked", () => {
@@ -258,8 +239,8 @@ describe("Table Advanced Features (Sort, Pin, Filter, Export, Import, Fullscreen
     const importBtn = screen.getByLabelText("ورود اطلاعات از اکسل");
     fireEvent.click(importBtn);
 
-    expect(screen.getByText("چسباندن مستقیم از اکسل (Paste)")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("چسباندن مستقیم از اکسل (Paste)"));
+    expect(screen.getByRole("button", { name: "چسباندن از اکسل" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "چسباندن از اکسل" }));
 
     const textarea = screen.getByPlaceholderText(/کد\s+نام\s+مبلغ/);
     fireEvent.change(textarea, {
@@ -352,4 +333,27 @@ it("archives the selected original before passing parsed rows to a table import"
   await waitFor(() => expect(calls).toEqual(["archive", "import"]));
   expect(archive).toHaveBeenCalledWith(file);
   expect(ingest).toHaveBeenCalledWith(expect.objectContaining({ file, totalRows: 1 }));
+});
+
+it("filters across pages before paginating and resets to the first page", () => {
+  const items = Array.from({ length: 30 }, (_, index) => ({
+    id: index,
+    reference: `سند ${index + 1}`,
+  }));
+  render(
+    <ColumnFilteredTable
+      label="اسناد"
+      columns={[{ label: "مرجع", value: (row) => row.reference }]}
+      rows={items}
+      emptyTitle="سندی ثبت نشده"
+      renderRow={(row) => <TableRow key={row.id}><TableCell>{row.reference}</TableCell></TableRow>}
+    />,
+  );
+
+  expect(screen.queryByText("سند 30")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "فیلتر ستون مرجع" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "شامل متن" }), { target: { value: "سند ۳۰" } });
+  fireEvent.click(screen.getByRole("button", { name: "اعمال" }));
+  expect(screen.getByText("سند 30")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "بعدی" })).not.toBeInTheDocument();
 });

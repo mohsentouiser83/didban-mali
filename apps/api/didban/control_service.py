@@ -277,7 +277,8 @@ def activities(
 
 
 def collection(
-    db: Session, company: str, user: m.User, page: int, q: str, priority: str = "amount"
+    db: Session, company: str, user: m.User, page: int, q: str, priority: str = "amount",
+    *, reference: str = "", party: str = "",
 ) -> dict[str, Any]:
     membership(db, company, user)
     require(page >= 0 and len(q) <= 100, "invalid_query", "جستجو یا صفحه معتبر نیست.")
@@ -285,6 +286,8 @@ def collection(
     manifest = latest_manifest(db, company)
     basis = manifest.details.get("as_of_date") if manifest else None
     rows = []
+    reference = reference.strip().casefold()
+    party = party.strip().casefold()
     for item in manifest.details.get("invoices", []) if manifest else []:
         if item.get("direction") != "sales" or not item.get("id"):
             continue
@@ -293,6 +296,10 @@ def collection(
             and q.casefold()
             not in (str(item.get("reference", "")) + " " + str(item.get("party_id", ""))).casefold()
         ):
+            continue
+        if reference not in str(item.get("reference") or "").casefold():
+            continue
+        if party not in str(item.get("party_id") or "").casefold():
             continue
         remaining = item.get("remaining")
         if remaining is not None and Decimal(remaining) <= 0:

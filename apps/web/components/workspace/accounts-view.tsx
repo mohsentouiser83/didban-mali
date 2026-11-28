@@ -1,23 +1,26 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { AccountEditor } from "./account-editor";
-import { AccountFilters } from "./account-filters";
+import { TableColumnSelect } from "@/components/ui/table-column-select";
 import {
+  ACCOUNT_LEVEL_OPTIONS,
   accountLevelLabel,
   accountPostableStatus,
   accountRoleLabel,
   treasuryRoleLabel,
 } from "@/lib/account-catalogue";
 import {
-  BankIcon,
   BooksIcon,
   CaretDownIcon,
   CaretLeftIcon,
+  FileArrowUpIcon,
   PlusIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
+import { moduleAllows } from "@/lib/module-access";
+import { Button } from "@/components/ui/button";
+import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { CursorPagination, Pagination } from "@/components/ui/pagination";
 import {
@@ -37,6 +40,8 @@ import { cn, persian } from "@/lib/utils";
 import { accountNatureLabel } from "@/lib/accounting";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 
+const depthPadding = ["", "ps-[22px]", "ps-[44px]", "ps-[66px]"];
+
 export function AccountsView() {
   const workspace = useWorkspace();
   if (!workspace.company) return <NoCompany />;
@@ -45,7 +50,9 @@ export function AccountsView() {
 function AccountsWorkspace() {
   const view = useLedgerAccounts();
   const [importOpen, setImportOpen] = useState(false);
-  const editable = !!view.capabilities.data?.can_manage_accounts;
+  const managesAccounts = !!view.capabilities.data?.can_manage_accounts;
+  const canCreate = moduleAllows(view.workspace.company, "accounting", "create", managesAccounts);
+  const canEdit = moduleAllows(view.workspace.company, "accounting", "edit", managesAccounts);
   const loading =
     (view.serverFiltersActive ? view.resource.loading : view.catalogue.loading) ||
     view.capabilities.loading;
@@ -65,36 +72,29 @@ function AccountsWorkspace() {
       <PageHeader
         title="کدینگ حساب‌ها"
         icon={BooksIcon}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ButtonLink variant="secondary" href="/settings/treasury">
-              <BankIcon size={18} aria-hidden />
-              حساب‌های خزانه
-            </ButtonLink>
-            {editable && (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => setImportOpen(true)}
-                >
-                  الگو و ورود کدینگ
-                </Button>
-                <Button onClick={() => view.open(null)}>
-                  <PlusIcon size={18} aria-hidden />
-                  حساب جدید
-                </Button>
-              </>
+        action={canCreate && (
+          <Button onClick={() => view.open(null)}>
+            <PlusIcon size={18} aria-hidden />
+            حساب جدید
+          </Button>
+        )}
+      />
+      <Panel>
+        {(canCreate || view.hasExpandableNodes) && (
+          <div className="mb-3 flex flex-wrap justify-end gap-2">
+            {view.hasExpandableNodes && (
+              <Button variant="ghost" onClick={view.allCollapsed ? view.expandAll : view.collapseAll}>
+                {view.allCollapsed ? "باز کردن همه" : "بستن همه"}
+              </Button>
+            )}
+            {canCreate && (
+              <Button variant="secondary" onClick={() => setImportOpen(true)}>
+                <FileArrowUpIcon size={18} aria-hidden />
+                ورود از فایل
+              </Button>
             )}
           </div>
-        }
-      />
-      <div className="mb-4">
-        <StatusMessage tone="primary">
-          ثبت سند فقط روی حساب‌های فعال بدون زیرمجموعه (خارج از سطح گروه) مجاز است. حساب‌های ذخیره، هزینه و برگشت کاهش ارزش موجودی (استاندارد ۸ — D35) از طریق فیلد «نقش حساب» در کدینگ تنظیم می‌شوند.
-        </StatusMessage>
-      </div>
-      <Panel>
-        <AccountFilters view={view} />
+        )}
         {loading ? (
           <LoadingState label="در حال دریافت حساب‌ها" variant="panels" />
         ) : error ? (
@@ -107,16 +107,23 @@ function AccountsWorkspace() {
           />
         ) : (
           <>
-            <Table showSearch={false} title="کدینگ حساب‌ها">
+            <Table title="کدینگ حساب‌ها">
               <TableHeader>
                 <TableRow>
-                  <TableHead>کد</TableHead>
-                  <TableHead>نام</TableHead>
-                  <TableHead>سطح</TableHead>
-                  <TableHead>حساب بالادست</TableHead>
-                  <TableHead>ماهیت</TableHead>
-                  <TableHead>نقش</TableHead>
-                  <TableHead>وضعیت</TableHead>
+                  <TableHead columnFilter={view.columnFilter("code")}>کد</TableHead>
+                  <TableHead columnFilter={view.columnFilter("name")}>نام</TableHead>
+                  <TableHead columnControl={
+                    <TableColumnSelect columnTitle="سطح" value={view.levelFilter} onValueChange={view.setLevelFilter}
+                      options={[{ value: "all", label: "همه سطح‌ها" }, ...ACCOUNT_LEVEL_OPTIONS, { value: "unclassified", label: "تعیین‌نشده" }]} />
+                  }>سطح</TableHead>
+                  <TableHead columnControl={
+                    <TableColumnSelect columnTitle="حساب بالادست" value={view.parentFilter} onValueChange={view.setParentFilter}
+                      searchable disabled={!view.canFilterParent || view.catalogue.loading || !!view.catalogue.error}
+                      options={[{ value: "all", label: "همه حساب‌ها" }, ...view.filterParentOptions]} />
+                  }>حساب بالادست</TableHead>
+                  <TableHead columnFilter={view.columnFilter("nature")}>ماهیت</TableHead>
+                  <TableHead columnFilter={view.columnFilter("role")}>نقش</TableHead>
+                  <TableHead columnFilter={view.columnFilter("status")}>وضعیت</TableHead>
                   <TableHead>عملیات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -133,8 +140,7 @@ function AccountsWorkspace() {
                     >
                       <TableRowHeader>
                         <div
-                          className="flex items-center gap-1.5"
-                          style={depth > 0 ? { paddingInlineStart: `${depth * 22}px` } : undefined}
+                          className={cn("flex items-center gap-1.5", depthPadding[depth])}
                         >
                           {depth > 0 && (
                             <span
@@ -143,19 +149,19 @@ function AccountsWorkspace() {
                             />
                           )}
                           {!view.filtersActive && hasChildren ? (
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
                               aria-expanded={expanded}
                               aria-label={`${expanded ? "بستن" : "باز کردن"} زیرمجموعه ${account.name}`}
                               onClick={() => view.toggleExpand(account.id)}
-                              className="grid size-6 shrink-0 place-items-center rounded-md text-secondary transition-colors hover:bg-primary-soft hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                              className="size-6 min-h-0 rounded-md p-0"
                             >
                               {expanded ? (
                                 <CaretDownIcon size={14} weight="bold" aria-hidden />
                               ) : (
                                 <CaretLeftIcon size={14} weight="bold" aria-hidden />
                               )}
-                            </button>
+                            </Button>
                           ) : (
                             <span className="inline-block size-6 shrink-0" aria-hidden />
                           )}
@@ -168,9 +174,6 @@ function AccountsWorkspace() {
                           >
                             {account.code}
                           </span>
-                          {account.code_status === "legacy" && (
-                            <Badge tone="warning">کد قدیمی</Badge>
-                          )}
                         </div>
                       </TableRowHeader>
                       <TableCell>
@@ -187,7 +190,9 @@ function AccountsWorkspace() {
                       </TableCell>
                       <TableCell>
                         <Badge tone={levelTone(account.level)}>
-                          {accountLevelLabel(account.level)}
+                          {account.level === "detail" && !account.parent_id
+                            ? "تفصیلی شناور"
+                            : accountLevelLabel(account.level)}
                         </Badge>
                       </TableCell>
                       <TableCell>{account.parent_code ? <><bdi>{account.parent_code}</bdi> — {account.parent_name}</> : "—"}</TableCell>
@@ -242,24 +247,22 @@ function AccountsWorkspace() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          {editable && childLevel && account.can_add_standard_child !== false && (
-                            <Button
-                              variant="ghost"
-                              className="h-8 gap-1 px-2 text-xs text-primary hover:bg-primary-soft"
+                        <TableRowActions label={`عملیات ${account.name}`}>
+                          {canCreate && childLevel && account.can_add_standard_child !== false && (
+                            <TableRowAction
                               onClick={() => view.openChild(account)}
+                              icon={<PlusIcon size={14} aria-hidden />}
                             >
-                              <PlusIcon size={14} aria-hidden />
-                              {accountLevelLabel(childLevel)}
-                            </Button>
+                              {childLevel === "detail" ? "تفصیلی شناور" : accountLevelLabel(childLevel)}
+                            </TableRowAction>
                           )}
-                          <Button
-                            variant="secondary"
+                          <TableRowAction
                             onClick={() => view.open(account)}
+                            kind="edit"
                           >
-                            {editable ? "ویرایش" : "مشاهده"}
-                          </Button>
-                        </div>
+                            {canEdit ? "ویرایش" : "مشاهده"}
+                          </TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                     );
@@ -280,9 +283,9 @@ function AccountsWorkspace() {
           if (!open && !view.command.busy) view.close();
         }}
       >
-        <AccountEditor view={view} editable={editable} />
+        <AccountEditor view={view} editable={view.editing ? canEdit : canCreate} />
       </Drawer>
-      {editable && (
+      {canCreate && (
         <Drawer
           title="الگو و ورود کدینگ حساب‌ها"
           open={importOpen}
@@ -292,7 +295,6 @@ function AccountsWorkspace() {
           }}
         >
           <ChartSetupPanel
-            embedded
             onImported={() => {
               setImportOpen(false);
               view.refresh();

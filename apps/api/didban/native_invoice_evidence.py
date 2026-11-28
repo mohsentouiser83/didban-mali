@@ -259,6 +259,70 @@ def _replacement_proof(
     draft = get_entity(db, Draft, company, journal.draft_id)
     lines = journal.snapshot["lines"]
     unit = journal.snapshot.get("original_unit")
+    if op.kind in ("commercial_sale", "commercial_purchase"):
+        data = op.payload
+        require(
+            draft.state == "posted"
+            and unit in ("IRR", "TOMAN")
+            and journal.date >= date.fromisoformat(data["date"]),
+            "native_invoice_replacement_unsupported",
+            "سند جایگزین معتبر و تاریخ‌دار لازم است.",
+            409,
+        )
+        require(
+            journal.snapshot.get("inventory") == data.get("stock"),
+            "native_invoice_replacement_unsupported",
+            "برای اصلاح فاکتور کالا، گردش اصلاح‌شدهٔ انبار را ثبت کنید.",
+            409,
+        )
+        party = data["party_id"]
+        on_acct_irr = canonical_money(data["amounts"]["on_account_amount_irr"])
+        if Decimal(on_acct_irr) > 0:
+            trade_acc_id = data.get("counterparty_account_id")
+            expected_role = "trade_receivable" if op.kind == "commercial_sale" else "trade_payable"
+            trade_side = "debit" if op.kind == "commercial_sale" else "credit"
+            other_side = "credit" if trade_side == "debit" else "debit"
+            factor = 10 if unit == "TOMAN" else 1
+            matching = [
+                line
+                for line in lines
+                if line.get("party_id", "") == party
+                and line.get("account_id") == trade_acc_id
+                and canonical_money(line[trade_side]) == on_acct_irr
+                and Decimal(line[other_side]) == 0
+                and canonical_money(Decimal(line[f"original_{trade_side}"]) * factor) == on_acct_irr
+            ]
+            require(
+                len(matching) == 1,
+                "native_invoice_replacement_unsupported",
+                "ردیف حساب تجاری سند جایگزین با مبلغ نسیه عملیات برابر نیست.",
+                409,
+            )
+            assignment = db.scalar(
+                select(NativeAccountRole).where(
+                    NativeAccountRole.company_id == company,
+                    NativeAccountRole.account_id == trade_acc_id,
+                )
+            )
+            require(
+                assignment is None or assignment.role is None or assignment.role == expected_role,
+                "native_invoice_role_conflict",
+                "نقش صریح حساب سند با نوع عملیات برابر نیست.",
+                409,
+            )
+        return {
+            "operation_id": op.id,
+            "kind": op.kind,
+            "journal_id": journal.id,
+            "journal_digest": journal.digest,
+            "approved_draft_version": journal.draft_version,
+            "reference": op.business_reference,
+            "party_id": party,
+            "date": date.fromisoformat(data["date"]).isoformat(),
+            "amount": on_acct_irr,
+            "unit": unit,
+            "replacement_of": journal.replacement_of,
+        }
     require(
         draft.state == "posted"
         and len(lines) == 2

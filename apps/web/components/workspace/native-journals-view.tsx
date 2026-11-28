@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { BooksIcon, ChartLineUpIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function NativeJournalsView() {
 }
 export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: boolean }) {
   const c = useNativeJournals();
-  const drafts = useJournalDrafts();
+  const drafts = useJournalDrafts(false);
   const opening = useOpeningEvidence(c.balance.refresh);
   const [activeTab, setActiveTab] = useState<"journals" | "balance">("journals");
   return (
@@ -88,33 +89,18 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
                         <TableCell>{item.snapshot.description}</TableCell>
                         <TableCell>{displayDate(item.date)}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="secondary"
-                              onClick={() => c.setSelected(item)}
-                            >
-                              جزئیات
-                            </Button>
+                          <TableRowActions label={`عملیات ${item.snapshot.number ?? persian(item.sequence)}`}>
+                            <TableRowAction onClick={() => c.setSelected(item)} kind="view">جزئیات</TableRowAction>
                             {c.capabilities.data?.can_prepare &&
                               !item.reversal_of && (
                                 <>
-                                  <Button
-                                    variant="secondary"
-                                    onClick={() => c.openReversal(item)}
-                                  >
-                                    تهیه برگشت
-                                  </Button>
+                                  <TableRowAction onClick={() => c.openReversal(item)} kind="reverse">تهیه برگشت</TableRowAction>
                                   {!item.snapshot.inventory && (
-                                    <Button
-                                      variant="secondary"
-                                      onClick={() => drafts.prepareReplacement(item)}
-                                    >
-                                      تهیه جایگزین
-                                    </Button>
+                                    <TableRowAction onClick={() => drafts.prepareReplacement(item)}>تهیه جایگزین</TableRowAction>
                                   )}
                                 </>
                               )}
-                          </div>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     ))
@@ -275,9 +261,6 @@ function BookBalance({ c }: { c: ReturnType<typeof useNativeJournals> }) {
               )}
             </TableBody>
           </Table>
-          <p className="my-4 text-sm text-muted">
-            مبنای این گزارش فقط اسناد نهایی دیدبان در دورهٔ انتخابی است.
-          </p>
           {c.workspace.canWrite && (
             <Button
               disabled={!c.period}

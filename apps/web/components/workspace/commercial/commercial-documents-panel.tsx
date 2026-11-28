@@ -1,7 +1,8 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRowHeader } from "@/components/ui/table";
 import { CounterpartyProfileDrawer, CounterpartyQuickDrawer } from "./counterparty-profile-drawer";
@@ -26,7 +27,6 @@ export function CommercialDocumentsPanel({ direction, partyId: filteredPartyId }
     viewingParty,
     setViewingParty,
     setPartyId,
-    lines,
     setRetReason,
     setRetQuantities,
     setRetConditions,
@@ -47,7 +47,6 @@ export function CommercialDocumentsPanel({ direction, partyId: filteredPartyId }
           ) : !docRows.length ? (
             <EmptyState
               title="فاکتور تجاری چندردیفی ثبت نشده است"
-              description="با انتخاب چند کالا/خدمت، تخفیف خطی و کل و شرایط تسویه پیش‌نویس فاکتور بسازید."
             />
           ) : (
             <div className="overflow-x-auto">
@@ -98,24 +97,28 @@ export function CommercialDocumentsPanel({ direction, partyId: filteredPartyId }
                         </Badge>
                       </TableCell>
                       <TableCell className="flex flex-wrap gap-2">
-                        <Button
-                          className="min-h-8 px-3 text-xs"
-                          variant="secondary"
-                          onClick={() => {
-                            cmd.clearError();
-                            setRetQuantities({});
-                            setRetConditions({});
-                            setRetReason("");
-                            setDetailDoc(doc);
-                          }}
-                        >
-                          جزئیات و مرجوعی
-                        </Button>
+                        <TableRowActions label={`عملیات ${doc.number}`}>
+                          <TableRowAction
+                            onClick={() => {
+                                cmd.clearError();
+                                setRetQuantities({});
+                                setRetConditions({});
+                                setRetReason("");
+                                setDetailDoc(doc);
+                            }}
+                            kind="view"
+                          >
+                            جزئیات و مرجوعی
+                          </TableRowAction>
                         {doc.draft_id && doc.status === "draft" && (
-                          <ButtonLink className="min-h-8 px-3 text-xs" href={`/accounting?review_draft=${doc.draft_id}`}>
+                          <TableRowAction
+                            href={`/accounting?review_draft=${doc.draft_id}`}
+                            kind="view"
+                          >
                             بررسی و ثبت سند
-                          </ButtonLink>
+                          </TableRowAction>
                         )}
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -126,7 +129,7 @@ export function CommercialDocumentsPanel({ direction, partyId: filteredPartyId }
         </Panel>
       )}
 
-      <CommercialDocumentEditor view={view} />
+      {!isSale && <CommercialDocumentEditor view={view} />}
 
       <CommercialAdjustmentEditors view={view} />
 

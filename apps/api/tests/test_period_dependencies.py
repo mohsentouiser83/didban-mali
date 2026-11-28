@@ -29,44 +29,22 @@ def test_period_has_dependencies_covers_cheque_comparison_and_payroll(db_session
         db,
         company,
         owner,
-        {"name": "دوره دوم", "start": date(2025, 7, 1), "end": date(2025, 12, 31), "previous_period_id": p0_dict["id"]},
+        {"name": "دوره دوم", "start": date(2025, 7, 1), "end": date(2025, 12, 31)},
     )
     p0_id = p0_dict["id"]
     p2_id = p2_dict["id"]
+    period = db.get(m.Period, p2_id)
+    period.previous_period_id = p0_id
+    db.flush()
 
     # p0 is referenced by p2 as previous_period_id -> p0 is in_use!
     assert period_has_dependencies(db, company, p0_id) is True
     assert period_has_dependencies(db, company, p2_id) is False
 
-    # Self-reference and cross-company comparison rejected
-    with pytest.raises(DomainError) as err:
-        save_period(
-            db,
-            company,
-            owner,
-            {"name": "دوره دوم", "start": date(2025, 7, 1), "end": date(2025, 12, 31), "previous_period_id": p2_id},
-            db.get(m.Period, p2_id),
-        )
-    assert err.value.code == "invalid_comparison_period"
-
-    other_period = m.Period(
-        id="other-p",
-        company_id=test_company_context["other_company"].id,
-        name="دوره دیگر",
-        start=date(2024, 1, 1),
-        end=date(2024, 12, 29),
-    )
-    db.add(other_period)
-    db.flush()
-    with pytest.raises(DomainError) as err:
-        save_period(
-            db,
-            company,
-            owner,
-            {"name": "دوره دوم", "start": date(2025, 7, 1), "end": date(2025, 12, 31), "previous_period_id": "other-p"},
-            db.get(m.Period, p2_id),
-        )
-    assert err.value.status == 404
+    renamed = save_period(db, company, owner, {
+        "name": "دوره دوم ویرایش‌شده", "start": period.start, "end": period.end,
+    }, period)
+    assert renamed["previous_period_id"] == p0_id
 
     # Reversed dates and overlap rejected
     with pytest.raises(DomainError) as err:
@@ -102,7 +80,7 @@ def test_period_has_dependencies_covers_cheque_comparison_and_payroll(db_session
             db,
             company,
             owner,
-            {"name": "دوره دوم", "start": date(2025, 7, 2), "end": date(2025, 12, 31), "previous_period_id": p0_id},
+            {"name": "دوره دوم", "start": date(2025, 7, 2), "end": date(2025, 12, 31)},
             db.get(m.Period, p2_id),
         )
     assert err.value.code == "period_in_use"
@@ -126,9 +104,16 @@ p1 = command(owner, "POST", base + "/financial-periods", {"name": "دوره ۱",
 assert p1.status_code == 201, p1.text
 p1_data = p1.json()
 
-p2 = command(owner, "POST", base + "/financial-periods", {"name": "دوره ۲", "start": "2025-07-01", "end": "2025-12-31", "previous_period_id": p1_data["id"]})
+p2_body = {"name": "دوره ۲", "start": "2025-07-01", "end": "2025-12-31"}
+comparison_body = {**p2_body, "previous_period_id": p1_data["id"]}
+assert command(owner, "POST", base + "/financial-periods", comparison_body).status_code == 422
+p2 = command(owner, "POST", base + "/financial-periods", p2_body)
 assert p2.status_code == 201, p2.text
 p2_data = p2.json()
+assert command(owner, "PATCH", base + "/financial-periods/" + p2_data["id"], comparison_body, version=p2_data["version"]).status_code == 422
+from didban.models import Period
+with transaction("company-a") as db:
+    db.get(Period, p2_data["id"]).previous_period_id = p1_data["id"]
 
 # p1 has comparison dependency from p2 -> in_use True and DELETE -> 409
 periods = owner.get(base + "/financial-periods").json()["items"]

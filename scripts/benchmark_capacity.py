@@ -21,6 +21,7 @@ from didban.db import initialize,transaction
 from didban.models import User
 from didban.security import hasher
 from didban.worker import run_once
+from scripts.processing_fixture import seed_processing_fixture
 import json,resource
 initialize()
 with transaction() as db:db.add(User(name='Capacity test',email='capacity@example.test',password_hash=hasher.hash('synthetic-capacity-123'),installation_admin=True))
@@ -32,16 +33,15 @@ def h(version=None):
  return result
 company=client.post('/api/v1/companies',json={'name':'Synthetic capacity only'},headers=h()).json();base='/api/v1/companies/'+company['id']
 period=client.post(base+'/financial-periods',json={'name':'Capacity','start':'2026-09-01','end':'2026-09-30'},headers=h()).json()
-session=client.post(base+'/processing-sessions',json={'period_id':period['id']},headers=h()).json();path=base+'/processing-sessions/'+session['id']
-files=[];started=perf_counter()
-for account in range(10):
- lines=['account,date,amount,reference,balance,row_type,currency',f'A{account},2026-09-01,0,OPEN-{account},1000,opening,IRR']
- lines.extend(f'A{account},2026-09-05,1,R-{account}-{i},,movement,IRR' for i in range(1999))
- response=client.post(path+'/files',files={'file':(f'bank-{account}.csv',('\n'.join(lines)+'\n').encode())},headers=h())
- assert response.status_code==202,response.text
- files.append(response.json()['id'])
-upload_seconds=perf_counter()-started
-state=client.get(path).json();response=client.post(path+'/seal',json={'file_ids':files},headers=h(state['version']));assert response.is_success,response.text
+def files():
+ for account in range(10):
+  lines=['account,date,amount,reference,balance,row_type,currency',f'A{account},2026-09-01,0,OPEN-{account},1000,opening,IRR']
+  lines.extend(f'A{account},2026-09-05,1,R-{account}-{i},,movement,IRR' for i in range(1999))
+  yield f'bank-{account}.csv', ('\n'.join(lines)+'\n').encode()
+started=perf_counter()
+session_id=seed_processing_fixture(company['id'],period['id'],'capacity@example.test',files())
+path=base+'/processing-sessions/'+session_id
+intake_seconds=perf_counter()-started
 run_once();state=client.get(path).json();assert state['issues'][0]['code']=='coverage',state
 question=state['issues'][0];response=client.post(base+'/processing-issues/'+question['id']+'/answers',json={'value':{'bank_complete':True},'expected_version':question['version']},headers=h(state['version']));assert response.is_success,response.text
 started=perf_counter();run_once();processing_seconds=perf_counter()-started
@@ -62,7 +62,7 @@ def read_without_lifespan(_):
 with ThreadPoolExecutor(max_workers=5) as pool:latencies=list(pool.map(read_without_lifespan,range(5)))
 parallel_seconds=perf_counter()-started
 rss=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-print(json.dumps({'synthetic':True,'files':10,'total_data_rows':20000,'active_readers':5,'upload_seconds':round(upload_seconds,3),'processing_seconds':round(processing_seconds,3),'report_read_seconds':round(read_seconds,3),'five_reads_wall_seconds':round(parallel_seconds,3),'read_latencies_seconds':[round(x,3) for x in latencies],'process_peak_rss_native_units':rss,'platform':__import__('sys').platform,'response_bytes':len(result.content),'cash_irr':metrics['cash']['value'],'database':'SQLite development','scanner':'not configured; development unscanned','is_production_benchmark':False},indent=2))
+print(json.dumps({'synthetic':True,'files':10,'total_data_rows':20000,'active_readers':5,'intake_seconds':round(intake_seconds,3),'processing_seconds':round(processing_seconds,3),'report_read_seconds':round(read_seconds,3),'five_reads_wall_seconds':round(parallel_seconds,3),'read_latencies_seconds':[round(x,3) for x in latencies],'process_peak_rss_native_units':rss,'platform':__import__('sys').platform,'response_bytes':len(result.content),'cash_irr':metrics['cash']['value'],'database':'SQLite development','scanner':'not configured; development unscanned','is_production_benchmark':False},indent=2))
 """
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--output", type=Path, default=ROOT / "docs/validation/capacity-smoke-2026-11-01.json")

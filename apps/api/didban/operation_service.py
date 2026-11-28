@@ -7,10 +7,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from . import models as m
-from .accounting_service import capabilities, save_draft
+from .accounting_service import save_draft
 from .errors import DomainError, require
+from .module_access import Module
 from .money_type import canonical_money
 from .operation_models import OperationDraft
+from .security import membership
 from .workflow import audit
 
 POLICY = "user-provisional-2026-11-02-v1"
@@ -458,12 +460,26 @@ def build(data: dict) -> list[dict]:
 
 
 def create(db: Session, company: str, user: m.User, data: dict) -> dict:
-    require(
-        capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تهیه سند ندارید.", 403
-    )
+    module: Module = "accounting"
+    kind = data["kind"]
+    if kind in ("receipt", "payment", "transfer") or kind.startswith("cheque_"):
+        module = "treasury"
+    if kind == "payroll_payment":
+        module = "payroll"
+    membership(db, company, user, "write", scope=(module, "create"))
     from .operation_numbering import allocate_reference
 
     data = data | {"source_reference": allocate_reference(db, company, data["kind"])}
+    if data.get("point_of_sale_id"):
+        from .treasury_service import resolve_point_of_sale_bank
+
+        require(
+            data["kind"] in ("receipt", "payment") and not data["accounts"].get("bank_a"),
+            "invalid_operation_pos",
+            "کارت‌خوان را برای دریافت یا پرداخت و بدون حساب بانکی جداگانه انتخاب کنید.",
+        )
+        bank = resolve_point_of_sale_bank(db, company, data["point_of_sale_id"])
+        data = data | {"accounts": data["accounts"] | {"bank_a": bank.account_id}}
     if data["kind"] != "transfer":
         require(bool(data["party_id"].strip()), "operation_party_required", "طرف حساب را مشخص کنید.")
     if data["kind"].startswith("cheque_"):
@@ -513,6 +529,7 @@ def create(db: Session, company: str, user: m.User, data: dict) -> dict:
             "unit": data["unit"],
             "lines": lines,
         },
+        scope=(module, "create"),
     )
     origin = OperationDraft(
         company_id=company,
@@ -620,6 +637,17 @@ def validate_posting(db: Session, company: str, draft) -> str | None:
     )
     if not origin:
         return
+    if origin.payload.get("point_of_sale_id"):
+        from .accounting_service import validate_lines
+
+        data = origin.payload
+        expected = validate_lines(db, company, {"unit": data["unit"], "lines": build(data)})
+        require(
+            draft.lines == expected and draft.date.isoformat() == data["date"] and draft.period_id == data["period_id"],
+            "operation_draft_changed",
+            "حساب و مبلغ سند با دریافت یا پرداخت کارت‌خوان یکسان نیست.",
+            409,
+        )
     if not origin.kind.startswith("cheque_"):
         return
     data = dict(origin.payload)

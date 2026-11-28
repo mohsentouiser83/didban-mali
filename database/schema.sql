@@ -8,7 +8,7 @@ SELECT pg_advisory_xact_lock(2026110101);
 
 CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
 
-INSERT INTO didban_schema_version (id, version) VALUES (1, 2) ON CONFLICT (id) DO NOTHING;
+INSERT INTO didban_schema_version (id, version) VALUES (1, 6) ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE companies (
 	name VARCHAR(120) NOT NULL,
@@ -404,6 +404,18 @@ CREATE TABLE installation_model_budgets (
 	FOREIGN KEY(actor_id) REFERENCES users (id)
 );
 
+CREATE TABLE inventory_units (
+	name VARCHAR(40) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, name),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_inventory_units_company_id ON inventory_units (company_id);
+
 CREATE TABLE inventory_warehouses (
 	code VARCHAR(100) NOT NULL,
 	name VARCHAR(150) NOT NULL,
@@ -456,6 +468,7 @@ CREATE TABLE memberships (
 	role VARCHAR(30) NOT NULL,
 	approve_financial_report BOOLEAN NOT NULL,
 	active BOOLEAN NOT NULL,
+	module_access JSON DEFAULT '{}' NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	version INTEGER NOT NULL,
@@ -658,7 +671,7 @@ CREATE TABLE accounting_account_hierarchy (
 	FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id),
 	FOREIGN KEY(company_id, parent_id) REFERENCES accounting_accounts (company_id, id),
 	CONSTRAINT account_hierarchy_level CHECK (level IN ('group', 'general', 'subsidiary', 'detail')),
-	CONSTRAINT account_hierarchy_parent CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)),
+	CONSTRAINT account_hierarchy_parent_by_level CHECK (level = 'detail' OR (level = 'group' AND parent_id IS NULL) OR (level IN ('general', 'subsidiary') AND parent_id IS NOT NULL)),
 	CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id),
 	CONSTRAINT account_hierarchy_code_status CHECK (code_status IN ('standard', 'legacy')),
 	FOREIGN KEY(company_id) REFERENCES companies (id)
@@ -792,6 +805,7 @@ CREATE TABLE commercial_documents (
 	gross_amount_irr NUMERIC(38, 6) NOT NULL,
 	line_discount_total_irr NUMERIC(38, 6) NOT NULL,
 	invoice_discount_irr NUMERIC(38, 6) NOT NULL,
+	vat_total_irr NUMERIC(38, 6) NOT NULL,
 	net_amount_irr NUMERIC(38, 6) NOT NULL,
 	settlement_type VARCHAR(20) NOT NULL,
 	cash_amount_irr NUMERIC(38, 6) NOT NULL,
@@ -1359,6 +1373,8 @@ CREATE TABLE commercial_document_lines (
 	line_discount_irr NUMERIC(38, 6) NOT NULL,
 	net_before_inv_disc_irr NUMERIC(38, 6) NOT NULL,
 	allocated_invoice_discount_irr NUMERIC(38, 6) NOT NULL,
+	vat_rate_pct VARCHAR(20) NOT NULL,
+	vat_amount_irr NUMERIC(38, 6) NOT NULL,
 	net_amount_irr NUMERIC(38, 6) NOT NULL,
 	cost_irr NUMERIC(38, 6) NOT NULL,
 	cost_layers JSON NOT NULL,
@@ -1389,6 +1405,7 @@ CREATE TABLE commercial_returns (
 	period_id VARCHAR(36) NOT NULL,
 	reason VARCHAR(500) NOT NULL,
 	total_return_amount_irr NUMERIC(38, 6) NOT NULL,
+	vat_total_irr NUMERIC(38, 6) NOT NULL,
 	invoice_balance_reduced_irr NUMERIC(38, 6) NOT NULL,
 	credit_created_irr NUMERIC(38, 6) NOT NULL,
 	operation_id VARCHAR(36),
@@ -1411,6 +1428,23 @@ CREATE TABLE commercial_returns (
 );
 
 CREATE INDEX ix_commercial_returns_company_id ON commercial_returns (company_id);
+
+CREATE TABLE inventory_warehouse_items (
+	warehouse_id VARCHAR(36) NOT NULL,
+	item_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, warehouse_id, item_id),
+	FOREIGN KEY(company_id, warehouse_id) REFERENCES inventory_warehouses (company_id, id) ON DELETE CASCADE,
+	FOREIGN KEY(company_id, item_id) REFERENCES inventory_items (company_id, id) ON DELETE CASCADE,
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_inventory_warehouse_items_company_id ON inventory_warehouse_items (company_id);
+
+CREATE INDEX ix_inventory_warehouse_items_company_item ON inventory_warehouse_items (company_id, item_id);
 
 CREATE TABLE journal_correction_drafts (
 	draft_id VARCHAR(36) NOT NULL,
@@ -1675,6 +1709,24 @@ CREATE INDEX ix_source_files_company_id ON source_files (company_id);
 
 CREATE INDEX ix_source_files_sha256 ON source_files (sha256);
 
+CREATE TABLE treasury_points_of_sale (
+	name VARCHAR(150) NOT NULL,
+	code VARCHAR(100) NOT NULL,
+	linked_bank_id VARCHAR(36) NOT NULL,
+	active BOOLEAN NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, code),
+	FOREIGN KEY(company_id, linked_bank_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_treasury_points_of_sale_company_id ON treasury_points_of_sale (company_id);
+
 CREATE TABLE automation_previews (
 	actor_id VARCHAR(36) NOT NULL,
 	manifest_id VARCHAR(36) NOT NULL,
@@ -1819,6 +1871,7 @@ CREATE TABLE commercial_return_lines (
 	condition VARCHAR(20) NOT NULL,
 	quantity BIGINT NOT NULL,
 	return_net_amount_irr NUMERIC(38, 6) NOT NULL,
+	vat_amount_irr NUMERIC(38, 6) NOT NULL,
 	return_cost_irr NUMERIC(38, 6) NOT NULL,
 	restored_cost_layers JSON NOT NULL,
 	quarantine_status VARCHAR(30) NOT NULL,
@@ -2854,6 +2907,21 @@ CREATE TABLE treasury_allocations (
 
 CREATE INDEX ix_treasury_allocations_company_id ON treasury_allocations (company_id);
 
+CREATE TABLE treasury_tool_points_of_sale (
+	tool_line_id VARCHAR(36) NOT NULL,
+	point_of_sale_id VARCHAR(36) NOT NULL,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, tool_line_id),
+	FOREIGN KEY(company_id, tool_line_id) REFERENCES treasury_tool_lines (company_id, id),
+	FOREIGN KEY(company_id, point_of_sale_id) REFERENCES treasury_points_of_sale (company_id, id),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_treasury_tool_points_of_sale_company_id ON treasury_tool_points_of_sale (company_id);
+
 ALTER TABLE account_import_previews ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE account_import_previews FORCE ROW LEVEL SECURITY;
@@ -2981,6 +3049,14 @@ ALTER TABLE idempotency_keys FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON idempotency_keys;
 
 CREATE POLICY tenant_isolation ON idempotency_keys USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE inventory_units ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE inventory_units FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON inventory_units;
+
+CREATE POLICY tenant_isolation ON inventory_units USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE inventory_warehouses ENABLE ROW LEVEL SECURITY;
 
@@ -3342,6 +3418,14 @@ DROP POLICY IF EXISTS tenant_isolation ON commercial_returns;
 
 CREATE POLICY tenant_isolation ON commercial_returns USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE inventory_warehouse_items ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE inventory_warehouse_items FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON inventory_warehouse_items;
+
+CREATE POLICY tenant_isolation ON inventory_warehouse_items USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE journal_correction_drafts ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE journal_correction_drafts FORCE ROW LEVEL SECURITY;
@@ -3421,6 +3505,14 @@ ALTER TABLE source_files FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON source_files;
 
 CREATE POLICY tenant_isolation ON source_files USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE treasury_points_of_sale ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_points_of_sale FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_points_of_sale;
+
+CREATE POLICY tenant_isolation ON treasury_points_of_sale USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE automation_previews ENABLE ROW LEVEL SECURITY;
 
@@ -3854,6 +3946,14 @@ DROP POLICY IF EXISTS tenant_isolation ON treasury_allocations;
 
 CREATE POLICY tenant_isolation ON treasury_allocations USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE treasury_tool_points_of_sale ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE treasury_tool_points_of_sale FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON treasury_tool_points_of_sale;
+
+CREATE POLICY tenant_isolation ON treasury_tool_points_of_sale USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 DROP POLICY IF EXISTS own_membership ON memberships;
 
 CREATE POLICY own_membership ON memberships FOR SELECT USING (user_id = current_setting('didban.user_id',true));
@@ -4119,6 +4219,10 @@ CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON settlements FOR EACH RO
 DROP TRIGGER IF EXISTS immutable_fact ON source_rows;
 
 CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON source_rows FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
+
+DROP TRIGGER IF EXISTS immutable_fact ON treasury_tool_points_of_sale;
+
+CREATE TRIGGER immutable_fact BEFORE UPDATE OR DELETE ON treasury_tool_points_of_sale FOR EACH ROW EXECUTE FUNCTION deny_fact_change();
 
 DROP TRIGGER IF EXISTS immutable_fact ON inventory_items;
 

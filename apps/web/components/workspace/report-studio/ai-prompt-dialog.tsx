@@ -38,9 +38,8 @@ export function AiPromptDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="تولید هوشمند داشبورد با هوش مصنوعی"
-      description="توضیح دهید چه ابعاد، شاخص‌ها یا نمودارهایی در این گزارش بررسی شوند تا به صورت خودکار برای شما چیده شود."
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex w-full flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             انصراف
           </Button>
@@ -49,7 +48,7 @@ export function AiPromptDialog({
             onClick={handleSubmit}
             disabled={!prompt.trim() || busy}
             busy={busy}
-            className="gap-1.5"
+            className="w-full gap-1.5"
           >
             <SparkleIcon size={16} />
             طراحی و تولید گزارش
@@ -63,7 +62,6 @@ export function AiPromptDialog({
             id="ai-prompt-input"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="مثلاً: یک داشبورد کامل فروش فصلی با روند ماهانه، بدهکاران عمده و فاکتورهای معوق بساز"
             className="h-28 w-full rounded-control border border-border bg-surface p-3 text-sm text-foreground transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
             dir="rtl"
           />

@@ -24,9 +24,6 @@ function ScenarioBasis({ c }: { c: Controller }) {
   return (
     <Panel title="مبنای ثابت سناریو">
       <div className="space-y-4">
-        <StatusMessage>
-          ماندهٔ مبنا از گزارش ثابت خوانده می‌شود. دریافت‌ها و پرداخت‌های آینده فرض سناریو هستند.
-        </StatusMessage>
         {!c.local.item && (
           <Field id="scenario-basis-type" label="نوع مبنای سناریو" required>
 <Select

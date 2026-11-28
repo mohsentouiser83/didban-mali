@@ -65,7 +65,7 @@ def env(db_session):
     notes_pay_acc = Account(company_id=c.id, code="2020", name="اسناد پرداختنی تجاری")
     recv_acc = Account(company_id=c.id, code="1030", name="حساب‌های دریافتنی تجاری")
     pay_acc = Account(company_id=c.id, code="2010", name="حساب‌های پرداختنی تجاری")
-    inv_acc = Account(company_id=c.id, code="1050", name="موجودی کالا")
+    inv_acc = Account(company_id=c.id, code="1015", name="موجودی کالا")
     sales_acc = Account(company_id=c.id, code="6010", name="درآمد فروش")
     cogs_acc = Account(company_id=c.id, code="7010", name="بهای تمام‌شده کالای فروش‌رفته")
     equity_acc = Account(company_id=c.id, code="3010", name="سرمایه اولیه")
@@ -112,7 +112,7 @@ def env(db_session):
         db_session,
         c.id,
         u,
-        {"code": "ITEM-MIXED-1", "name": "کالای دیجیتال", "inventory_account_id": inv_acc.id},
+        {"code": "ITEM-MIXED-1", "name": "کالای دیجیتال"},
     )
 
     return {

@@ -2,10 +2,11 @@ import type { JournalDraftWriteResponse } from "./accounting";
 
 export type TreasuryDirection = "receipt" | "payment";
 export type TreasuryToolKind = "cash" | "bank_transfer" | "cheque" | "card" | "other";
+export type TreasuryAccountKind = "bank" | "cash" | "petty_cash" | "pos";
 
 export interface TreasuryAccountOption {
   id: string;
-  kind: "bank" | "cash" | "petty_cash";
+  kind: TreasuryAccountKind;
   name: string;
   active: boolean;
 }
@@ -13,6 +14,29 @@ export interface TreasuryAccountOption {
 export interface TreasuryAccountOptionsResponse {
   items: TreasuryAccountOption[];
 }
+
+export interface TreasuryAccountItem extends TreasuryAccountOption {
+  code: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  iban: string | null;
+  branch_name: string | null;
+  branch_code: string | null;
+  custodian_name: string | null;
+  petty_cash_limit_irr: string | null;
+  linked_bank_id: string | null;
+  linked_bank_name: string | null;
+  account_active: boolean | null;
+  needs_completion: boolean;
+  version: number;
+}
+
+export const treasuryKindLabels: Record<TreasuryAccountKind, string> = {
+  bank: "بانک",
+  cash: "صندوق",
+  petty_cash: "تنخواه",
+  pos: "کارت‌خوان",
+};
 
 export interface TreasuryToolLine {
   id: string;
@@ -22,6 +46,8 @@ export interface TreasuryToolLine {
   line_index: number;
   tool_kind: TreasuryToolKind;
   treasury_account_id: string | null;
+  point_of_sale_id?: string | null;
+  point_of_sale_name?: string | null;
   cheque_id: string | null;
   bank_movement_id: string | null;
   amount: string;

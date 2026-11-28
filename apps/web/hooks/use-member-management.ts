@@ -7,6 +7,7 @@ import {
   type User,
 } from "@/lib/api";
 import type { AccountingPermission } from "@/lib/accounting";
+import { accessActions, accessModules, type AccessAction, type AccessModule, type ModuleAccess } from "@/lib/module-access";
 import { memberRoles } from "@/lib/members";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
@@ -56,6 +57,10 @@ export function useMemberManagement() {
     reopen_period: false,
     view_payroll: false,
   });
+  const [moduleAccess, setModuleAccess] = useState<ModuleAccess>({});
+  const moduleAccessDirty = !!selected && accessModules.some(({ value: module }) =>
+    accessActions.some(({ value: action }) => selected.module_access?.[module]?.[action] !== moduleAccess[module]?.[action]),
+  );
   const [permission, setPermission] = useState<AccountingPermission>();
   const accessDirty =
     !!permission &&
@@ -64,13 +69,14 @@ export function useMemberManagement() {
       Boolean(permission.view_payroll) !== accessValue.view_payroll);
   const membershipDirty =
     !!selected &&
-    (selected.role !== value.role ||
+    (moduleAccessDirty || selected.role !== value.role ||
       selected.active !== value.active ||
       selected.approve_financial_report !== value.approve_financial_report);
   function openMember(member: Member) {
     command.clearError();
     accessCommand.clearError();
     setSelected(member);
+    setModuleAccess(member.module_access ?? {});
     setValue({
       role: member.role,
       active: member.active,
@@ -94,7 +100,7 @@ export function useMemberManagement() {
       !userId &&
       (!account.name.trim() ||
         !account.email.trim() ||
-        account.password.length < 12)
+        Array.from(account.password).length < 12)
     ) {
       setValidation("نام، ایمیل و رمز حداقل ۱۲ کاراکتری را وارد کنید.");
       return;
@@ -135,6 +141,7 @@ export function useMemberManagement() {
     const body = {
       role: value.role,
       active: value.active,
+      ...(moduleAccessDirty ? { module_access: moduleAccess } : {}),
       ...(["owner", "advisor"].includes(value.role)
         ? { approve_financial_report: value.approve_financial_report }
         : {}),
@@ -202,6 +209,14 @@ export function useMemberManagement() {
     selected,
     value,
     accessValue,
+    moduleAccess,
+    changeModuleAccess: (module: AccessModule, action: AccessAction, override: boolean | undefined) =>
+      setModuleAccess((current) => {
+        const actions = { ...current[module] };
+        if (override === undefined) delete actions[action];
+        else actions[action] = override;
+        return { ...current, [module]: actions };
+      }),
     permission,
     membershipDirty,
     accessDirty,

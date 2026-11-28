@@ -1,9 +1,9 @@
 """Strict draft input; decimal amounts are strings, never floats."""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, StrictStr, field_validator
 
 
 class StrictInput(BaseModel):
@@ -16,9 +16,10 @@ class StrictInput(BaseModel):
 
 
 AccountLevel = Literal["group", "general", "subsidiary", "detail"]
+AccountId = Annotated[str, Field(min_length=1, max_length=36)]
 
 
-class AccountInput(StrictInput):
+class AccountFields(StrictInput):
     code: str | None = Field(default=None, max_length=100)
     level: AccountLevel | None = None
     parent_id: str | None = Field(default=None, min_length=1, max_length=36)
@@ -45,6 +46,7 @@ class AccountInput(StrictInput):
                 "کل": "general",
                 "معین": "subsidiary",
                 "تفصیلی": "detail",
+                "تفصیلی شناور": "detail",
                 "": None,
             }.get(value.strip(), value.strip())
         return value
@@ -73,6 +75,10 @@ class AccountInput(StrictInput):
         return value
 
 
+class AccountInput(AccountFields):
+    linked_account_ids: list[AccountId] | None = Field(default=None, max_length=200)
+
+
 class AccountCreateInput(AccountInput):
     code: str | None = Field(default=None, max_length=100)
     level: AccountLevel | None = None
@@ -80,6 +86,7 @@ class AccountCreateInput(AccountInput):
 
 class DraftLine(StrictInput):
     account_id: str = Field(min_length=1, max_length=36)
+    detail_account_id: str | None = Field(default=None, min_length=1, max_length=36)
     party_id: str = Field(default="", max_length=100)
     counterparty_id: str | None = Field(default=None, max_length=36)
     debit: str = Field(max_length=80)
@@ -102,6 +109,7 @@ class DraftLineResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     account_id: str
+    detail_account_id: str | None = None
     party_id: str | None = None
     counterparty_id: str | None = None
     debit: StrictStr
@@ -137,7 +145,7 @@ class PermissionInput(StrictInput):
 
 
 class AccountDetailLinkInput(StrictInput):
-    detail_account_id: str = Field(min_length=1, max_length=36)
-    subsidiary_account_id: str = Field(min_length=1, max_length=36)
+    detail_account_id: AccountId
+    subsidiary_account_id: AccountId = Field(validation_alias=AliasChoices("target_account_id", "subsidiary_account_id"))
     counterparty_id: str | None = Field(default=None, max_length=36)
     active: bool = True

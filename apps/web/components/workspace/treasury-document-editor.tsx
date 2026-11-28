@@ -9,12 +9,12 @@ import { AmountInput, Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
 import { listItems } from "@/lib/api";
-import { amount } from "@/lib/utils";
 import { ToolInputRow } from "@/hooks/use-treasury-documents";
 import type { useTreasuryDocuments } from "@/hooks/use-treasury-documents";
 
 export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof useTreasuryDocuments>,
     "workspace" |
+    "canCreateParty" |
     "counterparties" |
     "cmd" |
     "createOpen" |
@@ -40,6 +40,7 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
   > }) {
   const {
     workspace,
+    canCreateParty,
     counterparties,
     cmd,
     createOpen,
@@ -100,7 +101,7 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
                     مشاهده پرونده طرف‌حساب
                   </Button>
                 )}
-                {workspace.canWrite && (
+                {canCreateParty && (
                   <Button
                     variant="ghost"
                     className="min-h-8 px-2 text-xs"
@@ -144,13 +145,13 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
               <div key={tool.key} className="space-y-2 rounded-lg border border-border/70 p-2.5">
                 <div className="grid gap-2 sm:grid-cols-4">
                   <Select
-                    aria-label={`نوع ابزار ${idx + 1}`}
+                    label={`نوع ابزار ${idx + 1}`}
                     value={tool.tool_kind}
                     onValueChange={(v) =>
                       setTools((prev) =>
                         prev.map((r) =>
                           r.key === tool.key
-                            ? { ...r, tool_kind: v as ToolInputRow["tool_kind"], bank_movement_id: "", cheque_id: "" }
+                            ? { ...r, tool_kind: v as ToolInputRow["tool_kind"], treasury_account_id: "", bank_movement_id: "", cheque_id: "" }
                             : r,
                         ),
                       )
@@ -159,18 +160,18 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
                       { value: "bank_transfer", label: "حواله بانکی" },
                       { value: "cash", label: "نقد / صندوق" },
                       { value: "cheque", label: "چک" },
-                      { value: "card", label: "کارت" },
+                      { value: "card", label: "کارت / کارت‌خوان" },
                       { value: "other", label: "سایر" },
                     ]}
                   />
                   <Select
-                    aria-label={`حساب خزانه ${idx + 1}`}
+                    label={tool.tool_kind === "card" ? `کارت‌خوان یا حساب خزانه ${idx + 1}` : `حساب خزانه ${idx + 1}`}
                     searchable
                     value={tool.treasury_account_id}
                     onValueChange={(v) =>
                       setTools((prev) => prev.map((r) => r.key === tool.key ? { ...r, treasury_account_id: v } : r))
                     }
-                    options={taOptions}
+                    options={taOptions(tool.tool_kind)}
                   />
                   <AmountInput
                     aria-label={`مبلغ ابزار ${idx + 1}`}
@@ -202,7 +203,7 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
                 </div>
                 {(tool.tool_kind === "bank_transfer" || tool.tool_kind === "card") && (
                   <Select
-                    aria-label={`گردش بانکی ردیف ${idx + 1}`}
+                    label={`گردش بانکی ردیف ${idx + 1}`}
                     searchable
                     value={tool.bank_movement_id}
                     onValueChange={(v) =>
@@ -214,7 +215,7 @@ export function TreasuryDocumentEditor({ view }: { view: Pick<ReturnType<typeof 
                 {tool.tool_kind === "cheque" && (
                   <div className="grid gap-2 sm:grid-cols-2">
                     <Select
-                      aria-label={`چک صیادی ردیف ${idx + 1}`}
+                      label={`چک صیادی ردیف ${idx + 1}`}
                       searchable
                       value={tool.cheque_id}
                       onValueChange={(v) =>

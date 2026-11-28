@@ -26,6 +26,12 @@ class Account(Entity, Tenant, Versioned, Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+ACCOUNT_HIERARCHY_PARENT_CHECK = (
+    "level = 'detail' OR (level = 'group' AND parent_id IS NULL) OR "
+    "(level IN ('general', 'subsidiary') AND parent_id IS NOT NULL)"
+)
+
+
 class AccountHierarchy(Tenant, Base):
     """Explicit classification; existing accounts remain unclassified until assigned."""
 
@@ -34,7 +40,7 @@ class AccountHierarchy(Tenant, Base):
         ForeignKeyConstraint(["company_id", "account_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]),
         ForeignKeyConstraint(["company_id", "parent_id"], ["accounting_accounts.company_id", "accounting_accounts.id"]),
         CheckConstraint("level IN ('group', 'general', 'subsidiary', 'detail')", name="account_hierarchy_level"),
-        CheckConstraint("(level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)", name="account_hierarchy_parent"),
+        CheckConstraint(ACCOUNT_HIERARCHY_PARENT_CHECK, name="account_hierarchy_parent_by_level"),
         CheckConstraint("parent_id IS NULL OR parent_id != account_id", name="account_hierarchy_no_self_parent"),
         CheckConstraint("code_status IN ('standard', 'legacy')", name="account_hierarchy_code_status"),
     )
@@ -74,7 +80,7 @@ class AccountingPermission(Entity, Tenant, Versioned, Base):
 
 
 class AccountDetailLink(Entity, Tenant, Base):
-    """Explicit allowed relationship between a detail account, subsidiary accounts, and an optional counterparty."""
+    """Company-scoped association of a detail account with a chart account and optional counterparty."""
 
     __tablename__ = "account_detail_links"
     __table_args__ = (
@@ -91,6 +97,7 @@ class AccountDetailLink(Entity, Tenant, Base):
         ),
     )
     detail_account_id: Mapped[str] = mapped_column(String(36))
+    # Keep the installed column name for links recorded before support for group and general targets.
     subsidiary_account_id: Mapped[str] = mapped_column(String(36))
     counterparty_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)
     active: Mapped[bool] = mapped_column(Boolean, default=True)

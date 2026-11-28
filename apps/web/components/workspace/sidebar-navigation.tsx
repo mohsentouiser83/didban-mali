@@ -3,8 +3,11 @@ import Link from "next/link";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import type { SidebarNavigationReturn } from "@/hooks/use-sidebar-navigation";
+import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
+import type { AccountingCapabilities } from "@/lib/accounting";
 import { isCurrentNavItem, isItemOrChildActive, navigationGroups, type NavigationItem } from "@/lib/navigation-catalog";
+import { canViewPath } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
 
 interface NavigationProps {
@@ -16,9 +19,26 @@ interface NavigationProps {
 export function SidebarNavigation({ onNavigate, sidebarNav, idPrefix }: NavigationProps) {
   const { pathname } = sidebarNav;
   const { company } = useWorkspace();
+  const capabilities = useResource<AccountingCapabilities>(
+    company ? `/companies/${company.id}/accounting/capabilities` : null,
+  );
+  const payrollDenied =
+    company?.role === "viewer" || capabilities.data?.can_view_payroll === false;
+
+  const canView = (href: string) => {
+    if (
+      payrollDenied &&
+      ["/payroll", "/payroll/employees", "/payroll/contracts", "/employee-reports"].includes(href)
+    ) {
+      return false;
+    }
+    return canViewPath(company, href);
+  };
 
   function renderItem(item: NavigationItem, isExpanded = true) {
-    const hasChildren = !!item.children && item.children.length > 0;
+    const children = item.children?.filter((child) => canView(child.href));
+    if (item.children ? !children?.length : !canView(item.href)) return null;
+    const hasChildren = !!children?.length;
     if (hasChildren) {
       const isSubExpanded = sidebarNav.isSubgroupExpanded(item.label);
       const isSubActive = isItemOrChildActive(item, pathname);
@@ -80,7 +100,7 @@ export function SidebarNavigation({ onNavigate, sidebarNav, idPrefix }: Navigati
           >
             <div className="overflow-hidden min-h-0">
               <div className="space-y-0.5 py-1 pr-4 mr-3 border-r border-border/70 rtl:pr-4 rtl:mr-3 ltr:pl-4 ltr:ml-3 ltr:border-l ltr:border-r-0">
-                {item.children?.map((child: NavigationItem) => {
+                {children?.map((child: NavigationItem) => {
                   const isChildCurrent = isCurrentNavItem(child.href, pathname);
                   const ChildIcon = child.icon ?? item.icon;
                   return (

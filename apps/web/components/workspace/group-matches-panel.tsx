@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useGroupMatches, type GroupMatch } from "@/hooks/use-group-matches";
 import { Panel } from "./page-parts";
 import { EvidenceList } from "./evidence-list";
@@ -29,7 +30,7 @@ function GroupRows({ rows, onOpen }: { rows: GroupMatch[]; onOpen: (item: GroupM
           <TableHead>جمع بانک (ریال)</TableHead>
           <TableHead>اختلاف (ریال)</TableHead>
           <TableHead>وضعیت</TableHead>
-          <TableHead>شواهد</TableHead>
+          <TableHead>عملیات</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -40,7 +41,7 @@ function GroupRows({ rows, onOpen }: { rows: GroupMatch[]; onOpen: (item: GroupM
             <TableCell>{amount(row.bank_total)}</TableCell>
             <TableCell>{amount(row.difference)}</TableCell>
             <TableCell><StatusBadge status={row.status} /></TableCell>
-            <TableCell><Button variant="secondary" onClick={() => onOpen(row)}>بررسی گروه</Button></TableCell>
+            <TableCell><TableRowActions label={`عملیات ${row.reference}`}><TableRowAction onClick={() => onOpen(row)} kind="view">بررسی گروه</TableRowAction></TableRowActions></TableCell>
           </TableRow>
         )) : <TableEmptyCell colSpan={6} title="گروه چندگردشی برای بررسی موجود نیست" />}
       </TableBody>

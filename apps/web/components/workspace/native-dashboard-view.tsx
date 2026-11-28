@@ -39,7 +39,37 @@ export function NativeDashboardView() {
         <Panel>
           <EmptyState
             title="گزارش مالی دفتر اصلی ذخیره نشده"
-            action={<ButtonLink href="/reports/native">صورت‌های مالی</ButtonLink>}
+            description={
+              c.hasSavedReports
+                ? "گزارش‌های ذخیره‌شدهٔ دیگری در آرشیو موجود است؛ می‌توانید آن‌ها را ببینید یا نخستین گزارش دفتر اصلی را بسازید."
+                : c.canPrepare
+                  ? "برای دیدن شاخص‌های نقدینگی، سود و زیان و ترازنامه روی داشبورد، ابتدا اسناد را ثبت کرده یا نخستین گزارش دفتر اصلی را تولید کنید."
+                  : "هنوز گزارشی برای نمایش روی داشبورد منتشر نشده است."
+            }
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {c.hasSavedReports && (
+                  <ButtonLink href="/reports" variant="primary">
+                    مشاهدهٔ گزارش موجود
+                  </ButtonLink>
+                )}
+                {c.canPrepare && (
+                  <>
+                    <ButtonLink href="/reports/native" variant={c.hasSavedReports ? "secondary" : "primary"}>
+                      ساخت نخستین گزارش
+                    </ButtonLink>
+                    <ButtonLink href="/accounting" variant="secondary">
+                      ثبت سند حسابداری
+                    </ButtonLink>
+                  </>
+                )}
+                {!c.hasSavedReports && !c.canPrepare && (
+                  <ButtonLink href="/reports" variant="secondary">
+                    مشاهدهٔ آرشیو گزارش‌ها
+                  </ButtonLink>
+                )}
+              </div>
+            }
           />
         </Panel>
       ) : (
@@ -65,10 +95,25 @@ export function NativeDashboardView() {
                 {c.cash?.value == null && (
                   <p className="mt-3 text-sm text-muted">{c.cash?.reason}</p>
                 )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <ButtonLink href="/reconciliation" variant="ghost" className="h-7 px-2 text-xs text-primary">
+                    تطبیق بانک و شواهد نقد
+                  </ButtonLink>
+                  <ButtonLink href="/accounting/electronic-ledgers" variant="ghost" className="h-7 px-2 text-xs">
+                    گردش در دفاتر الکترونیک
+                  </ButtonLink>
+                </div>
               </div>
-              <Badge tone="primary">
-                دفتر اصلی · تا {displayDate(c.data.as_of)}
-              </Badge>
+              <div className="flex flex-col items-end gap-1.5 text-xs">
+                <Badge tone="primary">
+                  مبنا: دفتر اصلی · دوره {c.data.period?.name || "—"} · تاریخ برش {displayDate(c.data.as_of)}
+                </Badge>
+                {c.data.created_at && (
+                  <span className="text-muted">
+                    زمان به‌روزرسانی: {displayDate(c.data.created_at)}
+                  </span>
+                )}
+              </div>
             </div>
           </MetricCardFrame>
           <StatCards
@@ -82,6 +127,38 @@ export function NativeDashboardView() {
               { key: "pre_tax_profit", label: "سود پیش از مالیات" },
             ]}
           />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border bg-surface p-3.5 text-xs">
+              <div className="text-muted">مطالبات فاکتوری (مستقل از مانده دفتر)</div>
+              <div className="mt-1 font-medium tabular-nums text-foreground">
+                {c.hasInvoicesData ? `${amount(c.openSalesInvoices, c.workspace.unit)} ${c.workspace.unit === "IRR" ? "ریال" : "تومان"}` : "—"}
+              </div>
+              <ButtonLink href="/receivables" variant="ghost" className="mt-1.5 h-6 px-1.5 text-xs text-primary">
+                مشاهده فاکتورهای فروش و مطالبات
+              </ButtonLink>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-3.5 text-xs">
+              <div className="text-muted">بدهی فاکتوری (مستقل از مانده دفتر)</div>
+              <div className="mt-1 font-medium tabular-nums text-foreground">
+                {c.hasInvoicesData ? `${amount(c.openPurchaseInvoices, c.workspace.unit)} ${c.workspace.unit === "IRR" ? "ریال" : "تومان"}` : "—"}
+              </div>
+              <ButtonLink href="/payables" variant="ghost" className="mt-1.5 h-6 px-1.5 text-xs text-primary">
+                مشاهده فاکتورهای خرید و بدهی
+              </ButtonLink>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-3.5 text-xs">
+              <div className="text-muted">گزارش و شواهد صورت‌های مالی</div>
+              <ButtonLink href="/reports/native" variant="ghost" className="mt-2 h-6 px-1.5 text-xs text-primary">
+                صورت‌های مالی اساسی دفتر بومی
+              </ButtonLink>
+            </div>
+            <div className="rounded-xl border border-border bg-surface p-3.5 text-xs">
+              <div className="text-muted">پیش‌بینی ۳۰روزه و جریان نقد</div>
+              <ButtonLink href="/cashflow/forecast" variant="ghost" className="mt-2 h-6 px-1.5 text-xs text-primary">
+                مشاهده پیش‌بینی نقدینگی
+              </ButtonLink>
+            </div>
+          </div>
         </>
       )}
     </>

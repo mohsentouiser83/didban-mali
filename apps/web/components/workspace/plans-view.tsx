@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { CalendarCheckIcon as HeaderIcon } from "@phosphor-icons/react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,21 +110,19 @@ export function PlansView() {
                       </TableCell>
                       <TableCell>
                         {workspace.canWrite && plan.state !== "cancelled" && (
-                          <div className="flex gap-1">
-                            <Button variant="ghost" onClick={() => edit(plan)}>
-                              ویرایش
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="text-danger"
+                          <TableRowActions label={`عملیات ${plan.label}`}>
+                            <TableRowAction onClick={() => edit(plan)} kind="edit">ویرایش</TableRowAction>
+                            <TableRowAction
                               onClick={() => {
-                                setDeleting(plan);
-                                command.clearError();
+                                  setDeleting(plan);
+                                  command.clearError();
                               }}
+                              kind="delete"
+                              danger
                             >
                               لغو
-                            </Button>
-                          </div>
+                            </TableRowAction>
+                          </TableRowActions>
                         )}
                       </TableCell>
                     </TableRow>

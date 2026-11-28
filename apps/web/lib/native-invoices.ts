@@ -1,3 +1,4 @@
+import { persian } from "@/lib/utils";
 export type InvoiceDirection = "sale" | "purchase";
 export interface NativeInvoiceTerms {
   id: string; version: number; due_date: string | null; due_unknown: boolean;
@@ -68,6 +69,13 @@ export function compareInvoiceAmounts(left: string | null, right: string | null)
   const integer = (value: string) => { const [whole, fraction = ""] = value.split("."); return BigInt(whole + fraction.padEnd(scale, "0")); };
   const a = integer(left), b = integer(right);
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+export function invoiceHistoryDelayLabel(invoice: NativeInvoice) {
+  if (invoice.history_lag_days != null) return `میانهٔ وزنی با مبلغ: ${persian(invoice.history_lag_days)} روز`;
+  return invoice.history_reason === "receipt_history_ambiguous"
+    ? "تاریخ‌های وصول یا سررسید یک سند ناسازگار است."
+    : "کمتر از ۳ وصول معتبر؛ تأخیر معمول قابل محاسبه نیست.";
 }
 
 export function expectedDateLabel(terms: NativeInvoiceTerms | null, direction: InvoiceDirection) {

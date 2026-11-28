@@ -15,7 +15,7 @@ def _empty_to_none(value):
     return value
 
 
-TreasuryAccountKind = Literal["bank", "cash", "petty_cash"]
+TreasuryAccountKind = Literal["bank", "cash", "petty_cash", "pos"]
 TreasuryToolKind = Literal["cash", "bank_transfer", "cheque", "card", "other"]
 TreasuryDirection = Literal["receipt", "payment"]
 
@@ -35,17 +35,20 @@ class TreasuryAccountDetails(TreasuryAccountOption):
     company_id: str
     account_id: str
     account_code: str | None
+    code: str | None
     account_name: str | None
     account_active: bool | None
-    bank_name: str | None
-    account_number: str | None
-    iban: str | None
-    branch_name: str | None
-    branch_code: str | None
-    custodian_name: str | None
-    custodian_counterparty_id: str | None
-    petty_cash_limit_irr: str | None
-    needs_completion: bool
+    linked_bank_id: str | None = None
+    linked_bank_name: str | None = None
+    bank_name: str | None = None
+    account_number: str | None = None
+    iban: str | None = None
+    branch_name: str | None = None
+    branch_code: str | None = None
+    custodian_name: str | None = None
+    custodian_counterparty_id: str | None = None
+    petty_cash_limit_irr: str | None = None
+    needs_completion: bool = False
     version: int
     created_at: datetime
 
@@ -62,6 +65,8 @@ class TreasuryToolLineResponse(BaseModel):
     line_index: int
     tool_kind: TreasuryToolKind
     treasury_account_id: str | None
+    point_of_sale_id: str | None = None
+    point_of_sale_name: str | None = None
     cheque_id: str | None
     bank_movement_id: str | None
     amount: StrictStr
@@ -130,6 +135,7 @@ class TreasuryAccountInput(StrictInput):
     parent_account_id: str | None = Field(default=None, min_length=1, max_length=36)
     code: str | None = Field(default=None, max_length=100)
     level: Literal["general", "subsidiary", "detail"] | None = None
+    linked_bank_id: str | None = Field(default=None, min_length=1, max_length=36)
     active: bool = True
     bank_name: str | None = Field(default=None, max_length=120)
     account_number: str | None = Field(default=None, max_length=60)
@@ -144,6 +150,7 @@ class TreasuryAccountInput(StrictInput):
         "account_id",
         "parent_account_id",
         "code",
+        "linked_bank_id",
         "bank_name",
         "account_number",
         "iban",
@@ -162,6 +169,7 @@ class TreasuryAccountInput(StrictInput):
 class UpdateTreasuryAccountInput(StrictInput):
     name: str | None = Field(default=None, min_length=1, max_length=150)
     active: bool | None = None
+    linked_bank_id: str | None = Field(default=None, min_length=1, max_length=36)
     bank_name: str | None = Field(default=None, max_length=120)
     account_number: str | None = Field(default=None, max_length=60)
     iban: str | None = Field(default=None, max_length=34)
@@ -172,6 +180,7 @@ class UpdateTreasuryAccountInput(StrictInput):
     petty_cash_limit_irr: Annotated[str, Field(max_length=80)] | StrictInt | None = None
 
     @field_validator(
+        "linked_bank_id",
         "bank_name",
         "account_number",
         "iban",
@@ -190,6 +199,7 @@ class UpdateTreasuryAccountInput(StrictInput):
 class TreasuryToolLineInput(StrictInput):
     tool_kind: TreasuryToolKind
     treasury_account_id: str | None = Field(default=None, max_length=36)
+    point_of_sale_id: str | None = Field(default=None, min_length=1, max_length=36)
     cheque_id: str | None = Field(default=None, max_length=36)
     bank_movement_id: str | None = Field(default=None, max_length=36)
     amount: Annotated[str, Field(min_length=1, max_length=80)] | StrictInt

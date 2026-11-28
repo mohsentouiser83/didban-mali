@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
+import { previewInventoryCatalogue } from "@/lib/inventory-import";
 import type { InventoryState } from "@/lib/inventory";
 import { useInventoryCatalogue, useInventoryDraft } from "./use-inventory";
 
@@ -33,6 +34,19 @@ const draft = { source_reference: "BUY-1", operation_id: "operation", draft: { i
 
 beforeEach(() => {
   vi.mocked(api).mockReset().mockResolvedValue(draft);
+});
+
+it("imports goods and services without an account even when the spreadsheet has an old account column", () => {
+  const rows = previewInventoryCatalogue({
+    headers: ["نام کالا", "نوع", "واحد پایه", "حساب موجودی"],
+    rows: [["پارچه", "کالا", "متر", ""], ["حمل", "خدمت", "ساعت", "101"]],
+    totalRows: 2,
+  }, "items", []);
+
+  expect(rows.map((row) => row.body)).toEqual([
+    { name: "پارچه", item_kind: "goods", base_unit: "متر" },
+    { name: "حمل", item_kind: "service", base_unit: "ساعت" },
+  ]);
 });
 
 it("creates only a purchase draft using normalized whole quantities and an exact original unit price", async () => {

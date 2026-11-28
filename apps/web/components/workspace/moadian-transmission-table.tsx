@@ -1,5 +1,5 @@
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,6 +11,14 @@ import {
   TableRowHeader,
 } from "@/components/ui/table";
 import { moadianStatus, type MoadianTransmission } from "@/lib/moadian-transmissions";
+import { persian } from "@/lib/utils";
+
+const subjectLabels: Record<number, string> = {
+  1: "اصلی (۱)",
+  2: "اصلاحی (۲)",
+  3: "ابطالی (۳)",
+  4: "برگشت از فروش (۴)",
+};
 
 export function MoadianTransmissionTable({
   rows,
@@ -29,7 +37,8 @@ export function MoadianTransmissionTable({
     <Table aria-label="سوابق ارسال صورتحساب به مؤدیان">
       <TableHeader>
         <TableRow>
-          <TableHead>فاکتور</TableHead>
+          <TableHead>فاکتور و نسخه</TableHead>
+          <TableHead>موضوع / مرجع</TableHead>
           <TableHead>شناسه مالیاتی</TableHead>
           <TableHead>کد پیگیری</TableHead>
           <TableHead>وضعیت</TableHead>
@@ -38,12 +47,22 @@ export function MoadianTransmissionTable({
       </TableHeader>
       <TableBody>
         {!rows.length ? (
-          <TableEmptyCell colSpan={5} title="صورتحسابی برای ارسال ثبت نشده است" />
+          <TableEmptyCell colSpan={6} title="صورتحسابی برای ارسال ثبت نشده است" />
         ) : rows.map((row) => {
           const status = moadianStatus(row.status);
+          const needsInquiry = row.can_inquire || ["unknown", "sent"].includes(row.status);
           return (
             <TableRow key={row.id}>
-              <TableRowHeader><bdi>{row.invoice_reference}</bdi></TableRowHeader>
+              <TableRowHeader>
+                <div><bdi>{row.invoice_reference}</bdi></div>
+                <div className="text-xs text-muted">نسخه {persian(row.invoice_version)}</div>
+              </TableRowHeader>
+              <TableCell className="text-xs">
+                <div>{subjectLabels[row.invoice_subject ?? 1] ?? "اصلی (۱)"}</div>
+                {row.reference_tax_id && (
+                  <div dir="ltr" className="font-mono text-muted">مرجع: {row.reference_tax_id}</div>
+                )}
+              </TableCell>
               <TableCell><bdi className="break-all">{row.tax_id || "—"}</bdi></TableCell>
               <TableCell>
                 <bdi className="break-all">{row.reference_number || "—"}</bdi>
@@ -62,30 +81,28 @@ export function MoadianTransmissionTable({
                 )}
               </TableCell>
               <TableCell>
-                {row.can_inquire || row.can_retry ? (
-                  <div className="flex flex-wrap gap-2">
-                    {row.can_inquire && (
-                      <Button
-                        variant="secondary"
+                {needsInquiry || row.can_retry ? (
+                  <TableRowActions label={`عملیات ${row.invoice_reference}`}>
+                    {needsInquiry && (
+                      <TableRowAction
                         disabled={busy}
                         busy={inquiring === row.id}
                         onClick={() => onInquire(row)}
                         aria-label={`استعلام وضعیت فاکتور ${row.invoice_reference}`}
                       >
                         استعلام وضعیت
-                      </Button>
+                      </TableRowAction>
                     )}
                     {row.can_retry && (
-                      <Button
-                        variant="secondary"
+                      <TableRowAction
                         disabled={busy}
                         onClick={() => onRetry(row)}
                         aria-label={`ارسال دوباره فاکتور ${row.invoice_reference}`}
                       >
                         ارسال دوباره
-                      </Button>
+                      </TableRowAction>
                     )}
-                  </div>
+                  </TableRowActions>
                 ) : "—"}
               </TableCell>
             </TableRow>

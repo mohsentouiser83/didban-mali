@@ -48,6 +48,23 @@ class TreasuryAccount(Entity, Tenant, Versioned, Base):
     needs_completion: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class TreasuryPointOfSale(Entity, Tenant, Versioned, Base):
+    """A card terminal settles through a bank definition and has no ledger of its own."""
+
+    __tablename__ = "treasury_points_of_sale"
+    __table_args__ = (
+        UniqueConstraint("company_id", "id"),
+        UniqueConstraint("company_id", "code"),
+        ForeignKeyConstraint(
+            ["company_id", "linked_bank_id"], ["treasury_accounts.company_id", "treasury_accounts.id"]
+        ),
+    )
+    name: Mapped[str] = mapped_column(String(150))
+    code: Mapped[str] = mapped_column(String(100))
+    linked_bank_id: Mapped[str] = mapped_column(String(36))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class TreasuryDocument(Entity, Tenant, Versioned, Base):
     """Commercial receipt or payment header with stable tool lines and invoice allocations."""
 
@@ -112,6 +129,25 @@ class TreasuryToolLine(Entity, Tenant, Base):
     amount: Mapped[str] = mapped_column(Money())
     reference: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
+
+
+class TreasuryToolPointOfSale(Entity, Tenant, Base):
+    """Immutable terminal identity for a tool line that retains the bank at transaction time."""
+
+    __tablename__ = "treasury_tool_points_of_sale"
+    __immutable_fact__ = True
+    __table_args__ = (
+        UniqueConstraint("company_id", "tool_line_id"),
+        ForeignKeyConstraint(
+            ["company_id", "tool_line_id"], ["treasury_tool_lines.company_id", "treasury_tool_lines.id"]
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "point_of_sale_id"],
+            ["treasury_points_of_sale.company_id", "treasury_points_of_sale.id"],
+        ),
+    )
+    tool_line_id: Mapped[str] = mapped_column(String(36))
+    point_of_sale_id: Mapped[str] = mapped_column(String(36))
 
 
 class TreasuryAllocation(Entity, Tenant, Base):

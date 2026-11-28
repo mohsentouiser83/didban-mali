@@ -1,14 +1,11 @@
 "use client";
-import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
   LoadingState,
 } from "@/components/ui/content-states";
-import { SearchInput } from "@/components/ui/search-input";
-import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -24,12 +21,7 @@ import {
   listItems,
   type Member,
 } from "@/lib/api";
-import {
-  memberRoleFilterOptions,
-  memberStatusFilterOptions,
-} from "@/lib/members";
 import type { AccountingPermission } from "@/lib/accounting";
-import { persian } from "@/lib/utils";
 import { Panel } from "./page-parts";
 
 function summarizeEffectiveAuthorities(
@@ -37,7 +29,7 @@ function summarizeEffectiveAuthorities(
   permission?: AccountingPermission,
 ): string[] {
   if (!member.active) return ["غیرفعال (بدون دسترسی)"];
-  if (member.role === "viewer") return ["فقط مشاهده"];
+  if (member.role === "viewer") return ["—"];
   if (member.role === "finance_manager") {
     return [
       "تأیید گزارش مالی (نقش)",
@@ -49,14 +41,12 @@ function summarizeEffectiveAuthorities(
   const items: string[] = [];
   if (member.role === "owner") {
     items.push("مدیریت اعضا و مجوزها (نقش)");
-  } else {
-    items.push("تهیه پیش‌نویس و تطبیق (نقش)");
   }
   if (member.approve_financial_report) items.push("تأیید گزارش مالی");
   if (permission?.post_journal) items.push("ثبت سند");
   if (permission?.reopen_period) items.push("بازگشایی دوره");
   if (permission?.view_payroll) items.push("حقوق و دستمزد");
-  return items;
+  return items.length ? items : ["—"];
 }
 
 export function MembersList({
@@ -79,57 +69,13 @@ export function MembersList({
         <EmptyState title="هنوز عضوی در این شرکت ثبت نشده است" />
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 flex-1">
-              <SearchInput
-                value={c.query}
-                onChange={(e) => c.setQuery(e.target.value)}
-                label="جستجوی نام یا ایمیل عضو..."
-                className="max-w-xs"
-              />
-              <div className="w-44">
-                <Select
-                  id="filter-role"
-                  label="فیلتر نقش"
-                  value={c.roleFilter}
-                  onValueChange={c.setRoleFilter}
-                  options={memberRoleFilterOptions}
-                />
-              </div>
-              <div className="w-40">
-                <Select
-                  id="filter-status"
-                  label="فیلتر وضعیت"
-                  value={c.statusFilter}
-                  onValueChange={c.setStatusFilter}
-                  options={memberStatusFilterOptions}
-                />
-              </div>
-              {c.hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  onClick={c.resetFilters}
-                  className="text-xs"
-                >
-                  <ArrowClockwiseIcon size={16} aria-hidden />
-                  پاک‌کردن فیلترها
-                </Button>
-              )}
-            </div>
-            <span className="text-xs text-muted">
-              {c.hasActiveFilters
-                ? `${persian(c.rows.length)} از ${persian(c.totalMembers)} عضو`
-                : `${persian(c.totalMembers)} عضو`}
-            </span>
-          </div>
-
-          <Table showSearch={false}>
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>عضو</TableHead>
                 <TableHead>نقش</TableHead>
                 <TableHead>وضعیت</TableHead>
-                <TableHead>دسترسی‌های حساس مؤثر</TableHead>
+                <TableHead>مجوزهای مستقل</TableHead>
                 <TableHead>عملیات</TableHead>
               </TableRow>
             </TableHeader>
@@ -162,7 +108,7 @@ export function MembersList({
                               tone={
                                 !member.active
                                   ? "neutral"
-                                  : authLabel.includes("(نقش)") || authLabel === "فقط مشاهده"
+                                  : authLabel.includes("(نقش)") || authLabel === "—"
                                     ? "neutral"
                                     : "primary"
                               }
@@ -173,13 +119,14 @@ export function MembersList({
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="secondary"
-                          disabled={c.permissions.loading}
-                          onClick={() => c.openMember(member)}
-                        >
-                          مدیریت دسترسی
-                        </Button>
+                        <TableRowActions label={`عملیات ${member.name}`}>
+                          <TableRowAction
+                            disabled={c.permissions.loading}
+                            onClick={() => c.openMember(member)}
+                          >
+                            مدیریت دسترسی
+                          </TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   );
@@ -187,18 +134,7 @@ export function MembersList({
               ) : (
                 <TableEmptyCell
                   colSpan={5}
-                  title={
-                    c.hasActiveFilters
-                      ? "عضوی با این مشخصات پیدا نشد"
-                      : "عضوی پیدا نشد"
-                  }
-                  action={
-                    c.hasActiveFilters ? (
-                      <Button variant="secondary" onClick={c.resetFilters}>
-                        پاک‌کردن فیلترها
-                      </Button>
-                    ) : undefined
-                  }
+                  title="عضوی پیدا نشد"
                 />
               )}
             </TableBody>

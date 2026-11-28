@@ -11,6 +11,7 @@ import {
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Select } from "@/components/ui/select";
+import { MemberModuleFields } from "./member-module-fields";
 import { memberRoles } from "@/lib/members";
 import type { useMemberManagement } from "@/hooks/use-member-management";
 export function MemberAccessDrawer({
@@ -35,10 +36,7 @@ export function MemberAccessDrawer({
           }}
         >
           <div>
-            <h3 className="text-sm font-medium">۱. عضویت و نقش در شرکت جاری</h3>
-            <p className="mt-0.5 text-xs text-muted">
-              تغییر نقش یا وضعیت عضویت فقط بر این شرکت اثر می‌گذارد و جدا از حساب کاربری کل نصب است.
-            </p>
+            <h3 className="text-sm font-medium">عضویت و دسترسی ماژول‌ها</h3>
           </div>
           <Field id="edit-member-role" label="نقش" required>
             <Select
@@ -74,6 +72,11 @@ export function MemberAccessDrawer({
               این کاربر تنها مالک فعال شرکت است و تغییر نقش یا غیرفعال‌سازی آن مجاز نیست.
             </StatusMessage>
           )}
+          <MemberModuleFields
+            value={c.moduleAccess}
+            disabled={c.command.busy || c.accessCommand.busy}
+            onChange={c.changeModuleAccess}
+          />
           <FormMessage error>{c.command.error?.message}</FormMessage>
           <Button
             type="submit"
@@ -88,7 +91,7 @@ export function MemberAccessDrawer({
               )
             }
           >
-            ذخیره عضویت و نقش
+            ذخیره عضویت و دسترسی
           </Button>
         </Form>
         {c.permissions.loading ? (
@@ -108,10 +111,7 @@ export function MemberAccessDrawer({
               }}
             >
               <div>
-                <h3 className="text-sm font-medium">۲. مجوزهای حساس حسابداری (تخصیص صریح)</h3>
-                <p className="mt-0.5 text-xs text-muted">
-                  اختیارات ثبت سند، بازگشایی دوره و حقوق به‌صورت صریح و شرکت‌به‌شرکت توسط مالک اعطا یا سلب می‌شوند.
-                </p>
+                <h3 className="text-sm font-medium">مجوزهای مستقل حسابداری</h3>
               </div>
               {c.permission.implicit_authority ? (
                 <Badge>دسترسی خودکار مدیر مالی</Badge>

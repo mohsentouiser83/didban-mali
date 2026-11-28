@@ -8,7 +8,6 @@ export function Field({
   label,
   icon: IconComponent = TextAaIcon,
   error,
-  description,
   required,
   children,
 }: {
@@ -17,7 +16,6 @@ export function Field({
   label: string;
   icon?: Icon;
   error?: string;
-  description?: string;
   required?: boolean;
   children: ReactNode;
 }) {
@@ -43,7 +41,7 @@ export function Field({
   const message = error || validation[id] || validation[fieldName];
   const descriptions = [
     message ? `${id}-error` : null,
-    description ? `${id}-description` : null,
+    child?.props["aria-describedby"],
   ]
     .filter(Boolean)
     .join(" ");
@@ -67,11 +65,6 @@ export function Field({
       </div>
       {control}
       {message && <FieldError id={`${id}-error`}>{message}</FieldError>}
-      {description && (
-        <FieldDescription id={`${id}-description`}>
-          {description}
-        </FieldDescription>
-      )}
     </div>
   );
 }
@@ -90,19 +83,6 @@ export function FieldError({
       {children}
     </p>
   ) : null;
-}
-export function FieldDescription({
-  children,
-  id,
-}: {
-  children: ReactNode;
-  id?: string;
-}) {
-  return (
-    <p id={id} className="text-xs leading-6 text-muted">
-      {children}
-    </p>
-  );
 }
 export function FormMessage({
   children,

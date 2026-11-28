@@ -1,5 +1,6 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import {
   HashIcon,
   PencilSimpleIcon,
@@ -16,7 +17,6 @@ import { Field, FormMessage } from "@/components/ui/field";
 import { DetailField } from "@/components/ui/field-layout";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { SearchInput } from "@/components/ui/search-input";
 import {
   Table,
   TableBody,
@@ -59,19 +59,7 @@ function WorkspaceView() {
         }
       />
 
-      <Panel
-        title="قواعد شماره‌گذاری موجودیت‌ها و اسناد"
-        action={
-          <div className="flex w-full items-center gap-3 sm:w-auto">
-            <SearchInput
-              label="جستجوی عنوان، پیشوند یا نمونه شماره..."
-              value={view.search}
-              onChange={(e) => view.setSearch(e.target.value)}
-              className="w-full sm:w-72"
-            />
-          </div>
-        }
-      >
+      <Panel title="قواعد شماره‌گذاری موجودیت‌ها و اسناد">
         {view.resource.loading ? (
           <LoadingState label="در حال دریافت قواعد شماره‌گذاری..." />
         ) : view.resource.error ? (
@@ -80,7 +68,7 @@ function WorkspaceView() {
             onRetry={view.resource.refresh}
           />
         ) : (
-          <Table showSearch={false} title="قواعد شماره‌گذاری">
+          <Table title="قواعد شماره‌گذاری">
             <TableHeader>
               <TableRow>
                 <TableHead>موجودیت و کاربرد</TableHead>
@@ -154,26 +142,24 @@ function WorkspaceView() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="secondary"
+                      <TableRowActions label={`عملیات ${rule.entity_title}`}>
+                        <TableRowAction
                           onClick={() => view.open(rule)}
-                          className="gap-1.5"
+                          icon={<PencilSimpleIcon size={16} aria-hidden />}
                         >
-                          <PencilSimpleIcon size={16} aria-hidden />
                           {view.workspace.canWrite ? "ویرایش" : "مشاهده"}
-                        </Button>
+                        </TableRowAction>
                         {!rule.is_system && view.workspace.canWrite && (
-                          <Button
-                            variant="ghost"
+                          <TableRowAction
                             onClick={() => view.setDeleting(rule)}
-                            className="text-danger hover:bg-danger-soft/20"
                             aria-label={`حذف شماره‌گذاری ${rule.entity_title}`}
+                            icon={<TrashIcon size={16} aria-hidden />}
+                            danger
                           >
-                            <TrashIcon size={16} aria-hidden />
-                          </Button>
+                            حذف
+                          </TableRowAction>
                         )}
-                      </div>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))
@@ -223,9 +209,6 @@ function WorkspaceView() {
                 <div dir="ltr" className="font-mono text-xl font-bold tracking-wider text-primary text-end">
                   {view.livePreview}
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted">
-                  صدور از نخستین شمارهٔ آزاد در فرایند مربوط استفاده می‌کند.
-                </p>
               </div>
 
               {!view.isCreating && view.editing && (
@@ -248,21 +231,17 @@ function WorkspaceView() {
 
               {view.isCreating ? (
                 <>
-                  <StatusMessage>
-                    قاعده سفارشی صرفاً از طریق مسیر API شماره‌گذاری قابل استفاده است و به‌صورت خودکار به فرم‌های ثبت سند یا فاکتور متصل نمی‌شود.
-                  </StatusMessage>
+                  <Badge>فقط API شماره‌گذاری</Badge>
                   <Field
                     id="rule-title"
                     name="entity_title"
                     label="عنوان موجودیت"
-                    description="عنوان نمایشی قاعده (مانند قرارداد پیمانکاری)"
                     required
                   >
                     <Input
                       id="rule-title"
                       required
                       maxLength={120}
-                      placeholder="مثال: قرارداد پیمانکاری"
                       value={view.value.entity_title}
                       onChange={(e) => view.change({ entity_title: e.target.value })}
                     />
@@ -272,7 +251,6 @@ function WorkspaceView() {
                     id="rule-entity-type"
                     name="entity_type"
                     label="شناسه فنی انگلیسی"
-                    description="شناسه یکتا با حروف انگلیسی، اعداد یا خط تیره (مانند custom_contract)"
                     required
                   >
                     <Input
@@ -304,7 +282,6 @@ function WorkspaceView() {
                   id="rule-prefix"
                   dir="ltr"
                   maxLength={30}
-                  placeholder="مثال: FAC- یا ACC-"
                   value={view.value.prefix}
                   onChange={(e) => view.change({ prefix: e.target.value })}
                 />
@@ -314,7 +291,6 @@ function WorkspaceView() {
                 <Field
                   id="rule-current"
                   label="شمارنده"
-                  description="جست‌وجوی شمارهٔ آزاد از این عدد شروع می‌شود."
                   required
                 >
                   <Input
@@ -335,7 +311,6 @@ function WorkspaceView() {
                 <Field
                   id="rule-start"
                   label="شماره شروع"
-                  description="مقدار اولیهٔ شروع قاعده (ثبت مرجع)."
                   required
                 >
                   <Input
@@ -358,7 +333,6 @@ function WorkspaceView() {
                 <Field
                   id="rule-padding"
                   label="حداقل تعداد رقم"
-                  description="در صورت کوچک‌تر بودن عدد، با صفر از چپ تکمیل می‌شود."
                   required
                 >
                   <Input
@@ -382,7 +356,6 @@ function WorkspaceView() {
                     id="rule-suffix"
                     dir="ltr"
                     maxLength={30}
-                    placeholder="مثال: /1403"
                     value={view.value.suffix}
                     onChange={(e) => view.change({ suffix: e.target.value })}
                   />
@@ -405,11 +378,6 @@ function WorkspaceView() {
                 onCheckedChange={(active) => view.change({ active })}
               />
 
-              {view.hasPatternChanges && (
-                <StatusMessage tone="primary">
-                  تغییر شمارنده، پیشوند، پسوند یا حداقل تعداد رقم فقط بر رکوردهای آینده اعمال می‌شود و تمام شماره‌های قبلاً صادرشده بدون تغییر حفظ می‌شوند. اگر شمارهٔ جدید تکراری باشد، سامانه هنگام ثبت به شمارهٔ آزاد بعدی می‌رود.
-                </StatusMessage>
-              )}
 
               {view.willDeactivate && view.editing && (
                 <StatusMessage tone="danger">
@@ -422,14 +390,14 @@ function WorkspaceView() {
 
               {!view.isCreating && view.editing?.is_system && (
                 <StatusMessage tone="warning">
-                  این قاعده سیستمی است و قابل حذف نیست؛ سابقه شماره‌های صادرشده حفظ می‌شود.
+                  قاعدهٔ سیستمی قابل حذف نیست.
                 </StatusMessage>
               )}
             </fieldset>
 
             <FormMessage error>{view.command.error?.message}</FormMessage>
 
-            <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
+            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
               {!view.isCreating && view.editing && !view.editing.is_system && view.workspace.canWrite ? (
                 <Button
                   variant="danger"
@@ -440,20 +408,16 @@ function WorkspaceView() {
                 >
                   حذف قاعده
                 </Button>
-              ) : (
-                <span />
-              )}
+              ) : null}
 
-              <div className="flex items-center gap-3">
-                <Button variant="secondary" onClick={view.close} type="button">
-                  انصراف
+              <Button variant="secondary" onClick={view.close} type="button">
+                انصراف
+              </Button>
+              {view.workspace.canWrite && (
+                <Button type="submit" busy={view.command.busy}>
+                  {view.isCreating ? "افزودن شماره‌گذاری" : "ذخیره تغییرات"}
                 </Button>
-                {view.workspace.canWrite && (
-                  <Button type="submit" busy={view.command.busy}>
-                    {view.isCreating ? "افزودن شماره‌گذاری" : "ذخیره تغییرات"}
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </Form>
         )}

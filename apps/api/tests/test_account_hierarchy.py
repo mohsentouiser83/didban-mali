@@ -10,10 +10,11 @@ from sqlalchemy import select
 from didban import models as m
 from didban.account_catalogue_service import catalogue_filters, enrich_accounts
 from didban.accounting_models import Account, AccountHierarchy
-from didban.accounting_service import save_account, save_draft
+from didban.accounting_schemas import AccountDetailLinkInput, DraftInput
+from didban.accounting_service import list_detail_links, save_account, save_detail_link, save_draft
 from didban.accounting_setup_service import import_chart, parse_chart, preview_chart, update_mode
 from didban.errors import DomainError
-from didban.posting_service import post_batch, preview
+from didban.posting_service import create_reversal, post_batch, preview
 from didban.workflow import serialize_fact
 
 
@@ -73,6 +74,100 @@ def test_four_level_pattern_codes_and_auto_generation(db_session, test_company_c
     with pytest.raises(DomainError) as error:
         save_account(db, c['company'].id, c['users']['owner'], {'code': '02'}, grp['id'], changed['version'])
     assert error.value.code == 'account_code_immutable'
+
+
+def test_floating_detail_links_span_levels_without_changing_chart_tree(db_session, test_company_context):
+    db, context = db_session, test_company_context
+    company, owner = context["company"].id, context["users"]["owner"]
+    group = create(db, context, "11")
+    general = create(db, context, "1101", "general", group["id"])
+    subsidiary = create(db, context, "110101", "subsidiary", general["id"])
+    target_ids = [group["id"], general["id"], subsidiary["id"]]
+
+    detail = save_account(db, company, owner, {
+        "name": "تفصیلی مشترک", "level": "detail", "linked_account_ids": target_ids,
+    })
+    assert detail["parent_id"] is None
+    assert detail["code"] == "10000000" and detail["code_status"] == "standard"
+    assert set(detail["linked_account_ids"]) == set(target_ids)
+    target = enrich_accounts(db, company, [serialize_fact(db.get(Account, subsidiary["id"]))])[0]
+    assert target["postable"] and not target["has_children"]
+
+    foreign = Account(company_id=context["other_company"].id, code="22", name="شرکت دیگر")
+    db.add(foreign)
+    db.flush()
+    for bad_target in [detail["id"], foreign.id]:
+        with pytest.raises(DomainError) as error, db.begin_nested():
+            save_account(db, company, owner, {"linked_account_ids": [bad_target]}, detail["id"], detail["version"])
+        assert error.value.code == "invalid_detail_link_target"
+
+    saved = save_account(
+        db, company, owner, {"linked_account_ids": [general["id"]]}, detail["id"], detail["version"],
+    )
+    assert saved["linked_account_ids"] == [general["id"]]
+    links = {link["target_account_id"]: link for link in list_detail_links(db, company, owner, detail["id"])["items"]}
+    assert links[general["id"]]["active"]
+    assert not links[group["id"]]["active"] and not links[subsidiary["id"]]["active"]
+    payload = AccountDetailLinkInput(detail_account_id=detail["id"], subsidiary_account_id=subsidiary["id"])
+    reactivated = save_detail_link(db, company, owner, payload.model_dump())
+    assert reactivated["id"] == links[subsidiary["id"]]["id"]
+    assert reactivated["active"] and reactivated["target_account_id"] == subsidiary["id"]
+
+
+def test_chart_import_accepts_floating_detail_without_parent(db_session, test_company_context):
+    db, context = db_session, test_company_context
+    company, owner = context["company"].id, context["users"]["owner"]
+    reviewed = preview_chart(db, company, owner, [
+        {"code": "88000001", "name": "تفصیلی واردشده", "level": "detail"},
+    ])
+    assert import_chart(db, company, owner, reviewed["preview_id"])["created_count"] == 1
+    account = db.scalar(select(Account).where(Account.company_id == company, Account.code == "88000001"))
+    assert db.get(AccountHierarchy, account.id).parent_id is None
+
+
+def test_manual_journal_keeps_separate_detail_through_posting_and_reversal(db_session, test_company_context):
+    db, context = db_session, test_company_context
+    company, owner = context["company"].id, context["users"]["owner"]
+    manager = context["users"]["finance_manager"]
+    period = context["period"]
+    update_mode(db, company, owner, "primary", 1)
+    group = create(db, context, "11")
+    general = create(db, context, "1101", "general", group["id"])
+    debit = create(db, context, "110101", "subsidiary", general["id"])
+    credit = create(db, context, "110102", "subsidiary", general["id"])
+    detail = create(db, context, "88000001", "detail")
+    foreign = Account(company_id=context["other_company"].id, code="88000001", name="تفصیلی شرکت دیگر")
+    db.add(foreign)
+    db.flush()
+    db.add(AccountHierarchy(company_id=foreign.company_id, account_id=foreign.id, level="detail"))
+    db.flush()
+    data = DraftInput(
+        period_id=period.id, date=date(2026, 4, 1), description="سند با تفصیلی", unit="IRR",
+        lines=[
+            {"account_id": debit["id"], "detail_account_id": detail["id"], "debit": "100", "credit": "0"},
+            {"account_id": credit["id"], "debit": "0", "credit": "100"},
+        ],
+    ).model_dump()
+    for target, code in ((credit["id"], "invalid_detail_account"), (foreign.id, "not_found")):
+        invalid_line = data["lines"][0] | {"detail_account_id": target}
+        with pytest.raises(DomainError) as error:
+            save_draft(db, company, owner, data | {"lines": [invalid_line, data["lines"][1]]})
+        assert error.value.code == code
+    draft = save_draft(db, company, owner, data)
+    assert draft["lines"][0]["detail_account_id"] == detail["id"]
+    assert draft["lines"][0]["party_id"] == ""
+    reviewed = preview(db, company, manager, draft["id"])
+    line = reviewed["snapshot"]["lines"][0]
+    assert (line["account_id"], line["detail_code"], line["detail_name"]) == (
+        debit["id"], detail["code"], detail["name"],
+    )
+    posted = post_batch(db, company, manager, [{
+        "draft_id": draft["id"], "expected_version": draft["version"], "digest": reviewed["digest"],
+    }])["items"][0]
+    reversal = create_reversal(db, company, owner, posted["id"], {
+        "period_id": period.id, "date": date(2026, 4, 2), "reason": "آزمون برگشت",
+    })
+    assert preview(db, company, manager, reversal["id"])["snapshot"]["lines"][0]["detail_account_id"] == detail["id"]
 
 
 def test_four_levels_require_matching_same_company_parent(db_session, test_company_context):
@@ -191,7 +286,6 @@ def test_posting_blocked_on_group_and_parent_accounts_with_children(db_session, 
     assert post_batch(db, c['company'].id, fm, [{'draft_id': d3['id'], 'expected_version': d3['version'], 'digest': prev3['digest']}])['items'][0]['id']
 
     # Reversing earlier posted journal on gen_cash still succeeds!
-    from didban.posting_service import create_reversal
     rev_draft = create_reversal(
         db,
         c['company'].id,

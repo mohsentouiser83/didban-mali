@@ -13,7 +13,6 @@ interface SettingsCardDestination {
   href: string;
   label: string;
   icon: Icon;
-  description?: string;
   standalone?: boolean;
 }
 
@@ -32,7 +31,6 @@ export function SettingsOverviewView({
         href: item.href,
         label: item.label,
         icon: item.icon,
-        description: item.description,
       }))
     : view.categories.map((group) => ({
         key: group.key,
@@ -40,10 +38,6 @@ export function SettingsOverviewView({
         label: group.title,
         icon: group.icon,
         standalone: group.standalone,
-        description:
-          group.key === "company-access" && group.items.length === 1
-            ? "اطلاعات شرکت"
-            : group.description,
       }));
   return (
     <>
@@ -80,25 +74,20 @@ function SettingsDestinationCards({
         <Link
           key={destination.key}
           href={destination.href}
-          className="group flex min-h-28 items-start justify-between gap-3 rounded-panel border border-border bg-surface p-5 outline-none transition-[background-color,border-color,box-shadow] duration-200 ease-interface hover:border-primary/25 hover:bg-primary-soft/40 hover:shadow-action focus-visible:border-primary/25 focus-visible:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+          className="group flex min-h-20 items-center justify-between gap-3 rounded-panel border border-border bg-surface p-5 outline-none transition-[background-color,border-color,box-shadow] duration-200 ease-interface hover:border-primary/25 hover:bg-primary-soft/40 hover:shadow-action focus-visible:border-primary/25 focus-visible:bg-primary-soft/40 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
         >
-          <span className="flex min-w-0 items-start gap-3">
+          <span className="flex min-w-0 items-center gap-3">
             <span className="grid size-11 shrink-0 place-items-center rounded-control bg-primary-soft text-primary transition-colors duration-200 ease-interface group-hover:bg-primary group-hover:text-white group-focus-visible:bg-primary group-focus-visible:text-white motion-reduce:transition-none">
               <destination.icon size={23} aria-hidden />
             </span>
             <span className="min-w-0">
               <span className="block font-medium">{destination.label}</span>
-              {destination.description && (
-                <span className="mt-1 block text-xs leading-6 text-muted">
-                  {destination.description}
-                </span>
-              )}
             </span>
           </span>
           <ArrowUpLeftIcon
             size={18}
             aria-hidden
-            className="mt-1 shrink-0 text-primary transition-colors duration-200 group-hover:text-primary group-focus-visible:text-primary motion-reduce:transition-none"
+            className="shrink-0 text-primary transition-colors duration-200 group-hover:text-primary group-focus-visible:text-primary motion-reduce:transition-none"
           />
         </Link>
       ))}

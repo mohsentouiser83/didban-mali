@@ -2,15 +2,29 @@
 import {useState} from "react";
 import {useResource} from "./use-resource";
 import {useWorkspace} from "./workspace";
-import {usePagedResource} from "./use-paged-resource";
-import {useCommand} from "./use-command";
-import {listItems} from "@/lib/api";
-interface BotIntake{id:string;name:string;provider:string;state:string;version:number;duplicate_original?:boolean;session_id?:string|null}
-const labels:Record<string,string>={awaiting_import:"انتخاب دوره و ورود به پردازش",imported:"وارد پردازش شده",pending_extraction:"در انتظار استخراج و بازبینی",awaiting_review:"نیازمند بازبینی"};
-export function useBotIntakes(){
- const workspace=useWorkspace();const base=workspace.companyPath("bot-intakes");const resource=usePagedResource<BotIntake>(base);const command=useCommand();const period=workspace.periodId;
- function importFile(item:BotIntake){if(!period)return;void command.run(base+`/${item.id}/import`,{body:{period_id:period},version:item.version},resource.refresh,"فایل آمادهٔ پردازش شد.");}
- return {resource,command,period,importFile,canImport:workspace.canWrite,periodOptions:workspace.periods.map(item=>({value:item.id,label:item.name})),rows:listItems(resource.data).map(item=>({...item,stateLabel:labels[item.state]||"نامشخص",providerLabel:item.provider==="telegram"?"تلگرام":"بله",download:`/api/v1${base}/${item.id}/download`,sessionLink:item.session_id?`/uploads/${item.session_id}`:undefined}))};
+import { useCommand } from "./use-command";
+
+interface BotIntake {
+  id: string;
+  version: number;
+}
+
+export function useBotIntakeImport(onRefresh: () => void) {
+  const workspace = useWorkspace();
+  const command = useCommand();
+  const period = workspace.periodId;
+
+  function importFile(item: BotIntake) {
+    if (!period) return;
+    void command.run(
+      workspace.companyPath(`bot-intakes/${item.id}/import`),
+      { body: { period_id: period }, version: item.version },
+      onRefresh,
+      "فایل آمادهٔ پردازش شد.",
+    );
+  }
+
+  return { command, period, importFile, canImport: workspace.canWrite };
 }
 
 interface ExtractionRow{date:string|null;reference:string|null;party_id:string|null;account:string|null;amount:string|null;evidence_refs:string[]}

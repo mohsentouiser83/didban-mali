@@ -1,7 +1,7 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
 import {
@@ -85,63 +85,43 @@ export function ReportBuilderSaved({
                         </TableRowHeader>
                         <TableCell>{persian(item.version)}</TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <TableRowActions label={`عملیات ${item.name}`}>
                             {/* 1. تبدیل به داشبورد */}
                             {c.workspace.canWrite && (["fixed", "live"] as const).map((mode) => (
-                              <Button
+                              <TableRowAction
                                 key={mode}
-                                variant={mode === "fixed" ? "soft" : "ghost"}
                                 disabled={c.command.busy}
                                 onClick={() => {
-                                  void c.command.run(
-                                    c.workspace.companyPath(
-                                      `report-studio/definitions/${item.id}/set-dashboard?mode=${mode}`,
-                                    ),
-                                    { method: "POST" },
-                                    () => c.definitions.refresh(),
-                                    "داشبورد شرکت تنظیم شد.",
-                                  );
+                                    void c.command.run(c.workspace.companyPath(`report-studio/definitions/${item.id}/set-dashboard?mode=${mode}`), { method: "POST" }, () => c.definitions.refresh(), "داشبورد شرکت تنظیم شد.");
                                 }}
-                                className="gap-1.5 text-xs"
+                                icon={<SquaresFourIcon size={15} />}
                               >
-                                <SquaresFourIcon size={15} />
                                 {mode === "fixed" ? "تبدیل به داشبورد" : "تنظیم به‌عنوان داشبورد زنده"}
-                              </Button>
+                              </TableRowAction>
                             ))}
 
                             {/* 2. خروجی PDF */}
-                            <a
-                              href={`/api/v1${c.workspace.companyPath(
-                                `report-studio/definitions/${item.id}/export?format=pdf`,
-                              )}`}
+                            <TableRowAction
+                              href={`/api/v1${c.workspace.companyPath(`report-studio/definitions/${item.id}/export?format=pdf`)}`}
                               download
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-border bg-surface px-3 text-xs text-foreground outline-none transition-colors duration-200 hover:bg-canvas hover:text-primary focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
                               title="دریافت فایل PDF این گزارش"
+                              icon={<FilePdfIcon size={16} className="text-primary" />}
                             >
-                              <FilePdfIcon size={16} className="text-primary" />
                               خروجی PDF
-                            </a>
+                            </TableRowAction>
 
                             {/* 3. بررسی و اجرای دوباره */}
-                            <Button
-                              variant="ghost"
+                            <TableRowAction
                               disabled={c.command.busy}
                               onClick={() => c.open(item)}
-                              className="text-xs"
+                              kind="view"
                             >
                               بررسی تعریف
-                            </Button>
+                            </TableRowAction>
                             {c.workspace.canWrite && (
-                              <Button
-                                variant="ghost"
-                                disabled={c.command.busy}
-                                onClick={() => c.rerun(item)}
-                                className="text-xs text-muted hover:text-foreground"
-                              >
-                                اجرای دوباره
-                              </Button>
+                              <TableRowAction disabled={c.command.busy} onClick={() => c.rerun(item)}>اجرای دوباره</TableRowAction>
                             )}
-                          </div>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     );
@@ -180,13 +160,15 @@ export function ReportBuilderSaved({
                     <TableCell>{displayDate(item.created_at)}</TableCell>
                     <TableCell>{persian(item.row_count || 0)}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        disabled={c.command.busy}
-                        onClick={() => c.viewRun(item)}
-                      >
-                        مشاهدهٔ همین نسخه
-                      </Button>
+                      <TableRowActions label={`عملیات ${item.title}`}>
+                        <TableRowAction
+                          disabled={c.command.busy}
+                          onClick={() => c.viewRun(item)}
+                          kind="view"
+                        >
+                          مشاهدهٔ همین نسخه
+                        </TableRowAction>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { StatusMessage } from "@/components/ui/content-states";
@@ -13,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRow
 import { amount, persian } from "@/lib/utils";
 import type { useCommercialDocuments } from "@/hooks/use-commercial-documents";
 
-export function CommercialAdjustmentEditors({ view }: { view: Pick<ReturnType<typeof useCommercialDocuments>,
+export function CommercialAdjustmentEditors({ view, children }: { children?: ReactNode; view: Pick<ReturnType<typeof useCommercialDocuments>,
     "workspace" |
     "cmd" |
     "detailDoc" |
@@ -22,7 +23,6 @@ export function CommercialAdjustmentEditors({ view }: { view: Pick<ReturnType<ty
     "setDecidingQuarantine" |
     "creditAction" |
     "setCreditAction" |
-    "lines" |
     "retDate" |
     "setRetDate" |
     "retReason" |
@@ -67,7 +67,6 @@ export function CommercialAdjustmentEditors({ view }: { view: Pick<ReturnType<ty
     setDecidingQuarantine,
     creditAction,
     setCreditAction,
-    lines,
     retDate,
     setRetDate,
     retReason,
@@ -197,6 +196,7 @@ export function CommercialAdjustmentEditors({ view }: { view: Pick<ReturnType<ty
             ) : (
               <StatusMessage>ثبت مرجوعی فقط پس از ثبت نهایی فاکتور مجاز است.</StatusMessage>
             )}
+            {children}
           </div>
         )}
       </Drawer>

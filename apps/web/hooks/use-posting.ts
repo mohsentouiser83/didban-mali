@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { draftValidation } from "@/lib/accounting";
-import type { InventoryPostingEvidence } from "@/lib/inventory";
+import { inventoryPostingMovements, type InventoryPostingSnapshot } from "@/lib/inventory";
 import { api, ApiError } from "@/lib/api";
 import { useWorkspace } from "./workspace";
 import { useCommand } from "./use-command";
@@ -14,12 +14,15 @@ export interface PostingPreview {
   snapshot: {
     description: string;
     date: string;
-    inventory?: InventoryPostingEvidence;
+    inventory?: InventoryPostingSnapshot;
     lines: {
       account_id: string;
       code: string;
       name: string;
       party_id: string;
+      detail_account_id?: string | null;
+      detail_code?: string;
+      detail_name?: string;
       debit: string;
       credit: string;
     }[];
@@ -45,10 +48,11 @@ export function usePosting(onPosted: () => void) {
           ),
         ),
       );
-      const stockBuckets = result.flatMap(({ snapshot }) => snapshot.inventory
-        ? [`${snapshot.inventory.item_id}:${snapshot.inventory.warehouse_id}`]
-        : [],
-      );
+      const stockBuckets = result.flatMap(({ snapshot }) => [
+        ...new Set(inventoryPostingMovements(snapshot.inventory).map(
+          (movement) => `${movement.item_id}:${movement.warehouse_id}`,
+        )),
+      ]);
       if (new Set(stockBuckets).size !== stockBuckets.length) {
         setError(new ApiError(
           409,

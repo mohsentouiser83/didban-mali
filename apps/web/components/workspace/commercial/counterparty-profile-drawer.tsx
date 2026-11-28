@@ -11,16 +11,19 @@ import { SearchInput } from "@/components/ui/search-input";
 import { useCommand } from "@/hooks/use-command";
 import { useCounterpartyFinancialSummary } from "@/hooks/use-counterparty-financial-summary";
 import { useResource } from "@/hooks/use-resource";
+import { moduleAllows } from "@/lib/module-access";
 import { useWorkspace } from "@/hooks/workspace";
 import type { AccountingCapabilities } from "@/lib/accounting";
 import {
   counterpartyEntityKindLabel,
+  counterpartyNationalIdLabel,
   counterpartyTypeLabel,
+  normalizeCounterpartyPayload,
   type Counterparty,
   type CounterpartyForm,
 } from "@/lib/commercial";
 import { amount, displayDate, persian } from "@/lib/utils";
-import { CounterpartyEditor, normalizeCounterpartyPayload } from "./counterparty-editor";
+import { CounterpartyEditor } from "./counterparty-editor";
 
 const directionLabels = {
   debtor: "بدهکار",
@@ -32,12 +35,14 @@ export function CounterpartyProfileDrawer({
   party,
   canEdit,
   canViewReports,
+  showNavigation = true,
   onEdit,
   onClose,
 }: {
   party: Counterparty;
   canEdit?: boolean;
   canViewReports?: boolean;
+  showNavigation?: boolean;
   onEdit?: () => void;
   onClose: () => void;
 }) {
@@ -47,6 +52,7 @@ export function CounterpartyProfileDrawer({
     useCounterpartyFinancialSummary(party.id, effectiveCanViewReports);
   const roles = party.roles?.length ? party.roles : [party.type];
   const isNatural = party.entity_kind === "natural_person";
+  const isPartnership = party.entity_kind === "other" || party.entity_kind === "partnership";
 
   return (
     <Drawer
@@ -59,7 +65,7 @@ export function CounterpartyProfileDrawer({
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            {effectiveCanViewReports && (
+            {showNavigation && effectiveCanViewReports && (
               <>
                 <ButtonLink variant="secondary" href={`/receivables?party_id=${encodeURIComponent(party.id)}`}>
                   فاکتورهای فروش
@@ -102,10 +108,12 @@ export function CounterpartyProfileDrawer({
         <DetailGroup>
           <DetailField label="نام" value={party.name} />
           <DetailField label="کد داخلی" value={<bdi dir="ltr">{party.code}</bdi>} />
-          <DetailField
-            label={isNatural ? "کد ملی" : "شناسه ملی"}
-            value={<bdi dir="ltr">{party.national_id || "—"}</bdi>}
-          />
+          {(!isPartnership || party.national_id) && (
+            <DetailField
+              label={counterpartyNationalIdLabel(party.entity_kind)}
+              value={<bdi dir="ltr">{party.national_id || "—"}</bdi>}
+            />
+          )}
           <DetailField
             label="سقف اعتبار (ریال)"
             value={party.credit_limit_irr === null ? "بدون سقف" : `${amount(party.credit_limit_irr)} ریال`}
@@ -113,7 +121,7 @@ export function CounterpartyProfileDrawer({
           {(!isNatural || party.registration_number) && (
             <DetailField label="شماره ثبت" value={<bdi dir="ltr">{party.registration_number || "—"}</bdi>} />
           )}
-          <DetailField label="کد اقتصادی" value={<bdi dir="ltr">{party.economic_code || "—"}</bdi>} />
+          <DetailField label={isPartnership ? "شناسه اقتصادی" : "کد اقتصادی"} value={<bdi dir="ltr">{party.economic_code || "—"}</bdi>} />
           <DetailField label="تلفن" value={<bdi dir="ltr">{party.phone || "—"}</bdi>} />
           <DetailField label="ایمیل" value={<bdi dir="ltr">{party.email || "—"}</bdi>} />
           <DetailField label="کد پستی" value={<bdi dir="ltr">{party.postal_code || "—"}</bdi>} />
@@ -124,9 +132,6 @@ export function CounterpartyProfileDrawer({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h3 className="text-sm font-medium text-foreground">وضعیت مانده به تفکیک مبنا</h3>
-              <p className="mt-0.5 text-xs text-muted">
-                ماندهٔ دفتر بومی و ماندهٔ فاکتورها تا تاریخ گزارش.
-              </p>
             </div>
             <div className="w-48">
               <Field id="profile-as-of" label="تاریخ گزارش">
@@ -247,7 +252,9 @@ export function CounterpartyQuickDrawer({
 
   if (!open) return null;
 
-  const canEdit = capabilities.data?.can_manage_accounts === true;
+  const managesAccounts = capabilities.data?.can_manage_accounts === true;
+  const canCreate = moduleAllows(workspace.company, "commercial", "create", managesAccounts);
+  const canEdit = moduleAllows(workspace.company, "commercial", "edit", managesAccounts);
   const canViewReports = Boolean(workspace.company?.role);
 
   if (viewing) {
@@ -264,7 +271,7 @@ export function CounterpartyQuickDrawer({
   if (mode === "create") {
     return (
       <CounterpartyEditor
-        readOnly={false}
+        readOnly={!canCreate}
         busy={command.busy}
         error={command.error?.message}
         onClose={() => {
@@ -276,7 +283,7 @@ export function CounterpartyQuickDrawer({
         }}
         onSave={(form: CounterpartyForm) => {
           const body = normalizeCounterpartyPayload(form);
-          if (!body.roles.length) return;
+          if (!canCreate || !body.roles.length) return;
           void command.run<Counterparty>(
             workspace.companyPath("commercial/counterparties"),
             { method: "POST", body },
@@ -307,7 +314,7 @@ export function CounterpartyQuickDrawer({
           <ButtonLink variant="ghost" href="/commercial/counterparties">
             مدیریت کامل در تعاریف مالی
           </ButtonLink>
-          {canEdit && (
+          {canCreate && (
             <Button onClick={() => { command.clearError(); setMode("create"); }}>
               طرف‌حساب جدید
             </Button>

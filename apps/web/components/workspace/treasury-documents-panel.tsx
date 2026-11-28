@@ -2,6 +2,7 @@
 
 import { PlusIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
+import { StatusMessage } from "@/components/ui/content-states";
 import { CounterpartyProfileDrawer, CounterpartyQuickDrawer } from "./commercial/counterparty-profile-drawer";
 import { useTreasuryDocuments } from "@/hooks/use-treasury-documents";
 import { TreasuryDocumentTable } from "./treasury-document-table";
@@ -11,27 +12,24 @@ import { TreasuryAllocationEditors } from "./treasury-allocation-editors";
 export function TreasuryDocumentsPanel() {
   const view = useTreasuryDocuments();
   const {
-    workspace,
-    counterparties,
+    canCreate,
+    canView,
     cmd,
     setCreateOpen,
     setCreateClientError,
-    partyQuickCreateOpen,
-    setPartyQuickCreateOpen,
-    viewingParty,
-    setViewingParty,
-    setPartyId,
   } = view;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-medium text-foreground">پیش‌نویس‌ها و اسناد دریافت و پرداخت چندابزاری خزانه</h2>
+        <h2 className="text-base font-medium text-foreground">اسناد خزانه</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <ButtonLink variant="secondary" href="/settings/treasury">
-            مدیریت حساب‌های خزانه
-          </ButtonLink>
-          {workspace.canWrite && (
+          {canView && (
+            <ButtonLink variant="secondary" href="/settings/treasury">
+              حساب‌های خزانه
+            </ButtonLink>
+          )}
+          {canCreate && (
             <Button
               onClick={() => {
                 cmd.clearError();
@@ -46,8 +44,17 @@ export function TreasuryDocumentsPanel() {
         </div>
       </div>
 
-      <TreasuryDocumentTable view={view} />
+      {canView ? <TreasuryDocumentTable view={view} /> : <StatusMessage>دسترسی مشاهدهٔ اسناد خزانه ندارید.</StatusMessage>}
 
+      <TreasuryDocumentDialogs view={view} />
+    </div>
+  );
+}
+
+export function TreasuryDocumentDialogs({ view, showNavigation = true }: { view: ReturnType<typeof useTreasuryDocuments>; showNavigation?: boolean }) {
+  const { counterparties, partyQuickCreateOpen, setPartyQuickCreateOpen, viewingParty, setViewingParty, setPartyId } = view;
+  return (
+    <>
       <TreasuryDocumentEditor view={view} />
 
       <TreasuryAllocationEditors view={view} />
@@ -63,10 +70,11 @@ export function TreasuryDocumentsPanel() {
       />
       {viewingParty && (
         <CounterpartyProfileDrawer
+          showNavigation={showNavigation}
           party={viewingParty}
           onClose={() => setViewingParty(null)}
         />
       )}
-    </div>
+    </>
   );
 }

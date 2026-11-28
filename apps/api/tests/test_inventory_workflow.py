@@ -43,8 +43,11 @@ def checked(response, status=200):
 def rejected(response, status, code):
     assert checked(response, status)["code"] == code, response.text
 
-item_input = {"code": "SKU-01", "name": "کالای آزمون", "inventory_account_id": "stock"}
+item_input = {"name": "کالای آزمون"}
 item = checked(command(owner, "POST", stock + "/items", item_input), 201)
+assert item["inventory_account_id"] == "stock", item
+assert command(owner, "POST", stock + "/items", item_input | {"inventory_account_id": "ar"}).status_code == 422
+assert command(owner, "PATCH", stock + "/items/" + item["id"], {"inventory_account_id": "ar"}).status_code == 422
 warehouse = checked(command(owner, "POST", stock + "/warehouses", {"code": "MAIN", "name": "انبار اصلی"}), 201)
 
 def goods_input(kind, ref, qty, unit_price, day, unit="IRR", **extra):
@@ -90,6 +93,38 @@ def positions():
 
 bucket = (item["id"], warehouse["id"])
 """
+
+
+def test_warehouse_catalog_links_are_scoped_idempotent_and_separate_from_stock(tmp_path):
+    scenario(
+        tmp_path,
+        SETUP
+        + r"""
+path = stock + f"/items/{item['id']}/warehouses"
+payload = {"warehouse_id": warehouse["id"]}
+assert checked(owner.get(path)) == {"warehouse_ids": [], "can_link": True}
+assert checked(viewer.get(path)) == {"warehouse_ids": [], "can_link": False}
+rejected(command(viewer, "POST", path, payload), 403, "permission_denied")
+rejected(command(outsider, "POST", path, payload), 404, "not_found")
+with transaction("company-b") as db:
+    from didban.inventory_models import InventoryWarehouse
+    db.add(InventoryWarehouse(id="foreign-warehouse", company_id="company-b", code="001", name="انبار شرکت دیگر"))
+rejected(command(owner, "POST", path, {"warehouse_id": "foreign-warehouse"}), 404, "not_found")
+service = checked(command(owner, "POST", stock + "/items", {"name": "خدمت", "item_kind": "service"}), 201)
+service_path = stock + f"/items/{service['id']}/warehouses"
+assert checked(owner.get(service_path))["can_link"] is False
+rejected(command(owner, "POST", service_path, payload), 409, "invalid_warehouse_item")
+assert checked(command(advisor, "POST", path, payload)) == payload
+assert checked(command(advisor, "POST", path, payload)) == payload
+assert checked(viewer.get(path)) == {"warehouse_ids": [warehouse["id"]], "can_link": False}
+assert not positions()
+assert checked(viewer.get(stock))["movements"] == []
+with transaction("company-a") as db:
+    events = db.scalars(select(m.AuditEvent).where(m.AuditEvent.action == "inventory.warehouse_item_linked")).all()
+    assert len(events) == 1
+    assert events[0].entity_id == warehouse["id"] and events[0].details == {"item_id": item["id"]}
+""",
+    )
 
 
 def test_stock_purchase_sale_journal_and_invoice_settlement(tmp_path):
@@ -208,7 +243,8 @@ from didban.inventory_models import InventoryMovement
 other_stock = stock.replace("company-a", "company-b")
 assert outsider.get(stock).status_code == 404
 assert checked(outsider.get(other_stock))["items"] == []
-assert command(outsider, "POST", other_stock + "/items", item_input).status_code == 404
+assert command(outsider, "POST", stock + "/items", item_input).status_code == 404
+rejected(command(outsider, "POST", other_stock + "/items", item_input), 422, "inventory_account_required")
 assert command(viewer, "POST", stock + "/items", item_input).status_code == 403
 
 purchase = goods("purchase_goods", "BUY-1", 4, "1000", "2026-09-01")
@@ -395,10 +431,43 @@ else:
     )
 
 
+def test_company_inventory_units_are_selectable_after_upgrade(tmp_path):
+    scenario(tmp_path, SETUP + r"""
+from didban.db import engine, migrate_schema
+
+legacy = checked(command(owner, "POST", stock + "/items", {"name": "کالای قدیمی", "base_unit": "بسته"}), 201)
+with engine.begin() as conn:
+    conn.exec_driver_sql("DROP TABLE inventory_units")
+    conn.exec_driver_sql("UPDATE didban_schema_version SET version = 3")
+migrate_schema()
+initialize()
+
+units = stock + "/units"
+assert checked(owner.get(units)) == {"items": ["بسته", "عدد"], "can_create": True}
+assert checked(viewer.get(units))["can_create"] is False
+rejected(command(viewer, "POST", units, {"name": "متر"}), 403, "permission_denied")
+assert outsider.get(units).status_code == 404
+assert checked(outsider.get(units.replace("company-a", "company-b")))["items"] == ["عدد"]
+rejected(command(owner, "POST", units, {"name": "بسته"}), 409, "inventory_unit_exists")
+
+key = str(uuid4())
+payload = {"name": "متر"}
+assert checked(command(owner, "POST", units, payload | {"name": "  متر  "}, key=key), 201) == payload
+assert checked(command(owner, "POST", units, payload, key=key), 201) == payload
+rejected(command(owner, "POST", units, payload), 409, "inventory_unit_exists")
+assert checked(owner.get(units))["items"] == ["بسته", "عدد", "متر"]
+assert checked(outsider.get(units.replace("company-a", "company-b")))["items"] == ["عدد"]
+
+created = checked(command(owner, "POST", stock + "/items", {"name": "پارچه", "base_unit": "متر"}), 201)
+assert created["base_unit"] == "متر" and created["inventory_account_id"] == "stock"
+assert any(row["id"] == legacy["id"] and row["base_unit"] == "بسته" for row in checked(owner.get(stock))["items"])
+""")
+
+
 def test_cardex_uses_requested_date_and_rejects_inventory_movement_for_services(tmp_path):
     scenario(tmp_path, SETUP + r"""
 service = checked(command(owner, "POST", stock + "/items", {
-    "name": "خدمت آزمایشی", "item_kind": "service", "inventory_account_id": "stock",
+    "name": "خدمت آزمایشی", "item_kind": "service",
 }), 201)
 payload = goods_input("purchase_goods", "SERVICE", 1, "100", "2026-09-10", item_id=service["id"])
 rejected(command(manager, "POST", stock + "/drafts", payload), 422, "item_not_goods")

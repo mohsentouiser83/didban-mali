@@ -8,26 +8,33 @@ from zoneinfo import ZoneInfo
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import models as m
 from .accounting_models import Account, Draft
 from .accounting_service import capabilities, save_draft, validate_lines
 from .errors import DomainError, require
-from .inventory_models import InventoryItem, InventoryMovement, InventoryWarehouse
+from .inventory_models import (
+    InventoryItem,
+    InventoryMovement,
+    InventoryUnit,
+    InventoryWarehouse,
+    InventoryWarehouseItem,
+)
 from .money_type import aggregate_money, canonical_money
 from .native_reporting_models import NativeAccountRole
 from .numbering_service import allocate_number
 from .operation_models import OperationDraft
-from .operation_numbering import allocate_reference
+from .operation_numbering import WAREHOUSE_VOUCHER_KINDS, allocate_reference
 from .operation_service import POLICY
 from .posting_models import NativeJournal
-from .security import membership
+from .security import membership, module_override
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
 GOODS_KINDS = frozenset({"purchase_goods", "sale_goods"})
-INVENTORY_OPERATION_KINDS = GOODS_KINDS | {"opening_stock", "transfer_goods", "stock_adjustment"}
+INVENTORY_OPERATION_KINDS = GOODS_KINDS | {"opening_stock", "transfer_goods", "stock_adjustment", *WAREHOUSE_VOUCHER_KINDS}
 STOCK_POLICY = "perpetual-fifo-v1"
 MOVEMENT_LIMIT = 100
 MAX_STOCK_QUANTITY = 2**53 - 1
@@ -47,6 +54,36 @@ def _require_catalog_permission(db: Session, company: str, user: m.User) -> None
         "اجازه تعریف کالا و انبار ندارید.",
         403,
     )
+
+
+def list_units(db: Session, company: str, member: m.Membership) -> dict:
+    names = db.scalars(
+        select(InventoryUnit.name).where(InventoryUnit.company_id == company)
+        .union(select(InventoryItem.base_unit).where(InventoryItem.company_id == company))
+    )
+    override = module_override(member, ("inventory", "create"))
+    return {
+        "items": sorted({"عدد", *(name for name in names if name.strip())}),
+        "can_create": override if override is not None else member.role in ("owner", "finance_manager", "advisor"),
+    }
+
+
+def add_unit(db: Session, company: str, user: m.User, name: str) -> dict:
+    duplicate = DomainError("inventory_unit_exists", "این واحد قبلاً تعریف شده است.", 409)
+    existing = db.scalar(
+        select(InventoryItem.id).where(InventoryItem.company_id == company, InventoryItem.base_unit == name).limit(1)
+    )
+    if name == "عدد" or existing is not None:
+        raise duplicate
+    unit = InventoryUnit(company_id=company, name=name)
+    try:
+        with db.begin_nested():
+            db.add(unit)
+            db.flush()
+    except IntegrityError as error:
+        raise duplicate from error
+    audit(db, company, user.id, "inventory.unit_created", unit.id)
+    return {"name": unit.name}
 
 
 def _require_account(db: Session, company: str, account_id: str | None, expected_role: str) -> None:
@@ -89,37 +126,67 @@ def _add_catalog(
 
 def add_item(db: Session, company: str, user: m.User, data: dict) -> dict:
     _require_catalog_permission(db, company, user)
-    if not data.get("inventory_account_id"):
-        from .account_catalogue_service import non_postable_account_ids
+    from .account_catalogue_service import non_postable_account_ids
 
-        blocked = non_postable_account_ids(db, company)
-        # Keep the existing default for callers that omit the account, selecting only
-        # active inventory-compatible posting accounts.
-        default_acc = next(
-            (
-                acc_id
-                for acc_id, role in db.execute(
-                    select(Account.id, NativeAccountRole.role)
-                    .outerjoin(NativeAccountRole, and_(
-                        NativeAccountRole.company_id == company,
-                        NativeAccountRole.account_id == Account.id,
-                    ))
-                    .where(Account.company_id == company, Account.active.is_(True))
-                    .order_by(Account.code)
-                )
-                if acc_id not in blocked and role in (None, "asset", "other_asset")
-            ),
-            None,
-        )
-        require(default_acc is not None, "inventory_account_required", "حساب موجودی معتبر را انتخاب کنید.")
-        data = data | {"inventory_account_id": default_acc}
-    _require_account(db, company, data["inventory_account_id"], "other_asset")
-    return _add_catalog(db, company, user, data, InventoryItem, "inventory.item_created")
+    blocked = non_postable_account_ids(db, company)
+    default_account = next(
+        (
+            account_id
+            for account_id, role in db.execute(
+                select(Account.id, NativeAccountRole.role)
+                .outerjoin(NativeAccountRole, and_(
+                    NativeAccountRole.company_id == company,
+                    NativeAccountRole.account_id == Account.id,
+                ))
+                .where(Account.company_id == company, Account.active.is_(True))
+                .order_by(Account.code)
+            )
+            if account_id not in blocked and role in (None, "asset", "other_asset")
+        ),
+        None,
+    )
+    require(default_account is not None, "inventory_account_required", "برای ثبت کالا یا خدمت، یک حساب دارایی قابل ثبت تعریف کنید.")
+    return _add_catalog(
+        db, company, user, data | {"inventory_account_id": default_account}, InventoryItem, "inventory.item_created"
+    )
 
 
 def add_warehouse(db: Session, company: str, user: m.User, data: dict) -> dict:
     _require_catalog_permission(db, company, user)
     return _add_catalog(db, company, user, data, InventoryWarehouse, "inventory.warehouse_created")
+
+
+def list_item_warehouses(db: Session, company: str, member: m.Membership, item_id: str) -> dict:
+    item = get_entity(db, InventoryItem, company, item_id)
+    override = module_override(member, ("inventory", "edit"))
+    may_link = override if override is not None else member.role in ("owner", "finance_manager", "advisor")
+    return {
+        "warehouse_ids": list(db.scalars(
+            select(InventoryWarehouseItem.warehouse_id).where(
+                InventoryWarehouseItem.company_id == company,
+                InventoryWarehouseItem.item_id == item_id,
+            ).order_by(InventoryWarehouseItem.warehouse_id)
+        )),
+        "can_link": item.active and item.item_kind == "goods" and may_link,
+    }
+
+
+def link_item_warehouse(db: Session, company: str, user: m.User, item_id: str, warehouse_id: str) -> dict:
+    membership(db, company, user, "write", scope=("inventory", "edit"))
+    warehouse = get_entity(db, InventoryWarehouse, company, warehouse_id)
+    item = get_entity(db, InventoryItem, company, item_id)
+    existing = db.scalar(select(InventoryWarehouseItem.id).where(
+        InventoryWarehouseItem.company_id == company,
+        InventoryWarehouseItem.warehouse_id == warehouse_id,
+        InventoryWarehouseItem.item_id == item_id,
+    ))
+    if existing is not None:
+        return {"warehouse_id": warehouse_id}
+    require(warehouse.active, "inactive_warehouse", "انبار غیرفعال است.", 409)
+    require(item.active and item.item_kind == "goods", "invalid_warehouse_item", "فقط کالای فعال قابل اتصال است.", 409)
+    db.add(InventoryWarehouseItem(company_id=company, warehouse_id=warehouse_id, item_id=item_id))
+    audit(db, company, user.id, "inventory.warehouse_item_linked", warehouse_id, {"item_id": item_id})
+    return {"warehouse_id": warehouse_id}
 
 
 def update_item(
@@ -154,15 +221,6 @@ def update_item(
             409,
         )
         item.item_kind = data["item_kind"]
-    if data.get("inventory_account_id") is not None and data["inventory_account_id"] != item.inventory_account_id:
-        require(
-            not has_movements,
-            "inventory_account_locked",
-            "حساب معین کالایی که گردش دارد قابل تغییر نیست.",
-            409,
-        )
-        _require_account(db, company, data["inventory_account_id"], "other_asset")
-        item.inventory_account_id = data["inventory_account_id"]
     item.version += 1
     db.flush()
     audit(db, company, user.id, "inventory.item_updated", item.id)
@@ -198,6 +256,15 @@ def _catalogue_draft_reference(db: Session, company: str, record_id: str, *field
     ) is not None
 
 
+def _voucher_item_reference(db: Session, company: str, item_id: str) -> bool:
+    payloads = db.scalars(
+        select(OperationDraft.payload)
+        .where(OperationDraft.company_id == company, OperationDraft.kind.in_(WAREHOUSE_VOUCHER_KINDS))
+        .execution_options(yield_per=250)
+    )
+    return any(row["item_id"] == item_id for payload in payloads for row in payload["items"])
+
+
 def delete_item(
     db: Session, company: str, user: m.User, item_id: str, version: int | None = None
 ) -> dict:
@@ -217,7 +284,8 @@ def delete_item(
         409,
     )
     require(
-        not _catalogue_draft_reference(db, company, item_id, "item_id"),
+        not _catalogue_draft_reference(db, company, item_id, "item_id")
+        and not _voucher_item_reference(db, company, item_id),
         "inventory_item_draft_referenced",
         "این کالا در پیش‌نویس انبار استفاده شده است و قابل حذف نیست.",
         409,
@@ -362,6 +430,8 @@ def _lots(db: Session, company: str, item_id: str, warehouse_id: str) -> tuple[d
             row.kind == "adjustment" and row.quantity > 0
         ):
             lots[row.journal_id] = Lot(row.quantity, row.evidence.get("unit_price_irr", "0"))
+        elif row.kind == "reversal" and row.evidence.get("voucher_kind") == "warehouse_receipt":
+            lots.pop(row.evidence["reversal_of"], None)
         elif row.kind in ("sale_return", "restock"):
             for layer in row.evidence.get("cost_layers", []):
                 if layer["journal_id"] in lots:
@@ -402,7 +472,7 @@ def _fifo(lots: dict[str, Lot], quantity: int) -> tuple[list[dict], Decimal]:
         remaining -= take
         if not remaining:
             break
-    require(not remaining, "inventory_insufficient", "موجودی ثبت‌شده برای این فروش کافی نیست.", 409)
+    require(not remaining, "inventory_insufficient", "موجودی ثبت‌شده کافی نیست.", 409)
     return layers, total
 
 
@@ -1012,6 +1082,10 @@ def _reversal_stock(db: Session, company: str, draft: Draft, correction: dict) -
         "برای جایگزینی سند کالا، پس از برگشت عملیات جدید کالا بسازید.",
         409,
     )
+    if stock["kind"] in WAREHOUSE_VOUCHER_KINDS or "movements" in stock:
+        from .warehouse_voucher_service import reverse_voucher
+
+        return reverse_voucher(db, company, draft, original, stock)
     lots, latest = _lots(db, company, stock["item_id"], stock["warehouse_id"])
     _stock_date(db, company, draft.date, latest)
     if stock["kind"] == "purchase_goods":
@@ -1075,6 +1149,11 @@ def validate_posting(db: Session, company: str, draft: Draft, correction: dict |
         stock, _lines, _accounts, _amount = _opening_stock_and_lines(db, company, data, origin.id)
     elif origin.kind == "transfer_goods":
         stock, _lines, _accounts, _amount = _transfer_stock_and_lines(db, company, data, origin.id)
+    elif origin.kind in WAREHOUSE_VOUCHER_KINDS:
+        from .warehouse_voucher_service import voucher_stock_and_lines
+
+        stock, lines = voucher_stock_and_lines(db, company, data, origin.id)
+        require(lines == data["lines"], "inventory_draft_changed", "حساب یا مبلغ سند انبار تغییر کرده است.", 409)
     elif origin.kind == "stock_adjustment":
         stock, _lines, _accounts, _amount = _adjustment_stock_and_lines(db, company, data, origin.id)
     else:
@@ -1238,6 +1317,7 @@ def cardex(
                     "sequence": m_row.sequence,
                     "date": m_row.date.isoformat(),
                     "kind": m_row.kind,
+                    **({"voucher_kind": ev["voucher_kind"]} if ev.get("voucher_kind") else {}),
                     "item_id": m_row.item_id,
                     "item_code": item_obj.code if item_obj else "",
                     "item_name": item_obj.name if item_obj else "",

@@ -53,20 +53,14 @@ def template(company_id: str, request: Request):
     },
 )
 async def chart_file(company_id: str, request: Request):
-    with access(request, company_id) as (db, user, _m):
-        require(
-            service.capabilities(db, company_id, user)["can_manage_accounts"],
-            "permission_denied",
-            "اجازه مدیریت حساب‌ها ندارید.",
-            403,
-        )
+    with access(request, company_id, "manage_accounts") as (_db, user, _m):
         actor_id = user.id
     name, content = await read_spreadsheet_upload(request)
     result = await run_in_threadpool(service.parse_chart, name, content)
     scan_status = await run_in_threadpool(scan, content)
-    with access(request, company_id) as (db, user, _m):
+    with access(request, company_id, "manage_accounts") as (db, user, _m):
         require(
-            user.id == actor_id and service.capabilities(db, company_id, user)["can_manage_accounts"],
+            user.id == actor_id,
             "permission_denied",
             "دسترسی تغییر کرده است.",
             403,
@@ -81,7 +75,7 @@ def preview(company_id: str, data: ChartPreviewInput, request: Request):
         request,
         company_id,
         data.model_dump(),
-        "read",
+        "manage_accounts",
         lambda db, user: service.preview_chart(db, company_id, user, [r.model_dump() for r in data.rows]),
     )
 
@@ -92,6 +86,6 @@ def apply(company_id: str, data: ChartImportInput, request: Request):
         request,
         company_id,
         data.model_dump(),
-        "read",
+        "manage_accounts",
         lambda db, user: service.import_chart(db, company_id, user, data.preview_id),
     )

@@ -1,3 +1,4 @@
+import type { ModuleAccess } from "@/lib/module-access";
 import { randomId } from "@/lib/random-id";
 export class ApiError extends Error {
   constructor(
@@ -83,6 +84,7 @@ export interface User {
   avatar?: string | null;
 }
 export interface Company {
+  module_access?: ModuleAccess;
   id: string;
   name: string;
   version: number;
@@ -265,6 +267,7 @@ export interface Report {
   }[];
 }
 export interface Member {
+  module_access?: ModuleAccess;
   id: string;
   user_id: string;
   name?: string;
@@ -285,6 +288,7 @@ export interface Plan {
   version: number;
 }
 export interface Allocation {
+  created_at?: string;
   bank_reference?: string;
   invoice_reference?: string;
   id: string;
@@ -595,6 +599,7 @@ export interface PayrollRun {
   rate_status?: "verified_1403" | "unverified_period_rates";
   created_by_user_id: string | null;
   version: number;
+  slips_count?: number;
   slips?: PayrollSlip[];
 }
 

@@ -11,7 +11,7 @@ import type { NativeInvoicesController } from "@/hooks/use-native-invoices";
 import { amount, displayDate } from "@/lib/utils";
 export function NativeInvoiceTermsDialog({ view }: { view: NativeInvoicesController }) {
   const editor = view.editor;
-  return <Drawer open={!!editor} onOpenChange={open => { if (!open) view.closeTerms(); }} title={editor?.id ? "اصلاح موعد و وعدهٔ پرداخت" : "تکمیل شرایط فاکتور"} footer={<Button busy={view.command.busy} disabled={!view.canSaveTerms} onClick={view.saveTerms}>ذخیرهٔ شرایط</Button>}>
+  return <Drawer open={!!editor} onOpenChange={open => { if (!open) view.closeTerms(); }} title={editor?.id ? "اصلاح موعد و وعدهٔ پرداخت" : "ثبت فاکتور از سند حسابداری"} footer={<Button className="w-full" busy={view.command.busy} disabled={!view.canSaveTerms} onClick={view.saveTerms}>ذخیرهٔ شرایط</Button>}>
     {editor && <div className="space-y-5">
       {!editor.id && (view.candidates.loading ? <LoadingState label="در حال دریافت اسناد خرید و فروش" /> : view.candidates.error ? <ErrorState message={view.candidates.error.message} onRetry={view.candidates.refresh} /> : !view.candidateOptions.length ? <EmptyState title="سند خرید یا فروش تأییدشدهٔ بدون فاکتور موجود نیست" /> : <Field id="native-invoice-operation" label="سند خرید یا فروش تأییدشده" required><Select id="native-invoice-operation" value={editor.operationId} onValueChange={view.selectCandidate} options={view.candidateOptions} disabled={view.command.busy} /></Field>)}
       {view.selectedCandidate && <p className="text-sm text-muted">{view.selectedCandidate.party_id} · {displayDate(view.selectedCandidate.date)} · {amount(view.selectedCandidate.amount)} ریال</p>}

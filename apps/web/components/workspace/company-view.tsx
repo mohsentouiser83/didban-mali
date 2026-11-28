@@ -137,11 +137,6 @@ export function CompanyView() {
                   disabled={c.command.busy || (!c.creating && !isOwner)}
                 />
               </Field>
-              {!c.creating && !isOwner && (
-                <StatusMessage tone="primary">
-                  فقط مالک شرکت مجاز به ویرایش نام شرکت است.
-                </StatusMessage>
-              )}
               <FormMessage error>{c.command.error?.message}</FormMessage>
               {(c.creating || isOwner) && (
                 <Button
@@ -159,9 +154,6 @@ export function CompanyView() {
                 <ActiveCompanyAccountingMode key={c.selected.id} />
               ) : (
                 <div className="space-y-3 rounded-control border border-border/70 bg-canvas/40 p-3.5">
-                  <StatusMessage tone="primary">
-                    برای مشاهده یا تغییر کاربرد حسابداری این شرکت، ابتدا آن را به‌عنوان شرکت فعال انتخاب کنید.
-                  </StatusMessage>
                   <Button
                     variant="secondary"
                     onClick={() => c.workspace.setCompany(c.selected!.id)}
@@ -172,11 +164,6 @@ export function CompanyView() {
               )
             )}
 
-            {!c.creating && (
-              <StatusMessage tone="primary">
-                برای حفظ سابقهٔ مالی و گزارش‌های تاریخی، شرکت‌ها پس از ایجاد حذف نمی‌شوند.
-              </StatusMessage>
-            )}
           </div>
         )}
       </Drawer>

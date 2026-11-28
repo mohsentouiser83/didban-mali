@@ -109,8 +109,8 @@ def serialize_contract(con: EmployeeContract) -> dict[str, Any]:
     }
 
 
-def serialize_run(run: PayrollRun) -> dict[str, Any]:
-    return {
+def serialize_run(run: PayrollRun, slips_count: int | None = None) -> dict[str, Any]:
+    res: dict[str, Any] = {
         "id": run.id,
         "company_id": run.company_id,
         "period_id": run.period_id,
@@ -131,6 +131,9 @@ def serialize_run(run: PayrollRun) -> dict[str, Any]:
         "rate_status": "verified_1403" if run.year == 1403 else "unverified_period_rates",
         "version": run.version,
     }
+    if slips_count is not None:
+        res["slips_count"] = slips_count
+    return res
 
 
 def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, Any]:
@@ -865,7 +868,16 @@ def list_payroll_runs(
     runs = db.scalars(
         stmt.order_by(PayrollRun.year.desc(), PayrollRun.month.desc()).offset(offset).limit(limit)
     ).all()
-    return {"items": [serialize_run(r) for r in runs], "total": total}
+    run_ids = [r.id for r in runs]
+    counts: dict[str, int] = {}
+    if run_ids:
+        count_rows = db.execute(
+            select(PayrollSlip.payroll_run_id, func.count(PayrollSlip.id))
+            .where(PayrollSlip.company_id == company, PayrollSlip.payroll_run_id.in_(run_ids))
+            .group_by(PayrollSlip.payroll_run_id)
+        ).all()
+        counts = {rid: int(cnt) for rid, cnt in count_rows}
+    return {"items": [serialize_run(r, slips_count=counts.get(r.id, 0)) for r in runs], "total": total}
 
 
 def get_payroll_run(db: Session, company: str, run_id: str, user: m.User | None = None) -> dict[str, Any]:
@@ -880,7 +892,7 @@ def get_payroll_run(db: Session, company: str, run_id: str, user: m.User | None 
     )
     rows = db.execute(stmt).all()
     slips = [serialize_slip(s, emp) for s, emp in rows]
-    res = serialize_run(run)
+    res = serialize_run(run, slips_count=len(slips))
     res["slips"] = slips
     return res
 

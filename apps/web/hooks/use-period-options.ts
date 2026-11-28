@@ -20,7 +20,7 @@ export function usePeriodOptions(companyId: string) {
         let cursor: string | null | undefined;
         do {
           const page = await api<ResourceList<Period>>(
-            `/companies/${companyId}/financial-periods?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+            `/companies/${companyId}/financial-periods/options?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
             { signal: abort.signal },
           );
           periods.push(...page.items);

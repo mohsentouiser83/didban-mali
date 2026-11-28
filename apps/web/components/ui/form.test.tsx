@@ -27,10 +27,10 @@ describe("accessible form validation", () => {
     expect(submit).toHaveBeenCalledTimes(1);
   });
 });
-it("associates server field errors and removes corrected errors while preserving helper text", () => {
+it("associates server field errors and removes corrected errors", () => {
   render(
     <Form fieldErrors={{ email: "این ایمیل قابل استفاده نیست." }}>
-      <Field id="account-email" label="ایمیل" description="ایمیل سازمانی">
+      <Field id="account-email" label="ایمیل">
         <Input id="account-email" defaultValue="old@example.test" />
       </Field>
     </Form>,
@@ -38,9 +38,9 @@ it("associates server field errors and removes corrected errors while preserving
   const input = screen.getByLabelText("ایمیل");
   expect(input).toHaveAttribute("aria-invalid", "true");
   expect(input).toHaveAccessibleDescription(
-    "این ایمیل قابل استفاده نیست. ایمیل سازمانی",
+    "این ایمیل قابل استفاده نیست.",
   );
   fireEvent.input(input, { target: { value: "new@example.test" } });
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(input).toHaveAccessibleDescription("ایمیل سازمانی");
+  expect(input).not.toHaveAttribute("aria-describedby");
 });

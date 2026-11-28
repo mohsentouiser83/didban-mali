@@ -50,13 +50,52 @@ def test_reference_required_even_with_same_amount_and_date():
 
 def test_wrong_account_or_direction_and_date_require_review():
     mapping = {"bank_to_ledger": {"A": "1101"}}
-    assert propose([ledger(account="1102")], [bank()], mapping)[0]["reason_codes"] == [
-        "ledger_account_mismatch"
+    result = propose([ledger(account="1102")], [bank()], mapping)
+    assert result[0]["reason_codes"] == ["ledger_account_mismatch"]
+
+
+def test_fin01_bounded_same_party_and_date_group_discovery():
+    from didban.group_match_service import MAX_GROUP_ROWS, propose_groups
+
+    mapping = {"A": "1101"}
+    # 1 bank movement (no reference, party_id=P1) matching 2 ledger rows (no reference, party_id=P1, same date)
+    records = {
+        "bank": [bank("B1", reference="", party_id="P1", amount="150")],
+        "ledger": [
+            ledger("L1", reference="", party_id="P1", debit="100", credit="0"),
+            ledger("L2", reference="", party_id="P1", debit="50", credit="0"),
+        ],
+    }
+    groups = propose_groups(records, mapping)
+    party_group = next((g for g in groups if g.get("match_basis") == "same_party_and_date"), None)
+    assert party_group is not None
+    assert party_group["can_accept"] is True
+    assert party_group["bank_ids"] == ["B1"]
+    assert party_group["ledger_ids"] == ["L1", "L2"]
+    assert party_group["bank_total"] == "150"
+    assert party_group["ledger_total"] == "150"
+    assert party_group["explanation"]
+    assert party_group["requires_human_review"] is True
+
+    # Bounded size cap: > MAX_GROUP_ROWS in a group cannot be auto-accepted
+    many_ledgers = [
+        ledger(f"L{i}", reference="", party_id="P2", debit="10", credit="0")
+        for i in range(MAX_GROUP_ROWS + 1)
     ]
-    assert propose([ledger(debit="0", credit="100")], [bank()], mapping)[0]["reason_codes"] == [
+    big_records = {
+        "bank": [bank("B_BIG", reference="", party_id="P2", amount=str((MAX_GROUP_ROWS + 1) * 10))],
+        "ledger": many_ledgers,
+    }
+    big_groups = propose_groups(big_records, mapping)
+    big_party = next((g for g in big_groups if g.get("match_basis") == "same_party_and_date"), None)
+    assert big_party is not None
+    assert big_party["can_accept"] is False
+    assert propose([ledger(debit="0", credit="100")], [bank()], {"bank_to_ledger": mapping})[0]["reason_codes"] == [
         "amount_mismatch"
     ]
-    assert propose([ledger(date="2026-09-06")], [bank()], mapping)[0]["reason_codes"] == ["date_mismatch"]
+    assert propose([ledger(date="2026-09-06")], [bank()], {"bank_to_ledger": mapping})[0]["reason_codes"] == [
+        "date_mismatch"
+    ]
 
 
 def test_competing_bank_or_ledger_candidates_never_auto_accepted():

@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,11 @@ import {
   ErrorState,
   StatusMessage,
 } from "@/components/ui/content-states";
-import { Field, FormMessage } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import { Hint } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { Pagination, CursorPagination } from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { StatCards } from "@/components/ui/financial/stat-cards";
 import { Drawer } from "@/components/ui/drawer";
 import {
@@ -30,14 +30,13 @@ import { useNativeInvoices } from "@/hooks/use-native-invoices";
 import { useResource } from "@/hooks/use-resource";
 import type { Proforma } from "@/lib/commercial";
 import type { InvoiceDirection } from "@/lib/native-invoices";
-import { nativeInvoiceReason, expectedDateLabel } from "@/lib/native-invoices";
+import { nativeInvoiceReason, expectedDateLabel, invoiceHistoryDelayLabel } from "@/lib/native-invoices";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { Panel } from "./page-parts";
 import { ProformaConversion } from "./commercial/proforma-conversion";
 import { NativeInvoiceTermsDialog } from "./native-invoice-terms-dialog";
 import { NativeInvoiceAllocationDialog } from "./native-invoice-allocation-dialog";
 import { NativeInvoiceReminderDialog } from "./native-invoice-reminder-dialog";
-import { NativeInvoiceSnapshot } from "./native-invoice-snapshot";
 import { NativeInvoiceSourceDialog } from "./native-invoice-source-dialog";
 import { NativeInvoiceDetail } from "./native-invoice-detail";
 export function NativeInvoicesView({
@@ -54,7 +53,6 @@ export function NativeInvoicesView({
   initialReference?: string;
 }) {
   const view = useNativeInvoices(direction, followups, operationId, partyId, initialReference);
-  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
   const [convertProformaOpen, setConvertProformaOpen] = useState(false);
   const [selectedProforma, setSelectedProforma] = useState<Proforma | null>(null);
   const proformasResource = useResource<{ items: Proforma[] }>(
@@ -84,12 +82,6 @@ export function NativeInvoicesView({
               تبدیل پیش‌فاکتور به فاکتور
             </Button>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => setSnapshotsOpen(true)}
-          >
-            نسخه‌های ثابت فاکتورها
-          </Button>
           {view.preferredInvoice && (
             <Button
               variant="secondary"
@@ -101,8 +93,8 @@ export function NativeInvoicesView({
           {view.workspace.canWrite && (
             <Button onClick={() => view.openTerms()}>
               {view.preferredCandidate
-                ? `تکمیل شرایط فاکتور ${view.preferredCandidate.reference}`
-                : "تکمیل شرایط فاکتور"}
+                ? `ثبت فاکتور از سند ${view.preferredCandidate.reference}`
+                : "ثبت فاکتور از سند حسابداری"}
             </Button>
           )}
         </div>
@@ -174,37 +166,29 @@ export function NativeInvoicesView({
             }
             className="mt-5"
           >
-            <Field id="native-invoice-query" label="فاکتور یا طرف حساب">
-                <Input
-                  id="native-invoice-query"
-                  value={view.query}
-                  onChange={(event) => view.setQuery(event.target.value)}
-                />
-              </Field>
               {followups &&
                 view.priority === "history" &&
                 view.report.data?.history_policy && (
                   <p className="my-3 text-xs text-muted">
                     وصول‌های{" "}
                     {displayDate(view.report.data.history_policy.window_start)} تا{" "}
-                    {displayDate(view.report.data.history_policy.window_end)}؛
-                    شواهد آینده کنار گذاشته شده‌اند.
+                    {displayDate(view.report.data.history_policy.window_end)}
                   </p>
                 )}
               <Table>
                 <TableHeader sticky>
                   <TableRow>
-                    <TableHead>شماره / مرجع</TableHead>
-                    <TableHead>تاریخ</TableHead>
-                    <TableHead>طرف حساب</TableHead>
-                    <TableHead>سررسید</TableHead>
-                    <TableHead>وعدهٔ پرداخت</TableHead>
-                    <TableHead numeric>مبلغ (ریال)</TableHead>
-                    <TableHead numeric>مانده (ریال)</TableHead>
-                    <TableHead>وضعیت</TableHead>
-                    {followups && <TableHead>تأخیر تا تاریخ انتخابی</TableHead>}
+                    <TableHead columnFilter={view.columnFilter("reference")}>شماره / مرجع</TableHead>
+                    <TableHead columnFilter={view.columnFilter("date")}>تاریخ</TableHead>
+                    <TableHead columnFilter={view.columnFilter("party")}>طرف حساب</TableHead>
+                    <TableHead columnFilter={view.columnFilter("due")}>سررسید</TableHead>
+                    <TableHead columnFilter={view.columnFilter("expected")}>وعدهٔ پرداخت</TableHead>
+                    <TableHead numeric columnFilter={view.columnFilter("amount")}>مبلغ (ریال)</TableHead>
+                    <TableHead numeric columnFilter={view.columnFilter("remaining")}>مانده (ریال)</TableHead>
+                    <TableHead columnFilter={view.columnFilter("status")}>وضعیت</TableHead>
+                    {followups && <TableHead columnFilter={view.columnFilter("delay")}>تأخیر تا تاریخ انتخابی</TableHead>}
                     {followups && view.priority === "history" && (
-                      <TableHead>سابقهٔ وصول ۱۸۰ روزه</TableHead>
+                      <TableHead columnFilter={view.columnFilter("history")}>سابقهٔ وصول ۱۸۰ روزه</TableHead>
                     )}
                     <TableHead>عملیات</TableHead>
                   </TableRow>
@@ -281,22 +265,14 @@ export function NativeInvoicesView({
                               مستقل
                             </span>
                             <span className="mt-1 block text-xs text-muted">
-                              {invoice.history_lag_days == null
-                                ? invoice.history_reason ===
-                                  "receipt_history_ambiguous"
-                                  ? "تاریخ‌های وصول یا سررسید یک سند ناسازگار است."
-                                  : "کمتر از ۳ وصول معتبر؛ تأخیر معمول قابل محاسبه نیست."
-                                : `میانهٔ وزنی با مبلغ: ${persian(invoice.history_lag_days)} روز`}
+                              {invoiceHistoryDelayLabel(invoice)}
                             </span>
                           </TableCell>
                         )}
                         <TableCell>
-                          <Button
-                            variant="secondary"
-                            onClick={() => view.select(invoice.id)}
-                          >
-                            جزئیات و پیگیری
-                          </Button>
+                          <TableRowActions label={`عملیات ${invoice.reference}`}>
+                            <TableRowAction onClick={() => view.select(invoice.id)} kind="view">جزئیات و پیگیری</TableRowAction>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                       );
@@ -307,7 +283,7 @@ export function NativeInvoicesView({
                         followups ? (view.priority === "history" ? 11 : 10) : 9
                       }
                       title={
-                        view.query
+                        view.filtersActive
                           ? "فاکتوری با این فیلتر پیدا نشد"
                           : "هنوز فاکتوری ثبت نشده است"
                       }
@@ -325,91 +301,8 @@ export function NativeInvoicesView({
         </>
       )}
 
-      {/* Snapshots Drawer */}
-      <Drawer
-        title="نسخه‌های ثابت فاکتورها"
-        open={snapshotsOpen}
-        onOpenChange={setSnapshotsOpen}
-        className="sm:max-w-2xl"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted">نسخه‌های ذخیره‌شده تا مقاطع تاریخی مختلف</p>
-            {view.workspace.canWrite && (
-              <Button
-                variant="secondary"
-                onClick={view.saveSnapshot}
-                busy={view.command.busy}
-              >
-                ذخیرهٔ نسخه تا تاریخ انتخابی
-              </Button>
-            )}
-          </div>
-          {view.snapshots.loading ? (
-            <LoadingState label="در حال دریافت نسخه‌های ثابت" />
-          ) : view.snapshots.error ? (
-            <ErrorState
-              message={view.snapshots.error.message}
-              onRetry={view.snapshots.refresh}
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>تاریخ مبنا</TableHead>
-                  <TableHead>زمان ذخیره</TableHead>
-                  <TableHead>مبنا</TableHead>
-                  <TableHead>عملیات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {view.snapshots.data?.items.length ? (
-                  view.snapshots.data.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableRowHeader>
-                        {displayDate(item.payload.as_of)}
-                      </TableRowHeader>
-                      <TableCell>{displayDate(item.created_at)}</TableCell>
-                      <TableCell>
-                        <Badge>
-                          {item.payload.direction === "sale"
-                            ? "فروش خدمات"
-                            : item.payload.direction === "purchase"
-                              ? "خرید خدمات"
-                              : "فروش و خرید خدمات"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            view.selectSnapshot(item.id);
-                            setSnapshotsOpen(false);
-                          }}
-                        >
-                          مشاهدهٔ نسخه
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableEmptyCell colSpan={4} title="هنوز نسخه‌ای ذخیره نشده است" />
-                )}
-              </TableBody>
-            </Table>
-          )}
-          <CursorPagination {...view.snapshots} />
-          <FormMessage error>
-            {!view.editor &&
-              !view.allocation &&
-              !view.sourceRevision &&
-              view.command.error?.message}
-          </FormMessage>
-        </div>
-      </Drawer>
       <NativeInvoiceDetail view={view} />
       <NativeInvoiceSourceDialog view={view} />
-      <NativeInvoiceSnapshot view={view} />
       <NativeInvoiceReminderDialog view={view} />
       <NativeInvoiceTermsDialog view={view} />
       <NativeInvoiceAllocationDialog view={view} />
@@ -420,9 +313,6 @@ export function NativeInvoicesView({
         onOpenChange={setConvertProformaOpen}
       >
         <div className="space-y-4">
-          <p className="text-sm text-muted">
-            پیش‌فاکتور مورد نظر را انتخاب کنید تا مشخصات و اقلام آن به فاکتور فروش تبدیل شود:
-          </p>
           {proformasResource.loading ? (
             <LoadingState label="در حال دریافت پیش‌فاکتورها..." />
           ) : proformasResource.error ? (

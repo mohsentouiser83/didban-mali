@@ -7,7 +7,8 @@ from .operation_models import OperationDraft
 
 SALES_KINDS = ("sale_service", "sale_goods")
 PURCHASE_KINDS = ("purchase_service", "purchase_goods")
-STOCK_KINDS = ("opening_stock", "transfer_goods", "stock_adjustment")
+WAREHOUSE_VOUCHER_KINDS = ("warehouse_receipt", "warehouse_issue")
+STOCK_KINDS = ("opening_stock", "transfer_goods", "stock_adjustment", *WAREHOUSE_VOUCHER_KINDS)
 
 
 def allocate_reference(db: Session, company: str, kind: str) -> str:

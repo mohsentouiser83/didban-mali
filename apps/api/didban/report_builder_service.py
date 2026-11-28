@@ -182,7 +182,7 @@ def preview(
         require(
             row is not None,
             "native_invoice_snapshot_missing",
-            "نسخهٔ ثابت فاکتورهای همین دامنه و دوره را ذخیره کنید.",
+            "نسخهٔ تاریخی فاکتورها برای این دامنه و دوره موجود نیست.",
             404,
         )
         return evaluate_native_invoices(
@@ -583,7 +583,7 @@ def get_run(
 def evaluate_native_invoices(
     run: NativeInvoiceSnapshot, spec: ReportSpec, *, company_name: str, period: dict
 ) -> dict:
-    from .native_invoice_exports import invoice_rows
+    from .native_invoice_projection import invoice_rows
 
     require(
         spec.source == "native_invoice" and spec.kind == "invoices",

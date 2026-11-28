@@ -25,7 +25,7 @@ from .commercial_service import (
     counterparty_snapshot,
     resolve_counterparty,
 )
-from .errors import require
+from .errors import DomainError, require
 from .inventory_models import InventoryItem, InventoryMovement, InventoryWarehouse
 from .inventory_service import (
     _check_capacity,
@@ -52,6 +52,34 @@ def _unit_money(total: Decimal, qty: int) -> str:
     if qty <= 0:
         return "0"
     return _stock_money((total / qty).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP))
+
+
+def _resolve_vat_account(db: Session, company: str, explicit_id: str | None, sale: bool) -> str:
+    from .accounting_models import Account
+    from .native_reporting_models import NativeAccountRole
+
+    expected_role = "vat_sale_payable" if sale else "vat_purchase_receivable"
+    if explicit_id:
+        _require_account(db, company, explicit_id, expected_role)
+        return explicit_id
+    role_acc_id = db.scalar(
+        select(NativeAccountRole.account_id)
+        .join(Account, (Account.company_id == NativeAccountRole.company_id) & (Account.id == NativeAccountRole.account_id))
+        .where(
+            NativeAccountRole.company_id == company,
+            NativeAccountRole.role == expected_role,
+            Account.active.is_(True),
+        )
+        .order_by(Account.code)
+        .limit(1)
+    )
+    if role_acc_id:
+        return role_acc_id
+    raise DomainError(
+        "vat_account_missing",
+        f"حساب {'مالیات بر ارزش افزوده فروش' if sale else 'مالیات بر ارزش افزوده خرید'} در کدینگ شرکت تعریف یا نقش‌گذاری نشده است.",
+        422,
+    )
 
 COMMERCIAL_OPERATION_KINDS = frozenset(
     {
@@ -371,6 +399,16 @@ def create_commercial_document_draft(
             require(price > 0 and price == price.to_integral_value(), "invalid_unit_price", "قیمت واحد باید عدد صحیح مثبت باشد.")
             l_disc = Decimal(_stock_money(line_in.get("line_discount", 0)))
             require(l_disc >= 0 and l_disc == l_disc.to_integral_value(), "invalid_discount", "تخفیف ردیف باید عدد صحیح نامنفی باشد.")
+            vat_rate_raw = str(line_in.get("vat_rate_pct", "0") or "0").strip()
+            try:
+                vat_rate_pct = Decimal(vat_rate_raw)
+            except Exception as exc:
+                raise DomainError("invalid_vat_rate", "نرخ مالیات بر ارزش افزوده معتبر نیست.") from exc
+            require(
+                vat_rate_pct.is_finite() and Decimal(0) <= vat_rate_pct <= Decimal(100),
+                "invalid_vat_rate",
+                "نرخ مالیات بر ارزش افزوده باید بین ۰ تا ۱۰۰ باشد.",
+            )
 
             gross_orig = price * qty
             require(l_disc <= gross_orig, "line_discount_exceeds_gross", "تخفیف ردیف نمی‌تواند از مبلغ کل ردیف بیشتر باشد.")
@@ -414,6 +452,7 @@ def create_commercial_document_draft(
                     "line_discount_irr": _stock_money(l_disc_irr),
                     "net_before_irr": net_before_irr,
                     "net_before_orig": net_before_orig,
+                    "vat_rate_pct": vat_rate_pct,
                 }
             )
 
@@ -481,6 +520,7 @@ def create_commercial_document_draft(
                     "service_revenue_account_id",
                     "expense_account_id",
                     "discount_account_id",
+                    "vat_account_id",
                     "cost_account_id",
                     "cash_account_id",
                     "cheque_account_id",
@@ -494,10 +534,15 @@ def create_commercial_document_draft(
         stock_movements: list[dict] = []
         journal_lines: list[dict] = []
         total_cogs_irr = Decimal(0)
+        vat_total_irr = Decimal(0)
 
         for idx, pl in enumerate(prepared_lines):
             alloc_irr = alloc_irr_list[idx]
             net_line_irr = pl["net_before_irr"] - alloc_irr
+            vat_line_irr = (net_line_irr * pl["vat_rate_pct"] / Decimal(100)).quantize(
+                Decimal("1"), rounding=ROUND_HALF_UP
+            )
+            vat_total_irr += vat_line_irr
             cost_layers: list[dict] = []
             line_cost_irr = Decimal(0)
 
@@ -515,6 +560,8 @@ def create_commercial_document_draft(
                 line_discount_irr=pl["line_discount_irr"],
                 net_before_inv_disc_irr=_stock_money(pl["net_before_irr"]),
                 allocated_invoice_discount_irr=_stock_money(alloc_irr),
+                vat_rate_pct=str(pl["vat_rate_pct"].normalize() if pl["vat_rate_pct"] != 0 else "0"),
+                vat_amount_irr=_stock_money(vat_line_irr),
                 net_amount_irr=_stock_money(net_line_irr),
                 cost_irr="0",
                 cost_layers=[],
@@ -578,18 +625,26 @@ def create_commercial_document_draft(
             pl["net_line_irr"] = net_line_irr
             pl["cost_irr"] = line_cost_irr
 
-        # Settlement lines in canonical IRR
+        doc.vat_total_irr = _stock_money(vat_total_irr)
+        payable_total_irr = net_total_irr + vat_total_irr
+        vat_account_id = (
+            _resolve_vat_account(db, company, data.get("vat_account_id"), sale) if vat_total_irr > 0 else None
+        )
+        if vat_account_id:
+            doc.accounts = {**(doc.accounts or {}), "vat_account_id": vat_account_id}
+
+        # Settlement lines in canonical IRR (includes VAT when applicable)
         if settlement_type in ("cash", "mixed"):
             cash_irr = (
                 Decimal(_stock_money(data.get("cash_amount") or 0)) * factor
                 if settlement_type == "mixed"
-                else net_total_irr
+                else payable_total_irr
             )
             cheque_irr = Decimal(_stock_money(data.get("cheque_amount") or 0)) * factor if settlement_type == "mixed" else Decimal(0)
             on_acct_irr = Decimal(_stock_money(data.get("on_account_amount") or 0)) * factor if settlement_type == "mixed" else Decimal(0)
             settle_lines = validate_and_build_settlement_lines(
                 direction=direction,
-                total_amount=_stock_money(net_total_irr),
+                total_amount=_stock_money(payable_total_irr),
                 settlement_type=settlement_type,
                 cash_amount=_stock_money(cash_irr),
                 cheque_amount=_stock_money(cheque_irr),
@@ -606,7 +661,7 @@ def create_commercial_document_draft(
         else:
             cash_irr = Decimal(0)
             cheque_irr = Decimal(0)
-            on_acct_irr = net_total_irr
+            on_acct_irr = payable_total_irr
             require(bool(counterparty_account_id), "counterparty_account_required", "حساب طرف‌حساب را انتخاب کنید.")
             _require_account(db, company, counterparty_account_id, "trade_receivable" if sale else "trade_payable")
             settle_lines = [
@@ -614,8 +669,8 @@ def create_commercial_document_draft(
                     "account_id": counterparty_account_id,
                     "party_id": cp.id,
                     "counterparty_id": cp.id,
-                    "debit": _stock_money(net_total_irr) if sale else "0",
-                    "credit": "0" if sale else _stock_money(net_total_irr),
+                    "debit": _stock_money(payable_total_irr) if sale else "0",
+                    "credit": "0" if sale else _stock_money(payable_total_irr),
                 }
             ]
 
@@ -698,6 +753,17 @@ def create_commercial_document_draft(
                             "reference_id": dl.id,
                         }
                     )
+            if vat_total_irr > 0 and vat_account_id:
+                journal_lines.append(
+                    {
+                        "account_id": vat_account_id,
+                        "party_id": cp.id,
+                        "counterparty_id": cp.id,
+                        "debit": "0",
+                        "credit": _stock_money(vat_total_irr),
+                        "description": f"مالیات بر ارزش افزوده فروش {doc_number}"[:500],
+                    }
+                )
         else:
             for pl in prepared_lines:
                 dl = pl["doc_line"]
@@ -711,6 +777,17 @@ def create_commercial_document_draft(
                         "description": dl.description[:500],
                         "reference_kind": "commercial_document_line",
                         "reference_id": dl.id,
+                    }
+                )
+            if vat_total_irr > 0 and vat_account_id:
+                journal_lines.append(
+                    {
+                        "account_id": vat_account_id,
+                        "party_id": cp.id,
+                        "counterparty_id": cp.id,
+                        "debit": _stock_money(vat_total_irr),
+                        "credit": "0",
+                        "description": f"مالیات بر ارزش افزوده خرید {doc_number}"[:500],
                     }
                 )
             journal_lines.extend(settle_lines)
@@ -982,6 +1059,7 @@ def create_commercial_return_draft(
     stock_movements: list[dict] = []
     journal_lines: list[dict] = []
     total_ret_irr = Decimal(0)
+    total_ret_vat_irr = Decimal(0)
 
     with localcontext() as ctx:
         ctx.prec = 60
@@ -1020,6 +1098,19 @@ def create_commercial_return_draft(
             prior_net_sum = sum((Decimal(p.return_net_amount_irr) for p in prior_ret_lines), Decimal(0))
             ret_net_irr = _proportional_return_net(orig_line, qty, already_qty, prior_net_sum)
             total_ret_irr += ret_net_irr
+
+            orig_vat = Decimal(orig_line.vat_amount_irr or "0")
+            if orig_vat > 0:
+                if already_qty + qty == orig_line.quantity:
+                    prior_vat_sum = sum((Decimal(p.vat_amount_irr or "0") for p in prior_ret_lines), Decimal(0))
+                    ret_vat_irr = orig_vat - prior_vat_sum
+                else:
+                    ret_vat_irr = (orig_vat * Decimal(qty) / Decimal(orig_line.quantity)).quantize(
+                        Decimal("1"), rounding=ROUND_HALF_UP
+                    )
+            else:
+                ret_vat_irr = Decimal(0)
+            total_ret_vat_irr += ret_vat_irr
 
             condition = item_in.get("condition", "healthy")
             ret_cost_irr = Decimal(0)
@@ -1175,24 +1266,42 @@ def create_commercial_return_draft(
                     condition=condition,
                     quantity=qty,
                     return_net_amount_irr=_stock_money(ret_net_irr),
+                    vat_amount_irr=_stock_money(ret_vat_irr),
                     return_cost_irr=_stock_money(ret_cost_irr),
                     restored_cost_layers=restored_layers,
                     quarantine_status=quarantine_status,
                 )
             )
 
+        if total_ret_vat_irr > 0:
+            ret_vat_acc = (doc.accounts or {}).get("vat_account_id") or _resolve_vat_account(
+                db, company, data.get("vat_account_id"), is_sale_ret
+            )
+            journal_lines.append(
+                {
+                    "account_id": ret_vat_acc,
+                    "party_id": doc.counterparty_id,
+                    "counterparty_id": doc.counterparty_id,
+                    "debit": _stock_money(total_ret_vat_irr) if is_sale_ret else "0",
+                    "credit": "0" if is_sale_ret else _stock_money(total_ret_vat_irr),
+                    "description": f"برگشت مالیات بر ارزش افزوده {ret.number}"[:500],
+                }
+            )
+
+        total_ret_payable_irr = total_ret_irr + total_ret_vat_irr
         # Counterparty entry (D25/D26/D29: reduces AR/AP first; excess creates credit/supplier receivable; zero cash!)
         journal_lines.append(
             {
                 "account_id": counterparty_account_id,
                 "party_id": doc.counterparty_id,
                 "counterparty_id": doc.counterparty_id,
-                "debit": "0" if is_sale_ret else _stock_money(total_ret_irr),
-                "credit": _stock_money(total_ret_irr) if is_sale_ret else "0",
+                "debit": "0" if is_sale_ret else _stock_money(total_ret_payable_irr),
+                "credit": _stock_money(total_ret_payable_irr) if is_sale_ret else "0",
                 "description": f"تسویه حساب برگشتی {ret.number}"[:500],
             }
         )
-        ret.total_return_amount_irr = _stock_money(total_ret_irr)
+        ret.vat_total_irr = _stock_money(total_ret_vat_irr)
+        ret.total_return_amount_irr = _stock_money(total_ret_payable_irr)
 
     draft_res = save_draft(
         db,

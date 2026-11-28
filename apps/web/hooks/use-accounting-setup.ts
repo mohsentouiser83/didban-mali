@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
 import { useCommand } from "./use-command";
-import { validateAccountCodePattern, type AccountLevel } from "@/lib/account-catalogue";
-import type { AccountNature } from "@/lib/accounting";
+import { useTableColumnFilters } from "./use-table-column-filters";
+import { accountLevelLabel, validateAccountCodePattern, type AccountLevel } from "@/lib/account-catalogue";
+import { accountNatureLabel, type AccountNature } from "@/lib/accounting";
 export interface Setup {
   mode: "analysis" | "primary";
   version: number;
@@ -31,10 +32,8 @@ export function useCompanyAccountingSetup() {
     resource,
     command,
     postingStatus: resource.data?.posting_available
-      ? "ثبت نهایی با تأیید انسان دارای مجوز انجام می‌شود."
-      : resource.data?.posting_reason === "primary_accounting_required"
-        ? "ثبت نهایی فقط در حالت حسابداری اصلی در دسترس است."
-        : "ثبت نهایی برای کاربرد فعلی در دسترس نیست.",
+      ? "ثبت قطعی در دسترس"
+      : "ثبت قطعی ناموجود",
     mode: selected ?? resource.data?.mode ?? "analysis",
     setMode: setSelected,
     save: () =>
@@ -58,42 +57,49 @@ export function useChartSetup(onImported: () => void) {
   const command = useCommand();
   const base = workspace.companyPath("accounting/setup");
   const [rows, setRows] = useState<ChartRow[]>([]);
-  const [page, setPage] = useState(0);
+  const [selectedPage, setPage] = useState(0);
   const [proof, setProof] = useState<{ id: string; key: string } | null>(null);
   const fingerprint = JSON.stringify(rows);
   const previewId = proof?.key === fingerprint ? proof.id : null;
   const codeSet = new Map<string, number>();
-  const rowList = rows;
-  for (const r of rowList) {
+  for (const r of rows) {
     const code = (r.code || "").trim();
     if (code) codeSet.set(code, (codeSet.get(code) ?? 0) + 1);
   }
-  const validateRow = (row: (typeof rowList)[number]) => {
+  const validateRow = (row: ChartRow) => {
     const code = (row.code || "").trim();
     const name = (row.name || "").trim();
     if (!code) return "کد حساب خالی است.";
     if ((codeSet.get(code) ?? 0) > 1) return "کد در جدول تکراری است.";
     if (!name) return "نام حساب خالی است.";
-    if (row.level && row.level !== "group") {
-      const parentCode = (row.parent_code || "").trim();
-      if (!parentCode) return "کد بالادست لازم است.";
-      const err = validateAccountCodePattern(code, row.level, parentCode);
-      if (err) return err;
-    } else if (row.level === "group") {
-      if ((row.parent_code || "").trim()) return "حساب گروه بالادست ندارد.";
-      const err = validateAccountCodePattern(code, "group", null);
-      if (err) return err;
-    }
-    return null;
+    const parentCode = row.parent_code?.trim();
+    if ((row.level === "general" || row.level === "subsidiary") && !parentCode) return "کد بالادست لازم است.";
+    if (row.level === "group" && parentCode) return "حساب گروه بالادست ندارد.";
+    return row.level ? validateAccountCodePattern(code, row.level, parentCode) : undefined;
   };
-  const rowErrors = rowList.map((row, index) =>
-    command.error?.fields?.[`chart-row-${index}`] ?? validateRow(row)
-  );
-  const invalidCount = rowErrors.filter(Boolean).length;
+  const reviewedRows = rows.map((row, index) => ({
+    ...row, index,
+    error: command.error?.fields?.[`chart-row-${index}`] ?? validateRow(row),
+    parentRequired: row.level === "general" || row.level === "subsidiary",
+  }));
+  const invalidCount = reviewedRows.filter((row) => row.error).length;
+  const filters = useTableColumnFilters(reviewedRows, {
+    code: (row) => row.code,
+    name: (row) => row.name,
+    level: (row) => accountLevelLabel(row.level),
+    parent: (row) => row.parent_code || "—",
+    nature: (row) => accountNatureLabel(row.nature ?? "debit"),
+    active: (row) => row.active ? "فعال" : "غیرفعال",
+    status: (row) => row.error ? "خطادار" : (previewId ? "آماده ورود" : "آماده بررسی"),
+  });
+  const filteredRows = filters.rows;
+  const pageSize = 25;
+  const page = Math.min(selectedPage, Math.max(0, Math.ceil(filteredRows.length / pageSize) - 1));
   const loadRows = (next: ChartRow[]) => {
     command.clearError();
     setRows(next);
     setProof(null);
+    filters.reset();
     setPage(0);
   };
   const loadTemplate = () =>
@@ -134,11 +140,12 @@ export function useChartSetup(onImported: () => void) {
   return {
     command,
     total: rows.length,
+    filteredTotal: filteredRows.length,
     invalidCount,
     page,
-    visibleRows: rows
-      .slice(page * 25, (page + 1) * 25)
-      .map((row, index) => ({ ...row, index: page * 25 + index, error: rowErrors[page * 25 + index], parentRequired: row.level === "general" || row.level === "subsidiary" || row.level === "detail" })),
+    pageSize,
+    visibleRows: filteredRows.slice(page * pageSize, (page + 1) * pageSize),
+    columnFilter: (key: Parameters<typeof filters.bind>[0]) => filters.bind(key, () => setPage(0)),
     loadTemplate,
     loadFile,
     preview,
@@ -148,7 +155,7 @@ export function useChartSetup(onImported: () => void) {
       command.clearError();
       setRows((previous) => previous.map((row, i) => (i === index ? { ...row, ...patch } : row)));
     },
-    previousPage: () => setPage((value) => Math.max(0, value - 1)),
-    nextPage: () => setPage((value) => value + 1),
+    previousPage: () => setPage(Math.max(0, page - 1)),
+    nextPage: () => setPage(page + 1),
   };
 }

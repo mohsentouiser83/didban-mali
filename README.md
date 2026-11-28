@@ -94,7 +94,7 @@ PYTHONPATH=apps/api .venv/bin/python -m pytest apps/api/tests
 PYTHONPATH=apps/api .venv/bin/python -m ruff check apps/api scripts
 ```
 
-OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snapshot قابل بررسی با فرمان `.venv/bin/python scripts/generate_contracts.py` از source به `contracts/openapi.json` و `database/schema.sql` تولید می‌شود. مدل فعلی ۱۲۳ جدول، ۲۶۹ مسیر و ۳۲۹ عملیات HTTP دارد. [فهرست موجودیت‌ها](docs/entity-inventory.fa.md) کلاس، جدول و فایل منبع هر مدل را نشان می‌دهد. DDL تولیدشده برای نصب تازه است. ارتقای نصب داده‌دار migration نسخه‌دار و آزمون مستقل می‌خواهد. بخش‌های تکمیل‌نشده و نتیجه واقعی آزمون‌ها در [`docs/current-implementation.fa.md`](docs/current-implementation.fa.md) ثبت می‌شوند. وجود صفحه یا قرارداد به معنی تأیید حسابدار، اتصال Luna یا آمادگی انتشار نیست.
+OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snapshot قابل بررسی با فرمان `.venv/bin/python scripts/generate_contracts.py` از source به `contracts/openapi.json` و `database/schema.sql` تولید می‌شود. مدل فعلی ۱۳۸ جدول، ۲۸۴ مسیر و ۳۴۸ عملیات HTTP دارد. [فهرست موجودیت‌ها](docs/entity-inventory.fa.md) کلاس، جدول و فایل منبع هر مدل را نشان می‌دهد. DDL تولیدشده برای نصب تازه است. ارتقای نصب داده‌دار migration نسخه‌دار و آزمون مستقل می‌خواهد. بخش‌های تکمیل‌نشده و نتیجه واقعی آزمون‌ها در [`docs/current-implementation.fa.md`](docs/current-implementation.fa.md) ثبت می‌شوند. وجود صفحه یا قرارداد به معنی تأیید حسابدار، اتصال Luna یا آمادگی انتشار نیست.
 
 هنگام راه‌اندازی، وجود ستون‌های مدل و کلیدهای یکتای `(company_id, id)` نیز کنترل می‌شود. پایگاه قدیمی با پیام `Database schema is outdated` و نام موارد مفقود متوقف می‌شود تا به‌جای خطاهای پراکندهٔ API، نیاز به ارتقای صریح ساختار روشن باشد؛ این کنترل داده یا ساختار جدول‌های موجود را مهاجرت نمی‌دهد.
 
@@ -120,3 +120,7 @@ OpenAPI اجرای فعلی در `/openapi.json` ارائه می‌شود. snaps
 ## ادامه توسعه و پذیرش
 
 هدف محصول، حسابداری و تحلیل مالی با AI برای شرکت‌های کوچک و متوسط است. [todo.md](todo.md) جزئیات هدف هر کار، وابستگی، پیاده‌سازی و معیار پذیرش را به انگلیسی می‌دهد. دامنه مصوب و پیشنهادهای نیازمند سیاست/دسترسی جدا هستند. در بازبینی این گفتگو ۵۸۱ آزمون API موفق/یک PostgreSQL skipped، ۱۷۴ آزمون وب و TypeScript/ESLint/Ruff موفق بودند؛ build یا آزمون زنده تازه انجام نشده است. [رکورد](docs/validation/documentation-review-20261113.json).
+
+### ارتقای نسخهٔ طرح ۵
+
+در اجرای مستقیم، برای نصب موجود پس از پشتیبان‌گیری و توقف API و worker، با تنظیمات همان نصب `PYTHONPATH=apps/api .venv/bin/python -m didban.migrate` را اجرا کنید و سپس سرویس‌ها را بالا بیاورید. Compose ارتقا را در سرویس `migrate` انجام می‌دهد.

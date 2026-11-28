@@ -14,6 +14,7 @@ export interface CommercialDraftLineInput {
   quantity: string;
   unit_price: string;
   line_discount: string;
+  vat_rate_pct?: string;
 }
 
 export type CommercialAccountSlot =
@@ -65,6 +66,8 @@ export interface ComputedCommercialTotals {
   invoiceDiscount: bigint | null;
   invoiceDiscountError?: string;
   netTotal: bigint | null;
+  vatTotal: bigint;
+  payableTotal: bigint | null;
   hasGoods: boolean;
   hasService: boolean;
   hasLineErrors: boolean;
@@ -139,6 +142,24 @@ export function computeCommercialTotals(
       ? netBeforeInvoiceDiscount - invoiceDiscount
       : null;
 
+  let vatTotal = 0n;
+  if (netTotal !== null) {
+    for (let i = 0; i < computedLines.length; i += 1) {
+      const rateNum = Number(asciiDigits(lines[i]?.vat_rate_pct || "0").trim() || "0");
+      const base = computedLines[i]?.lineNet ?? 0n;
+      if (Number.isFinite(rateNum) && rateNum > 0 && base > 0n) {
+        const bps = BigInt(Math.round(rateNum * 100));
+        const shareDiscount =
+          invoiceDiscount && netBeforeInvoiceDiscount > 0n
+            ? (invoiceDiscount * base) / netBeforeInvoiceDiscount
+            : 0n;
+        const netLine = base - shareDiscount;
+        vatTotal += (netLine * bps + 5000n) / 10000n;
+      }
+    }
+  }
+  const payableTotal = netTotal !== null ? netTotal + vatTotal : null;
+
   return {
     lines: computedLines,
     grossTotal,
@@ -147,6 +168,8 @@ export function computeCommercialTotals(
     invoiceDiscount,
     invoiceDiscountError,
     netTotal,
+    vatTotal,
+    payableTotal,
     hasGoods,
     hasService,
     hasLineErrors,

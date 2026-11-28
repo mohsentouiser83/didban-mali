@@ -1,6 +1,8 @@
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ClockCounterClockwiseIcon } from "@phosphor-icons/react";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
+import { TableColumnSelect } from "@/components/ui/table-column-select";
 import { Pagination } from "@/components/ui/pagination";
 import { Field } from "@/components/ui/field";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -17,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { useInventoryCardex, type InventoryCardexScope } from "@/hooks/use-inventory-cardex";
 import type { useInventoryOverview } from "@/hooks/use-inventory";
-import { hasInventoryInvoice, inventoryInvoicePath, inventoryTitle } from "@/lib/inventory";
+import { hasInventoryInvoice, inventoryInvoicePath, inventoryTitle, inventoryVoucherTitle } from "@/lib/inventory";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { Panel } from "./page-parts";
 
@@ -26,11 +28,9 @@ type InventoryOverview = ReturnType<typeof useInventoryOverview>;
 export function InventoryBalanceTable({
   view,
   onViewKardex,
-  filters,
 }: {
   view: InventoryOverview;
   onViewKardex?: (itemId?: string, warehouseId?: string) => void;
-  filters?: React.ReactNode;
 }) {
   return (
     <Panel
@@ -48,14 +48,31 @@ export function InventoryBalanceTable({
         )
       }
     >
-      {filters}
+      <div className="mb-4 max-w-xs">
+        <Field id="inventory-balance-as-of" label="تاریخ ارزیابی">
+          <PersianDatePicker id="inventory-balance-as-of" value={view.asOf} onChange={view.chooseAsOf} />
+        </Field>
+      </div>
       <Table aria-label="موجودی ثبت‌شده کالاها" title="موجودی ثبت‌شده کالاها">
         <TableHeader>
           <TableRow>
-            <TableHead>کالا</TableHead>
-            <TableHead>انبار</TableHead>
-            <TableHead>تعداد موجودی</TableHead>
-            <TableHead>ارزش موجودی (ریال)</TableHead>
+            <TableHead columnControl={
+              <TableColumnSelect columnTitle="کالا" value={view.itemId} onValueChange={view.chooseItem}
+                searchable unfilteredValue={view.all} options={[
+                  { value: view.all, label: "همه کالاها" },
+                  ...(view.inventory.data?.items ?? []).filter((item) => item.item_kind !== "service").map(({ id, name }) => ({ value: id, label: name })),
+                ]} />
+            }>کالا</TableHead>
+            <TableHead columnControl={
+              <TableColumnSelect columnTitle="انبار" value={view.warehouseId} onValueChange={view.chooseWarehouse}
+                searchable unfilteredValue={view.all} options={[
+                  { value: view.all, label: "همه انبارها" },
+                  ...(view.inventory.data?.warehouses ?? []).map(({ id, name }) => ({ value: id, label: name })),
+                ]} />
+            }>انبار</TableHead>
+            <TableHead numeric columnFilter={view.balanceColumnFilter("quantity")}>تعداد موجودی</TableHead>
+            <TableHead numeric columnFilter={view.balanceColumnFilter("value")}>ارزش موجودی (ریال)</TableHead>
+            <TableHead>تاریخ ارزیابی</TableHead>
             <TableHead>عملیات</TableHead>
           </TableRow>
         </TableHeader>
@@ -69,31 +86,32 @@ export function InventoryBalanceTable({
                 <TableCell>
                   {view.warehouseNames.get(row.warehouse_id) || "—"}
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell numeric className="font-medium">
                   {persian(row.quantity)} {view.itemUnits.get(row.item_id)}
                 </TableCell>
-                <TableCell className="whitespace-nowrap font-medium">
+                <TableCell numeric className="whitespace-nowrap font-medium">
                   {amount(row.value_irr)}
                 </TableCell>
+                <TableCell className="whitespace-nowrap text-xs text-muted">
+                  {displayDate(view.asOf)}
+                </TableCell>
                 <TableCell>
-                  {onViewKardex && (
-                    <Button
-                      variant="secondary"
-                      className="min-h-8 gap-1.5 px-2.5 py-1 text-xs"
-                      onClick={() =>
-                        onViewKardex(row.item_id, row.warehouse_id)
-                      }
+                  <TableRowActions label={`عملیات ${view.itemNames.get(row.item_id)}`}>
+                    {onViewKardex && (
+                    <TableRowAction
+                      onClick={() => onViewKardex(row.item_id, row.warehouse_id)}
+                      icon={<ClockCounterClockwiseIcon size={14} />}
                     >
-                      <ClockCounterClockwiseIcon size={14} />
                       کاردکس
-                    </Button>
+                    </TableRowAction>
                   )}
+                  </TableRowActions>
                 </TableCell>
               </TableRow>
             ))
           ) : (
             <TableEmptyCell
-              colSpan={5}
+              colSpan={6}
               title="موجودی ثبت‌شده‌ای در این دامنه نیست"
             />
           )}
@@ -147,13 +165,16 @@ export function InventoryKardexDrawer({ view, target, onClose }: {
                   <TableHead numeric>خروج</TableHead>
                   <TableHead numeric>ارزش گردش (ریال)</TableHead>
                   {target.itemId && <TableHead numeric>مانده تعداد</TableHead>}
-                  <TableHead>مرجع و عملیات</TableHead>
+                  <TableHead sortable={false} pinnable={false} filterable={false}>مرجع و عملیات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cardex.resource.data.rows.length ? cardex.resource.data.rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableRowHeader>{inventoryTitle[row.kind]}</TableRowHeader>
+                    <TableRowHeader>
+                      {row.kind === "adjustment" && row.voucher_kind
+                        ? inventoryVoucherTitle[row.voucher_kind] : inventoryTitle[row.kind]}
+                    </TableRowHeader>
                     <TableCell className="whitespace-nowrap">{displayDate(row.date)}</TableCell>
                     {!target.itemId && <TableCell>{row.item_name}</TableCell>}
                     {!target.warehouseId && <TableCell>{row.warehouse_name}</TableCell>}
@@ -163,14 +184,12 @@ export function InventoryKardexDrawer({ view, target, onClose }: {
                     {target.itemId && <TableCell numeric>{persian(row.balance_quantity)}</TableCell>}
                     <TableCell>
                       {row.source_reference && <bdi className="mb-1 block text-xs">{row.source_reference}</bdi>}
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="secondary" className="min-h-8 px-2.5 py-1 text-xs"
-                          onClick={() => view.journal.select(row.journal_id)}>سند نهایی</Button>
+                      <TableRowActions label={`عملیات ${(row.source_reference || view.itemNames.get(row.item_id) || "گردش انبار")}`}>
+                        <TableRowAction onClick={() => view.journal.select(row.journal_id)}>سند نهایی</TableRowAction>
                         {hasInventoryInvoice(row.kind) && (
-                          <ButtonLink variant="ghost" className="min-h-8 px-2.5 py-1 text-xs"
-                            href={inventoryInvoicePath(row.kind, row.operation_id)}>فاکتور</ButtonLink>
+                          <TableRowAction href={inventoryInvoicePath(row.kind, row.operation_id)}>فاکتور</TableRowAction>
                         )}
-                      </div>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 )) : (
@@ -236,25 +255,16 @@ export function InventoryMovementTable({
                   <bdi>{amount(row.value_irr)}</bdi>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => view.journal.select(row.journal_id)}
-                    >
-                      سند نهایی
-                    </Button>
+                  <TableRowActions label={`عملیات ${view.itemNames.get(row.item_id)}`}>
+                    <TableRowAction onClick={() => view.journal.select(row.journal_id)}>سند نهایی</TableRowAction>
                     {hasInventoryInvoice(row.kind) && (
-                      <ButtonLink
-                        variant="ghost"
-                        href={inventoryInvoicePath(
-                          row.kind,
-                          row.operation_id,
-                        )}
+                      <TableRowAction
+                        href={inventoryInvoicePath(row.kind, row.operation_id)}
                       >
                         فاکتور و تسویه
-                      </ButtonLink>
+                      </TableRowAction>
                     )}
-                  </div>
+                  </TableRowActions>
                 </TableCell>
               </TableRow>
             ))

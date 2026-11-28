@@ -1,12 +1,13 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { PageTransition } from "@/components/ui/page-transition";
 import { Select } from "@/components/ui/select";
 import { useWorkspace } from "@/hooks/workspace";
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation";
 import { SidebarNavigation } from "./sidebar-navigation";
+import { canViewPath, moduleAllows } from "@/lib/module-access";
 import { cn } from "@/lib/utils";
 import {
   BuildingsIcon,
@@ -31,6 +32,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     pathname === "/assistant" ||
     pathname.startsWith("/assistant/") ||
     pathname === "/chat";
+  const canViewPage = canViewPath(workspace.company, pathname);
   if (workspace.loading || (!workspace.user && !workspace.error))
     return (
       <main className="mx-auto max-w-6xl px-5 py-12 sm:px-7">
@@ -173,12 +175,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 isAssistant && "flex min-h-0 flex-1 flex-col overflow-hidden",
               )}
             >
-              {children}
+              {canViewPage ? children : <EmptyState title="دسترسی مشاهدهٔ این بخش را ندارید." />}
             </PageTransition>
           </div>
         </main>
       </div>
-      {!isAssistant && (
+      {!isAssistant && moduleAllows(workspace.company, "assistant", "view") && (
         <FloatingAssistant key={`assistant-${workspace.company?.id || "no-company"}`} />
       )}
       <Drawer title="دیدبان مالی" open={menuOpen} onOpenChange={setMenuOpen}>

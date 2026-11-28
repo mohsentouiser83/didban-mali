@@ -15,7 +15,8 @@ from . import models as m
 from .config import settings
 from .db import engine, transaction
 from .errors import DomainError, require
-from .security import authenticate, membership
+from .module_access import endpoint_access
+from .security import authenticate, membership, module_override
 from .workflow import (
     serialize_fact,
 )
@@ -71,7 +72,15 @@ def access(request: Request, company: str | None = None, operation: str = "read"
             db.execute(text("SELECT set_config('didban.user_id', :actor, true)"), {"actor": user.id})
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             check_csrf(request, session)
-        member = membership(db, company, user, operation) if company else None
+        route = request.scope.get("route")
+        scope = None
+        if route is not None and company:
+            router = route.endpoint.__module__.rsplit(".", 1)[-1]
+            scope = endpoint_access(router, route.name, request.method)
+        member = membership(db, company, user, operation, scope=scope) if company else None
+        if member and scope and scope[1] != "view" and module_override(member, scope) is True:
+            # Nested role checks apply to this request only; independent authority is checked separately.
+            db.info["authorized_module_write"] = (company, user.id)
         yield db, user, member
 
 

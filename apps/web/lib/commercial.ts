@@ -1,11 +1,18 @@
 export const counterpartyEntityKindOptions = [
   { value: "natural_person", label: "حقیقی" },
   { value: "legal_entity", label: "حقوقی" },
-  { value: "other", label: "سایر" },
+  { value: "partnership", label: "مشارکت" },
 ] as const;
 export type CounterpartyEntityKind = typeof counterpartyEntityKindOptions[number]["value"];
 export function counterpartyEntityKindLabel(kind?: string | null) {
-  return counterpartyEntityKindOptions.find((option) => option.value === kind)?.label ?? "سایر";
+  const value = kind === "other" ? "partnership" : kind;
+  return counterpartyEntityKindOptions.find((option) => option.value === value)?.label ?? "—";
+}
+
+export function counterpartyNationalIdLabel(kind?: string | null) {
+  if (kind === "natural_person") return "کد ملی";
+  if (kind === "legal_entity") return "شناسه ملی";
+  return "شناسه ملی ثبت‌شده";
 }
 
 export const counterpartyTypeOptions = [
@@ -43,7 +50,7 @@ export type Counterparty = Omit<
   id: string;
   code: string;
   version: number;
-  entity_kind?: CounterpartyEntityKind;
+  entity_kind?: CounterpartyEntityKind | "other";
   roles?: CounterpartyType[];
   national_id: string | null;
   economic_code: string | null;
@@ -54,6 +61,55 @@ export type Counterparty = Omit<
   address: string | null;
   credit_limit_irr: string | null;
 };
+
+export function counterpartyFormKind(row?: Counterparty): CounterpartyEntityKind {
+  if (!row) return "natural_person";
+  if (row.entity_kind === "other") return "partnership";
+  return row.entity_kind ?? "partnership";
+}
+
+export function counterpartyForm(row?: Counterparty): CounterpartyForm {
+  const roles = row?.roles?.length ? row.roles : (row?.type ? [row.type] : []);
+  return {
+    name: row?.name ?? "",
+    type: row?.type ?? "",
+    entity_kind: counterpartyFormKind(row),
+    roles,
+    national_id: row?.national_id ?? "",
+    economic_code: row?.economic_code ?? "",
+    registration_number: row?.registration_number ?? "",
+    postal_code: row?.postal_code ?? "",
+    email: row?.email ?? "",
+    phone: row?.phone ?? "",
+    address: row?.address ?? "",
+    credit_limit_irr: row?.credit_limit_irr ?? "",
+    active: row?.active ?? true,
+  };
+}
+
+export function normalizeCounterpartyPayload(form: CounterpartyForm, row?: Counterparty) {
+  const { entity_kind, national_id, economic_code, ...fields } = form;
+  const roles = fields.roles.length ? fields.roles : (fields.type ? [fields.type] : []);
+  const type = fields.type || (roles.length === 1 ? roles[0] : "other");
+  const kindChanged = !row || entity_kind !== counterpartyFormKind(row);
+  const nationalId = entity_kind === "partnership" ? null : national_id.trim() || null;
+  const economicCode = economic_code.trim() || null;
+  return {
+    ...fields,
+    type,
+    roles,
+    name: fields.name.trim(),
+    ...(kindChanged ? { entity_kind, national_id: nationalId } : {}),
+    ...(!kindChanged && entity_kind !== "partnership" && nationalId !== row?.national_id ? { national_id: nationalId } : {}),
+    ...(!row || economicCode !== row.economic_code ? { economic_code: economicCode } : {}),
+    registration_number: fields.registration_number.trim() || null,
+    postal_code: fields.postal_code.trim() || null,
+    email: fields.email.trim() || null,
+    phone: fields.phone.trim() || null,
+    address: fields.address.trim() || null,
+    credit_limit_irr: fields.credit_limit_irr || null,
+  };
+}
 
 export interface ProformaLineForm {
   key: number;

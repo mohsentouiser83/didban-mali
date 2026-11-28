@@ -106,8 +106,8 @@ def trade_env(db_session):
         "svc_exp": mk_acc("5102", "هزینه خدمات", "expense"),
     }
     wh = add_warehouse(db, cid, user, {"name": "انبار مرکزی"})
-    item_a = add_item(db, cid, user, {"name": "کالای الف", "inventory_account_id": accs["inv"].id, "base_unit": "بسته"})
-    item_b = add_item(db, cid, user, {"name": "کالای ب", "inventory_account_id": accs["inv"].id, "base_unit": "دستگاه"})
+    item_a = add_item(db, cid, user, {"name": "کالای الف", "base_unit": "بسته"})
+    item_b = add_item(db, cid, user, {"name": "کالای ب", "base_unit": "دستگاه"})
     customer = add_counterparty(
         db,
         cid,
@@ -537,3 +537,254 @@ def test_purchase_return_d29_and_nrv_assessment(trade_env, db_session):
     rlines = rec_draft_res["draft"]["lines"]
     assert rlines[0]["account_id"] == nrv_allow["id"] and rlines[0]["debit"] == "1500"
     assert rlines[1]["account_id"] == nrv_rec["id"] and rlines[1]["credit"] == "1500"
+
+
+def test_acc06_commercial_replacement_compatibility(trade_env, db_session):
+    """ACC-06: service-only multi-line mixed commercial replacement is adoptable; goods-bearing or mismatched journals are rejected."""
+    from didban.errors import DomainError
+    from didban.native_invoice_revisions import adopt, candidates
+    from didban.posting_service import create_replacement, create_reversal
+
+    db = db_session
+    cid = trade_env["company_id"]
+    u = trade_env["user"]
+    p = trade_env["period"]
+    accs = trade_env["accs"]
+    customer = trade_env["customer"]
+    wh = trade_env["wh"]
+    item_a = trade_env["item_a"]
+    today = date.today()
+
+    # 1) Service-only multi-line mixed commercial sale (cash 400 + on_account 600 = 1000)
+    srv = create_commercial_document_draft(
+        db,
+        cid,
+        u,
+        {
+            "direction": "sale",
+            "period_id": p.id,
+            "issue_date": today,
+            "party_id": customer["id"],
+            "currency": "IRR",
+            "settlement_type": "mixed",
+            "cash_amount": "400",
+            "cheque_amount": "0",
+            "on_account_amount": "600",
+            "cash_account_id": accs["cash"].id,
+            "counterparty_account_id": accs["ar"].id,
+            "service_revenue_account_id": accs["sales"].id,
+            "lines": [
+                {"line_kind": "service", "description": "خدمات ۱", "quantity": 1, "unit_price": "700"},
+                {"line_kind": "service", "description": "خدمات ۲", "quantity": 1, "unit_price": "300"},
+            ],
+        },
+    )
+    from didban.commercial_doc_service import get_document
+
+    _post(db, cid, u, srv)
+    posted_srv = get_document(db, cid, u, srv["document"]["id"])
+    orig_journal_id = posted_srv["journal_id"]
+    ni_id = posted_srv["native_invoice_id"]
+    assert ni_id is not None and orig_journal_id is not None
+
+    # Reverse and prepare a replacement journal with matching on_account trade line
+    rev_draft = create_reversal(db, cid, u, orig_journal_id, {"date": today, "period_id": p.id, "reason": "اصلاح حساب"})
+    _post(db, cid, u, {"draft": rev_draft})
+    rep_draft = create_replacement(
+        db,
+        cid,
+        u,
+        orig_journal_id,
+        {
+            "period_id": p.id,
+            "date": today,
+            "unit": "IRR",
+            "description": "سند جایگزین خدماتی",
+            "reason": "جایگزینی حساب خدمات",
+            "lines": [
+                {"account_id": accs["cash"].id, "party_id": customer["id"], "debit": "400", "credit": "0"},
+                {"account_id": accs["ar"].id, "party_id": customer["id"], "debit": "600", "credit": "0"},
+                {"account_id": accs["sales"].id, "party_id": customer["id"], "debit": "0", "credit": "1000"},
+            ],
+        },
+    )
+    from sqlalchemy import select
+
+    from didban.posting_models import NativeJournal
+
+    _post(db, cid, u, {"draft": rep_draft})
+    rep_journal_id = db.scalar(select(NativeJournal.id).where(NativeJournal.draft_id == rep_draft["id"]))
+    assert rep_journal_id is not None
+
+    cands = candidates(db, cid, u, ni_id)["items"]
+    cand = next((c for c in cands if c["journal_id"] == rep_journal_id and c["amount"] == "600"), None)
+    assert cand is not None
+    adopted = adopt(
+        db,
+        cid,
+        u,
+        ni_id,
+        {
+            "journal_id": rep_journal_id,
+            "journal_digest": cand["journal_digest"],
+            "approved_draft_version": cand["approved_draft_version"],
+            "reason": "جایگزینی سند خدماتی",
+        },
+        1,
+    )
+    assert adopted["source"]["journal_id"] == rep_journal_id
+
+    # 2) Goods-bearing commercial purchase cannot be replaced via manual replacement journal without inventory movement
+    goods_pur = create_commercial_document_draft(
+        db,
+        cid,
+        u,
+        {
+            "direction": "purchase",
+            "period_id": p.id,
+            "issue_date": today,
+            "party_id": trade_env["supplier"]["id"],
+            "warehouse_id": wh["id"],
+            "currency": "IRR",
+            "counterparty_account_id": accs["ap"].id,
+            "lines": [{"line_kind": "goods", "item_id": item_a["id"], "description": "کالا", "quantity": 1, "unit_price": "5000"}],
+        },
+    )
+    _post(db, cid, u, goods_pur)
+    g_journal_id = get_document(db, cid, u, goods_pur["document"]["id"])["journal_id"]
+    g_rev_draft = create_reversal(db, cid, u, g_journal_id, {"date": today, "period_id": p.id, "reason": "برگشت کالا"})
+    _post(db, cid, u, {"draft": g_rev_draft})
+    with pytest.raises(DomainError) as exc:
+        create_replacement(
+            db,
+            cid,
+            u,
+            g_journal_id,
+            {
+                "period_id": p.id,
+                "date": today,
+                "unit": "IRR",
+                "description": "تلاش جایگزینی کالا",
+                "reason": "تلاش غیرمجاز",
+                "lines": [
+                    {"account_id": accs["inv"].id, "party_id": trade_env["supplier"]["id"], "debit": "5000", "credit": "0"},
+                    {"account_id": accs["ap"].id, "party_id": trade_env["supplier"]["id"], "debit": "0", "credit": "5000"},
+                ],
+            },
+        )
+    assert exc.value.code == "inventory_replacement_required"
+
+
+def test_d38_vat_in_sale_purchase_and_returns(trade_env, db_session):
+    """D38: per-line VAT rate, exact integer IRR rounding, separate sale/purchase VAT accounts, and proportional VAT return."""
+    from didban.accounting_models import Account
+    from didban.commercial_doc_service import create_commercial_return_draft, get_document
+    from didban.errors import DomainError
+    from didban.native_reporting_service import save_role
+
+    db = db_session
+    cid = trade_env["company_id"]
+    u = trade_env["user"]
+    p = trade_env["period"]
+    accs = trade_env["accs"]
+    customer = trade_env["customer"]
+    supplier = trade_env["supplier"]
+    today = date.today()
+
+    vat_sale_acc = Account(company_id=cid, code="2051", name="مالیات بر ارزش افزوده فروش")
+    vat_pur_acc = Account(company_id=cid, code="1051", name="مالیات بر ارزش افزوده خرید")
+    db.add_all([vat_sale_acc, vat_pur_acc])
+    db.commit()
+
+    # Without VAT account role/explicit ID, nonzero VAT must fail clearly
+    with pytest.raises(DomainError) as missing_exc:
+        create_commercial_document_draft(
+            db,
+            cid,
+            u,
+            {
+                "direction": "sale",
+                "period_id": p.id,
+                "issue_date": today,
+                "party_id": customer["id"],
+                "currency": "IRR",
+                "counterparty_account_id": accs["ar"].id,
+                "service_revenue_account_id": accs["sales"].id,
+                "lines": [{"line_kind": "service", "description": "خدمت مشمول", "quantity": 1, "unit_price": "10000", "vat_rate_pct": "10"}],
+            },
+        )
+    assert missing_exc.value.code == "vat_account_missing"
+
+    save_role(db, cid, u, vat_sale_acc.id, "vat_sale_payable", 1)
+    save_role(db, cid, u, vat_pur_acc.id, "vat_purchase_receivable", 1)
+
+    # 1) Sale with 10% VAT on line 1 (10,000 -> 1,000 VAT) and 0% on line 2 (5,000 -> 0 VAT) => payable 16,000
+    sale = create_commercial_document_draft(
+        db,
+        cid,
+        u,
+        {
+            "direction": "sale",
+            "period_id": p.id,
+            "issue_date": today,
+            "party_id": customer["id"],
+            "currency": "IRR",
+            "settlement_type": "mixed",
+            "cash_amount": "6000",
+            "cheque_amount": "0",
+            "on_account_amount": "10000",
+            "cash_account_id": accs["cash"].id,
+            "counterparty_account_id": accs["ar"].id,
+            "service_revenue_account_id": accs["sales"].id,
+            "lines": [
+                {"line_kind": "service", "description": "خدمت مشمول", "quantity": 2, "unit_price": "5000", "vat_rate_pct": "10"},
+                {"line_kind": "service", "description": "خدمت معاف", "quantity": 1, "unit_price": "5000", "vat_rate_pct": "0"},
+            ],
+        },
+    )
+    assert sale["document"]["net_amount_irr"] == "15000"
+    assert sale["document"]["vat_total_irr"] == "1000"
+    assert any(line["account_id"] == vat_sale_acc.id and line["credit"] == "1000" for line in sale["draft"]["lines"])
+    _post(db, cid, u, sale)
+    posted_sale = get_document(db, cid, u, sale["document"]["id"])
+    assert posted_sale["open_balance_irr"] == "10000"
+
+    # Partial return of 1 unit from line 1: net 5,000 + VAT 500 = 5,500 total return
+    ret = create_commercial_return_draft(
+        db,
+        cid,
+        u,
+        posted_sale["id"],
+        {
+            "period_id": p.id,
+            "date": today,
+            "reason": "برگشت نیمی از خدمت مشمول",
+            "counterparty_account_id": accs["ar"].id,
+            "return_account_id": accs["sales"].id,
+            "lines": [{"document_line_id": posted_sale["lines"][0]["id"], "quantity": 1, "condition": "healthy"}],
+        },
+    )
+    assert ret["return"]["vat_total_irr"] == "500"
+    assert ret["return"]["total_return_amount_irr"] == "5500"
+    assert any(line["account_id"] == vat_sale_acc.id and line["debit"] == "500" for line in ret["draft"]["lines"])
+    _post(db, cid, u, ret)
+
+    # 2) Purchase with 10% VAT (20,000 + 2,000 VAT = 22,000 AP)
+    pur = create_commercial_document_draft(
+        db,
+        cid,
+        u,
+        {
+            "direction": "purchase",
+            "period_id": p.id,
+            "issue_date": today,
+            "party_id": supplier["id"],
+            "currency": "IRR",
+            "counterparty_account_id": accs["ap"].id,
+            "expense_account_id": accs["cogs"].id,
+            "lines": [{"line_kind": "service", "description": "خدمت خرید", "quantity": 1, "unit_price": "20000", "vat_rate_pct": "10"}],
+        },
+    )
+    assert pur["document"]["vat_total_irr"] == "2000"
+    assert any(line["account_id"] == vat_pur_acc.id and line["debit"] == "2000" for line in pur["draft"]["lines"])
+    assert any(line["account_id"] == accs["ap"].id and line["credit"] == "22000" for line in pur["draft"]["lines"])

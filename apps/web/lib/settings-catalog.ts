@@ -5,6 +5,7 @@ import {
   FilesIcon,
   CalendarBlankIcon,
   HashIcon,
+  RulerIcon,
   UsersThreeIcon,
   type Icon,
 } from "@phosphor-icons/react";
@@ -28,7 +29,6 @@ export interface SettingsDestination {
 export interface SettingsCategory {
   key: string;
   title: string;
-  description: string;
   icon: Icon;
   hub?: string;
   standalone?: boolean;
@@ -54,7 +54,6 @@ export const settingsCatalog: SettingsCategory[] = [
   {
     key: "accounting",
     title: "تعاریف مالی و حسابداری",
-    description: "کدینگ سرفصل‌ها، حساب‌های خزانه، طرف‌حساب‌ها، دوره‌های مالی، پروژه، شعبه و مرکز هزینه و شماره‌گذاری",
     icon: BooksIcon,
     hub: "/settings/accounting",
     items: [
@@ -80,7 +79,7 @@ export const settingsCatalog: SettingsCategory[] = [
         key: "treasury",
         href: "/settings/treasury",
         label: "حساب‌های خزانه",
-        description: "مدیریت حساب‌های بانکی، صندوق‌ها و تنخواه‌گردان‌ها",
+        description: "حساب‌های بانکی، صندوق‌ها، تنخواه و کارت‌خوان‌ها",
         icon: BankIcon,
         permission: "company",
         keywords: [
@@ -142,6 +141,14 @@ export const settingsCatalog: SettingsCategory[] = [
         ],
       },
       {
+        key: "inventory-units",
+        href: "/settings/inventory-units",
+        label: "واحدهای کالا",
+        icon: RulerIcon,
+        permission: "company",
+        keywords: ["واحد کالا", "واحد پایه", "واحد سنجش", "انبار"],
+      },
+      {
         key: "numbering",
         href: "/settings/numbering",
         label: "شماره‌گذاری",
@@ -165,7 +172,6 @@ export const settingsCatalog: SettingsCategory[] = [
   {
     key: "company-access",
     title: "شرکت و دسترسی",
-    description: "مدیریت کاربران، مجوزها و اطلاعات شرکت",
     icon: BuildingsIcon,
     hub: "/settings/company-access",
     items: [
@@ -200,7 +206,6 @@ export const settingsCatalog: SettingsCategory[] = [
   {
     key: "documents",
     title: "فایل‌ها و مدارک",
-    description: "فایل‌های پردازش، ورودی جداول و کدینگ و مدارک بات",
     icon: FilesIcon,
     standalone: true,
     items: [

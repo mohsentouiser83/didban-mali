@@ -73,9 +73,6 @@ export function GroupPreviewReview({ view, ledgerLabel = "جمع دفتر (ری�
           </div>
         </div>
       )}
-      <StatusMessage>
-        انتخاب دستی و برابری مبلغ، ارتباط تراکنش‌ها را ثابت نمی‌کند؛ دلیل بررسی لازم است.
-      </StatusMessage>
       {item.snapshot.reason_codes.includes("date_mismatch") && (
         <StatusMessage>تاریخ ثبت‌های انتخابی یکسان نیست.</StatusMessage>
       )}

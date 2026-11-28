@@ -10,14 +10,12 @@ const mockSteps: OnboardingStep[] = [
   {
     id: "step-1",
     title: "تعریف انبار اصلی",
-    description: "برای نگهداری کالاها، انبار مرکزی خود را ثبت کنید.",
     status: "completed",
     onClick: onStep1,
   },
   {
     id: "step-2",
     title: "ثبت موجودی اولیه",
-    description: "تعداد و بهای تمام‌شده کالاهای موجود را وارد نمایید.",
     status: "active",
     ctaText: "ثبت موجودی اولیه",
     onClick: onStep2,
@@ -25,19 +23,16 @@ const mockSteps: OnboardingStep[] = [
   {
     id: "step-3",
     title: "صدور اولین حواله یا فاکتور",
-    description: "اولین گردش خروج کالا را در سیستم ایجاد کنید.",
     status: "pending",
     onClick: onStep3,
   },
 ];
 
 describe("SmartEmptyState", () => {
-  it("renders friendly title, description, and onboarding step cards", () => {
+  it("renders the title and onboarding step cards", () => {
     render(
       <SmartEmptyState
         title="انبار هنوز راه‌اندازی نشده است"
-        description="برای شروع فرآیند انبارداری، مراحل زیر را طی کنید:"
-        badgeText="شروع سریع انبارداری"
         steps={mockSteps}
       />,
     );
@@ -45,10 +40,6 @@ describe("SmartEmptyState", () => {
     expect(
       screen.getByRole("heading", { name: "انبار هنوز راه‌اندازی نشده است" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("برای شروع فرآیند انبارداری، مراحل زیر را طی کنید:"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("شروع سریع انبارداری")).toBeInTheDocument();
 
     expect(screen.getByText("تعریف انبار اصلی")).toBeInTheDocument();
     expect(screen.getByText("صدور اولین حواله یا فاکتور")).toBeInTheDocument();

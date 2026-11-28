@@ -22,7 +22,7 @@ engine = create_engine(
     else {},
     pool_pre_ping=True,
 )
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 6
 SCHEMA_LOCK = 2026110101
 SCHEMA_TABLE_DDL = "CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)"
 IMMUTABLE = (
@@ -239,7 +239,7 @@ def initialize() -> None:
 
 
 def migrate_schema() -> None:
-    """Apply the supported legacy-to-v2 upgrade in a single transaction."""
+    """Apply the supported upgrade to the current schema in a single transaction."""
     _prepare_schema(upgrade=True)
 
 
@@ -277,11 +277,15 @@ def _prepare_schema(*, upgrade: bool) -> None:
         if version == SCHEMA_VERSION:
             require_current_schema(conn, Base.metadata)
             return
-        if installed and (not upgrade or version not in (None, 1)):
+        if installed and (not upgrade or version not in (None, 1, 2, 3, 4)):
             raise RuntimeError(
                 f"Database schema version {version if version is not None else 'untracked'} is incompatible "
                 f"with version {SCHEMA_VERSION}. Run python -m didban.migrate before starting."
             )
+        if inspector.has_table("memberships") and not any(
+            column["name"] == "module_access" for column in inspector.get_columns("memberships")
+        ):
+            conn.execute(text("ALTER TABLE memberships ADD COLUMN module_access JSON NOT NULL DEFAULT '{}'"))
         # Additive company-qualified key required by accounting permission references.
         if inspect(conn).has_table("memberships"):
             conn.execute(
@@ -566,6 +570,7 @@ def _prepare_schema(*, upgrade: bool) -> None:
                 conn.execute(text("ALTER TABLE users ADD COLUMN avatar TEXT"))
         if inspect(conn).has_table("accounting_account_hierarchy"):
             from .account_catalogue_service import is_code_pattern_valid
+            from .accounting_models import ACCOUNT_HIERARCHY_PARENT_CHECK
 
             cols = {c["name"] for c in inspect(conn).get_columns("accounting_account_hierarchy")}
             if engine.dialect.name == "sqlite":
@@ -576,7 +581,8 @@ def _prepare_schema(*, upgrade: bool) -> None:
                 ).scalar()
                 needs_shift = bool(ddl and "'group'" not in ddl)
                 needs_status = "code_status" not in cols or bool(ddl and "account_hierarchy_code_status" not in ddl)
-                if needs_shift or needs_status:
+                needs_floating = bool(ddl and "account_hierarchy_parent_by_level" not in ddl)
+                if needs_shift or needs_status or needs_floating:
                     conn.execute(
                         text(
                             "CREATE TABLE accounting_account_hierarchy_new ("
@@ -586,7 +592,7 @@ def _prepare_schema(*, upgrade: bool) -> None:
                             "parent_id VARCHAR(36), "
                             "code_status VARCHAR(20) NOT NULL DEFAULT 'standard', "
                             "CONSTRAINT account_hierarchy_level CHECK (level IN ('group', 'general', 'subsidiary', 'detail')), "
-                            "CONSTRAINT account_hierarchy_parent CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL)), "
+                            f"CONSTRAINT account_hierarchy_parent_by_level CHECK ({ACCOUNT_HIERARCHY_PARENT_CHECK}), "
                             "CONSTRAINT account_hierarchy_no_self_parent CHECK (parent_id IS NULL OR parent_id != account_id), "
                             "CONSTRAINT account_hierarchy_code_status CHECK (code_status IN ('standard', 'legacy')), "
                             "FOREIGN KEY(company_id, account_id) REFERENCES accounting_accounts (company_id, id), "
@@ -632,23 +638,24 @@ def _prepare_schema(*, upgrade: bool) -> None:
                             "ON accounting_account_hierarchy (parent_id)"
                         )
                     )
-                    rows = conn.execute(
-                        text(
-                            "SELECT h.company_id, h.account_id, h.level, a.code, p.code "
-                            "FROM accounting_account_hierarchy h "
-                            "JOIN accounting_accounts a ON a.company_id = h.company_id AND a.id = h.account_id "
-                            "LEFT JOIN accounting_accounts p ON p.company_id = h.company_id AND p.id = h.parent_id"
-                        )
-                    ).all()
-                    for cid, aid, lvl, acode, pcode in rows:
-                        status = "standard" if is_code_pattern_valid(acode, lvl, pcode) else "legacy"
-                        conn.execute(
+                    if needs_shift or needs_status:
+                        rows = conn.execute(
                             text(
-                                "UPDATE accounting_account_hierarchy SET code_status = :status "
-                                "WHERE company_id = :company AND account_id = :aid"
-                            ),
-                            {"status": status, "company": cid, "aid": aid},
-                        )
+                                "SELECT h.company_id, h.account_id, h.level, a.code, p.code "
+                                "FROM accounting_account_hierarchy h "
+                                "JOIN accounting_accounts a ON a.company_id = h.company_id AND a.id = h.account_id "
+                                "LEFT JOIN accounting_accounts p ON p.company_id = h.company_id AND p.id = h.parent_id"
+                            )
+                        ).all()
+                        for cid, aid, lvl, acode, pcode in rows:
+                            status = "standard" if is_code_pattern_valid(acode, lvl, pcode) else "legacy"
+                            conn.execute(
+                                text(
+                                    "UPDATE accounting_account_hierarchy SET code_status = :status "
+                                    "WHERE company_id = :company AND account_id = :aid"
+                                ),
+                                {"status": status, "company": cid, "aid": aid},
+                            )
             else:
                 constraints = {
                     c["name"]: c.get("sqltext", "")
@@ -718,11 +725,14 @@ def _prepare_schema(*, upgrade: bool) -> None:
                                     {"status": status, "company": cid, "aid": aid},
                                 )
                         conn.execute(text("SELECT set_config('didban.company_id', '', true)"))
-                if needs_shift:
+                if "account_hierarchy_parent_by_level" not in constraints:
+                    conn.execute(
+                        text("ALTER TABLE accounting_account_hierarchy DROP CONSTRAINT IF EXISTS account_hierarchy_parent")
+                    )
                     conn.execute(
                         text(
-                            "ALTER TABLE accounting_account_hierarchy ADD CONSTRAINT account_hierarchy_parent "
-                            "CHECK ((level = 'group' AND parent_id IS NULL) OR (level != 'group' AND parent_id IS NOT NULL))"
+                            "ALTER TABLE accounting_account_hierarchy ADD CONSTRAINT account_hierarchy_parent_by_level "
+                            f"CHECK ({ACCOUNT_HIERARCHY_PARENT_CHECK})"
                         )
                     )
                 if "account_hierarchy_code_status" not in constraints:
@@ -902,6 +912,7 @@ def _prepare_schema(*, upgrade: bool) -> None:
                     )
                 )
         _upgrade_commercial_line_net(conn)
+        _upgrade_commercial_vat(conn)
         Base.metadata.create_all(conn)
         _backfill_phase2_data(conn, engine.dialect.name)
         require_current_schema(conn, Base.metadata)
@@ -929,6 +940,22 @@ def _prepare_schema(*, upgrade: bool) -> None:
             ),
             {"version": SCHEMA_VERSION},
         )
+
+
+def _upgrade_commercial_vat(conn: Connection) -> None:
+    inspector = inspect(conn)
+    dialect = conn.dialect.name
+    if inspector.has_table("commercial_documents"):
+        _ensure_money_column(conn, dialect, "commercial_documents", "vat_total_irr", "0", nullable=False)
+    if inspector.has_table("commercial_document_lines"):
+        cols = {c["name"] for c in inspector.get_columns("commercial_document_lines")}
+        if "vat_rate_pct" not in cols:
+            conn.execute(text("ALTER TABLE commercial_document_lines ADD COLUMN vat_rate_pct VARCHAR(20) NOT NULL DEFAULT '0'"))
+        _ensure_money_column(conn, dialect, "commercial_document_lines", "vat_amount_irr", "0", nullable=False)
+    if inspector.has_table("commercial_returns"):
+        _ensure_money_column(conn, dialect, "commercial_returns", "vat_total_irr", "0", nullable=False)
+    if inspector.has_table("commercial_return_lines"):
+        _ensure_money_column(conn, dialect, "commercial_return_lines", "vat_amount_irr", "0", nullable=False)
 
 
 def _upgrade_commercial_line_net(conn: Connection) -> None:

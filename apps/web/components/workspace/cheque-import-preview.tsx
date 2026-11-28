@@ -15,6 +15,7 @@ export function ChequeImportPreview({ c }: { c: ChequeController }) {
       title="پیش‌نمایش ورود چک‌ها"
       footer={(
         <Button
+          className="w-full"
           onClick={() => void c.confirmImport()}
           busy={c.importBusy}
           disabled={!preview?.rows.length || preview.rows.some((row) => !row.valid)}
@@ -24,7 +25,7 @@ export function ChequeImportPreview({ c }: { c: ChequeController }) {
       )}
     >
       {preview?.headerError ? <FormMessage error>{preview.headerError}</FormMessage> : (
-        <Table showSearch={false}>
+        <Table>
           <TableHeader>
             <TableRow><TableHead>ردیف</TableHead><TableHead>چک</TableHead><TableHead>نتیجه بررسی</TableHead></TableRow>
           </TableHeader>

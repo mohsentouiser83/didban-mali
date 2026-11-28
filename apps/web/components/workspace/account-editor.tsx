@@ -2,7 +2,7 @@
 import { PlusIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ErrorState, StatusMessage } from "@/components/ui/content-states";
+import { ErrorState } from "@/components/ui/content-states";
 import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/account-catalogue";
 import { ACCOUNT_NATURE_OPTIONS, type AccountNature } from "@/lib/accounting";
 import type { useLedgerAccounts } from "@/hooks/use-ledger-accounts";
+import { AccountDetailTargets } from "./account-detail-targets";
 
 type Controller = ReturnType<typeof useLedgerAccounts>;
 export function AccountEditor({ view, editable }: { view: Controller; editable: boolean }) {
@@ -35,7 +36,7 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
         <Select id="ledger-level" value={view.value.level} options={ACCOUNT_LEVEL_OPTIONS} disabled={disabled}
           onValueChange={(level) => view.change({ level: level as AccountLevel })} />
       </Field>
-      {view.parentLevel && (
+      {view.needsParent && (
         <Field id="ledger-parent" name="parent_id" label={view.parentLabel} required>
           <Select id="ledger-parent" value={view.value.parent_id} options={view.parentOptions}
             searchable searchPlaceholder="جستجوی حساب بالادست..."
@@ -44,16 +45,22 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
             onValueChange={(parent_id) => view.change({ parent_id })} />
         </Field>
       )}
-      {view.catalogue.error && view.parentLevel && <ErrorState message={view.catalogue.error.message} onRetry={view.catalogue.refresh} />}
+      {view.value.level === "detail" && (
+        <AccountDetailTargets
+          options={view.detailTargetOptions}
+          targets={view.detailTargets}
+          disabled={disabled || view.catalogue.loading || !!view.catalogue.error}
+          onAdd={view.addDetailTarget}
+          onRemove={view.removeDetailTarget}
+        />
+      )}
+      {view.catalogue.error && (view.needsParent || view.value.level === "detail") && (
+        <ErrorState message={view.catalogue.error.message} onRetry={view.catalogue.refresh} />
+      )}
       <Field
         id="ledger-code"
         name="code"
         label="کد حساب"
-        description={
-          view.editing?.code_status === "legacy"
-            ? "این حساب دارای کد قدیمی پیش از ساختار چهارسطحی است؛ کد آن ثابت می‌ماند و سایر مشخصات قابل ویرایش‌اند."
-            : view.codeHint || undefined
-        }
         required
       >
         <div className="space-y-2">
@@ -81,7 +88,7 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
                 onClick={() => view.openChild(view.editing!)}
               >
                 <PlusIcon size={14} aria-hidden />
-                افزودن زیرحساب ({accountLevelLabel(childLevel)})
+                {childLevel === "detail" ? "افزودن تفصیلی شناور" : `افزودن زیرحساب (${accountLevelLabel(childLevel)})`}
               </Button>
             </div>
           )}
@@ -99,7 +106,6 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
         id="ledger-role"
         name="role"
         label="نقش حساب"
-        description="شامل نقش‌های خزانه، مطالبات/بدهی، درآمد/هزینه، حقوق و حساب‌های کاهش ارزش موجودی (D35)."
       >
         <Select
           id="ledger-role"
@@ -115,11 +121,6 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
       </Field>
       <Checkbox id="ledger-active" label="حساب فعال" checked={view.value.active} disabled={disabled}
         onCheckedChange={(active) => view.change({ active })} />
-      {view.editing && !view.value.active && (
-        <StatusMessage tone="warning">
-          با غیرفعالسازی این حساب، سابقهٔ اسناد و گزارش‌های پیشین حفظ می‌شود، اما امکان انتخاب این حساب در اسناد و عملیات جدید وجود نخواهد داشت.
-        </StatusMessage>
-      )}
       <FormMessage error>{view.command.error?.message}</FormMessage>
       {editable && <Button type="submit" busy={view.command.busy}>ذخیره حساب</Button>}
     </Form>

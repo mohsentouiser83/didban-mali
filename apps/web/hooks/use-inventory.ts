@@ -10,12 +10,13 @@ import type {
   InventoryItemKind,
   InventoryOperation,
   InventoryState,
+  InventoryUnits,
   InventoryWarehouse,
 } from "@/lib/inventory";
 import { previewInventoryCatalogue, type InventoryImportRow } from "@/lib/inventory-import";
-import { inventoryTitle } from "@/lib/inventory";
+import { inventoryTitle, inventoryUnitsPath } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
-import { asciiDigits, persian } from "@/lib/utils";
+import { amount, asciiDigits, persian } from "@/lib/utils";
 import type { ParsedTableImport } from "@/components/ui/table";
 import { toast } from "sonner";
 import { useAccountOptions } from "./use-accounting";
@@ -23,6 +24,8 @@ import { useCommand } from "./use-command";
 import { useNativeJournal } from "./use-native-journal";
 import { usePosting } from "./use-posting";
 import { useResource } from "./use-resource";
+import { useTableColumnFilters } from "./use-table-column-filters";
+import { useItemWarehouses } from "./use-item-warehouses";
 import { useWorkspace } from "./workspace";
 
 const base = "accounting/inventory";
@@ -79,7 +82,11 @@ export function useInventoryOverview(initialWarehouse = all) {
   const filter = (row: { item_id: string; warehouse_id: string }) =>
     (itemId === all || row.item_id === itemId) &&
     (warehouseId === all || row.warehouse_id === warehouseId);
-  const balances = (data?.balances ?? []).filter(filter);
+  const balanceFilters = useTableColumnFilters((data?.balances ?? []).filter(filter), {
+    quantity: (row) => `${persian(row.quantity)} ${itemUnits.get(row.item_id) ?? ""}`.trim(),
+    value: (row) => amount(row.value_irr),
+  });
+  const balances = balanceFilters.rows;
   const movements = (data?.movements ?? []).filter(filter);
   const pageSize = 25;
   const balanceIndex = Math.min(balancePage, Math.max(0, Math.ceil(balances.length / pageSize) - 1));
@@ -114,14 +121,9 @@ export function useInventoryOverview(initialWarehouse = all) {
       setItemId(value);
       resetPages();
     },
-    resetFilters: () => {
-      setWarehouseId(all);
-      setItemId(all);
-      setAsOf(tehranToday());
-      resetPages();
-    },
     balances: balances.slice(balanceIndex * pageSize, (balanceIndex + 1) * pageSize),
     movements: movements.slice(movementIndex * pageSize, (movementIndex + 1) * pageSize),
+    balanceColumnFilter: (key: Parameters<typeof balanceFilters.bind>[0]) => balanceFilters.bind(key, () => setBalancePage(0)),
     balancePagination: {
       page: balanceIndex,
       total: balances.length,
@@ -147,7 +149,8 @@ export function useInventoryOverview(initialWarehouse = all) {
 
 export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const { workspace, inventory } = useInventoryResource();
-  const accounts = useInventoryAccounts();
+  const isItem = entity === "items";
+  const units = useResource<InventoryUnits>(isItem ? workspace.companyPath(inventoryUnitsPath) : null);
   const command = useCommand();
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
@@ -155,36 +158,28 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
   const [deleting, setDeleting] = useState<InventoryItem | InventoryWarehouse>();
   const [importRows, setImportRows] = useState<InventoryImportRow[] | null>(null);
   const [importBusy, setImportBusy] = useState(false);
-  const [value, setValue] = useState({ name: "", inventory_account_id: "", base_unit: "عدد", item_kind: "goods" as InventoryItemKind, active: true });
+  const [value, setValue] = useState({ name: "", base_unit: "عدد", item_kind: "goods" as InventoryItemKind, active: true });
   const data = inventory.data;
-  const isItem = entity === "items";
   const label = isItem ? "کالا" : "انبار";
+  const itemWarehouses = useItemWarehouses(data?.warehouses ?? []);
   const canManage = data?.can_manage_catalog === true;
   const items: (InventoryItem | InventoryWarehouse)[] = data?.[entity] ?? [];
   const referenced = new Set(data?.balances.map((row) => isItem ? row.item_id : row.warehouse_id));
-  const accountLocked = isItem && !!editing && referenced.has(editing.id);
-  const accountNames = new Map(accounts.items.map((account) => [account.id, `${account.code} · ${account.name}`]));
-  const eligibleAccounts = accounts.items
-    .filter((account) => isAccountPostable(account) && (!account.role || ["asset", "other_asset"].includes(account.role)));
-  const stockAccounts = eligibleAccounts.map((account) => ({ value: account.id, label: `${account.code} · ${account.name}` }));
-  const accountOptions = stockAccounts.some((option) => option.value === value.inventory_account_id) || !value.inventory_account_id
-    ? stockAccounts
-    : [
-        ...stockAccounts,
-        { value: value.inventory_account_id, label: accountNames.get(value.inventory_account_id) || value.inventory_account_id },
-      ];
+  const itemFieldsLocked = isItem && !!editing && referenced.has(editing.id);
+  const canSave = canManage && !!value.name.trim() && (!isItem || itemFieldsLocked || !!value.base_unit.trim());
+  const unitOptions = Array.from(new Set([...(units.data?.items ?? []), value.base_unit]))
+    .map((unit) => ({ value: unit, label: unit }));
   const inventoryPath = `${base}/${entity}`;
   const pageSize = 25;
   const index = Math.min(page, Math.max(0, Math.ceil(items.length / pageSize) - 1));
 
   function save() {
-    if (!canManage || !value.name.trim() || (isItem && !accountLocked && (!value.inventory_account_id || !value.base_unit.trim()))) return;
-    const catalogueData = isItem && !accountLocked
+    if (!canSave) return;
+    const catalogueData = isItem && !itemFieldsLocked
       ? {
           name: value.name.trim(),
           base_unit: value.base_unit.trim(),
           item_kind: value.item_kind,
-          inventory_account_id: value.inventory_account_id,
         }
       : { name: value.name.trim() };
     void command.run(
@@ -215,12 +210,13 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
 
   return {
     inventory,
-    accounts,
-    accountNames,
-    accountOptions,
-    accountLocked,
+    units,
+    itemWarehouses,
+    unitOptions,
+    itemFieldsLocked,
     canManage,
-    canAdd: canManage,
+    canAdd: canManage && (!isItem || !!units.data),
+    canSave,
     command,
     open,
     editing,
@@ -242,7 +238,6 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
       setEditing(record);
       setValue({
         name: record?.name ?? "",
-        inventory_account_id: record && "inventory_account_id" in record ? record.inventory_account_id : "",
         base_unit: record && "base_unit" in record && record.base_unit ? record.base_unit : "عدد",
         item_kind: record && "item_kind" in record ? record.item_kind ?? "goods" : "goods",
         active: record?.active ?? true,
@@ -268,7 +263,7 @@ export function useInventoryCatalogue(entity: InventoryCatalogue) {
     importRows,
     importBusy,
     previewImport: (file: ParsedTableImport) => {
-      if (canManage && !importBusy) setImportRows(previewInventoryCatalogue(file, entity, items, eligibleAccounts));
+      if (canManage && !importBusy) setImportRows(previewInventoryCatalogue(file, entity, items));
     },
     closeImport: () => { if (!importBusy) setImportRows(null); },
     confirmImport: async () => {

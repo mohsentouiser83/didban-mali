@@ -29,7 +29,7 @@ export function useExistingSourceReport() {
         body: { parent_id: latest.data.id, period_id: workspace.periodId },
         key: keys.current.get(intent),
       },
-      (session) => router.push(`/uploads/${session.id}`),
+      (session) => router.push(`/reports/processing/${session.id}`),
     );
   };
   return {

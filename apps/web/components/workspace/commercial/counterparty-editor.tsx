@@ -3,43 +3,22 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { StatusMessage } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
 import { AmountInput, Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { counterpartyForm } from "@/hooks/use-commercial";
 import {
   counterpartyEntityKindOptions,
+  counterpartyForm,
+  counterpartyFormKind,
+  counterpartyNationalIdLabel,
   counterpartyTypeOptions,
   type Counterparty,
   type CounterpartyEntityKind,
   type CounterpartyForm,
   type CounterpartyType,
 } from "@/lib/commercial";
-
-export function normalizeCounterpartyPayload(form: CounterpartyForm) {
-  const roles = form.roles.length ? form.roles : (form.type ? [form.type] : []);
-  const primaryType = form.type || (roles.length === 1 ? roles[0] : "other");
-  return {
-    ...form,
-    type: primaryType,
-    roles,
-    name: form.name.trim(),
-    national_id: form.national_id.trim() || null,
-    economic_code: form.economic_code.trim() || null,
-    registration_number:
-      form.entity_kind === "natural_person" && !form.registration_number.trim()
-        ? null
-        : (form.registration_number.trim() || null),
-    postal_code: form.postal_code.trim() || null,
-    email: form.email.trim() || null,
-    phone: form.phone.trim() || null,
-    address: form.address.trim() || null,
-    credit_limit_irr: form.credit_limit_irr || null,
-  };
-}
 
 export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave }: {
   row?: Counterparty;
@@ -51,6 +30,11 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
 }) {
   const [form, setForm] = useState(() => counterpartyForm(row));
   const isNaturalPerson = form.entity_kind === "natural_person";
+  const isPartnership = form.entity_kind === "partnership";
+  const originalKind = counterpartyFormKind(row);
+  const economicCodeRequired = isPartnership && (
+    originalKind !== form.entity_kind || Boolean(row?.economic_code)
+  );
   const showRegistrationNumber = !isNaturalPerson || Boolean(form.registration_number.trim());
 
   function update<K extends keyof CounterpartyForm>(key: K, value: CounterpartyForm[K]) {
@@ -80,15 +64,11 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
           onSave(form);
         }}
       >
-        {row ? (
+        {row && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-border/70 bg-canvas/50 px-3.5 py-2.5 text-sm">
-            <span className="text-muted">کد داخلی طرف‌حساب (تخصیص از شماره‌گذاری شرکت):</span>
+            <span className="text-muted">کد طرف‌حساب</span>
             <Badge tone="neutral"><bdi>{row.code}</bdi></Badge>
           </div>
-        ) : (
-          <StatusMessage tone="primary">
-            کد داخلی طرف‌حساب پس از ذخیره به‌صورت خودکار مطابق قاعدهٔ شماره‌گذاری شرکت تخصیص می‌یابد.
-          </StatusMessage>
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -108,7 +88,11 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
               value={form.entity_kind}
               options={[...counterpartyEntityKindOptions]}
               disabled={readOnly || busy}
-              onValueChange={(value) => update("entity_kind", value as CounterpartyEntityKind)}
+              onValueChange={(value) => setForm((previous) => ({
+                ...previous,
+                entity_kind: value as CounterpartyEntityKind,
+                national_id: value === originalKind ? row?.national_id ?? "" : "",
+              }))}
             />
           </Field>
           <Field id="party-credit" label="سقف اعتبار (ریال)">
@@ -120,16 +104,19 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
               onValueChange={(value) => update("credit_limit_irr", value)}
             />
           </Field>
-          <Field id="party-national_id" label={isNaturalPerson ? "کد ملی" : "شناسه ملی"}>
-            <Input
-              id="party-national_id"
-              value={form.national_id}
-              maxLength={20}
-              dir="ltr"
-              readOnly={readOnly}
-              onChange={(event) => update("national_id", event.target.value)}
-            />
-          </Field>
+          {!isPartnership && (
+            <Field id="party-national_id" label={counterpartyNationalIdLabel(form.entity_kind)}>
+              <Input
+                id="party-national_id"
+                value={form.national_id}
+                maxLength={isNaturalPerson ? 10 : 11}
+                inputMode="numeric"
+                dir="ltr"
+                readOnly={readOnly}
+                onChange={(event) => update("national_id", event.target.value)}
+              />
+            </Field>
+          )}
         </div>
 
         <Field id="party-roles" label="نقش‌های تجاری" required>
@@ -164,12 +151,15 @@ export function CounterpartyEditor({ row, readOnly, busy, error, onClose, onSave
             )}
             <Field
               id="party-economic_code"
-              label={isNaturalPerson ? "کد اقتصادی (اختیاری)" : "کد اقتصادی"}
+              label={isPartnership ? "شناسه اقتصادی" : isNaturalPerson ? "کد اقتصادی (اختیاری)" : "کد اقتصادی"}
+              required={economicCodeRequired}
             >
               <Input
                 id="party-economic_code"
                 value={form.economic_code}
-                maxLength={20}
+                maxLength={16}
+                inputMode="numeric"
+                required={economicCodeRequired}
                 dir="ltr"
                 readOnly={readOnly}
                 onChange={(event) => update("economic_code", event.target.value)}

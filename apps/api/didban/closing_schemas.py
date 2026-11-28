@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 
 from .accounting_schemas import StrictInput
@@ -5,6 +7,7 @@ from .accounting_schemas import StrictInput
 
 class ClosingInput(StrictInput):
     period_id: str = Field(min_length=1, max_length=36)
+    kind: Literal["closing", "permanent_closing"] = "closing"
     account_ids: list[str] = Field(min_length=1, max_length=199)
     result_account_id: str = Field(min_length=1, max_length=36)
     reason: str = Field(min_length=1, max_length=1000)

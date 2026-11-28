@@ -98,7 +98,6 @@ export function QuestionDialog({
         open={open}
         onOpenChange={setOpen}
         title={issue.question}
-        description="برای ادامه پردازش فایل، لطفاً به این پرسش پاسخ دهید."
       >
         <Form
           onSubmit={(event) => {

@@ -8,7 +8,7 @@ from pydantic import Field, StrictInt, model_validator
 from .accounting_schemas import StrictInput
 
 CounterpartyType = Literal["supplier", "customer", "employee", "other"]
-CounterpartyEntityKind = Literal["natural_person", "legal_entity", "other"]
+CounterpartyEntityKind = Literal["natural_person", "legal_entity", "partnership", "other"]
 
 
 class CounterpartyInput(StrictInput):

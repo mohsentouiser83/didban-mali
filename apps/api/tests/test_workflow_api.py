@@ -5,10 +5,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from test_api_delivery import scenario
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def test_full_upload_barrier_revision_and_company_isolation(tmp_path):
+def test_full_processing_barrier_revision_and_company_isolation(tmp_path):
     code = r"""
 from pathlib import Path
 from uuid import uuid4
@@ -20,6 +22,7 @@ from didban.db import initialize,transaction
 from didban.models import User,ProcessingSession,SourceFile,ResultManifest
 from didban.security import hasher
 from didban.worker import run_once
+from scripts.processing_fixture import seed_processing_fixture
 initialize()
 with transaction() as db:
     admin=User(name="مدیر آزمون",email="test@example.test",password_hash=hasher.hash("test-password-123"),installation_admin=True)
@@ -39,21 +42,14 @@ def post(path,body=None,version=None,key=None):
 company=post('/api/v1/companies',{'name':'شرکت آزمون'})
 base='/api/v1/companies/'+company['id']
 period=post(base+'/financial-periods',{'name':'شهریور آزمون','start':'2026-09-01','end':'2026-09-30'})
-session=post(base+'/processing-sessions',{'period_id':period['id']},key='session-create-1')
-again=post(base+'/processing-sessions',{'period_id':period['id']},key='session-create-1')
-assert session['id']==again['id']
-conflict=client.post(base+'/processing-sessions',json={},headers=headers(key='session-create-1'))
-assert conflict.status_code==409
-sid=session['id'];path=base+'/processing-sessions/'+sid
+assert client.get(base+'/processing-sessions').status_code==404
+assert client.post(base+'/processing-sessions',json={'period_id':period['id']},headers=headers()).status_code==404
 fixtures=Path('docs/validation/rebuild-v1/inputs/baseline')
-file_ids=[]
-for filename in ('ledger.xlsx','bank.xlsx','invoices.xlsx','settlements.csv','moadian-sales.csv','moadian-purchases.csv','planned-payments.csv','receipt-history.csv'):
-    with (fixtures/filename).open('rb') as f:
-        response=client.post(path+'/files',files={'file':(filename,f)},headers=headers())
-    assert response.status_code==202,(filename,response.status_code,response.text)
-    file_ids.append(response.json()['id'])
-session=client.get(path).json()
-post(path+'/seal',{'file_ids':file_ids},session['version'])
+names=('ledger.xlsx','bank.xlsx','invoices.xlsx','settlements.csv','moadian-sales.csv','moadian-purchases.csv','planned-payments.csv','receipt-history.csv')
+sid=seed_processing_fixture(company['id'],period['id'],'test@example.test',((name,(fixtures/name).read_bytes()) for name in names))
+path=base+'/processing-sessions/'+sid
+assert client.post(path+'/files',files={'file':('file.csv', b'ignored')},headers=headers()).status_code==404
+assert client.post(path+'/seal',json={'file_ids':[]},headers=headers()).status_code==404
 run_once()
 session=client.get(path).json()
 assert session['state']=='waiting_input',session
@@ -106,11 +102,10 @@ for suffix in ('/processing-sessions/'+sid,'/reports/'+reports[0]['id'],'/result
 assert client.get(otherbase+'/invoices').json()['items']==[]
 # A missing source family gives an honest limited report rather than blocking on missing file.
 period2=post(otherbase+'/financial-periods',{'name':'دوره بانک','start':'2026-09-01','end':'2026-09-30'})
-session2=post(otherbase+'/processing-sessions',{'period_id':period2['id']})
-p2=otherbase+'/processing-sessions/'+session2['id']
 content='account,date,amount,reference,balance,row_type,currency\nA,2026-09-01,0,OPEN,1000,opening,IRR\nA,2026-09-03,123,REF,,movement,IRR\n'
-upload=client.post(p2+'/files',files={'file':('bank.csv',content.encode())},headers=headers());assert upload.status_code==202,upload.text
-state=client.get(p2).json();post(p2+'/seal',{'file_ids':[upload.json()['id']]},state['version']);run_once()
+session2=seed_processing_fixture(other['id'],period2['id'],'test@example.test',[('bank.csv',content.encode())])
+p2=otherbase+'/processing-sessions/'+session2
+run_once()
 state=client.get(p2).json();question=state['issues'][0]
 post(otherbase+'/processing-issues/'+question['id']+'/answers',{'value':{'bank_complete':True},'expected_version':question['version']},state['version']);run_once()
 state=client.get(p2).json();assert state['state']=='completed_limited',state
@@ -128,3 +123,37 @@ print('workflow-baseline/barrier/idempotency/archive/isolation/limited: passed')
         [sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+
+def test_moadian_import_queues_only_valid_workpaper_and_replays(tmp_path):
+    scenario(
+        tmp_path,
+        r"""
+owner = client_for("owner")
+url = base + "/moadian/import/sales"
+workpaper = b"tax_id,invoice_id,issued_on,gross,vat,currency,kind\nA,B,2026-09-05,10,1,IRR,original\n"
+bank = b"account,date,amount,reference,balance,row_type,currency\nA,2026-09-01,0,OPEN,1000,opening,IRR\n"
+
+def submit(client, data, key, period=period_id):
+    return client.post(
+        url, params={"period_id": period}, files={"file": ("export.csv", data)},
+        headers={"Idempotency-Key": key},
+    )
+
+invalid = submit(owner, bank, "bank")
+assert invalid.status_code == 422 and invalid.json()["code"] == "invalid_moadian_file", invalid.text
+assert submit(client_for("viewer"), workpaper, "viewer").status_code == 403
+assert submit(owner, workpaper, "wrong-period", period="company-b").status_code == 404
+response = submit(owner, workpaper, "workpaper")
+assert response.status_code == 202, response.text
+record = response.json()
+assert record["state"] == "sealed" and record["period_id"] == period_id
+assert submit(owner, workpaper, "workpaper").json() == record
+assert submit(owner, bank, "workpaper").status_code == 409
+detail = owner.get(base + "/processing-sessions/" + record["id"]).json()
+assert len(detail["files"]) == 1 and detail["files"][0]["name"] == "export.csv", detail
+with transaction("company-a") as db:
+    assert len(list(db.scalars(select(m.Job).where(m.Job.session_id == record["id"])))) == 1
+""",
+    )

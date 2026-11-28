@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in live upload/worker check using a synthetic CSV and isolated storage.
+"""Opt-in live model/worker check using a synthetic CSV and isolated storage.
 
 Runs a paid model request only with --live. Never reads company input files.
 """
@@ -31,6 +31,7 @@ def main() -> None:
     from didban.security import hasher
     from didban.worker import run_once
     from didban.model_gateway import ModelGateway
+    from processing_fixture import seed_processing_fixture
     provider_metadata = []
     original_send = ModelGateway._send
     async def observed_send(gateway, body):
@@ -61,14 +62,11 @@ def main() -> None:
     company = post("/api/v1/companies", {"name": "شرکت مصنوعی آزمون مدل"})
     base = "/api/v1/companies/" + company["id"]
     period = post(base + "/financial-periods", {"name": "دوره آزمون", "start": "2026-09-01", "end": "2026-09-30"})
-    session = post(base + "/processing-sessions", {"period_id": period["id"]})
-    path = base + "/processing-sessions/" + session["id"]
     csv = b"D,A,R,C,account\n2026-09-01,100,REF1,IRR,SYNTHETIC-BANK-001\n2026-09-02,200,REF2,IRR,SYNTHETIC-BANK-001\n"
-    response = client.post(path + "/files", files={"file": ("bank.csv", csv, "text/csv")}, headers=headers())
-    assert response.status_code == 202
-    file_id = response.json()["id"]
-    session = client.get(path).json()
-    post(path + "/seal", {"file_ids": [file_id]}, session["version"])
+    session_id = seed_processing_fixture(
+        company["id"], period["id"], "model-check@example.test", [("bank.csv", csv)]
+    )
+    path = base + "/processing-sessions/" + session_id
     run_once()
     session = client.get(path).json()
     barrier_verified = False

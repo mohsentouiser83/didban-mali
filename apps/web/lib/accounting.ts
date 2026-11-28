@@ -29,6 +29,7 @@ export interface LedgerAccount {
   parent_id?: string | null;
   parent_code?: string | null;
   parent_name?: string | null;
+  linked_account_ids?: string[];
   has_children?: boolean;
   postable?: boolean;
   code_status?: "standard" | "legacy" | null;
@@ -45,6 +46,7 @@ export interface JournalDraftLine {
   debit: string;
   credit: string;
   party_id: string;
+  detail_account_id?: string | null;
   original_debit?: string;
   original_credit?: string;
 }
@@ -69,6 +71,7 @@ export interface JournalDraftResponseLine {
   original_credit: string;
   party_id?: string | null;
   counterparty_id?: string | null;
+  detail_account_id?: string | null;
   description?: string | null;
   reference_kind?: string | null;
   reference_id?: string | null;
@@ -199,7 +202,8 @@ export function draftPayload(value: DraftFormValue) {
       account_id: line.account_id,
       debit: line.debit || "0",
       credit: line.credit || "0",
-      party_id: line.party_id.trim(),
+      party_id: line.party_id?.trim() || "",
+      ...(line.detail_account_id ? { detail_account_id: line.detail_account_id } : {}),
     })),
   };
 }

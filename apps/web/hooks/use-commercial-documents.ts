@@ -6,7 +6,7 @@ import { useCommand } from "@/hooks/use-command";
 import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
 import { isAccountPostable } from "@/lib/account-catalogue";
-import { listItems } from "@/lib/api";
+import { api, listItems } from "@/lib/api";
 import type { Counterparty } from "@/lib/commercial";
 import { computeCommercialTotals, parseNonNegativeInt, resolveCommercialAccountConfig, type CommercialAccountSlot, type CommercialDraftLineInput } from "@/lib/commercial-doc-accounts";
 import type {
@@ -92,6 +92,7 @@ export const emptyLine = (key = 1): DraftLineState => ({
   quantity: "1",
   unit_price: "",
   line_discount: "0",
+  vat_rate_pct: "0",
 });
 
 export function parseBigIntSafe(raw: string): bigint {
@@ -104,19 +105,45 @@ export function parseBigIntSafe(raw: string): bigint {
   }
 }
 
-export function useCommercialDocuments({ direction, partyId: filteredPartyId }: { direction: CommercialDirection; partyId?: string }) {
+async function fetchCommercialDocuments(path: string, options: { signal: AbortSignal }) {
+  const items = new Map<string, CommercialDocument>();
+  const limit = 100;
+  let offset = 0;
+  let total: number;
+  do {
+    const page = await api<CommercialDocumentListResponse>(`${path}&limit=${limit}&offset=${offset}`, options);
+    for (const document of page.items) items.set(document.id, document);
+    total = page.total;
+    offset += page.items.length;
+    if (!page.items.length) break;
+  } while (offset < total);
+  return { total, items: [...items.values()] };
+}
+
+export function useCommercialDocuments({
+  direction,
+  partyId: filteredPartyId,
+  allDocuments = false,
+  creationOnly = false,
+}: {
+  direction: CommercialDirection;
+  partyId?: string;
+  allDocuments?: boolean;
+  creationOnly?: boolean;
+}) {
   const workspace = useWorkspace();
   const isSale = direction === "sale";
   const [subTab, setSubTab] = useState<"documents" | "quarantine" | "credits">("documents");
 
   const docs = useResource<CommercialDocumentListResponse>(
-    workspace.companyPath(`commercial/documents?direction=${direction}&limit=50${filteredPartyId ? `&counterparty_id=${encodeURIComponent(filteredPartyId)}` : ""}`),
+    creationOnly ? null : workspace.companyPath(`commercial/documents?direction=${direction}${allDocuments ? "" : "&limit=50"}${filteredPartyId ? `&counterparty_id=${encodeURIComponent(filteredPartyId)}` : ""}`),
+    { fetcher: allDocuments ? fetchCommercialDocuments : undefined },
   );
   const quarantine = useResource<{ items: QuarantineLine[] }>(
-    workspace.companyPath("commercial/quarantine"),
+    creationOnly ? null : workspace.companyPath("commercial/quarantine"),
   );
   const credits = useResource<{ items: CounterpartyCreditItem[] }>(
-    workspace.companyPath("commercial/credits"),
+    creationOnly ? null : workspace.companyPath("commercial/credits"),
   );
   const counterparties = useResource<{ items: Counterparty[] }>(
     workspace.companyPath("commercial/counterparties?limit=100"),
@@ -296,28 +323,21 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
     credits.refresh();
   }
 
-  function handleCreateDoc() {
-    const periodId = workspace.periodId;
-    if (!periodId) return;
+  function focusCreateField(id: string | undefined) {
+    if (id) requestAnimationFrame(() => document.getElementById(id)?.focus());
+  }
 
+  function validateCreateDetails() {
     const nextErrors: Record<string, string> = {};
-    const nextLineErrors: Record<number, {
-      item_id?: string;
-      quantity?: string;
-      unit_price?: string;
-      line_discount?: string;
-    }> = {};
+    const nextLineErrors: typeof lineErrors = {};
     let firstInvalidId: string | undefined;
-    const markError = (key: string, msg: string, focusId?: string) => {
+    const markError = (key: string, msg: string, id: string) => {
       nextErrors[key] = msg;
-      if (!firstInvalidId && focusId) firstInvalidId = focusId;
+      firstInvalidId ??= id;
     };
 
     if (!partyId) markError("party_id", "طرف حساب را انتخاب کنید.", "cd-party");
     if (!issueDate) markError("issue_date", "تاریخ صدور را انتخاب کنید.", "cd-issue-date");
-    if (dueDate && issueDate && dueDate < issueDate) {
-      markError("due_date", "سررسید نمی‌تواند پیش از تاریخ صدور باشد.", "cd-due-date");
-    }
     if (totals.hasGoods && !effectiveWarehouseId) {
       markError("warehouse_id", "برای فاکتور دارای کالای انباری، انتخاب انبار الزامی است.", "cd-wh");
     }
@@ -341,6 +361,31 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
       markError("invoice_discount", "مبلغ خالص فاکتور باید مثبت باشد.", "cd-inv-disc");
     }
 
+    setClientErrors(nextErrors);
+    setLineErrors(nextLineErrors);
+    focusCreateField(firstInvalidId);
+    return !Object.keys(nextErrors).length && !Object.keys(nextLineErrors).length;
+  }
+
+  function handleCreateDoc(onCreated?: () => void, onInvalidDetails?: () => void) {
+    const periodId = workspace.periodId;
+    if (!periodId || cmd.busy) return;
+    if (!validateCreateDetails()) {
+      onInvalidDetails?.();
+      return;
+    }
+
+    const nextErrors: Record<string, string> = {};
+    let firstInvalidId: string | undefined;
+    const markError = (key: string, msg: string, id: string) => {
+      nextErrors[key] = msg;
+      firstInvalidId ??= id;
+    };
+
+    if (dueDate && issueDate && dueDate < issueDate) {
+      markError("due_date", "سررسید نمی‌تواند پیش از تاریخ صدور باشد.", "cd-due-date");
+    }
+
     if (settlementType === "mixed") {
       if (parsedCashAmount === null) {
         markError("cash_amount", "مبلغ نقد باید عدد صحیح نامنفی باشد.", "cd-cash");
@@ -355,13 +400,13 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
         parsedCashAmount !== null &&
         parsedChequeAmount !== null &&
         parsedOnAccountAmount !== null &&
-        totals.netTotal !== null
+        totals.payableTotal !== null
       ) {
         const settlementSum = parsedCashAmount + parsedChequeAmount + parsedOnAccountAmount;
-        if (settlementSum !== totals.netTotal) {
+        if (settlementSum !== totals.payableTotal) {
           markError(
             "on_account_amount",
-            `مجموع سهم‌های نقد، چک و نسیه (${persian(settlementSum.toString())} ریال) با مبلغ خالص فاکتور (${persian(totals.netTotal.toString())} ریال) برابر نیست.`,
+            `مجموع سهم‌های نقد، چک و نسیه (${persian(settlementSum.toString())} ریال) با مبلغ قابل پرداخت فاکتور (${persian(totals.payableTotal.toString())} ریال) برابر نیست.`,
             "cd-on-account",
           );
         }
@@ -376,34 +421,34 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
       }
     }
 
-    const accountMeta: Record<CommercialAccountSlot, { id: string; missingMsg: string }> = {
+    const accountMeta: Record<CommercialAccountSlot, { id: string; label: string }> = {
       revenue_account_id: {
         id: "cd-revenue-account",
-        missingMsg: "حساب درآمد فروش کالا را انتخاب کنید.",
+        label: "حساب درآمد فروش کالا",
       },
       cost_account_id: {
         id: "cd-cost-account",
-        missingMsg: "حساب بهای تمام‌شده کالا را انتخاب کنید.",
+        label: "حساب بهای تمام‌شده کالا",
       },
       service_revenue_account_id: {
         id: "cd-service-revenue-account",
-        missingMsg: "حساب درآمد خدمات را انتخاب کنید.",
+        label: "حساب درآمد خدمات",
       },
       expense_account_id: {
         id: "cd-expense-account",
-        missingMsg: "حساب هزینه خدمات را انتخاب کنید.",
+        label: "حساب هزینه خدمات",
       },
       counterparty_account_id: {
         id: "cd-counterparty-account",
-        missingMsg: isSale ? "حساب دریافتنی تجاری (طرف حساب) را انتخاب کنید." : "حساب پرداختنی تجاری (طرف حساب) را انتخاب کنید.",
+        label: isSale ? "حساب دریافتنی تجاری (طرف حساب)" : "حساب پرداختنی تجاری (طرف حساب)",
       },
       cash_account_id: {
         id: "cd-cash-account",
-        missingMsg: "حساب وجه نقد / بانک را انتخاب کنید.",
+        label: "حساب وجه نقد / بانک",
       },
       cheque_account_id: {
         id: "cd-cheque-account",
-        missingMsg: isSale ? "حساب اسناد دریافتنی را انتخاب کنید." : "حساب اسناد پرداختنی را انتخاب کنید.",
+        label: isSale ? "حساب اسناد دریافتنی" : "حساب اسناد پرداختنی",
       },
     };
 
@@ -416,18 +461,19 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
         const meta = accountMeta[slot];
         markError(
           slot,
-          cfg.allowedAccounts.length ? meta.missingMsg : `${meta.missingMsg} (حساب مجاز فعالی در کدینگ یافت نشد.)`,
-          meta.id,
+          isSale
+            ? cfg.status === "ambiguous"
+              ? `چند حساب برای «${meta.label}» در کدینگ وجود دارد.`
+              : `«${meta.label}» در کدینگ حساب فعال ندارد.`
+            : `${meta.label} را انتخاب کنید.`,
+          isSale ? "cd-account-errors" : meta.id,
         );
       }
     });
 
     setClientErrors(nextErrors);
-    setLineErrors(nextLineErrors);
-    if (Object.keys(nextErrors).length > 0 || Object.keys(nextLineErrors).length > 0) {
-      if (firstInvalidId) {
-        requestAnimationFrame(() => document.getElementById(firstInvalidId!)?.focus());
-      }
+    if (Object.keys(nextErrors).length > 0) {
+      focusCreateField(firstInvalidId);
       return;
     }
 
@@ -449,6 +495,7 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
         quantity: Number(asciiDigits(l.quantity).trim() || "1"),
         unit_price: asciiDigits(l.unit_price).trim() || "0",
         line_discount: asciiDigits(l.line_discount).trim() || "0",
+        vat_rate_pct: asciiDigits(l.vat_rate_pct || "0").trim() || "0",
       })),
     };
 
@@ -491,7 +538,8 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
       () => {
         setCreateOpen(false);
         resetCreateForm();
-        refreshAll();
+        if (onCreated) onCreated();
+        else refreshAll();
       },
       "پیش‌نویس فاکتور تجاری چندردیفی ایجاد شد.",
     );
@@ -606,6 +654,7 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
     quarantine,
     credits,
     counterparties,
+    inventory,
     accounts,
     cmd,
     createOpen,
@@ -694,6 +743,7 @@ export function useCommercialDocuments({ direction, partyId: filteredPartyId }: 
     selectedAccountId,
     clearClientError,
     openCreateDrawer,
+    validateCreateDetails,
     handleCreateDoc,
     handleSubmitReturn,
     handleQuarantineDecision,

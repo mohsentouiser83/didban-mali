@@ -1,13 +1,12 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { UsersThreeIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Select } from "@/components/ui/select";
+import { TableColumnSelect } from "@/components/ui/table-column-select";
 import { Table, TableBody, TableCell, TableEmptyCell, TableHead, TableHeader, TableRow, TableRowHeader } from "@/components/ui/table";
 import { useCounterparties } from "@/hooks/use-commercial";
 import {
@@ -32,63 +31,35 @@ export function CounterpartiesView() {
         title="طرف‌حساب‌ها"
         icon={UsersThreeIcon}
         action={
-          view.canEdit && <Button onClick={() => view.open()}>طرف‌حساب جدید</Button>
+          view.canCreate && <Button onClick={() => view.open()}>طرف‌حساب جدید</Button>
         }
       />
       <Panel>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-60 max-w-sm flex-1">
-            <Field id="counterparty-search" label="جست‌وجوی نام یا کد">
-              <Input
-                id="counterparty-search"
-                value={view.search}
-                onChange={(event) => view.changeSearch(event.target.value)}
-              />
-            </Field>
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-44">
-              <Field id="counterparty-entity-filter" label="نوع شخصیت">
-                <Select
-                  id="counterparty-entity-filter"
-                  value={view.entityKindFilter}
-                  onValueChange={view.changeEntityKindFilter}
-                  options={[
-                    { value: "all", label: "همه شخصیت‌ها" },
-                    ...counterpartyEntityKindOptions.map((o) => ({ value: o.value, label: o.label })),
-                  ]}
-                />
-              </Field>
-            </div>
-            <div className="w-48">
-              <Field id="counterparty-role-filter" label="نقش تجاری">
-                <Select
-                  id="counterparty-role-filter"
-                  value={view.typeFilter}
-                  onValueChange={view.changeTypeFilter}
-                  options={[
-                    { value: "all", label: "همه نقش‌ها" },
-                    { value: "customer", label: "مشتریان" },
-                    { value: "supplier", label: "تأمین‌کنندگان" },
-                    { value: "employee", label: "کارمندان" },
-                    { value: "other", label: "سایر" },
-                  ]}
-                />
-              </Field>
-            </div>
-          </div>
-        </div>
         {view.resource.loading ? <LoadingState /> : view.resource.error ? (
           <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
         ) : (
           <>
-            <Table showSearch={false}>
+            <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>نام</TableHead>
-                  <TableHead>کد داخلی</TableHead>
-                  <TableHead>نوع شخصیت</TableHead>
-                  <TableHead>نقش‌های تجاری</TableHead>
+                  <TableHead columnFilter={view.columnFilter("name")}>نام</TableHead>
+                  <TableHead columnFilter={view.columnFilter("code")}>کد داخلی</TableHead>
+                  <TableHead columnControl={
+                    <TableColumnSelect columnTitle="نوع شخصیت" value={view.entityKindFilter}
+                      onValueChange={view.changeEntityKindFilter}
+                      options={[{ value: "all", label: "همه شخصیت‌ها" }, ...counterpartyEntityKindOptions]} />
+                  }>نوع شخصیت</TableHead>
+                  <TableHead columnControl={
+                    <TableColumnSelect columnTitle="نقش‌های تجاری" value={view.typeFilter}
+                      onValueChange={view.changeTypeFilter}
+                      options={[
+                        { value: "all", label: "همه نقش‌ها" },
+                        { value: "customer", label: "مشتریان" },
+                        { value: "supplier", label: "تأمین‌کنندگان" },
+                        { value: "employee", label: "کارمندان" },
+                        { value: "other", label: "سایر" },
+                      ]} />
+                  }>نقش‌های تجاری</TableHead>
                   <TableHead numeric>سقف اعتبار (ریال)</TableHead>
                   <TableHead>وضعیت</TableHead>
                   <TableHead>عملیات</TableHead>
@@ -118,24 +89,24 @@ export function CounterpartiesView() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button
-                          variant="ghost"
+                      <TableRowActions label={`عملیات ${row.name}`}>
+                        <TableRowAction
                           aria-label={`مشاهده پرونده ${row.name}`}
                           onClick={() => setProfileParty(row)}
+                          kind="view"
                         >
                           مشاهده پرونده
-                        </Button>
+                        </TableRowAction>
                         {view.canEdit && (
-                          <Button
-                            variant="ghost"
+                          <TableRowAction
                             aria-label={`ویرایش ${row.name}`}
                             onClick={() => view.open(row, false)}
+                            kind="edit"
                           >
                             ویرایش
-                          </Button>
+                          </TableRowAction>
                         )}
-                      </div>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -143,7 +114,7 @@ export function CounterpartiesView() {
                   <TableEmptyCell
                     colSpan={7}
                     title={
-                      view.search || view.typeFilter !== "all" || view.entityKindFilter !== "all"
+                      view.filtersActive
                         ? "طرف‌حسابی با این شرایط پیدا نشد"
                         : "طرف‌حسابی ثبت نشده است"
                     }

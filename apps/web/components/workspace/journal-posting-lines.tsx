@@ -11,12 +11,15 @@ import type { PostingPreview } from "@/hooks/use-posting";
 import { amount } from "@/lib/utils";
 
 export function JournalPostingLines({ lines }: { lines: PostingPreview["snapshot"]["lines"] }) {
+  const showDetail = lines.some((line) => line.detail_account_id);
+  const showParty = lines.some((line) => line.party_id);
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>حساب</TableHead>
-          <TableHead>طرف حساب</TableHead>
+          {showDetail && <TableHead>حساب تفصیلی</TableHead>}
+          {showParty && <TableHead>طرف حساب</TableHead>}
           <TableHead>بدهکار (ریال)</TableHead>
           <TableHead>بستانکار (ریال)</TableHead>
         </TableRow>
@@ -25,7 +28,12 @@ export function JournalPostingLines({ lines }: { lines: PostingPreview["snapshot
         {lines.map((line, index) => (
           <TableRow key={index}>
             <TableRowHeader>{line.code} · {line.name}</TableRowHeader>
-            <TableCell>{line.party_id || "—"}</TableCell>
+            {showDetail && (
+              <TableCell>
+                {line.detail_code ? `${line.detail_code} · ${line.detail_name}` : "—"}
+              </TableCell>
+            )}
+            {showParty && <TableCell>{line.party_id || "—"}</TableCell>}
             <TableCell>{amount(line.debit)}</TableCell>
             <TableCell>{amount(line.credit)}</TableCell>
           </TableRow>

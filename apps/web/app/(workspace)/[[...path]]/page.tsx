@@ -22,12 +22,14 @@ import {
   MembersView,
   PeriodsView,
 } from "@/components/workspace/settings-views";
-import { SessionView, UploadsView } from "@/components/workspace/upload-views";
+import { ProcessingReportView } from "@/components/workspace/processing-report-view";
 import { ReconciliationView } from "@/components/workspace/reconciliation-view";
 import { NumberingSystemView } from "@/components/workspace/numbering-system-view";
+import { InventoryUnitsView } from "@/components/workspace/inventory-units-view";
 import { TreasuryAccountsView } from "@/components/workspace/treasury-accounts-view";
 import { SettingsOverviewView } from "@/components/workspace/settings-overview-view";
 import { CounterpartiesView } from "@/components/workspace/commercial/counterparties-view";
+import { SalesInvoiceCreateView } from "@/components/workspace/commercial/sales-invoice-create-view";
 import { ProformasView } from "@/components/workspace/commercial/proformas-view";
 import { notFound, redirect } from "next/navigation";
 export default async function Page({
@@ -35,7 +37,7 @@ export default async function Page({
   searchParams,
 }: {
   params: Promise<{ path?: string[] }>;
-  searchParams: Promise<{ operation?: string | string[]; review_draft?: string | string[]; party_id?: string | string[]; tab?: string | string[]; reference?: string | string[] }>;
+  searchParams: Promise<{ operation?: string | string[]; review_draft?: string | string[]; party_id?: string | string[]; reference?: string | string[] }>;
 }) {
   const { path = [] } = await params;
   const resolvedSearchParams = await searchParams;
@@ -52,17 +54,16 @@ export default async function Page({
     redirect("/");
   if (route === "chat")
     redirect("/assistant");
-  if (path.length === 2 && path[0] === "uploads")
-    return <SessionView id={path[1]} />;
+  if (path.length === 3 && path[0] === "reports" && path[1] === "processing")
+    return <ProcessingReportView id={path[2]} />;
   if (route === "receivables" || route === "payables") {
-    const { operation, tab, party_id: partyId, reference } = resolvedSearchParams;
+    const { operation, party_id: partyId, reference } = resolvedSearchParams;
     return (
       <InvoicesView
         direction={route === "receivables" ? "sales" : "purchases"}
         operationId={typeof operation === "string" ? operation : undefined}
         partyId={typeof partyId === "string" ? partyId : undefined}
         initialReference={typeof reference === "string" ? reference : undefined}
-        initialTab={tab === "commercial" || tab === "imported" ? tab : "native"}
       />
     );
   }
@@ -73,7 +74,6 @@ export default async function Page({
   const initialPartyId = typeof resolvedSearchParams.party_id === "string" ? resolvedSearchParams.party_id : undefined;
   const routeRenderers: Record<string, () => React.ReactNode> = {
     "": () => <DashboardView />,
-    uploads: () => <UploadsView />,
     "settings/accounts": () => <AccountsView />,
     "settings/treasury": () => <TreasuryAccountsView />,
     reconciliation: () => <ReconciliationView initialTab="bank" />,
@@ -87,6 +87,7 @@ export default async function Page({
     "reconciliation/moadian": () => (
       <ReconciliationView initialTab="moadian" />
     ),
+    "receivables/new": () => <SalesInvoiceCreateView />,
     "receivables/followups": () => <CollectionFollowupsView />,
     cashflow: () => <CashflowView />,
     "cashflow/forecast": () => <ForecastView />,
@@ -109,6 +110,7 @@ export default async function Page({
       <SettingsOverviewView categoryKey="accounting" />
     ),
     "settings/numbering": () => <NumberingSystemView />,
+    "settings/inventory-units": () => <InventoryUnitsView />,
     "settings/periods": () => <PeriodsView />,
     "settings/company": () => <CompanyView />,
     "settings/members": () => <MembersView />,

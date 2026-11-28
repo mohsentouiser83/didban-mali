@@ -172,7 +172,7 @@ closed=client.post(base+'/close',json=body,headers=h)
 assert closed.status_code==200,closed.text
 assert closed.json()['closed'] is True
 assert client.post(base+'/close',json=body,headers=h).json()==closed.json()
-assert client.post('/api/v1/companies/c/processing-sessions',json={'period_id':'p'},headers=headers()).status_code==409
+assert client.post('/api/v1/companies/c/moadian/import/sales?period_id=p',files={'file':('sales.csv',b'test')},headers=headers()).status_code==409
 assert client.get(base+'/lock-history').json()['items'][0]['reason']=='بستن آزمایشی'
 opened=client.post(base+'/reopen',json={'reason':'رفع نقص'},headers=headers(version=2))
 assert opened.status_code==200 and opened.json()['closed'] is False,opened.text

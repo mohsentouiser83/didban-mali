@@ -31,7 +31,11 @@ def companies(request: Request):
         return {
             "items": [
                 serialize_fact(c)
-                | {"role": member.role, "approve_financial_report": member.approve_financial_report}
+                | {
+                    "role": member.role,
+                    "approve_financial_report": member.approve_financial_report,
+                    "module_access": member.module_access,
+                }
                 for c, member in rows
             ]
         }
@@ -67,6 +71,7 @@ def company_detail(company_id: str, request: Request):
         return serialize_fact(db.get(m.Company, company_id)) | {
             "role": member.role,
             "approve_financial_report": member.approve_financial_report,
+            "module_access": member.module_access,
         }
 
 

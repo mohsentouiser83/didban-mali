@@ -62,9 +62,6 @@ export default function Login() {
               ورود
             </Button>
           </Form>
-          <p className="mt-6 text-center text-xs text-muted">
-            دسترسی حساب از مدیر سازمان دریافت می‌شود.
-          </p>
         </section>
       </div>
     </main>

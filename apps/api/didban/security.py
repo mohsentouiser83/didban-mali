@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .errors import require
 from .models import LoginAttempt, LoginSession, Membership, User, now
+from .module_access import Action, Module
 
 hasher = PasswordHasher()
 DUMMY_HASH = hasher.hash(secrets.token_urlsafe(32))
@@ -37,7 +38,23 @@ def may_manage_accounts(member: Membership) -> bool:
     return member.role in ("owner", "finance_manager")
 
 
-def membership(db: Session, company: str, user: User, operation: str = "read") -> Membership:
+def module_override(member: Membership, scope: tuple[Module, Action]) -> bool | None:
+    module, action = scope
+    return (member.module_access or {}).get(module, {}).get(action)
+
+
+def has_request_write_grant(db: Session, company: str, user: User) -> bool:
+    return db.info.get("authorized_module_write") == (company, user.id)
+
+
+def membership(
+    db: Session,
+    company: str,
+    user: User,
+    operation: str = "read",
+    *,
+    scope: tuple[Module, Action] | None = None,
+) -> Membership:
     member = db.scalar(
         select(Membership).where(
             Membership.company_id == company, Membership.user_id == user.id, Membership.active.is_(True)
@@ -45,6 +62,12 @@ def membership(db: Session, company: str, user: User, operation: str = "read") -
     )
     require(member is not None, "not_found", "شرکت پیدا نشد.", 404)
     assert member
+    override = module_override(member, scope) if scope is not None else None
+    require(override is not False, "module_access_denied", "مجوز این عملیات را ندارید.", 403)
+    if operation in ("write", "manage_accounts") and (
+        override is True or (scope is None and has_request_write_grant(db, company, user))
+    ):
+        return member
     if operation == "owner":
         require(member.role == "owner", "permission_denied", "فقط مالک شرکت مجاز است.", 403)
     elif operation == "manage_accounts":

@@ -19,8 +19,6 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
     "setAllocDoc" |
     "reversingAlloc" |
     "setReversingAlloc" |
-    "direction" |
-    "tools" |
     "selectedToolId" |
     "setSelectedToolId" |
     "selectedInvoiceId" |
@@ -42,8 +40,6 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
     setAllocDoc,
     reversingAlloc,
     setReversingAlloc,
-    direction,
-    tools,
     selectedToolId,
     setSelectedToolId,
     selectedInvoiceId,
@@ -79,7 +75,7 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
                 onValueChange={setSelectedToolId}
                 options={allocDoc.tools.map((t) => ({
                   value: t.id,
-                  label: `${toolLabel[t.tool_kind] ?? t.tool_kind} — قابل‌تخصیص: ${amount(t.remaining_amount ?? t.amount)} از ${amount(t.amount)} ریال`,
+                  label: `${t.point_of_sale_name || toolLabel[t.tool_kind] || t.tool_kind} — قابل‌تخصیص: ${amount(t.remaining_amount ?? t.amount)} از ${amount(t.amount)} ریال`,
                 }))}
               />
             </Field>

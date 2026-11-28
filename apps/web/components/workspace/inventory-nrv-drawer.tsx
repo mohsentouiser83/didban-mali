@@ -166,7 +166,6 @@ export function InventoryNrvDrawer({
         if (!next && !busy) onOpenChange(false);
       }}
       title="ارزیابی کاهش ارزش موجودی (استاندارد ۸ — D35)"
-      description="محاسبه LCNRV و تهیه پیش‌نویس ذخیرهٔ کاهندهٔ دارایی بدون تغییر بهای لایه‌های FIFO"
       className="sm:max-w-4xl"
     >
       {baseAssessment.loading ? (
@@ -176,7 +175,6 @@ export function InventoryNrvDrawer({
       ) : !rows.length ? (
         <EmptyState
           title="موجودی فعالی برای ارزیابی نیست"
-          description="ابتدا خرید یا موجودی اولیه کالا ثبت و نهایی کنید."
         />
       ) : (
         <div className="space-y-5">
@@ -336,6 +334,7 @@ export function InventoryNrvDrawer({
               {workspace.canWrite && (
                 <Button
                   type="button"
+                  className="w-full"
                   busy={draftCmd.busy}
                   disabled={!buildPriceItems().length || !workspace.periodId}
                   onClick={createDraft}

@@ -1,6 +1,6 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import {
-  ArrowUpLeftIcon,
   CalendarBlankIcon as HeaderIcon,
   CalendarBlankIcon,
   LockIcon,
@@ -10,7 +10,7 @@ import {
   TextAaIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
@@ -19,7 +19,6 @@ import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CursorPagination } from "@/components/ui/pagination";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -54,6 +53,9 @@ function blockReason(period: Period): string | null {
 function PeriodWorkspace() {
   const {
     workspace,
+    canCreate,
+    canEdit,
+    canDelete,
     resource,
     command,
     creating,
@@ -62,13 +64,10 @@ function PeriodWorkspace() {
     name,
     start,
     end,
-    previousPeriodId,
-    comparisonCandidates,
     setDeleting,
     setName,
     setStart,
     setEnd,
-    setPreviousPeriodId,
     openCreate,
     openEdit,
     closeCreate,
@@ -86,25 +85,14 @@ function PeriodWorkspace() {
         icon={HeaderIcon}
         title="دوره‌های مالی"
         action={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink variant="secondary" href="/accounting/period-end">
-              بستن و افتتاح دوره
-              <ArrowUpLeftIcon size={16} aria-hidden />
-            </ButtonLink>
-            {workspace.canWrite && (
-              <Button onClick={openCreate}>
-                <PlusIcon size={18} aria-hidden />
-                دوره جدید
-              </Button>
-            )}
-          </div>
+          canCreate && (
+            <Button onClick={openCreate}>
+              <PlusIcon size={18} aria-hidden />
+              دوره جدید
+            </Button>
+          )
         }
       />
-      <div className="mb-4">
-        <StatusMessage tone="primary">
-          گذشتن تاریخ پایان دوره به‌تنهایی قفل ثبت سند ایجاد نمی‌کند. قفل یا بازگشایی عملیاتی دوره با دلیل و مجوز از مسیر «بستن و افتتاح دوره» انجام می‌شود و با دورهٔ انتخاب‌شده در هدر متفاوت است.
-        </StatusMessage>
-      </div>
       <Panel>
         {resource.loading ? (
           <LoadingState />
@@ -115,7 +103,7 @@ function PeriodWorkspace() {
           />
         ) : (
           <>
-            <Table showSearch={false} title="دوره‌های مالی">
+            <Table title="دوره‌های مالی">
               <TableHeader>
                 <TableRow>
                   <TableHead>نام دوره</TableHead>
@@ -173,49 +161,39 @@ function PeriodWorkspace() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col items-start gap-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <ButtonLink
-                                variant="ghost"
+                            <TableRowActions label={`عملیات ${period.name}`}>
+                              <TableRowAction
                                 href={`/accounting/period-end?period_id=${period.id}`}
-                                className="h-9 px-2.5 text-xs"
                               >
-                                بستن / افتتاح
-                              </ButtonLink>
-                              {workspace.canWrite && (
-                                <Button
-                                  variant="secondary"
-                                  className="h-9 px-2.5 text-xs"
+                                {locked ? "بازگشایی دوره" : "بستن دوره"}
+                              </TableRowAction>
+                              {canEdit && (
+                                <TableRowAction
                                   disabled={locked}
                                   onClick={() => openEdit(period)}
+                                  icon={<PencilSimpleIcon size={14} aria-hidden />}
                                 >
-                                  <PencilSimpleIcon size={14} aria-hidden />
                                   ویرایش
-                                </Button>
+                                </TableRowAction>
                               )}
-                              {workspace.canWrite && (
-                                <Button
-                                  variant="ghost"
+                              {canDelete && (
+                                <TableRowAction
                                   onClick={() => {
-                                    setDeleting(period);
-                                    command.clearError();
+                                      setDeleting(period);
+                                      command.clearError();
                                   }}
                                   disabled={deleteBlocked}
-                                  aria-label={
-                                    deleteReason
+                                  aria-label={deleteReason
                                       ? `${period.name}: ${deleteReason}`
-                                      : `حذف ${period.name}`
-                                  }
-                                  className={
-                                    deleteBlocked
-                                      ? "h-9 cursor-not-allowed px-2.5 text-xs opacity-50"
-                                      : "h-9 px-2.5 text-xs text-danger hover:text-danger"
-                                  }
+                                      : `حذف ${period.name}`}
+                                  kind="delete"
+                                  danger
                                 >
                                   حذف
-                                </Button>
+                                </TableRowAction>
                               )}
-                            </div>
-                            {workspace.canWrite && deleteReason && (
+                            </TableRowActions>
+                            {canDelete && deleteReason && (
                               <span className="text-[11px] text-muted">
                                 {deleteReason}
                               </span>
@@ -256,7 +234,7 @@ function PeriodWorkspace() {
           )}
           {editing?.in_use && !editing.closed && (
             <StatusMessage>
-              این دوره دارای اسناد یا سوابق مالی است؛ طبق قواعد سرور تنها نام دوره قابل ویرایش است و تاریخ شروع، تاریخ پایان و دوره مقایسه ثابت می‌مانند.
+              در دورهٔ دارای سابقه فقط نام قابل ویرایش است.
             </StatusMessage>
           )}
           <Field id="period-name" label="نام دوره" icon={TextAaIcon} required>
@@ -287,25 +265,6 @@ function PeriodWorkspace() {
               />
             </Field>
           </div>
-          <Field
-            id="period-previous"
-            label="دوره مقایسه قبلی (اختیاری)"
-            description="برای محاسبه تغییرات و سند افتتاحیه؛ تاریخ پایان دوره مقایسه باید پیش از شروع این دوره باشد."
-          >
-            <Select
-              id="period-previous"
-              value={previousPeriodId || "none"}
-              disabled={command.busy || Boolean(editing?.in_use || editing?.closed)}
-              onValueChange={(val) => setPreviousPeriodId(val === "none" ? "" : val)}
-              options={[
-                { value: "none", label: "بدون دوره مقایسه" },
-                ...comparisonCandidates.map((item) => ({
-                  value: item.id,
-                  label: `${item.name} (${displayDate(item.start)} تا ${displayDate(item.end)})`,
-                })),
-              ]}
-            />
-          </Field>
           <FormMessage error>{command.error?.message}</FormMessage>
           <Button
             type="submit"
@@ -327,14 +286,10 @@ function PeriodWorkspace() {
         onConfirm={remove}
       >
         <p className="font-medium text-main">{deleting?.name}</p>
-        {deleting && (deleting.in_use || deleting.closed) ? (
+        {deleting && (deleting.in_use || deleting.closed) && (
           <div className="rounded-lg bg-danger/10 p-3 text-xs text-danger">
             {blockReason(deleting)}
           </div>
-        ) : (
-          <p className="text-xs text-muted">
-            تنها دوره‌های باز و فاقد هرگونه سند، پیش‌نویس، گزارش یا سابقه قفل قابل حذف هستند.
-          </p>
         )}
         <FormMessage error>{command.error?.message}</FormMessage>
       </ConfirmDialog>

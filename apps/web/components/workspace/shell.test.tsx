@@ -145,7 +145,9 @@ describe("Sidebar Navigation Collapsible Categories in Shell", () => {
     const current = screen.getByRole("link", { name: "کالاها و خدمات" });
     expect(current).toHaveAttribute("href", "/accounting/inventory/items");
     expect(current).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "موجودی و کاردکس" })).not.toHaveAttribute("aria-current");
+    expect(screen.queryByRole("link", { name: "موجودی و کاردکس" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "رسید انبار" })).toHaveAttribute("href", "/accounting/inventory/receipts");
+    expect(screen.getByRole("link", { name: "خروج انبار" })).toHaveAttribute("href", "/accounting/inventory/issues");
   });
 
   it("keeps forecast accessible in mobile navigation without a direct period report link", () => {

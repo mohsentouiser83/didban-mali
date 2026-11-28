@@ -12,7 +12,7 @@ vi.mock("@/hooks/use-moadian-reconciliation", () => ({
 
 it("shows the missing sales invoices without claiming that all were sent", () => {
   render(<MoadianReconciliationPanel />);
-  expect(screen.getByRole("heading", { name: "هنوز فاکتور فروشی ثبت نشده است" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "فاکتور فروش داخلی موجود نیست" })).toBeVisible();
   expect(screen.queryByText("نرخ تمکین مالیاتی")).not.toBeInTheDocument();
   expect(screen.queryByText(/تمامی فاکتورها/)).not.toBeInTheDocument();
 });

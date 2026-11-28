@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { listItems } from "@/lib/api";
-import type { AccountNature, AccountingCapabilities, LedgerAccount } from "@/lib/accounting";
+import { accountNatureLabel, type AccountNature, type AccountingCapabilities, type LedgerAccount } from "@/lib/accounting";
 import {
-  accountCodeHint,
+  accountLevelLabel,
   accountRoleLabel,
+  accountPostableStatus,
   buildAccountTreeRows,
   childAccountLevel,
   parentAccountLevel,
-  isTreasuryAccount,
   suggestAccountCode,
   treasuryRoleLabel,
   validateAccountCodePattern,
@@ -19,6 +19,7 @@ import { useCommand } from "./use-command";
 import { usePagedResource } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
+import { useTableColumnFilters } from "./use-table-column-filters";
 
 type AccountForm = {
   code: string;
@@ -28,6 +29,7 @@ type AccountForm = {
   level: AccountLevel | "";
   parent_id: string;
   role: string;
+  linked_account_ids: string[];
 };
 const blank = (): AccountForm => ({
   code: "",
@@ -37,23 +39,13 @@ const blank = (): AccountForm => ({
   level: "group",
   parent_id: "",
   role: "",
+  linked_account_ids: [],
 });
-function normalizeSearch(value: string) {
-  return value
-    .replace(/ي/g, "ی")
-    .replace(/ك/g, "ک")
-    .replace(/\u200c/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
 export function useLedgerAccounts() {
   const workspace = useWorkspace();
-  const [search, setSearch] = useState("");
   const [localPage, setLocalPage] = useState(0);
   const [levelFilter, setLevelFilter] = useState("all");
   const [parentFilter, setParentFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState<"all" | "treasury">("all");
   const params = new URLSearchParams();
   if (levelFilter !== "all") params.set("level", levelFilter);
   if (parentFilter !== "all") params.set("parent_id", parentFilter);
@@ -69,15 +61,28 @@ export function useLedgerAccounts() {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const parentLevel = parentAccountLevel(value.level);
+  const needsParent = Boolean(parentLevel && (value.level !== "detail" || value.parent_id));
   const choices = (level?: string | null) => catalogue.items
     .filter((account) => (!level || account.level === level) && account.id !== editing?.id)
     .map((account) => ({ value: account.id, label: `${account.code} — ${account.name}` }));
+  const detailTargetOptions = catalogue.items
+    .filter((account) => account.active && account.level && account.level !== "detail"
+      && account.id !== editing?.id && !value.linked_account_ids.includes(account.id))
+    .map((account) => ({
+      value: account.id,
+      label: `${account.code} — ${account.name} (${accountLevelLabel(account.level)})`,
+    }));
+  const detailTargets = value.linked_account_ids.map((id) => {
+    const target = catalogue.items.find((account) => account.id === id);
+    return { id, label: target ? `${target.code} — ${target.name} (${accountLevelLabel(target.level)})` : id };
+  });
   function open(account: LedgerAccount | null) {
     setEditing(account);
     setCodeTouched(!!account);
     setValue(account ? {
       code: account.code, name: account.name, nature: account.nature ?? "debit", active: account.active,
       level: account.level || "", parent_id: account.parent_id || "", role: account.role || "",
+      linked_account_ids: account.linked_account_ids ?? [],
     } : {
       ...blank(),
       code: suggestAccountCode(catalogue.items, "group", ""),
@@ -88,14 +93,16 @@ export function useLedgerAccounts() {
   function openChild(parent: LedgerAccount) {
     const nextLevel = childAccountLevel(parent.level);
     if (!nextLevel) return;
+    const floating = nextLevel === "detail";
     setEditing(null);
     setCodeTouched(false);
     setValue({
       ...blank(),
       level: nextLevel,
-      parent_id: parent.id,
+      parent_id: floating ? "" : parent.id,
+      linked_account_ids: floating ? [parent.id] : [],
       nature: parent.nature ?? "debit",
-      code: suggestAccountCode(catalogue.items, nextLevel, parent.id),
+      code: suggestAccountCode(catalogue.items, nextLevel, floating ? null : parent.id),
     });
     setErrors({});
     command.clearError();
@@ -120,6 +127,7 @@ export function useLedgerAccounts() {
         ...previous,
         ...patch,
         ...(levelChanged ? { parent_id: "" } : {}),
+        ...(nextLevel !== "detail" ? { linked_account_ids: [] } : {}),
         code: nextCode,
       };
     });
@@ -131,7 +139,7 @@ export function useLedgerAccounts() {
     const next: Record<string, string> = {};
     if (!value.name.trim()) next.name = "نام حساب لازم است.";
     if (!value.level) next.level = "سطح حساب را انتخاب کنید.";
-    if (parentLevel && !value.parent_id) next.parent_id = "حساب بالادست را انتخاب کنید.";
+    if (needsParent && !value.parent_id) next.parent_id = "حساب بالادست را انتخاب کنید.";
     const selectedParent = value.parent_id
       ? catalogue.items.find((account) => account.id === value.parent_id)
       : undefined;
@@ -154,6 +162,7 @@ export function useLedgerAccounts() {
       name: value.name.trim(),
       parent_id: value.parent_id || null,
     };
+    if (value.level !== "detail") delete body.linked_account_ids;
     if (value.role) {
       body.role = value.role;
     } else if (editing?.role) {
@@ -166,19 +175,21 @@ export function useLedgerAccounts() {
       body,
     }, () => { setEditing(undefined); refresh(); }, "حساب ذخیره شد.");
   }
-  const normalizedTerm = normalizeSearch(search);
-  const localFiltersActive = Boolean(normalizedTerm) || categoryFilter === "treasury";
+  const scopedAccounts = catalogue.items.filter((account) =>
+    (levelFilter === "all" || (account.level || "unclassified") === levelFilter) &&
+    (parentFilter === "all" || account.parent_id === parentFilter),
+  );
+  const filters = useTableColumnFilters(scopedAccounts, {
+    code: (account) => account.code,
+    name: (account) => account.name,
+    nature: (account) => accountNatureLabel(account.nature),
+    role: (account) => account.role ? treasuryRoleLabel(account.role) || accountRoleLabel(account.role) : "—",
+    status: (account) => `${account.active ? "فعال" : "غیرفعال"} · ${accountPostableStatus(account).label}`,
+  });
+  const localFiltersActive = filters.active;
   const serverFiltersActive = !localFiltersActive && (levelFilter !== "all" || parentFilter !== "all");
   const filtersActive = serverFiltersActive || localFiltersActive;
-  const localRows = localFiltersActive ? catalogue.items.filter((account) => {
-    if (levelFilter !== "all" && (account.level || "unclassified") !== levelFilter) return false;
-    if (parentFilter !== "all" && account.parent_id !== parentFilter) return false;
-    if (categoryFilter === "treasury" && !isTreasuryAccount(account)) return false;
-    const roleText = account.role ? (treasuryRoleLabel(account.role) || accountRoleLabel(account.role)) : "";
-    return normalizeSearch(
-      [account.code, account.name, account.parent_code, account.parent_name, roleText].filter(Boolean).join(" "),
-    ).includes(normalizedTerm);
-  }) : [];
+  const localRows = filters.rows;
   const pageSize = 25;
   const page = Math.min(localPage, Math.max(0, Math.ceil(localRows.length / pageSize) - 1));
   const rows = localFiltersActive
@@ -207,9 +218,6 @@ export function useLedgerAccounts() {
   };
   const expandAll = () => setCollapsedIds(new Set());
   const collapseAll = () => setCollapsedIds(new Set(expandableIds));
-  const selectedParentCode = value.parent_id
-    ? catalogue.items.find((account) => account.id === value.parent_id)?.code
-    : undefined;
   const suggestedCode = !editing && value.level
     ? suggestAccountCode(catalogue.items, value.level, value.parent_id)
     : "";
@@ -224,20 +232,19 @@ export function useLedgerAccounts() {
     hasExpandableNodes: !filtersActive && expandableIds.length > 0,
     allCollapsed: expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id)),
     close: () => setEditing(undefined),
-    search, setSearch: (term: string) => { setLocalPage(0); setSearch(term); },
+    columnFilter: (key: Parameters<typeof filters.bind>[0]) => filters.bind(key, () => setLocalPage(0)),
     levelFilter, parentFilter,
     setParentFilter: (parent: string) => { setLocalPage(0); setParentFilter(parent); },
-    categoryFilter,
-    setCategoryFilter: (category: "all" | "treasury") => { setLocalPage(0); setCategoryFilter(category); },
     setLevelFilter: (level: string) => { setLocalPage(0); setLevelFilter(level); setParentFilter("all"); },
-    resetFilters: () => { setLocalPage(0); setSearch(""); setLevelFilter("all"); setParentFilter("all"); setCategoryFilter("all"); },
     localPagination: {
       page, total: localRows.length, pageSize,
       onPrevious: () => setLocalPage(Math.max(0, page - 1)),
       onNext: () => setLocalPage(page + 1),
     },
-    parentLevel, parentOptions: choices(parentLevel),
-    codeHint: accountCodeHint(value.level, selectedParentCode),
+    parentLevel, needsParent, parentOptions: choices(parentLevel),
+    detailTargetOptions, detailTargets,
+    addDetailTarget: (id: string) => change({ linked_account_ids: [...value.linked_account_ids, id] }),
+    removeDetailTarget: (id: string) => change({ linked_account_ids: value.linked_account_ids.filter((target) => target !== id) }),
     parentLabel: parentLevel === "group"
       ? "حساب گروه بالادست"
       : parentLevel === "general"

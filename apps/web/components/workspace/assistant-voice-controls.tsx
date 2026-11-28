@@ -73,7 +73,7 @@ export function AssistantVoiceControls({ voice }: { voice: AssistantVoice }) {
           </>
         )}
       </div>
-      {preview && <p className="text-xs leading-6 text-muted">صدا برای تبدیل به سرویس گفتار ارسال می‌شود؛ متن را پیش از ارسال بررسی کنید.</p>}
+      {preview && <p className="text-xs leading-6 text-muted">صدا به سرویس تبدیل گفتار ارسال می‌شود.</p>}
       <FieldError>{voice.error || (playbackError && preview ? "پخش ویس انجام نشد. دوباره تلاش کنید." : undefined)}</FieldError>
     </div>
   );

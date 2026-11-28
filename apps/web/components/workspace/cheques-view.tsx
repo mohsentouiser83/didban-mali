@@ -1,9 +1,8 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ReceiptIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Field } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { LoadingState, ErrorState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
 import {
@@ -44,24 +43,6 @@ function ChequeWorkspace() {
           />
         ) : (
           <>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-              <div className="w-64">
-                <Field id="cheque-filter-direction" label="گزارش نوع چک">
-                  <Select
-                    id="cheque-filter-direction"
-                    value={c.directionFilter}
-                    onValueChange={c.setDirectionFilter}
-                    options={[
-                      { value: "all", label: "همه چک‌ها" },
-                      { value: "received", label: "دریافتنی" },
-                      { value: "issued", label: "پرداختنی" },
-                      { value: "guarantee_in", label: "تضمین دیگران نزد ما" },
-                      { value: "guarantee_out", label: "تضمین ما نزد دیگران" },
-                    ]}
-                  />
-                </Field>
-              </div>
-            </div>
             {c.importBusy && <LoadingState label="در حال ورود چک‌ها..." />}
             <Table
               title="فهرست و گزارش چک‌های صیادی"
@@ -91,9 +72,11 @@ function ChequeWorkspace() {
                       <TableCell>
                         {chequeDirectionLabels[cheque.direction] || cheque.direction}
                       </TableCell>
-                      <TableCell>{cheque.party_id}</TableCell>
+                      <TableCell>
+                        {c.counterpartyNames[cheque.counterparty_id || cheque.party_id] || cheque.party_id}
+                      </TableCell>
                       <TableCell>{displayDate(cheque.due_date)}</TableCell>
-                      <TableCell>{amount(cheque.amount)}</TableCell>
+                      <TableCell className="tabular-nums">{amount(cheque.amount)}</TableCell>
                       <TableCell>
                         <Badge tone="neutral">
                           {chequeStateLabels[cheque.state] || "نامشخص"}
@@ -105,12 +88,9 @@ function ChequeWorkspace() {
                           : "شناسه ثبت نشده"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="secondary"
-                          onClick={() => c.inspect(cheque)}
-                        >
-                          سابقه و رویداد
-                        </Button>
+                        <TableRowActions label={`عملیات ${cheque.number}`}>
+                          <TableRowAction onClick={() => c.inspect(cheque)} kind="view">سابقه و رویداد</TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))

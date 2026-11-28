@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Literal
 
 from pydantic import Field, model_validator
 
@@ -43,11 +42,6 @@ class AllocationInput(StrictInput):
 
 class AllocationReversalInput(StrictInput):
     reason: str = Field(min_length=1, max_length=1000)
-
-
-class SnapshotInput(StrictInput):
-    as_of: date
-    direction: Literal["sale", "purchase"] | None = None
 
 
 class SourceRevisionInput(StrictInput):

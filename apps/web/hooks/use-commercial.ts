@@ -1,8 +1,16 @@
 "use client";
+import { moduleAllows } from "@/lib/module-access";
 import { randomId } from "@/lib/random-id";
 import { useRef, useState } from "react";
 import type { AccountingCapabilities } from "@/lib/accounting";
-import type { Counterparty, CounterpartyForm, Proforma, ProformaForm, ProformaLineForm } from "@/lib/commercial";
+import {
+  normalizeCounterpartyPayload,
+  type Counterparty,
+  type CounterpartyForm,
+  type Proforma,
+  type ProformaForm,
+  type ProformaLineForm,
+} from "@/lib/commercial";
 import type { InventoryState } from "@/lib/inventory";
 import { tehranToday } from "@/lib/native-invoices";
 import { useAccountOptions } from "./use-accounting";
@@ -13,18 +21,16 @@ import { useWorkspace } from "./workspace";
 
 function useCommercialList<T extends { id: string; version: number }>(
   entity: "counterparties" | "proformas",
-  search = "",
-  typeFilter = "",
-  entityKindFilter = "",
+  filters?: Record<string, string>,
 ) {
   const workspace = useWorkspace();
   const base = workspace.companyPath(`commercial/${entity}`);
   const pageSize = 25;
   const [page, setPage] = useState(0);
   const query = new URLSearchParams({ limit: String(pageSize), offset: String(page * pageSize) });
-  if (search) query.set("search", search);
-  if (typeFilter && typeFilter !== "all") query.set("type", typeFilter);
-  if (entityKindFilter && entityKindFilter !== "all") query.set("entity_kind", entityKindFilter);
+  for (const [key, value] of Object.entries(filters ?? {})) {
+    if (value) query.set(key, value);
+  }
   const resource = useResource<{ items: T[]; total: number }>(base && `${base}?${query}`);
   const capabilities = useResource<AccountingCapabilities>(workspace.companyPath("accounting/capabilities"));
   const command = useCommand();
@@ -72,18 +78,30 @@ function useCommercialList<T extends { id: string; version: number }>(
 }
 
 export function useCounterparties() {
-  const [search, setSearch] = useState("");
+  const [terms, setTerms] = useState({ name: "", code: "" });
   const [typeFilter, setTypeFilter] = useState("all");
   const [entityKindFilter, setEntityKindFilter] = useState("all");
-  const list = useCommercialList<Counterparty>("counterparties", search, typeFilter, entityKindFilter);
-  const canEdit = list.capabilities.data?.can_manage_accounts === true;
+  const list = useCommercialList<Counterparty>("counterparties", {
+    ...terms,
+    type: typeFilter === "all" ? "" : typeFilter,
+    entity_kind: entityKindFilter === "all" ? "" : entityKindFilter,
+  });
+  const managesAccounts = list.capabilities.data?.can_manage_accounts === true;
+  const canCreate = moduleAllows(list.workspace.company, "commercial", "create", managesAccounts);
+  const canEdit = moduleAllows(list.workspace.company, "commercial", "edit", managesAccounts);
   const canViewReports = Boolean(list.workspace.company?.role);
   return {
-    ...list, search, typeFilter, entityKindFilter, canEdit, canViewReports,
-    changeSearch(value: string) {
-      list.resetPage();
-      setSearch(value);
-    },
+    ...list, typeFilter, entityKindFilter, canCreate, canEdit, canViewReports,
+    filtersActive: !!(terms.name || terms.code || typeFilter !== "all" || entityKindFilter !== "all"),
+    columnFilter: (key: keyof typeof terms) => ({
+      activeFilter: terms[key] ? { textCondition: terms[key] } : undefined,
+      isActive: !!terms[key],
+      maxLength: key === "name" ? 150 : 100,
+      onApply: (filter: { textCondition?: string } | null) => {
+        list.resetPage();
+        setTerms((previous) => ({ ...previous, [key]: filter?.textCondition ?? "" }));
+      },
+    }),
     changeTypeFilter(value: string) {
       list.resetPage();
       setTypeFilter(value);
@@ -93,43 +111,10 @@ export function useCounterparties() {
       setEntityKindFilter(value);
     },
     save(form: CounterpartyForm) {
-      const roles = form.roles.length ? form.roles : (form.type ? [form.type] : []);
-      if (!canEdit || !roles.length) return;
-      const primaryType = form.type || (roles.length === 1 ? roles[0] : "other");
-      list.save({
-        ...form,
-        type: primaryType,
-        roles,
-        name: form.name.trim(),
-        national_id: form.national_id.trim() || null,
-        economic_code: form.economic_code.trim() || null,
-        registration_number: form.registration_number.trim() || null,
-        postal_code: form.postal_code.trim() || null,
-        email: form.email.trim() || null,
-        phone: form.phone.trim() || null,
-        address: form.address.trim() || null,
-        credit_limit_irr: form.credit_limit_irr || null,
-      });
+      const body = normalizeCounterpartyPayload(form, list.editor?.row);
+      if (!(list.editor?.row ? canEdit : canCreate) || !body.roles.length) return;
+      list.save(body);
     },
-  };
-}
-
-export function counterpartyForm(row?: Counterparty): CounterpartyForm {
-  const roles = row?.roles?.length ? row.roles : (row?.type ? [row.type] : []);
-  return {
-    name: row?.name ?? "",
-    type: row?.type ?? "",
-    entity_kind: row?.entity_kind ?? "other",
-    roles,
-    national_id: row?.national_id ?? "",
-    economic_code: row?.economic_code ?? "",
-    registration_number: row?.registration_number ?? "",
-    postal_code: row?.postal_code ?? "",
-    email: row?.email ?? "",
-    phone: row?.phone ?? "",
-    address: row?.address ?? "",
-    credit_limit_irr: row?.credit_limit_irr ?? "",
-    active: row?.active ?? true,
   };
 }
 
@@ -231,6 +216,7 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
   const periods = operation.periods.filter((period) => period.start <= today && period.end >= today);
   const hasGoods = row.lines.some((l) => l.line_kind !== "service" && !!l.item_id);
   const hasService = row.lines.some((l) => l.line_kind === "service" || !l.item_id);
+  const hasDiscount = Number(row.invoice_discount || 0) > 0 || row.lines.some((l) => Number(l.discount || 0) > 0);
   const roleItems = rolesResource.data?.items ?? [];
   const postableIds = new Set(accounts.options.map((o) => o.value));
   const suggestRole = (...roles: string[]) => {
@@ -246,6 +232,7 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     counterparty_account_id: "",
     revenue_account_id: "",
     service_revenue_account_id: "",
+    discount_account_id: "",
     cost_account_id: "",
     settlement_type: "on_account",
     cash_amount: "",
@@ -289,6 +276,7 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
       period_id: values.period_id,
       ...(hasGoods ? { warehouse_id: values.warehouse_id, revenue_account_id: values.revenue_account_id, cost_account_id: values.cost_account_id } : {}),
       ...(hasService ? { service_revenue_account_id: values.service_revenue_account_id } : {}),
+      ...(hasDiscount && values.discount_account_id ? { discount_account_id: values.discount_account_id } : {}),
       source_reference: `proforma:${row.id}`,
       settlement_type: values.settlement_type,
       ...(onAccount ? { counterparty_account_id: values.counterparty_account_id } : {}),
@@ -310,5 +298,5 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
     }, onComplete, "پیش‌نویس فروش ساخته شد.");
   }
 
-  return { accounts, inventory, command, periods, values, setValues, hasGoods, hasService, mixed, mixedSumMatch, cash, cheque, onAccount, valid, save };
+  return { accounts, inventory, command, periods, values, setValues, hasGoods, hasService, hasDiscount, mixed, mixedSumMatch, cash, cheque, onAccount, valid, save };
 }

@@ -2,7 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { jalaliToIso } from "@/lib/date-utils";
 import { CommercialDocumentsPanel } from "./commercial/commercial-documents-panel";
+import { SalesInvoiceCreateView } from "./commercial/sales-invoice-create-view";
 import { TreasuryDocumentsPanel } from "./treasury-documents-panel";
+
+const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/receivables/new",
+  useRouter: () => ({ replace }),
+}));
 
 vi.mock("@/hooks/workspace", () => ({
   useWorkspace: () => ({
@@ -41,6 +48,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
 
   beforeEach(() => {
     fetchCalls = [];
+    replace.mockClear();
     vi.stubGlobal("ResizeObserver", class {
       observe() {}
       unobserve() {}
@@ -152,7 +160,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     };
   }
 
-  it("sends service_revenue_account_id and counterparty_account_id for service sale and handles ambiguous revenue accounts", async () => {
+  it("blocks an ambiguous service revenue account without displaying account selectors", async () => {
     installFetchMock(
       baseCommercialHandler([
         { id: "acc-ar", code: "12010101", name: "مطالبات تجاری", role: "trade_receivable" },
@@ -161,8 +169,8 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
       ]),
     );
 
-    render(<CommercialDocumentsPanel direction="sale" />);
-    fireEvent.click(await screen.findByRole("button", { name: /ثبت فاکتور .*چندردیفی/ }));
+    render(<SalesInvoiceCreateView />);
+    await screen.findByRole("heading", { name: "اطلاعات فاکتور" });
 
     // Wait for accounts to load
     await waitFor(() => {
@@ -170,42 +178,18 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     });
 
     // Switch line 1 to service
-    selectOption("نوع ردیف 1", "خدمت");
+    selectOption("نوع ردیف ۱", "خدمت");
     selectOption(/^طرف حساب$/, /مشتری نمونه/);
-    fireEvent.change(screen.getByLabelText("شرح ردیف 1"), { target: { value: "مشاوره مالی" } });
-    fireEvent.change(screen.getByLabelText("فی ردیف 1"), { target: { value: "500000" } });
+    fireEvent.change(screen.getByLabelText("شرح ردیف ۱"), { target: { value: "مشاوره مالی" } });
+    fireEvent.change(screen.getByLabelText("فی ردیف ۱"), { target: { value: "500000" } });
 
-    // Submit without selecting service revenue account (ambiguous: 2 revenue accounts!) -> inline error
-    fireEvent.click(screen.getByRole("button", { name: "ساخت پیش‌نویس فاکتور تجاری" }));
-    expect(await screen.findByText("حساب درآمد خدمات را انتخاب کنید.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "مرحلهٔ بعد" }));
+    expect(screen.queryByText("حساب‌های معین و تسویه سند")).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "حساب درآمد خدمات" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره پیش‌نویس" }));
+    expect(await screen.findByText("چند حساب برای «حساب درآمد خدمات» در کدینگ وجود دارد.")).toBeInTheDocument();
     expect(fetchCalls.some((c) => c.url.endsWith("/commercial/documents") && c.method === "POST")).toBe(false);
-
-    // Explicitly pick service revenue account and submit
-    selectOption(/حساب درآمد خدمات/, /درآمد خدمات مشاوره/);
-    fireEvent.click(screen.getByRole("button", { name: "ساخت پیش‌نویس فاکتور تجاری" }));
-
-    await waitFor(() => {
-      const post = fetchCalls.find((c) => c.url.endsWith("/commercial/documents") && c.method === "POST");
-      expect(post).toBeDefined();
-      expect(post!.body).toMatchObject({
-        direction: "sale",
-        party_id: "cp-cust",
-        warehouse_id: null,
-        settlement_type: "on_account",
-        counterparty_account_id: "acc-ar",
-        service_revenue_account_id: "acc-rev-2",
-        lines: [
-          {
-            line_kind: "service",
-            item_id: null,
-            description: "مشاوره مالی",
-            quantity: 1,
-            unit_price: "500000",
-            line_discount: "0",
-          },
-        ],
-      });
-    });
   });
 
   it("sends expense_account_id and cash_account_id for cash service purchase", async () => {
@@ -223,11 +207,11 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
       expect(fetchCalls.some((c) => c.url.includes("/accounting/accounts"))).toBe(true);
     });
 
-    selectOption("نوع ردیف 1", "خدمت");
+    selectOption("نوع ردیف ۱", "خدمت");
     selectOption(/^طرف حساب$/, /تأمین‌کننده نمونه/);
     selectOption(/نحوه تسویه/, "نقدی کامل");
-    fireEvent.change(screen.getByLabelText("شرح ردیف 1"), { target: { value: "حمل و نقل" } });
-    fireEvent.change(screen.getByLabelText("فی ردیف 1"), { target: { value: "250000" } });
+    fireEvent.change(screen.getByLabelText("شرح ردیف ۱"), { target: { value: "حمل و نقل" } });
+    fireEvent.change(screen.getByLabelText("فی ردیف ۱"), { target: { value: "250000" } });
 
     fireEvent.click(screen.getByRole("button", { name: "ساخت پیش‌نویس فاکتور تجاری" }));
 
@@ -267,17 +251,24 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
       ]),
     );
 
-    render(<CommercialDocumentsPanel direction="sale" />);
-    fireEvent.click(await screen.findByRole("button", { name: /ثبت فاکتور .*چندردیفی/ }));
+    render(<SalesInvoiceCreateView />);
+    await screen.findByRole("heading", { name: "اطلاعات فاکتور" });
 
     await waitFor(() => {
       expect(fetchCalls.some((c) => c.url.includes("/accounting/accounts"))).toBe(true);
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "مرحلهٔ بعد" }));
+    expect(await screen.findByText("طرف حساب را انتخاب کنید.")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /نحوه تسویه/ })).not.toBeInTheDocument();
+
     selectOption(/^طرف حساب$/, /مشتری نمونه/);
-    selectOption("کالای ردیف 1", /کالای تست/);
-    fireEvent.change(screen.getByLabelText("تعداد ردیف 1"), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText("فی ردیف 1"), { target: { value: "100000" } });
+    selectOption("کالای ردیف ۱", /کالای تست/);
+    fireEvent.change(screen.getByLabelText("تعداد ردیف ۱"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("فی ردیف ۱"), { target: { value: "100000" } });
+    fireEvent.click(screen.getByRole("button", { name: "مرحلهٔ بعد" }));
+    expect(screen.queryByLabelText("تعداد ردیف ۱")).not.toBeInTheDocument();
+    expect(fetchCalls.some((c) => c.url.endsWith("/commercial/documents") && c.method === "POST")).toBe(false);
     selectOption(/نحوه تسویه/, /ترکیبی/);
 
     // Intentionally mismatched shares: 50,000 + 50,000 + 20,000 != 200,000
@@ -285,10 +276,15 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     fireEvent.change(screen.getByLabelText(/مبلغ چک/), { target: { value: "50000" } });
     fireEvent.change(screen.getByLabelText(/مبلغ نسیه/), { target: { value: "20000" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "ساخت پیش‌نویس فاکتور تجاری" }));
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره پیش‌نویس" }));
     expect(await screen.findByText(/مجموع سهم‌های نقد، چک و نسیه/)).toBeInTheDocument();
     expect(screen.getByText(/شماره چک برای بخش تسویه با چک الزامی است/)).toBeInTheDocument();
     expect(fetchCalls.some((c) => c.url.endsWith("/commercial/documents") && c.method === "POST")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "مرحلهٔ قبل" }));
+    expect(screen.getByLabelText("تعداد ردیف ۱")).toHaveValue(2);
+    fireEvent.click(screen.getByRole("button", { name: "مرحلهٔ بعد" }));
+    expect(screen.getByLabelText(/مبلغ نقد/)).toHaveValue("۵۰٬۰۰۰");
 
     // Fix shares to 50,000 + 50,000 + 100,000 = 200,000 and enter cheque details
     fireEvent.change(screen.getByLabelText(/مبلغ نسیه/), { target: { value: "100000" } });
@@ -296,8 +292,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     const chequeDateInput = document.getElementById("cd-cheque-due-date") as HTMLInputElement;
     fireEvent.change(chequeDateInput, { target: { value: "1405/04/09" } });
 
-    // Pick cheque account if not auto-selected, or verify it auto-selected acc-chq (excluding acc-inv!)
-    fireEvent.click(screen.getByRole("button", { name: "ساخت پیش‌نویس فاکتور تجاری" }));
+    fireEvent.click(screen.getByRole("button", { name: "ذخیره پیش‌نویس" }));
 
     await waitFor(() => {
       const post = fetchCalls.find((c) => c.url.endsWith("/commercial/documents") && c.method === "POST");
@@ -319,6 +314,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
         counterparty_account_id: "acc-ar",
       });
     });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/receivables"));
   });
 
   it("reverses treasury allocation using parent document version in If-Match and updates UI state", async () => {
@@ -413,7 +409,8 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     });
 
     render(<TreasuryDocumentsPanel />);
-    const reverseBtn = await screen.findByRole("button", { name: /برگشت/ });
+    fireEvent.keyDown(await screen.findByRole("button", { name: "عملیات REC-001" }), { key: "ArrowDown" });
+    const reverseBtn = await screen.findByRole("menuitem", { name: /برگشت تخصیص/ });
     fireEvent.click(reverseBtn);
 
     fireEvent.change(screen.getByLabelText(/دلیل برگشت/), { target: { value: "اصلاح تخصیص" } });
@@ -480,7 +477,8 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     });
 
     render(<TreasuryDocumentsPanel />);
-    fireEvent.click(await screen.findByRole("button", { name: /برگشت/ }));
+    fireEvent.keyDown(await screen.findByRole("button", { name: "عملیات REC-002" }), { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /برگشت تخصیص/ }));
     fireEvent.change(screen.getByLabelText(/دلیل برگشت/), { target: { value: "تغییر نسخه" } });
     fireEvent.click(screen.getByRole("button", { name: "ثبت برگشت" }));
 

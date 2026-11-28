@@ -1,8 +1,8 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Table, TableBody, TableCell, TableEmptyCell, TableHead, TableHeader, TableRow, TableRowHeader } from "@/components/ui/table";
 import { amount, displayDate } from "@/lib/utils";
@@ -10,8 +10,8 @@ import { Panel } from "./page-parts";
 import { toolLabel, stateLabel } from "@/hooks/use-treasury-documents";
 import type { useTreasuryDocuments } from "@/hooks/use-treasury-documents";
 
-export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof useTreasuryDocuments>,
-    "workspace" |
+export function TreasuryDocumentTable({ view, hideJournalLink = false }: { hideJournalLink?: boolean; view: Pick<ReturnType<typeof useTreasuryDocuments>,
+    "canDelete" |
     "docs" |
     "cmd" |
     "setAllocDoc" |
@@ -25,7 +25,7 @@ export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof u
     "docRows"
   > }) {
   const {
-    workspace,
+    canDelete,
     docs,
     cmd,
     setAllocDoc,
@@ -45,10 +45,7 @@ export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof u
         ) : docs.error ? (
           <ErrorState message={docs.error.message} onRetry={docs.refresh} />
         ) : !docRows.length ? (
-          <EmptyState
-            title="سند خزانه‌ای ثبت نشده است"
-            description="برای ثبت دریافت یا پرداخت چندابزاری (نقد، حواله، چک، کارت) پیش‌نویس سند خزانه جدید بسازید."
-          />
+          <EmptyState title="سند خزانه‌ای ثبت نشده است" />
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -82,7 +79,8 @@ export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof u
                       <div>
                         {doc.tools.map((t) => {
                           const ref = t.reference ? ` [${t.reference}]` : "";
-                          return `${toolLabel[t.tool_kind] ?? t.tool_kind} (${amount(t.amount)})${ref}`;
+                          const label = t.point_of_sale_name || toolLabel[t.tool_kind] || t.tool_kind;
+                          return `${label} (${amount(t.amount)})${ref}`;
                         }).join(" · ")}
                       </div>
                       {doc.allocations.map((a) => (
@@ -97,34 +95,8 @@ export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof u
                                 ? "تخصیص دارای شاهد پرداخت"
                                 : "تخصیص بدون شاهد پرداخت"}
                           </Badge>
-                          {workspace.canWrite && !a.reversed_at && (
-                            <Button
-                              className="min-h-8 px-2 text-xs"
-                              variant="ghost"
-                              onClick={() => {
-                                cmd.clearError();
-                                setReverseReason("");
-                                setReversingAlloc({
-                                  allocation: a,
-                                  documentId: doc.id,
-                                  documentNumber: doc.number,
-                                  documentVersion: doc.version,
-                                });
-                              }}
-                            >
-                              <ArrowCounterClockwiseIcon size={14} aria-hidden />
-                              برگشت تخصیص
-                            </Button>
-                          )}
                         </div>
                       ))}
-                      {(doc.operation_id || doc.journal_id) && (
-                        <div className="flex flex-wrap gap-2 pt-0.5">
-                          <ButtonLink variant="ghost" className="min-h-7 px-2 text-xs" href="/accounting">
-                            مشاهده در اسناد حسابداری
-                          </ButtonLink>
-                        </div>
-                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
@@ -139,21 +111,44 @@ export function TreasuryDocumentTable({ view }: { view: Pick<ReturnType<typeof u
                       </div>
                     </TableCell>
                     <TableCell>
-                      {canAllocate && firstAvailableTool && (
-                        <Button
-                          className="min-h-8 px-3 text-xs"
-                          variant="secondary"
+                      <TableRowActions label={`عملیات ${doc.number}`}>
+                        {canAllocate && firstAvailableTool && (
+                        <TableRowAction
                           onClick={() => {
-                            cmd.clearError();
-                            setSelectedToolId(firstAvailableTool.id);
-                            setSelectedInvoiceId("");
-                            setAllocAmount("");
-                            setAllocDoc(doc);
+                              cmd.clearError();
+                              setSelectedToolId(firstAvailableTool.id);
+                              setSelectedInvoiceId("");
+                              setAllocAmount("");
+                              setAllocDoc(doc);
                           }}
                         >
                           تخصیص به فاکتور
-                        </Button>
+                        </TableRowAction>
                       )}
+                        {canDelete && doc.allocations.filter((allocation) => !allocation.reversed_at).map((allocation) => (
+                          <TableRowAction
+                            key={allocation.id}
+                            kind="reverse"
+                            icon={<ArrowCounterClockwiseIcon size={14} aria-hidden />}
+                            onClick={() => {
+                                cmd.clearError();
+                                setReverseReason("");
+                                setReversingAlloc({
+                                    allocation,
+                                    documentId: doc.id,
+                                    documentNumber: doc.number,
+                                    documentVersion: doc.version,
+                                });
+                            }}
+                          >
+                            برگشت تخصیص {allocation.invoice_reference || invNames[allocation.invoice_id] || allocation.invoice_id}
+                          </TableRowAction>
+                        ))}
+                        {!hideJournalLink && (doc.operation_id || doc.journal_id) && (
+                          <TableRowAction href="/accounting">مشاهده در اسناد حسابداری</TableRowAction>
+                        )}
+
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 )) : <TableEmptyCell colSpan={9} title="سند خزانه‌ای پیدا نشد" />}

@@ -153,14 +153,7 @@ function ProfileContent({
 
   return (
     <>
-      <PageHeader
-        title="پروفایل کاربری"
-        icon={UserCircleIcon}
-      >
-        <p className="mt-2 text-sm text-muted">
-          اطلاعات حساب کاربری، تصویر نمایه و اتصال به بات‌های پیام‌رسان
-        </p>
-      </PageHeader>
+      <PageHeader title="پروفایل کاربری" icon={UserCircleIcon} />
 
       <div className="space-y-6">
         {/* User Info & Avatar Panel */}
@@ -215,9 +208,6 @@ function ProfileContent({
                   </Button>
                 )}
               </div>
-              <p className="text-center text-xs text-muted">
-                PNG، JPG یا WebP (حداکثر ۲ مگابایت)
-              </p>
               {imageError && <FormMessage error>{imageError}</FormMessage>}
             </div>
 
@@ -289,12 +279,6 @@ function ProfileContent({
         >
           {workspace.company ? (
             <div className="space-y-4">
-              <p className="text-sm text-muted">
-                اتصال حساب تلگرام یا بله به شرکت{" "}
-                <strong className="text-foreground">{workspace.company.name}</strong>{" "}
-                جهت پرسش از گزارش‌ها و دریافت مدارک مالی.
-              </p>
-
               {botView.loading ? (
                 <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />
               ) : botView.error ? (

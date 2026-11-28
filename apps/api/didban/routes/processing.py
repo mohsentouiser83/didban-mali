@@ -1,19 +1,21 @@
-"""Processing HTTP routes."""
+"""File-report lifecycle and the dedicated Moadian spreadsheet import."""
 
 from hashlib import sha256
-from pathlib import Path
+from typing import Literal
 
-from fastapi import APIRouter, File, Request, UploadFile
+from fastapi import APIRouter, Request
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from .. import models as m
 from .. import schemas as s
 from .. import services as service
-from ..config import settings
+from ..document_archive_service import read_spreadsheet_upload
 from ..errors import require
-from ..http import C, access, expected, mutate, paginate, public_source
+from ..http import C, access, expected, mutate, public_source
 from ..ingestion import read_file, scan
 from ..period_lock_service import require_open_period
+from ..source_intake import import_moadian_source
 from ..workflow import (
     answer_issue,
     audit,
@@ -25,37 +27,46 @@ from ..workflow import (
 router = APIRouter()
 
 
-@router.get(C + "/processing-sessions")
-def sessions(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
-    with access(request, company_id) as (db, _user, _member):
-        return paginate(db, m.ProcessingSession, company_id, limit, cursor)
-
-
-@router.post(C + "/processing-sessions", status_code=201)
-def create_session(company_id: str, data: s.SessionInput, request: Request):
-    def apply(db, user):
-        if data.period_id:
-            service.get_entity(db, m.Period, company_id, data.period_id)
-            require_open_period(db, company_id, data.period_id)
-        parent_id = data.parent_id
-        if parent_id:
-            service.get_entity(db, m.ResultManifest, company_id, parent_id)
-        else:
-            parent_id = db.scalar(
-                select(m.ResultManifest.id)
-                .where(m.ResultManifest.company_id == company_id)
-                .order_by(m.ResultManifest.created_at.desc())
-                .limit(1)
-            )
-        session = m.ProcessingSession(
-            company_id=company_id, period_id=data.period_id, parent_id=parent_id, actor_id=user.id
-        )
-        db.add(session)
-        db.flush()
-        audit(db, company_id, user.id, "session.created", session.id)
-        return serialize_fact(session)
-
-    return mutate(request, company_id, data.model_dump(), "write", apply)
+@router.post(
+    C + "/moadian/import/{direction}",
+    status_code=202,
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["file"],
+                        "properties": {"file": {"type": "string", "format": "binary"}},
+                    }
+                }
+            },
+        }
+    },
+)
+async def import_moadian(
+    company_id: str,
+    direction: Literal["sales", "purchases"],
+    period_id: str,
+    request: Request,
+    parent_id: str | None = None,
+):
+    with access(request, company_id, "write") as (db, _user, _member):
+        service.get_entity(db, m.Period, company_id, period_id)
+        require_open_period(db, company_id, period_id)
+    name, content = await read_spreadsheet_upload(request)
+    scanned = await run_in_threadpool(scan, content)
+    sheets = await run_in_threadpool(read_file, name, content)
+    return mutate(
+        request,
+        company_id,
+        {"name": name, "sha256": sha256(content).hexdigest(), "period_id": period_id, "parent_id": parent_id},
+        "write",
+        lambda db, user: import_moadian_source(
+            db, company_id, user, period_id, parent_id, direction, name, content, scanned, sheets
+        ),
+    )
 
 
 @router.post(C + "/processing-sessions/from-result", status_code=202)
@@ -113,72 +124,6 @@ def session_detail(company_id: str, session_id: str, request: Request):
             "files": [public_source(f) for f in files],
             "issues": [serialize_fact(i) for i in open_issues(db, session)],
         }
-
-
-@router.get(C + "/processing-sessions/{session_id}/issues")
-def session_issues(company_id: str, session_id: str, request: Request):
-    with access(request, company_id) as (db, _user, _member):
-        session = service.get_entity(db, m.ProcessingSession, company_id, session_id)
-        return {"items": [serialize_fact(i) for i in open_issues(db, session)]}
-
-
-@router.post(C + "/processing-sessions/{session_id}/files", status_code=202)
-async def upload(company_id: str, session_id: str, request: Request, file: UploadFile = File()):
-    # Authenticate before reading, scanning or parsing untrusted content.
-    with access(request, company_id, "write"):
-        pass
-    data = bytearray()
-    while chunk := await file.read(65536):
-        data.extend(chunk)
-        require(
-            len(data) <= settings.max_file_bytes, "file_size_limit", "حداکثر حجم فایل ۲۰ مگابایت است.", 413
-        )
-    name = Path((file.filename or "file").replace("\\", "/")).name[:255]
-    content = bytes(data)
-    checksum = sha256(content).hexdigest()
-    scanned = scan(content)
-    sheets = read_file(name, content)
-    payload = {"session_id": session_id, "sha256": checksum, "name": name}
-
-    def apply(db, user):
-        session = service.get_entity(db, m.ProcessingSession, company_id, session_id)
-        require(session.state == "receiving", "session_sealed", "دریافت این نوبت پایان یافته است.", 409)
-        from ..source_intake import store_source
-
-        source = store_source(db, company_id, user, session_id, name, content, scanned, sheets)
-        return public_source(source)
-
-    return mutate(request, company_id, payload, "write", apply)
-
-
-@router.post(C + "/processing-sessions/{session_id}/seal", status_code=202)
-def seal(company_id: str, session_id: str, data: s.SealInput, request: Request):
-    def apply(db, user):
-        session = service.get_entity(db, m.ProcessingSession, company_id, session_id)
-        service.check_version(session, expected(request))
-        require_open_period(db, company_id, session.period_id)
-        require(
-            session.state == "receiving", "session_already_sealed", "دریافت این نوبت پایان یافته است.", 409
-        )
-        files = list(
-            db.scalars(
-                select(m.SourceFile.id).where(
-                    m.SourceFile.company_id == company_id, m.SourceFile.session_id == session_id
-                )
-            )
-        )
-        require(
-            bool(files) and set(files) == set(data.file_ids) and len(files) == len(data.file_ids),
-            "upload_incomplete",
-            "فهرست فایل‌های دریافتی کامل نیست.",
-            409,
-        )
-        session.state, session.version = "sealed", session.version + 1
-        enqueue(db, session)
-        audit(db, company_id, user.id, "session.sealed", session_id, {"file_ids": files})
-        return serialize_fact(session)
-
-    return mutate(request, company_id, data.model_dump(), "write", apply)
 
 
 @router.post(C + "/processing-issues/{issue_id}/answers", status_code=201)

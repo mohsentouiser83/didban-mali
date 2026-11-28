@@ -1,10 +1,10 @@
 "use client";
 
-import { UsersThreeIcon, PlusIcon, PencilSimpleIcon, TrashIcon, ArrowClockwiseIcon, ShieldCheckIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
+import { UsersThreeIcon, PlusIcon, PencilSimpleIcon, TrashIcon, ShieldCheckIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useEmployees } from "@/hooks/use-employees";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
-import { persian } from "@/lib/utils";
 
 export function EmployeesManagementView() {
   const v = useEmployees();
@@ -39,23 +38,7 @@ export function EmployeesManagementView() {
       ) : (
         <div className="space-y-5">
           <Panel title="فهرست پرسنل">
-            <div className="mb-5 flex flex-wrap items-center gap-3">
-              <SearchInput
-                label="جستجوی کد پرسنلی، نام یا کد ملی"
-                value={v.search}
-                onChange={(e) => v.setSearch(e.target.value)}
-                className="min-w-0 flex-1"
-              />
-              {v.search && (
-                <Button variant="ghost" onClick={() => v.setSearch("")}>
-                  <ArrowClockwiseIcon size={18} aria-hidden />
-                  پاک‌کردن
-                </Button>
-              )}
-              <span className="text-xs text-muted">{persian(v.employees.length)} کارمند</span>
-            </div>
-
-            <Table title="فهرست کارمندان" showSearch={false} onImport={v.canPrepare ? v.importFromExcel : undefined}>
+            <Table title="فهرست کارمندان" onImport={v.canPrepare ? v.importFromExcel : undefined}>
               <TableHeader>
                 <TableRow>
                   <TableHead>کد پرسنلی</TableHead>
@@ -84,14 +67,23 @@ export function EmployeesManagementView() {
                         )}
                       </TableCell>
                       <TableCell className="text-end">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" className="size-8 p-0" onClick={() => v.openEdit(emp)} title="ویرایش">
-                            <PencilSimpleIcon size={16} />
-                          </Button>
-                          <Button variant="ghost" className="size-8 p-0 text-rose-600" onClick={() => v.requestRemove(emp)} aria-label={`حذف یا غیرفعال‌سازی ${emp.full_name}`}>
-                            <TrashIcon size={16} />
-                          </Button>
-                        </div>
+                        <TableRowActions label={`عملیات ${emp.full_name}`}>
+                          <TableRowAction
+                            onClick={() => v.openEdit(emp)}
+                            title="ویرایش"
+                            icon={<PencilSimpleIcon size={16} />}
+                          >
+                            ویرایش
+                          </TableRowAction>
+                          <TableRowAction
+                            onClick={() => v.requestRemove(emp)}
+                            aria-label={`حذف یا غیرفعال‌سازی ${emp.full_name}`}
+                            icon={<TrashIcon size={16} />}
+                            danger
+                          >
+                            حذف
+                          </TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))
@@ -100,9 +92,11 @@ export function EmployeesManagementView() {
                     colSpan={5}
                     title="کارمندی یافت نشد"
                     action={
-                      <Button variant="secondary" onClick={v.openAdd}>
-                        افزودن اولین کارمند
-                      </Button>
+                      v.canPrepare ? (
+                        <Button variant="secondary" onClick={v.openAdd}>
+                          افزودن اولین کارمند
+                        </Button>
+                      ) : undefined
                     }
                   />
                 )}
@@ -117,11 +111,10 @@ export function EmployeesManagementView() {
         open={v.canPrepare && v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش مشخصات کارمند" : "ثبت کارمند جدید"}
-        description="اطلاعات هویتی، بانکی و شرایط خاص معافیت‌های قانونی پرسنل را وارد کنید."
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={v.closeForm}>انصراف</Button>
-            <Button variant="primary" busy={v.command.busy} onClick={v.save}>
+            <Button variant="primary" busy={v.command.busy} className="w-full" onClick={v.save}>
               {v.editing ? "ذخیره تغییرات" : "ثبت کارمند"}
             </Button>
           </div>
@@ -201,7 +194,6 @@ export function EmployeesManagementView() {
                 <Input
                   value={v.form.job_title || ""}
                   onChange={(e) => v.setForm({ ...v.form, job_title: e.target.value })}
-                  placeholder="مثال: کارشناس مالی"
                 />
               </Field>
             </div>
@@ -223,7 +215,6 @@ export function EmployeesManagementView() {
                 <Input
                   value={v.form.bank_name || ""}
                   onChange={(e) => v.setForm({ ...v.form, bank_name: e.target.value })}
-                  placeholder="مثال: ملت، صادرات"
                 />
               </Field>
               <Field id="emp-account" label="شماره حساب">
@@ -243,9 +234,6 @@ export function EmployeesManagementView() {
               <ShieldCheckIcon size={18} />
               <span>شرایط خاص و معافیت‌های قانونی (شورای عالی کار و مالیات)</span>
             </div>
-            <p className="text-xs text-muted">
-              فعال‌سازی هر یک از این گزینه‌ها، فرمول‌های محاسبه مالیات حقوق و حق بیمه تأمین اجتماعی را بر اساس مستندات قانونی تعدیل می‌کند:
-            </p>
 
             <div className="space-y-3 pt-1">
               <div>
@@ -254,7 +242,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_veteran_or_child: !!checked })}
                   label="ایثارگر، جانباز یا فرزند شاهد و جانباز (ماده ۵۶ قانون جامع ایثارگران)"
                 />
-                <p className="text-xs text-muted ps-8">معافیت ۱۰۰٪ از پرداخت مالیات بر درآمد حقوق + معافیت از پرداخت ۷٪ حق بیمه سهم کارمند.</p>
               </div>
 
               <div>
@@ -263,7 +250,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_foreign_national: !!checked })}
                   label="تبعه خارجی دارای پروانه کار (حذف ۳٪ بیمه بیکاری)"
                 />
-                <p className="text-xs text-muted ps-8">اتباع مشمول بیمه بیکاری نمی‌شوند؛ سهم بیمه کارفرما ۲۰٪ محاسبه می‌شود (مجموع حق بیمه ۲۷٪).</p>
               </div>
 
               <div>
@@ -272,7 +258,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_science_park_staff: !!checked })}
                   label="شاغل در شرکت دانش‌بنیان / پارک علم و فناوری (بند چ ماده ۸ قانون جهش تولید)"
                 />
-                <p className="text-xs text-muted ps-8">مشمول ماده ۹۱ قانون مالیات‌های مستقیم (نرخ صفر مالیات حقوق) با تأیید پارک.</p>
               </div>
 
               <div>
@@ -281,7 +266,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, has_disability_charge: !!checked })}
                   label="سرپرست / ولیّ فرد دارای معلولیت شدید (ماده ۲۵ قانون حمایت از حقوق معلولان)"
                 />
-                <p className="text-xs text-muted ps-8">معافیت ۵۰ درصدی حقوق و مزایای مشمول مالیات.</p>
               </div>
 
               <div>
@@ -290,7 +274,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_underdeveloped_region: !!checked })}
                   label="شاغل در مناطق محروم و کمتر توسعه‌یافته (ماده ۹۲ ق.م.م)"
                 />
-                <p className="text-xs text-muted ps-8">اعمال ۵۰ درصد بخشودگی بر مالیات محاسبه‌شده حقوق.</p>
               </div>
 
               <div>
@@ -299,7 +282,6 @@ export function EmployeesManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_retired: !!checked })}
                   label="بازنشسته شاغل"
                 />
-                <p className="text-xs text-muted ps-8">عدم شمول بیمه بیکاری (حذف ۳٪ سهم کارفرما).</p>
               </div>
             </div>
           </div>

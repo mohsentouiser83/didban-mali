@@ -33,9 +33,6 @@ export function MemberAddDrawer({
         }}
         fieldErrors={c.command.error?.fields}
       >
-        <StatusMessage tone="primary">
-          حساب کاربری در سطح کل نصب دیدبان مالی تعریف می‌شود، اما عضویت و نقش فقط برای شرکت فعال جاری اعمال می‌گردد. رمزهای قبلی کاربران هرگز نمایش داده نمی‌شود.
-        </StatusMessage>
         {c.canCreateAccount && !c.userId && (
           <Field id="member-method" label="روش افزودن" required>
             <Select

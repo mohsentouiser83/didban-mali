@@ -6,14 +6,6 @@ describe("MembersList", () => {
   const baseMemberManagement = {
     members: { loading: false, error: null, refresh: vi.fn() },
     permissions: { loading: false, error: null, refresh: vi.fn() },
-    query: "",
-    setQuery: vi.fn(),
-    roleFilter: "all",
-    setRoleFilter: vi.fn(),
-    statusFilter: "all",
-    setStatusFilter: vi.fn(),
-    hasActiveFilters: false,
-    resetFilters: vi.fn(),
     totalMembers: 2,
     rows: [
       {
@@ -42,69 +34,44 @@ describe("MembersList", () => {
     openMember: vi.fn(),
   } as unknown as Parameters<typeof MembersList>[0]["c"];
 
-  it("renders members table and search toolbar", () => {
+  it("renders the members with column filters", () => {
     render(<MembersList c={baseMemberManagement} />);
 
-    expect(screen.getByPlaceholderText("جستجوی نام یا ایمیل عضو...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "فیلتر ستون عضو" })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("جستجوی نام یا ایمیل عضو...")).not.toBeInTheDocument();
     expect(screen.getByText("علی رضایی")).toBeInTheDocument();
     expect(screen.getByText("سارا محمدی")).toBeInTheDocument();
-    expect(screen.getByText("۲ عضو")).toBeInTheDocument();
   });
 
-  it("handles search input change", () => {
-    const setQuery = vi.fn();
-    render(
-      <MembersList
-        c={{
-          ...baseMemberManagement,
-          setQuery,
-        }}
-      />,
-    );
+  it("combines column filters and clears them independently", () => {
+    render(<MembersList c={baseMemberManagement} />);
 
-    const input = screen.getByPlaceholderText("جستجوی نام یا ایمیل عضو...");
-    fireEvent.change(input, { target: { value: "سارا" } });
+    function filter(title: string, text: string) {
+      fireEvent.click(screen.getByRole("button", { name: `فیلتر ستون ${title}` }));
+      fireEvent.change(screen.getByRole("textbox", { name: "شامل متن" }), { target: { value: text } });
+      fireEvent.click(screen.getByRole("button", { name: "اعمال" }));
+    }
 
-    expect(setQuery).toHaveBeenCalledWith("سارا");
+    filter("عضو", "sara@example.test");
+    expect(screen.getByRole("row", { name: /سارا محمدی/ })).toBeVisible();
+    expect(screen.queryByRole("row", { name: /علی رضایی/ })).not.toBeInTheDocument();
+
+    filter("نقش", "مالک");
+    expect(screen.getByText("ردیفی با این فیلترها پیدا نشد")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "فیلتر ستون نقش" }));
+    fireEvent.click(screen.getByRole("button", { name: "پاک‌کردن" }));
+    expect(screen.getByRole("row", { name: /سارا محمدی/ })).toBeVisible();
+    expect(screen.queryByRole("row", { name: /علی رضایی/ })).not.toBeInTheDocument();
   });
 
-  it("renders clear filters button when filters are active", () => {
-    const resetFilters = vi.fn();
-    render(
-      <MembersList
-        c={{
-          ...baseMemberManagement,
-          query: "سارا",
-          hasActiveFilters: true,
-          totalMembers: 2,
-          rows: [baseMemberManagement.rows[1]],
-          resetFilters,
-        }}
-      />,
-    );
+  it("renders a dedicated empty state when the company has no members", () => {
+    render(<MembersList c={{ ...baseMemberManagement, rows: [], totalMembers: 0 }} />);
 
-    expect(screen.getByText("۱ از ۲ عضو")).toBeInTheDocument();
-    const clearBtn = screen.getByRole("button", { name: "پاک‌کردن فیلترها" });
-    fireEvent.click(clearBtn);
-
-    expect(resetFilters).toHaveBeenCalled();
+    expect(screen.getByText("هنوز عضوی در این شرکت ثبت نشده است")).toBeInTheDocument();
   });
 
-  it("renders empty state when no members match", () => {
-    render(
-      <MembersList
-        c={{
-          ...baseMemberManagement,
-          rows: [],
-          hasActiveFilters: true,
-        }}
-      />,
-    );
-
-    expect(screen.getByText("عضوی با این مشخصات پیدا نشد")).toBeInTheDocument();
-  });
-
-  it("calls openMember when clicking manage access button", () => {
+  it("calls openMember when selecting manage access from the row menu", async () => {
     const openMember = vi.fn();
     render(
       <MembersList
@@ -115,8 +82,9 @@ describe("MembersList", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button", { name: "مدیریت دسترسی" });
-    fireEvent.click(buttons[0]);
+    const trigger = screen.getByRole("button", { name: `عملیات ${baseMemberManagement.rows[0].name}` });
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "مدیریت دسترسی" }));
 
     expect(openMember).toHaveBeenCalledWith(baseMemberManagement.rows[0]);
   });

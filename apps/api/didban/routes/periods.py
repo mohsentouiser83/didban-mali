@@ -30,6 +30,15 @@ def periods(company_id: str, request: Request, limit: int = 50, cursor: str | No
         return paginate(db, m.Period, company_id, limit, cursor, transform=transform)
 
 
+@router.get(C + "/financial-periods/options")
+def period_options(company_id: str, request: Request, limit: int = 50, cursor: str | None = None):
+    with access(request, company_id) as (db, _user, _member):
+        def transform(period):
+            return {"id": period.id, "name": period.name, "start": period.start, "end": period.end}
+
+        return paginate(db, m.Period, company_id, limit, cursor, transform=transform)
+
+
 @router.post(C + "/financial-periods", status_code=201)
 def create_period(company_id: str, data: s.PeriodInput, request: Request):
     return mutate(

@@ -1,6 +1,7 @@
 "use client";
-import { FolderOpenIcon as HeaderIcon } from "@phosphor-icons/react";
-import { StatusBadge } from "@/components/ui/badge";
+import { DownloadSimpleIcon, FileXlsIcon, FolderOpenIcon as HeaderIcon } from "@phosphor-icons/react";
+import { useState } from "react";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   EmptyState,
@@ -10,70 +11,41 @@ import {
 } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
-import { FilePicker } from "@/components/ui/file-picker";
-import { notify } from "@/components/ui/sonner";
-import { useResource } from "@/hooks/use-resource";
-import { useUpload } from "@/hooks/use-upload";
-import { useWorkspace } from "@/hooks/workspace";
-import { api, type ProcessingSession } from "@/lib/api";
+import { useProcessingReport } from "@/hooks/use-processing-report";
 import { displayDate, persian } from "@/lib/utils";
-import { DownloadSimpleIcon, FileXlsIcon } from "@phosphor-icons/react";
-import { useState } from "react";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import { QuestionDialog } from "./question-dialog";
-const pollSession = (session: ProcessingSession | undefined) =>
-  !!session &&
-  ["sealed", "processing", "waiting_dependency"].includes(session.state);
-export function SessionView({ id }: { id: string }) {
-  const workspace = useWorkspace();
-  const upload = useUpload();
-  const resource = useResource<ProcessingSession>(
-    workspace.companyPath(`processing-sessions/${id}`),
-    { poll: pollSession },
-  );
-  const [busy, setBusy] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const session = resource.data;
-  const issue = session?.issues?.find((issue) => !issue.answer);
-  async function command(name: "retry" | "cancel") {
-    if (!session) return;
-    setBusy(true);
-    try {
-      await api(workspace.companyPath(`processing-sessions/${id}/${name}`)!, {
-        method: "POST",
-        version: session.version,
-        body: {},
-      });
-      resource.refresh();
-      setCancelOpen(false);
-    } catch (error) {
-      notify.error(
-        error instanceof Error ? error.message : "عملیات انجام نشد.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+
+export function ProcessingReportView({ id }: { id: string }) {
+  const report = useProcessingReport(id);
+  const { workspace, resource, session, issue } = report;
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const scope = `${workspace.user?.id}:${workspace.company?.id}:${id}`;
+  const cancelOpen = cancelTarget === scope;
   if (!workspace.company) return <NoCompany />;
   if (resource.loading) return <LoadingState />;
   if (resource.error)
     return (
       <ErrorState message={resource.error.message} onRetry={resource.refresh} />
     );
-  if (!session) return <><PageHeader icon={HeaderIcon} title="گزارش پردازش فایل" /><EmptyState title="فایل یا گزارش پردازش پیدا نشد" /></>;
+  if (!session) {
+    return (
+      <>
+        <PageHeader icon={HeaderIcon} title="گزارش پردازش فایل" />
+        <EmptyState title="فایل یا گزارش پردازش پیدا نشد" />
+      </>
+    );
+  }
   return (
     <>
-      <PageHeader icon={HeaderIcon}
-        title="گزارش پردازش فایل"
-      />
+      <PageHeader icon={HeaderIcon} title="گزارش پردازش فایل" />
       <Panel
         title={displayDate(session.created_at)}
-        action={<StatusBadge status={session.state} />}
+        action={session.state === "receiving" ? <Badge>بارگذاری ناتمام</Badge> : <StatusBadge status={session.state} />}
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <span className="text-muted">
-            {workspace.periods.find((period) => period.id === session.period_id)
-              ?.name || "دوره انتخاب نشده"}
+            {report.periodName || "دوره انتخاب نشده"}
           </span>
           <span className="text-xs text-muted">
             نسخه {persian(session.version)}
@@ -81,7 +53,7 @@ export function SessionView({ id }: { id: string }) {
         </div>
         {session.state === "waiting_input" && (
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-control bg-warning-soft p-4">
-            <span className="text-warning">کل نوبت منتظر پاسخ شماست.</span>
+            <span className="text-warning">پردازش منتظر پاسخ شماست.</span>
             {issue && workspace.canWrite && (
               <QuestionDialog
                 key={issue.id}
@@ -104,16 +76,6 @@ export function SessionView({ id }: { id: string }) {
             </StatusMessage>
           </div>
         )}
-        {session.state === "receiving" && workspace.canWrite && (
-          <div className="mt-5">
-            <FilePicker
-              onFiles={(files) => void upload.upload(files, id)}
-              disabled={upload.busy}
-              busy={upload.busy}
-            />
-            <FormMessage error>{upload.error}</FormMessage>
-          </div>
-        )}
         <div className="mt-5 flex flex-wrap gap-3">
           <ButtonLink href="/settings/documents" variant="secondary">
             فایل‌ها و مدارک شرکت
@@ -121,27 +83,30 @@ export function SessionView({ id }: { id: string }) {
           {session.result_id && (
             <ButtonLink href="/reports">مشاهده گزارش</ButtonLink>
           )}
-          {workspace.canWrite &&
-            ["failed", "waiting_dependency"].includes(session.state) && (
-              <Button
-                variant="secondary"
-                busy={busy}
-                onClick={() => void command("retry")}
-              >
-                تلاش دوباره
-              </Button>
-            )}
-          {workspace.canWrite &&
-            !["completed", "completed_limited", "cancelled"].includes(
-              session.state,
-            ) && (
-              <Button variant="ghost" onClick={() => setCancelOpen(true)}>
-                لغو پردازش
-              </Button>
-            )}
+          {report.canRetry && (
+            <Button
+              variant="secondary"
+              busy={report.busy}
+              onClick={() => report.run("retry")}
+            >
+              تلاش دوباره
+            </Button>
+          )}
+          {report.canCancel && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                report.clearError();
+                setCancelTarget(scope);
+              }}
+            >
+              لغو پردازش
+            </Button>
+          )}
         </div>
+        {!cancelOpen && <FormMessage error>{report.error}</FormMessage>}
       </Panel>
-      <Panel title="فایل‌های این نوبت" className="mt-5">
+      <Panel title="فایل‌های گزارش" className="mt-5">
         <div className="divide-y divide-border">
           {session.files?.length ? (
             session.files.map((file) => (
@@ -167,14 +132,16 @@ export function SessionView({ id }: { id: string }) {
                   {file.scan_status === "development_unscanned" && (
                     <StatusBadge status={file.scan_status} />
                   )}
-                  <a
+                  <ButtonLink
+                    download
+                    variant="ghost"
                     href={`/api/v1${workspace.companyPath(`source-files/${file.id}/download`)}`}
-                    className="inline-flex min-h-9 items-center gap-1 rounded-control px-2.5 text-xs font-medium text-primary hover:bg-primary-soft focus-visible:ring-2 focus-visible:ring-primary"
+                    className="text-xs text-primary"
                     aria-label={`دریافت ${file.name}`}
                   >
                     <DownloadSimpleIcon size={16} aria-hidden />
                     دریافت فایل
-                  </a>
+                  </ButtonLink>
                 </div>
               </div>
             ))
@@ -186,11 +153,12 @@ export function SessionView({ id }: { id: string }) {
       <ConfirmDialog
         title="پردازش لغو شود؟"
         open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        busy={busy}
-        onConfirm={() => void command("cancel")}
+        onOpenChange={(open) => setCancelTarget(open ? scope : null)}
+        busy={report.busy}
+        onConfirm={() => report.run("cancel", () => setCancelTarget(null))}
       >
         فایل‌ها و سوابق ثبت‌شده حفظ می‌شوند.
+        <FormMessage error>{report.error}</FormMessage>
       </ConfirmDialog>
     </>
   );

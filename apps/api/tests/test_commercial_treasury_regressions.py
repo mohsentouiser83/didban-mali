@@ -50,7 +50,8 @@ acc_srv_exp = command(owner, "POST", base + "/accounting/accounts", {"code": "51
 cust = command(owner, "POST", base + "/commercial/counterparties", {"name": "مشتری الف", "type": "customer", "entity_kind": "legal_entity", "roles": ["customer"]}).json()
 supp = command(owner, "POST", base + "/commercial/counterparties", {"name": "تأمین‌کننده ب", "type": "supplier", "entity_kind": "legal_entity", "roles": ["supplier"]}).json()
 wh = command(owner, "POST", base + "/accounting/inventory/warehouses", {"name": "انبار مرکزی"}).json()
-item = command(owner, "POST", base + "/accounting/inventory/items", {"name": "کالای نمونه", "inventory_account_id": acc_inv["id"], "base_unit": "عدد"}).json()
+item = command(owner, "POST", base + "/accounting/inventory/items", {"name": "کالای نمونه", "base_unit": "عدد"}).json()
+assert item["inventory_account_id"] == acc_inv["id"]
 
 # Seed opening stock so FIFO sale succeeds
 open_op = command(manager, "POST", base + "/accounting/inventory/opening-drafts", {

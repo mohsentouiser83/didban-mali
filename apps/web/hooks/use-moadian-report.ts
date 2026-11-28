@@ -5,7 +5,7 @@ import * as XLSX from "xlsx";
 import { api } from "@/lib/api";
 import type { MoadianTransmission, MoadianTransmissions } from "@/lib/moadian-transmissions";
 import { tehranToday } from "@/lib/native-invoices";
-import { displayDate } from "@/lib/utils";
+import { asciiDigits, displayDate } from "@/lib/utils";
 import { usePagedResource } from "./use-paged-resource";
 import { useWorkspace } from "./workspace";
 
@@ -25,13 +25,20 @@ export function moadianReportState(status: string) {
 export function useMoadianReport(initialQuery = "") {
   const workspace = useWorkspace();
   const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [terms, setTerms] = useState(() => {
+    const reference = asciiDigits(initialQuery.trim());
+    return /^[A-Z0-9]{6}[A-F0-9]{15}[0-9]$/i.test(reference)
+      ? { invoice_reference: "", tax_id: reference }
+      : { invoice_reference: initialQuery, tax_id: "" };
+  });
   const [periodId, setPeriodId] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const exportRequest = useRef<AbortController | null>(null);
   const params = new URLSearchParams();
-  if (searchQuery.trim()) params.set("q", searchQuery.trim());
+  for (const [key, value] of Object.entries(terms)) {
+    if (value.trim()) params.set(key, asciiDigits(value.trim()));
+  }
   if (statusFilter !== "all") params.set("status", statusFilter);
   if (periodId) params.set("period_id", periodId);
   const base = workspace.companyPath("moadian/transmissions");
@@ -85,6 +92,13 @@ export function useMoadianReport(initialQuery = "") {
 
   return {
     workspace, resource, items, statusFilter, setStatusFilter,
-    searchQuery, setSearchQuery, periodId, setPeriodId, exportExcel, exporting, exportError,
+    columnFilter: (key: keyof typeof terms) => ({
+      activeFilter: terms[key] ? { textCondition: terms[key] } : undefined,
+      isActive: !!terms[key],
+      maxLength: key === "tax_id" ? 22 : 120,
+      onApply: (filter: { textCondition?: string } | null) =>
+        setTerms((previous) => ({ ...previous, [key]: filter?.textCondition ?? "" })),
+    }),
+    periodId, setPeriodId, exportExcel, exporting, exportError,
   };
 }

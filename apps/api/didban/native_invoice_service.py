@@ -16,7 +16,6 @@ from .native_invoice_models import (
     NativeInvoice,
     NativeInvoiceAllocation,
     NativeInvoiceAllocationReversal,
-    NativeInvoiceSnapshot,
     NativeInvoiceTerms,
 )
 from .native_invoice_revisions import (
@@ -31,7 +30,7 @@ from .native_invoice_revisions import (
 from .native_invoice_schemas import InvoiceInput, TermsUpdate
 from .operation_models import OperationDraft
 from .services import check_version, get_entity
-from .workflow import audit, serialize_fact
+from .workflow import audit
 
 
 def _lock(db: Session, company: str) -> None:
@@ -663,26 +662,6 @@ def receipt_history(db: Session, company: str, user: m.User, party_id: str, as_o
                 }
             )
     return result
-
-
-def snapshot(db: Session, company: str, user: m.User, as_of: date, direction: str | None = None) -> dict:
-    _access(db, company, user, direction, True)
-    payload = current(db, company, user, as_of, direction)
-    digest = sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    row = NativeInvoiceSnapshot(
-        company_id=company, as_of=as_of, actor_id=user.id, digest=digest, payload=payload
-    )
-    db.add(row)
-    db.flush()
-    audit(
-        db,
-        company,
-        user.id,
-        "native_invoice.snapshot_saved",
-        row.id,
-        {"digest": digest, "as_of": as_of.isoformat()},
-    )
-    return serialize_fact(row)
 
 
 def reminder(db: Session, company: str, user: m.User, invoice_id: str) -> dict:

@@ -299,7 +299,6 @@ function ResizableCard({
               ? "opacity-100"
               : "opacity-0 group-hover:opacity-100 hover:bg-primary/20 text-muted/60 hover:text-primary"
           }`}
-          title="برای تغییر عرض این کارت، با ماوس به چپ یا راست بکشید"
         >
           {isResizing ? (
             <div className="relative flex flex-col items-center justify-center">
@@ -321,7 +320,7 @@ function ResizableCard({
             type="button"
             onClick={cycleSpan}
             className="rounded-full border border-border/80 bg-surface/90 px-2 py-0.5 text-[10px] font-medium text-muted hover:border-primary hover:text-primary shadow-xs transition-transform active:scale-95"
-            title="کلیک برای تغییر مرحله‌ای اندازه کارت (یا کشیدن لبه با ماوس)"
+            aria-label="تغییر عرض کارت"
           >
             {getSpanLabel(currentSpan).split(" ")[0]}
           </button>
@@ -360,7 +359,7 @@ export function SectionRenderer({
   onResizeWidget,
   readOnly = false,
 }: SectionRendererProps) {
-  const { title, description, basis = "all", widgets } = section;
+  const { title, basis = "all", widgets } = section;
 
   // Animation states
   const [isDeleting, setIsDeleting] = useState(false);
@@ -454,7 +453,7 @@ export function SectionRenderer({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               className="cursor-grab active:cursor-grabbing rounded-control p-1 text-muted hover:bg-surface hover:text-primary active:scale-95 transition-all"
-              title="برای جابه‌جایی کل سکشن، این آیکون را با ماوس بگیرید و بکشید"
+              title="جابه‌جایی بخش"
             >
               <DotsSixVerticalIcon size={20} />
             </div>
@@ -484,7 +483,6 @@ export function SectionRenderer({
             <h3 className="font-heading text-base font-medium text-foreground">
               {title || "بخش بدون عنوان"}
             </h3>
-            {description && <p className="text-xs text-muted">{description}</p>}
           </div>
         </div>
 

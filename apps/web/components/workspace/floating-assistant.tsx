@@ -139,13 +139,7 @@ export function FloatingAssistant() {
                 <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-primary-soft text-primary shadow-xs">
                   <SparkleIcon size={26} weight="duotone" aria-hidden />
                 </span>
-                <h3 className="font-display text-base font-medium text-foreground">
-                  دستیار هوشمند مالی دیدبان
-                </h3>
-                <p className="mt-1.5 max-w-xs text-xs leading-5 text-muted">
-                  تحلیل دفاتر، وضعیت نقدینگی، سود و زیان و مطالبات را بپرسید:
-                </p>
-                <div className="mt-5 grid w-full gap-2">
+                <div className="grid w-full gap-2">
                   {assistantPromptItems.map((item) => (
                     <button
                       key={item.id}

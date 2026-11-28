@@ -439,3 +439,102 @@ def test_concurrent_treasury_capacity_on_postgresql():
     with transaction(c_id) as db:
         assert bank_movement_used_amount(db, c_id, bm_id) == 300000
     engine.dispose()
+
+
+def test_point_of_sale_resolves_bank_in_both_receipt_and_payment_workflows(tmp_path: Path):
+    from test_api_delivery import scenario
+
+    scenario(tmp_path, r"""
+from didban.accounting_setup_models import CompanyAccountingSetup
+from didban.operation_models import OperationDraft
+
+owner = client_for("owner")
+manager = client_for("finance_manager")
+with transaction("company-a") as db:
+    db.add(CompanyAccountingSetup(company_id="company-a", mode="primary"))
+
+accounts_url = base + "/treasury/accounts"
+def treasury_account(kind, name, **fields):
+    result = command(owner, "POST", accounts_url, {"kind": kind, "name": name, **fields})
+    assert result.status_code == 201, result.text
+    return result.json()
+
+first_bank = treasury_account("bank", "بانک اول")
+second_bank = treasury_account("bank", "بانک دوم")
+petty = treasury_account("petty_cash", "تنخواه دفتر", custodian_name="تنخواه‌دار", petty_cash_limit_irr="2500")
+assert first_bank["code"] == "001"
+assert second_bank["code"] == "002"
+assert petty["code"] == "003" and petty["petty_cash_limit_irr"] == "2500"
+bad_bank = command(owner, "POST", accounts_url, {"kind": "pos", "name": "کارت‌خوان", "linked_bank_id": petty["id"]})
+assert bad_bank.status_code == 422, bad_bank.text
+terminal = treasury_account("pos", "کارت‌خوان فروشگاه", linked_bank_id=first_bank["id"])
+assert terminal["code"] == "POS-001"
+assert terminal["linked_bank_name"] == first_bank["name"]
+assert terminal["account_id"] == first_bank["account_id"]
+options = manager.get(accounts_url + "/options?kind=pos&active_only=true").json()
+assert options["items"] == [{"id": terminal["id"], "name": terminal["name"], "kind": "pos", "active": True}]
+
+outside = client_for("outsider")
+outside_response = command(outside, "POST", "/api/v1/companies/company-b/treasury/accounts", {
+    "kind": "pos", "name": "کارت‌خوان شرکت ب", "linked_bank_id": first_bank["id"],
+})
+assert outside_response.status_code == 404, outside_response.text
+party_res = command(owner, "POST", base + "/commercial/counterparties", {
+    "name": "طرف حساب نمونه", "roles": ["customer", "supplier"],
+})
+assert party_res.status_code == 201, party_res.text
+party = party_res.json()
+ar = command(owner, "POST", base + "/accounting/accounts", {
+    "name": "مطالبات", "code": "1201", "role": "trade_receivable",
+}).json()
+ap = command(owner, "POST", base + "/accounting/accounts", {
+    "name": "بدهی تجاری", "code": "2101", "role": "trade_payable",
+}).json()
+
+doc_input = {
+    "direction": "receipt", "date": "2026-09-10", "period_id": period_id, "party_id": party["id"],
+    "tools": [{"tool_kind": "card", "point_of_sale_id": terminal["id"], "amount": "700"}],
+}
+docs_url = base + "/treasury/documents"
+receipt = command(manager, "POST", docs_url, doc_input)
+assert receipt.status_code == 201, receipt.text
+receipt = receipt.json()
+assert receipt["tools"][0]["treasury_account_id"] == first_bank["id"]
+assert receipt["tools"][0]["point_of_sale_id"] == terminal["id"]
+assert receipt["tools"][0]["point_of_sale_name"] == terminal["name"]
+
+terminal_update = command(owner, "PATCH", accounts_url + "/" + terminal["id"], {
+    "linked_bank_id": second_bank["id"],
+}, version=terminal["version"])
+assert terminal_update.status_code == 200, terminal_update.text
+prepared = command(manager, "POST", docs_url + "/" + receipt["id"] + "/prepare-draft", {
+    "counterparty_account_id": ar["id"],
+}, version=receipt["version"])
+assert prepared.status_code == 201, prepared.text
+assert prepared.json()["draft"]["lines"][0]["account_id"] == first_bank["account_id"]
+payment = command(manager, "POST", docs_url, doc_input | {"direction": "payment"})
+assert payment.status_code == 201, payment.text
+assert payment.json()["tools"][0]["treasury_account_id"] == second_bank["id"]
+
+for kind, role, offset in (("receipt", "trade_receivable", ar), ("payment", "trade_payable", ap)):
+    operation = command(manager, "POST", base + "/accounting/operations", {
+        "kind": kind, "period_id": period_id, "date": "2026-09-10", "description": "از کارت‌خوان",
+        "unit": "IRR", "party_id": party["id"], "accounts": {role: offset["id"]}, "amounts": {"amount": "700"},
+        "point_of_sale_id": terminal["id"],
+    })
+    assert operation.status_code == 201, operation.text
+    payload = operation.json()
+    with transaction("company-a") as db:
+        origin = db.get(OperationDraft, payload["operation_id"])
+        assert origin.payload["point_of_sale_id"] == terminal["id"]
+        assert origin.payload["accounts"]["bank_a"] == second_bank["account_id"]
+    bank_line, = [line for line in payload["draft"]["lines"] if line["account_id"] == second_bank["account_id"]]
+    assert bank_line["debit" if kind == "receipt" else "credit"] == "700"
+
+inactive = command(owner, "PATCH", accounts_url + "/" + second_bank["id"], {"active": False})
+assert inactive.status_code == 200, inactive.text
+assert manager.get(accounts_url + "/options?kind=pos&active_only=true").json()["items"] == []
+blocked = command(manager, "POST", docs_url, doc_input)
+assert blocked.status_code == 409, blocked.text
+assert blocked.json()["code"] == "inactive_treasury_bank"
+""")

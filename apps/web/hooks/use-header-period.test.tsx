@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useOperationDrafts } from "./use-operation-drafts";
-import { useBotExtraction, useBotIntakes } from "./use-bot-intakes";
+import { useBotExtraction, useBotIntakeImport } from "./use-bot-intakes";
 import { usePeriodAccounting } from "./use-period-accounting";
 
 const state = vi.hoisted(() => ({
@@ -43,7 +43,7 @@ it("uses the latest header period even when an operation form contains an older 
 });
 
 it("uses the header for bot import and extraction review", () => {
-  const { result, rerender } = renderHook(() => ({ intake: useBotIntakes(), extraction: useBotExtraction(vi.fn()) }));
+  const { result, rerender } = renderHook(() => ({ intake: useBotIntakeImport(vi.fn()), extraction: useBotExtraction(vi.fn()) }));
   expect(result.current.intake.period).toBe("current");
   act(() => result.current.extraction.change({ period_id: "previous" }));
   expect(result.current.extraction.form.period_id).toBe("current");

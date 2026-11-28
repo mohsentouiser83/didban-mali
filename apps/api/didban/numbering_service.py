@@ -13,6 +13,7 @@ from .workflow import audit, serialize_fact
 
 DEFAULT_NUMBERING_ENTITIES = [
     {"entity_type": "account", "entity_title": "حساب دفتر", "description": "کد حساب‌های جدید دفتر"},
+    {"entity_type": "treasury_pos", "entity_title": "کارت‌خوان", "description": "کد کارت‌خوان خزانه", "prefix": "POS-"},
     {"entity_type": "employee_contract", "entity_title": "قرارداد کارکنان", "description": "شماره قرارداد کارکنان"},
     {"entity_type": "operation", "entity_title": "عملیات مالی", "description": "شماره عملیات دریافت، پرداخت و انتقال"},
     {
@@ -140,7 +141,7 @@ def ensure_defaults(db: Session, company_id: str) -> None:
                 company_id=company_id,
                 entity_type=item["entity_type"],
                 entity_title=item["entity_title"],
-                prefix="",
+                prefix=item.get("prefix", ""),
                 start_number=1,
                 current_number=1,
                 padding=3,
@@ -156,6 +157,8 @@ def ensure_defaults(db: Session, company_id: str) -> None:
 
 
 WORKFLOW_CONNECTIONS: dict[str, str] = {
+    "account": "تعریف بانک، صندوق و تنخواه خزانه",
+    "treasury_pos": "تعریف کارت‌خوان خزانه",
     "employee_contract": "ثبت قرارداد جدید کارکنان",
     "operation": "ثبت عملیات مالی و سند دریافت/پرداخت خزانه",
     "journal_entry": "ثبت قطعی اسناد حسابداری",
@@ -172,12 +175,16 @@ WORKFLOW_CONNECTIONS: dict[str, str] = {
 
 
 def _single_workflow_target(entity_type: str) -> tuple[type | None, str | None]:
+    from .accounting_models import Account
     from .commercial_models import CommercialCounterparty, ProformaInvoice
     from .dimensions_models import Dimension
     from .inventory_models import InventoryItem, InventoryWarehouse
     from .payroll_models import Employee, EmployeeContract
+    from .treasury_models import TreasuryPointOfSale
 
     return {
+        "account": (Account, "code"),
+        "treasury_pos": (TreasuryPointOfSale, "code"),
         "counterparty": (CommercialCounterparty, "code"),
         "proforma_invoice": (ProformaInvoice, "number"),
         "dimension": (Dimension, "code"),

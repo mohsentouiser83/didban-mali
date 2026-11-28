@@ -6,6 +6,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Request, Response
 from starlette.concurrency import run_in_threadpool
 
+from ..company_documents import CompanyDocumentPage, list_company_documents
 from ..config import settings
 from ..document_archive_models import ArchivedSpreadsheet
 from ..document_archive_service import archive_spreadsheet, public_spreadsheet, read_spreadsheet_upload
@@ -17,6 +18,14 @@ from ..workflow import audit
 
 router = APIRouter()
 P = C + "/document-archive/spreadsheets"
+
+
+@router.get(C + "/document-archive")
+def list_documents(
+    company_id: str, request: Request, limit: int = 25, cursor: str | None = None
+) -> CompanyDocumentPage:
+    with access(request, company_id) as (db, user, _member):
+        return list_company_documents(db, company_id, user.id, limit, cursor)
 
 
 @router.get(P)

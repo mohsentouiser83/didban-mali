@@ -187,15 +187,15 @@ def test_moadian_commercial_invoice_multiline_buyer_check_and_subjects(db_sessio
         saved = save_account(db, cid, u, {"code": code, "name": name, "kind": "leaf", "active": True, "role": role})
         return db.get(Account, saved["id"])
 
-    inv_acc = mk_acc("1101", "موجودی", "other_asset")
+    mk_acc("1101", "موجودی", "other_asset")
     ar_acc = mk_acc("1102", "دریافتنی", "trade_receivable")
     eq_acc = mk_acc("3101", "سرمایه", "equity")
     sales_acc = mk_acc("4101", "فروش", "revenue")
     cogs_acc = mk_acc("5101", "بها", "expense")
 
     wh = add_warehouse(db, cid, u, {"name": "انبار"})
-    item1 = add_item(db, cid, u, {"name": "کالا یک", "inventory_account_id": inv_acc.id, "base_unit": "عدد"})
-    item2 = add_item(db, cid, u, {"name": "کالا دو", "inventory_account_id": inv_acc.id, "base_unit": "بسته"})
+    item1 = add_item(db, cid, u, {"name": "کالا یک", "base_unit": "عدد"})
+    item2 = add_item(db, cid, u, {"name": "کالا دو", "base_unit": "بسته"})
     customer = add_counterparty(
         db,
         cid,

@@ -1,5 +1,5 @@
 import {
-  ArrowsLeftRightIcon, BankIcon, BooksIcon, CalendarBlankIcon, ChartLineUpIcon,
+  ArrowDownIcon, ArrowUpIcon, ArrowsLeftRightIcon, BankIcon, BooksIcon, CalendarBlankIcon, ChartLineUpIcon,
   FilesIcon, PackageIcon, ReceiptIcon, ShoppingCartIcon, SquaresFourIcon,
   StorefrontIcon, UsersThreeIcon, WalletIcon, type Icon,
 } from "@phosphor-icons/react";
@@ -34,9 +34,9 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/receivables", label: "خرید و فروش", icon: ShoppingCartIcon,
         children: [
+          { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
           { href: "/receivables", label: "فاکتورهای فروش", icon: ReceiptIcon },
           { href: "/payables", label: "فاکتورهای خرید", icon: ShoppingCartIcon },
-          { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
           { href: "/reconciliation/counterparties", label: "تطبیق طرف‌حساب‌ها", icon: ArrowsLeftRightIcon, matches: ["/reconciliation/counterparty"] },
         ],
       },
@@ -51,7 +51,8 @@ export const navigationGroups: NavigationGroup[] = [
       {
         href: "/accounting/inventory", label: "انبار", icon: PackageIcon,
         children: [
-          { href: "/accounting/inventory", label: "موجودی و کاردکس", icon: PackageIcon },
+          { href: "/accounting/inventory/receipts", label: "رسید انبار", icon: ArrowDownIcon },
+          { href: "/accounting/inventory/issues", label: "خروج انبار", icon: ArrowUpIcon },
           { href: "/accounting/inventory/items", label: "کالاها و خدمات", icon: ShoppingCartIcon },
           { href: "/accounting/inventory/warehouses", label: "انبارها", icon: StorefrontIcon },
         ],

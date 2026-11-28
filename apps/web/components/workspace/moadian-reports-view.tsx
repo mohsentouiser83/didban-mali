@@ -3,15 +3,15 @@
 import { DownloadSimpleIcon, ReceiptIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/content-states";
-import { Field, FormMessage } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { FormMessage } from "@/components/ui/field";
+import { TableColumnSelect } from "@/components/ui/table-column-select";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
+  TableEmptyCell,
   TableHeader,
   TableRow,
   TableRowHeader,
@@ -23,7 +23,7 @@ import { NoCompany, PageHeader, Panel } from "./page-parts";
 
 export function MoadianReportsView({ initialQuery = "" }: { initialQuery?: string }) {
   const view = useMoadianReport(initialQuery);
-  const { workspace, resource, items, statusFilter, setStatusFilter, searchQuery, setSearchQuery, exportExcel } = view;
+  const { workspace, resource, items, exportExcel } = view;
 
   if (!workspace.company) return <NoCompany />;
 
@@ -46,61 +46,35 @@ export function MoadianReportsView({ initialQuery = "" }: { initialQuery?: strin
       />
 
       <Panel title="فهرست و کارنامه ارسال صورتحساب‌ها">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <Field id="moadian-search" label="جستجوی فاکتور / شناسه مالیاتی">
-              <Input
-                id="moadian-search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="شماره فاکتور، ۲۲ رقمی مالیاتی..."
-                className="w-64 text-xs"
-              />
-            </Field>
-            <Field id="moadian-status-filter" label="فیلتر وضعیت">
-              <Select
-                id="moadian-status-filter"
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-                options={[
-                  { value: "all", label: "همه وضعیت‌ها" },
-                  ...Object.entries(moadianReportStates).map(([value, state]) => ({ value, label: state.label })),
-                ]}
-              />
-            </Field>
-            <Field id="moadian-report-period" label="دورهٔ مالی">
-              <Select
-                id="moadian-report-period"
-                value={view.periodId || "all"}
-                onValueChange={(id) => view.setPeriodId(id === "all" ? "" : id)}
-                options={[{ value: "all", label: "همه دوره‌ها" }, ...workspace.periods.map((period) => ({ value: period.id, label: period.name }))]}
-              />
-            </Field>
-          </div>
-        </div>
         <FormMessage error>{view.exportError}</FormMessage>
 
         {resource.loading ? (
           <LoadingState label="در حال دریافت سوابق صورتحساب‌ها..." />
         ) : resource.error ? (
           <ErrorState message={resource.error.message} onRetry={resource.refresh} />
-        ) : !items.length ? (
-          <EmptyState title="صورتحسابی با این مشخصات یافت نشد" />
         ) : (
           <>
-          <Table showSearch={false}>
+          <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>شماره فاکتور</TableHead>
-                <TableHead>شناسه یکتای مالیاتی (۲۲ رقمی)</TableHead>
-                <TableHead>دورهٔ مالی</TableHead>
+                <TableHead columnFilter={view.columnFilter("invoice_reference")}>شماره فاکتور</TableHead>
+                <TableHead columnFilter={view.columnFilter("tax_id")}>شناسه یکتای مالیاتی (۲۲ رقمی)</TableHead>
+                <TableHead columnControl={
+                  <TableColumnSelect columnTitle="دورهٔ مالی" value={view.periodId || "all"}
+                    onValueChange={(id) => view.setPeriodId(id === "all" ? "" : id)}
+                    options={[{ value: "all", label: "همه دوره‌ها" }, ...workspace.periods.map((period) => ({ value: period.id, label: period.name }))]} />
+                }>دورهٔ مالی</TableHead>
                 <TableHead>تاریخ ثبت</TableHead>
                 <TableHead>آخرین استعلام</TableHead>
-                <TableHead>وضعیت سامانه</TableHead>
+                <TableHead columnControl={
+                  <TableColumnSelect columnTitle="وضعیت سامانه" value={view.statusFilter} onValueChange={view.setStatusFilter}
+                    options={[{ value: "all", label: "همه وضعیت‌ها" }, ...Object.entries(moadianReportStates).map(([value, { label }]) => ({ value, label }))]} />
+                }>وضعیت سامانه</TableHead>
                 <TableHead>کد رهگیری بسته</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
+              {!items.length && <TableEmptyCell colSpan={7} title="صورتحسابی با این مشخصات یافت نشد" />}
               {items.map((row) => {
                 const status = moadianReportState(row.status);
                 return (

@@ -169,9 +169,9 @@ function Workspace({
               {c.created && (
                 <FormMessage>
                   پیش‌نویس ساخته شد.{" "}
-                  <ButtonLink href="/accounting" variant="secondary">
-                    بررسی و تأیید سند
-                  </ButtonLink>
+                  {!embedded && (
+                    <ButtonLink href="/accounting" variant="secondary">بررسی و تأیید سند</ButtonLink>
+                  )}
                 </FormMessage>
               )}
               <Button
@@ -216,6 +216,7 @@ function OperationFields({ c }: { c: ReturnType<typeof useOperationDrafts> }) {
             role.label.includes("بانک") ||
             role.label.includes("صندوق") ||
             role.label.includes("تنخواه");
+          const canSelectTerminal = c.supportsPointOfSale && role.key === "bank_a";
           const options = isTreasury
             ? c.treasuryAccountOptions.length > 0
               ? c.treasuryAccountOptions
@@ -225,25 +226,21 @@ function OperationFields({ c }: { c: ReturnType<typeof useOperationDrafts> }) {
             <Field
               key={role.key}
               id={`op-account-${role.key}`}
-              label={role.label}
+              label={canSelectTerminal ? "حساب خزانه یا کارت‌خوان" : role.label}
               required
             >
               <Select
                 id={`op-account-${role.key}`}
-                value={c.form.accounts[role.key] || ""}
+                value={(canSelectTerminal && c.form.point_of_sale_id) || c.form.accounts[role.key] || ""}
                 searchable
                 searchPlaceholder="جستجوی کد یا نام حساب..."
                 placeholder={
-                  isTreasury && c.treasuryAccountOptions.length === 0
+                  isTreasury && c.treasuryAccountOptions.length === 0 && (!canSelectTerminal || !c.pointOfSaleOptions.length)
                     ? "حساب بانک، صندوق یا تنخواه یافت نشد"
                     : "انتخاب حساب"
                 }
-                onValueChange={(value) =>
-                  c.change({
-                    accounts: { ...c.form.accounts, [role.key]: value },
-                  })
-                }
-                options={options}
+                onValueChange={(value) => c.selectAccount(role.key, value)}
+                options={canSelectTerminal ? [...options, ...c.pointOfSaleOptions] : options}
               />
             </Field>
           );

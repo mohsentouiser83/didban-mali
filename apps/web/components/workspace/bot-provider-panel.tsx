@@ -36,7 +36,6 @@ export function BotProviderPanel({ card, busy, pendingAction, onCreate, onCopy, 
     </div>}
     {!card.configured && <StatusMessage>اتصال {card.label} باید توسط مدیر نصب تنظیم شود.</StatusMessage>}
     {card.pending ? <PendingPairing card={card} busy={busy} pendingAction={pendingAction} onCreate={onCreate} onCopy={onCopy} onConfirm={onConfirm} onDisconnect={onDisconnect} /> : !card.active && card.configured ? <div className="flex flex-1 flex-col items-start justify-between gap-5">
-      <p className="text-sm leading-7 text-muted">حساب خود را برای پرسش از گزارش این شرکت وصل کنید.</p>
       <Button busy={pendingAction === "create"} disabled={busy} onClick={onCreate}>اتصال {card.label}</Button>
     </div> : null}
   </Panel>;
@@ -60,15 +59,14 @@ function PendingPairing({ card, busy, pendingAction, onCreate, onCopy, onConfirm
       <div className="flex flex-wrap gap-2"><Button busy={pendingAction === "confirm"} disabled={busy || !card.configured} onClick={() => onConfirm(pending)}>تأیید این حساب</Button><Button variant="secondary" disabled={busy} onClick={() => onDisconnect(pending)}>لغو اتصال</Button></div>
     </> : <>
       {card.pairingCommand ? <>
-        <p className="text-sm leading-7">این فرمان را در چت خصوصی بات {card.label} بفرستید.</p>
+        <p className="text-sm font-medium">فرمان اتصال در بات {card.label}</p>
         <div className="space-y-3 rounded-control border border-border bg-canvas p-4">
           <code dir="ltr" className="block select-all break-all font-mono text-sm leading-7" aria-label={`فرمان اتصال ${card.label}`}>{card.pairingCommand}</code>
           <div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy || !card.configured} onClick={onCopy}><CopyIcon size={18} aria-hidden />{card.copied ? "کپی شد" : "کپی فرمان"}</Button>
             {card.botUrl && <ButtonLink href={card.botUrl} target="_blank" variant="soft"><ArrowSquareOutIcon size={18} aria-hidden />باز کردن بات</ButtonLink>}
           </div>
         </div>
-        {!card.username && <p className="text-xs leading-6 text-muted">نشانی بات را از مدیر نصب بگیرید.</p>}
-        <p className="text-xs text-muted">پس از ارسال، تأیید حساب همین‌جا نمایش داده می‌شود.</p>
+        {!card.username && <StatusMessage>نشانی بات تنظیم نشده است.</StatusMessage>}
       </> : <>
         <p className="text-sm leading-7 text-muted">کد قبلی در این مرورگر موجود نیست.</p>
         <Button busy={pendingAction === "create"} disabled={busy || !card.configured} onClick={onCreate}>کد اتصال جدید</Button>

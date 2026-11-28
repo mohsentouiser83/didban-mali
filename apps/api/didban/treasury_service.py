@@ -32,7 +32,14 @@ from .period_lock_service import require_open_period
 from .posting_models import NativeJournal
 from .security import membership
 from .services import check_version, get_entity
-from .treasury_models import TreasuryAccount, TreasuryAllocation, TreasuryDocument, TreasuryToolLine
+from .treasury_models import (
+    TreasuryAccount,
+    TreasuryAllocation,
+    TreasuryDocument,
+    TreasuryPointOfSale,
+    TreasuryToolLine,
+    TreasuryToolPointOfSale,
+)
 from .treasury_schemas import TreasuryAccountOption
 from .workflow import audit, serialize_fact
 
@@ -125,13 +132,56 @@ def _validate_treasury_fields(kind: str, data: dict[str, Any]) -> None:
         data["petty_cash_limit_irr"] = canonical_money(val)
 
 
-def _serialize_treasury_account(db: Session, company: str, item: TreasuryAccount) -> dict[str, Any]:
+def _serialize_treasury_account(db: Session, item: TreasuryAccount) -> dict[str, Any]:
     acc = db.get(Account, item.account_id)
     data = serialize_fact(item)
     data["account_code"] = acc.code if acc else None
+    data["code"] = data["account_code"]
     data["account_name"] = acc.name if acc else None
     data["account_active"] = acc.active if acc else None
     return data
+
+
+def _serialize_point_of_sale(db: Session, terminal: TreasuryPointOfSale) -> dict[str, Any]:
+    bank = get_entity(db, TreasuryAccount, terminal.company_id, terminal.linked_bank_id)
+    account = db.get(Account, bank.account_id)
+    return serialize_fact(terminal) | {
+        "kind": "pos",
+        "account_id": bank.account_id,
+        "account_code": account.code if account else None,
+        "account_name": account.name if account else None,
+        "account_active": account.active if account else None,
+        "linked_bank_name": bank.name,
+    }
+
+
+def _active_pos_bank(db: Session, company: str, bank_id: str | None) -> TreasuryAccount:
+    require(bool(bank_id), "treasury_pos_bank_required", "حساب بانکی کارت‌خوان را انتخاب کنید.")
+    bank = get_entity(db, TreasuryAccount, company, bank_id)
+    require(bank.kind == "bank", "treasury_pos_bank_required", "کارت‌خوان باید به یک حساب بانکی متصل شود.")
+    account = get_entity(db, Account, company, bank.account_id)
+    require(bank.active and account.active, "inactive_treasury_bank", "حساب بانکی کارت‌خوان غیرفعال است.", 409)
+    return bank
+
+
+def resolve_point_of_sale_bank(db: Session, company: str, terminal_id: str) -> TreasuryAccount:
+    terminal = get_entity(db, TreasuryPointOfSale, company, terminal_id)
+    require(terminal.active, "inactive_treasury_pos", "کارت‌خوان غیرفعال است.", 409)
+    return _active_pos_bank(db, company, terminal.linked_bank_id)
+
+
+def _point_of_sale_query(company: str, active_only: bool) -> Select[tuple[TreasuryPointOfSale]]:
+    stmt = select(TreasuryPointOfSale).where(TreasuryPointOfSale.company_id == company)
+    if active_only:
+        stmt = stmt.join(
+            TreasuryAccount,
+            (TreasuryAccount.company_id == TreasuryPointOfSale.company_id)
+            & (TreasuryAccount.id == TreasuryPointOfSale.linked_bank_id),
+        ).join(
+            Account,
+            (Account.company_id == TreasuryAccount.company_id) & (Account.id == TreasuryAccount.account_id),
+        ).where(TreasuryPointOfSale.active.is_(True), TreasuryAccount.active.is_(True), Account.active.is_(True))
+    return stmt.order_by(TreasuryPointOfSale.name, TreasuryPointOfSale.id)
 
 
 def _treasury_account_query(
@@ -154,14 +204,15 @@ def list_treasury_accounts(
     kind: str | None = None,
     active_only: bool = False,
 ) -> dict[str, Any]:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه مشاهده جزئیات حساب‌های خزانه ندارید.",
-        403,
-    )
-    items = db.scalars(_treasury_account_query(company, kind, active_only))
-    return {"items": [_serialize_treasury_account(db, company, row) for row in items]}
+    membership(db, company, user, "manage_accounts", scope=("treasury", "view"))
+    items = []
+    if kind != "pos":
+        items.extend(_serialize_treasury_account(db, row) for row in db.scalars(
+            _treasury_account_query(company, kind, active_only)
+        ))
+    if kind in (None, "pos"):
+        items.extend(_serialize_point_of_sale(db, row) for row in db.scalars(_point_of_sale_query(company, active_only)))
+    return {"items": items}
 
 
 def list_treasury_account_options(
@@ -172,10 +223,16 @@ def list_treasury_account_options(
     active_only: bool = False,
 ) -> dict[str, list[TreasuryAccountOption]]:
     membership(db, company, user, "read")
-    stmt = _treasury_account_query(company, kind, active_only).with_only_columns(
-        TreasuryAccount.id, TreasuryAccount.name, TreasuryAccount.kind, TreasuryAccount.active,
-    )
-    return {"items": [TreasuryAccountOption.model_validate(dict(row)) for row in db.execute(stmt).mappings()]}
+    items = []
+    if kind != "pos":
+        stmt = _treasury_account_query(company, kind, active_only).with_only_columns(
+            TreasuryAccount.id, TreasuryAccount.name, TreasuryAccount.kind, TreasuryAccount.active,
+        )
+        items.extend(TreasuryAccountOption.model_validate(dict(row)) for row in db.execute(stmt).mappings())
+    if kind in (None, "pos"):
+        items.extend(TreasuryAccountOption(id=row.id, name=row.name, kind="pos", active=row.active)
+                     for row in db.scalars(_point_of_sale_query(company, active_only)))
+    return {"items": items}
 
 
 def create_treasury_account(
@@ -184,13 +241,23 @@ def create_treasury_account(
     user: m.User,
     data: dict[str, Any],
 ) -> dict[str, Any]:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه تعریف حساب خزانه ندارید.",
-        403,
-    )
+    membership(db, company, user, "manage_accounts", scope=("treasury", "create"))
     kind = data["kind"]
+    lock_treasury_capacity(db, company)
+    if kind == "pos":
+        bank = _active_pos_bank(db, company, data.get("linked_bank_id"))
+        terminal = TreasuryPointOfSale(
+            company_id=company,
+            name=data["name"],
+            code=allocate_number(db, company, "treasury_pos", TreasuryPointOfSale, "code"),
+            linked_bank_id=bank.id,
+            active=data.get("active", True),
+        )
+        db.add(terminal)
+        db.flush()
+        audit(db, company, user.id, "treasury.account_created", terminal.id, {"kind": kind, "linked_bank_id": bank.id})
+        return _serialize_point_of_sale(db, terminal)
+
     _validate_treasury_fields(kind, data)
     account_id = data.get("account_id")
     if account_id:
@@ -242,7 +309,9 @@ def create_treasury_account(
             acc_payload["level"] = data["level"]
         if data.get("parent_account_id"):
             acc_payload["parent_id"] = data["parent_account_id"]
-        created_acc = save_account(db, company, user, acc_payload)
+        if "code" not in acc_payload and "level" not in acc_payload:
+            acc_payload["code"] = allocate_number(db, company, "account", Account, "code")
+        created_acc = save_account(db, company, user, acc_payload, scope=("treasury", "create"))
         account_id = created_acc["id"]
 
     custodian_cp_id = data.get("custodian_counterparty_id")
@@ -275,7 +344,7 @@ def create_treasury_account(
         item.id,
         {"kind": kind, "account_id": account_id},
     )
-    return _serialize_treasury_account(db, company, item)
+    return _serialize_treasury_account(db, item)
 
 
 def update_treasury_account(
@@ -286,12 +355,26 @@ def update_treasury_account(
     data: dict[str, Any],
     expected_version: int,
 ) -> dict[str, Any]:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه ویرایش حساب خزانه ندارید.",
-        403,
-    )
+    membership(db, company, user, "manage_accounts", scope=("treasury", "edit"))
+    lock_treasury_capacity(db, company)
+    terminal = db.scalar(select(TreasuryPointOfSale).where(
+        TreasuryPointOfSale.company_id == company, TreasuryPointOfSale.id == treasury_id,
+    ))
+    if terminal is not None:
+        check_version(terminal, expected_version)
+        if "linked_bank_id" in data or data.get("active") is True:
+            bank = _active_pos_bank(db, company, data.get("linked_bank_id", terminal.linked_bank_id))
+            terminal.linked_bank_id = bank.id
+        for field in ("name", "active"):
+            if field in data:
+                require(data[field] is not None, "invalid_field_value", f"فیلد «{field}» نمی‌تواند خالی باشد.")
+                setattr(terminal, field, data[field])
+        terminal.version += 1
+        db.flush()
+        audit(db, company, user.id, "treasury.account_updated", terminal.id,
+              {"version": terminal.version, "linked_bank_id": terminal.linked_bank_id})
+        return _serialize_point_of_sale(db, terminal)
+
     item = get_entity(db, TreasuryAccount, company, treasury_id)
     check_version(item, expected_version)
     _validate_treasury_fields(item.kind, data)
@@ -317,7 +400,7 @@ def update_treasury_account(
     item.version += 1
     db.flush()
     audit(db, company, user.id, "treasury.account_updated", item.id, {"version": item.version})
-    return _serialize_treasury_account(db, company, item)
+    return _serialize_treasury_account(db, item)
 
 
 def _posted_treasury_proof_error(
@@ -629,6 +712,18 @@ def _serialize_document(db: Session, company: str, doc: TreasuryDocument) -> dic
         )
     )
     tool_ids = [t.id for t in tools]
+    terminals = {
+        tool_id: (terminal_id, name)
+        for tool_id, terminal_id, name in db.execute(
+            select(TreasuryToolPointOfSale.tool_line_id, TreasuryPointOfSale.id, TreasuryPointOfSale.name)
+            .join(
+                TreasuryPointOfSale,
+                (TreasuryPointOfSale.company_id == TreasuryToolPointOfSale.company_id)
+                & (TreasuryPointOfSale.id == TreasuryToolPointOfSale.point_of_sale_id),
+            )
+            .where(TreasuryToolPointOfSale.company_id == company, TreasuryToolPointOfSale.tool_line_id.in_(tool_ids))
+        )
+    } if tool_ids else {}
     allocs = (
         list(
             db.scalars(
@@ -656,9 +751,12 @@ def _serialize_document(db: Session, company: str, doc: TreasuryDocument) -> dic
             line_proof = treasury_allocation_has_payment_proof(db, company, t, doc)
             if line_proof:
                 any_proof = True
+            terminal_id, terminal_name = terminals.get(t.id, (None, None))
             serialized_tools.append(
                 serialize_fact(t)
                 | {
+                    "point_of_sale_id": terminal_id,
+                    "point_of_sale_name": terminal_name,
                     "allocated_amount": canonical_money(used_amt),
                     "remaining_amount": canonical_money(rem_amt),
                     "has_payment_proof": line_proof,
@@ -691,12 +789,7 @@ def _serialize_document(db: Session, company: str, doc: TreasuryDocument) -> dic
 def create_treasury_document(
     db: Session, company: str, user: m.User, data: dict[str, Any]
 ) -> dict[str, Any]:
-    require(
-        capabilities(db, company, user)["can_prepare"],
-        "permission_denied",
-        "اجازه ثبت دریافت یا پرداخت ندارید.",
-        403,
-    )
+    membership(db, company, user, "write", scope=("treasury", "create"))
     lock_treasury_capacity(db, company)
     period = get_entity(db, m.Period, company, data["period_id"])
     require_open_period(db, company, period.id)
@@ -716,6 +809,15 @@ def create_treasury_document(
         for idx, t in enumerate(tools_data):
             amt_irr = Decimal(money(t["amount"], unit))
             require(amt_irr > 0, "treasury_tool_positive", "مبلغ هر ردیف ابزار باید مثبت باشد.")
+            terminal_id = t.get("point_of_sale_id")
+            if terminal_id:
+                require(
+                    t["tool_kind"] == "card" and not t.get("treasury_account_id"),
+                    "invalid_pos_tool",
+                    "کارت‌خوان را برای ابزار کارت و بدون حساب خزانهٔ جداگانه انتخاب کنید.",
+                )
+                linked_bank = resolve_point_of_sale_bank(db, company, terminal_id)
+                t = t | {"treasury_account_id": linked_bank.id}
             if t.get("treasury_account_id"):
                 ta = get_entity(db, TreasuryAccount, company, t["treasury_account_id"])
                 require(ta.active, "inactive_treasury_account", "حساب خزانه غیرفعال است.", 409)
@@ -803,6 +905,7 @@ def create_treasury_document(
     db.flush()
 
     created_tools: list[TreasuryToolLine] = []
+    terminal_tools: list[tuple[TreasuryToolLine, str]] = []
     for idx, t, amt_str in normalized_tools:
         tl = TreasuryToolLine(
             company_id=company,
@@ -818,6 +921,13 @@ def create_treasury_document(
         )
         db.add(tl)
         created_tools.append(tl)
+        if t.get("point_of_sale_id"):
+            terminal_tools.append((tl, t["point_of_sale_id"]))
+    db.flush()
+    db.add_all([
+        TreasuryToolPointOfSale(company_id=company, tool_line_id=tl.id, point_of_sale_id=terminal_id)
+        for tl, terminal_id in terminal_tools
+    ])
     db.flush()
 
     for alloc in data.get("allocations", []):
@@ -891,7 +1001,7 @@ def _create_allocation_row(
 def allocate_treasury_tool(
     db: Session, company: str, user: m.User, document_id: str, data: dict[str, Any], expected_version: int
 ) -> dict[str, Any]:
-    require(capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تخصیص ندارید.", 403)
+    membership(db, company, user, "write", scope=("treasury", "create"))
     lock_treasury_capacity(db, company)
     doc = get_entity(db, TreasuryDocument, company, document_id)
     check_version(doc, expected_version)
@@ -907,7 +1017,7 @@ def allocate_treasury_tool(
 def reverse_treasury_allocation(
     db: Session, company: str, user: m.User, allocation_id: str, reason: str, expected_version: int
 ) -> dict[str, Any]:
-    require(capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه برگشت تخصیص ندارید.", 403)
+    membership(db, company, user, "write", scope=("treasury", "delete"))
     require(bool(reason and reason.strip()), "reason_required", "دلیل برگشت تخصیص الزامی است.")
     lock_treasury_capacity(db, company)
     row = get_entity(db, TreasuryAllocation, company, allocation_id)
@@ -933,8 +1043,8 @@ def prepare_treasury_document_draft(
     expected_version: int,
 ) -> dict[str, Any]:
     """Create a balanced accounting draft for a TreasuryDocument; requires exact-version human posting."""
+    membership(db, company, user, "write", scope=("treasury", "create"))
     ability = capabilities(db, company, user)
-    require(ability["can_prepare"], "permission_denied", "اجازه تهیه سند خزانه ندارید.", 403)
     require(
         ability["posting_available"], "primary_accounting_required", "کاربرد حسابداری اصلی لازم است.", 409
     )
@@ -1006,6 +1116,7 @@ def prepare_treasury_document_draft(
             "unit": "IRR",
             "lines": journal_lines,
         },
+        scope=("treasury", "create"),
     )
     op_id = m.uid()
     op = OperationDraft(

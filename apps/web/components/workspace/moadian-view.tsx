@@ -1,10 +1,11 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { ReceiptIcon as HeaderIcon, ArrowDownLeftIcon, ArrowUpRightIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { ErrorState, LoadingState } from "@/components/ui/content-states";
+import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import {
   Table,
   TableBody,
@@ -45,33 +46,51 @@ export function MoadianView() {
 
 function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> }) {
   const [activeTab, setActiveTab] = useState<"sales" | "purchases">("sales");
-  const upload = useMoadianImport(view.manifest?.id);
+  const importSource = useMoadianImport(view.manifest?.id);
   const unit = view.workspace.unit;
   const unitName = unit === "IRR" ? "ریال" : "تومان";
   const sales = view.manifest?.details.moadian?.sales ?? [];
   const purchases = view.manifest?.details.moadian?.purchases ?? [];
   const rows = activeTab === "sales" ? sales : purchases;
 
+  const activePeriodName =
+    view.workspace.periods.find((p) => p.id === view.workspace.periodId)?.name || "همه دوره‌ها";
+
   return (
     <>
-      <PageHeader icon={HeaderIcon} title="صورتحساب‌های کارپوشه" />
+      <PageHeader
+        icon={HeaderIcon}
+        title="صورتحساب‌های کارپوشه"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink variant="secondary" href="/moadian/transmissions">
+              ارسال و استعلام صورتحساب
+            </ButtonLink>
+            <ButtonLink variant="secondary" href="/reconciliation/moadian">
+              تطبیق کارپوشه
+            </ButtonLink>
+          </div>
+        }
+      />
       {view.loading ? (
         <LoadingState label="در حال دریافت اطلاعات کارپوشه مؤدیان..." />
       ) : view.error ? (
         <ErrorState message={view.error.message} onRetry={view.refresh} />
       ) : (
         <Panel>
-          {upload.busy && <LoadingState label="در حال ارسال فایل به سرور..." />}
-          {upload.error && (
-            <div className="mb-4 space-y-2" role="alert">
-              <p>{upload.error}</p>
-              {upload.sessionId && (
-                <ButtonLink href={`/uploads/${upload.sessionId}`} variant="secondary">
-                  مشاهده نوبت بارگذاری
-                </ButtonLink>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+              <Badge tone="neutral">دوره: {activePeriodName}</Badge>
+              {view.manifest?.created_at && (
+                <span>تاریخ منبع پردازش: {displayDate(view.manifest.created_at)}</span>
               )}
             </div>
-          )}
+            {!view.workspace.periodId && (
+              <StatusMessage tone="warning">
+                برای ورود اکسل کارپوشه، ابتدا دورهٔ مالی را از هدر انتخاب کنید.
+              </StatusMessage>
+            )}
+          </div>
           <div className="mb-4">
             <Tabs
               value={activeTab}
@@ -85,12 +104,13 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
           <Table
             importPersistsSource
             title={activeTab === "sales" ? "صورتحساب‌های فروش مؤدیان" : "صورتحساب‌های خرید مؤدیان"}
-            onImport={view.workspace.canWrite && !upload.busy ? (data) => upload.importSource(data, activeTab) : undefined}
+            onImport={view.workspace.canWrite && view.workspace.periodId ? (data) => importSource(data, activeTab) : undefined}
           >
             <TableHeader>
               <TableRow>
                 <TableHead>شماره صورتحساب</TableHead>
                 <TableHead>شناسه یکتای مالیاتی</TableHead>
+                <TableHead>دوره</TableHead>
                 <TableHead>تاریخ کارپوشه</TableHead>
                 <TableHead numeric>مبلغ کارپوشه ({unitName})</TableHead>
                 <TableHead numeric>ارزش افزوده کارپوشه ({unitName})</TableHead>
@@ -105,6 +125,7 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
                   <TableRow key={`${row.tax_id ?? row.reference ?? "row"}:${index}`}>
                     <TableRowHeader>{row.reference || row.invoice_id || "—"}</TableRowHeader>
                     <TableCell><bdi>{row.tax_id || "—"}</bdi></TableCell>
+                    <TableCell className="text-xs text-muted">{activePeriodName}</TableCell>
                     <TableCell>{row.date ? displayDate(row.date) : "—"}</TableCell>
                     <TableCell numeric>{amount(row.portal_amount ?? row.portal, unit)}</TableCell>
                     <TableCell numeric>{amount(row.tax, unit)}</TableCell>
@@ -114,17 +135,21 @@ function MoadianContent({ view }: { view: ReturnType<typeof useFinancialView> })
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {row.internal_reference && (
-                        <ButtonLink variant="ghost" href={`${activeTab === "sales" ? "/receivables" : "/payables"}?tab=imported&reference=${encodeURIComponent(row.internal_reference)}`}>
+                      <TableRowActions label={`عملیات ${row.internal_reference}`}>
+                        {row.internal_reference && (
+                        <TableRowAction
+                          href={`${activeTab === "sales" ? "/receivables" : "/payables"}?tab=imported&reference=${encodeURIComponent(row.internal_reference)}`}
+                        >
                           جست‌وجوی فاکتور داخلی
-                        </ButtonLink>
+                        </TableRowAction>
                       )}
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 );
               })}
               {!rows.length && (
-                <TableEmptyCell colSpan={7} title="صورتحساب پردازش‌شده‌ای برای این دوره وجود ندارد" />
+                <TableEmptyCell colSpan={8} title="صورتحساب پردازش‌شده‌ای برای این دوره وجود ندارد" />
               )}
             </TableBody>
           </Table>

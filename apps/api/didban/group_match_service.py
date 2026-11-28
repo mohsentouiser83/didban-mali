@@ -16,10 +16,66 @@ from .security import membership
 from .services import get_entity
 from .workflow import audit, records_for, serialize_fact
 
+MAX_GROUP_ROWS = 100
+MAX_PROPOSALS = 200
+
+
+def _build_group_item(
+    account: str,
+    ledger_account: str,
+    reference: str,
+    bank: list[dict],
+    ledger: list[dict],
+    *,
+    match_basis: str,
+    explanation: str,
+    extra_reasons: list[str] | None = None,
+) -> dict:
+    bank_ids = sorted(row["id"] for row in bank)
+    ledger_ids = sorted(row["id"] for row in ledger)
+    bank_total = sum((amount(row["amount"]) for row in bank), Decimal(0))
+    ledger_total = sum((amount(row["debit"]) - amount(row["credit"]) for row in ledger), Decimal(0))
+    valid = (
+        bool(ledger)
+        and len(bank) <= MAX_GROUP_ROWS
+        and len(ledger) <= MAX_GROUP_ROWS
+        and bank_total == ledger_total
+        and len(set(bank_ids)) == len(bank_ids)
+        and len(set(ledger_ids)) == len(ledger_ids)
+    )
+    dates = sorted({str(row["date"])[:10] for row in [*bank, *ledger]})
+    reasons = ([] if valid else ["group_amount_or_evidence_mismatch"]) + (
+        ["date_mismatch"] if len(dates) > 1 else []
+    )
+    for code in extra_reasons or []:
+        if code not in reasons:
+            reasons.append(code)
+    identity = json.dumps([account, ledger_account, reference, bank_ids, ledger_ids], sort_keys=True)
+    return {
+        "id": sha256(identity.encode()).hexdigest(),
+        "bank_ids": bank_ids,
+        "ledger_ids": ledger_ids,
+        "bank_account": account,
+        "ledger_account": ledger_account,
+        "reference": reference,
+        "bank_total": text_amount(bank_total),
+        "ledger_total": text_amount(ledger_total),
+        "difference": text_amount(bank_total - ledger_total),
+        "dates": dates,
+        "can_accept": valid,
+        "reason_codes": reasons,
+        "match_basis": match_basis,
+        "explanation": explanation,
+        "evidence_refs": evidence([*bank, *ledger]),
+        "requires_human_review": True,
+    }
+
 
 def propose_groups(records: dict, mapping: dict[str, str], *, daily: bool = True) -> list[dict]:
     banks = defaultdict(list)
     ledgers = defaultdict(list)
+    party_banks = defaultdict(list)
+    party_ledgers = defaultdict(list)
     with localcontext() as context:
         context.prec = 60
         for row in records["bank"]:
@@ -27,55 +83,59 @@ def propose_groups(records: dict, mapping: dict[str, str], *, daily: bool = True
             if (
                 row.get("kind", "movement") in ANCHOR_KINDS
                 or not value
-                or not row.get("reference")
                 or row["account"] not in mapping
             ):
                 continue
-            banks[(row["account"], str(row["reference"]), value > 0)].append(row)
+            if row.get("reference"):
+                banks[(row["account"], str(row["reference"]), value > 0)].append(row)
+            elif row.get("party_id"):
+                party_banks[(row["account"], str(row["party_id"]), str(row["date"])[:10], value > 0)].append(row)
         for row in records["ledger"]:
             value = amount(row["debit"]) - amount(row["credit"])
-            if row.get("entry_type", "regular") in NON_FLOW_ENTRIES or not value or not row.get("reference"):
+            if row.get("entry_type", "regular") in NON_FLOW_ENTRIES or not value:
                 continue
-            ledgers[(row["account"], str(row["reference"]), value > 0)].append(row)
+            if row.get("reference"):
+                ledgers[(row["account"], str(row["reference"]), value > 0)].append(row)
+            elif row.get("party_id"):
+                party_ledgers[(row["account"], str(row["party_id"]), str(row["date"])[:10], value > 0)].append(row)
         result = []
         for (account, reference, positive), bank in banks.items():
-            if len(bank) < 2:
+            if len(bank) < 2 or len(result) >= MAX_PROPOSALS:
                 continue
             ledger = ledgers.get((mapping[account], reference, positive), [])
-            bank_ids = sorted(row["id"] for row in bank)
-            ledger_ids = sorted(row["id"] for row in ledger)
-            bank_total = sum((amount(row["amount"]) for row in bank), Decimal(0))
-            ledger_total = sum((amount(row["debit"]) - amount(row["credit"]) for row in ledger), Decimal(0))
-            valid = (
-                bool(ledger)
-                and bank_total == ledger_total
-                and len(set(bank_ids)) == len(bank_ids)
-                and len(set(ledger_ids)) == len(ledger_ids)
-            )
-            dates = sorted({str(row["date"])[:10] for row in [*bank, *ledger]})
-            identity = json.dumps(
-                [account, mapping[account], reference, bank_ids, ledger_ids], sort_keys=True
-            )
             result.append(
-                {
-                    "id": sha256(identity.encode()).hexdigest(),
-                    "bank_ids": bank_ids,
-                    "ledger_ids": ledger_ids,
-                    "bank_account": account,
-                    "ledger_account": mapping[account],
-                    "reference": reference,
-                    "bank_total": text_amount(bank_total),
-                    "ledger_total": text_amount(ledger_total),
-                    "difference": text_amount(bank_total - ledger_total),
-                    "dates": dates,
-                    "can_accept": valid,
-                    "reason_codes": ([] if valid else ["group_amount_or_evidence_mismatch"])
-                    + (["date_mismatch"] if len(dates) > 1 else []),
-                    "evidence_refs": evidence([*bank, *ledger]),
-                    "requires_human_review": True,
-                }
+                _build_group_item(
+                    account,
+                    mapping[account],
+                    reference,
+                    bank,
+                    ledger,
+                    match_basis="shared_reference",
+                    explanation="تطبیق گروهی بر اساس شماره مرجع مشترک و جهت یکسان",
+                )
             )
         if daily:
+            existing = {(tuple(item["bank_ids"]), tuple(item["ledger_ids"])) for item in result}
+            for (account, party_id, day_str, positive), bank in party_banks.items():
+                if len(result) >= MAX_PROPOSALS:
+                    break
+                ledger = party_ledgers.get((mapping[account], party_id, day_str, positive), [])
+                if not ledger or (len(bank) < 2 and len(ledger) < 2):
+                    continue
+                item = _build_group_item(
+                    account,
+                    mapping[account],
+                    f"طرف‌حساب {party_id} ({day_str})",
+                    bank,
+                    ledger,
+                    match_basis="same_party_and_date",
+                    explanation="تطبیق گروهی بر اساس طرف‌حساب و تاریخ یکسان (بدون مرجع مشترک)",
+                    extra_reasons=["shared_reference_missing"],
+                )
+                key = (tuple(item["bank_ids"]), tuple(item["ledger_ids"]))
+                if key not in existing:
+                    existing.add(key)
+                    result.append(item)
             # Bank references are transaction identities and cannot repeat in a
             # valid import. Daily whole-account groups are review candidates,
             # not proof that same-date transactions are related.
@@ -85,13 +145,15 @@ def propose_groups(records: dict, mapping: dict[str, str], *, daily: bool = True
                     row = dict(original)
                     row["reference"] = "day:" + str(row["date"])[:10]
                     day_records[side].append(row)
-            existing = {(tuple(item["bank_ids"]), tuple(item["ledger_ids"])) for item in result}
             for item in propose_groups(day_records, mapping, daily=False):
+                if len(result) >= MAX_PROPOSALS:
+                    break
                 if (tuple(item["bank_ids"]), tuple(item["ledger_ids"])) in existing:
                     continue
                 item["reference"] = "جمع روز " + item["reference"].removeprefix("day:")
                 item["reason_codes"].append("shared_reference_missing")
                 item["match_basis"] = "whole_account_day_review"
+                item["explanation"] = "تطبیق کلی روزانه بر اساس حساب و تاریخ یکسان (نیازمند بررسی انسانی)"
                 result.append(item)
         return result
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PeriodsView } from "./periods-view";
 
@@ -27,6 +27,9 @@ vi.mock("@/hooks/use-period-management", () => ({
   periodDateRangeStatus: (p: { id: string }) => p.id === "p-active" ? "current" : "expired",
   usePeriodManagement: () => ({
     ...actions,
+    canCreate: true,
+    canEdit: true,
+    canDelete: true,
     workspace: state.workspace,
     resource: {
       loading: false,
@@ -42,8 +45,6 @@ vi.mock("@/hooks/use-period-management", () => ({
     name: "",
     start: "",
     end: "",
-    previousPeriodId: "",
-    comparisonCandidates: [],
     closeCreate: vi.fn(),
     save: vi.fn(),
     remove: vi.fn(),
@@ -56,39 +57,48 @@ describe("PeriodsView", () => {
     state.creating = false;
   });
 
-  it("distinguishes the expired date range, posting lock, and current header selection", () => {
+  it("distinguishes the expired date range, posting lock, and current header selection", async () => {
     render(<PeriodsView />);
     const expired = within(screen.getByRole("row", { name: /دوره ۱۴۰۴/ }));
     expect(expired.getByText("تاریخ پایان گذشته")).toBeInTheDocument();
     expect(expired.getByText("باز برای ثبت")).toBeInTheDocument();
-    expect(expired.getByRole("link", { name: "بستن / افتتاح" }))
+    fireEvent.keyDown(expired.getByRole("button", { name: "عملیات دوره ۱۴۰۴" }), { key: "ArrowDown" });
+    expect(await screen.findByRole("menuitem", { name: "بستن دوره" }))
       .toHaveAttribute("href", "/accounting/period-end?period_id=p-past");
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
     const locked = within(screen.getByRole("row", { name: /دوره قفل‌شده/ }));
     expect(locked.getByText("قفل‌شده (بسته)")).toBeInTheDocument();
-    expect(locked.getByRole("button", { name: "ویرایش" })).toBeDisabled();
+    fireEvent.keyDown(locked.getByRole("button", { name: /عملیات دوره قفل‌شده/ }), { key: "ArrowDown" });
+    expect(await screen.findByRole("menuitem", { name: "ویرایش" })).toBeDisabled();
     expect(screen.getByText("دوره فعلی هدر")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /افتتاح/ })).not.toBeInTheDocument();
   });
 
-  it("opens edits for unlocked periods and only deletes unused, unlocked periods", () => {
+  it("opens edits for unlocked periods and only deletes unused, unlocked periods", async () => {
     render(<PeriodsView />);
     const inUse = within(screen.getByRole("row", { name: /دوره ۱۴۰۴/ }));
-    expect(inUse.getByRole("button", { name: /قابل حذف نیست/ })).toBeDisabled();
-    fireEvent.click(inUse.getByRole("button", { name: "ویرایش" }));
+    const trigger = inUse.getByRole("button", { name: "عملیات دوره ۱۴۰۴" });
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(await screen.findByRole("menuitem", { name: /قابل حذف نیست/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("menuitem", { name: "ویرایش" }));
     expect(actions.openEdit).toHaveBeenCalledWith(state.items[0]);
+    await waitFor(() => expect(trigger).toHaveFocus());
 
-    const deleteButton = screen.getByRole("button", { name: "حذف دوره ۱۴۰۵" });
+    fireEvent.keyDown(screen.getByRole("button", { name: "عملیات دوره ۱۴۰۵" }), { key: "ArrowDown" });
+    const deleteButton = await screen.findByRole("menuitem", { name: "حذف دوره ۱۴۰۵" });
     expect(deleteButton).toBeEnabled();
     fireEvent.click(deleteButton);
     expect(actions.setDeleting).toHaveBeenCalledWith(state.items[1]);
   });
 
-  it("opens creation and shows the optional comparison period in the form", () => {
+  it("opens creation with only name and dates", () => {
     const { rerender } = render(<PeriodsView />);
     fireEvent.click(screen.getByRole("button", { name: "دوره جدید" }));
     expect(actions.openCreate).toHaveBeenCalledOnce();
     state.creating = true;
     rerender(<PeriodsView />);
     const drawer = screen.getByRole("dialog", { name: "دوره مالی جدید" });
-    expect(within(drawer).getByRole("combobox", { name: /دوره مقایسه قبلی/ })).toBeInTheDocument();
+    expect(within(drawer).getByRole("textbox", { name: "نام دوره" })).toBeInTheDocument();
+    expect(within(drawer).queryByRole("combobox", { name: /دوره مقایسه قبلی/ })).not.toBeInTheDocument();
   });
 });

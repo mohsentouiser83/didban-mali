@@ -124,7 +124,6 @@ function Workspace() {
         busy={c.command.busy}
         onConfirm={c.approve}
       >
-        <p>همین نسخه با مبنا و محدودیت‌های نمایش‌داده‌شده تأیید می‌شود.</p>
         <FormMessage error>{c.command.error?.message}</FormMessage>
       </ConfirmDialog>
       <NativeStatementHistory c={c} />

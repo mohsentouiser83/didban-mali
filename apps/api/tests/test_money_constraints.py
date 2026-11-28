@@ -6,6 +6,7 @@ from sqlalchemy.schema import CreateTable
 
 from didban import models as m
 from didban.cheque_models import Cheque, ChequeClearance
+from didban.db import SCHEMA_VERSION
 from didban.money_type import Money
 
 
@@ -121,5 +122,5 @@ def test_versioned_migration_recovers_missing_money_columns_on_sqlite(tmp_path, 
     assert "weekly_hours" in {c["name"] for c in inspect(engine).get_columns("employee_contracts")}
     assert "net_before_inv_disc_irr" in {c["name"] for c in inspect(engine).get_columns("commercial_document_lines")}
     with engine.connect() as connection:
-        assert connection.scalar(text("SELECT version FROM didban_schema_version WHERE id = 1")) == 2
+        assert connection.scalar(text("SELECT version FROM didban_schema_version WHERE id = 1")) == SCHEMA_VERSION
     engine.dispose()

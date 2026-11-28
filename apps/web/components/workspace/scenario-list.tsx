@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -76,13 +77,9 @@ export function ScenarioList<
                     <TableCell>{persian(item.version)}</TableCell>
                     <TableCell>{item.created_at ? displayDate(item.created_at) : "—"}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="secondary"
-                        disabled={busy}
-                        onClick={() => onOpen(item)}
-                      >
-                        مشاهده
-                      </Button>
+                      <TableRowActions label={`عملیات ${item.name}`}>
+                        <TableRowAction disabled={busy} onClick={() => onOpen(item)} kind="view">مشاهده</TableRowAction>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))

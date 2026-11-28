@@ -59,7 +59,7 @@ def auth_context():
     return {"client": client, "company_id": cid, "user_id": uid, "headers": make_headers}
 
 
-def test_default_numbering_rules_created_with_001(auth_context):
+def test_default_numbering_rules_have_expected_prefixes(auth_context):
     with transaction(auth_context["company_id"]) as db:
         user = db.get(User, auth_context["user_id"])
         rules = service.list_rules(db, auth_context["company_id"], user)
@@ -77,18 +77,19 @@ def test_default_numbering_rules_created_with_001(auth_context):
         "inventory_movement",
         "dimension",
         "personnel",
+        "treasury_pos",
     }
     present_entities = {r["entity_type"] for r in rules}
     assert expected_entities.issubset(present_entities)
 
-    # Every entity must default to starting with "001"
+    # Most definitions start at 001; terminal codes have their own prefix.
     for rule in rules:
         assert rule["current_number"] == 1
         assert rule["start_number"] == 1
         assert rule["padding"] == 3
-        assert rule["prefix"] == ""
+        assert rule["prefix"] == ("POS-" if rule["entity_type"] == "treasury_pos" else "")
         assert rule["suffix"] == ""
-        assert rule["sample"] == "001"
+        assert rule["sample"] == rule["prefix"] + "001"
         assert rule["is_system"] is True
 
 
@@ -178,9 +179,8 @@ def test_api_numbering_endpoints(auth_context):
     assert res.status_code == 200, res.text
     items = res.json()
     assert len(items) >= 11
-    # Check default 001
     for item in items:
-        assert item["sample"] == "001"
+        assert item["sample"] == ("POS-001" if item["entity_type"] == "treasury_pos" else "001")
 
     # 2. Patch
     target = items[0]

@@ -1,374 +1,146 @@
 "use client";
-import { ArrowsLeftRightIcon as HeaderIcon } from "@phosphor-icons/react";
-import { SearchSelect } from "@/components/ui/search-select";
-import { useAllocationChoices } from "@/hooks/use-allocation-choices";
+
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
+import { ArrowsLeftRightIcon, ArrowCounterClockwiseIcon, CurrencyCircleDollarIcon, PlusIcon, TextAaIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
-import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
-import { Drawer } from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
+import { ColumnFilteredTable, type ListColumn } from "@/components/ui/column-filtered-table";
+import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Dialog } from "@/components/ui/dialog";
+import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
-import { Select } from "@/components/ui/select";
 import { Form } from "@/components/ui/form";
 import { AmountInput, Textarea } from "@/components/ui/input";
-import { CursorPagination } from "@/components/ui/pagination";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableEmptyCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  TableRowHeader,
-} from "@/components/ui/table";
+import { SearchSelect } from "@/components/ui/search-select";
+import { Select } from "@/components/ui/select";
+import { TableCell, TableRow, TableRowHeader } from "@/components/ui/table";
+import { useAllocationChoices } from "@/hooks/use-allocation-choices";
+import { useSettlementList, type SettlementRow } from "@/hooks/use-settlement-list";
+import type { Allocation } from "@/lib/api";
 import { useCommand } from "@/hooks/use-command";
-import { usePagedResource } from "@/hooks/use-paged-resource";
 import { useWorkspace } from "@/hooks/workspace";
-import { listItems, type Allocation } from "@/lib/api";
-import { amount, persian, cn } from "@/lib/utils";
-import { SearchInput } from "@/components/ui/search-input";
-import {
-  ArrowCounterClockwiseIcon,
-  CheckCircleIcon,
-  CurrencyCircleDollarIcon,
-  PlusIcon,
-  TextAaIcon,
-  WalletIcon,
-} from "@phosphor-icons/react";
+import { moduleAllows } from "@/lib/module-access";
+import { amount, displayDate } from "@/lib/utils";
 import { useState } from "react";
-import { Tabs } from "@/components/ui/tabs";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
-import { TreasuryDocumentsPanel } from "./treasury-documents-panel";
-import { CounterpartyQuickDrawer } from "./commercial/counterparty-profile-drawer";
+import { TreasuryDocumentTable } from "./treasury-document-table";
+import { TreasuryDocumentDialogs } from "./treasury-documents-panel";
 
 export function SettlementsView() {
+  const { company, user } = useWorkspace();
+  return company ? <SettlementList key={`${user?.id}:${company.id}`} /> : <NoCompany />;
+}
+
+function SettlementList() {
   const workspace = useWorkspace();
-  const allocations = usePagedResource<Allocation>(
-    workspace.companyPath("allocations"),
-  );
+  const canViewAllocations = moduleAllows(workspace.company, "cashflow", "view");
+  const canCreateAllocation = canViewAllocations && moduleAllows(workspace.company, "cashflow", "create", workspace.canWrite);
+  const canReverseAllocation = canViewAllocations && moduleAllows(workspace.company, "cashflow", "delete", workspace.canWrite);
+  const { allocations, treasury, rows } = useSettlementList(canViewAllocations);
   const [operationType, setOperationType] = useState<"received" | "paid">("received");
-  const choices = useAllocationChoices(operationType);
-  const { banks, invoices } = choices;
   const command = useCommand();
   const [open, setOpen] = useState(false);
+  const choices = useAllocationChoices(operationType, canCreateAllocation && open);
+  const { banks, invoices } = choices;
   const [reversing, setReversing] = useState<Allocation | null>(null);
   const [bankId, setBankId] = useState("");
   const [invoiceId, setInvoiceId] = useState("");
   const [value, setValue] = useState("");
   const [reason, setReason] = useState("");
-  const [directionFilter, setDirectionFilter] = useState<"all" | "received" | "paid">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "reversed">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [settlementTab, setSettlementTab] = useState<"allocations" | "treasury">("allocations");
-  const [counterpartiesOpen, setCounterpartiesOpen] = useState(false);
-
-  if (!workspace.company) return <NoCompany />;
-
-  const allAllocations = listItems(allocations.data);
-  const activeAllocations = allAllocations.filter((a) => !a.reversed_at);
-  const reversedAllocations = allAllocations.filter((a) => !!a.reversed_at);
-  const activeTotalAmount = activeAllocations.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-
-  const filteredAllocations = allAllocations.filter((allocation) => {
-    if (statusFilter === "active" && allocation.reversed_at) return false;
-    if (statusFilter === "reversed" && !allocation.reversed_at) return false;
-    const inv = listItems(invoices.data).find((i) => i.id === allocation.invoice_id);
-    const bank = listItems(banks.data).find((b) => b.id === allocation.bank_id);
-    const isReceived = (bank && Number(bank.amount) > 0) || (inv && (inv.direction === "sales" || Number(inv.amount) > 0));
-    if (directionFilter === "received" && !isReceived) return false;
-    if (directionFilter === "paid" && isReceived) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const invRef = (
-        allocation.invoice_reference ||
-        inv?.reference ||
-        allocation.invoice_id
-      ).toLowerCase();
-      const bankRef = (
-        allocation.bank_reference ||
-        bank?.reference ||
-        allocation.bank_id
-      ).toLowerCase();
-      if (!invRef.includes(q) && !bankRef.includes(q)) return false;
-    }
-    return true;
-  });
+  const [treasuryId, setTreasuryId] = useState<string | null>(null);
+  const shownTreasury = treasury.docRows.filter(({ doc }) => doc.id === treasuryId);
+  const columns: ListColumn<SettlementRow>[] = [
+    { label: "شماره / مرجع", value: (row) => row.reference },
+    { label: "نوع", value: (row) => row.kind },
+    { label: "تاریخ", value: (row) => displayDate(row.date) },
+    { label: "طرف‌حساب", value: (row) => row.counterparty },
+    { label: "مرجع بانکی", value: (row) => row.bankReference },
+    { label: `مبلغ (${workspace.unit === "IRR" ? "ریال" : "تومان"})`, numeric: true, value: (row) => amount(row.amount, workspace.unit) },
+    { label: "وضعیت", value: (row) => row.status },
+    { label: "عملیات", srOnly: true },
+  ];
+  const resources = [allocations, treasury.docs];
 
   return (
     <>
-      <PageHeader
-        icon={HeaderIcon}
-        title="دریافت و پرداخت"
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" onClick={() => setCounterpartiesOpen(true)}>
-              طرف‌حساب‌ها
+      <PageHeader icon={ArrowsLeftRightIcon} title="دریافت و پرداخت" action={
+        <div className="flex flex-wrap gap-2">
+          {treasury.canCreate && (
+            <Button onClick={() => {
+              treasury.cmd.clearError();
+              treasury.setCreateClientError("");
+              treasury.setCreateOpen(true);
+            }}>
+              <PlusIcon size={18} aria-hidden />سند خزانه جدید
             </Button>
-            <ButtonLink variant="secondary" href="/settings/treasury">
-              مدیریت حساب‌های خزانه
-            </ButtonLink>
-            {workspace.canWrite && settlementTab === "allocations" && (
-              <Button
-                onClick={() => {
-                  setOpen(true);
-                  command.clearError();
-                }}
-              >
-                تخصیص دریافت و پرداخت
-                <PlusIcon size={16} aria-hidden />
-              </Button>
-            )}
-          </div>
-        }
-      />
-
-      <div className="mb-5 space-y-3">
-        <Tabs
-          variant="segmented"
-          ariaLabel="بخش‌های دریافت و پرداخت"
-          value={settlementTab}
-          onChange={setSettlementTab}
-          items={[
-            { id: "allocations", label: "تخصیص‌های بانک و فاکتور" },
-            { id: "treasury", label: "سندهای خزانه و ابزارهای تسویه" },
-          ]}
-        />
-        <StatusMessage tone="primary">
-          {settlementTab === "allocations"
-            ? "در «تخصیص‌های بانک و فاکتور»، گردش‌های واقعی بانک را مستقیماً به ماندهٔ فاکتورهای باز وصل می‌کنید."
-            : "در «سندهای خزانه و ابزارهای تسویه»، دریافت یا پرداخت چندابزاری (نقد، حواله، کارت و چک) با پیوند به حساب‌های خزانه، پیش‌نویس سند و تخصیص فاکتور مدیریت می‌شود."}
-        </StatusMessage>
-      </div>
-
-      {settlementTab === "treasury" ? (
-        <TreasuryDocumentsPanel />
-      ) : (
-        <>
-
-      {/* Summary KPI Cards */}
-      <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <CheckCircleIcon size={18} className="text-success" />
-            <span>تخصیص‌های فعال</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-xl font-medium tabular-nums text-foreground">
-              {persian(activeAllocations.length)}
-            </span>
-            <span className="text-xs text-muted">فقره</span>
-          </div>
+          )}
+          {canCreateAllocation && (
+            <Button variant="secondary" onClick={() => {
+              command.clearError();
+              setOpen(true);
+            }}>تخصیص دریافت و پرداخت</Button>
+          )}
         </div>
-
-        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <WalletIcon size={18} className="text-primary" />
-            <span>مجموع مبالغ تخصیص‌یافته</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-xl font-medium tabular-nums text-foreground">
-              {amount(String(activeTotalAmount), workspace.unit)}
-            </span>
-            <span className="text-xs text-muted">
-              {workspace.unit === "IRR" ? "ریال" : "تومان"}
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <ArrowCounterClockwiseIcon size={18} className="text-warning" />
-            <span>تخصیص‌های برگشت‌شده</span>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-display text-xl font-medium tabular-nums text-foreground">
-              {persian(reversedAllocations.length)}
-            </span>
-            <span className="text-xs text-muted">فقره</span>
-          </div>
-        </div>
-      </div>
-
-      <Panel title="ارتباط پرداخت و فاکتور">
-        {/* Filter and Search Bar */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              label="جستجو در فاکتور یا مرجع بانک"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-60 text-xs"
-            />
-            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
-              {(
-                [
-                  { key: "all", label: "همه تراکنش‌ها" },
-                  { key: "received", label: "دریافت‌ها" },
-                  { key: "paid", label: "پرداخت‌ها" },
-                ] as const
-              ).map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setDirectionFilter(f.key)}
-                  className={cn(
-                    "rounded px-3 py-1 text-xs transition-colors",
-                    directionFilter === f.key
-                      ? "bg-surface text-primary font-medium shadow-xs"
-                      : "text-muted hover:text-foreground",
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="inline-flex rounded-control border border-border/80 bg-canvas/60 p-0.5 text-xs">
-              {(
-                [
-                  { key: "all", label: "همه وضعیت‌ها" },
-                  { key: "active", label: "فعال" },
-                  { key: "reversed", label: "برگشت‌شده" },
-                ] as const
-              ).map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setStatusFilter(f.key)}
-                  className={cn(
-                    "rounded px-3 py-1 text-xs transition-colors",
-                    statusFilter === f.key
-                      ? "bg-surface text-primary font-medium shadow-xs"
-                      : "text-muted hover:text-foreground",
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {allocations.loading ? (
-          <LoadingState variant="table" label="در حال دریافت تخصیص‌ها" />
-        ) : allocations.error ? (
-          <ErrorState
-            message={allocations.error.message}
-            onRetry={allocations.refresh}
-          />
+      } />
+      <Panel>
+        {resources.map((resource, index) => resource.error && (
+          <ErrorState key={index} message={resource.error.message} onRetry={resource.refresh} />
+        ))}
+        {resources.some((resource) => resource.loading) ? (
+          <LoadingState label="در حال دریافت اسناد دریافت و پرداخت" variant="table" />
         ) : (
-          <>
-            <Table>
-              <TableHeader sticky>
-                <TableRow>
-                  <TableHead>فاکتور</TableHead>
-                  <TableHead>مرجع بانکی</TableHead>
-                  <TableHead numeric>
-                    مبلغ ({workspace.unit === "IRR" ? "ریال" : "تومان"})
-                  </TableHead>
-                  <TableHead className="w-28">وضعیت</TableHead>
-                  <TableHead className="w-24">
-                    <span className="sr-only">برگشت تخصیص</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAllocations.length ? (
-                  filteredAllocations.map((allocation) => {
-                    const inv = listItems(invoices.data).find((i) => i.id === allocation.invoice_id);
-                    const isSales = inv ? inv.direction === "sales" || Number(inv.amount || 0) > 0 : true;
-                    return (
-                    <TableRow key={allocation.id}>
-                      <TableRowHeader>
-                        <ButtonLink
-                          variant="ghost"
-                          className="h-auto px-1 py-0.5 font-medium text-foreground"
-                          href={isSales ? "/receivables" : "/payables"}
-                        >
-                          {allocation.invoice_reference || inv?.reference || allocation.invoice_id}
-                        </ButtonLink>
-                      </TableRowHeader>
-                      <TableCell>
-                        {allocation.bank_reference ||
-                          listItems(banks.data).find(
-                            (bank) => bank.id === allocation.bank_id,
-                          )?.reference ||
-                          allocation.bank_id}
-                      </TableCell>
-                      <TableCell numeric className="whitespace-nowrap">
-                        {amount(allocation.amount, workspace.unit)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          tone={allocation.reversed_at ? "neutral" : "success"}
-                        >
-                          {allocation.reversed_at ? "برگشت‌شده" : "فعال"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {workspace.canWrite && !allocation.reversed_at && (
-                          <Button
-                            variant="ghost"
-                            className="h-8 text-xs text-danger hover:bg-danger-soft"
-                            onClick={() => {
-                              setReversing(allocation);
-                              setReason("");
-                              command.clearError();
-                            }}
-                          >
-                            <ArrowCounterClockwiseIcon size={16} />
-                            برگشت
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableEmptyCell
-                    colSpan={5}
-                    title={
-                      searchQuery || statusFilter !== "all"
-                        ? "تخصیصی با این فیلتر یا جستجو پیدا نشد"
-                        : "هنوز دریافت یا پرداختی ثبت نشده است"
-                    }
-                    action={
-                      searchQuery || statusFilter !== "all" ? (
-                        <Button
-                          variant="secondary"
-                          onClick={() => {
-                            setSearchQuery("");
-                            setStatusFilter("all");
-                          }}
-                        >
-                          پاک‌کردن فیلترها
-                        </Button>
-                      ) : workspace.canWrite ? (
-                        <Button
-                          onClick={() => {
-                            setOpen(true);
+          <ColumnFilteredTable
+            label="دریافت و پرداخت"
+            columns={columns}
+            rows={rows}
+            emptyTitle="هنوز دریافت یا پرداختی ثبت نشده است"
+            renderRow={(row) => {
+              const { source } = row;
+              return (
+                <TableRow key={row.id}>
+                  <TableRowHeader><bdi>{row.reference}</bdi></TableRowHeader>
+                  <TableCell>{row.kind}</TableCell>
+                  <TableCell className="whitespace-nowrap">{displayDate(row.date)}</TableCell>
+                  <TableCell>{row.counterparty}</TableCell>
+                  <TableCell><bdi>{row.bankReference}</bdi></TableCell>
+                  <TableCell numeric className="whitespace-nowrap">{amount(row.amount, workspace.unit)}</TableCell>
+                  <TableCell><Badge>{row.status}</Badge></TableCell>
+                  <TableCell>
+                    <TableRowActions label={`عملیات ${row.reference}`}>
+                      {source.kind === "treasury" ? (
+                      <TableRowAction onClick={() => setTreasuryId(source.row.doc.id)} kind="view">جزئیات</TableRowAction>
+                    ) : canReverseAllocation && !source.allocation.reversed_at && (
+                      <TableRowAction
+                        onClick={() => {
+                            setReversing(source.allocation);
+                            setReason("");
                             command.clearError();
-                          }}
-                        >
-                          ثبت اولین تخصیص
-                        </Button>
-                      ) : undefined
-                    }
-                  />
-                )}
-              </TableBody>
-            </Table>
-            <CursorPagination {...allocations} />
-          </>
+                        }}
+                        icon={<ArrowCounterClockwiseIcon size={16} aria-hidden />}
+                        danger
+                      >
+                        برگشت
+                      </TableRowAction>
+                    )}
+                    </TableRowActions>
+                  </TableCell>
+                </TableRow>
+              );
+            }}
+          />
         )}
       </Panel>
+      <Drawer title="جزئیات سند خزانه" open={!!treasuryId} onOpenChange={(open) => !open && setTreasuryId(null)} className="sm:max-w-4xl">
+        <TreasuryDocumentTable view={{ ...treasury, docRows: shownTreasury }} hideJournalLink />
+      </Drawer>
+      <TreasuryDocumentDialogs view={treasury} showNavigation={false} />
       <Drawer title="تخصیص دریافت و پرداخت به فاکتور" open={open} onOpenChange={setOpen}>
         <Form
           fieldErrors={command.error?.fields}
           onSubmit={(event) => {
             event.preventDefault();
             void command.run(
-              workspace.companyPath("allocations"),
+              canViewAllocations ? workspace.companyPath("allocations") : null,
               {
                 body: { bank_id: bankId, invoice_id: invoiceId, amount: value },
               },
@@ -499,12 +271,6 @@ export function SettlementsView() {
           </Button>
         </Form>
       </Dialog>
-        </>
-      )}
-      <CounterpartyQuickDrawer
-        open={counterpartiesOpen}
-        onOpenChange={setCounterpartiesOpen}
-      />
     </>
   );
 }

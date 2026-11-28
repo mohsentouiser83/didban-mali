@@ -289,3 +289,43 @@ def test_active_replacement_closing_blocks_second_closing(book):
     with pytest.raises(DomainError) as error:
         create_closing(db, "c", user, proposal)
     assert error.value.code == "period_closing_exists"
+
+
+def test_permanent_closing_closes_permanent_accounts_after_temporary_closing(book):
+    db = book
+    user, accounts, result = setup(db)
+    # Close revenue (temporary) to equity first
+    temp_draft = create_closing(
+        db,
+        "c",
+        user,
+        {
+            "period_id": "p",
+            "kind": "closing",
+            "account_ids": [accounts[1].id],
+            "result_account_id": result["id"],
+            "reason": "بستن حساب موقت",
+        },
+    )
+    post_batch(db, "c", user, [approval(db, temp_draft)])
+    # Now close permanent bank account using closing balance sheet account
+    closing_bs = save_account(db, "c", user, {"code": "004", "name": "تراز اختتامیه", "active": True})
+    save_role(db, "c", user, closing_bs["id"], "equity", 1)
+    perm_draft = create_closing(
+        db,
+        "c",
+        user,
+        {
+            "period_id": "p",
+            "kind": "permanent_closing",
+            "account_ids": [accounts[0].id, result["id"]],
+            "result_account_id": closing_bs["id"],
+            "reason": "سند اختتامیه دوره",
+        },
+    )
+    assert perm_draft["period_accounting"]["kind"] == "permanent_closing"
+    post_batch(db, "c", user, [approval(db, perm_draft)])
+    bal = {row["code"]: row["balance"] for row in trial_balance(db, "c", user, "p")["items"]}
+    assert bal["001"] == "0"
+    assert bal["003"] == "0"
+    assert bal.get("004", "0") == "0"

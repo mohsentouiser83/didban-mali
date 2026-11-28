@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { ChartBarIcon, ListDashesIcon, TableIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -185,7 +186,7 @@ function Workspace() {
                       <TableHead>حساب</TableHead>
                       <TableHead>تاریخ</TableHead>
                       <TableHead>مبلغ (ریال)</TableHead>
-                      <TableHead>تخصیص</TableHead>
+                      <TableHead sortable={false} pinnable={false} filterable={false}>تخصیص</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -197,12 +198,13 @@ function Workspace() {
                           <TableCell>{amount(line.amount)}</TableCell>
                           <TableCell>
                             {!view.saved && view.workspace.canWrite ? (
-                              <Button
-                                variant="secondary"
+                              <TableRowActions label={`عملیات ${line.account}`}>
+                              <TableRowAction
                                 onClick={() => view.open(line)}
                               >
                                 {line.allocation ? "بازبینی تخصیص" : "تعیین بُعد"}
-                              </Button>
+                              </TableRowAction>
+                              </TableRowActions>
                             ) : line.allocation ? (
                               "تخصیص‌یافته"
                             ) : (

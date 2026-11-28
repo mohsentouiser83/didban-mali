@@ -1,5 +1,6 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import {
   UsersThreeIcon,
   PlusIcon,
@@ -88,6 +89,12 @@ export function PayrollDashboardView() {
                 صدور پیش‌نویس سند حسابداری
               </Button>
             )}
+            {v.canPrepare && currentRun?.status === "posted" && (
+              <Button variant="secondary" onClick={v.openPaymentDraft} busy={v.command.busy}>
+                <WalletIcon size={18} aria-hidden />
+                ایجاد پیش‌نویس پرداخت حقوق
+              </Button>
+            )}
           </div>
         }
       />
@@ -102,7 +109,6 @@ export function PayrollDashboardView() {
         <Panel>
           <EmptyState
             title="هیچ لیست حقوقی ایجاد نشده است"
-            description="برای شروع محاسبه حقوق و صدور فیش‌ها، اولین لیست حقوق دوره را ایجاد کنید."
             action={v.canPrepare && (
               <Button variant="primary" onClick={v.openCreateRun} disabled={!v.workspace.periodId}>
                 ایجاد اولین لیست حقوق
@@ -112,6 +118,68 @@ export function PayrollDashboardView() {
         </Panel>
       ) : (
         <div className="space-y-6">
+          <Panel title="فهرست لیست‌های حقوق ماهانه">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>عنوان لیست</TableHead>
+                  <TableHead>ماه و سال</TableHead>
+                  <TableHead>تعداد افراد</TableHead>
+                  <TableHead>وضعیت نرخ</TableHead>
+                  <TableHead>وضعیت محاسبه و ثبت</TableHead>
+                  <TableHead className="text-end">عملیات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {v.runs.map((run) => {
+                  const isSelected = run.id === v.selectedRunId;
+                  return (
+                    <TableRow key={run.id} className={isSelected ? "bg-primary-soft/30" : undefined}>
+                      <TableRowHeader className="font-medium">{run.title}</TableRowHeader>
+                      <TableCell>{monthNames[run.month - 1]} {persian(run.year)}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {run.slips_count != null ? `${persian(run.slips_count)} نفر` : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {run.rate_status === "unverified_period_rates" ? (
+                          <span className="inline-flex rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                            جدول ۱۴۰۳ (نیاز به بررسی نرخ)
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted">نرخ ۱۴۰۳</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {run.status === "posted" ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                            سند ثبت‌شده
+                          </span>
+                        ) : run.status === "approved" ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-primary-soft px-2 py-0.5 text-xs text-primary">
+                            پیش‌نویس سند صادرشده
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                            محاسبه‌شده (پیش‌نویس)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-end">
+                        <Button
+                          variant={isSelected ? "primary" : "secondary"}
+                          className="min-h-8 px-3 text-xs"
+                          onClick={() => v.setSelectedRunId(run.id)}
+                        >
+                          {isSelected ? "فیش‌های فعال" : "مشاهده فیش‌ها"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Panel>
+
           {/* نوار انتخاب دوره و لیست حقوق */}
           <Panel>
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -132,6 +200,11 @@ export function PayrollDashboardView() {
                 {currentRun?.rate_status === "unverified_period_rates" && (
                   <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
                     بر اساس جدول ۱۴۰۳ (نرخ دوره بررسی شود)
+                  </span>
+                )}
+                {currentRun?.slips?.some((s) => Number(s.net_pay || 0) <= 0 || (!Number(s.work_days || 0) && !Number(s.work_hours || 0))) && (
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                    برخی فیش‌ها کارکرد یا خالص صفر دارند (داده ناقص)
                   </span>
                 )}
                 {currentRun?.status === "posted" ? (
@@ -257,34 +330,31 @@ export function PayrollDashboardView() {
                           {amount(slip.net_pay, v.workspace.unit)}
                         </TableCell>
                         <TableCell className="text-end">
-                          <div className="flex items-center justify-end gap-1">
+                          <TableRowActions label={`عملیات ${slip.employee_name}`}>
                             {v.canPrepare && currentRun.status === "calculated" && (
-                              <Button
-                                variant="ghost"
-                                className="size-8 p-0"
+                              <TableRowAction
                                 onClick={() => v.openEditSlip(slip)}
                                 title="ثبت کارکرد / کسورات"
+                                icon={<PencilSimpleIcon size={16} />}
                               >
-                                <PencilSimpleIcon size={16} />
-                              </Button>
+                                ثبت کارکرد / کسورات
+                              </TableRowAction>
                             )}
-                            <Button
-                              variant="ghost"
-                              className="size-8 p-0 text-amber-600 hover:text-amber-700"
+                            <TableRowAction
                               onClick={() => v.setSettlementEmployeeId(slip.employee_id)}
                               title="محاسبه تسویه، عیدی و سنوات"
+                              icon={<CalculatorIcon size={16} />}
                             >
-                              <CalculatorIcon size={16} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="size-8 p-0 text-primary"
+                              محاسبه تسویه، عیدی و سنوات
+                            </TableRowAction>
+                            <TableRowAction
                               onClick={() => v.setViewingSlip(slip)}
                               title="مشاهده فیش حقوقی"
+                              icon={<EyeIcon size={16} />}
                             >
-                              <EyeIcon size={16} />
-                            </Button>
-                          </div>
+                              مشاهده فیش حقوقی
+                            </TableRowAction>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     ))
@@ -306,11 +376,10 @@ export function PayrollDashboardView() {
         open={v.canPrepare && v.createOpen}
         onOpenChange={(open) => !open && v.setCreateOpen(false)}
         title="ایجاد لیست حقوق و دستمزد جدید"
-        description="دوره و ماه مالی مورد نظر را انتخاب کنید تا محاسبات اولیه فیش‌ها انجام شود."
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={() => v.setCreateOpen(false)}>انصراف</Button>
-            <Button variant="primary" busy={v.command.busy} onClick={v.handleCreateRun}>
+            <Button variant="primary" busy={v.command.busy} className="w-full" onClick={v.handleCreateRun}>
               ایجاد و محاسبه فیش‌ها
             </Button>
           </div>
@@ -321,7 +390,6 @@ export function PayrollDashboardView() {
             <Input
               value={v.createForm.title}
               onChange={(e) => v.setCreateForm({ ...v.createForm, title: e.target.value })}
-              placeholder="مثال: لیست حقوق فروردین ۱۴۰۳"
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -357,16 +425,74 @@ export function PayrollDashboardView() {
         open={v.canPrepare && v.draftOpen}
         onOpenChange={(open) => !open && v.closeDraft()}
         title="حساب‌های سند حقوق"
-        footer={<Button onClick={v.handleCreateDraft} disabled={!v.canCreateDraft} busy={v.command.busy}>تهیه پیش‌نویس</Button>}
+        footer={<Button className="w-full" onClick={v.handleCreateDraft} disabled={!v.canCreateDraft} busy={v.command.busy}>تهیه پیش‌نویس</Button>}
       >
         {v.accountsLoading ? <LoadingState /> : v.accountsError ? <ErrorState message={v.accountsError} /> : (
           <div className="space-y-3">
             {v.roles.map((role) => (
               <Field key={role.key} id={`payroll-account-${role.key}`} label={role.label}>
-                <Select id={`payroll-account-${role.key}`} value={v.draftAccounts[role.key] ?? ""}
+                <Select id={`payroll-account-${role.key}`} searchable value={v.draftAccounts[role.key] ?? ""}
                   options={v.accountOptions} onValueChange={(value) => v.setDraftAccount(role.key, value)} />
               </Field>
             ))}
+            {v.command.error && <p role="alert" className="text-sm text-danger">{v.command.error.message}</p>}
+          </div>
+        )}
+      </Drawer>
+
+      <Drawer
+        open={v.canPrepare && v.paymentDraftOpen}
+        onOpenChange={(open) => !open && v.closePaymentDraft()}
+        title="ایجاد پیش‌نویس سند پرداخت حقوق"
+        footer={
+          <Button
+            className="w-full"
+            onClick={v.handleCreatePaymentDraft}
+            disabled={!v.canCreatePaymentDraft}
+            busy={v.command.busy}
+          >
+            ثبت پیش‌نویس پرداخت حقوق
+          </Button>
+        }
+      >
+        {v.accountsLoading ? <LoadingState /> : v.accountsError ? <ErrorState message={v.accountsError} /> : (
+          <div className="space-y-4">
+            <Field id="pay-draft-date" label="تاریخ پرداخت" required>
+              <PersianDatePicker
+                id="pay-draft-date"
+                value={v.paymentForm.date}
+                onChange={(date) => v.setPaymentForm({ ...v.paymentForm, date })}
+              />
+            </Field>
+            <Field id="pay-draft-bank" label="حساب بانک / خزانه پرداخت‌کننده" required>
+              <Select
+                id="pay-draft-bank"
+                searchable
+                value={v.paymentForm.bank_account_id}
+                options={v.accountOptions}
+                onValueChange={(bank_account_id) =>
+                  v.setPaymentForm({ ...v.paymentForm, bank_account_id })
+                }
+              />
+            </Field>
+            <Field id="pay-draft-payable" label="حساب حقوق پرداختنی (بدهکار)" required>
+              <Select
+                id="pay-draft-payable"
+                searchable
+                value={v.paymentForm.payroll_payable_account_id}
+                options={v.accountOptions}
+                onValueChange={(payroll_payable_account_id) =>
+                  v.setPaymentForm({ ...v.paymentForm, payroll_payable_account_id })
+                }
+              />
+            </Field>
+            <Field id="pay-draft-desc" label="شرح پرداخت">
+              <Input
+                id="pay-draft-desc"
+                value={v.paymentForm.description}
+                onChange={(e) => v.setPaymentForm({ ...v.paymentForm, description: e.target.value })}
+              />
+            </Field>
             {v.command.error && <p role="alert" className="text-sm text-danger">{v.command.error.message}</p>}
           </div>
         )}
@@ -377,11 +503,10 @@ export function PayrollDashboardView() {
         open={v.canPrepare && !!v.editingSlip}
         onOpenChange={(open) => !open && v.closeEditSlip()}
         title={`ثبت کارکرد و کسورات: ${v.editingSlip?.employee_name || ""}`}
-        description="ساعات کار، اضافه‌کاری و کسورات این ماه را وارد کنید تا فیش مجدداً محاسبه شود."
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={v.closeEditSlip}>انصراف</Button>
-            <Button variant="primary" busy={v.command.busy} onClick={v.handleSaveSlipTimesheet}>
+            <Button variant="primary" busy={v.command.busy} className="w-full" onClick={v.handleSaveSlipTimesheet}>
               محاسبه و ذخیره
             </Button>
           </div>
@@ -451,10 +576,8 @@ export function PayrollDashboardView() {
         open={!!v.viewingSlip}
         onOpenChange={(open) => !open && v.setViewingSlip(null)}
         title="فیش حقوق و دستمزد کارمند"
-        description={`${v.viewingSlip?.employee_name || ""} — ${v.selectedRun?.title || ""}`}
         footer={
-          <div className="flex justify-between items-center w-full">
-            <span className="text-xs text-muted">صادره توسط سامانه دیدبان مالی</span>
+          <div className="flex justify-end">
             <Button variant="secondary" onClick={() => v.setViewingSlip(null)}>بستن</Button>
           </div>
         }
@@ -531,11 +654,10 @@ export function PayrollDashboardView() {
         open={v.canPrepare && v.attendanceOpen}
         onOpenChange={(open) => !open && v.setAttendanceOpen(false)}
         title="ثبت و ویرایش کارکرد ماهانه پرسنل"
-        description={`ثبت ساعات و روزهای کارکرد، اضافه‌کاری، پاداش و مساعده برای لیست ${currentRun?.title || ""}`}
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={() => v.setAttendanceOpen(false)}>انصراف</Button>
-            <Button variant="primary" busy={v.command.busy} onClick={v.handleSaveBatchAttendance}>
+            <Button variant="primary" busy={v.command.busy} className="w-full" onClick={v.handleSaveBatchAttendance}>
               ذخیره کارکردها و محاسبه مجدد فیش‌ها
             </Button>
           </div>
@@ -646,7 +768,6 @@ export function PayrollDashboardView() {
         open={v.insuranceDiskOpen}
         onOpenChange={(open) => !open && v.setInsuranceDiskOpen(false)}
         title="لیست و دیسکت بیمه تامین اجتماعی"
-        description="فایل‌های استاندارد کارگاه و پرسنل (DSKKAR00 / DSKWOR00) جهت ارسال به سامانه تامین اجتماعی"
         footer={
           <div className="flex flex-wrap justify-between items-center w-full gap-2">
             <div className="flex flex-wrap gap-2">
@@ -743,7 +864,6 @@ export function PayrollDashboardView() {
         open={v.taxDiskOpen}
         onOpenChange={(open) => !open && v.setTaxDiskOpen(false)}
         title="لیست مالیات حقوق و دستمزد"
-        description="فایل استاندارد سامانه مالیات بر درآمد حقوق (ماده ۸۶ قانون مالیات‌های مستقیم)"
         footer={
           <div className="flex justify-between items-center w-full">
             <Button
@@ -820,7 +940,6 @@ export function PayrollDashboardView() {
         open={!!v.settlementEmployeeId}
         onOpenChange={(open) => !open && v.setSettlementEmployeeId(null)}
         title="محاسبه تسویه حساب و مزایای پایان خدمت"
-        description="محاسبه قانونی عیدی، حق سنوات خدمت و تسویه مانده مرخصی کارمند طبق قانون کار"
         footer={
           <div className="flex justify-end gap-2 w-full">
             <Button variant="secondary" onClick={() => v.setSettlementEmployeeId(null)}>بستن</Button>
@@ -863,9 +982,6 @@ export function PayrollDashboardView() {
                     <span>۲. حق سنوات پایان خدمت (ماده ۲۴ قانون کار)</span>
                     <span className="font-bold text-indigo-700">{amount(v.settlementData.settlement.sanavat_amount, v.workspace.unit)}</span>
                   </div>
-                  <div className="text-[11px] text-muted">
-                    مبنا: ۱ ماه آخرین مزد ثابت به ازای هر سال سابقه کارکرد (معاف از مالیات و بیمه).
-                  </div>
                 </div>
 
                 {/* ۳. تسویه مانده مرخصی */}
@@ -884,7 +1000,6 @@ export function PayrollDashboardView() {
                 {/* جمع کل تسویه */}
                 <div className="flex justify-between items-center rounded-panel bg-primary-soft p-4 border border-primary/20">
                   <div>
-                    <div className="text-xs text-muted">مجموع کل مطالبات تسویه حساب و مزایای پایان خدمت:</div>
                     <div className="text-sm font-bold text-primary mt-1">خالص قابل پرداخت:</div>
                   </div>
                   <div className="text-2xl font-bold text-primary">

@@ -42,14 +42,37 @@ export function MoadianReconciliationPanel() {
 
   const summary = moadian.summary;
   if (!summary?.invoices_count) {
-    return <Panel><EmptyState title="هنوز فاکتور فروشی ثبت نشده است" /></Panel>;
+    return (
+      <Panel>
+        <EmptyState
+          title="فاکتور فروش داخلی موجود نیست"
+          description="برای تطبیق با کارپوشه مؤدیان، ابتدا فاکتورهای فروش را ثبت یا بارگذاری کنید."
+          action={<ButtonLink href="/receivables">ثبت فاکتور فروش در مطالبات و فروش</ButtonLink>}
+        />
+      </Panel>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Panel title="شاخص‌های تطبیق دفاتر و سامانه مؤدیان">
+      <Panel
+        title="شاخص‌های تطبیق دفاتر و سامانه مؤدیان"
+        action={
+          <Badge tone={moadian.hasPortalEvidence ? "success" : "warning"}>
+            {moadian.hasPortalEvidence ? "تطبیق با داده کارپوشه انجام شد" : "داده کارپوشه موجود نیست"}
+          </Badge>
+        }
+      >
         {!moadian.hasPortalEvidence && (
-          <StatusMessage>برای این فاکتورها شواهد پذیرش کارپوشه موجود نیست.</StatusMessage>
+          <StatusMessage tone="warning">
+            <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+              <span>برای این فاکتورها شواهد پذیرش یا خروجی کارپوشه مؤدیان ثبت نشده است.</span>
+              <div className="flex flex-wrap gap-2">
+                <ButtonLink variant="secondary" href="/moadian">ثبت/ورود کارپوشه مؤدیان</ButtonLink>
+                <ButtonLink variant="ghost" href="/moadian/transmissions">ارسال و استعلام</ButtonLink>
+              </div>
+            </div>
+          </StatusMessage>
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-border/80 bg-surface-subtle p-4">
@@ -79,7 +102,6 @@ export function MoadianReconciliationPanel() {
             <p className={`mt-1 font-semibold text-lg ${summary?.vat_discrepancy !== "0" ? "text-amber-600" : "text-emerald-600"}`}>
               {amount(moadian.hasPortalEvidence ? summary.vat_discrepancy : null, unit)}
             </p>
-            <p className="text-xs text-muted">اختلاف VAT دفاتر با کارپوشه</p>
           </div>
 
           <div className="rounded-xl border border-border/80 bg-surface-subtle p-4">
@@ -87,7 +109,6 @@ export function MoadianReconciliationPanel() {
             <p className="mt-1 font-semibold text-lg">
               {!moadian.hasPortalEvidence || summary.compliance_percentage == null ? "—" : `${persian(summary.compliance_percentage)}٪`}
             </p>
-            <p className="text-xs text-muted">پوشش فاکتورهای معتبر</p>
           </div>
         </div>
 
@@ -95,8 +116,7 @@ export function MoadianReconciliationPanel() {
           <div className="mt-4">
             <StatusMessage tone="warning">
               <WarningCircleIcon size={20} className="text-amber-600" />
-              تعداد {persian(summary.untransmitted_count)} فاکتور فروش نهایی در دفاتر ثبت شده‌اند اما به سامانه مؤدیان ارسال نشده‌اند.
-              جهت جلوگیری از جرائم عدم ارسال، فاکتورهای معلق را بررسی نمایید.
+              {persian(summary.untransmitted_count)} فاکتور فروش نهایی به سامانه مؤدیان ارسال نشده است.
             </StatusMessage>
           </div>
         )}

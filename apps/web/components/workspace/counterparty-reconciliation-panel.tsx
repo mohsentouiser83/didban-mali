@@ -1,5 +1,6 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import {
   ArrowsLeftRightIcon,
@@ -509,7 +510,6 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
                           <Input
                             id="recon-decision-notes"
                             value={decisionNotes}
-                            placeholder="مثال: فاکتور ۱۰۲ شامل تخفیف توافقی است و سند اصلاحی صادر می‌شود."
                             onChange={(e) => setDecisionNotes(e.target.value)}
                           />
                         </Field>
@@ -529,7 +529,6 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
             ) : (
               <EmptyState
                 title="هنوز تطبیقی برای این طرف‌حساب انجام نشده است"
-                description="صورت‌حساب ارسالی طرف‌حساب را وارد کرده و دکمه «اجرای تطبیق» را بزنید."
                 action={
                   <Button variant="secondary" onClick={() => setStatementDrawerOpen(true)}>
                     ورود ردیف‌های صورت‌حساب
@@ -606,17 +605,18 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
                       <TableCell><StatusBadge status={run.status} /></TableCell>
                       <TableCell className="max-w-[200px] truncate text-xs text-muted">{run.notes || "—"}</TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          className="h-8 text-xs"
-                          onClick={() => {
-                            recon.setActiveRun(run);
-                            setDecisionStatus((run.status as "reviewed" | "disputed" | "completed") || "reviewed");
-                            setDecisionNotes(run.notes || "");
-                          }}
-                        >
-                          مشاهده و اصلاح تصمیم
-                        </Button>
+                        <TableRowActions label={`عملیات ${displayDate(run.as_of_date)}`}>
+                          <TableRowAction
+                            onClick={() => {
+                                recon.setActiveRun(run);
+                                setDecisionStatus((run.status as "reviewed" | "disputed" | "completed") || "reviewed");
+                                setDecisionNotes(run.notes || "");
+                            }}
+                            kind="edit"
+                          >
+                            مشاهده و اصلاح تصمیم
+                          </TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -628,11 +628,6 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
       ) : (
         <EmptyState
           title={hasCandidates ? "لطفاً یک طرف‌حساب انتخاب کنید" : "طرف‌حسابی برای تطبیق موجود نیست"}
-          description={
-            hasCandidates
-              ? "برای مغایرت‌گیری، ابتدا مشتری یا تأمین‌کننده مورد نظر را از منوی بالا انتخاب کنید."
-              : "برای شروع تطبیق، ابتدا طرف‌حساب‌ها را تعریف یا اسناد مالی مرتبط را ثبت کنید."
-          }
           action={
             !hasCandidates ? (
               <ButtonLink href="/commercial/counterparties">مدیریت طرف‌حساب‌ها</ButtonLink>
@@ -648,11 +643,7 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
       >
         <div className="space-y-6">
           <div className="rounded-xl border border-primary/20 bg-primary-soft/30 p-4">
-            <h4 className="font-medium text-sm text-primary-dark">چسباندن مستقیم از اکسل (Paste from Excel)</h4>
-            <p className="mt-1 text-xs text-muted">
-              می‌توانید ستون‌های صورت‌حساب اکسل ارسالی طرف‌حساب را کپی کرده و در کادر زیر Paste کنید.
-              ستون‌های پیشنهادی: تاریخ | شماره سند یا فاکتور | بدهکار | بستانکار | شرح
-            </p>
+            <h4 className="font-medium text-sm text-primary-dark">چسباندن از اکسل</h4>
             <div className="mt-3">
               <Textarea
                 rows={4}
@@ -734,7 +725,7 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
                     <TableHead>بدهکار</TableHead>
                     <TableHead>بستانکار</TableHead>
                     <TableHead>شرح</TableHead>
-                    <TableHead><span className="sr-only">حذف</span></TableHead>
+                    <TableHead><span className="sr-only">عملیات</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -747,13 +738,15 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
                         <TableCell>{amount(row.credit, unit)}</TableCell>
                         <TableCell className="max-w-[150px] truncate">{row.description}</TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            className="size-8 p-0 text-rose-600"
-                            onClick={() => recon.removeRow(idx)}
-                          >
-                            <TrashIcon size={16} />
-                          </Button>
+                          <TableRowActions label={`عملیات ${row.reference || persian(idx + 1)}`}>
+                            <TableRowAction
+                              onClick={() => recon.removeRow(idx)}
+                              icon={<TrashIcon size={16} />}
+                              danger
+                            >
+                              حذف ردیف
+                            </TableRowAction>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     ))

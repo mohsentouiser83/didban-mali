@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useCommand } from "./use-command";
 import { usePagedResource } from "./use-paged-resource";
-import { listItems, type Period } from "@/lib/api";
+import { moduleAllows } from "@/lib/module-access";
+import type { Period } from "@/lib/api";
 
 export type PeriodDateRangeStatus = "upcoming" | "current" | "expired";
 
@@ -24,20 +25,21 @@ export function usePeriodManagement() {
     workspace.companyPath("financial-periods"),
   );
   const command = useCommand();
+  const canCreate = moduleAllows(workspace.company, "periods", "create", workspace.canWrite);
+  const canEdit = moduleAllows(workspace.company, "periods", "edit", workspace.canWrite);
+  const canDelete = moduleAllows(workspace.company, "periods", "delete", workspace.canWrite);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Period | null>(null);
   const [deleting, setDeleting] = useState<Period | null>(null);
   const [name, setName] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [previousPeriodId, setPreviousPeriodId] = useState("");
 
   function openCreate() {
     setEditing(null);
     setName("");
     setStart("");
     setEnd("");
-    setPreviousPeriodId("");
     setDrawerOpen(true);
     command.clearError();
   }
@@ -47,7 +49,6 @@ export function usePeriodManagement() {
     setName(period.name);
     setStart(period.start);
     setEnd(period.end);
-    setPreviousPeriodId(period.previous_period_id || "");
     setDrawerOpen(true);
     command.clearError();
   }
@@ -60,17 +61,13 @@ export function usePeriodManagement() {
   }
 
   function save() {
-    if (!name.trim() || !start || !end) return;
+    if (!(editing ? canEdit : canCreate) || !name.trim() || !start || !end) return;
     if (editing?.closed) return;
     const isLockedDates = Boolean(editing?.in_use);
     const body = {
       name: name.trim(),
       start: isLockedDates && editing ? editing.start : start,
       end: isLockedDates && editing ? editing.end : end,
-      previous_period_id:
-        isLockedDates && editing
-          ? (editing.previous_period_id ?? null)
-          : previousPeriodId || null,
     };
     void command.run(
       workspace.companyPath(
@@ -93,7 +90,7 @@ export function usePeriodManagement() {
   }
 
   function remove() {
-    if (!deleting || deleting.in_use || deleting.closed) return;
+    if (!canDelete || !deleting || deleting.in_use || deleting.closed) return;
     void command.run(
       workspace.companyPath(`financial-periods/${deleting.id}`),
       { method: "DELETE", version: deleting.version },
@@ -106,15 +103,11 @@ export function usePeriodManagement() {
     );
   }
 
-  const allPeriods = listItems(resource.data);
-  const comparisonCandidates = allPeriods.filter((item) => {
-    if (editing && item.id === editing.id) return false;
-    if (start && item.end >= start) return false;
-    return true;
-  });
-
   return {
     workspace,
+    canCreate,
+    canEdit,
+    canDelete,
     resource,
     command,
     creating: drawerOpen,
@@ -123,14 +116,11 @@ export function usePeriodManagement() {
     name,
     start,
     end,
-    previousPeriodId,
-    comparisonCandidates,
     setCreating: setDrawerOpen,
     setDeleting,
     setName,
     setStart,
     setEnd,
-    setPreviousPeriodId,
     openCreate,
     openEdit,
     closeCreate: closeDrawer,

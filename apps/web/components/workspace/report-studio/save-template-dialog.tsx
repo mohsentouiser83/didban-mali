@@ -43,13 +43,12 @@ export function SaveTemplateDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="ذخیره قالب گزارش"
-      description="با ذخیره این قالب، در تمام دوره‌های مالی آتی می‌توانید با یک کلیک این گزارش کامل را بازخوانی کنید."
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex w-full flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             انصراف
           </Button>
-          <Button variant="primary" onClick={handleSave} disabled={!name.trim()}>
+          <Button variant="primary" className="w-full" onClick={handleSave} disabled={!name.trim()}>
             {isDashboard ? "ذخیره و تبدیل به داشبورد" : "ذخیره قالب"}
           </Button>
         </div>
@@ -61,22 +60,16 @@ export function SaveTemplateDialog({
             id="template-name-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="مثلاً: داشبورد جامع فروش و مطالبات"
             required
           />
         </Field>
 
-        <div className="flex items-center justify-between rounded-panel border border-border bg-canvas/60 p-3.5">
-          <div className="space-y-0.5">
-            <span className="text-sm font-medium text-foreground">
-              تنظیم به‌عنوان داشبورد اصلی شرکت
-            </span>
-            <p className="text-xs text-muted">
-              این گزارش بلافاصله در صفحه نخست (داشبورد) شرکت نمایش داده خواهد شد.
-            </p>
-          </div>
+        <div className="flex items-center justify-between gap-3 rounded-panel border border-border bg-canvas/60 p-3.5">
+          <span className="text-sm font-medium text-foreground">
+            تنظیم به‌عنوان داشبورد اصلی شرکت
+          </span>
           <Switch
-            label="تنظیم به‌عنوان داشبورد اصلی"
+            label="تنظیم به‌عنوان داشبورد اصلی شرکت"
             checked={isDashboard}
             onCheckedChange={setIsDashboard}
           />

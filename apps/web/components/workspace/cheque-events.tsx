@@ -31,10 +31,6 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
       }}
     >
       <div className="space-y-5">
-        <StatusMessage>
-          این بخش فقط سابقه و شاهد بانکی چک را ثبت می‌کند؛ سند حسابداری و تسویه
-          فاکتور ایجاد نمی‌شود.
-        </StatusMessage>
         {c.selected && (
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div><dt className="text-muted">وضعیت چک</dt><dd>{chequeStateLabels[c.selected.state] || "نامشخص"}</dd></div>

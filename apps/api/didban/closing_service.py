@@ -87,9 +87,9 @@ def _role_pins(
             "حساب نتیجه باید نقش حقوق مالکانه داشته باشد."
             if account_id == result_id
             else (
-                "فقط حساب درآمد یا هزینه را برای بستن انتخاب کنید."
+                "فقط حساب درآمد یا هزینه را برای بستن حساب‌های موقت انتخاب کنید."
                 if kind == "closing"
-                else "افتتاحیه فقط حساب ترازنامه‌ای می‌پذیرد."
+                else "فقط حساب‌های دائم (ترازنامه‌ای) را برای سند اختتامیه یا افتتاحیه انتخاب کنید."
             )
         )
         require(role.role in allowed, "period_account_role_invalid", message, 409)
@@ -139,7 +139,13 @@ def _save(
     lines: list[dict],
     stamp,
 ) -> dict:
-    title = "بستن حساب‌های منتخب" if kind == "closing" else "انتقال ماندهٔ حساب‌های منتخب"
+    title = (
+        "بستن حساب‌های منتخب"
+        if kind == "closing"
+        else "سند اختتامیه حساب‌های دائم"
+        if kind == "permanent_closing"
+        else "انتقال ماندهٔ حساب‌های منتخب"
+    )
     result = save_draft(
         db,
         company,
@@ -190,12 +196,13 @@ def create_closing(db: Session, company: str, user: m.User, data: dict) -> dict:
     membership(db, company, user, "write")
     period = get_entity(db, m.Period, company, data["period_id"])
     require_open_period(db, company, period.id)
+    closing_kind = data.get("kind") or "closing"
     ids = data["account_ids"]
     result_id = data["result_account_id"]
     _accounts(db, company, ids + [result_id])
-    roles = _role_pins(db, company, "closing", ids, result_id)
+    roles = _role_pins(db, company, closing_kind, ids, result_id)
     require(
-        not _active_posted(db, company, "closing", period.id),
+        not _active_posted(db, company, closing_kind, period.id),
         "period_closing_exists",
         "سند بستن حساب‌ها قبلاً ثبت شده؛ ابتدا آن را با دلیل اصلاح کنید.",
         409,
@@ -237,7 +244,7 @@ def create_closing(db: Session, company: str, user: m.User, data: dict) -> dict:
         user,
         period.id,
         period.id,
-        "closing",
+        closing_kind,
         data["reason"],
         {"account_ids": ids, "result_account_id": result_id, "account_roles": roles},
         lines,

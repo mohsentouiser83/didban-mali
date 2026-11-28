@@ -203,9 +203,6 @@ function StudioWorkspace({ definitionId }: { definitionId?: string }) {
             <h3 className="mt-4 font-heading text-base font-medium text-foreground">
               هنوز هیچ بخشی در این گزارش تعریف نشده است
             </h3>
-            <p className="mt-1 text-xs text-muted">
-              می‌توانید با دستیار هوشمند در چند ثانیه یک داشبورد کامل بسازید، یا سکشن‌های خود را دستی اضافه کنید.
-            </p>
             <div className="mt-6 flex gap-3">
               <Button variant="primary" onClick={() => setAiOpen(true)} className="gap-1.5">
                 <SparkleIcon size={18} />

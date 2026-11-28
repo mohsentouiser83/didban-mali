@@ -3,23 +3,20 @@ import type {
   CashDay,
   Manifest,
   Metric,
-  ProcessingSession,
-  ResourceList,
 } from "@/lib/api";
-import { listItems } from "@/lib/api";
 import {
   addExactAmounts,
   forecastAssumptionLabel,
-  invoiceFinancialState,
 } from "@/lib/financial-presentation";
 import { useMemo, useState } from "react";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
 export function useFinancialView(
   projection: "summary" | "invoices" | "moadian" | "forecast" = "summary",
+  enabled = true,
 ) {
   const workspace = useWorkspace();
-  const path = workspace.companyPath("results/latest");
+  const path = enabled ? workspace.companyPath("results/latest") : null;
   const resource = useResource<Manifest>(
     path
       ? path +
@@ -89,62 +86,6 @@ export function useFinancialView(
     metrics,
     reportMetrics,
     dayChoices,
-  };
-}
-export function useInvoiceView(direction: "sales" | "purchases", initialReference = "") {
-  const view = useFinancialView("invoices");
-  const [query, setQueryValue] = useState(initialReference);
-  const [overdue, setOverdueValue] = useState(false);
-  const [page, setPage] = useState(0);
-  const filtered = useMemo(() => {
-    const source = view.manifest?.details.invoices || [];
-    return source.filter(
-      (invoice) =>
-        invoice.direction === direction &&
-        (!overdue || invoice.overdue) &&
-        (!query ||
-          [invoice.party_id, invoice.reference].some((value) =>
-            value.toLowerCase().includes(query.trim().toLowerCase()),
-          )),
-    );
-  }, [view.manifest, direction, overdue, query]);
-  const safePage = Math.min(
-    page,
-    Math.max(0, Math.ceil(filtered.length / 25) - 1),
-  );
-  const rows = filtered
-    .slice(safePage * 25, (safePage + 1) * 25)
-    .map((invoice) => ({
-      ...invoice,
-      financialState: invoiceFinancialState(invoice),
-    }));
-  return {
-    ...view,
-    rows,
-    query,
-    setQuery: (value: string) => {
-      setQueryValue(value);
-      setPage(0);
-    },
-    overdue,
-    setOverdue: (value: boolean) => {
-      setOverdueValue(value);
-      setPage(0);
-    },
-    page: safePage,
-    total: filtered.length,
-    nextPage: () => setPage((value) => value + 1),
-    previousPage: () => setPage((value) => Math.max(0, value - 1)),
-  };
-}
-export function useDashboard() {
-  const view = useFinancialView();
-  const sessions = useResource<ResourceList<ProcessingSession>>(
-    view.workspace.companyPath("processing-sessions"),
-  );
-  return {
-    ...view,
-    sessions: listItems(sessions.data).slice(0, 3),
   };
 }
 /** Local inspection moves through real report days without constructing financial data. */

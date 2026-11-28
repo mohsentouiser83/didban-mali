@@ -205,15 +205,7 @@ export function AssistantView() {
                 <span className="mb-4 grid size-16 place-items-center rounded-2xl bg-primary-soft text-primary shadow-xs">
                   <SparkleIcon size={34} weight="duotone" aria-hidden />
                 </span>
-                <h3 className="font-display text-lg font-medium text-foreground">
-                  دستیار هوش مصنوعی دیدبان
-                </h3>
-                <p className="mt-2 max-w-md text-xs leading-6 text-muted">
-                  پرسش خود را درباره نقدینگی، مغایرت‌های بانکی، بدهی‌ها، مطالبات
-                  و شواهد مالی مطرح کنید یا از پرسش‌های پیشنهادی زیر استفاده کنید.
-                </p>
-
-                <div className="mt-8 flex max-w-xl flex-wrap justify-center gap-2">
+                <div className="flex max-w-xl flex-wrap justify-center gap-2">
                   {suggestions.map((prompt) => (
                     <button
                       key={prompt}
@@ -452,7 +444,7 @@ export function AssistantView() {
                       form.current?.requestSubmit();
                     }
                   }}
-                  placeholder="پرسش خود را بنویسید (Enter برای ارسال، Shift+Enter خط بعد)..."
+                  placeholder="پرسش شما…"
                   rows={1}
                   className="h-11 min-h-11 max-h-36 min-w-0 flex-1 resize-none border-0 bg-transparent px-2.5 py-2.5 text-xs sm:text-sm leading-6 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 placeholder:text-muted"
                   aria-label="پرسش شما از هوش مصنوعی"

@@ -480,7 +480,7 @@ def _get_company_invoices(db: Session, company_id: str, period: m.Period) -> lis
         .limit(1)
     )
     if snap and snap.payload:
-        from .native_invoice_exports import invoice_rows
+        from .native_invoice_projection import invoice_rows
 
         return invoice_rows(snap.payload)
 
@@ -1081,7 +1081,7 @@ def _live_data(db: Session, company: str, actor: m.User, period: m.Period) -> tu
     from .accounting_setup_models import CompanyAccountingSetup
     from .native_assistant_service import CORE_METRICS
     from .native_invoice_evidence import _today
-    from .native_invoice_exports import invoice_rows
+    from .native_invoice_projection import invoice_rows
     from .native_invoice_service import current
     from .native_reporting_reasons import REASONS
     from .native_reporting_service import build_statement

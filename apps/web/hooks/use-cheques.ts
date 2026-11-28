@@ -16,12 +16,17 @@ export interface Cheque {
   direction: "received" | "issued" | "guarantee_in" | "guarantee_out";
   number: string;
   sayad_id?: string | null;
-  sayad_status?: string;
+  sayad_status?: "not_verified" | "registered" | "confirmed" | "rejected" | "unknown";
   bank_name: string;
   bank_account: string;
+  treasury_account_id?: string | null;
   party_id: string;
+  counterparty_id?: string | null;
+  issuer_name?: string | null;
+  holder_name?: string | null;
   amount: string;
   issue_date: string;
+  received_date?: string | null;
   due_date: string;
   state: string;
 }
@@ -32,8 +37,23 @@ interface Event {
   reason: string;
   previous_state: string | null;
   new_state: string;
+  bank_id?: string | null;
   bank_reference?: string | null;
+  treasury_account_id?: string | null;
   endorsed_to?: string | null;
+}
+interface CounterpartyItem {
+  id: string;
+  code: string;
+  name: string;
+}
+interface TreasuryBankAccount {
+  id: string;
+  kind: "bank" | "cash" | "petty_cash";
+  name: string;
+  bank_name?: string | null;
+  account_number?: string | null;
+  active: boolean;
 }
 interface Bank {
   party_id?: string;
@@ -79,9 +99,13 @@ const blank = () => ({
   direction: "received" as "received" | "issued" | "guarantee_in" | "guarantee_out",
   number: "",
   sayad_id: "",
+  sayad_status: "not_verified" as "not_verified" | "registered" | "confirmed" | "rejected" | "unknown",
   bank_name: "",
   bank_account: "",
+  treasury_account_id: "",
   party_id: "",
+  issuer_name: "",
+  holder_name: "",
   amount: "",
   unit: "IRR" as "IRR" | "TOMAN",
   issue_date: "",
@@ -106,6 +130,12 @@ export function useCheques() {
   const path = directionFilter === "all" ? "cheques" : `cheques?direction=${directionFilter}`;
   const base = workspace.companyPath("cheques");
   const resource = usePagedResource<Cheque>(workspace.companyPath(path));
+  const counterparties = useResource<ResourceList<CounterpartyItem>>(
+    workspace.companyPath("commercial/counterparties?limit=100"),
+  );
+  const treasuryAccounts = useResource<ResourceList<TreasuryBankAccount>>(
+    workspace.companyPath("treasury/accounts?active_only=true"),
+  );
   const command = useCommand();
   const importing = useRef(false);
   const importKeys = useRef(new Map<string, string>());
@@ -184,14 +214,36 @@ export function useCheques() {
     if (!form.period_id) problem["cheque-period"] = "دوره را انتخاب کنید.";
     const sayad_id = asciiDigits(form.sayad_id).trim();
     if (sayad_id && !/^\d{16}$/.test(sayad_id)) {
-      problem["cheque-sayad-id"] = "شناسهٔ صیادی باید ۱۶ رقم باشد.";
+      problem["cheque-sayad"] = "شناسهٔ صیادی باید ۱۶ رقم باشد.";
     }
     if (!form.issue_date) problem["cheque-issue"] = "تاریخ صدور لازم است.";
+    if (form.received_date && form.issue_date && form.received_date < form.issue_date) {
+      problem["cheque-received"] = "تاریخ دریافت نباید پیش از تاریخ صدور باشد.";
+    }
     if (!form.due_date) problem["cheque-due"] = "سررسید لازم است.";
     if (!validate(problem)) return;
     void command.run(
       base,
-      { body: { ...form, sayad_id: sayad_id || null, received_date: form.received_date || null } },
+      {
+        body: {
+          period_id: form.period_id,
+          direction: form.direction,
+          number: form.number.trim(),
+          sayad_id: sayad_id || null,
+          sayad_status: form.sayad_status,
+          bank_name: form.bank_name.trim(),
+          bank_account: form.bank_account.trim(),
+          treasury_account_id: form.treasury_account_id || null,
+          party_id: form.party_id,
+          issuer_name: form.issuer_name.trim() || null,
+          holder_name: form.holder_name.trim() || null,
+          amount: form.amount,
+          unit: form.unit,
+          issue_date: form.issue_date,
+          received_date: form.received_date || null,
+          due_date: form.due_date,
+        },
+      },
       () => {
         setCreating(false);
         resource.refresh();
@@ -277,6 +329,24 @@ export function useCheques() {
     },
     directionFilter,
     setDirectionFilter,
+    counterpartyOptions: (counterparties.data?.items || []).map((cp) => ({
+      value: cp.id,
+      label: `${cp.name} (${cp.code})`,
+    })),
+    counterpartyNames: Object.fromEntries(
+      (counterparties.data?.items || []).flatMap((cp) => [
+        [cp.id, cp.name],
+        [cp.code, cp.name],
+      ]),
+    ),
+    treasuryBankOptions: (treasuryAccounts.data?.items || [])
+      .filter((ta) => ta.kind === "bank")
+      .map((ta) => ({
+        value: ta.id,
+        label: ta.account_number ? `${ta.name} (${ta.account_number})` : ta.name,
+        bankName: ta.bank_name || ta.name,
+        accountNumber: ta.account_number || "",
+      })),
     importBusy,
     importPreview,
     closeImportPreview: () => { if (!importing.current) setImportPreview(null); },

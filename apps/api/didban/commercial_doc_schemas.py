@@ -34,6 +34,8 @@ class CommercialDocumentLineResponse(BaseModel):
     line_discount_irr: StrictStr
     net_before_inv_disc_irr: StrictStr
     allocated_invoice_discount_irr: StrictStr
+    vat_rate_pct: StrictStr = "0"
+    vat_amount_irr: StrictStr = "0"
     net_amount_irr: StrictStr
     cost_irr: StrictStr
     cost_layers: list[CommercialCostLayerResponse]
@@ -66,6 +68,7 @@ class CommercialDocumentResponse(BaseModel):
     gross_amount_irr: StrictStr
     line_discount_total_irr: StrictStr
     invoice_discount_irr: StrictStr
+    vat_total_irr: StrictStr = "0"
     net_amount_irr: StrictStr
     open_balance_irr: StrictStr | None
     settlement_type: CommercialSettlementType
@@ -105,6 +108,7 @@ class CommercialDocumentLineInput(StrictInput):
     quantity: StrictInt = Field(ge=1, le=1_000_000_000)
     unit_price: Annotated[str, Field(min_length=1, max_length=80)] | StrictInt
     line_discount: Annotated[str, Field(max_length=80)] | StrictInt = 0
+    vat_rate_pct: Annotated[str, Field(max_length=20)] | StrictInt = 0
 
 
 class CommercialDocumentInput(StrictInput):
@@ -128,6 +132,7 @@ class CommercialDocumentInput(StrictInput):
     service_revenue_account_id: str | None = Field(default=None, max_length=36)
     expense_account_id: str | None = Field(default=None, max_length=36)
     discount_account_id: str | None = Field(default=None, max_length=36)
+    vat_account_id: str | None = Field(default=None, max_length=36)
     cost_account_id: str | None = Field(default=None, max_length=36)
     cash_account_id: str | None = Field(default=None, max_length=36)
     cheque_account_id: str | None = Field(default=None, max_length=36)

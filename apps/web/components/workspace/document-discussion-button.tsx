@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Form } from "@/components/ui/form";
@@ -33,11 +33,20 @@ function FollowupForm({ view }: { view: DocumentDiscussionController }) {
     <Button type="submit" busy={view.command.busy} disabled={view.blocked || !view.form.reason.trim()}>ذخیره پیگیری</Button>
   </Form>;
 }
-function Discussion({ subjectKind, subjectId, label }: { subjectKind: DocumentSubjectKind; subjectId: string; label: string }) {
+type DiscussionProps = {
+  subjectKind: DocumentSubjectKind;
+  subjectId: string;
+  label?: string;
+  renderTrigger?: (open: () => void) => ReactNode;
+};
+
+function Discussion({ subjectKind, subjectId, label = "گفت‌وگو و پیگیری", renderTrigger }: DiscussionProps) {
   const [open, setOpen] = useState(false);
   const view = useDocumentDiscussion(subjectKind, subjectId, open);
   return <>
-    <Button variant="secondary" onClick={() => setOpen(true)}>{label}</Button>
+    {renderTrigger ? renderTrigger(() => setOpen(true)) : (
+      <Button variant="secondary" onClick={() => setOpen(true)}>{label}</Button>
+    )}
     <Drawer title="گفت‌وگو و پیگیری سند" open={open} onOpenChange={value => { if (!view.command.busy) setOpen(value); }}>
       {view.resource.loading ? <LoadingState label="در حال دریافت گفت‌وگوی سند"/> : view.resource.error ? <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh}/> : view.resource.data && <div className="space-y-5">
         <p className="font-medium">{view.resource.data.subject.description}</p>
@@ -55,7 +64,7 @@ function Discussion({ subjectKind, subjectId, label }: { subjectKind: DocumentSu
     </Drawer>
   </>;
 }
-export function DocumentDiscussionButton({ subjectKind, subjectId, label = "گفت‌وگو و پیگیری" }: { subjectKind: DocumentSubjectKind; subjectId: string; label?: string }) {
+export function DocumentDiscussionButton(props: DiscussionProps) {
   const workspace = useWorkspace();
-  return <Discussion key={`${workspace.user?.id}:${workspace.company?.id}:${subjectKind}:${subjectId}`} subjectKind={subjectKind} subjectId={subjectId} label={label}/>;
+  return <Discussion key={`${workspace.user?.id}:${workspace.company?.id}:${props.subjectKind}:${props.subjectId}`} {...props} />;
 }

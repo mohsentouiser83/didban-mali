@@ -6,7 +6,7 @@ import {
   SquaresFourIcon as HeaderIcon,
   SquaresFourIcon,
 } from "@phosphor-icons/react";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   EmptyState,
@@ -21,15 +21,13 @@ import { api } from "@/lib/api";
 import type { ActiveDashboardResponse } from "@/lib/report-studio";
 import { SectionRenderer } from "./report-studio/section-renderer";
 import { NativeDashboardView } from "./native-dashboard-view";
-import { useDashboard } from "@/hooks/use-financial-view";
+import { useFinancialView } from "@/hooks/use-financial-view";
 import { amount, displayDate } from "@/lib/utils";
 import {
   UsersThreeIcon,
   ReceiptIcon,
-  ClockCounterClockwiseIcon,
   WalletIcon,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import {
   NoCompany,
   NoResult,
@@ -38,7 +36,7 @@ import {
 } from "./page-parts";
 
 export function ImportedDashboardView() {
-  const view = useDashboard();
+  const view = useFinancialView();
   const { unit } = view.workspace;
   if (!view.workspace.company) return <NoCompany />;
   return (
@@ -126,29 +124,6 @@ export function ImportedDashboardView() {
             <CashChart unit={unit} days={view.manifest.details.daily_cash || []} />
           </Panel>
         </>
-      )}
-      {view.sessions.length > 0 && (
-        <Panel title="آخرین نوبت‌ها" className="mt-5">
-          <div className="divide-y divide-border">
-            {view.sessions.map((session) => (
-              <Link
-                key={session.id}
-                href={`/uploads/${session.id}`}
-                className="flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-control px-3 py-3 outline-none transition-colors duration-200 ease-interface hover:bg-primary-soft/50 focus-visible:bg-primary-soft/50 focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
-              >
-                <span className="flex items-center gap-2">
-                  <ClockCounterClockwiseIcon
-                    size={18}
-                    className="shrink-0 text-primary"
-                    aria-hidden
-                  />
-                  {displayDate(session.created_at)}
-                </span>
-                <StatusBadge status={session.state} />
-              </Link>
-            ))}
-          </div>
-        </Panel>
       )}
     </>
   );
@@ -273,9 +248,6 @@ function CompanyDashboard() {
               {dash.basis_label} · {displayDate(dash.as_of)}
             </p>
           )}
-          {dash.description && (
-            <p className="mt-1 text-xs text-muted">{dash.description}</p>
-          )}
         </PageHeader>
 
         {dash.sections && dash.sections.length > 0 ? (
@@ -303,11 +275,7 @@ function CompanyDashboard() {
   return (
     <div>
       {hasCustom && (
-        <div className="mb-4 flex items-center justify-between rounded-panel border border-primary/20 bg-primary-soft/40 px-4 py-2.5 text-xs text-primary">
-          <div className="flex items-center gap-2">
-            <CheckCircleIcon size={16} />
-            <span>یک داشبورد اختصاصی برای این شرکت تنظیم شده است.</span>
-          </div>
+        <div className="mb-4 flex justify-end">
           <Button
             variant="ghost"
             onClick={() => setViewMode("custom")}

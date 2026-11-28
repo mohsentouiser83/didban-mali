@@ -1,5 +1,6 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import {
   BarcodeIcon,
   PackageIcon,
@@ -7,10 +8,9 @@ import {
   PlusIcon,
   StorefrontIcon,
   TrashIcon,
-  WalletIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
@@ -35,6 +35,7 @@ import { useWorkspace } from "@/hooks/workspace";
 import { persian } from "@/lib/utils";
 import type { InventoryCatalogue, InventoryItemKind } from "@/lib/inventory";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
+import { ItemWarehousesDialog } from "./item-warehouses-dialog";
 
 export function InventoryCatalogueView({ entity }: { entity: InventoryCatalogue }) {
   const workspace = useWorkspace();
@@ -62,14 +63,14 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
         action={addAction}
       />
       <Panel>
-        {view.inventory.loading || (isItem && view.accounts.loading) ? (
+        {view.inventory.loading || view.units.loading ? (
           <LoadingState variant="panels" />
-        ) : view.inventory.error || (isItem && view.accounts.error) ? (
+        ) : view.inventory.error || view.units.error ? (
           <ErrorState
-            message={(view.inventory.error ?? view.accounts.error)?.message}
+            message={(view.inventory.error ?? view.units.error)?.message}
             onRetry={() => {
               view.inventory.refresh();
-              if (isItem) view.accounts.refresh();
+              if (isItem) view.units.refresh();
             }}
           />
         ) : (
@@ -84,9 +85,8 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                   <TableHead>نام {singular}</TableHead>
                   <TableHead>کد</TableHead>
                   {isItem && <><TableHead>نوع</TableHead><TableHead>واحد پایه</TableHead></>}
-                  {isItem && <TableHead>حساب مرتبط</TableHead>}
                   <TableHead>وضعیت</TableHead>
-                  {(view.canManage || !isItem) && <TableHead>عملیات</TableHead>}
+                  <TableHead>عملیات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,45 +100,53 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
                         <TableCell>{"base_unit" in row && row.base_unit ? row.base_unit : "عدد"}</TableCell>
                       </>
                     )}
-                    {"inventory_account_id" in row && (
-                      <TableCell>{view.accountNames.get(row.inventory_account_id) || "—"}</TableCell>
-                    )}
                     <TableCell>
                       <Badge tone={row.active ? "success" : "neutral"}>{row.active ? "فعال" : "غیرفعال"}</Badge>
                     </TableCell>
-                    {(view.canManage || !isItem) && (
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {!isItem && (
-                            <ButtonLink variant="secondary" href={`/accounting/inventory?warehouse_id=${encodeURIComponent(row.id)}`}>
-                              مشاهده موجودی
-                            </ButtonLink>
-                          )}
-                          {view.canManage && (
-                            <>
-                              <Button variant="ghost" className="size-11 p-0" aria-label={`ویرایش ${row.name}`} onClick={() => view.show(row)}>
-                                <PencilSimpleIcon size={18} aria-hidden />
-                              </Button>
-                              <Button variant="ghost" className="size-11 p-0 text-danger"
-                                disabled={hasMovements}
-                                aria-label={hasMovements ? `حذف ${row.name} به‌دلیل گردش انبار ممکن نیست` : `حذف ${row.name}`}
-                                onClick={() => view.confirmRemove(row)}>
-                                <TrashIcon size={18} aria-hidden />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <TableRowActions label={`عملیات ${row.name}`}>
+                        {!isItem && (
+                          <TableRowAction
+                            href={`/accounting/inventory?warehouse_id=${encodeURIComponent(row.id)}`}
+                            kind="view"
+                          >
+                            مشاهده موجودی
+                          </TableRowAction>
+                        )}
+                        {isItem && "inventory_account_id" in row && row.item_kind !== "service" && (
+                          <TableRowAction
+                            onClick={() => view.itemWarehouses.show(row)}
+                          >
+                            {view.canManage && row.active ? "اتصال به انبار" : "انبارهای کالا"}
+                          </TableRowAction>
+                        )}
+                        {view.canManage && (
+                          <>
+                            <TableRowAction
+                              aria-label={`ویرایش ${row.name}`}
+                              onClick={() => view.show(row)}
+                              icon={<PencilSimpleIcon size={18} aria-hidden />}
+                            >
+                              ویرایش
+                            </TableRowAction>
+                            <TableRowAction
+                              disabled={hasMovements}
+                              aria-label={hasMovements ? `حذف ${row.name} به‌دلیل گردش انبار ممکن نیست` : `حذف ${row.name}`}
+                              onClick={() => view.confirmRemove(row)}
+                              icon={<TrashIcon size={18} aria-hidden />}
+                              danger
+                            >
+                              {hasMovements ? "غیرقابل حذف (دارای گردش)" : "حذف"}
+                            </TableRowAction>
+                          </>
+                        )}
+                      </TableRowActions>
+                    </TableCell>
                   </TableRow>
                 )) : (
                   <TableEmptyCell
-                    colSpan={3 + (isItem ? 3 : 0) + Number(view.canManage || !isItem)}
-                    title={isItem
-                      ? view.inventory.data?.can_manage_catalog && !view.accounts.options.length
-                        ? "برای تعریف کالا، حساب موجودی لازم است"
-                        : "کالایی تعریف نشده"
-                      : "انباری تعریف نشده"}
+                    colSpan={isItem ? 6 : 4}
+                    title={isItem ? "کالایی تعریف نشده" : "انباری تعریف نشده"}
                   />
                 )}
               </TableBody>
@@ -147,6 +155,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
           </>
         )}
       </Panel>
+      {isItem && <ItemWarehousesDialog view={view.itemWarehouses} />}
       <Drawer
         title={view.editing ? `ویرایش ${singular}` : addLabel}
         open={view.open}
@@ -158,7 +167,7 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
             form="inventory-catalogue"
             type="submit"
             busy={view.command.busy}
-            disabled={!view.value.name.trim() || (isItem && !view.accountLocked && (!view.value.inventory_account_id || !view.value.base_unit.trim()))}
+            disabled={!view.canSave}
           >
             ذخیره
           </Button>
@@ -180,19 +189,14 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
           {isItem && (
             <>
               <Field id="inventory-kind" name="item_kind" label="نوع قلم" required>
-                <Select id="inventory-kind" value={view.value.item_kind} disabled={view.accountLocked}
+                <Select id="inventory-kind" value={view.value.item_kind} disabled={view.itemFieldsLocked}
                   options={[{ value: "goods", label: "کالا" }, { value: "service", label: "خدمت" }]}
                   onValueChange={(item_kind) => view.change({ item_kind: item_kind as InventoryItemKind })} />
               </Field>
               <Field id="inventory-base-unit" name="base_unit" label="واحد پایه" required>
-                <Input id="inventory-base-unit" required maxLength={40} value={view.value.base_unit}
-                  disabled={view.accountLocked}
-                  onChange={(event) => view.change({ base_unit: event.target.value })} />
-              </Field>
-              <Field id="inventory-account" name="inventory_account_id" label={view.value.item_kind === "goods" ? "حساب موجودی" : "حساب مرتبط با قلم"} icon={WalletIcon} required>
-                <Select id="inventory-account" value={view.value.inventory_account_id}
-                  onValueChange={(inventory_account_id) => view.change({ inventory_account_id })}
-                  options={view.accountOptions} disabled={view.accountLocked} />
+                <Select id="inventory-base-unit" options={view.unitOptions} value={view.value.base_unit}
+                  disabled={view.itemFieldsLocked}
+                  onValueChange={(base_unit) => view.change({ base_unit })} />
               </Field>
             </>
           )}
@@ -209,10 +213,10 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
         open={view.importRows !== null}
         onOpenChange={(open) => { if (!open) view.closeImport(); }}
         title="پیش‌نمایش ورود اکسل"
-        footer={<Button disabled={!view.importRows?.length || view.importRows.some((row) => !!row.error)}
+        footer={<Button className="w-full" disabled={!view.importRows?.length || view.importRows.some((row) => !!row.error)}
           busy={view.importBusy} onClick={() => void view.confirmImport()}>ثبت ردیف‌ها</Button>}
       >
-        <Table showSearch={false}>
+        <Table>
           <TableHeader><TableRow><TableHead>ردیف</TableHead><TableHead>نام</TableHead><TableHead>نتیجه بررسی</TableHead></TableRow></TableHeader>
           <TableBody>{view.importRows?.map((row) => (
             <TableRow key={row.row}><TableRowHeader>{persian(row.row)}</TableRowHeader>

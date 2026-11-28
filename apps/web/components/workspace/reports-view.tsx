@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import {
   BankIcon,
   BooksIcon,
@@ -15,7 +16,7 @@ import {
   WalletIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/field";
@@ -58,56 +59,54 @@ export function ReportsView() {
         {[
           {
             title: "صورت‌های مالی اساسی",
-            desc: "ترازنامه، سود و زیان و تراز آزمایشی",
             href: "/reports/native",
             icon: ChartLineUpIcon,
             color: "text-primary",
           },
           {
             title: "دفاتر الکترونیک قانونی",
-            desc: "دفتر کل و معین با شماره‌گذاری روزانه",
             href: "/accounting/electronic-ledgers",
             icon: BooksIcon,
             color: "text-info",
           },
           {
             title: "دفتر روزنامه اسناد",
-            desc: "فهرست و ریز آرتیکل‌های ثبتی",
             href: "/reports/journals",
             icon: FileTextIcon,
             color: "text-foreground",
           },
           {
             title: "گزارش سامانه مؤدیان",
-            desc: "کارنامه ارسال و استعلام صورتحساب‌ها",
             href: "/moadian/reports",
             icon: ReceiptIcon,
             color: "text-warning",
           },
           {
             title: "چک‌های صیادی و ضمانتی",
-            desc: "دریافتنی، پرداختنی و ضمانت نزد دیگران",
             href: "/settlements/cheques",
             icon: BankIcon,
             color: "text-success",
           },
           {
-            title: "جریان نقدینگی و پیش‌بینی",
-            desc: "پیش‌بینی ۳۰ روزه و سناریوسازی وجه نقد",
-            href: "/cashflow/forecast",
+            title: "جریان نقدینگی دوره",
+            href: "/cashflow",
             icon: WalletIcon,
             color: "text-primary",
           },
           {
+            title: "پیش‌بینی ۳۰روزه نقدینگی",
+            href: "/cashflow/forecast",
+            icon: WalletIcon,
+            color: "text-info",
+          },
+          {
             title: "حقوق و دستمزد و کارکرد",
-            desc: "فیش‌های حقوقی و لیست بیمه و مالیات",
             href: "/payroll",
             icon: UsersThreeIcon,
             color: "text-muted",
           },
           {
             title: "مرکز حساب‌ها (ابعاد)",
-            desc: "گزارشگری بر اساس پروژه‌ها و مراکز هزینه",
             href: "/reports/dimensions",
             icon: SquaresFourIcon,
             color: "text-secondary",
@@ -119,9 +118,9 @@ export function ReportsView() {
               key={item.href}
               href={item.href}
               variant="secondary"
-              className="group flex flex-col items-start justify-between h-auto p-4 rounded-2xl border border-border bg-surface text-right shadow-xs hover:border-primary/40 hover:bg-canvas transition-all"
+              className="group flex flex-col items-start h-auto p-4 rounded-2xl border border-border bg-surface text-right shadow-xs hover:border-primary/40 hover:bg-canvas transition-all"
             >
-              <div className="flex w-full items-center justify-between mb-2">
+              <div className="flex w-full items-center justify-between gap-2">
                 <span className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">
                   {item.title}
                 </span>
@@ -129,7 +128,6 @@ export function ReportsView() {
                   <IconComponent size={18} className={item.color} />
                 </div>
               </div>
-              <p className="text-xs text-muted leading-relaxed">{item.desc}</p>
             </ButtonLink>
           );
         })}
@@ -155,7 +153,7 @@ export function ReportsView() {
                     <TableHead>مبنا</TableHead>
                     <TableHead>تاریخ</TableHead>
                     <TableHead>وضعیت</TableHead>
-                    <TableHead sortable={false} pinnable={false} filterable={false}>عملیات و دریافت</TableHead>
+                    <TableHead>عملیات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -178,9 +176,16 @@ export function ReportsView() {
                       <TableCell><Badge tone={definition.system_key ? "primary" : "neutral"}>
                         تعریف گزارش
                       </Badge></TableCell>
-                      <TableCell><Button variant="ghost" onClick={(event) => {
-                        event.stopPropagation(); archive.openDefinition(definition.id);
-                      }}>{workspace.canWrite ? "ویرایش" : "مشاهده"}</Button></TableCell>
+                      <TableCell>
+                        <TableRowActions label={`عملیات ${definition.name}`}>
+                          <TableRowAction
+                            kind={workspace.canWrite ? "edit" : "view"}
+                            onClick={() => archive.openDefinition(definition.id)}
+                          >
+                            {workspace.canWrite ? "ویرایش" : "مشاهده"}
+                          </TableRowAction>
+                        </TableRowActions>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {archive.reports.length ? (
@@ -203,46 +208,38 @@ export function ReportsView() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <TableRowActions label={`عملیات ${report.title}`}>
                             {/* 1. تبدیل به داشبورد */}
                             {workspace.canWrite && (["fixed", "live"] as const).map((mode) => (
-                              <Button
+                              <TableRowAction
                                 key={mode}
-                                variant={mode === "fixed" ? "soft" : "ghost"}
                                 disabled={command.busy}
                                 onClick={() => archive.setDashboard(report, mode)}
-                                className="gap-1.5 text-xs"
+                                icon={<SquaresFourIcon size={15} />}
                               >
-                                <SquaresFourIcon size={15} />
                                 {mode === "fixed" ? "تبدیل به داشبورد" : "تنظیم به‌عنوان داشبورد زنده"}
-                              </Button>
+                              </TableRowAction>
                             ))}
 
                             {/* 2. خروجی PDF */}
-                            <a
-                              href={`/api/v1${workspace.companyPath(
-                                `reports/${report.id}/export`,
-                              )}?format=pdf`}
+                            <TableRowAction
+                              href={`/api/v1${workspace.companyPath(`reports/${report.id}/export`)}?format=pdf`}
                               download
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-control border border-border bg-surface px-3 text-xs text-foreground outline-none transition-colors duration-200 hover:bg-canvas hover:text-primary focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
                               title="دریافت خروجی PDF رسمی"
+                              icon={<FilePdfIcon size={16} className="text-primary" />}
                             >
-                              <FilePdfIcon size={16} className="text-primary" />
                               خروجی PDF
-                            </a>
+                            </TableRowAction>
 
                             {/* 3. دریافت XLSX */}
-                            <a
-                              href={`/api/v1${workspace.companyPath(
-                                `reports/${report.id}/export`,
-                              )}?format=xlsx`}
+                            <TableRowAction
+                              href={`/api/v1${workspace.companyPath(`reports/${report.id}/export`)}?format=xlsx`}
                               download
-                              className="inline-flex min-h-9 items-center gap-1.5 rounded-control px-2.5 text-xs text-muted hover:text-foreground"
                               title="دریافت اکسل"
+                              icon={<DownloadSimpleIcon size={14} />}
                             >
-                              <DownloadSimpleIcon size={14} />
                               XLSX
-                            </a>
+                            </TableRowAction>
 
                             {/* 4. تأیید نسخه */}
                             {workspace.canApprove &&
@@ -250,18 +247,16 @@ export function ReportsView() {
                                 (approval) =>
                                   approval.actor_id === workspace.user?.id,
                               ) && (
-                                <Button
-                                  variant="ghost"
+                                <TableRowAction
                                   onClick={() => {
-                                    archive.requestApproval(report);
+                                      archive.requestApproval(report);
                                   }}
-                                  className="text-xs"
+                                  icon={<ShieldCheckIcon size={16} aria-hidden />}
                                 >
-                                  <ShieldCheckIcon size={16} aria-hidden />
                                   تأیید نسخه
-                                </Button>
+                                </TableRowAction>
                               )}
-                          </div>
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     ))

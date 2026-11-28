@@ -140,6 +140,13 @@ assert retried["status"] == "queued" and retried["uid"] == unsent["uid"]
 assert calls[-1][1] == calls[-2][1]
 history = checked(viewer.get(path))
 assert not history["can_submit"] and len(history["items"]) == 3
+filtered = checked(viewer.get(path, params={
+    "invoice_reference": row["invoice_reference"], "status": "accepted", "limit": 1,
+}))
+assert [item["id"] for item in filtered["items"]] == [row["id"]]
+assert not checked(viewer.get(path, params={"invoice_reference": row["tax_id"]}))["items"]
+by_tax_id = checked(viewer.get(path, params={"tax_id": row["tax_id"]}))
+assert [item["id"] for item in by_tax_id["items"]] == [row["id"]]
 assert not any(item["can_inquire"] or item["can_retry"] for item in history["items"])
 assert all("payload" not in item and "input" not in item for item in history["items"])
 page = checked(viewer.get(path, params={"limit": 1}))

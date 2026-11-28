@@ -225,11 +225,12 @@ def import_file(db, company, user, item_id, period_id, version):
     )
     db.add(session)
     db.flush()
-    from .source_intake import store_source
+    from .source_intake import queue_source_processing, store_source
 
     source = store_source(
         db, company, user, session.id, item.name, content, scanned, sheets, storage_key=item.storage_key
     )
+    queue_source_processing(db, session, user, [source.id])
     item.source_file_id = source.id
     item.state = "imported"
     item.version += 1

@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { BooksIcon, PlusIcon } from "@phosphor-icons/react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -12,15 +13,9 @@ import { PostingReviewDialog } from "./posting-review-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { CursorPagination } from "@/components/ui/pagination";
-import { SearchInput } from "@/components/ui/search-input";
+import { ColumnFilteredTable, type ListColumn } from "@/components/ui/column-filtered-table";
 import {
-  Table,
-  TableBody,
   TableCell,
-  TableEmptyCell,
-  TableHead,
-  TableHeader,
   TableRow,
   TableRowHeader,
 } from "@/components/ui/table";
@@ -53,8 +48,22 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
   const view = useJournalDrafts();
   const posting = usePosting(view.refresh);
   const details = useJournalDetails(view.refresh);
-  const { filterState, setFilterState, searchQuery, setSearchQuery } = view;
   const canSelect = !!view.capabilities.data?.can_post && view.capabilities.data.posting_available;
+
+  type Row = (typeof view.rows)[number];
+  const statusLabel = (draft: Row) => draft.state === "posted" ? "ثبت‌شده"
+    : draft.state === "discarded" ? "کنارگذاشته‌شده" : "پیش‌نویس";
+  const kindLabel = (draft: Row) => draftKind[draft.operation_kind || "manual"] ?? "عملیاتی";
+  const columns: ListColumn<Row>[] = [
+    ...(canSelect ? [{ label: "انتخاب" }] : []),
+    { label: "شماره / مرجع", value: (draft) => draft.reference || "—" },
+    { label: "شرح سند", value: (draft) => draft.description },
+    { label: "نوع سند", value: kindLabel },
+    { label: "تاریخ", value: (draft) => displayDate(draft.date) },
+    { label: "بدهکار (ریال)", numeric: true, value: (draft) => amount(draft.totals.totalDebit) },
+    { label: "وضعیت", value: statusLabel },
+    { label: "عملیات", srOnly: true },
+  ];
 
   return (
     <>
@@ -72,37 +81,11 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
       />
 
       <Panel>
-        {/* Action & Filter bar */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              label="جست‌وجو در شماره، مرجع یا شرح سند"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-56 text-xs"
-            />
-            <div className="flex flex-wrap gap-1">
-              {([
-                ["all", "همه"],
-                ["draft", "در انتظار ثبت"],
-                ["posted", "ثبت‌شده"],
-                ["discarded", "کنارگذاشته"],
-              ] as const).map(([state, label]) => (
-                <Button
-                  key={state}
-                  variant={filterState === state ? "primary" : "ghost"}
-                  aria-pressed={filterState === state}
-                  onClick={() => setFilterState(state)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
+        {(reviewDraftId && canSelect || canSelect && posting.selected.length > 0) && (
+          <div className="mb-4 flex flex-wrap gap-2">
             {reviewDraftId && canSelect && (
               <Button variant="secondary" busy={posting.loading} onClick={() => void posting.review([reviewDraftId])}>
-                بررسی پیش‌نویس دستیار
+                بررسی پیش‌نویس
               </Button>
             )}
             {view.capabilities.data?.can_post &&
@@ -117,153 +100,107 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
                 </Button>
               )}
           </div>
+        )}
 
-          <FormMessage error>{posting.error?.message}</FormMessage>
+        <FormMessage error>{posting.error?.message}</FormMessage>
 
-          {view.loading ? (
-            <LoadingState label="در حال دریافت اسناد" variant="table" />
-          ) : view.error ? (
-            <ErrorState message={view.error.message} onRetry={view.refresh} />
-          ) : (
-            <>
-              <Table showSearch={false}>
-                <TableHeader sticky>
-                  <TableRow>
-                    {canSelect && <TableHead className="w-12">انتخاب</TableHead>}
-                    <TableHead>شماره / مرجع</TableHead>
-                    <TableHead>شرح سند</TableHead>
-                    <TableHead>نوع سند</TableHead>
-                    <TableHead className="w-32">تاریخ</TableHead>
-                    <TableHead numeric className="w-40">بدهکار (ریال)</TableHead>
-                    <TableHead className="w-32">وضعیت</TableHead>
-                    <TableHead className="w-40">
-                      <span className="sr-only">عملیات</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {view.rows.length ? (
-                    view.rows.map((draft) => (
-                      <TableRow key={draft.id}>
-                        {canSelect && (
-                          <TableCell>
-                            {draft.state === "draft" &&
-                              view.capabilities.data?.can_post &&
-                              view.capabilities.data.posting_available && (
-                                <Checkbox
-                                  hideLabel
-                                  label={`انتخاب ${draft.description}`}
-                                  checked={posting.selected.includes(draft.id)}
-                                  onCheckedChange={(checked) =>
-                                    posting.toggle(draft.id, checked)
-                                  }
-                                />
-                              )}
-                          </TableCell>
-                        )}
-                        <TableCell><bdi>{draft.reference || "—"}</bdi></TableCell>
-                        <TableRowHeader>
-                          <span className="block max-w-sm break-words font-medium text-foreground">
-                            {draft.description}
-                          </span>
-                        </TableRowHeader>
-                        <TableCell>{draftKind[draft.operation_kind || "manual"] ?? "عملیاتی"}</TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {displayDate(draft.date)}
-                        </TableCell>
-                        <TableCell numeric className="whitespace-nowrap">
-                          {amount(draft.totals.totalDebit)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            tone={
-                              draft.state === "posted" ? "success" : "warning"
-                            }
-                          >
-                            {draft.state === "posted"
-                              ? "ثبت‌شده"
-                              : draft.state === "discarded"
-                                ? "کنارگذاشته‌شده"
-                                : "پیش‌نویس"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Button
-                              variant="secondary"
-                              className="h-8 text-xs"
-                              onClick={() =>
-                                draft.state === "posted"
-                                  ? details.open(draft)
-                                  : view.open(draft)
-                              }
+        {view.loading ? (
+          <LoadingState label="در حال دریافت اسناد" variant="table" />
+        ) : view.error ? (
+          <ErrorState message={view.error.message} onRetry={view.refresh} />
+        ) : (
+          <ColumnFilteredTable
+            label="فهرست اسناد"
+            columns={columns}
+            rows={view.rows}
+            emptyTitle="هنوز سندی ثبت نشده است"
+            renderRow={(draft) => (
+              <TableRow key={draft.id}>
+                {canSelect && (
+                  <TableCell>
+                    {draft.state === "draft" &&
+                      view.capabilities.data?.can_post &&
+                      view.capabilities.data.posting_available && (
+                        <Checkbox
+                          hideLabel
+                          label={`انتخاب ${draft.description}`}
+                          checked={posting.selected.includes(draft.id)}
+                          onCheckedChange={(checked) =>
+                            posting.toggle(draft.id, checked)
+                          }
+                        />
+                      )}
+                  </TableCell>
+                )}
+                <TableCell><bdi>{draft.reference || "—"}</bdi></TableCell>
+                <TableRowHeader>
+                  <span className="block max-w-sm break-words font-medium text-foreground">
+                    {draft.description}
+                  </span>
+                </TableRowHeader>
+                <TableCell>{kindLabel(draft)}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {displayDate(draft.date)}
+                </TableCell>
+                <TableCell numeric className="whitespace-nowrap">
+                  {amount(draft.totals.totalDebit)}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    tone={
+                      draft.state === "posted" ? "success" : "warning"
+                    }
+                  >
+                    {statusLabel(draft)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <DocumentDiscussionButton
+                    subjectKind="draft"
+                    subjectId={draft.id}
+                    renderTrigger={(openDiscussion) => (
+                      <TableRowActions label={`عملیات ${draft.description}`}>
+                        <TableRowAction
+                          kind={view.canPrepare && draft.state === "draft" && !draft.inventory_origin ? "edit" : "view"}
+                          onClick={() => draft.state === "posted" ? details.open(draft) : view.open(draft)}
+                        >
+                          {view.canPrepare && draft.state === "draft" && !draft.inventory_origin ? "ویرایش" : "مشاهده"}
+                        </TableRowAction>
+                        {draft.state === "draft" &&
+                          view.capabilities.data?.can_post &&
+                          view.capabilities.data.posting_available && (
+                            <TableRowAction
+                              kind="approve"
+                              disabled={posting.loading}
+                              onClick={() => void posting.review([draft.id])}
                             >
-                              {view.canPrepare && draft.state === "draft" && !draft.inventory_origin
-                                ? "ویرایش"
-                                : "مشاهده"}
-                            </Button>
-                            {draft.state === "draft" &&
-                              view.capabilities.data?.can_post &&
-                              view.capabilities.data.posting_available && (
-                                <Button
-                                  variant="secondary"
-                                  className="h-8 text-xs"
-                                  disabled={posting.loading}
-                                  onClick={() => void posting.review([draft.id])}
-                                >
-                                  ثبت نهایی
-                                </Button>
-                              )}
-                            <DocumentDiscussionButton
-                              subjectKind="draft"
-                              subjectId={draft.id}
-                            />
-                            {view.canPrepare && draft.state === "draft" && (
-                              <Button
-                                variant="ghost"
-                                className="h-8 text-xs text-danger hover:bg-danger-soft"
-                                onClick={() => view.openDiscard(draft)}
-                              >
-                                حذف پیش‌نویس
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableEmptyCell
-                      colSpan={canSelect ? 8 : 7}
-                      title={
-                        searchQuery || filterState !== "all"
-                          ? "سندی با این فیلتر یا جستجو پیدا نشد"
-                          : "هنوز سندی ثبت نشده است"
-                      }
-                      action={
-                        searchQuery || filterState !== "all" ? (
-                          <Button
-                            variant="secondary"
-                            onClick={() => {
-                              setSearchQuery("");
-                              setFilterState("all");
-                            }}
+                              ثبت نهایی
+                            </TableRowAction>
+                          )}
+                        <TableRowAction onClick={openDiscussion}>گفت‌وگو و پیگیری</TableRowAction>
+                        {view.canPrepare && draft.state === "draft" && (
+                          <TableRowAction
+                            kind="delete"
+                            danger
+                            onClick={() => view.openDiscard(draft)}
                           >
-                            پاک‌کردن فیلترها
-                          </Button>
-                        ) : undefined
-                      }
-                    />
-                  )}
-                </TableBody>
-              </Table>
-              <CursorPagination {...view.drafts} />
-            </>
-          )}
-        </Panel>
+                            حذف پیش‌نویس
+                          </TableRowAction>
+                        )}
+                      </TableRowActions>
+                    )}
+                  />
+                </TableCell>
+              </TableRow>
+            )}
+          />
+        )}
+      </Panel>
 
       <JournalDraftForm
         key={view.editing === undefined ? "closed" : view.editing?.id ?? "new"}
         view={view}
+        showNavigation={false}
       />
       <PostingReviewDialog view={posting} />
       <JournalDetailsDrawer view={details} drafts={view} />

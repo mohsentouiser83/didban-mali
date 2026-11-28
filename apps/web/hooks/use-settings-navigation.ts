@@ -6,6 +6,7 @@ import {
   visibleSettingsCategories,
   searchSettings,
 } from "@/lib/settings-catalog";
+import { canViewPath } from "@/lib/module-access";
 import { notify } from "@/components/ui/sonner";
 export function useSettingsNavigation() {
   const workspace = useWorkspace();
@@ -19,6 +20,9 @@ export function useSettingsNavigation() {
         hasCompany: !!workspace.company,
         role: workspace.company?.role,
         installationAdmin: !!workspace.user?.installation_admin,
+      }).flatMap((category) => {
+        const items = category.items.filter((item) => canViewPath(workspace.company, item.href));
+        return items.length ? [{ ...category, items }] : [];
       }),
     [workspace.company, workspace.user?.installation_admin],
   );

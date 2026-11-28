@@ -13,7 +13,7 @@ function useDebouncedQuery(value: string) {
   }, [value]);
   return query;
 }
-export function useAllocationChoices(operationType: "received" | "paid" = "received") {
+export function useAllocationChoices(operationType: "received" | "paid" = "received", enabled = true) {
   const workspace = useWorkspace();
   const [bankQuery, setBankQuery] = useState("");
   const [invoiceQuery, setInvoiceQuery] = useState("");
@@ -22,14 +22,14 @@ export function useAllocationChoices(operationType: "received" | "paid" = "recei
   const bankTerm = useDebouncedQuery(bankQuery),
     invoiceTerm = useDebouncedQuery(invoiceQuery);
   const banks = useResource<ResourceList<BankMovement>>(
-    workspace.companyPath(
+    enabled ? workspace.companyPath(
       `bank-movements?limit=50&q=${encodeURIComponent(bankTerm)}`,
-    ),
+    ) : null,
   );
   const invoices = useResource<ResourceList<InvoiceDetail>>(
-    workspace.companyPath(
+    enabled ? workspace.companyPath(
       `invoices?limit=50&q=${encodeURIComponent(invoiceTerm)}`,
-    ),
+    ) : null,
   );
   const bankOptions = useMemo(
     () =>

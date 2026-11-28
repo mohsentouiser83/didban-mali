@@ -2,14 +2,14 @@ from typing import Literal
 
 from pydantic import Field
 
-from .accounting_schemas import AccountInput, StrictInput
+from .accounting_schemas import AccountFields, StrictInput
 
 
 class AccountingModeInput(StrictInput):
     mode: Literal["analysis", "primary"]
 
 
-class ChartAccountInput(AccountInput):
+class ChartAccountInput(AccountFields):
     code: str = Field(min_length=1, max_length=100)
     parent_code: str | None = Field(default=None, min_length=1, max_length=100)
 

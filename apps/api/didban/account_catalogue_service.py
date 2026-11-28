@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .accounting_models import Account, AccountHierarchy
+from .accounting_models import Account, AccountDetailLink, AccountHierarchy
 from .errors import DomainError, require
 from .services import get_entity
 
@@ -22,7 +22,7 @@ CODE_ERRORS = {
     "group": "کد گروه باید دقیقاً ۲ رقم عددی باشد (مثلاً 11).",
     "general": "کد کل باید دقیقاً ۴ رقم عددی باشد و با کد گروه بالادست شروع شود.",
     "subsidiary": "کد معین باید دقیقاً ۶ رقم عددی باشد و با کد کل بالادست شروع شود.",
-    "detail": "کد تفصیلی باید عددی (حداقل ۸ رقم) باشد و با کد معین بالادست شروع شود.",
+    "detail": "کد تفصیلی باید ۸ تا ۱۲ رقم عددی باشد.",
 }
 
 
@@ -32,6 +32,8 @@ def is_code_pattern_valid(code: str, level: str | None, parent_code: str | None 
     pattern = CODE_REGEX.get(level)
     if pattern is None or not pattern.fullmatch(code):
         return False
+    if level == "detail" and parent_code is None:
+        return True
     if level != "group":
         if not parent_code or not code.startswith(parent_code):
             return False
@@ -42,7 +44,10 @@ def validate_code_pattern(code: str, level: str | None, parent_code: str | None 
     if level is None:
         return
     if not is_code_pattern_valid(code, level, parent_code):
-        raise DomainError("invalid_account_code_pattern", CODE_ERRORS[level], fields={"code": CODE_ERRORS[level]})
+        message = CODE_ERRORS[level]
+        if level == "detail" and parent_code is not None:
+            message += " کد باید با کد معین بالادست شروع شود."
+        raise DomainError("invalid_account_code_pattern", message, fields={"code": message})
 
 
 def generate_next_code(db: Session, company: str, level: str, parent_code: str | None = None) -> str:
@@ -57,6 +62,11 @@ def generate_next_code(db: Session, company: str, level: str, parent_code: str |
                     validate_code_pattern(candidate, level, None)
                     return candidate
         raise DomainError("account_code_exhausted", "ظرفیت کدهای دو رقمی گروه تکمیل شده است.", 409, {"code": "ظرفیت کدهای گروه تکمیل شده است."})
+    if level == "detail" and not parent_code:
+        candidate = 10_000_000
+        while str(candidate) in existing:
+            candidate += 1
+        return str(candidate)
     require(bool(parent_code), "account_parent_required", "حساب بالادست را انتخاب کنید.")
     parent_level = PARENT_LEVEL[level]
     if not CODE_REGEX[parent_level].fullmatch(parent_code or ""):
@@ -94,7 +104,7 @@ def validate_hierarchy(
     parent_code: str | None = None
     if level in (None, "group"):
         require(not parent_id, "invalid_account_parent", "حساب گروه بالادست ندارد.")
-    else:
+    elif level != "detail" or parent_id:
         require(bool(parent_id), "account_parent_required", "حساب بالادست را انتخاب کنید.")
         require(parent_id != account_id, "invalid_account_parent", "حساب نمی‌تواند بالادست خودش باشد.")
         parent_account = get_entity(db, Account, company, parent_id)
@@ -227,6 +237,19 @@ def enrich_accounts(db: Session, company: str, rows: list[dict[str, Any]]) -> li
             code_pattern_valid=code_valid,
             can_add_standard_child=can_add_child,
         )
+    detail_ids = [row["id"] for row in rows if row["level"] == "detail"]
+    if detail_ids:
+        targets: dict[str, list[str]] = {detail_id: [] for detail_id in detail_ids}
+        links = db.scalars(select(AccountDetailLink).where(
+            AccountDetailLink.company_id == company,
+            AccountDetailLink.detail_account_id.in_(detail_ids),
+            AccountDetailLink.active.is_(True),
+        ).order_by(AccountDetailLink.created_at, AccountDetailLink.id))
+        for link in links:
+            targets[link.detail_account_id].append(link.subsidiary_account_id)
+        for row in rows:
+            if row["id"] in targets:
+                row["linked_account_ids"] = targets[row["id"]]
     return rows
 
 

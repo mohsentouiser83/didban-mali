@@ -124,7 +124,7 @@ assert response.status_code==201,response.text
 result=response.json();assert result["state"]=="imported"
 assert command(owner,"POST",base+"/bot-intakes/"+queued_id+"/import",{"period_id":period_id},version=queued_version,key=key).json()==result
 with transaction("company-a") as db:
-    assert db.get(m.ProcessingSession,result["session_id"]).state=="receiving"
+    assert db.get(m.ProcessingSession,result["session_id"]).state=="sealed"
     assert db.scalar(select(m.JournalLine.id)) is None
 asyncio.run(bot_service.receive("telegram",document(3),transport=transport))
 with transaction("company-a") as db:

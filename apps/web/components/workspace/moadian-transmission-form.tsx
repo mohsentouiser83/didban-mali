@@ -199,6 +199,7 @@ export function MoadianTransmissionForm({ view }: { view: MoadianTransmissionCon
           <Button
             busy={view.submitCommand.busy}
             disabled={!view.canSend}
+            className="w-full"
             onClick={() => void view.submit()}
           >
             تأیید و ارسال به مؤدیان

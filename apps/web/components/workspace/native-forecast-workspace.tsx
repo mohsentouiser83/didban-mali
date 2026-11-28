@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Field } from "@/components/ui/field";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -30,6 +31,10 @@ import { NativeForecastQuestionDialog } from "./native-forecast-question-dialog"
 export function NativeForecastWorkspace() {
   const c = useNativeForecasts();
   const forecast = c.forecast;
+  const [selectedDay, setSelectedDay] = useState("");
+  const visibleEvents = selectedDay && forecast
+    ? forecast.events.filter((ev) => ev.date === selectedDay)
+    : c.events;
   return (
     <div className="space-y-5">
       <Panel title="پیش‌بینی دفتر اصلی">
@@ -75,7 +80,8 @@ export function NativeForecastWorkspace() {
         ) : (
           <EmptyState
             title="گزارش ثابت نقد موجود نیست"
-            action={<ButtonLink href="/reports/native">صورت‌های مالی</ButtonLink>}
+            description="برای ساخت پیش‌بینی ۳۰روزه و بررسی مسیر D09، ابتدا یک گزارش ثابت دفتر بومی تولید کنید."
+            action={<ButtonLink href="/reports/native">تولید نخستین گزارش ثابت</ButtonLink>}
           />
         )}
         <FormMessage error>{c.command.error?.message}</FormMessage>
@@ -106,9 +112,6 @@ export function NativeForecastWorkspace() {
         )}
         {c.plan?.state === "waiting_input" && (
           <div className="mt-4 space-y-3">
-            <StatusMessage>
-              برای محاسبه دقیق پیش‌بینی، لطفاً به پرسش‌ها پاسخ دهید.
-            </StatusMessage>
             <Button variant="secondary" onClick={() => c.setDialogOpen(true)}>
               پاسخ به پرسش
             </Button>
@@ -128,25 +131,57 @@ export function NativeForecastWorkspace() {
             </Badge>
           }
         >
-          <p className="text-sm text-muted">
-            {displayDate(forecast.start)} تا {displayDate(forecast.end)}
-          </p>
-          <p className="mt-4 text-muted">
-            {forecast.status === "limited"
-              ? "مانده با جریان‌های تاریخ‌دار معلوم"
-              : "مانده پایان افق"}
-          </p>
-          <p className="mt-2 font-display text-cash-view font-medium tabular-nums">
-            {amount(
-              forecast.status === "limited"
-                ? forecast.known_dated_closing
-                : forecast.closing,
-              c.workspace.unit,
-            )}{" "}
-            <span className="font-body text-sm">
-              {c.workspace.unit === "IRR" ? "ریال" : "تومان"}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+            <span>
+              تاریخ مبنا: <b className="text-foreground">{displayDate(forecast.as_of)}</b> · افق{" "}
+              {displayDate(forecast.start)} تا {displayDate(forecast.end)}
             </span>
-          </p>
+            <Badge tone="neutral">
+              {forecast.projection_scope === "declared_complete_obligations"
+                ? "پوشش کامل تعهدهای آینده"
+                : "صرفاً جریان‌های تاریخ‌دار معلوم"}
+            </Badge>
+          </div>
+          <div className="mb-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-canvas/50 p-3">
+              <div className="text-xs text-muted">ماندهٔ پایه (نقد مبنا)</div>
+              <div className="mt-1 font-medium tabular-nums text-foreground">
+                {amount(forecast.opening, c.workspace.unit)}{" "}
+                <span className="text-xs text-muted">{c.workspace.unit === "IRR" ? "ریال" : "تومان"}</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-canvas/50 p-3">
+              <div className="text-xs text-muted">
+                {forecast.status === "limited" ? "حداقل ماندهٔ جریان‌های معلوم" : "حداقل ماندهٔ افق"}
+              </div>
+              <div className="mt-1 font-medium tabular-nums text-foreground">
+                {amount(
+                  forecast.status === "limited" ? forecast.known_dated_minimum : forecast.minimum,
+                  c.workspace.unit,
+                )}{" "}
+                <span className="text-xs text-muted">{c.workspace.unit === "IRR" ? "ریال" : "تومان"}</span>
+              </div>
+              <div className="mt-1 text-xs text-muted">
+                {forecast.first_deficit
+                  ? `نخستین کمبود: ${displayDate(forecast.first_deficit)}`
+                  : "بدون کسری نقد در این افق"}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-canvas/50 p-3">
+              <div className="text-xs text-muted">
+                {forecast.status === "limited" ? "مانده با جریان‌های تاریخ‌دار معلوم" : "مانده پایان افق"}
+              </div>
+              <div className="mt-1 font-display text-xl font-medium tabular-nums text-primary">
+                {amount(
+                  forecast.status === "limited" ? forecast.known_dated_closing : forecast.closing,
+                  c.workspace.unit,
+                )}{" "}
+                <span className="font-body text-xs text-muted">
+                  {c.workspace.unit === "IRR" ? "ریال" : "تومان"}
+                </span>
+              </div>
+            </div>
+          </div>
           <CashChart
             days={forecast.days}
             unit={c.workspace.unit}
@@ -156,6 +191,31 @@ export function NativeForecastWorkspace() {
                 : "پیش‌بینی دفتر اصلی در ۳۰ روز آینده"
             }
           />
+          {forecast.days.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-xs">
+              <span className="text-muted">جزئیات تعهدهای روز:</span>
+              <Button
+                variant={selectedDay === "" ? "primary" : "secondary"}
+                className="min-h-7 px-2 text-xs"
+                onClick={() => setSelectedDay("")}
+              >
+                همه روزها
+              </Button>
+              {forecast.days
+                .filter((d) => forecast.events.some((ev) => ev.date === d.date))
+                .slice(0, 12)
+                .map((d) => (
+                  <Button
+                    key={d.date}
+                    variant={selectedDay === d.date ? "primary" : "secondary"}
+                    className="min-h-7 px-2 text-xs"
+                    onClick={() => setSelectedDay(d.date)}
+                  >
+                    {displayDate(d.date)}
+                  </Button>
+                ))}
+            </div>
+          )}
           {forecast.status === "limited" && (
             <p className="text-sm text-muted">
               ماندهٔ کامل پایان افق و کمترین ماندهٔ کامل نامشخص است.
@@ -194,7 +254,7 @@ export function NativeForecastWorkspace() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {c.events.map((row) => (
+                  {visibleEvents.map((row) => (
                     <TableRow key={row.event_id}>
                       <TableRowHeader>{row.obligation_id}</TableRowHeader>
                       <TableCell>{displayDate(row.date)}</TableCell>
@@ -210,13 +270,15 @@ export function NativeForecastWorkspace() {
                   ))}
                 </TableBody>
               </Table>
-              <Pagination
-                page={c.eventPage}
-                total={c.eventTotal}
-                pageSize={15}
-                onPrevious={c.previousEvents}
-                onNext={c.nextEvents}
-              />
+              {!selectedDay && (
+                <Pagination
+                  page={c.eventPage}
+                  total={c.eventTotal}
+                  pageSize={15}
+                  onPrevious={c.previousEvents}
+                  onNext={c.nextEvents}
+                />
+              )}
             </>
           )}
         </Panel>

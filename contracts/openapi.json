@@ -59,6 +59,23 @@
             ],
             "title": "Level"
           },
+          "linked_account_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 36,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Account Ids"
+          },
           "name": {
             "maxLength": 150,
             "minLength": 1,
@@ -134,16 +151,16 @@
             "title": "Detail Account Id",
             "type": "string"
           },
-          "subsidiary_account_id": {
+          "target_account_id": {
             "maxLength": 36,
             "minLength": 1,
-            "title": "Subsidiary Account Id",
+            "title": "Target Account Id",
             "type": "string"
           }
         },
         "required": [
           "detail_account_id",
-          "subsidiary_account_id"
+          "target_account_id"
         ],
         "title": "AccountDetailLinkInput",
         "type": "object"
@@ -189,6 +206,23 @@
               }
             ],
             "title": "Level"
+          },
+          "linked_account_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 36,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 200,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Account Ids"
           },
           "name": {
             "maxLength": 150,
@@ -534,18 +568,75 @@
         "title": "BlockPreviewInput",
         "type": "object"
       },
-      "Body_upload_api_v1_companies__company_id__processing_sessions__session_id__files_post": {
+      "BotDocument": {
         "properties": {
-          "file": {
-            "contentMediaType": "application/octet-stream",
-            "title": "File",
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
             "type": "string"
+          },
+          "duplicate_original": {
+            "title": "Duplicate Original",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "bot",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "telegram",
+              "bale"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
-          "file"
+          "id",
+          "name",
+          "created_at",
+          "size",
+          "kind",
+          "origin",
+          "state",
+          "version",
+          "duplicate_original",
+          "session_id"
         ],
-        "title": "Body_upload_api_v1_companies__company_id__processing_sessions__session_id__files_post",
+        "title": "BotDocument",
         "type": "object"
       },
       "BudgetInput": {
@@ -1060,6 +1151,15 @@
             "title": "Account Ids",
             "type": "array"
           },
+          "kind": {
+            "default": "closing",
+            "enum": [
+              "closing",
+              "permanent_closing"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
           "period_id": {
             "maxLength": 36,
             "minLength": 1,
@@ -1405,6 +1505,18 @@
             "title": "Settlement Type",
             "type": "string"
           },
+          "vat_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vat Account Id"
+          },
           "vendor_reference": {
             "anyOf": [
               {
@@ -1515,6 +1627,19 @@
               }
             ],
             "title": "Unit Price"
+          },
+          "vat_rate_pct": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": 0,
+            "title": "Vat Rate Pct"
           }
         },
         "required": [
@@ -1646,6 +1771,16 @@
           },
           "unit_price_irr": {
             "title": "Unit Price Irr",
+            "type": "string"
+          },
+          "vat_amount_irr": {
+            "default": "0",
+            "title": "Vat Amount Irr",
+            "type": "string"
+          },
+          "vat_rate_pct": {
+            "default": "0",
+            "title": "Vat Rate Pct",
             "type": "string"
           }
         },
@@ -1936,6 +2071,11 @@
             "title": "Status",
             "type": "string"
           },
+          "vat_total_irr": {
+            "default": "0",
+            "title": "Vat Total Irr",
+            "type": "string"
+          },
           "vendor_reference": {
             "anyOf": [
               {
@@ -2133,6 +2273,51 @@
           "quantity"
         ],
         "title": "CommercialReturnLineInput",
+        "type": "object"
+      },
+      "CompanyDocumentPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "bot": "#/components/schemas/BotDocument",
+                  "source": "#/components/schemas/ProcessingDocument",
+                  "spreadsheet": "#/components/schemas/SpreadsheetDocument"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ProcessingDocument"
+                },
+                {
+                  "$ref": "#/components/schemas/SpreadsheetDocument"
+                },
+                {
+                  "$ref": "#/components/schemas/BotDocument"
+                }
+              ]
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CompanyDocumentPage",
         "type": "object"
       },
       "CompanyInput": {
@@ -2768,6 +2953,7 @@
             "enum": [
               "natural_person",
               "legal_entity",
+              "partnership",
               "other"
             ],
             "title": "Entity Kind",
@@ -3399,6 +3585,19 @@
             "title": "Description",
             "type": "string"
           },
+          "detail_account_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Account Id"
+          },
           "dimension_ids": {
             "items": {
               "type": "string"
@@ -3482,6 +3681,17 @@
               }
             ],
             "title": "Description"
+          },
+          "detail_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Account Id"
           },
           "dimension_ids": {
             "items": {
@@ -4514,18 +4724,6 @@
             ],
             "title": "Code"
           },
-          "inventory_account_id": {
-            "anyOf": [
-              {
-                "maxLength": 36,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inventory Account Id"
-          },
           "item_kind": {
             "default": "goods",
             "enum": [
@@ -4617,6 +4815,43 @@
         "title": "InventoryTransferInput",
         "type": "object"
       },
+      "InventoryUnitInput": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "InventoryUnitInput",
+        "type": "object"
+      },
+      "InventoryUnitsResponse": {
+        "properties": {
+          "can_create": {
+            "title": "Can Create",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "can_create"
+        ],
+        "title": "InventoryUnitsResponse",
+        "type": "object"
+      },
       "InvoiceInput": {
         "additionalProperties": false,
         "properties": {
@@ -4685,6 +4920,43 @@
           "journal_digest"
         ],
         "title": "InvoiceInput",
+        "type": "object"
+      },
+      "ItemWarehouseInput": {
+        "additionalProperties": false,
+        "properties": {
+          "warehouse_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id"
+        ],
+        "title": "ItemWarehouseInput",
+        "type": "object"
+      },
+      "ItemWarehousesResponse": {
+        "properties": {
+          "can_link": {
+            "title": "Can Link",
+            "type": "boolean"
+          },
+          "warehouse_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warehouse Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "warehouse_ids",
+          "can_link"
+        ],
+        "title": "ItemWarehousesResponse",
         "type": "object"
       },
       "JsonValue": {},
@@ -4837,6 +5109,48 @@
               }
             ],
             "title": "Approve Financial Report"
+          },
+          "module_access": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "propertyNames": {
+                    "enum": [
+                      "view",
+                      "create",
+                      "edit",
+                      "delete"
+                    ]
+                  },
+                  "type": "object"
+                },
+                "propertyNames": {
+                  "enum": [
+                    "accounting",
+                    "treasury",
+                    "commercial",
+                    "inventory",
+                    "periods",
+                    "payroll",
+                    "reconciliation",
+                    "cashflow",
+                    "moadian",
+                    "documents",
+                    "reports",
+                    "settings",
+                    "assistant"
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module Access"
           },
           "role": {
             "anyOf": [
@@ -5889,7 +6203,7 @@
               "type": "string"
             },
             "maxProperties": 10,
-            "minProperties": 2,
+            "minProperties": 1,
             "title": "Accounts",
             "type": "object"
           },
@@ -6063,6 +6377,19 @@
             "minLength": 1,
             "title": "Period Id",
             "type": "string"
+          },
+          "point_of_sale_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Of Sale Id"
           },
           "settlement_type": {
             "anyOf": [
@@ -6585,17 +6912,6 @@
             "title": "Name",
             "type": "string"
           },
-          "previous_period_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Previous Period Id"
-          },
           "start": {
             "format": "date",
             "title": "Start",
@@ -6801,6 +7117,73 @@
           "spec"
         ],
         "title": "PreviewInput",
+        "type": "object"
+      },
+      "ProcessingDocument": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "source",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "period_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Name"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "size",
+          "kind",
+          "state",
+          "version",
+          "archived",
+          "row_count",
+          "period_name"
+        ],
+        "title": "ProcessingDocument",
         "type": "object"
       },
       "ProfileUpdateInput": {
@@ -7635,53 +8018,6 @@
         "title": "ScenarioInput",
         "type": "object"
       },
-      "SealInput": {
-        "additionalProperties": false,
-        "properties": {
-          "file_ids": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 10,
-            "title": "File Ids",
-            "type": "array"
-          }
-        },
-        "required": [
-          "file_ids"
-        ],
-        "title": "SealInput",
-        "type": "object"
-      },
-      "SessionInput": {
-        "additionalProperties": false,
-        "properties": {
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Id"
-          },
-          "period_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Period Id"
-          }
-        },
-        "title": "SessionInput",
-        "type": "object"
-      },
       "Share": {
         "additionalProperties": false,
         "properties": {
@@ -7703,36 +8039,6 @@
           "percent"
         ],
         "title": "Share",
-        "type": "object"
-      },
-      "SnapshotInput": {
-        "additionalProperties": false,
-        "properties": {
-          "as_of": {
-            "format": "date",
-            "title": "As Of",
-            "type": "string"
-          },
-          "direction": {
-            "anyOf": [
-              {
-                "enum": [
-                  "sale",
-                  "purchase"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Direction"
-          }
-        },
-        "required": [
-          "as_of"
-        ],
-        "title": "SnapshotInput",
         "type": "object"
       },
       "SourceRevisionInput": {
@@ -7769,6 +8075,50 @@
           "reason"
         ],
         "title": "SourceRevisionInput",
+        "type": "object"
+      },
+      "SpreadsheetDocument": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "spreadsheet",
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "chart",
+              "table"
+            ],
+            "title": "Origin",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "size",
+          "kind",
+          "origin"
+        ],
+        "title": "SpreadsheetDocument",
         "type": "object"
       },
       "StatementApprovalInput": {
@@ -8568,6 +8918,17 @@
             ],
             "title": "Branch Name"
           },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
           "company_id": {
             "title": "Company Id",
             "type": "string"
@@ -8618,16 +8979,40 @@
             "enum": [
               "bank",
               "cash",
-              "petty_cash"
+              "petty_cash",
+              "pos"
             ],
             "title": "Kind",
             "type": "string"
+          },
+          "linked_bank_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Bank Id"
+          },
+          "linked_bank_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Bank Name"
           },
           "name": {
             "title": "Name",
             "type": "string"
           },
           "needs_completion": {
+            "default": false,
             "title": "Needs Completion",
             "type": "boolean"
           },
@@ -8655,17 +9040,9 @@
           "company_id",
           "account_id",
           "account_code",
+          "code",
           "account_name",
           "account_active",
-          "bank_name",
-          "account_number",
-          "iban",
-          "branch_name",
-          "branch_code",
-          "custodian_name",
-          "custodian_counterparty_id",
-          "petty_cash_limit_irr",
-          "needs_completion",
           "version",
           "created_at"
         ],
@@ -8809,7 +9186,8 @@
             "enum": [
               "bank",
               "cash",
-              "petty_cash"
+              "petty_cash",
+              "pos"
             ],
             "title": "Kind",
             "type": "string"
@@ -8829,6 +9207,19 @@
               }
             ],
             "title": "Level"
+          },
+          "linked_bank_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Bank Id"
           },
           "name": {
             "maxLength": 150,
@@ -8886,7 +9277,8 @@
             "enum": [
               "bank",
               "cash",
-              "petty_cash"
+              "petty_cash",
+              "pos"
             ],
             "title": "Kind",
             "type": "string"
@@ -9425,6 +9817,19 @@
             ],
             "title": "Due Date"
           },
+          "point_of_sale_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Of Sale Id"
+          },
           "reference": {
             "anyOf": [
               {
@@ -9536,6 +9941,28 @@
           "line_index": {
             "title": "Line Index",
             "type": "integer"
+          },
+          "point_of_sale_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Of Sale Id"
+          },
+          "point_of_sale_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point Of Sale Name"
           },
           "reference": {
             "anyOf": [
@@ -9986,6 +10413,7 @@
                 "enum": [
                   "natural_person",
                   "legal_entity",
+                  "partnership",
                   "other"
                 ],
                 "type": "string"
@@ -10436,19 +10864,6 @@
             ],
             "title": "Code"
           },
-          "inventory_account_id": {
-            "anyOf": [
-              {
-                "maxLength": 36,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Inventory Account Id"
-          },
           "item_kind": {
             "anyOf": [
               {
@@ -10672,6 +11087,19 @@
             ],
             "title": "Iban"
           },
+          "linked_bank_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked Bank Id"
+          },
           "name": {
             "anyOf": [
               {
@@ -10819,6 +11247,47 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VoucherChoice": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "VoucherChoice",
+        "type": "object"
+      },
+      "VoucherItemChoice": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "unit"
+        ],
+        "title": "VoucherItemChoice",
+        "type": "object"
+      },
       "WarehouseInput": {
         "additionalProperties": false,
         "properties": {
@@ -10846,6 +11315,299 @@
           "name"
         ],
         "title": "WarehouseInput",
+        "type": "object"
+      },
+      "WarehouseIssueInput": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseVoucherLine"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "offset_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Offset Account Id",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Reference",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "period_id",
+          "date",
+          "offset_account_id",
+          "items"
+        ],
+        "title": "WarehouseIssueInput",
+        "type": "object"
+      },
+      "WarehouseReceiptInput": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Description",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseReceiptLine"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "offset_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Offset Account Id",
+            "type": "string"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "reference": {
+            "default": "",
+            "maxLength": 120,
+            "title": "Reference",
+            "type": "string"
+          },
+          "warehouse_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Warehouse Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warehouse_id",
+          "period_id",
+          "date",
+          "offset_account_id",
+          "items"
+        ],
+        "title": "WarehouseReceiptInput",
+        "type": "object"
+      },
+      "WarehouseReceiptLine": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "unit_price_irr": {
+            "pattern": "^[0-9]{1,32}$",
+            "title": "Unit Price Irr",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "quantity",
+          "unit_price_irr"
+        ],
+        "title": "WarehouseReceiptLine",
+        "type": "object"
+      },
+      "WarehouseVoucherLine": {
+        "additionalProperties": false,
+        "properties": {
+          "item_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Item Id",
+            "type": "string"
+          },
+          "quantity": {
+            "maximum": 1000000000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "quantity"
+        ],
+        "title": "WarehouseVoucherLine",
+        "type": "object"
+      },
+      "WarehouseVoucherList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WarehouseVoucherRow"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "WarehouseVoucherList",
+        "type": "object"
+      },
+      "WarehouseVoucherOptions": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherChoice"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "can_create": {
+            "title": "Can Create",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherItemChoice"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "warehouses": {
+            "items": {
+              "$ref": "#/components/schemas/VoucherChoice"
+            },
+            "title": "Warehouses",
+            "type": "array"
+          }
+        },
+        "required": [
+          "can_create",
+          "items",
+          "warehouses",
+          "accounts"
+        ],
+        "title": "WarehouseVoucherOptions",
+        "type": "object"
+      },
+      "WarehouseVoucherRow": {
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "item_count": {
+            "title": "Item Count",
+            "type": "integer"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "source_reference": {
+            "title": "Source Reference",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "discarded",
+              "posted",
+              "reversed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "warehouse_name": {
+            "title": "Warehouse Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "draft_id",
+          "source_reference",
+          "date",
+          "warehouse_name",
+          "item_count",
+          "reference",
+          "description",
+          "state"
+        ],
+        "title": "WarehouseVoucherRow",
         "type": "object"
       },
       "ZeroOpeningInput": {
@@ -13186,6 +13948,110 @@
         "summary": "Update Item"
       }
     },
+    "/api/v1/companies/{company_id}/accounting/inventory/items/{item_id}/warehouses": {
+      "get": {
+        "operationId": "list_item_warehouses_api_v1_companies__company_id__accounting_inventory_items__item_id__warehouses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemWarehousesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Item Warehouses"
+      },
+      "post": {
+        "operationId": "link_item_warehouse_api_v1_companies__company_id__accounting_inventory_items__item_id__warehouses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemWarehouseInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemWarehouseInput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Item Warehouse"
+      }
+    },
     "/api/v1/companies/{company_id}/accounting/inventory/nrv-assessment": {
       "get": {
         "operationId": "get_nrv_assessment_api_v1_companies__company_id__accounting_inventory_nrv_assessment_get",
@@ -13497,6 +14363,92 @@
         "summary": "Create Transfer Draft"
       }
     },
+    "/api/v1/companies/{company_id}/accounting/inventory/units": {
+      "get": {
+        "operationId": "units_api_v1_companies__company_id__accounting_inventory_units_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryUnitsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Units"
+      },
+      "post": {
+        "operationId": "add_unit_api_v1_companies__company_id__accounting_inventory_units_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InventoryUnitInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryUnitInput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Unit"
+      }
+    },
     "/api/v1/companies/{company_id}/accounting/inventory/valuation": {
       "get": {
         "operationId": "valuation_api_v1_companies__company_id__accounting_inventory_valuation_get",
@@ -13549,6 +14501,219 @@
           }
         },
         "summary": "Valuation"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/voucher-options": {
+      "get": {
+        "operationId": "voucher_options_api_v1_companies__company_id__accounting_inventory_voucher_options_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseVoucherOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Voucher Options"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/vouchers/issues": {
+      "post": {
+        "operationId": "create_issue_api_v1_companies__company_id__accounting_inventory_vouchers_issues_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarehouseIssueInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Issue"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/vouchers/receipts": {
+      "post": {
+        "operationId": "create_receipt_api_v1_companies__company_id__accounting_inventory_vouchers_receipts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WarehouseReceiptInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Receipt"
+      }
+    },
+    "/api/v1/companies/{company_id}/accounting/inventory/vouchers/{direction}": {
+      "get": {
+        "operationId": "list_vouchers_api_v1_companies__company_id__accounting_inventory_vouchers__direction__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "enum": [
+                "receipts",
+                "issues"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseVoucherList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Vouchers"
       }
     },
     "/api/v1/companies/{company_id}/accounting/inventory/warehouses": {
@@ -14160,220 +15325,6 @@
           }
         },
         "summary": "Candidates"
-      }
-    },
-    "/api/v1/companies/{company_id}/accounting/native-invoices/snapshots": {
-      "get": {
-        "operationId": "snapshots_api_v1_companies__company_id__accounting_native_invoices_snapshots_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 25,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Snapshots"
-      },
-      "post": {
-        "operationId": "snapshot_api_v1_companies__company_id__accounting_native_invoices_snapshots_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SnapshotInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Snapshot"
-      }
-    },
-    "/api/v1/companies/{company_id}/accounting/native-invoices/snapshots/{snapshot_id}": {
-      "get": {
-        "operationId": "saved_api_v1_companies__company_id__accounting_native_invoices_snapshots__snapshot_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Saved"
-      }
-    },
-    "/api/v1/companies/{company_id}/accounting/native-invoices/snapshots/{snapshot_id}/export": {
-      "get": {
-        "operationId": "export_snapshot_api_v1_companies__company_id__accounting_native_invoices_snapshots__snapshot_id__export_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "snapshot_id",
-            "required": true,
-            "schema": {
-              "title": "Snapshot Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "format",
-            "required": false,
-            "schema": {
-              "default": "pdf",
-              "enum": [
-                "pdf",
-                "xlsx"
-              ],
-              "title": "Format",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Export Snapshot"
       }
     },
     "/api/v1/companies/{company_id}/accounting/native-invoices/{invoice_id}": {
@@ -18648,6 +19599,28 @@
               "title": "Q",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "reference",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Reference",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "party",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Party",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -18765,6 +19738,40 @@
                 }
               ],
               "title": "Entity Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 150,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          },
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
             }
           }
         ],
@@ -21352,6 +22359,71 @@
         "summary": "Edit"
       }
     },
+    "/api/v1/companies/{company_id}/document-archive": {
+      "get": {
+        "operationId": "list_documents_api_v1_companies__company_id__document_archive_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyDocumentPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Documents"
+      }
+    },
     "/api/v1/companies/{company_id}/document-archive/spreadsheets": {
       "get": {
         "operationId": "list_spreadsheets_api_v1_companies__company_id__document_archive_spreadsheets_get",
@@ -22021,6 +23093,69 @@
           }
         },
         "summary": "Create Period"
+      }
+    },
+    "/api/v1/companies/{company_id}/financial-periods/options": {
+      "get": {
+        "operationId": "period_options_api_v1_companies__company_id__financial_periods_options_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Period Options"
       }
     },
     "/api/v1/companies/{company_id}/financial-periods/{period_id}": {
@@ -22813,6 +23948,100 @@
         "summary": "Update Member"
       }
     },
+    "/api/v1/companies/{company_id}/moadian/import/{direction}": {
+      "post": {
+        "operationId": "import_moadian_api_v1_companies__company_id__moadian_import__direction__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "enum": [
+                "sales",
+                "purchases"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "title": "Period Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Import Moadian"
+      }
+    },
     "/api/v1/companies/{company_id}/moadian/reconciliation": {
       "get": {
         "operationId": "reconciliation_api_v1_companies__company_id__moadian_reconciliation_get",
@@ -22904,6 +24133,40 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "invoice_reference",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Reference"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tax_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 22,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tax Id"
             }
           },
           {
@@ -25467,114 +26730,6 @@
         "summary": "Answer"
       }
     },
-    "/api/v1/companies/{company_id}/processing-sessions": {
-      "get": {
-        "operationId": "sessions_api_v1_companies__company_id__processing_sessions_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Sessions"
-      },
-      "post": {
-        "operationId": "create_session_api_v1_companies__company_id__processing_sessions_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SessionInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Session"
-      }
-    },
     "/api/v1/companies/{company_id}/processing-sessions/from-result": {
       "post": {
         "operationId": "recalculate_api_v1_companies__company_id__processing_sessions_from_result_post",
@@ -25714,108 +26869,6 @@
         "summary": "Cancel"
       }
     },
-    "/api/v1/companies/{company_id}/processing-sessions/{session_id}/files": {
-      "post": {
-        "operationId": "upload_api_v1_companies__company_id__processing_sessions__session_id__files_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_upload_api_v1_companies__company_id__processing_sessions__session_id__files_post"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Upload"
-      }
-    },
-    "/api/v1/companies/{company_id}/processing-sessions/{session_id}/issues": {
-      "get": {
-        "operationId": "session_issues_api_v1_companies__company_id__processing_sessions__session_id__issues_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Session Issues"
-      }
-    },
     "/api/v1/companies/{company_id}/processing-sessions/{session_id}/retry": {
       "post": {
         "operationId": "retry_api_v1_companies__company_id__processing_sessions__session_id__retry_post",
@@ -25860,62 +26913,6 @@
           }
         },
         "summary": "Retry"
-      }
-    },
-    "/api/v1/companies/{company_id}/processing-sessions/{session_id}/seal": {
-      "post": {
-        "operationId": "seal_api_v1_companies__company_id__processing_sessions__session_id__seal_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "company_id",
-            "required": true,
-            "schema": {
-              "title": "Company Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "session_id",
-            "required": true,
-            "schema": {
-              "title": "Session Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SealInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Seal"
       }
     },
     "/api/v1/companies/{company_id}/reconciliation-groups": {
@@ -29130,7 +30127,8 @@
                   "enum": [
                     "bank",
                     "cash",
-                    "petty_cash"
+                    "petty_cash",
+                    "pos"
                   ],
                   "type": "string"
                 },
@@ -29247,7 +30245,8 @@
                   "enum": [
                     "bank",
                     "cash",
-                    "petty_cash"
+                    "petty_cash",
+                    "pos"
                   ],
                   "type": "string"
                 },

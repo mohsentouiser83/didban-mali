@@ -58,33 +58,21 @@ def test_prior_report_is_used_only_when_period_explicitly_selects_it(db):
     assert observation["comparison"]["previous_manifest_id"] == old.id
 
 
-def test_period_comparison_must_belong_to_company_and_precede_current_period(db):
+def test_existing_comparison_remains_valid_when_its_period_changes(db):
     user, company, current = seed(db)
-    with pytest.raises(DomainError):
+    previous = Period(company_id=company.id, name="دوره قبل", start=date(2026, 8, 1), end=date(2026, 8, 31))
+    db.add(previous)
+    db.flush()
+    current.previous_period_id = previous.id
+    with pytest.raises(DomainError) as error:
         save_period(
             db,
             company.id,
             user,
-            {
-                "name": "دوره تازه",
-                "start": date(2026, 8, 1),
-                "end": date(2026, 8, 31),
-                "previous_period_id": current.id,
-            },
-        )
-    with pytest.raises(DomainError):
-        save_period(
-            db,
-            company.id,
-            user,
-            {
-                "name": "همان دوره",
-                "start": current.start,
-                "end": current.end,
-                "previous_period_id": current.id,
-            },
+            {"name": current.name, "start": previous.start, "end": current.end},
             current,
         )
+    assert error.value.code == "invalid_comparison_period"
 
 
 def test_ledger_without_type_column_gets_persistent_scoped_type_question(db):

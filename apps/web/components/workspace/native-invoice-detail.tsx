@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { CoinsIcon, HashIcon, PackageIcon, StorefrontIcon, ClockCounterClockwiseIcon, ListBulletsIcon, FileTextIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import type { NativeInvoicesController } from "@/hooks/use-native-invoices";
 import { nativeInvoiceReason,expectedDateLabel } from "@/lib/native-invoices";
 import { amount, displayDate, persian } from "@/lib/utils";
 import { DocumentDiscussionButton } from "./document-discussion-button";
-export function NativeInvoiceDetail({view}:{view:NativeInvoicesController}) {
+export function NativeInvoiceDetail({view, listMode = false}:{view:NativeInvoicesController; listMode?: boolean}) {
   const [tab, setTab] = useState<"allocations" | "source_history" | "terms_history">("allocations");
   const invoice=view.detail.data;
   const source = invoice?.source;
@@ -33,8 +34,8 @@ export function NativeInvoiceDetail({view}:{view:NativeInvoicesController}) {
         </dl>
       )}
       {invoice.reason&&<StatusMessage>{nativeInvoiceReason(invoice.reason)}</StatusMessage>}
-      <div className="flex flex-wrap gap-2"><DocumentDiscussionButton subjectKind="journal" subjectId={invoice.source.journal_id}/>{invoice.original_source&&invoice.original_source.journal_id!==invoice.source.journal_id&&<DocumentDiscussionButton subjectKind="journal" subjectId={invoice.original_source.journal_id} label="سابقهٔ پیگیری سند اولیه"/>}<ButtonLink variant="secondary" href={`/reconciliation/counterparties?party_id=${encodeURIComponent(invoice.party_record_id || invoice.party_id)}`}>تطبیق طرف‌حساب</ButtonLink>{invoice.direction==="sale"&&view.workspace.canWrite&&<Button variant="secondary" onClick={view.prepareReminder} disabled={view.command.busy||invoice.status!=="available"}>پیش‌نویس یادآوری وصول</Button>}{view.workspace.canWrite&&<>{!goods && <Button variant="secondary" onClick={view.openSourceRevision} disabled={view.command.busy}>پذیرش سند جایگزین</Button>}<Button variant="secondary" onClick={()=>view.openTerms(invoice)} disabled={view.command.busy}>اصلاح موعد و وعدهٔ پرداخت</Button><Button onClick={()=>view.openAllocation()} disabled={view.command.busy||invoice.status!=="available"}>تخصیص دریافت یا پرداخت</Button></>}</div>
-      <Tabs
+      <div className="flex flex-wrap gap-2"><DocumentDiscussionButton subjectKind="journal" subjectId={invoice.source.journal_id}/>{invoice.original_source&&invoice.original_source.journal_id!==invoice.source.journal_id&&<DocumentDiscussionButton subjectKind="journal" subjectId={invoice.original_source.journal_id} label="سابقهٔ پیگیری سند اولیه"/>}{!listMode && <ButtonLink variant="secondary" href={`/reconciliation/counterparties?party_id=${encodeURIComponent(invoice.party_record_id || invoice.party_id)}`}>تطبیق طرف‌حساب</ButtonLink>}{invoice.direction==="sale"&&view.workspace.canWrite&&<Button variant="secondary" onClick={view.prepareReminder} disabled={view.command.busy||invoice.status!=="available"}>پیش‌نویس یادآوری وصول</Button>}{view.workspace.canWrite&&<>{!goods && <Button variant="secondary" onClick={view.openSourceRevision} disabled={view.command.busy}>پذیرش سند جایگزین</Button>}<Button variant="secondary" onClick={()=>view.openTerms(invoice)} disabled={view.command.busy}>اصلاح موعد و وعدهٔ پرداخت</Button><Button onClick={()=>view.openAllocation()} disabled={view.command.busy||invoice.status!=="available"}>تخصیص دریافت یا پرداخت</Button></>}</div>
+      {!listMode && <Tabs
         value={tab}
         onChange={setTab}
         items={[
@@ -42,15 +43,67 @@ export function NativeInvoiceDetail({view}:{view:NativeInvoicesController}) {
           ...(invoice.source_history?.length ? [{ id: "source_history" as const, label: `تاریخچه سند مرجع (${persian(invoice.source_history.length)})`, icon: FileTextIcon }] : []),
           { id: "terms_history", label: `تاریخچه شرایط (${persian(invoice.terms_history.length)})`, icon: ClockCounterClockwiseIcon },
         ]}
-      />
-      {tab === "allocations" && (
-        <section className="space-y-3"><Table><TableHeader><TableRow><TableHead>تاریخ سند</TableHead><TableHead>مبلغ (ریال)</TableHead><TableHead>وضعیت</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader><TableBody>{invoice.allocations.length?invoice.allocations.map(row=><TableRow key={row.id}><TableRowHeader>{displayDate(row.date)}</TableRowHeader><TableCell>{amount(row.amount)}</TableCell><TableCell>{row.reversed?<Badge>برگشت‌شده</Badge>:<StatusBadge status={row.status}/>}</TableCell><TableCell><div className="flex flex-wrap gap-2"><DocumentDiscussionButton subjectKind="journal" subjectId={row.journal_id}/>{view.workspace.canWrite&&!row.reversed&&<Button variant="ghost" onClick={()=>view.openAllocation(row.id)} disabled={view.command.busy}>برگشت تخصیص</Button>}</div></TableCell></TableRow>):<TableEmptyCell colSpan={4} title="تخصیصی ثبت نشده"/>}</TableBody></Table></section>
+      />}
+      {(listMode || tab === "allocations") && (
+        <section className="space-y-3">
+          {listMode && <h3 className="text-sm font-medium">تخصیص‌ها و برگشت‌ها</h3>}
+          <Table>
+            <TableHeader><TableRow><TableHead>تاریخ سند</TableHead><TableHead>مبلغ (ریال)</TableHead><TableHead>وضعیت</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {invoice.allocations.length ? invoice.allocations.map((row) => (
+                <TableRow key={row.id}>
+                  <TableRowHeader>{displayDate(row.date)}</TableRowHeader>
+                  <TableCell>{amount(row.amount)}</TableCell>
+                  <TableCell>{row.reversed ? <Badge>برگشت‌شده</Badge> : <StatusBadge status={row.status} />}</TableCell>
+                  <TableCell>
+                    <DocumentDiscussionButton subjectKind="journal" subjectId={row.journal_id} renderTrigger={(openDiscussion) => (
+                      <TableRowActions label={`عملیات تخصیص ${displayDate(row.date)}`}>
+                        <TableRowAction onClick={openDiscussion}>گفت‌وگو و پیگیری</TableRowAction>
+                        {view.workspace.canWrite && !row.reversed && (
+                          <TableRowAction
+                            kind="reverse"
+                            onClick={() => view.openAllocation(row.id)}
+                            disabled={view.command.busy}
+                          >
+                            برگشت تخصیص
+                          </TableRowAction>
+                        )}
+                      </TableRowActions>
+                    )} />
+                  </TableCell>
+                </TableRow>
+              )) : <TableEmptyCell colSpan={4} title="تخصیصی ثبت نشده" />}
+            </TableBody>
+          </Table>
+        </section>
       )}
-      {tab === "source_history" && !!invoice.source_history?.length && (
-        <section className="space-y-3"><Table><TableHeader><TableRow><TableHead>تاریخ پذیرش</TableHead><TableHead>مرجع جایگزین</TableHead><TableHead>مبلغ (ریال)</TableHead><TableHead>دلیل</TableHead></TableRow></TableHeader><TableBody>{invoice.source_history.map(row=><TableRow key={row.id}><TableRowHeader>{displayDate(row.effective_date)}</TableRowHeader><TableCell><span className="block">{row.source.reference}</span><DocumentDiscussionButton subjectKind="journal" subjectId={row.source.journal_id} label="پیگیری این نسخه"/></TableCell><TableCell>{amount(row.source.amount)}</TableCell><TableCell>{row.reason}</TableCell></TableRow>)}</TableBody></Table></section>
+      {(listMode || tab === "source_history") && !!invoice.source_history?.length && (
+        <section className="space-y-3">
+          {listMode && <h3 className="text-sm font-medium">تاریخچه سند مرجع</h3>}
+          <Table>
+            <TableHeader><TableRow><TableHead>تاریخ پذیرش</TableHead><TableHead>مرجع جایگزین</TableHead><TableHead>مبلغ (ریال)</TableHead><TableHead>دلیل</TableHead><TableHead>عملیات</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {invoice.source_history.map((row) => (
+                <TableRow key={row.id}>
+                  <TableRowHeader>{displayDate(row.effective_date)}</TableRowHeader>
+                  <TableCell>{row.source.reference}</TableCell>
+                  <TableCell>{amount(row.source.amount)}</TableCell>
+                  <TableCell>{row.reason}</TableCell>
+                  <TableCell>
+                    <DocumentDiscussionButton subjectKind="journal" subjectId={row.source.journal_id} renderTrigger={(openDiscussion) => (
+                      <TableRowActions label={`عملیات ${row.source.reference}`}>
+                        <TableRowAction onClick={openDiscussion}>پیگیری این نسخه</TableRowAction>
+                      </TableRowActions>
+                    )} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </section>
       )}
-      {tab === "terms_history" && (
-        <section className="space-y-3"><Table><TableHeader><TableRow><TableHead>نسخه</TableHead><TableHead>تاریخ اثر</TableHead><TableHead>سررسید</TableHead><TableHead>وعدهٔ پرداخت</TableHead><TableHead>دلیل</TableHead></TableRow></TableHeader><TableBody>{invoice.terms_history.map(row=><TableRow key={row.id}><TableRowHeader>{persian(row.version)}</TableRowHeader><TableCell>{displayDate(row.effective_date)}</TableCell><TableCell>{row.due_date?displayDate(row.due_date):"نامشخص"}</TableCell><TableCell>{row.expected_date?displayDate(row.expected_date):expectedDateLabel(row,invoice.direction)}</TableCell><TableCell>{row.reason||"—"}</TableCell></TableRow>)}</TableBody></Table></section>
+      {(listMode || tab === "terms_history") && (
+        <section className="space-y-3">{listMode && <h3 className="text-sm font-medium">تاریخچه شرایط</h3>}<Table><TableHeader><TableRow><TableHead>نسخه</TableHead><TableHead>تاریخ اثر</TableHead><TableHead>سررسید</TableHead><TableHead>وعدهٔ پرداخت</TableHead><TableHead>دلیل</TableHead></TableRow></TableHeader><TableBody>{invoice.terms_history.map(row=><TableRow key={row.id}><TableRowHeader>{persian(row.version)}</TableRowHeader><TableCell>{displayDate(row.effective_date)}</TableCell><TableCell>{row.due_date?displayDate(row.due_date):"نامشخص"}</TableCell><TableCell>{row.expected_date?displayDate(row.expected_date):expectedDateLabel(row,invoice.direction)}</TableCell><TableCell>{row.reason||"—"}</TableCell></TableRow>)}</TableBody></Table></section>
       )}
     </div>}
   </Drawer>;

@@ -152,6 +152,9 @@ def test_history_priority_known_first_and_default_amount_order_unchanged(workspa
     history = queue(db, "c", user, 0, "", "history")
     assert default["items"][0]["id"] != "i0" and history["items"][0]["id"] == "i0"
     assert history["items"][-1]["history_lag_days"] is None
+    selected = queue(db, "c", user, 0, "", "amount", reference=rows[0]["reference"], party="customer")
+    assert [row["id"] for row in selected["items"]] == ["i0"]
+    assert queue(db, "c", user, 0, "", "amount", reference="customer")["total"] == 0
     assert (
         history["history_policy"]["minimum_events"] == 3 and history["history_policy"]["lookback_days"] == 180
     )

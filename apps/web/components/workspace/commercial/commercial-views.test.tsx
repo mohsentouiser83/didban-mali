@@ -45,18 +45,28 @@ it("creates a counterparty without requesting or sending a manual code", async (
     target: { value: "مشتری جدید" },
   });
   expect(screen.getByRole("button", { name: /^ذخیره$/ })).toBeDisabled();
+  expect(screen.getByRole("textbox", { name: "کد ملی" })).toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "کد اقتصادی (اختیاری)" })).not.toBeRequired();
   fireEvent.keyDown(screen.getByRole("combobox", { name: /نوع شخصیت/ }), { key: "Enter" });
   expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
-    "حقیقی", "حقوقی", "سایر",
+    "حقیقی", "حقوقی", "مشارکت",
   ]);
+  fireEvent.click(screen.getByRole("option", { name: "مشارکت" }));
+  expect(screen.getByRole("textbox", { name: "شناسه اقتصادی" })).toBeRequired();
+  expect(screen.queryByRole("textbox", { name: "شناسه ملی" })).not.toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole("combobox", { name: /نوع شخصیت/ }), { key: "Enter" });
   fireEvent.click(screen.getByRole("option", { name: "حقوقی" }));
+  expect(screen.getByRole("textbox", { name: "شناسه ملی" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("checkbox", { name: "مشتری" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "کارمند" }));
   fireEvent.click(screen.getByRole("button", { name: /^ذخیره$/ }));
   await waitFor(() => expect(api).toHaveBeenCalledWith(
     "/companies/c1/commercial/counterparties",
     expect.objectContaining({
       method: "POST",
-      body: expect.objectContaining({ name: "مشتری جدید", type: "customer", entity_kind: "legal_entity", roles: ["customer"] }),
+      body: expect.objectContaining({
+        name: "مشتری جدید", entity_kind: "legal_entity", roles: ["customer", "employee"],
+      }),
     }),
   ));
   const creation = vi.mocked(api).mock.calls.find(([, options]) => options?.method === "POST");

@@ -14,11 +14,13 @@ from .account_catalogue_service import (
     save_hierarchy,
     validate_hierarchy,
 )
+from .account_detail_service import list_links, replace_links, require_compatible_link_level, save_link
 from .accounting_models import Account, AccountHierarchy, AccountingPermission, Draft
 from .accounting_setup_models import CompanyAccountingSetup
 from .errors import DomainError, require
+from .module_access import Action, Module
 from .money_type import canonical_money
-from .security import may_manage_accounts, membership
+from .security import has_request_write_grant, may_manage_accounts, membership
 from .services import check_version, get_entity
 from .workflow import audit, serialize_fact
 
@@ -32,9 +34,10 @@ def capabilities(db: Session, company: str, user: m.User) -> dict[str, Any]:
     )
     setup = db.get(CompanyAccountingSetup, company)
     primary = setup is not None and setup.mode == "primary"
+    scoped_write = has_request_write_grant(db, company, user)
     return {
-        "can_prepare": member.role in ("owner", "finance_manager", "advisor"),
-        "can_manage_accounts": may_manage_accounts(member),
+        "can_prepare": scoped_write or member.role in ("owner", "finance_manager", "advisor"),
+        "can_manage_accounts": scoped_write or may_manage_accounts(member),
         "can_manage_permissions": member.role == "owner",
         "can_post": member.role == "finance_manager"
         or (member.role in ("owner", "advisor") and bool(permission and permission.post_journal)),
@@ -56,13 +59,9 @@ def save_account(
     version: int | None = None,
     *,
     imported_code: str | None = None,
+    scope: tuple[Module, Action] | None = None,
 ) -> dict[str, Any]:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه مدیریت حساب‌ها ندارید.",
-        403,
-    )
+    membership(db, company, user, "manage_accounts", scope=scope or ("accounting", "edit" if account_id else "create"))
     item = get_entity(db, Account, company, account_id) if account_id else None
     if item:
         check_version(item, version)
@@ -71,6 +70,11 @@ def save_account(
     )) if account_id else None
     level = data.get("level", current.level if current else None)
     parent_id = data.get("parent_id", current.parent_id if current else None)
+    target_ids = data.get("linked_account_ids")
+    require(target_ids is None or level == "detail", "invalid_detail_account",
+            "پیوند حساب فقط برای سطح تفصیلی قابل تنظیم است.")
+    if item and (current.level if current else None) != level:
+        require_compatible_link_level(db, company, item.id, level)
     hierarchy_unchanged = bool(
         item
         and current is not None
@@ -118,6 +122,8 @@ def save_account(
             raise DomainError("duplicate_account_code", "کد حساب تکراری است.", 409, {"code": "این کد حساب موجود است."}) from error
         raise
     save_hierarchy(db, company, item, level, parent_id, code_status=code_status)
+    if target_ids is not None:
+        replace_links(db, company, user.id, item.id, target_ids)
     if "role" in data:
         from .native_reporting_models import NativeAccountRole
         from .native_roles_service import ROLE_KEYS
@@ -164,9 +170,20 @@ def validate_lines(
         debit_total = credit_total = Decimal(0)
         for line in data["lines"]:
             account = get_entity(db, Account, company, line["account_id"])
+            detail_id = line.get("detail_account_id")
             require(account.active, "inactive_account", "حساب غیرفعال است.")
             if not allow_non_leaf:
                 require_postable_account(db, company, account)
+                if detail_id:
+                    hierarchy = db.get(AccountHierarchy, account.id)
+                    require(hierarchy is not None and hierarchy.level == "subsidiary",
+                            "invalid_subsidiary_account", "برای این ردیف حساب معین انتخاب کنید.")
+                    detail = get_entity(db, Account, company, detail_id)
+                    detail_hierarchy = db.get(AccountHierarchy, detail.id)
+                    require(detail.active and detail_hierarchy is not None and detail_hierarchy.level == "detail",
+                            "invalid_detail_account", "حساب تفصیلی فعال انتخاب کنید.")
+            if "detail_account_id" in line and detail_id is None:
+                line = {key: value for key, value in line.items() if key != "detail_account_id"}
             dim_ids = list(dict.fromkeys(line.get("dimension_ids") or []))
             if dim_ids:
                 dims = {
@@ -243,12 +260,11 @@ def save_draft(
     version: int | None = None,
     *,
     allow_non_leaf: bool = False,
+    scope: tuple[Module, Action] | None = None,
 ) -> dict[str, Any]:
     from .period_lock_service import require_open_period
 
-    require(
-        capabilities(db, company, user)["can_prepare"], "permission_denied", "اجازه تهیه سند ندارید.", 403
-    )
+    membership(db, company, user, "write", scope=scope)
     period = get_entity(db, m.Period, company, data["period_id"])
     require_open_period(db, company, period.id)
     require(period.start <= data["date"] <= period.end, "date_outside_period", "تاریخ سند خارج از دوره است.")
@@ -344,6 +360,7 @@ def enrich_draft_list(db: Session, company: str, items: list[dict]) -> None:
 def inventory_draft_ids(db: Session, company: str, ids: list[str]) -> set[str]:
     from .inventory_service import GOODS_KINDS
     from .operation_models import OperationDraft
+    from .operation_numbering import WAREHOUSE_VOUCHER_KINDS
 
     if not ids:
         return set()
@@ -352,7 +369,7 @@ def inventory_draft_ids(db: Session, company: str, ids: list[str]) -> set[str]:
             select(OperationDraft.draft_id).where(
                 OperationDraft.company_id == company,
                 OperationDraft.draft_id.in_(ids),
-                OperationDraft.kind.in_(GOODS_KINDS),
+                OperationDraft.kind.in_(GOODS_KINDS.union(WAREHOUSE_VOUCHER_KINDS)),
             )
         )
     )
@@ -435,72 +452,15 @@ def grant(
 
 
 def list_detail_links(db: Session, company: str, user: m.User, detail_account_id: str | None = None) -> dict[str, Any]:
-    from .accounting_models import AccountDetailLink
-
     membership(db, company, user, "read")
-    stmt = select(AccountDetailLink).where(AccountDetailLink.company_id == company)
-    if detail_account_id:
-        stmt = stmt.where(AccountDetailLink.detail_account_id == detail_account_id)
-    rows = list(db.scalars(stmt.order_by(AccountDetailLink.created_at.asc())))
-    return {"items": [serialize_fact(row) for row in rows]}
+    return list_links(db, company, detail_account_id)
 
 
 def save_detail_link(db: Session, company: str, user: m.User, data: dict[str, Any]) -> dict[str, Any]:
-    from .accounting_models import AccountDetailLink
-    from .commercial_models import CommercialCounterparty
-
     require(
         capabilities(db, company, user)["can_manage_accounts"],
         "permission_denied",
         "اجازه مدیریت ارتباط تفصیلی ندارید.",
         403,
     )
-    detail_acc = get_entity(db, Account, company, data["detail_account_id"])
-    sub_acc = get_entity(db, Account, company, data["subsidiary_account_id"])
-    require(detail_acc.id != sub_acc.id, "invalid_account_link", "حساب تفصیلی و معین نمی‌توانند یکسان باشند.")
-    detail_h = db.scalar(
-        select(AccountHierarchy).where(
-            AccountHierarchy.company_id == company, AccountHierarchy.account_id == detail_acc.id
-        )
-    )
-    sub_h = db.scalar(
-        select(AccountHierarchy).where(
-            AccountHierarchy.company_id == company, AccountHierarchy.account_id == sub_acc.id
-        )
-    )
-    require(
-        detail_h is not None and detail_h.level == "detail",
-        "invalid_detail_account",
-        "حساب انتخاب‌شده باید در سطح تفصیلی باشد.",
-    )
-    require(
-        sub_h is not None and sub_h.level == "subsidiary",
-        "invalid_subsidiary_account",
-        "حساب مقصد باید در سطح معین باشد.",
-    )
-    cp_id = data.get("counterparty_id")
-    if cp_id:
-        get_entity(db, CommercialCounterparty, company, cp_id)
-    existing = db.scalar(
-        select(AccountDetailLink).where(
-            AccountDetailLink.company_id == company,
-            AccountDetailLink.detail_account_id == detail_acc.id,
-            AccountDetailLink.subsidiary_account_id == sub_acc.id,
-        )
-    )
-    if existing:
-        existing.counterparty_id = cp_id
-        existing.active = bool(data.get("active", True))
-        link = existing
-    else:
-        link = AccountDetailLink(
-            company_id=company,
-            detail_account_id=detail_acc.id,
-            subsidiary_account_id=sub_acc.id,
-            counterparty_id=cp_id,
-            active=bool(data.get("active", True)),
-        )
-        db.add(link)
-    db.flush()
-    audit(db, company, user.id, "accounting.detail_link_saved", link.id, {"detail": detail_acc.id, "subsidiary": sub_acc.id})
-    return serialize_fact(link)
+    return save_link(db, company, user.id, data)

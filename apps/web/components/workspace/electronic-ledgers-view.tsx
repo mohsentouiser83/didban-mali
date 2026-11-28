@@ -175,7 +175,10 @@ export function ElectronicLedgersView() {
       )}
 
       <Panel title="پارامترها و تنظیمات دفتر">
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 items-end">
+        <StatusMessage tone="primary">
+          «خروجی اکسل مدیریتی» برای بررسی و تطبیق کل و معین به تفکیک ماندهٔ ابتدای بازه، گردش و ماندهٔ پایان است؛ «پیش‌نویس بارگذاری دفاتر» یک جدول ستونی استاندارد با تاریخ شمسی، شمارهٔ روزانه و ارقام کامل برای آماده‌سازی ارسال به سامانهٔ دفاتر تجاری الکترونیک تولید می‌کند.
+        </StatusMessage>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-4 items-end">
           <Field id="ledger-level" label="سطح دفتر">
             <Select
               id="ledger-level"
@@ -209,7 +212,7 @@ export function ElectronicLedgersView() {
               id="ledger-auto-numbering"
               checked={autoDailyNumbering}
               onCheckedChange={(checked) => setAutoDailyNumbering(Boolean(checked))}
-              label="شماره‌گذاری روزانه اتوماتیک اسناد (هر تاریخ یک شماره ترتیبی)"
+              label="شماره‌گذاری خودکار روزانه"
             />
             {level === "subsidiary" && (
               <Checkbox

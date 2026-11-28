@@ -23,8 +23,8 @@ from .. import (
 )
 from .. import models as m
 from ..errors import require
-from ..native_invoice_exports import invoice_rows
 from ..native_invoice_models import NativeInvoiceSnapshot
+from ..native_invoice_projection import invoice_rows
 from ..security import require_payroll_access
 from .field_registry import get_entity_registry
 
@@ -445,7 +445,6 @@ class FinancialBlockQueryEngine:
                     "code": row.code,
                     "name": row.name,
                     "active": bool(row.active),
-                    "inventory_account_id": row.inventory_account_id or "",
                     "created_at": row.created_at.isoformat() if row.created_at else "",
                 }
                 for row in items

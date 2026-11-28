@@ -1,6 +1,6 @@
 # فهرست موجودیت‌های اجرایی
 
-بازبینی کد ۲۰۲۵/۱۱/۲۶ (ممیزی ۲۰۲۵/۱۱/۲۶: ۲۰۲۵ میلادی / ۱۴۰۵ هجری). پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۳۴ کلاس و ۱۳۴ جدول مدل است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
+بازبینی کد ۲۰۲۶/۱۱/۲۶. پس از بارگذاری API، رجیستری SQLAlchemy شامل ۱۳۸ کلاس و ۱۳۸ جدول مدل است. جدول فنی `didban_schema_version` جداگانه با SQL ساخته می‌شود. طبقه‌بندی زیر بر اساس مسئولیت در محصول است. یک ردیف می‌تواند موجودیت اصلی، شواهد، تاریخچه یا خروجی محاسبه باشد.
 
 بازخوانی رجیستری از ریشهٔ مخزن
 
@@ -31,7 +31,7 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 |---|---|---|
 | `Account` | `accounting_accounts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `AccountHierarchy` | `accounting_account_hierarchy` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
-| `AccountDetailLink` | `accounting_detail_links` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
+| `AccountDetailLink` | `account_detail_links` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `AccountImportPreview` | `account_import_previews` | [accounting_setup_models.py](../apps/api/didban/accounting_setup_models.py) |
 | `Draft` | `accounting_drafts` | [accounting_models.py](../apps/api/didban/accounting_models.py) |
 | `OperationDraft` | `accounting_operations` | [operation_models.py](../apps/api/didban/operation_models.py) |
@@ -71,15 +71,19 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `NativeInvoice` | `native_invoices` | [native_invoice_models.py](../apps/api/didban/native_invoice_models.py) |
 | `NativeInvoiceTerms` | `native_invoice_terms` | [native_invoice_models.py](../apps/api/didban/native_invoice_models.py) |
 | `NativeInvoiceSourceRevision` | `native_invoice_source_revisions` | [native_invoice_models.py](../apps/api/didban/native_invoice_models.py) |
-| `NativeInvoiceSnapshot` | `native_invoice_snapshots` | [native_invoice_models.py](../apps/api/didban/native_invoice_models.py) |
+| `NativeInvoiceSnapshot` | `native_invoice_snapshots` | [شواهد تاریخی گزارش](data-model.fa.md) · [مدل](../apps/api/didban/native_invoice_models.py) |
 
 ## کالا و انبار
 
 | کلاس | جدول | منبع |
 |---|---|---|
 | `InventoryItem` | `inventory_items` | [inventory_models.py](../apps/api/didban/inventory_models.py) |
+| `InventoryUnit` | `inventory_units` | [inventory_models.py](../apps/api/didban/inventory_models.py) |
 | `InventoryWarehouse` | `inventory_warehouses` | [inventory_models.py](../apps/api/didban/inventory_models.py) |
+| `InventoryWarehouseItem` | `inventory_warehouse_items` | [inventory_models.py](../apps/api/didban/inventory_models.py) |
 | `InventoryMovement` | `inventory_movements` | [inventory_models.py](../apps/api/didban/inventory_models.py) |
+
+رسید و خروج انبار از `OperationDraft` برای منشأ و از `InventoryMovement` برای شواهد گردش قطعی هر قلم استفاده می‌کنند.
 
 ## خزانه و تسویه
 
@@ -95,6 +99,8 @@ PYTHONPATH=apps/api .venv/bin/python -c 'from didban.api import app; from didban
 | `ChequeEvent` | `cheque_events` | [cheque_models.py](../apps/api/didban/cheque_models.py) |
 | `ChequeClearance` | `cheque_clearances` | [cheque_models.py](../apps/api/didban/cheque_models.py) |
 | `TreasuryAccount` | `treasury_accounts` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
+| `TreasuryPointOfSale` | `treasury_points_of_sale` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
+| `TreasuryToolPointOfSale` | `treasury_tool_points_of_sale` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
 | `TreasuryDocument` | `treasury_documents` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
 | `TreasuryToolLine` | `treasury_tool_lines` | [treasury_models.py](../apps/api/didban/treasury_models.py) |
 | `TreasuryAllocation` | `treasury_allocations` | [treasury_models.py](../apps/api/didban/treasury_models.py) |

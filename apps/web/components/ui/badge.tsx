@@ -58,6 +58,9 @@ export function Badge({
     </span>
   );
 }
+export function statusLabel(status: string) {
+  return labels[status] || "نامشخص";
+}
 export function StatusBadge({ status }: { status: string }) {
   const tone = [
     "completed",
@@ -84,5 +87,5 @@ export function StatusBadge({ status }: { status: string }) {
         : ["processing", "receiving", "sealed"].includes(status)
           ? "primary"
           : "neutral";
-  return <Badge tone={tone}>{labels[status] || "نامشخص"}</Badge>;
+  return <Badge tone={tone}>{statusLabel(status)}</Badge>;
 }

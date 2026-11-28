@@ -6,9 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
-import { Field, FormMessage } from "@/components/ui/field";
-import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import { Select } from "@/components/ui/select";
+import { FormMessage } from "@/components/ui/field";
 import type { InventoryCardexScope } from "@/hooks/use-inventory-cardex";
 import { useInventoryOverview } from "@/hooks/use-inventory";
 import { useWorkspace } from "@/hooks/workspace";
@@ -120,24 +118,6 @@ function InventoryWorkspace({ initialWarehouse }: { initialWarehouse?: string })
           <div className="space-y-6">
             <InventoryBalanceTable
               view={view}
-              filters={(
-                <div className="mb-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Field id="inventory-balance-item" label="کالا">
-                    <Select id="inventory-balance-item" value={view.itemId} onValueChange={view.chooseItem} searchable
-                      options={[{ value: view.all, label: "همه کالاها" },
-                        ...data.items.filter((item) => item.item_kind !== "service").map((item) => ({ value: item.id, label: item.name }))]} />
-                  </Field>
-                  <Field id="inventory-balance-warehouse" label="انبار">
-                    <Select id="inventory-balance-warehouse" value={view.warehouseId} onValueChange={view.chooseWarehouse} searchable
-                      options={[{ value: view.all, label: "همه انبارها" },
-                        ...data.warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.name }))]} />
-                  </Field>
-                  <Field id="inventory-balance-as-of" label="تاریخ ارزیابی">
-                    <PersianDatePicker id="inventory-balance-as-of" value={view.asOf} onChange={view.chooseAsOf} />
-                  </Field>
-                  <Button variant="ghost" onClick={view.resetFilters}>پاک‌کردن فیلترها</Button>
-                </div>
-              )}
               onViewKardex={(itemId, warehouseId) => setKardexTarget({
                 itemId: itemId ?? (view.itemId === view.all ? undefined : view.itemId),
                 warehouseId: warehouseId ?? (view.warehouseId === view.all ? undefined : view.warehouseId),

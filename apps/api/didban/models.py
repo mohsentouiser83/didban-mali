@@ -90,6 +90,9 @@ class Membership(Entity, Versioned, Base):
     role: Mapped[str] = mapped_column(String(30))
     approve_financial_report: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    module_access: Mapped[dict[str, dict[str, bool]]] = mapped_column(
+        JSON, default=dict, server_default="{}"
+    )
 
 
 class Tenant:

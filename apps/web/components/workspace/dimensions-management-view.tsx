@@ -1,9 +1,10 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ArchiveIcon, BooksIcon, EyeIcon, PencilSimpleIcon, PlusIcon, PowerIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
+import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -11,7 +12,6 @@ import { DetailField, DetailGroup } from "@/components/ui/field-layout";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CursorPagination } from "@/components/ui/pagination";
-import { SearchInput } from "@/components/ui/search-input";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -66,50 +66,6 @@ function Workspace() {
       />
 
       <Panel>
-        <div className="mb-5 flex flex-wrap items-end gap-3">
-          <div className="w-full sm:w-64">
-            <SearchInput
-              label="جستجوی نام یا کد..."
-              value={view.search}
-              onChange={(e) => view.setSearch(e.target.value)}
-            />
-          </div>
-          <div className="w-full sm:w-44">
-            <Field id="dimension-kind-filter" label="نوع">
-              <Select
-                id="dimension-kind-filter"
-                value={view.kindFilter}
-                onValueChange={view.setKindFilter}
-                options={[
-                  { value: "all", label: "همه انواع" },
-                  ...dimensionKinds,
-                ]}
-              />
-            </Field>
-          </div>
-          <div className="w-full sm:w-40">
-            <Field id="dimension-status-filter" label="وضعیت">
-              <Select
-                id="dimension-status-filter"
-                value={view.statusFilter}
-                onValueChange={(v) =>
-                  view.setStatusFilter(v as "all" | "active" | "archived")
-                }
-                options={[
-                  { value: "all", label: "همه وضعیت‌ها" },
-                  { value: "active", label: "فعال" },
-                  { value: "archived", label: "بایگانی" },
-                ]}
-              />
-            </Field>
-          </div>
-          {view.hasActiveFilters && (
-            <Button variant="ghost" onClick={view.resetFilters}>
-              پاک‌کردن فیلترها
-            </Button>
-          )}
-        </div>
-
         {view.resource.loading ? (
           <LoadingState label="در حال دریافت فهرست پروژه، شعبه و مرکز هزینه" />
         ) : view.resource.error ? (
@@ -120,7 +76,6 @@ function Workspace() {
         ) : (
           <>
             <Table
-              showSearch={false}
               title="پروژه، شعبه و مرکز هزینه"
               onImport={view.workspace.canWrite ? view.importFromExcel : undefined}
             >
@@ -148,38 +103,27 @@ function Workspace() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Button
-                            variant="ghost"
-                            className="h-9 px-2.5 text-xs"
+                        <TableRowActions label={`عملیات ${item.name}`}>
+                          <TableRowAction
                             onClick={() => view.open(item, true)}
+                            icon={<EyeIcon size={15} aria-hidden />}
                           >
-                            <EyeIcon size={15} aria-hidden />
                             مشاهده
-                          </Button>
+                          </TableRowAction>
                           {view.workspace.canWrite && (
                             <>
-                              <Button
-                                variant="secondary"
-                                className="h-9 px-2.5 text-xs"
+                              <TableRowAction
                                 onClick={() => view.open(item, false)}
+                                icon={<PencilSimpleIcon size={15} aria-hidden />}
                               >
-                                <PencilSimpleIcon size={15} aria-hidden />
                                 ویرایش
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className={
-                                  item.active
-                                    ? "h-9 px-2.5 text-xs text-warning hover:bg-warning-soft/40"
-                                    : "h-9 px-2.5 text-xs text-success hover:bg-success-soft/40"
-                                }
+                              </TableRowAction>
+                              <TableRowAction
                                 onClick={() => {
-                                  view.command.clearError();
-                                  view.setArchiving(item);
+                                    view.command.clearError();
+                                    view.setArchiving(item);
                                 }}
-                              >
-                                {item.active ? (
+                              >{item.active ? (
                                   <>
                                     <ArchiveIcon size={15} aria-hidden />
                                     بایگانی
@@ -189,22 +133,17 @@ function Workspace() {
                                     <PowerIcon size={15} aria-hidden />
                                     فعال‌سازی مجدد
                                   </>
-                                )}
-                              </Button>
+                                )}</TableRowAction>
                             </>
                           )}
-                        </div>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableEmptyCell
                     colSpan={5}
-                    title={
-                      view.hasActiveFilters
-                        ? "موردی با این فیلتر یافت نشد"
-                        : "پروژه، شعبه یا مرکز هزینه‌ای تعریف نشده"
-                    }
+                    title="پروژه، شعبه یا مرکز هزینه‌ای تعریف نشده"
                   />
                 )}
               </TableBody>
@@ -239,9 +178,6 @@ function Workspace() {
                 icon={BooksIcon}
               />
             </DetailGroup>
-            <StatusMessage tone="primary">
-              بایگانی یا تغییر عنوان، معنای تخصیص‌های ثبت‌شده و گزارش‌های تاریخی این پروژه، شعبه یا مرکز هزینه را تغییر نمی‌دهد.
-            </StatusMessage>
           </div>
         ) : (
           <Form
@@ -255,22 +191,13 @@ function Workspace() {
               className="space-y-4"
               disabled={!view.workspace.canWrite || view.command.busy}
             >
-              {!view.editing ? (
-                <StatusMessage tone="primary">
-                  کد یکتای این رکورد به‌صورت خودکار از قاعدهٔ شماره‌گذاری «پروژه و مرکز هزینه» تخصیص پیدا می‌کند.
-                </StatusMessage>
-              ) : (
+              {view.editing && (
                 <DetailField label="کد ثبت‌شده" value={view.editing.code} icon={BooksIcon} />
               )}
 
               <Field
                 id="dimension-kind"
                 label="نوع"
-                description={
-                  view.editing
-                    ? "نوع رکورد پس از ثبت تغییر نمی‌کند تا معنای گزارش‌های تاریخی حفظ شود."
-                    : undefined
-                }
                 required
               >
                 <Select
@@ -294,16 +221,11 @@ function Workspace() {
 
               <Checkbox
                 id="dimension-active"
-                label="فعال (قابل انتخاب در اسناد و تخصیص‌های جدید)"
+                label="فعال"
                 checked={view.value.active}
                 onCheckedChange={(active) => view.change({ active })}
               />
 
-              {view.editing && !view.value.active && (
-                <StatusMessage tone="warning">
-                  بایگانی کردن مانع انتخاب این مورد در تخصیص‌های جدید می‌شود، ولی تخصیص‌های قبلی و گزارش‌های تاریخی بدون تغییر باقی می‌مانند.
-                </StatusMessage>
-              )}
             </fieldset>
             <FormMessage error>{view.command.error?.message}</FormMessage>
             {view.workspace.canWrite && (
@@ -318,7 +240,7 @@ function Workspace() {
       <ConfirmDialog
         title={
           view.archiving?.active
-            ? "پروژه، شعبه یا مرکز هزینه بایگانی شود؟"
+            ? "برای تخصیص‌های جدید بایگانی شود؟"
             : "فعال‌سازی مجدد"
         }
         open={!!view.archiving}
@@ -330,11 +252,6 @@ function Workspace() {
       >
         <p className="font-medium text-foreground">
           {view.archiving?.name} ({view.archiving?.code})
-        </p>
-        <p className="text-xs text-muted">
-          {view.archiving?.active
-            ? "با بایگانی کردن، تخصیص‌های ثبت‌شدهٔ پیشین و گزارش‌های تاریخی دست‌نخورده می‌مانند و فقط انتخاب آن در ثبت‌های جدید بسته می‌شود."
-            : "با فعال‌سازی مجدد، این مورد دوباره در انتخاب‌های سند و گزارش در دسترس قرار می‌گیرد."}
         </p>
         <FormMessage error>{view.command.error?.message}</FormMessage>
       </ConfirmDialog>
@@ -349,16 +266,13 @@ function Workspace() {
       >
         {view.importPreview && (
           <div className="space-y-4">
-            <StatusMessage tone="primary">
-              کد هر مورد هنگام ثبت نهایی به‌صورت خودکار توسط سامانه از شماره‌گذاری شرکت تخصیص داده می‌شود.
-            </StatusMessage>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Badge tone="success">{persian(validImportCount)} ردیف معتبر</Badge>
               {invalidImportCount > 0 && (
                 <Badge tone="danger">{persian(invalidImportCount)} ردیف خطادار</Badge>
               )}
             </div>
-            <Table showSearch={false}>
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ردیف</TableHead>
@@ -407,11 +321,12 @@ function Workspace() {
               </div>
             )}
 
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <Button variant="secondary" onClick={view.closeImport} disabled={view.importBusy}>
                 بستن
               </Button>
               <Button
+                className="w-full"
                 busy={view.importBusy}
                 disabled={!validImportCount || view.importBusy}
                 onClick={() => void view.applyImport()}

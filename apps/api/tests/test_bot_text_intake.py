@@ -35,7 +35,9 @@ assert reviewed.status_code==201,reviewed.text
 assert command(owner,"POST",base+"/bot-intakes/extractions/"+proposal_id+"/review",body,version=1,key=key).json()==reviewed.json()
 with transaction("company-a") as db:
     item=db.get(BotIntake,identifier);assert item.sha256==original_sha and (settings.storage/item.storage_key).read_bytes()==original
-    assert db.scalar(select(m.ProcessingSession).where(m.ProcessingSession.id==reviewed.json()["session_id"])).state=="receiving"
+    session_id = reviewed.json()["session_id"]
+    assert db.get(m.ProcessingSession, session_id).state == "sealed"
+    assert len(list(db.scalars(select(m.Job).where(m.Job.session_id == session_id)))) == 1
     assert db.scalar(select(m.JournalLine.id)) is None and db.scalar(select(NativeJournal.id)) is None
     assert len(list(db.scalars(select(BotExtractionReview))))==1
 """,

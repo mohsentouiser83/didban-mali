@@ -26,6 +26,8 @@ export interface CommercialDocumentLine {
   line_discount_irr: string;
   net_before_inv_disc_irr: string;
   allocated_invoice_discount_irr: string;
+  vat_rate_pct?: string;
+  vat_amount_irr?: string;
   net_amount_irr: string;
   cost_irr: string;
   cost_layers: { journal_id: string; quantity: number; unit_cost_irr: string }[];
@@ -58,6 +60,7 @@ export interface CommercialDocument {
   gross_amount_irr: string;
   line_discount_total_irr: string;
   invoice_discount_irr: string;
+  vat_total_irr?: string;
   net_amount_irr: string;
   open_balance_irr: string | null;
   settlement_type: CommercialSettlementType;

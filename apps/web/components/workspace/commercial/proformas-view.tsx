@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { FilesIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
@@ -77,37 +78,60 @@ function ProformasWorkspace() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <Button variant="ghost" aria-label={`مشاهده پیش‌فاکتور ${row.number}`}
-                          onClick={() => view.open(row, true)}>مشاهده</Button>
+                      <TableRowActions label={`عملیات ${row.number}`}>
+                        <TableRowAction
+                          aria-label={`مشاهده پیش‌فاکتور ${row.number}`}
+                          onClick={() => view.open(row, true)}
+                          kind="view"
+                        >
+                          مشاهده
+                        </TableRowAction>
                         {view.base && (
-                          <ButtonLink href={`/api/v1${view.base}/${row.id}/export`} download variant="ghost">
+                          <TableRowAction
+                            href={`/api/v1${view.base}/${row.id}/export`}
+                            download
+                            kind="download"
+                          >
                             خروجی PDF
-                          </ButtonLink>
+                          </TableRowAction>
                         )}
                         {view.canPrepare && row.direction === "sale" && ["draft", "issued"].includes(row.status) &&
-                          <Button variant="ghost" aria-label={`ویرایش پیش‌فاکتور ${row.number}`}
-                            onClick={() => view.open(row)}>ویرایش</Button>}
+                          <TableRowAction
+                            aria-label={`ویرایش پیش‌فاکتور ${row.number}`}
+                            onClick={() => view.open(row)}
+                            kind="edit"
+                          >
+                            ویرایش
+                          </TableRowAction>}
                         {view.canPrepare && view.capabilities.data?.posting_available &&
                           row.direction === "sale" && row.status === "issued" &&
                           (!row.expiry_date || row.expiry_date >= tehranToday()) && (
-                            <Button variant="ghost" onClick={() => setConversion(row)}>تبدیل به پیش‌نویس فروش</Button>
+                            <TableRowAction onClick={() => setConversion(row)}>تبدیل به پیش‌نویس فروش</TableRowAction>
                           )}
                         {row.status === "conversion_pending" && row.converted_draft_id && (
-                          <ButtonLink variant="soft" href={`/accounting?review_draft=${encodeURIComponent(row.converted_draft_id)}`}>
+                          <TableRowAction
+                            href={`/accounting?review_draft=${encodeURIComponent(row.converted_draft_id)}`}
+                          >
                             پیش‌نویس در اسناد
-                          </ButtonLink>
+                          </TableRowAction>
                         )}
                         {row.status === "converted" && (
-                          <ButtonLink variant="soft" href={`/receivables${row.converted_operation_id ? `?operation=${encodeURIComponent(row.converted_operation_id)}` : ""}`}>
+                          <TableRowAction
+                            href={`/receivables${row.converted_operation_id ? `?operation=${encodeURIComponent(row.converted_operation_id)}` : ""}`}
+                          >
                             {row.converted_document_number ? `فاکتور ${row.converted_document_number}` : "فاکتور فروش"}
-                          </ButtonLink>
+                          </TableRowAction>
                         )}
                         {view.canPrepare && ["draft", "issued"].includes(row.status) && (
-                          <Button variant="ghost" onClick={() => view.cancel(row, "لغو از کارپوشه پیش‌فاکتور")}>لغو</Button>
+                          <TableRowAction
+                            onClick={() => view.cancel(row, "لغو از کارپوشه پیش‌فاکتور")}
+                            kind="reverse"
+                          >
+                            لغو
+                          </TableRowAction>
                         )}
 
-                      </div>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))}

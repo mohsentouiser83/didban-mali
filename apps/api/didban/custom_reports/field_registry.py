@@ -307,13 +307,11 @@ REGISTRY: dict[str, EntityRegistry] = {
             FieldDef("code", "کد کالا", "string"),
             FieldDef("name", "نام کالا / خدمت", "string"),
             FieldDef("active", "وضعیت فعال", "boolean"),
-            FieldDef("inventory_account_id", "حساب معین انبار", "string"),
         ],
         selectable=[
             FieldDef("code", "کد کالا", "string"),
             FieldDef("name", "نام کالا", "string"),
             FieldDef("active", "وضعیت فعال", "boolean"),
-            FieldDef("inventory_account_id", "حساب معین", "string"),
             FieldDef("created_at", "تاریخ تعریف", "date"),
         ],
         groupable=[
@@ -416,6 +414,22 @@ REGISTRY: dict[str, EntityRegistry] = {
         ],
     ),
 }
+
+
+def strip_retired_inventory_account(blocks: list[dict]) -> list[dict]:
+    """Remove the retired item account field when opening or saving a template."""
+    field = "inventory_account_id"
+    result = []
+    for block in blocks:
+        if block.get("entity_type") == "inventory_items":
+            block = block | {
+                "columns": [key for key in block.get("columns") or [] if key != field],
+                "filters": [clause for clause in block.get("filters") or [] if clause.get("field") != field],
+            }
+            if block.get("sort_field") == field:
+                block.pop("sort_field")
+        result.append(block)
+    return result
 
 
 def get_entity_registry(entity_type: str) -> EntityRegistry | None:

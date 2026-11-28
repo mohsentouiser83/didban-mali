@@ -62,7 +62,15 @@ export function usePayrollDashboard() {
   const [draftRunId, setDraftRunId] = useState<string | null>(null);
   const [draftAccounts, setDraftAccounts] = useState<Record<string, string>>({});
   const draftOpen = draftRunId !== null && draftRunId === selectedRunId;
-  const accounts = useAccountOptions(draftOpen ? workspace.company?.id ?? "" : "");
+  const [paymentDraftRunId, setPaymentDraftRunId] = useState<string | null>(null);
+  const paymentDraftOpen = paymentDraftRunId !== null && paymentDraftRunId === selectedRunId;
+  const [paymentForm, setPaymentForm] = useState({
+    date: tehranToday(),
+    bank_account_id: "",
+    payroll_payable_account_id: "",
+    description: "",
+  });
+  const accounts = useAccountOptions(draftOpen || paymentDraftOpen ? workspace.company?.id ?? "" : "");
   const selectedRun = runResource.data;
   const roles = [
     { key: "salary_expense", label: "هزینه حقوق", required: Number(selectedRun?.total_gross) > 0 },
@@ -259,6 +267,46 @@ export function usePayrollDashboard() {
     );
   };
 
+  function openPaymentDraft() {
+    if (!access.canPrepare || !selectedRun) return;
+    setPaymentForm({
+      date: selectedRun.calculation_date || tehranToday(),
+      bank_account_id: "",
+      payroll_payable_account_id: "",
+      description: `پرداخت حقوق ${selectedRun.title}`,
+    });
+    command.clearError();
+    setPaymentDraftRunId(selectedRunId);
+  }
+  function closePaymentDraft() {
+    setPaymentDraftRunId(null);
+    command.clearError();
+  }
+  const canCreatePaymentDraft =
+    !!paymentForm.date && !!paymentForm.bank_account_id && !!paymentForm.payroll_payable_account_id;
+  const handleCreatePaymentDraft = async () => {
+    if (!access.canPrepare || !workspace.company || !selectedRunId || !selectedRun || !canCreatePaymentDraft) return;
+    await command.run(
+      `/companies/${workspace.company.id}/payroll/runs/${selectedRunId}/payment-draft`,
+      {
+        method: "POST",
+        body: {
+          date: paymentForm.date,
+          bank_account_id: paymentForm.bank_account_id,
+          payroll_payable_account_id: paymentForm.payroll_payable_account_id,
+          description: paymentForm.description.trim() || null,
+          expected_version: selectedRun.version,
+        },
+      },
+      () => {
+        closePaymentDraft();
+        runResource.refresh();
+        runsResource.refresh();
+      },
+      "پیش‌نویس سند پرداخت حقوق ایجاد شد و به اسناد حسابداری ارسال گردید.",
+    );
+  };
+
   return {
     workspace,
     command,
@@ -287,6 +335,13 @@ export function usePayrollDashboard() {
     closeDraft,
     draftOpen,
     draftAccounts,
+    paymentDraftOpen,
+    openPaymentDraft,
+    closePaymentDraft,
+    paymentForm,
+    setPaymentForm,
+    canCreatePaymentDraft,
+    handleCreatePaymentDraft,
     setDraftAccount: (key: string, value: string) => setDraftAccounts((current) => ({ ...current, [key]: value })),
     roles,
     canCreateDraft,

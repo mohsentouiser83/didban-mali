@@ -1,8 +1,8 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { BooksIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Drawer } from "@/components/ui/drawer";
 import { CursorPagination } from "@/components/ui/pagination";
@@ -49,7 +49,7 @@ function JournalReport() {
                   <TableHead>شماره سند</TableHead>
                   <TableHead>تاریخ ثبت</TableHead>
                   <TableHead>شرح</TableHead>
-                  <TableHead><span className="sr-only">جزئیات</span></TableHead>
+                  <TableHead><span className="sr-only">عملیات</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -59,9 +59,14 @@ function JournalReport() {
                     <TableCell>{displayDate(journal.date)}</TableCell>
                     <TableCell>{journal.snapshot.description}</TableCell>
                     <TableCell>
-                      <Button variant="secondary" onClick={() => setSelected(journal)}>
-                        جزئیات<span className="sr-only"> سند {journal.snapshot.number ?? persian(journal.sequence)}</span>
-                      </Button>
+                      <TableRowActions label={`عملیات ${journal.snapshot.number ?? persian(journal.sequence)}`}>
+                        <TableRowAction
+                          onClick={() => setSelected(journal)}
+                          kind="view"
+                        >
+                          جزئیات<span className="sr-only"> سند {journal.snapshot.number ?? persian(journal.sequence)}</span>
+                        </TableRowAction>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 )) : (

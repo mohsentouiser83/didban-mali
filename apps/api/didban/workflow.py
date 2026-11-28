@@ -121,7 +121,7 @@ def issue(
     db.flush()
     session.state = "waiting_input"
     session.version += 1
-    db.add(Notification(company_id=session.company_id, title=question, href=f"/uploads/{session.id}"))
+    db.add(Notification(company_id=session.company_id, title=question, href=f"/reports/processing/{session.id}"))
     audit(
         db,
         session.company_id,

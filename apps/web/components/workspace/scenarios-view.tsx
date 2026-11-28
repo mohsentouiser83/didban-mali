@@ -10,7 +10,6 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  StatusMessage,
 } from "@/components/ui/content-states";
 import { useCashScenarios } from "@/hooks/use-cash-scenarios";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
@@ -48,18 +47,13 @@ export function ImportedScenariosWorkspace() {
         className="sm:max-w-4xl"
       >
         <div className="space-y-5">
-          {c.baseline && (
-            <Panel title="مبنای ثابت سناریو">
-              <StatusMessage>
-                سناریو فرضی است و سند یا تعهد مالی ایجاد نمی‌کند.
-              </StatusMessage>
-              {c.assumptions.length > 0 && (
-                <ul className="mt-3 space-y-2 text-sm text-muted">
-                  {c.assumptions.map((text, index) => (
-                    <li key={index}>{text}</li>
-                  ))}
-                </ul>
-              )}
+          {c.baseline && c.assumptions.length > 0 && (
+            <Panel title="فرض‌های سناریو">
+              <ul className="space-y-2 text-sm text-muted">
+                {c.assumptions.map((text, index) => (
+                  <li key={index}>{text}</li>
+                ))}
+              </ul>
             </Panel>
           )}
           {mode === "details" ? (

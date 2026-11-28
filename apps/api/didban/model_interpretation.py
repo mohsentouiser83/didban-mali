@@ -77,7 +77,7 @@ def _park(company_id: str, job_id: str, fence: int, result: dict) -> None:
                     title="پردازش در انتظار بودجه مدل است."
                     if code in ("budget_exhausted", "model_budget_not_configured")
                     else "تفسیر فایل در انتظار سرویس مدل است.",
-                    href=f"/uploads/{session.id}",
+                    href=f"/reports/processing/{session.id}",
                 )
             )
         session.state, session.error_code = "waiting_dependency", code

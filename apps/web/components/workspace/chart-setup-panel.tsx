@@ -7,7 +7,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form } from "@/components/ui/form";
 import { FormMessage, RequiredIndicator } from "@/components/ui/field";
 import { SingleFilePicker } from "@/components/ui/single-file-picker";
-import { StatusMessage } from "@/components/ui/content-states";
 import {
   Table,
   TableHeader,
@@ -15,6 +14,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
+  TableEmptyCell,
   TableRowHeader,
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
@@ -28,16 +28,9 @@ import {
   type AccountLevel,
 } from "@/lib/account-catalogue";
 import { persian } from "@/lib/utils";
-import { DrawerAction } from "@/components/ui/drawer-action";
-export function ChartSetupPanel({
-  onImported,
-  embedded = false,
-}: {
-  onImported: () => void;
-  embedded?: boolean;
-}) {
+export function ChartSetupPanel({ onImported }: { onImported: () => void }) {
   const c = useChartSetup(onImported);
-  const content = (
+  return (
     <Form
       onSubmit={(event) => {
         event.preventDefault();
@@ -63,10 +56,6 @@ export function ChartSetupPanel({
       <FormMessage error>{c.command.error?.message}</FormMessage>
       {c.total > 0 && (
         <div className="mt-5 space-y-4">
-          <StatusMessage tone="primary">
-            الگوی اولیه قابل ویرایش است؛ نگاشت قانونی یا ثبت مالی تأییدشده نیست.
-            کدهای موجود جایگزین نمی‌شوند.
-          </StatusMessage>
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <span>{persian(c.total)} حساب</span>
             <Badge tone="success">{persian(c.total - c.invalidCount)} {c.previewId ? "ردیف آماده ورود" : "ردیف آماده بررسی"}</Badge>
@@ -74,19 +63,20 @@ export function ChartSetupPanel({
               <Badge tone="danger">{persian(c.invalidCount)} ردیف خطادار</Badge>
             )}
           </div>
-          <Table showSearch={false}>
+          <Table toolbar={false} title="ردیف‌های فایل کدینگ">
             <TableHeader>
               <TableRow>
-                <TableHead>کد حساب <RequiredIndicator /></TableHead>
-                <TableHead>نام حساب <RequiredIndicator /></TableHead>
-                <TableHead>سطح حساب</TableHead>
-                <TableHead>کد حساب بالادست</TableHead>
-                <TableHead>ماهیت حساب <RequiredIndicator /></TableHead>
-                <TableHead>فعال</TableHead>
-                <TableHead>اعتبارسنجی</TableHead>
+                <TableHead columnFilter={c.columnFilter("code")}>کد حساب <RequiredIndicator /></TableHead>
+                <TableHead columnFilter={c.columnFilter("name")}>نام حساب <RequiredIndicator /></TableHead>
+                <TableHead columnFilter={c.columnFilter("level")}>سطح حساب</TableHead>
+                <TableHead columnFilter={c.columnFilter("parent")}>کد حساب بالادست</TableHead>
+                <TableHead columnFilter={c.columnFilter("nature")}>ماهیت حساب <RequiredIndicator /></TableHead>
+                <TableHead columnFilter={c.columnFilter("active")}>فعال</TableHead>
+                <TableHead columnFilter={c.columnFilter("status")}>اعتبارسنجی</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
+              {c.visibleRows.length === 0 && <TableEmptyCell colSpan={7} title="ردیفی با این فیلترها پیدا نشد" />}
               {c.visibleRows.map((row) => (
                 <TableRow key={row.index}>
                   <TableRowHeader>
@@ -121,11 +111,11 @@ export function ChartSetupPanel({
                       onValueChange={(level) => c.change(row.index, { level: level === "unclassified" ? null : level as AccountLevel, parent_code: null })} />
                   </TableCell>
                   <TableCell>
-                    {row.parentRequired ? <div className="flex items-center gap-2">
-                      <Input required aria-label={`کد حساب بالادست ردیف ${row.index + 1}`} dir="ltr"
+                    {row.parentRequired || row.level === "detail" ? <div className="flex items-center gap-2">
+                      <Input required={row.parentRequired} aria-label={`کد حساب بالادست ردیف ${row.index + 1}`} dir="ltr"
                         maxLength={100} value={row.parent_code || ""} disabled={c.command.busy}
-                        onChange={(event) => c.change(row.index, { parent_code: event.target.value })} />
-                      <RequiredIndicator />
+                        onChange={(event) => c.change(row.index, { parent_code: event.target.value || null })} />
+                      {row.parentRequired && <RequiredIndicator />}
                     </div> : "—"}
                   </TableCell>
                   <TableCell>
@@ -166,7 +156,8 @@ export function ChartSetupPanel({
           </Table>
           <Pagination
             page={c.page}
-            total={c.total}
+            total={c.filteredTotal}
+            pageSize={c.pageSize}
             onPrevious={c.previousPage}
             onNext={c.nextPage}
           />
@@ -185,18 +176,5 @@ export function ChartSetupPanel({
         </div>
       )}
     </Form>
-  );
-  return embedded ? (
-    content
-  ) : (
-    <div className="mb-5">
-      <DrawerAction
-        title="الگو و ورود کدینگ"
-        action="ورود کدینگ"
-        busy={c.command.busy}
-      >
-        {content}
-      </DrawerAction>
-    </div>
   );
 }

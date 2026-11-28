@@ -25,6 +25,7 @@ it("shows categorized settings with cards in gear settings catalog", () => {
     "/commercial/counterparties",
     "/settings/periods",
     "/settings/dimensions",
+    "/settings/inventory-units",
     "/settings/numbering",
     "/settings/members",
     "/settings/company",
@@ -35,7 +36,7 @@ it("shows categorized settings with cards in gear settings catalog", () => {
   expect(searchSettings(viewer, "پروژه")[0].href).toBe("/settings/dimensions");
   expect(searchSettings(viewer, "مرکز هزینه")[0].href).toBe("/settings/dimensions");
   expect(searchSettings(viewer, "مدارک بات")[0].href).toBe("/settings/documents");
-  for (const removed of ["کارمندان", "پرسنل", "قرارداد کارمندان", "تطبیق", "مغایرت", "کالا", "انبارها", "کاردکس", "اعلان‌های بات", "موارد نیازمند بررسی", "کنترل‌های دفتر", "تحلیل تغییر هزینه‌ها", "نقش حساب‌ها در صورت‌های مالی", "قواعد و پیشنهادهای حسابداری", "الگوهای ثبت و نگاشت"]) {
+  for (const removed of ["کارمندان", "پرسنل", "قرارداد کارمندان", "تطبیق", "مغایرت", "انبارها", "کاردکس", "اعلان‌های بات", "موارد نیازمند بررسی", "کنترل‌های دفتر", "تحلیل تغییر هزینه‌ها", "نقش حساب‌ها در صورت‌های مالی", "قواعد و پیشنهادهای حسابداری", "الگوهای ثبت و نگاشت"]) {
     expect(searchSettings(viewer, removed)).toEqual([]);
   }
   expect(searchSettings(viewer, "دسترسی")[0].href).toBe("/settings/members");
@@ -46,6 +47,7 @@ it("shows categorized settings with cards in gear settings catalog", () => {
   expect(searchSettings(viewer, "مشتریان")[0].categoryTitle).toBe("تعاریف مالی و حسابداری");
   expect(searchSettings(viewer, "دوره")[0].href).toBe("/settings/periods");
   expect(searchSettings(viewer, "ابعاد")[0].href).toBe("/settings/dimensions");
+  expect(searchSettings(viewer, "واحد کالا")[0].href).toBe("/settings/inventory-units");
   expect(searchSettings(viewer, "شماره‌گذاری")[0].href).toBe(
     "/settings/numbering",
   );
@@ -100,6 +102,7 @@ it("checks active state for settings destinations and categories", () => {
   expect(isSettingsCategoryActive(accounting, "/settings/periods")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/dimensions")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/numbering")).toBe(true);
+  expect(isSettingsCategoryActive(accounting, "/settings/inventory-units")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/commercial/counterparties")).toBe(true);
   expect(isSettingsCategoryActive(accounting, "/settings/members")).toBe(false);
 

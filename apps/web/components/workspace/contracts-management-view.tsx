@@ -1,10 +1,10 @@
 "use client";
 
-import { BooksIcon, PlusIcon, PencilSimpleIcon, ArrowClockwiseIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
+import { BooksIcon, PlusIcon, PencilSimpleIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useContracts } from "@/hooks/use-contracts";
 import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
-import { SearchInput } from "@/components/ui/search-input";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableRowHeader, TableCell, TableEmptyCell } from "@/components/ui/table";
 import { Drawer } from "@/components/ui/drawer";
 import { Field, FormMessage } from "@/components/ui/field";
@@ -14,7 +14,7 @@ import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NoCompany, PageHeader, Panel } from "./page-parts";
 import type { EmployeeContract } from "@/lib/api";
-import { amount, displayDate, persian } from "@/lib/utils";
+import { amount, displayDate } from "@/lib/utils";
 
 const contractTypeLabels: Record<string, string> = {
   full_time: "تمام‌وقت (قانون کار)",
@@ -48,36 +48,7 @@ export function ContractsManagementView() {
       ) : (
         <div className="space-y-5">
           <Panel title="فهرست قراردادهای کارمندان">
-            <div className="mb-5 flex flex-wrap items-center gap-3">
-              <SearchInput
-                label="جستجوی شماره قرارداد یا نام کارمند"
-                value={v.search}
-                onChange={(e) => v.setSearch(e.target.value)}
-                className="min-w-0 flex-1"
-              />
-              <div className="w-56">
-                <Select
-                  value={v.filterEmployeeId}
-                  onValueChange={v.setFilterEmployeeId}
-                  options={[
-                    { value: "all", label: "همه کارمندان" },
-                    ...v.employees.map((e) => ({
-                      value: e.id,
-                      label: `${e.full_name} (${e.employee_code})`,
-                    })),
-                  ]}
-                />
-              </div>
-              {v.search && (
-                <Button variant="ghost" onClick={() => v.setSearch("")}>
-                  <ArrowClockwiseIcon size={18} aria-hidden />
-                  پاک‌کردن
-                </Button>
-              )}
-              <span className="text-xs text-muted">{persian(v.contracts.length)} قرارداد</span>
-            </div>
-
-            <Table title="قراردادهای کارمندان" showSearch={false} onImport={v.canPrepare ? v.importFromExcel : undefined}>
+            <Table title="قراردادهای کارمندان" onImport={v.canPrepare ? v.importFromExcel : undefined}>
               <TableHeader>
                 <TableRow>
                   <TableHead>شماره قرارداد</TableHead>
@@ -131,9 +102,15 @@ export function ContractsManagementView() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-end">
-                        <Button variant="ghost" className="size-8 p-0" onClick={() => v.openEdit(con)} title="ویرایش">
-                          <PencilSimpleIcon size={16} />
-                        </Button>
+                        <TableRowActions label={`عملیات ${con.contract_number}`}>
+                          <TableRowAction
+                            onClick={() => v.openEdit(con)}
+                            title="ویرایش"
+                            icon={<PencilSimpleIcon size={16} />}
+                          >
+                            ویرایش
+                          </TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))
@@ -142,9 +119,11 @@ export function ContractsManagementView() {
                     colSpan={10}
                     title="قراردادی ثبت نشده است"
                     action={
-                      <Button variant="secondary" onClick={v.openAdd}>
-                        ثبت اولین قرارداد
-                      </Button>
+                      v.canPrepare ? (
+                        <Button variant="secondary" onClick={v.openAdd}>
+                          ثبت اولین قرارداد
+                        </Button>
+                      ) : undefined
                     }
                   />
                 )}
@@ -159,11 +138,10 @@ export function ContractsManagementView() {
         open={v.canPrepare && v.formOpen}
         onOpenChange={(open) => !open && v.closeForm()}
         title={v.editing ? "ویرایش قرارداد" : "ثبت قرارداد جدید"}
-        description="شرایط همکاری، نوع قرارداد و مبالغ ثابت ماهانه یا ساعتی را مشخص کنید."
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full flex-wrap justify-end gap-2">
             <Button variant="secondary" onClick={v.closeForm}>انصراف</Button>
-            <Button variant="primary" busy={v.command.busy} onClick={v.save}>
+            <Button variant="primary" busy={v.command.busy} className="w-full" onClick={v.save}>
               {v.editing ? "ذخیره تغییرات" : "ثبت قرارداد"}
             </Button>
           </div>
@@ -324,7 +302,6 @@ export function ContractsManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_insured: !!checked })}
                   label="مشمول بیمه تأمین اجتماعی"
                 />
-                <p className="text-xs text-muted ps-7">حق بیمه سهم کارمند و کارفرما محاسبه می‌شود.</p>
               </div>
               <div className="space-y-1">
                 <Checkbox
@@ -332,7 +309,6 @@ export function ContractsManagementView() {
                   onCheckedChange={(checked) => v.setForm({ ...v.form, is_taxable: !!checked })}
                   label="مشمول مالیات بر درآمد حقوق"
                 />
-                <p className="text-xs text-muted ps-7">مالیات بر اساس جدول پلکانی ماده ۸۴ محاسبه می‌گردد.</p>
               </div>
             </div>
           </div>

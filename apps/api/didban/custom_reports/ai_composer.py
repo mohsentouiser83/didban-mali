@@ -162,7 +162,7 @@ def compose_report_block(prompt: str) -> dict[str, Any]:
             "columns": (
                 ["date", "item_id", "warehouse_id", "kind", "quantity", "value_irr"]
                 if is_movements
-                else ["code", "name", "active", "inventory_account_id"]
+                else ["code", "name", "active"]
             ),
             "group_by": "kind" if is_movements else "active",
             "aggregation": {"function": "sum", "field": "quantity"}

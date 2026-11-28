@@ -17,9 +17,6 @@ export default function GlobalError({ retry }: { retry: () => void }) {
           <PageTitle icon={TitleIcon} className="justify-center">
             نمایش برنامه ممکن نشد
           </PageTitle>
-          <p className="mt-3 text-sm text-muted">
-            برای بازیابی صفحه دوباره تلاش کنید.
-          </p>
           <Button onClick={retry} className="mt-6">
             تلاش دوباره
           </Button>

@@ -20,6 +20,7 @@ from didban.db import initialize, transaction  # noqa: E402
 from didban.models import User  # noqa: E402
 from didban.security import hasher  # noqa: E402
 from didban.worker import run_once  # noqa: E402
+from processing_fixture import seed_processing_fixture  # noqa: E402
 
 initialize()
 with transaction() as db:
@@ -58,10 +59,7 @@ period = create(
     base + "/financial-periods",
     {"name": "شهریور ۱۴۰۵؛ آزمون", "start": "2026-09-01", "end": "2026-09-30"},
 )
-session = create(base + "/processing-sessions", {"period_id": period["id"]})
-path = base + "/processing-sessions/" + session["id"]
-files = []
-for filename in (
+names = (
     "ledger.xlsx",
     "bank.xlsx",
     "invoices.xlsx",
@@ -70,19 +68,13 @@ for filename in (
     "moadian-purchases.csv",
     "planned-payments.csv",
     "receipt-history.csv",
-):
-    with (ROOT / "docs/validation/rebuild-v1/inputs/baseline" / filename).open(
-        "rb"
-    ) as f:
-        response = client.post(
-            "/api/v1" + path + "/files",
-            files={"file": (filename, f)},
-            headers=headers(),
-        )
-    assert response.is_success, response.text
-    files.append(response.json()["id"])
-state = client.get("/api/v1" + path).json()
-create(path + "/seal", {"file_ids": files}, state["version"])
+)
+fixtures = ROOT / "docs/validation/rebuild-v1/inputs/baseline"
+session_id = seed_processing_fixture(
+    company["id"], period["id"], "qa@example.test",
+    ((name, (fixtures / name).read_bytes()) for name in names),
+)
+path = base + "/processing-sessions/" + session_id
 run_once()
 state = client.get("/api/v1" + path).json()
 question = state["issues"][0]

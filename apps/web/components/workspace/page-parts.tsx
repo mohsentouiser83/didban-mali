@@ -57,6 +57,7 @@ export function CurrentPageHeader() {
     "/accounting/inventory/items": { title: "کالاها", icon: PackageIcon },
     "/accounting/inventory/warehouses": { title: "انبارها", icon: StorefrontIcon },
     "/cashflow/scenarios": { title: "سناریوی نقدینگی", icon: FilesIcon },
+    "/receivables/new": { title: "فاکتور فروش جدید", icon: ReceiptIcon },
     "/receivables/followups": { title: "پیگیری وصول", icon: UsersThreeIcon },
     "/moadian/transmissions": { title: "ارسال و استعلام صورتحساب", icon: ReceiptIcon },
     "/reports/dimensions": { title: "گزارش پروژه و مرکز هزینه", icon: FilesIcon },
@@ -67,7 +68,7 @@ export function CurrentPageHeader() {
     "/settings": { title: "تنظیمات", icon: GearIcon },
     "/settings/numbering": { title: "سیستم شماره‌گذاری", icon: HashIcon },
   };
-  const fallback = pathname.startsWith("/uploads/")
+  const fallback = pathname.startsWith("/reports/processing/")
     ? { title: "گزارش پردازش فایل", icon: FilesIcon }
     : extra[pathname] || { title: "پیشخوان", icon: FilesIcon };
   return <PageHeader {...fallback} />;
@@ -129,11 +130,6 @@ export function NoResult() {
           controller.available
             ? "گزارش این دوره آماده نیست"
             : "اطلاعات مالی برای این دوره ثبت نشده است"
-        }
-        description={
-          controller.available
-            ? undefined
-            : "برای مشاهده تحلیل‌ها و گزارش‌ها، اسناد حسابداری یا عملیات مالی دوره را ثبت کنید."
         }
         action={
           controller.available ? (

@@ -16,7 +16,6 @@ export type OnboardingStepStatus = "completed" | "active" | "pending";
 export interface OnboardingStep {
   id: string;
   title: string;
-  description?: string;
   status: OnboardingStepStatus;
   stepNumber?: number;
   ctaText?: string;
@@ -27,8 +26,6 @@ export interface OnboardingStep {
 
 export interface SmartEmptyStateProps {
   title?: string;
-  description?: string;
-  badgeText?: string;
   icon?: ReactNode;
   steps: OnboardingStep[];
   primaryCta?: {
@@ -41,8 +38,6 @@ export interface SmartEmptyStateProps {
 
 export function SmartEmptyState({
   title = "هنوز داده‌ای ثبت نشده است",
-  description = "برای شروع و راه‌اندازی این بخش، مراحل زیر را به ترتیب دنبال کنید:",
-  badgeText = "راهنمای راه‌اندازی سریع",
   icon,
   steps = [],
   primaryCta,
@@ -71,7 +66,7 @@ export function SmartEmptyState({
         className,
       )}
     >
-      {/* Visual Header / Badge */}
+      {/* Empty state title */}
       <div className="mb-4 flex flex-col items-center gap-3">
         <span
           className="grid size-14 place-items-center rounded-2xl border border-primary/20 bg-primary-soft text-primary shadow-sm"
@@ -80,21 +75,11 @@ export function SmartEmptyState({
           {icon || <SparkleIcon size={28} weight="duotone" />}
         </span>
 
-        {badgeText && (
-          <span className="rounded-full border border-primary/30 bg-primary-soft px-3 py-1 text-xs font-medium text-primary">
-            {badgeText}
-          </span>
-        )}
 
         <h2 className="font-display text-xl font-medium text-foreground sm:text-2xl">
           {title}
         </h2>
 
-        {description && (
-          <p className="max-w-xl text-sm leading-7 text-muted">
-            {description}
-          </p>
-        )}
       </div>
 
       {/* Onboarding Steps Grid */}
@@ -156,7 +141,7 @@ export function SmartEmptyState({
                     )}
                   </div>
 
-                  {/* Step Title & Description */}
+
                   <h3 className={cn(
                     "text-sm font-medium",
                     isActive ? "text-primary font-semibold" : "text-foreground",
@@ -164,11 +149,6 @@ export function SmartEmptyState({
                     {step.title}
                   </h3>
 
-                  {step.description && (
-                    <p className="mt-1.5 text-xs leading-6 text-muted">
-                      {step.description}
-                    </p>
-                  )}
                 </div>
               </li>
             );

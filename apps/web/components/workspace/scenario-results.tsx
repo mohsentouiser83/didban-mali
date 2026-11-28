@@ -62,14 +62,53 @@ export function ScenarioResults({
     : native && !item.baseline.forecast_run_id
       ? "مبنای بدون جریان جدید"
       : "پیش‌بینی مبنا";
+  const basisKindLabel = limited
+    ? "جریان‌های تاریخ‌دار معلوم"
+    : item.baseline.forecast_run_id
+      ? "پیش‌بینی خودکار ذخیره‌شده"
+      : "ماندهٔ گزارش ثابت با فرض‌های دستی";
+  const totalInflows = (scenario.events ?? [])
+    .filter((ev) => ev.direction === "receipt")
+    .reduce((sum, ev) => sum + Number(ev.amount || 0), 0);
+  const totalOutflows = (scenario.events ?? [])
+    .filter((ev) => ev.direction === "payment")
+    .reduce((sum, ev) => sum + Number(ev.amount || 0), 0);
+  const closingVal = limited ? (scenario.known_dated_closing ?? scenario.closing) : scenario.closing;
+  const unitName = c.view.workspace.unit === "IRR" ? "ریال" : "تومان";
   return (
     <div className="space-y-5">
       <Panel title="نتیجه نسخه ذخیره‌شده">
         <p className="mb-4 text-sm text-muted">
-          نسخه {item.version.toLocaleString("fa-IR")} · مبنا{" "}
+          نوع مبنا: <b className="text-foreground">{basisKindLabel}</b> · نسخه {item.version.toLocaleString("fa-IR")} · بازه{" "}
           {displayDate(item.baseline.as_of_date)} تا{" "}
           {displayDate(item.baseline.end)}
         </p>
+        <div className="mb-4 grid gap-3 sm:grid-cols-4 text-xs">
+          <div className="rounded-xl border border-border bg-canvas/50 p-3">
+            <div className="text-muted">ماندهٔ اول</div>
+            <div className="mt-1 font-medium tabular-nums text-foreground">
+              {amount(scenario.opening, c.view.workspace.unit)} {unitName}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-canvas/50 p-3">
+            <div className="text-muted">ورودی‌های سناریو</div>
+            <div className="mt-1 font-medium tabular-nums text-emerald-700">
+              {amount(String(totalInflows), c.view.workspace.unit)} {unitName}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-canvas/50 p-3">
+            <div className="text-muted">خروجی‌های سناریو</div>
+            <div className="mt-1 font-medium tabular-nums text-rose-700">
+              {amount(String(totalOutflows), c.view.workspace.unit)} {unitName}
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-canvas/50 p-3">
+            <div className="text-muted">ماندهٔ پایان</div>
+            <div className="mt-1 font-medium tabular-nums text-primary">
+              {amount(closingVal, c.view.workspace.unit)} {unitName}
+            </div>
+          </div>
+        </div>
         <StatCards
           showComparison={false}
           items={[

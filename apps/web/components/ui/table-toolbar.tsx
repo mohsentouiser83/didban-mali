@@ -10,8 +10,6 @@ import {
 } from "./dropdown-menu";
 import { Tooltip } from "./tooltip";
 import {
-  MagnifyingGlassIcon,
-  XIcon,
   CornersOutIcon,
   CornersInIcon,
   DownloadSimpleIcon,
@@ -19,37 +17,25 @@ import {
   FileXlsIcon,
   FilePdfIcon,
 } from "@phosphor-icons/react";
-import { cn, persian } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export interface TableToolbarProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  visibleCount: number;
-  totalCount: number;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onExportExcel: () => void;
   onExportCsv: () => void;
   onExportPdf: () => void;
   onOpenImport?: () => void;
-  hasActiveFilters: boolean;
-  showSearch?: boolean;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
 }
 
 export function TableToolbar({
-  searchTerm,
-  onSearchChange,
-  visibleCount,
-  totalCount,
   isFullscreen,
   onToggleFullscreen,
   onExportExcel,
   onExportCsv,
   onExportPdf,
   onOpenImport,
-  hasActiveFilters,
-  showSearch = true,
   toolbarVariant = "primary",
 }: TableToolbarProps) {
   // Button styling harmonized with the Didban Mali design system (primary token #5556DE)
@@ -68,45 +54,8 @@ export function TableToolbar({
   );
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-surface border-b border-border/70 rounded-t-control">
-      {/* Search Input on the right (in RTL) */}
-      {showSearch ? (
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="جست‌وجو در جدول"
-            className="w-full h-9 rounded-xl border border-border/80 bg-canvas/40 ps-4 pe-10 text-xs text-foreground placeholder:text-muted transition-all focus:border-primary/60 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary/15"
-            aria-label="جست‌وجو در جدول"
-          />
-          <div className="absolute end-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-muted pointer-events-none">
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => onSearchChange("")}
-                className="pointer-events-auto p-0.5 text-muted hover:text-foreground transition-colors"
-                aria-label="پاک‌کردن جستجو"
-              >
-                <XIcon size={14} />
-              </button>
-            )}
-            <MagnifyingGlassIcon size={16} />
-          </div>
-        </div>
-      ) : (
-        <div />
-      )}
-
-      {/* Action Buttons Toolbar on the left (in RTL) */}
+    <div className="flex flex-wrap items-center justify-end gap-3 p-3 bg-surface border-b border-border/70 rounded-t-control">
       <div className="flex items-center gap-1.5">
-        {/* Row count summary badge if filtered or searched */}
-        {hasActiveFilters && totalCount > 0 && (
-          <span className="me-2 text-[11px] font-medium text-muted bg-canvas px-2.5 py-1 rounded-lg border border-border/60">
-            نمایش {persian(visibleCount)} از {persian(totalCount)} ردیف
-          </span>
-        )}
-
         {/* 1. Fullscreen Button */}
         <Tooltip content={isFullscreen ? "خروج از تمام صفحه (Esc)" : "نمایش تمام صفحه جدول"}>
           <button

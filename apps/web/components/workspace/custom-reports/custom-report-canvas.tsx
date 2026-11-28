@@ -32,9 +32,6 @@ export function CustomReportCanvas() {
             دستیار هوشمند طراحی گزارش (AI Report Composer)
           </h3>
         </div>
-        <p className="mb-3 text-xs text-muted">
-          گزارش مورد نظر خود را به زبان فارسی بنویسید تا هوش مصنوعی بلاک، منبع داده، فیلترها و ویژوالیزیشن را خودکار بسازد.
-        </p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -44,9 +41,10 @@ export function CustomReportCanvas() {
         >
           <div className="flex-1 min-w-[240px]">
             <Input
+              aria-label="درخواست گزارش"
+              placeholder="درخواست گزارش"
               value={c.aiPrompt}
               onChange={(e) => c.setAiPrompt(e.target.value)}
-              placeholder="مثلاً: گزارش چک‌های برگشتی، گردش واریزی‌های بانک ملت، فاکتورهای فروش معوق..."
               disabled={c.aiLoading}
             />
           </div>
@@ -155,9 +153,6 @@ export function CustomReportCanvas() {
       {c.blocks.length === 0 ? (
         <div className="rounded-panel border-2 border-dashed border-border py-12 text-center">
           <p className="text-sm font-medium text-foreground">هیچ بلاکی در گزارش وجود ندارد.</p>
-          <p className="mt-1 text-xs text-muted">
-            روی «افزودن بلاک» کلیک کنید یا از دستیار هوش مصنوعی استفاده نمایید.
-          </p>
           <Button
             variant="soft"
             onClick={() => c.addBlock()}

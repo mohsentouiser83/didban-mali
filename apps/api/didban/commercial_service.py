@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Spacer
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from . import models as m
@@ -17,6 +17,7 @@ from .accounting_service import capabilities, validate_lines
 from .commercial_models import CommercialCounterparty, CommercialCounterpartyRole, ProformaInvoice
 from .errors import DomainError, require
 from .exports import FONT_MEDIUM, MUTED, RTLText, _table, display_date, localized, register_fonts
+from .ingestion import DIGITS
 from .inventory_models import InventoryItem
 from .money_type import aggregate_money, canonical_money
 from .native_invoice_models import NativeInvoice, NativeInvoiceSourceRevision
@@ -65,16 +66,50 @@ def _sync_counterparty_roles(db: Session, company: str, cp: CommercialCounterpar
     db.flush()
 
 
-def _validate_identity_fields(data: dict) -> None:
-    if data.get("national_id"):
-        nid = str(data["national_id"]).strip()
-        require(nid.isascii() and nid.isdigit() and 8 <= len(nid) <= 12, "invalid_national_id", "شناسه/کد ملی باید عددی و بین ۸ تا ۱۲ رقم باشد.")
-    if data.get("economic_code"):
-        ec = str(data["economic_code"]).strip()
-        require(ec.isascii() and ec.isdigit() and 8 <= len(ec) <= 16, "invalid_economic_code", "کد اقتصادی باید عددی باشد.")
-    if data.get("postal_code"):
-        pc = str(data["postal_code"]).strip()
-        require(pc.isascii() and pc.isdigit() and len(pc) == 10, "invalid_postal_code", "کد پستی باید ۱۰ رقم باشد.")
+def _identity_values(data: dict, entity_kind: str, current: CommercialCounterparty | None = None) -> dict:
+    stored_kind = "other" if entity_kind == "partnership" else entity_kind
+    require(
+        stored_kind in {"natural_person", "legal_entity", "other"},
+        "invalid_entity_kind",
+        "نوع شخصیت معتبر نیست.",
+    )
+    values = {
+        field: (data[field] or "").translate(DIGITS).strip() or None
+        for field in ("national_id", "economic_code", "postal_code")
+        if field in data
+    }
+    prior_national = current.national_id if current else None
+    national = values.get("national_id", prior_national)
+    kind_changed = not current or current.entity_kind != stored_kind
+    if national and (kind_changed or national != prior_national):
+        length, label = {
+            "natural_person": (10, "کد ملی"),
+            "legal_entity": (11, "شناسه ملی"),
+        }.get(entity_kind, (None, "شناسه/کد ملی"))
+        require(
+            entity_kind != "partnership",
+            "invalid_national_id",
+            "برای مشارکت، شناسه اقتصادی را ثبت کنید.",
+        )
+        require(
+            national.isascii() and national.isdigit() and (len(national) == length if length else 8 <= len(national) <= 12),
+            "invalid_national_id",
+            f"{label} باید {length} رقم باشد." if length else "شناسه یا کد ملی باید ۸ تا ۱۲ رقم باشد.",
+        )
+    prior_economic = current.economic_code if current else None
+    economic = values.get("economic_code", prior_economic)
+    if entity_kind == "partnership" or (stored_kind == "other" and prior_economic):
+        require(bool(economic), "economic_code_required", "شناسه اقتصادی مشارکت را وارد کنید.")
+    if economic and (economic != prior_economic or entity_kind == "partnership"):
+        require(
+            economic.isascii() and economic.isdigit() and 8 <= len(economic) <= 16,
+            "invalid_economic_code",
+            "شناسه اقتصادی باید ۸ تا ۱۶ رقم باشد.",
+        )
+    postal = values.get("postal_code")
+    if postal and (not current or postal != current.postal_code):
+        require(postal.isascii() and postal.isdigit() and len(postal) == 10, "invalid_postal_code", "کد پستی باید ۱۰ رقم باشد.")
+    return {"entity_kind": stored_kind, **values}
 
 
 def _serialize_counterparty(cp: CommercialCounterparty) -> dict:
@@ -84,24 +119,18 @@ def _serialize_counterparty(cp: CommercialCounterparty) -> dict:
 
 
 def add_counterparty(db: Session, company: str, user: m.User, data: dict) -> dict:
-    ability = capabilities(db, company, user)
-    require(ability["can_manage_accounts"], "permission_denied", "اجازه مدیریت طرف حساب‌ها ندارید.", 403)
+    membership(db, company, user, "manage_accounts", scope=("commercial", "create"))
     roles, primary_type = _normalize_roles(data)
-    entity_kind = data.get("entity_kind") or "other"
-    require(entity_kind in {"natural_person", "legal_entity", "other"}, "invalid_entity_kind", "نوع شخصیت معتبر نیست.")
-    _validate_identity_fields(data)
+    identity = _identity_values(data, data.get("entity_kind") or "other")
     limit = canonical_money(data["credit_limit_irr"]) if data.get("credit_limit_irr") else None
     row = CommercialCounterparty(
         company_id=company,
         code=allocate_number(db, company, "counterparty", CommercialCounterparty, "code"),
         name=data["name"],
         type=primary_type,
-        entity_kind=entity_kind,
+        **identity,
         roles=roles,
-        national_id=data.get("national_id"),
-        economic_code=data.get("economic_code"),
         registration_number=data.get("registration_number"),
-        postal_code=data.get("postal_code"),
         email=data.get("email"),
         phone=data.get("phone"),
         address=data.get("address"),
@@ -118,27 +147,21 @@ def add_counterparty(db: Session, company: str, user: m.User, data: dict) -> dic
 def update_counterparty(
     db: Session, company: str, user: m.User, counterparty_id: str, data: dict, version: int | None = None
 ) -> dict:
-    ability = capabilities(db, company, user)
-    require(ability["can_manage_accounts"], "permission_denied", "اجازه مدیریت طرف حساب‌ها ندارید.", 403)
+    membership(db, company, user, "manage_accounts", scope=("commercial", "edit"))
     cp = get_entity(db, CommercialCounterparty, company, counterparty_id)
     if version is not None:
         check_version(cp, version)
-    _validate_identity_fields(data)
+    identity = _identity_values(data, data.get("entity_kind") or cp.entity_kind, cp)
     if "roles" in data or "type" in data:
         roles, primary_type = _normalize_roles(data, fallback=cp.type)
         cp.type = primary_type
         cp.roles = roles
         _sync_counterparty_roles(db, company, cp, roles)
-    if "entity_kind" in data and data["entity_kind"] is not None:
-        require(
-            data["entity_kind"] in {"natural_person", "legal_entity", "other"},
-            "invalid_entity_kind",
-            "نوع شخصیت معتبر نیست.",
-        )
-        cp.entity_kind = data["entity_kind"]
     if data.get("name") is not None:
         cp.name = data["name"]
-    for field in ("national_id", "economic_code", "registration_number", "postal_code", "email", "phone", "address"):
+    for field, value in identity.items():
+        setattr(cp, field, value)
+    for field in ("registration_number", "email", "phone", "address"):
         if field in data:
             setattr(cp, field, data[field])
     if "credit_limit_irr" in data:
@@ -163,22 +186,26 @@ def list_counterparties(
     active_only: bool = False,
     counterparty_type: str | None = None,
     entity_kind: str | None = None,
+    name: str | None = None,
+    code: str | None = None,
 ) -> dict:
     membership(db, company, user)
     stmt = select(CommercialCounterparty).where(CommercialCounterparty.company_id == company)
     if active_only:
         stmt = stmt.where(CommercialCounterparty.active.is_(True))
     if entity_kind and entity_kind != "all":
-        stmt = stmt.where(CommercialCounterparty.entity_kind == entity_kind)
+        stored_kind = "other" if entity_kind == "partnership" else entity_kind
+        stmt = stmt.where(CommercialCounterparty.entity_kind == stored_kind)
     if counterparty_type and counterparty_type != "all":
+        assigned = select(CommercialCounterpartyRole.counterparty_id).where(
+            CommercialCounterpartyRole.company_id == company,
+        )
         stmt = stmt.where(
             or_(
-                CommercialCounterparty.type == counterparty_type,
-                CommercialCounterparty.id.in_(
-                    select(CommercialCounterpartyRole.counterparty_id).where(
-                        CommercialCounterpartyRole.company_id == company,
-                        CommercialCounterpartyRole.role == counterparty_type,
-                    )
+                CommercialCounterparty.id.in_(assigned.where(CommercialCounterpartyRole.role == counterparty_type)),
+                and_(
+                    CommercialCounterparty.type == counterparty_type,
+                    CommercialCounterparty.id.not_in(assigned),
                 ),
             )
         )
@@ -187,6 +214,9 @@ def list_counterparties(
         stmt = stmt.where(
             or_(CommercialCounterparty.name.ilike(term), CommercialCounterparty.code.ilike(term))
         )
+    for field, value in ((CommercialCounterparty.name, name), (CommercialCounterparty.code, code)):
+        if value and (term := value.strip()):
+            stmt = stmt.where(field.icontains(term, autoescape=True))
     total = len(list(db.scalars(stmt)))
     rows = list(db.scalars(stmt.order_by(CommercialCounterparty.code).offset(offset).limit(limit)))
     return {
@@ -478,8 +508,7 @@ def _validate_proforma(db: Session, company: str, data: dict) -> None:
 
 
 def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict:
-    ability = capabilities(db, company, user)
-    require(ability["can_prepare"], "permission_denied", "اجازه صدور پیش‌فاکتور ندارید.", 403)
+    membership(db, company, user, "write", scope=("commercial", "create"))
     _validate_proforma(db, company, data)
     currency = data.get("currency", "IRR")
     lines, total, total_irr, inv_disc = _process_lines(data["lines"], currency, data.get("invoice_discount", 0))
@@ -508,8 +537,7 @@ def create_proforma(db: Session, company: str, user: m.User, data: dict) -> dict
 def update_proforma(
     db: Session, company: str, user: m.User, proforma_id: str, data: dict, version: int | None = None
 ) -> dict:
-    ability = capabilities(db, company, user)
-    require(ability["can_prepare"], "permission_denied", "اجازه تغییر پیش‌فاکتور ندارید.", 403)
+    membership(db, company, user, "write", scope=("commercial", "edit"))
     pf = get_entity(db, ProformaInvoice, company, proforma_id)
     if version is not None:
         check_version(pf, version)
@@ -544,8 +572,7 @@ def update_proforma(
 def cancel_proforma(
     db: Session, company: str, user: m.User, proforma_id: str, reason: str, version: int | None = None
 ) -> dict:
-    ability = capabilities(db, company, user)
-    require(ability["can_prepare"], "permission_denied", "اجازه لغو پیش‌فاکتور ندارید.", 403)
+    membership(db, company, user, "write", scope=("commercial", "delete"))
     pf = get_entity(db, ProformaInvoice, company, proforma_id)
     if version is not None:
         check_version(pf, version)

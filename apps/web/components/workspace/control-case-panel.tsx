@@ -295,9 +295,6 @@ export function ControlCasePanel({
                           disabled={view.command.busy}
                         />
                       </Field>
-                      <StatusMessage>
-                        وعدهٔ پرداخت، وصول وجه یا تغییر مانده نیست.
-                      </StatusMessage>
                     </>
                   )}
                   <FormMessage error>{view.activityError}</FormMessage>

@@ -6,6 +6,7 @@ import { usePagedResource } from "./use-paged-resource";
 import { useCommand } from "./use-command";
 import { useAccountOptions } from "./use-accounting";
 import { isAccountPostable, isTreasuryAccount, treasuryRoleLabel } from "@/lib/account-catalogue";
+import type { TreasuryAccountOptionsResponse } from "@/lib/treasury-documents";
 export interface OperationTemplate {
   kind: string;
   label: string;
@@ -45,8 +46,17 @@ export function useOperationDrafts(
     amounts: {} as Record<string, string>,
     cheque_event_id: "",
     endorsee_party_id: "",
+    point_of_sale_id: "",
   });
   const form = { ...formState, period_id: workspace.periodId };
+  const supportsPointOfSale = form.kind === "receipt" || form.kind === "payment";
+  const terminals = useResource<TreasuryAccountOptionsResponse>(
+    supportsPointOfSale ? workspace.companyPath("treasury/accounts/options?kind=pos&active_only=true") : null,
+  );
+  const pointOfSaleOptions = (terminals.data?.items ?? []).map((item) => ({
+    value: item.id,
+    label: `کارت‌خوان · ${item.name}`,
+  }));
   const template = catalogue.data?.items.find(
     (item) => item.kind === form.kind,
   );
@@ -71,15 +81,25 @@ export function useOperationDrafts(
     setCreated(undefined);
   }
   function choose(kind: string) {
-    change({ kind, accounts: {}, amounts: {}, cheque_event_id: "" });
+    change({ kind, accounts: {}, amounts: {}, cheque_event_id: "", point_of_sale_id: "" });
+  }
+  function selectAccount(role: string, value: string) {
+    const isBankSelection = supportsPointOfSale && role === "bank_a";
+    const isTerminal = isBankSelection && pointOfSaleOptions.some((item) => item.value === value);
+    change({
+      accounts: { ...form.accounts, [role]: isTerminal ? "" : value },
+      ...(isBankSelection && { point_of_sale_id: isTerminal ? value : "" }),
+    });
   }
   function save() {
     if (!template || !workspace.periodId) return;
+    const { point_of_sale_id, ...details } = form;
     void command.run<{ draft: { id: string } }>(
       workspace.companyPath("accounting/operations"),
       {
         body: {
-          ...form,
+          ...details,
+          ...(point_of_sale_id && { point_of_sale_id }),
           description: form.description.trim(),
           party_id: form.party_id.trim(),
           amounts: Object.fromEntries(
@@ -109,6 +129,9 @@ export function useOperationDrafts(
     created,
     change,
     choose,
+    selectAccount,
+    supportsPointOfSale,
+    pointOfSaleOptions,
     save,
     chequeEvents,
     selectEvent: (id: string) => {

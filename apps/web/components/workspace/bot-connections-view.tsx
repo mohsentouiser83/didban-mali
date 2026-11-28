@@ -38,11 +38,7 @@ function BotConnectionsContent({
             به‌روزرسانی
           </Button>
         }
-      >
-        <p className="mt-2 text-sm text-muted">
-          حساب‌های شما برای {view.company.name}
-        </p>
-      </PageHeader>
+      />
       {view.loading ? (
         <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />
       ) : view.error ? (

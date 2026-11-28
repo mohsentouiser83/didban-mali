@@ -1,5 +1,6 @@
 "use client";
 
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,14 +141,14 @@ export function MoadianBatchCollection({
                     <Badge tone={status.tone}>{status.label}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="secondary"
-                      className="text-xs h-8"
-                      disabled={!eligible}
-                      onClick={() => onSelectForTransmission(row.id)}
-                    >
-                      آماده‌سازی ارسال
-                    </Button>
+                    <TableRowActions label={`عملیات ${row.reference}`}>
+                      <TableRowAction
+                        disabled={!eligible}
+                        onClick={() => onSelectForTransmission(row.id)}
+                      >
+                        آماده‌سازی ارسال
+                      </TableRowAction>
+                    </TableRowActions>
                   </TableCell>
                 </TableRow>
               );

@@ -3,14 +3,32 @@
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt
+from pydantic import BaseModel, Field, StrictInt
 
 from .accounting_schemas import StrictInput
+
+
+class InventoryUnitInput(StrictInput):
+    name: str = Field(min_length=1, max_length=40)
+
+
+class InventoryUnitsResponse(BaseModel):
+    items: list[str]
+    can_create: bool
 
 
 class WarehouseInput(StrictInput):
     code: str | None = Field(default=None, min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
+
+
+class ItemWarehouseInput(StrictInput):
+    warehouse_id: str = Field(min_length=1, max_length=36)
+
+
+class ItemWarehousesResponse(BaseModel):
+    warehouse_ids: list[str]
+    can_link: bool
 
 
 class UpdateWarehouseInput(StrictInput):
@@ -20,13 +38,11 @@ class UpdateWarehouseInput(StrictInput):
 
 
 class InventoryItemInput(WarehouseInput):
-    inventory_account_id: str | None = Field(default=None, max_length=36)
     base_unit: str = Field(default="عدد", min_length=1, max_length=40)
     item_kind: Literal["goods", "service"] = "goods"
 
 
 class UpdateInventoryItemInput(UpdateWarehouseInput):
-    inventory_account_id: str | None = Field(default=None, min_length=1, max_length=36)
     base_unit: str | None = Field(default=None, min_length=1, max_length=40)
     item_kind: Literal["goods", "service"] | None = None
 
@@ -115,3 +131,62 @@ class OpeningStockInput(StrictInput):
     description: str = Field(min_length=1, max_length=500)
     source_reference: str | None = Field(default=None, max_length=120)
     equity_account_id: str = Field(min_length=1, max_length=36)
+
+
+class WarehouseVoucherLine(StrictInput):
+    item_id: str = Field(min_length=1, max_length=36)
+    quantity: StrictInt = Field(ge=1, le=1_000_000_000)
+
+
+class WarehouseReceiptLine(WarehouseVoucherLine):
+    unit_price_irr: str = Field(pattern=r"^[0-9]{1,32}$")
+
+
+class WarehouseVoucherInput(StrictInput):
+    warehouse_id: str = Field(min_length=1, max_length=36)
+    period_id: str = Field(min_length=1, max_length=36)
+    date: date
+    offset_account_id: str = Field(min_length=1, max_length=36)
+    reference: str = Field(default="", max_length=120)
+    description: str = Field(default="", max_length=500)
+
+
+class WarehouseReceiptInput(WarehouseVoucherInput):
+    items: list[WarehouseReceiptLine] = Field(min_length=1, max_length=100)
+
+
+class WarehouseIssueInput(WarehouseVoucherInput):
+    items: list[WarehouseVoucherLine] = Field(min_length=1, max_length=100)
+
+
+class WarehouseVoucherRow(BaseModel):
+    id: str
+    draft_id: str
+    source_reference: str
+    date: date
+    warehouse_name: str
+    item_count: int
+    reference: str
+    description: str
+    state: Literal["draft", "discarded", "posted", "reversed"]
+
+
+class WarehouseVoucherList(BaseModel):
+    items: list[WarehouseVoucherRow]
+    next_cursor: str | None
+
+
+class VoucherChoice(BaseModel):
+    value: str
+    label: str
+
+
+class VoucherItemChoice(VoucherChoice):
+    unit: str
+
+
+class WarehouseVoucherOptions(BaseModel):
+    can_create: bool
+    items: list[VoucherItemChoice]
+    warehouses: list[VoucherChoice]
+    accounts: list[VoucherChoice]

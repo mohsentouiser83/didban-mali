@@ -1,5 +1,6 @@
 import type { ParsedTableImport } from "@/components/ui/table-import-dialog";
 import type { AccountNature, LedgerAccount } from "./accounting";
+import { asciiDigits } from "./utils";
 
 export type AccountLevel = "group" | "general" | "subsidiary" | "detail";
 export const ACCOUNT_LEVEL_OPTIONS: { value: AccountLevel; label: string }[] = [
@@ -10,6 +11,14 @@ export const ACCOUNT_LEVEL_OPTIONS: { value: AccountLevel; label: string }[] = [
 ];
 export const accountLevelLabel = (level?: string | null) =>
   ACCOUNT_LEVEL_OPTIONS.find((option) => option.value === level)?.label || "تعیین‌نشده";
+export function normalizeAccountSearch(value: string) {
+  return asciiDigits(value)
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[\u200c\s]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 export const parentAccountLevel = (level: string): AccountLevel | null =>
   level === "detail"
     ? "subsidiary"
@@ -124,27 +133,6 @@ export function isAccountPostable(account: Pick<LedgerAccount, "active" | "level
   return accountPostableStatus(account).postable;
 }
 
-export function accountCodeHint(level: string, parentCode?: string | null): string {
-  switch (level) {
-    case "group":
-      return "الگوی کد گروه: ۲ رقم عددی (مثلاً 11)";
-    case "general":
-      return parentCode
-        ? `الگوی کد کل: ۴ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
-        : "الگوی کد کل: ۴ رقم عددی با پیشوند کد گروه بالادست";
-    case "subsidiary":
-      return parentCode
-        ? `الگوی کد معین: ۶ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
-        : "الگوی کد معین: ۶ رقم عددی با پیشوند کد کل بالادست";
-    case "detail":
-      return parentCode
-        ? `الگوی کد تفصیلی: حداقل ۸ رقم عددی با پیشوند ${parentCode} (مثلاً ${parentCode}01)`
-        : "الگوی کد تفصیلی: حداقل ۸ رقم عددی با پیشوند کد معین بالادست";
-    default:
-      return "";
-  }
-}
-
 export function suggestAccountCode(
   accounts: Pick<LedgerAccount, "id" | "code">[],
   level: string,
@@ -166,6 +154,11 @@ export function suggestAccountCode(
       if (!existing.has(candidate)) return candidate;
     }
     return "";
+  }
+  if (level === "detail" && !parentId) {
+    let nextCode = 10_000_000;
+    while (existing.has(String(nextCode))) nextCode++;
+    return String(nextCode);
   }
   const parent = accounts.find((a) => a.id === parentId);
   if (!parent) return "";
@@ -220,9 +213,9 @@ export function validateAccountCodePattern(
     return undefined;
   }
   if (level === "detail") {
-    if (!/^[0-9]{8,12}$/.test(trimmed) || (parentCode && !trimmed.startsWith(parentCode))) {
-      return "کد تفصیلی باید عددی (حداقل ۸ رقم) باشد و با کد معین بالادست شروع شود.";
-    }
+    if (!/^[0-9]{8,12}$/.test(trimmed)) return "کد تفصیلی باید ۸ تا ۱۲ رقم عددی باشد.";
+    if (parentCode && !trimmed.startsWith(parentCode))
+      return "کد تفصیلی باید با کد معین بالادست شروع شود.";
     return undefined;
   }
   return undefined;

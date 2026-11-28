@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -90,11 +91,11 @@ export function PeriodTasksPanel({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {c.canWrite && !closed && (
-                    <Button variant="ghost" onClick={() => c.edit(item)}>
-                      بررسی و ویرایش
-                    </Button>
+                  <TableRowActions label={`عملیات ${item.title}`}>
+                    {c.canWrite && !closed && (
+                    <TableRowAction onClick={() => c.edit(item)} kind="edit">بررسی و ویرایش</TableRowAction>
                   )}
+                  </TableRowActions>
                 </TableCell>
               </TableRow>
             ))}

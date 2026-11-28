@@ -44,7 +44,7 @@ with transaction("company-a") as db:
 cp_res = command(owner, "POST", base + "/commercial/counterparties", {
     "name": "شرکت بازرگانی دلتا",
     "entity_kind": "legal_entity",
-    "roles": ["customer", "supplier"],
+    "roles": ["customer", "supplier", "employee"],
     "national_id": "10102030405",
     "economic_code": "411122334455",
     "postal_code": "1415566778",
@@ -54,13 +54,38 @@ cp_res = command(owner, "POST", base + "/commercial/counterparties", {
 assert cp_res.status_code == 201, cp_res.text
 cp = cp_res.json()
 assert cp["entity_kind"] == "legal_entity"
-assert set(cp["roles"]) == {"customer", "supplier"}
+assert set(cp["roles"]) == {"customer", "supplier", "employee"}
 
 # Appears in BOTH customer and supplier filters
 custs = owner.get(base + "/commercial/counterparties", params={"type": "customer"}).json()["items"]
 supps = owner.get(base + "/commercial/counterparties", params={"type": "supplier"}).json()["items"]
 assert any(x["id"] == cp["id"] for x in custs)
 assert any(x["id"] == cp["id"] for x in supps)
+
+employees = owner.get(base + "/commercial/counterparties", params={"type": "employee"}).json()["items"]
+assert any(x["id"] == cp["id"] for x in employees)
+uncategorized = owner.get(base + "/commercial/counterparties", params={"type": "other"}).json()["items"]
+assert all(x["id"] != cp["id"] for x in uncategorized)
+parties_path = base + "/commercial/counterparties"
+natural = {"name": "شخص حقیقی", "entity_kind": "natural_person", "roles": ["customer"]}
+assert command(owner, "POST", parties_path, {**natural, "national_id": "12345678901"}).status_code == 422
+person = command(owner, "POST", parties_path, {**natural, "national_id": "۰۰۱۲۳۴۵۶۷۸"})
+assert person.status_code == 201, person.text
+assert person.json()["national_id"] == "0012345678"
+assert person.json()["economic_code"] is None
+legal = {**natural, "name": "شخص حقوقی", "entity_kind": "legal_entity"}
+assert command(owner, "POST", parties_path, {**legal, "national_id": "0012345678"}).status_code == 422
+partnership = {**natural, "name": "مشارکت نمونه", "entity_kind": "partnership"}
+assert command(owner, "POST", parties_path, partnership).status_code == 422
+new_partnership = command(owner, "POST", parties_path, {**partnership, "economic_code": "411122334455"})
+assert new_partnership.status_code == 201, new_partnership.text
+assert new_partnership.json()["economic_code"] == "411122334455"
+partners = owner.get(parties_path, params={"entity_kind": "partnership"}).json()["items"]
+assert [row["id"] for row in partners] == [new_partnership.json()["id"]]
+
+assert owner.get(parties_path, params={"name": "دلتا", "code": cp["code"], "limit": 1}).json()["total"] == 1
+assert owner.get(parties_path, params={"name": cp["code"]}).json()["total"] == 0
+assert owner.get(parties_path, params={"code": "دلتا"}).json()["total"] == 0
 
 # Reject unknown role on account save
 bad_acc = command(owner, "POST", base + "/accounting/accounts", {

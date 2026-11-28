@@ -1,13 +1,11 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { UsersThreeIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ErrorState, LoadingState } from "@/components/ui/content-states";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { CursorPagination, Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
-import { Hint } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -50,21 +48,6 @@ function CollectionWorkspace() {
             />
           </Field>
           {view.scope === "invoices" && (
-            <Field id="collection-query" label="فاکتور یا طرف حساب">
-              <Input
-                id="collection-query"
-                value={view.query}
-                maxLength={100}
-                onChange={(event) => view.setQuery(event.target.value)}
-              />
-            </Field>
-          )}
-          {view.scope === "invoices" && view.resource.data && (
-            <Hint label="ترتیب پیگیری">
-              {view.resource.data.priority_formula}
-            </Hint>
-          )}
-          {view.scope === "invoices" && (
             <Field id="collection-priority" label="ترتیب پیگیری">
               <Select
                 id="collection-priority"
@@ -100,8 +83,8 @@ function CollectionWorkspace() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>فاکتور</TableHead>
-                    <TableHead>طرف حساب</TableHead>
+                    <TableHead columnFilter={view.columnFilter("reference")}>فاکتور</TableHead>
+                    <TableHead columnFilter={view.columnFilter("party")}>طرف حساب</TableHead>
                     <TableHead>مانده (ریال)</TableHead>
                     <TableHead>تأخیر تا تاریخ گزارش</TableHead>
                     {view.priority === "history" && (
@@ -141,31 +124,27 @@ function CollectionWorkspace() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="secondary"
-                            onClick={() => view.openInvoice(invoice)}
-                          >
-                            {invoice.case ? "پرونده پیگیری" : "بررسی و پیگیری"}
-                          </Button>
+                          <TableRowActions label={`عملیات ${invoice.reference}`}>
+                            <TableRowAction
+                              onClick={() => view.openInvoice(invoice)}
+                              kind="view"
+                            >
+                              {invoice.case ? "پرونده پیگیری" : "بررسی و پیگیری"}
+                            </TableRowAction>
                           {view.reminder.canPrepare && (
-                            <Button
-                              variant="ghost"
-                              disabled={
-                                view.reminder.command.busy ||
-                                invoice.remaining === null ||
-                                !view.resource.data?.manifest_id
-                              }
+                            <TableRowAction
+                              disabled={view.reminder.command.busy ||
+                                  invoice.remaining === null ||
+                                  !view.resource.data?.manifest_id}
                               onClick={() => {
-                                if (view.resource.data?.manifest_id)
-                                  view.reminder.open(
-                                    invoice.id,
-                                    view.resource.data.manifest_id,
-                                  );
+                                  if (view.resource.data?.manifest_id)
+                                      view.reminder.open(invoice.id, view.resource.data.manifest_id);
                               }}
                             >
                               پیش‌نویس یادآوری
-                            </Button>
+                            </TableRowAction>
                           )}
+                          </TableRowActions>
                         </TableCell>
                       </TableRow>
                     ))
@@ -173,8 +152,8 @@ function CollectionWorkspace() {
                     <TableEmptyCell
                       colSpan={view.priority === "history" ? 7 : 6}
                       title={
-                        view.query
-                          ? "فاکتوری با این جستجو پیدا نشد"
+                        view.filtersActive
+                          ? "فاکتوری با این فیلترها پیدا نشد"
                           : "فاکتور قابل پیگیری در آخرین گزارش نیست"
                       }
                     />
@@ -225,12 +204,9 @@ function CollectionWorkspace() {
                         <Badge>{controlStateLabel(item.state)}</Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="secondary"
-                          onClick={() => view.openCase(item)}
-                        >
-                          پرونده پیگیری
-                        </Button>
+                        <TableRowActions label={`عملیات ${item.source_snapshot.title}`}>
+                          <TableRowAction onClick={() => view.openCase(item)}>پرونده پیگیری</TableRowAction>
+                        </TableRowActions>
                       </TableCell>
                     </TableRow>
                   ))

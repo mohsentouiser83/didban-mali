@@ -8,7 +8,6 @@ export function Dialog({
   open,
   onOpenChange,
   title,
-  description,
   children,
   footer,
   sheet = false,
@@ -20,7 +19,6 @@ export function Dialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
   children: ReactNode;
   footer?: ReactNode;
   sheet?: boolean;
@@ -43,6 +41,7 @@ export function Dialog({
         )}
         <Primitive.Content
           dir="rtl"
+          aria-describedby={undefined}
           onFocusOutside={modal ? undefined : (event) => event.preventDefault()}
           onOpenAutoFocus={() => {
             returnFocus.current =
@@ -57,7 +56,7 @@ export function Dialog({
           className={cn(
             "fixed z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col overflow-hidden border border-border bg-surface p-5 shadow-overlay outline-none sm:p-7 motion-reduce:animate-none!",
             sheet
-              ? "inset-y-4 end-4 h-[calc(100dvh-2rem)] max-w-lg rounded-dialog data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out data-[state=closed]:pointer-events-none"
+              ? "inset-y-4 end-4 h-[calc(100dvh-2rem)] max-w-lg rounded-dialog data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out data-[state=closed]:pointer-events-none [&_button[type=submit]]:w-full"
               : "start-1/2 top-1/2 max-w-xl translate-x-1/2 -translate-y-1/2 rounded-dialog data-[state=open]:animate-dialog-in",
             className,
           )}
@@ -67,11 +66,6 @@ export function Dialog({
               <Primitive.Title className="font-display text-xl font-medium">
                 {title}
               </Primitive.Title>
-              <Primitive.Description
-                className={description ? "mt-2 text-sm text-muted" : "sr-only"}
-              >
-                {description || title}
-              </Primitive.Description>
             </div>
             <Primitive.Close asChild>
               <Button variant="ghost" className="size-11 p-0" aria-label="بستن">

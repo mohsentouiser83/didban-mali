@@ -2,21 +2,21 @@
 
 # مدل داده جاری
 
-بازبینی کد: ۲۰۲۵/۱۱/۲۵ (ممیزی نوامبر). رجیستری اجرایی شامل ۱۳۴ کلاس و ۱۳۴ جدول مدل است. DDL با جدول فنی `didban_schema_version` شامل ۱۳۵ دستور CREATE TABLE است. [فهرست کامل مدل، جدول و فایل](entity-inventory.fa.md) از رجیستری API استخراج شده است.
+بازبینی کد: ۲۰۲۶/۱۱/۲۶. رجیستری اجرایی شامل ۱۳۸ کلاس و ۱۳۸ جدول مدل است. DDL با جدول فنی `didban_schema_version` شامل ۱۳۹ دستور CREATE TABLE است. [فهرست کامل مدل، جدول و فایل](entity-inventory.fa.md) از رجیستری API استخراج شده است.
 
 | حوزه | مدل‌ها/جدول‌های شاخص | مسئولیت |
 |---|---|---|
 | نصب و هویت | users، login_sessions، installation_audit_events | حساب مدیریت‌شده، نشست و ممیزی نصب |
-| شرکت | companies، memberships، company_modules، accounting_permissions | عضویت و اختیارهای مستقل شرکت و وضعیت ماژول |
+| شرکت | companies، memberships، company_modules، accounting_permissions | عضویت و تنظیم نسخه‌دار دسترسی ماژول/عملیات در `memberships.module_access`، اختیارهای مستقل شرکت و وضعیت ماژول |
 | منابع | processing_sessions، source_files، source_rows، interpretations، processing_issues | اصل ثابت، تفسیر نسخه‌دار، سؤال پایدار |
 | اجرا | outbox_jobs، idempotency_keys | lease، fence، generation و replay |
 | واردات مالی | journal_lines، bank_movements، invoices، settlements، allocations، invoice_snapshots | facts واردشده با مبنای منبع مستقل |
 | دفتر بومی | accounting_accounts، accounting_account_hierarchy، accounting_detail_links، accounting_drafts، accounting_operations، native_journals، native_journal_lines، journal_correction_drafts | پیش‌نویس/ثبت، نسخه دقیق، سطر دائمی سند، برگشت و جایگزین |
-| فاکتور بومی | native_invoices، native_invoice_terms، native_invoice_allocations، native_invoice_allocation_reversals، native_invoice_source_revisions، native_invoice_snapshots | اصل ثابت، شرایط، تسویه، پذیرش جایگزین و گزارش تاریخی |
+| فاکتور بومی | native_invoices، native_invoice_terms، native_invoice_allocations، native_invoice_allocation_reversals، native_invoice_source_revisions، native_invoice_snapshots | اصل ثابت، شرایط، تسویه، پذیرش جایگزین. جدول snapshot برای خواندن شواهد گزارش‌های تاریخی حفظ شده است. |
 | بازرگانی | commercial_counterparties، commercial_counterparty_roles، proforma_invoices، commercial_documents، commercial_document_lines، commercial_returns، commercial_return_lines، counterparty_credits، counterparty_credit_applications | کارت و نقش‌های طرف‌حساب، پیش‌فاکتور، فاکتور چندردیفی D24–D34، مرجوعی، قرنطینه و اعتبار مشتری/تأمین‌کننده |
-| انبار | inventory_items، inventory_warehouses، inventory_movements | هویت کالا (با واحد پایه)، انبار و گردش چندردیفی متصل به ردیف سند و شواهد FIFO |
+| انبار | inventory_items، inventory_units، inventory_warehouses، inventory_warehouse_items، inventory_movements | هویت کالا با نام واحد پایه، فهرست واحدهای تعریف‌شدهٔ شرکت، انبار، پیوند یکتای کالا و انبار با دو کلید خارجی هم‌شرکت، و گردش چندردیفی متصل به ردیف سند و شواهد FIFO |
 | مؤدیان مستقیم | moadian_transmissions، moadian_transmission_events | نسخه تأییدشده، اتصال به فاکتور تجاری و موضوع ۱ تا ۴، شناسه درخواست و سابقه ارسال/استعلام؛ PEM در DB نیست |
-| خزانه و چک | treasury_accounts، treasury_documents، treasury_tool_lines، treasury_allocations، cheques، cheque_events، cheque_clearances | حساب‌های بانک/صندوق/تنخواه، سند خزانه، ابزار و تخصیص، صیاد و پشت‌نویسی چک با ظرفیت مشترک بانک |
+| خزانه و چک | treasury_accounts، treasury_points_of_sale، treasury_tool_points_of_sale، treasury_documents، treasury_tool_lines، treasury_allocations، cheques، cheque_events، cheque_clearances | بانک، صندوق، تنخواه و کارت‌خوان متصل به بانک، پیوند تغییرناپذیر کارت‌خوانِ ابزار سند خزانه، سند خزانه، ابزار و تخصیص، صیاد و پشت‌نویسی چک با ظرفیت مشترک بانک |
 | دوره | financial_periods، period_locks، period_lock_events، period_checklist_items، period_accounting_drafts | مدیریت/قفل/چک‌لیست/اسناد دوره |
 | گزارش بومی | native_account_roles، native_opening_evidence، native_zero_opening_evidence، native_statement_runs، native_statement_approvals | نقش صریح، افتتاح معتبر، صورت مالی و تأیید دقیق |
 | پیش‌بینی و سناریو | native_forecast_plans، native_forecast_runs، native_cash_scenarios، cash_scenarios | برنامه نسخه‌دار، سؤال و نتیجه ثابت بدون اثر سند |
@@ -59,6 +59,10 @@
 ## نوع کارت تجاری — ۲۰۲۶/۱۱/۲۳
 
 `CommercialCounterparty.type` رشتهٔ غیرتهی با محدودیت پایگاه داده به `supplier/customer/employee/other` است. ارتقای افزایشی در `db.initialize` ستون را به جدول موجود اضافه می‌کند و رکوردهای پیشین را بدون تغییر سایر داده‌ها `other` قرار می‌دهد؛ این مقدار پیش‌فرض مهندسی است و از روی نام طبقه‌بندی نمی‌شود.
+
+## حساب تفصیلی ردیف سند — ۲۰۲۶/۱۱/۲۶
+
+`accounting_drafts.lines` شناسهٔ اختیاری `detail_account_id` را جدا از حساب اصلی و هویت تجاری نگه می‌دارد. `native_journals.snapshot` شناسه، کد، نام و نسخهٔ تفصیلی زمان بازبینی را نگه می‌دارد. گردش دفتر در `native_journal_lines` بر اساس همان حساب اصلی ثبت می‌شود.
 
 ## سطح حساب — ۲۰۲۶/۱۱/۲۵ (اصلاح ساختار چهارسطحی)
 

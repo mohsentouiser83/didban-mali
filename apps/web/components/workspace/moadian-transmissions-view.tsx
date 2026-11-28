@@ -27,13 +27,18 @@ function TransmissionWorkspace() {
         title="ارسال و استعلام صورتحساب"
         icon={ReceiptIcon}
       />
+      {view.canSend && (
+        <div className="mb-6">
+          <MoadianBatchCollection onSelectForTransmission={view.show} />
+        </div>
+      )}
       {view.resource.loading ? (
         <LoadingState variant="panels" label="در حال دریافت وضعیت ارسال صورتحساب‌ها" />
       ) : view.resource.error ? (
         <ErrorState message={view.resource.error.message} onRetry={view.refreshHistory} />
       ) : data && (
         <Panel
-          title="سوابق ارسال"
+          title="سوابق ارسال و استعلام"
           className="space-y-4"
           action={
             <div className="flex flex-wrap gap-2">
@@ -52,7 +57,7 @@ function TransmissionWorkspace() {
           }
         >
           {!data.configured && (
-            <StatusMessage>اتصال مؤدیان برای این شرکت تنظیم نشده است.</StatusMessage>
+            <StatusMessage tone="warning">اتصال مؤدیان برای این شرکت تنظیم نشده است (مانع ارسال).</StatusMessage>
           )}
           {!view.retryTarget && <FormMessage error>{view.rowCommand.error?.message}</FormMessage>}
           <MoadianTransmissionTable
@@ -66,9 +71,6 @@ function TransmissionWorkspace() {
         </Panel>
       )}
       <MoadianTransmissionForm view={view} />
-      <div className="mt-6">
-        {view.canSend && <MoadianBatchCollection onSelectForTransmission={view.show} />}
-      </div>
       <Dialog
         title="ارسال دوباره به مؤدیان"
         open={!!view.retryTarget}

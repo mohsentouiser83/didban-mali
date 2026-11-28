@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  Children,
+  cloneElement,
   createContext,
+  isValidElement,
   useContext,
   useState,
   useRef,
@@ -11,12 +14,13 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { cn, persian, asciiDigits } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "./content-states";
 import { TableToolbar } from "./table-toolbar";
 import { TableImportDialog, type ParsedTableImport } from "./table-import-dialog";
 export { type ParsedTableImport } from "./table-import-dialog";
-import { TableFilterPopover, type ColumnFilterConfig } from "./table-filter-popover";
+import { TableFilterPopover, type TableFilterPopoverProps } from "./table-filter-popover";
+import { columnFilterOptions, matchesColumnFilter, type ColumnFilterConfig } from "./table-column-filter";
 import {
   exportTableToExcel,
   exportTableToCsv,
@@ -41,8 +45,6 @@ export interface TableContextType {
   toolbar?: boolean;
   columnControls?: boolean;
   title?: string;
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
   sortColumn: number | null;
   sortDirection: "asc" | "desc" | null;
   toggleSort: (columnIndex: number) => void;
@@ -57,9 +59,6 @@ export interface TableContextType {
   exportCsv: () => void;
   exportPdf: () => void;
   openImport?: () => void;
-  hasActiveFilters: boolean;
-  visibleCount: number;
-  totalCount: number;
 }
 
 export const TableContext = createContext<Partial<TableContextType>>({});
@@ -67,7 +66,6 @@ export const TableContext = createContext<Partial<TableContextType>>({});
 export interface TableProps extends ComponentProps<"table"> {
   stickyFirstColumn?: boolean;
   toolbar?: boolean;
-  showSearch?: boolean;
   columnControls?: boolean;
   title?: string;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
@@ -79,7 +77,7 @@ export function Table({
   className,
   stickyFirstColumn = false,
   toolbar = true,
-  showSearch = true,
+
   columnControls = true,
   title,
   toolbarVariant = "primary",
@@ -91,26 +89,12 @@ export function Table({
   const containerRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
   const [pinnedColumns, setPinnedColumns] = useState<number[]>([]);
   const [columnFilters, setColumnFilters] = useState<Record<number, ColumnFilterConfig>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // Normalize string for search and comparison
-  const normalize = (text: string) => {
-    return asciiDigits(text)
-      .replace(/[ي]/g, "ی")
-      .replace(/[ك]/g, "ک")
-      .replace(/[ة]/g, "ه")
-      .replace(/[\u200c\s]+/g, " ")
-      .toLowerCase()
-      .trim();
-  };
 
   // Extract cell text for a row at a column index
   const getCellText = (tr: HTMLTableRowElement, colIdx: number): string => {
@@ -131,20 +115,12 @@ export function Table({
         !tr.querySelector("[colspan]")
     );
 
-    const counts = new Map<string, number>();
-    rows.forEach((tr) => {
-      const text = getCellText(tr, colIdx);
-      if (text) {
-        counts.set(text, (counts.get(text) || 0) + 1);
-      }
-    });
-
-    return Array.from(counts.entries()).map(([value, count]) => ({ value, count }));
+    return columnFilterOptions(rows, (row) => getCellText(row, colIdx));
   }, []);
 
-  // Filter and search execution
-  const applyFiltersAndSearch = useCallback(() => {
-    if (!tableRef.current) return;
+  // Column filter execution
+  const applyColumnFilters = useCallback(() => {
+    if (!columnControls || !tableRef.current) return;
     const tbody = tableRef.current.querySelector("tbody");
     if (!tbody) return;
 
@@ -163,46 +139,14 @@ export function Table({
     });
 
     let count = 0;
-    const normSearch = searchTerm ? normalize(searchTerm) : "";
-
     rows.forEach((tr) => {
-      let matchesSearch = true;
-      if (normSearch) {
-        const rowText = normalize(tr.textContent || "");
-        matchesSearch = rowText.includes(normSearch);
-      }
-
-      let matchesFilters = true;
-      if (matchesSearch) {
-        for (const [colIdxStr, filter] of Object.entries(columnFilters)) {
-          const colIdx = Number(colIdxStr);
-          const cellText = getCellText(tr, colIdx);
-
-          if (filter.selectedValues && filter.selectedValues.size > 0) {
-            if (!filter.selectedValues.has(cellText)) {
-              matchesFilters = false;
-              break;
-            }
-          }
-
-          if (filter.textCondition) {
-            const cond = normalize(filter.textCondition);
-            const val = normalize(cellText);
-            if (!val.includes(cond)) {
-              matchesFilters = false;
-              break;
-            }
-          }
-        }
-      }
-
-      const visible = matchesSearch && matchesFilters;
+      const visible = Object.entries(columnFilters).every(([index, filter]) =>
+        matchesColumnFilter(getCellText(tr, Number(index)), filter)
+      );
       tr.style.display = visible ? "" : "none";
       if (visible) count++;
     });
 
-    setVisibleCount(count);
-    setTotalCount(rows.length);
 
     // Empty filter indicator
     let emptyRow = tbody.querySelector<HTMLTableRowElement>("tr[data-filter-empty-row]");
@@ -211,28 +155,18 @@ export function Table({
         emptyRow = document.createElement("tr");
         emptyRow.setAttribute("data-filter-empty-row", "true");
         const thCount = tableRef.current.querySelectorAll("thead th").length || 1;
-        emptyRow.innerHTML = `
-          <td colspan="${thCount}" class="py-12 text-center text-sm text-muted">
-            <div class="flex flex-col items-center justify-center gap-2">
-              <span>هیچ ردیفی مطابق با فیلترها و جست‌وجوی شما یافت نشد.</span>
-              <button type="button" class="mt-2 text-xs text-primary font-medium underline underline-offset-4 cursor-pointer hover:text-primary-hover" data-clear-btn>
-                پاک‌کردن فیلترها و جست‌وجو
-              </button>
-            </div>
-          </td>
-        `;
+        const cell = emptyRow.insertCell();
+        cell.colSpan = thCount;
+        cell.className = "py-12 text-center text-sm text-muted";
+        cell.textContent = "ردیفی با این فیلترها پیدا نشد";
         tbody.appendChild(emptyRow);
-        emptyRow.querySelector("[data-clear-btn]")?.addEventListener("click", () => {
-          setSearchTerm("");
-          setColumnFilters({});
-        });
       } else {
         emptyRow.style.display = "";
       }
     } else if (emptyRow) {
       emptyRow.style.display = "none";
     }
-  }, [searchTerm, columnFilters]);
+  }, [columnControls, columnFilters]);
 
   // Sort execution
   const applySort = useCallback((colIdx: number | null, dir: "asc" | "desc" | null) => {
@@ -317,16 +251,16 @@ export function Table({
 
   // Re-apply filters and sort whenever state or children mutate
   useEffect(() => {
-    applyFiltersAndSearch();
-  }, [applyFiltersAndSearch]);
+    applyColumnFilters();
+  }, [applyColumnFilters, children]);
 
   useEffect(() => {
     applySort(sortColumn, sortDirection);
-  }, [sortColumn, sortDirection, applySort]);
+  }, [sortColumn, sortDirection, applySort, children]);
 
   useEffect(() => {
     applyPinned(pinnedColumns);
-  }, [pinnedColumns, applyPinned]);
+  }, [pinnedColumns, applyPinned, children]);
 
   // Escape key handler for fullscreen
   useEffect(() => {
@@ -405,20 +339,12 @@ export function Table({
     setImportDialogOpen(true);
   }, []);
 
-  const hasActiveFilters = Boolean(
-    searchTerm ||
-      sortColumn !== null ||
-      pinnedColumns.length > 0 ||
-      Object.keys(columnFilters).length > 0
-  );
-
   const contextValue: TableContextType = {
     stickyFirstColumn,
     toolbar,
     columnControls,
     title,
-    searchTerm,
-    setSearchTerm,
+
     sortColumn,
     sortDirection,
     toggleSort,
@@ -433,9 +359,7 @@ export function Table({
     exportCsv: handleExportCsv,
     exportPdf: handleExportPdf,
     openImport: onImport ? handleOpenImport : undefined,
-    hasActiveFilters,
-    visibleCount,
-    totalCount,
+
   };
 
   return (
@@ -456,11 +380,7 @@ export function Table({
               <h3 className="text-base font-bold text-foreground">
                 {title || "نمایش تمام صفحه جدول اطلاعات"}
               </h3>
-              {hasActiveFilters && (
-                <span className="text-xs text-muted bg-canvas px-2.5 py-1 rounded-md border border-border">
-                  نمایش {persian(visibleCount)} از {persian(totalCount)} ردیف
-                </span>
-              )}
+
             </div>
             <button
               type="button"
@@ -473,21 +393,19 @@ export function Table({
           </div>
         )}
 
-        {/* Toolbar with Search & Action Buttons */}
+        {/* Table actions */}
         {toolbar && (
           <TableToolbar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            visibleCount={visibleCount}
-            totalCount={totalCount}
+
+
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
             onExportExcel={handleExportExcel}
             onExportCsv={handleExportCsv}
             onExportPdf={handleExportPdf}
             onOpenImport={onImport ? handleOpenImport : undefined}
-            hasActiveFilters={hasActiveFilters}
-            showSearch={showSearch}
+
+
             toolbarVariant={toolbarVariant}
           />
         )}
@@ -568,22 +486,18 @@ export function TableRow({ className, children, ...props }: ComponentProps<"tr">
 
   // If in header, map children and assign columnIndex to each TableHead automatically
   if (isHeaderRow) {
-    let colIdx = 0;
-    const mappedChildren = Array.isArray(children)
-      ? children.map((child) => {
-          if (child && typeof child === "object" && "props" in child) {
-            const assigned = colIdx++;
-            return {
-              ...child,
-              props: {
-                ...child.props,
-                columnIndex: child.props.columnIndex ?? assigned,
-              },
-            };
-          }
-          return child;
-        })
-      : children;
+    let columnIndex = 0;
+    const mappedChildren: ReactNode[] = [];
+    for (const child of Children.toArray(children)) {
+      if (isValidElement<TableHeadProps>(child)) {
+        mappedChildren.push(child.type === TableHead
+          ? cloneElement(child, { columnIndex: child.props.columnIndex ?? columnIndex })
+          : child);
+        columnIndex += child.props.colSpan ?? 1;
+      } else {
+        mappedChildren.push(child);
+      }
+    }
 
     return (
       <tr
@@ -616,6 +530,8 @@ export interface TableHeadProps extends Omit<ComponentProps<"th">, "align"> {
   sortable?: boolean;
   pinnable?: boolean;
   filterable?: boolean;
+  columnControl?: ReactNode;
+  columnFilter?: Omit<TableFilterPopoverProps, "columnTitle"> & { columnTitle?: string };
 }
 
 export function TableHead({
@@ -626,6 +542,8 @@ export function TableHead({
   sortable,
   pinnable,
   filterable,
+  columnControl,
+  columnFilter,
   className,
   children,
   ...props
@@ -657,6 +575,7 @@ export function TableHead({
     return (
       text === "عملیات" ||
       text === "اقدام" ||
+      text === "انتخاب" ||
       text === "actions" ||
       text === "عملیات‌ها" ||
       text === "action"
@@ -665,7 +584,7 @@ export function TableHead({
 
   const canSort = sortable !== undefined ? sortable : !isOperations;
   const canPin = pinnable !== undefined ? pinnable : !isOperations;
-  const canFilter = filterable !== undefined ? filterable : !isOperations;
+  const canFilter = !columnControl && !columnFilter && (filterable ?? (!isOperations && !!columnTitle && (props.colSpan ?? 1) === 1));
 
   const alignment = align ? `text-${align}` : numeric ? "text-end" : "text-start";
   const hasControls = Boolean(
@@ -678,14 +597,10 @@ export function TableHead({
   const activeFilter = tableCtx.columnFilters?.[resolvedIndex];
   const isFiltered = Boolean(
     activeFilter &&
-      ((activeFilter.selectedValues && activeFilter.selectedValues.size > 0) ||
+      (activeFilter.selectedValues ||
         activeFilter.textCondition)
   );
 
-  const uniqueValues = useMemo(() => {
-    if (!canFilter || !tableCtx.getColumnUniqueValues) return [];
-    return tableCtx.getColumnUniqueValues(resolvedIndex);
-  }, [canFilter, resolvedIndex, tableCtx]);
 
   return (
     <th
@@ -712,6 +627,8 @@ export function TableHead({
           {children}
         </span>
 
+        {columnControl}
+        {columnFilter && <TableFilterPopover {...columnFilter} columnTitle={columnFilter.columnTitle ?? columnTitle} />}
         {hasControls && (
           <div
             className="flex items-center gap-0.5 shrink-0"
@@ -772,9 +689,8 @@ export function TableHead({
             {/* 3. Filter Button (▽) */}
             {canFilter && (
               <TableFilterPopover
-                columnIndex={resolvedIndex}
                 columnTitle={columnTitle || `ستون ${resolvedIndex + 1}`}
-                uniqueValues={uniqueValues}
+                getValues={() => tableCtx.getColumnUniqueValues?.(resolvedIndex) ?? []}
                 activeFilter={activeFilter}
                 onApply={(filter) => tableCtx.setColumnFilter?.(resolvedIndex, filter)}
                 isActive={isFiltered}

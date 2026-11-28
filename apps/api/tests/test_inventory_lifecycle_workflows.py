@@ -116,7 +116,7 @@ def test_inv_05_catalog_lifecycle_and_validation(inv_lifecycle_env):
         db,
         c_id,
         user,
-        {"code": "ITM-A", "name": "کالای الف", "inventory_account_id": accounts["inventory"].id},
+        {"code": "ITM-A", "name": "کالای الف"},
     )
     wh_a_res = add_warehouse(db, c_id, user, {"code": "WH-A", "name": "انبار الف"})
     wh_b_res = add_warehouse(db, c_id, user, {"code": "WH-B", "name": "انبار ب"})
@@ -210,7 +210,7 @@ def test_inv_01_opening_stock_and_posting(inv_lifecycle_env):
         db,
         c_id,
         user,
-        {"code": "ITM-OPEN", "name": "کالای اول دوره", "inventory_account_id": accounts["inventory"].id},
+        {"code": "ITM-OPEN", "name": "کالای اول دوره"},
     )
     wh = add_warehouse(db, c_id, user, {"code": "WH-OPEN", "name": "انبار اول دوره"})
 
@@ -285,11 +285,7 @@ def test_inv_01_opening_stock_and_posting(inv_lifecycle_env):
     # Remaining value: 30 * 10,000 = 300,000 IRR
     assert cdx2["closing_value_irr"] == "300000"
 
-    # 5. Item with movements cannot have inventory_account_id changed or be deleted
-    with pytest.raises(DomainError) as err:
-        update_item(db, c_id, user, item["id"], {"inventory_account_id": accounts["cogs"].id})
-    assert err.value.code == "inventory_account_locked"
-
+    # 5. An item with movements cannot be deleted.
     with pytest.raises(DomainError) as err:
         delete_item(db, c_id, user, item["id"])
     assert err.value.code == "inventory_item_referenced"
@@ -306,7 +302,7 @@ def test_inv_02_warehouse_transfer(inv_lifecycle_env):
         db,
         c_id,
         user,
-        {"code": "ITM-TR", "name": "کالای انتقال", "inventory_account_id": accounts["inventory"].id},
+        {"code": "ITM-TR", "name": "کالای انتقال"},
     )
     wh_src = add_warehouse(db, c_id, user, {"code": "WH-SRC", "name": "انبار مبدأ"})
     wh_dst = add_warehouse(db, c_id, user, {"code": "WH-DST", "name": "انبار مقصد"})
@@ -393,7 +389,7 @@ def test_inv_03_stocktake_and_adjustment(inv_lifecycle_env):
         db,
         c_id,
         user,
-        {"code": "ITM-ADJ", "name": "کالای تعدیل", "inventory_account_id": accounts["inventory"].id},
+        {"code": "ITM-ADJ", "name": "کالای تعدیل"},
     )
     wh = add_warehouse(db, c_id, user, {"code": "WH-ADJ", "name": "انبار تعدیل"})
 
@@ -464,3 +460,124 @@ def test_inv_03_stocktake_and_adjustment(inv_lifecycle_env):
     assert cdx2["total_records"] == 3
     assert cdx2["closing_quantity"] == 48
     assert cdx2["closing_value_irr"] == "480000"
+
+
+def test_warehouse_vouchers_post_and_reverse_multiple_items_with_fifo(inv_lifecycle_env):
+    from didban.posting_service import create_reversal
+    from didban.warehouse_voucher_service import create_voucher, list_vouchers
+
+    env = inv_lifecycle_env
+    db, company, user = env["db"], env["company_id"], env["user"]
+    items = [
+        add_item(db, company, user, {"name": name})["id"]
+        for name in ("کالای اول", "کالای دوم")
+    ]
+    warehouse = add_warehouse(db, company, user, {"name": "انبار اصلی"})
+    common = {
+        "warehouse_id": warehouse["id"],
+        "period_id": env["period"].id,
+        "date": date(2026, 2, 1),
+        "offset_account_id": env["accounts"]["adj_gain"].id,
+        "description": "",
+        "reference": "QA-123",
+    }
+    receipt = create_voucher(db, company, user, "warehouse_receipt", common | {
+        "items": [
+            {"item_id": items[0], "quantity": 10, "unit_price_irr": "100"},
+            {"item_id": items[1], "quantity": 4, "unit_price_irr": "200"},
+        ],
+    })
+    assert summary(db, company, user)["balances"] == []
+    assert list_vouchers(db, company, "receipts", 25, None)["items"][0]["state"] == "draft"
+    assert list_vouchers(db, company, "issues", 25, None)["items"] == []
+    with pytest.raises(DomainError) as pending:
+        delete_item(db, company, user, items[0])
+    assert pending.value.code == "inventory_item_draft_referenced"
+
+    receipt_journal = _post_draft(db, company, user, receipt["draft"]["id"])["items"][0]
+    extra = create_voucher(db, company, user, "warehouse_receipt", common | {
+        "items": [{"item_id": items[0], "quantity": 5, "unit_price_irr": "300"}],
+    })
+    _post_draft(db, company, user, extra["draft"]["id"])
+    first_page = list_vouchers(db, company, "receipts", 1, None)
+    assert first_page["next_cursor"]
+    assert list_vouchers(db, company, "receipts", 1, first_page["next_cursor"])["items"][0]["id"] == receipt["operation_id"]
+
+    issue_common = common | {"offset_account_id": env["accounts"]["adj_loss"].id}
+    with pytest.raises(DomainError) as insufficient:
+        create_voucher(db, company, user, "warehouse_issue", issue_common | {
+            "items": [{"item_id": items[0], "quantity": 16}],
+        })
+    assert insufficient.value.code == "inventory_insufficient"
+    issue = create_voucher(db, company, user, "warehouse_issue", issue_common | {
+        "items": [{"item_id": items[0], "quantity": 12}, {"item_id": items[1], "quantity": 1}],
+    })
+    assert issue["source_reference"] != receipt["source_reference"]
+    issue_journal = _post_draft(db, company, user, issue["draft"]["id"])["items"][0]
+    issue_stock = issue_journal["snapshot"]["inventory"]["movements"]
+    assert [(row["quantity"], row["value_irr"]) for row in issue_stock] == [(-12, "-1600"), (-1, "-200")]
+    assert list_vouchers(db, company, "issues", 25, None)["items"][0]["state"] == "posted"
+
+    reversal_data = {"period_id": common["period_id"], "date": common["date"], "reason": "آزمون برگشت"}
+    receipt_reversal = create_reversal(db, company, user, receipt_journal["id"], reversal_data)
+    with pytest.raises(DomainError) as consumed:
+        preview(db, company, user, receipt_reversal["id"])
+    assert consumed.value.code == "inventory_receipt_consumed"
+    issue_reversal = create_reversal(db, company, user, issue_journal["id"], reversal_data)
+    _post_draft(db, company, user, issue_reversal["id"])
+    _post_draft(db, company, user, receipt_reversal["id"])
+    assert list_vouchers(db, company, "issues", 25, None)["items"][0]["state"] == "reversed"
+
+    final_issue = create_voucher(db, company, user, "warehouse_issue", issue_common | {
+        "items": [{"item_id": items[0], "quantity": 1}],
+    })
+    final_stock = preview(db, company, user, final_issue["draft"]["id"])["snapshot"]["inventory"]["movements"]
+    assert final_stock[0]["value_irr"] == "-300"
+
+
+def test_warehouse_voucher_http_scope_and_retries(tmp_path):
+    from test_api_delivery import scenario
+
+    scenario(
+        tmp_path,
+        r"""
+from didban.accounting_models import Account
+from didban.accounting_setup_models import CompanyAccountingSetup
+from didban.inventory_service import add_item, add_warehouse
+
+with transaction() as db:
+    manager_user = db.get(m.User, users["finance_manager"])
+    inventory = Account(company_id="company-a", code="10101", name="موجودی کالا")
+    offset = Account(company_id="company-a", code="50101", name="حساب مقابل")
+    db.add_all([CompanyAccountingSetup(company_id="company-a", mode="primary"), inventory, offset])
+    db.flush()
+    item = add_item(db, "company-a", manager_user, {"name": "کالای آزمون"})
+    warehouse = add_warehouse(db, "company-a", manager_user, {"name": "انبار آزمون"})
+    body = {
+        "warehouse_id": warehouse["id"], "period_id": period_id, "date": "2026-09-01",
+        "offset_account_id": offset.id, "items": [{"item_id": item["id"], "quantity": 2, "unit_price_irr": "100"}],
+    }
+
+inventory_path = base + "/accounting/inventory"
+receipts = inventory_path + "/vouchers/receipts"
+options = inventory_path + "/voucher-options"
+owner, viewer, outsider = (client_for(role) for role in ("owner", "viewer", "outsider"))
+
+assert viewer.get(options).json() == {"can_create": False, "items": [], "warehouses": [], "accounts": []}
+assert command(viewer, "POST", receipts, body).status_code == 403
+assert outsider.get(receipts).status_code == 404
+assert outsider.get(receipts.replace("company-a", "company-b")).json()["items"] == []
+
+grant = command(owner, "PATCH", base + "/members/" + members["viewer"], {"module_access": {"inventory": {"create": True}}})
+assert grant.status_code == 200, grant.text
+assert viewer.get(options).json()["can_create"]
+key = str(uuid4())
+created = command(viewer, "POST", receipts, body, key=key)
+assert created.status_code == 201, created.text
+assert not created.json()["financial_effect"]
+assert command(viewer, "POST", receipts, body, key=key).json() == created.json()
+assert len(viewer.get(receipts).json()["items"]) == 1
+assert viewer.get(inventory_path + "/vouchers/issues").json()["items"] == []
+assert command(viewer, "POST", inventory_path + "/vouchers/issues", body).status_code == 422
+""",
+    )

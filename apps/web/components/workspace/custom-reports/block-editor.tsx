@@ -45,7 +45,6 @@ export function BlockEditor({
 
   if (!block || !isOpen) return null;
 
-  const currentDataSource = dataSources.find((d) => d.value === block.entity_type);
 
   function handleAddFilter() {
     if (!block || !registry || !registry.filterable.length) return;
@@ -151,12 +150,6 @@ export function BlockEditor({
               />
             </Field>
 
-            {currentDataSource && (
-              <div className="rounded-control bg-surface-muted/50 p-3 text-xs text-muted">
-                <span className="font-medium text-foreground">{currentDataSource.label_fa}: </span>
-                {currentDataSource.description_fa}
-              </div>
-            )}
           </div>
         )}
 
@@ -173,7 +166,7 @@ export function BlockEditor({
 
             {block.filters.length === 0 ? (
               <div className="rounded-control border border-dashed border-border py-6 text-center text-xs text-muted">
-                هیچ شرطی تعریف نشده است؛ تمام رکوردهای {currentDataSource?.label_fa || "منبع"} نمایش داده می‌شوند.
+                شرطی تعریف نشده است.
               </div>
             ) : (
               <div className="space-y-3">
@@ -335,7 +328,7 @@ export function BlockEditor({
         )}
 
         <div className="flex justify-end pt-3 border-t border-border">
-          <Button variant="primary" onClick={onClose}>
+          <Button variant="primary" className="w-full" onClick={onClose}>
             بستن و اعمال
           </Button>
         </div>

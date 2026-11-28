@@ -6,6 +6,7 @@ import { useResource } from "@/hooks/use-resource";
 import { useWorkspace } from "@/hooks/workspace";
 import { listItems } from "@/lib/api";
 import { addExactAmounts } from "@/lib/financial-presentation";
+import { moduleAllows } from "@/lib/module-access";
 import type { NativeInvoice } from "@/lib/native-invoices";
 import { compareInvoiceAmounts, tehranToday } from "@/lib/native-invoices";
 import type { Counterparty } from "@/lib/commercial";
@@ -60,7 +61,7 @@ export const toolLabel: Record<string, string> = {
   cash: "نقد / صندوق",
   bank_transfer: "حواله بانکی",
   cheque: "چک",
-  card: "کارت‌خوان / کارت",
+  card: "کارت / کارت‌خوان",
   other: "سایر",
 };
 
@@ -72,8 +73,14 @@ export const stateLabel: Record<string, string> = {
 
 export function useTreasuryDocuments() {
   const workspace = useWorkspace();
-  const docs = useResource<TreasuryDocumentListResponse>(workspace.companyPath("treasury/documents"));
-  const accounts = useResource<TreasuryAccountOptionsResponse>(workspace.companyPath("treasury/accounts/options?active_only=true"));
+  const canView = moduleAllows(workspace.company, "treasury", "view");
+  const canCreate = moduleAllows(workspace.company, "treasury", "create", workspace.canWrite);
+  const canDelete = moduleAllows(workspace.company, "treasury", "delete", workspace.canWrite);
+  const canCreateParty = moduleAllows(workspace.company, "commercial", "create",
+    workspace.company?.role === "owner" || workspace.company?.role === "finance_manager",
+  );
+  const docs = useResource<TreasuryDocumentListResponse>(canView ? workspace.companyPath("treasury/documents") : null);
+  const accounts = useResource<TreasuryAccountOptionsResponse>(canView ? workspace.companyPath("treasury/accounts/options?active_only=true") : null);
   const counterparties = useResource<{ items: Counterparty[] }>(workspace.companyPath("commercial/counterparties?limit=100"));
   const invoices = useResource<{ items: NativeInvoice[] }>(workspace.companyPath("accounting/native-invoices?limit=100"));
   const bankMovements = useResource<{ items: BankMovementOption[] }>(workspace.companyPath("bank-movements?limit=50"));
@@ -113,7 +120,13 @@ export function useTreasuryDocuments() {
 
   const cpOptions = listItems(counterparties.data).map((c) => ({ value: c.id, label: `${c.name} (${c.code})` }));
   const cpNames = Object.fromEntries(listItems(counterparties.data).map((c) => [c.id, c.name]));
-  const taOptions = listItems(accounts.data).map((t) => ({ value: t.id, label: t.name }));
+  const treasuryAccounts = listItems(accounts.data);
+  const taOptions = (kind: TreasuryToolKind) => treasuryAccounts
+    .filter((account) => account.kind === "pos" ? kind === "card" : true)
+    .map((account) => ({
+      value: account.id,
+      label: account.kind === "pos" ? `کارت‌خوان · ${account.name}` : account.name,
+    }));
   const invNames = Object.fromEntries(listItems(invoices.data).map((i) => [i.id, i.reference]));
 
   const eligibleBankMovements = listItems(bankMovements.data).filter((b) => {
@@ -199,15 +212,19 @@ export function useTreasuryDocuments() {
           party_id: partyId,
           unit: "IRR",
           description: description.trim(),
-          tools: tools.map((t) => ({
-            tool_kind: t.tool_kind,
-            treasury_account_id: t.treasury_account_id || null,
-            bank_movement_id: t.bank_movement_id || null,
-            cheque_id: t.cheque_id || null,
-            due_date: t.due_date || null,
-            amount: t.amount.trim(),
-            reference: t.reference.trim() || null,
-          })),
+          tools: tools.map((t) => {
+            const isTerminal = treasuryAccounts.some((account) => account.id === t.treasury_account_id && account.kind === "pos");
+            return {
+              tool_kind: t.tool_kind,
+              treasury_account_id: isTerminal ? null : t.treasury_account_id || null,
+              ...(isTerminal && { point_of_sale_id: t.treasury_account_id }),
+              bank_movement_id: t.bank_movement_id || null,
+              cheque_id: t.cheque_id || null,
+              due_date: t.due_date || null,
+              amount: t.amount.trim(),
+              reference: t.reference.trim() || null,
+            };
+          }),
         },
       },
       () => {
@@ -282,13 +299,17 @@ export function useTreasuryDocuments() {
       doc,
       allocatableVal,
       firstAvailableTool: doc.tools.find((tool) => compareInvoiceAmounts(tool.remaining_amount ?? tool.amount, "0") > 0),
-      canAllocate: workspace.canWrite && doc.state !== "reversed" && compareInvoiceAmounts(allocatableVal, "0") > 0,
+      canAllocate: canCreate && doc.state !== "reversed" && compareInvoiceAmounts(allocatableVal, "0") > 0,
       hasProof: doc.has_payment_proof ?? false,
     };
   });
 
   return {
     workspace,
+    canView,
+    canCreate,
+    canDelete,
+    canCreateParty,
     docs,
     counterparties,
     cmd,

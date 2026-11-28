@@ -122,7 +122,6 @@ function WidgetConfigForm({
           id="w-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="مثلاً مجموع فروش دوره"
           required
         />
       </Field>
@@ -212,11 +211,11 @@ function WidgetConfigForm({
         />
       </Field>
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-border/60">
+      <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-border/60">
         <Button variant="ghost" onClick={onCancel}>
           انصراف
         </Button>
-        <Button variant="primary" onClick={handleSave}>
+        <Button variant="primary" className="w-full" onClick={handleSave}>
           ذخیره ویجت
         </Button>
       </div>

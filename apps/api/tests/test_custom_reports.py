@@ -15,6 +15,7 @@ from didban.custom_reports import (
     get_entity_registry,
     list_data_sources,
 )
+from didban.custom_reports.field_registry import strip_retired_inventory_account
 from didban.db import initialize, transaction
 from didban.security import hasher
 
@@ -50,9 +51,29 @@ def test_field_registry_definitions():
         assert reg is not None, f"Registry missing for {source_key}"
         assert len(reg.filterable) > 0
         assert len(reg.selectable) > 0
+    items = get_entity_registry("inventory_items")
+    assert items.get_selectable("inventory_account_id") is None
+    assert items.get_filterable("inventory_account_id") is None
+
+    legacy_block = {
+        "entity_type": "inventory_items",
+        "columns": ["name", "inventory_account_id"],
+        "filters": [{"field": "inventory_account_id", "value": "account"}, {"field": "active", "value": True}],
+        "sort_field": "inventory_account_id",
+    }
+    assert strip_retired_inventory_account([legacy_block]) == [{
+        "entity_type": "inventory_items",
+        "columns": ["name"],
+        "filters": [{"field": "active", "value": True}],
+    }]
+    assert legacy_block["columns"] == ["name", "inventory_account_id"]
 
 
 def test_ai_composer():
+    items = compose_report_block("فهرست کالاهای انبار")
+    assert items["entity_type"] == "inventory_items"
+    assert items["columns"] == ["code", "name", "active"]
+
     # Cheques
     res = compose_report_block("گزارش چک‌های پرداختی برگشتی")
     assert res["entity_type"] == "cheques"

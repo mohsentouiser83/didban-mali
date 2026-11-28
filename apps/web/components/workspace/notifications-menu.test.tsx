@@ -74,6 +74,8 @@ describe("NotificationsMenu", () => {
     expect(screen.getByText("۱ جدید")).toBeInTheDocument();
     expect(screen.getByText("گزارش مالی آماده شد")).toBeInTheDocument();
     expect(screen.getByText("بارگذاری با موفقیت انجام شد")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "مشاهده" }).map((link) => link.getAttribute("href")))
+      .toContain("/reports/processing/session-1");
     expect(screen.getByRole("button", { name: "خواندن همه" })).toBeInTheDocument();
   });
 

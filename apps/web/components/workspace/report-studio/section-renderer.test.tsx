@@ -74,7 +74,7 @@ it("calls onResizeWidget when the quick width pill is clicked", () => {
 
   render(<SectionRenderer section={mockSection} onResizeWidget={onResizeWidget} />);
 
-  const pillButtons = screen.getAllByTitle("کلیک برای تغییر مرحله‌ای اندازه کارت (یا کشیدن لبه با ماوس)");
+  const pillButtons = screen.getAllByRole("button", { name: "تغییر عرض کارت" });
   expect(pillButtons.length).toBeGreaterThan(0);
 
   fireEvent.click(pillButtons[0]);

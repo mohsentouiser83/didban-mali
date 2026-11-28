@@ -1,7 +1,7 @@
 "use client";
 import { WalletIcon as HeaderIcon } from "@phosphor-icons/react";
 import { DetailField } from "@/components/ui/field-layout";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -44,8 +44,19 @@ export function CashflowView() {
   if (!view.workspace.company) return <NoCompany />;
   return (
     <>
-      <PageHeader icon={HeaderIcon}
+      <PageHeader
+        icon={HeaderIcon}
         title="نقدینگی دوره"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink variant="secondary" href="/cashflow/forecast">
+              پیش‌بینی ۳۰روزه نقدینگی
+            </ButtonLink>
+            <ButtonLink variant="ghost" href="/reports">
+              آرشیو گزارش‌ها
+            </ButtonLink>
+          </div>
+        }
       />
       {view.loading ? (
         <LoadingState />

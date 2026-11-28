@@ -3,6 +3,12 @@ import type { JournalDraft } from "./accounting";
 export type InventoryOperation = "purchase_goods" | "sale_goods";
 export type InventoryItemKind = "goods" | "service";
 export type InventoryCatalogue = "items" | "warehouses";
+export const inventoryUnitsPath = "accounting/inventory/units";
+
+export interface InventoryUnits {
+  items: string[];
+  can_create: boolean;
+}
 
 export interface InventoryWarehouse {
   id: string;
@@ -50,11 +56,19 @@ export interface InventoryPostingEvidence {
   item_id: string;
   warehouse_id: string;
   item_code?: string;
+  base_unit?: string;
   item_name?: string;
   warehouse_code?: string;
   warehouse_name?: string;
   quantity: number;
   value_irr: string;
+}
+
+export type InventoryPostingSnapshot = InventoryPostingEvidence | { movements: InventoryPostingEvidence[] };
+
+export function inventoryPostingMovements(snapshot?: InventoryPostingSnapshot) {
+  if (!snapshot) return [];
+  return "movements" in snapshot ? snapshot.movements : [snapshot];
 }
 
 export interface InventoryDraftResult {
@@ -82,7 +96,13 @@ export function hasInventoryInvoice(kind: InventoryMovementKind): kind is Invent
   return kind === "purchase_goods" || kind === "sale_goods";
 }
 
+export const inventoryVoucherTitle = {
+  warehouse_receipt: "رسید انبار",
+  warehouse_issue: "خروج انبار",
+} as const;
+
 export interface InventoryCardexRow {
+  voucher_kind?: keyof typeof inventoryVoucherTitle;
   id: string;
   date: string;
   kind: InventoryMovementKind;

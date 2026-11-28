@@ -167,9 +167,6 @@ export function NotificationsMenu() {
               <p className="text-sm font-medium text-foreground">
                 اعلان تازه‌ای نیست
               </p>
-              <p className="text-xs text-muted">
-                پیام‌ها و رویدادهای مالی سامانه در این بخش نمایش داده می‌شوند.
-              </p>
             </div>
           ) : (
             notifications.map((notification) => (
@@ -218,7 +215,7 @@ export function NotificationsMenu() {
                 <div className="flex shrink-0 items-center gap-1.5 self-center">
                   {notification.href?.startsWith("/") && (
                     <ButtonLink
-                      href={notification.href}
+                      href={notification.href.replace(/^\/uploads\/([^/]+)$/, "/reports/processing/$1")}
                       variant="soft"
                       onClick={() => {
                         if (!notification.read) void markAsRead(notification);

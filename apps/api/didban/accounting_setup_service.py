@@ -109,7 +109,7 @@ def validate_chart_hierarchy(db: Session, company: str, rows: list[dict]) -> Non
             level = row.get("level")
             if level in (None, "group"):
                 require(not parent_code, "invalid_account_parent", "حساب گروه بالادست ندارد.")
-            else:
+            elif level != "detail" or parent_code:
                 require(bool(parent_code), "account_parent_required", "کد حساب بالادست را وارد کنید.")
                 require(parent_code in levels and levels[parent_code] == PARENT_LEVEL.get(level),
                         "invalid_account_parent_level", "سطح حساب بالادست سازگار نیست.")
@@ -122,12 +122,7 @@ def validate_chart_hierarchy(db: Session, company: str, rows: list[dict]) -> Non
 
 
 def preview_chart(db: Session, company: str, user: m.User, rows: list[dict]) -> dict:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه مدیریت حساب‌ها ندارید.",
-        403,
-    )
+    membership(db, company, user, "manage_accounts", scope=("accounting", "create"))
     require(0 < len(rows) <= 20000, "chart_row_limit", "بین ۱ تا ۲۰ هزار حساب وارد کنید.")
     from .accounting_setup_schemas import ChartPreviewInput
 
@@ -155,12 +150,7 @@ def preview_chart(db: Session, company: str, user: m.User, rows: list[dict]) -> 
 
 
 def import_chart(db: Session, company: str, user: m.User, preview_id: str) -> dict:
-    require(
-        capabilities(db, company, user)["can_manage_accounts"],
-        "permission_denied",
-        "اجازه مدیریت حساب‌ها ندارید.",
-        403,
-    )
+    membership(db, company, user, "manage_accounts", scope=("accounting", "create"))
     checked = get_entity(db, AccountImportPreview, company, preview_id)
     require(checked.actor_id == user.id, "preview_owner_mismatch", "پیش‌نمایش متعلق به این کاربر نیست.", 403)
     require(

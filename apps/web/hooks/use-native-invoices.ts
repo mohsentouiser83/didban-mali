@@ -2,13 +2,15 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { useWorkspace } from "./workspace";
 import { useResource } from "./use-resource";
+import { useTableColumnFilters } from "./use-table-column-filters";
 import { useCommand } from "./use-command";
-import { usePagedResource } from "./use-paged-resource";
 import { addExactAmounts } from "@/lib/financial-presentation";
-import { amount, displayDate } from "@/lib/utils";
+import { amount, displayDate, persian } from "@/lib/utils";
 import type { Metric } from "@/lib/api";
 import {
   emptyTerms,
+  expectedDateLabel,
+  invoiceHistoryDelayLabel,
   tehranToday,
   compareInvoiceAmounts,
   termsValid,
@@ -56,35 +58,28 @@ export function useNativeInvoices(
       ? `${base}/candidates?kind=${direction === "sale" ? "receipt" : "payment"}`
       : null,
   );
-  const snapshots = usePagedResource<{
-    id: string;
-    digest: string;
-    created_at: string;
-    payload: NativeInvoiceReport;
-  }>(base ? `${base}/snapshots` : null);
   const command = useCommand();
-  const [snapshotId, setSnapshotId] = useState("");
-  const [requestedSnapshotPage, setSnapshotPage] = useState(0);
-  const savedSnapshot = useResource<{
-    id: string;
-    digest: string;
-    payload: NativeInvoiceReport;
-  }>(snapshotId && base ? `${base}/snapshots/${snapshotId}` : null);
-  const snapshotTotal = savedSnapshot.data?.payload.items.length || 0;
-  const snapshotPage = Math.min(
-    requestedSnapshotPage,
-    Math.max(0, Math.ceil(snapshotTotal / 25) - 1),
-  );
   const [selectedId, setSelectedId] = useState("");
   const detail = useResource<NativeInvoice>(
     selectedId && base ? `${base}/${selectedId}?as_of=${asOf}` : null,
   );
-  const [query, setQuery] = useState(initialReference);
   const [page, setPage] = useState(0);
-  const filtered = (report.data?.items || []).filter((row) =>
-    (!partyId || row.party_record_id === partyId || row.party_id === partyId) &&
-    `${row.reference} ${row.party_name ?? ""} ${row.party_id}`.includes(query),
+  const invoiceRows = (report.data?.items || []).filter((row) =>
+    !partyId || row.party_record_id === partyId || row.party_id === partyId,
   );
+  const filters = useTableColumnFilters(invoiceRows, {
+    reference: (row) => row.reference,
+    date: (row) => displayDate(row.date),
+    party: (row) => row.party_name ? `${row.party_name} (${row.party_id})` : row.party_id,
+    due: (row) => row.terms?.due_date ? displayDate(row.terms.due_date) : "نامشخص",
+    expected: (row) => row.terms?.expected_date ? displayDate(row.terms.expected_date) : expectedDateLabel(row.terms, row.direction),
+    amount: (row) => amount(row.amount),
+    remaining: (row) => amount(row.remaining),
+    status: (row) => row.status !== "available" ? "نامشخص" : row.remaining === "0" ? "تسویه‌شده" : "دارای مانده",
+    delay: (row) => row.overdue_days == null ? "سررسید نامشخص" : row.overdue_days > 0 ? `${persian(row.overdue_days)} روز تأخیر` : "بدون تأخیر",
+    history: (row) => `${persian(row.history_event_count || 0)} سند وصول مستقل ${invoiceHistoryDelayLabel(row)}`,
+  }, initialReference ? { reference: { textCondition: initialReference } } : {});
+  const filtered = filters.rows;
   const currentPage = Math.min(
     page,
     Math.max(0, Math.ceil(filtered.length / 25) - 1),
@@ -405,16 +400,19 @@ export function useNativeInvoices(
     workspace,
     scope,
     priority,
-    setPriority,
+    setPriority: (value: typeof priority) => {
+      setPriority(value);
+      filters.bind("history", () => setPage(0)).onApply(null);
+    },
     command,
     report,
     ledger,
     candidates,
     payments,
-    snapshots,
     detail,
     rows,
-    query,
+    columnFilter: (key: Parameters<typeof filters.bind>[0]) => filters.bind(key, () => setPage(0)),
+    filtersActive: filters.active,
     asOf,
     currentPage,
     total: filtered.length,
@@ -458,20 +456,6 @@ export function useNativeInvoices(
       if (reminder)
         setReminder({ ...reminder, text, copied: false, error: "" });
     },
-    snapshotId,
-    savedSnapshot,
-    selectSnapshot: (id: string) => {
-      setSnapshotId(id);
-      setSnapshotPage(0);
-    },
-    snapshotPage,
-    snapshotTotal,
-    snapshotRows: (savedSnapshot.data?.payload.items || []).slice(
-      snapshotPage * 25,
-      (snapshotPage + 1) * 25,
-    ),
-    previousSnapshotPage: () => setSnapshotPage(Math.max(0, snapshotPage - 1)),
-    nextSnapshotPage: () => setSnapshotPage(snapshotPage + 1),
     metrics: [invoiceMetric, ledgerMetric],
     ledgerKey,
     candidateOptions: (candidates.data?.items || []).map((row) => ({
@@ -501,10 +485,6 @@ export function useNativeInvoices(
     },
     closeTerms: () => {
       if (!command.busy) setTermsEditor(null);
-    },
-    setQuery: (value: string) => {
-      setQuery(value);
-      setPage(0);
     },
     setAsOf: (value: string) => {
       if (value) {
@@ -541,15 +521,6 @@ export function useNativeInvoices(
     },
     closeAllocation: () => {
       if (!command.busy) setAllocationEditor(null);
-    },
-    saveSnapshot: () => {
-      if (valid())
-        void command.run(
-          base ? `${base}/snapshots` : null,
-          { body: { as_of: asOf, direction } },
-          snapshots.refresh,
-          "نسخهٔ ثابت فاکتورها ذخیره شد.",
-        );
     },
   };
 }

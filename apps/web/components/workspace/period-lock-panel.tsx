@@ -15,8 +15,15 @@ import { CursorPagination } from "@/components/ui/pagination";
 import { usePeriodLock } from "@/hooks/use-period-lock";
 import { displayDate, persian } from "@/lib/utils";
 import { PeriodTasksPanel } from "./period-tasks-panel";
-export function PeriodLockPanel({ periodId }: { periodId: string }) {
-  const c = usePeriodLock(periodId);
+export function PeriodLockPanel({
+  periodId,
+  controller,
+}: {
+  periodId: string;
+  controller?: ReturnType<typeof usePeriodLock>;
+}) {
+  const internal = usePeriodLock(controller ? "" : periodId);
+  const c = controller ?? internal;
   const item = c.resource.data;
   return (
     <div className="space-y-5">

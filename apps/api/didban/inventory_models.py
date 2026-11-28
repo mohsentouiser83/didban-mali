@@ -20,6 +20,13 @@ from .models import Base, Entity, Tenant, Versioned
 from .money_type import Money
 
 
+class InventoryUnit(Entity, Tenant, Base):
+    __tablename__ = "inventory_units"
+    __table_args__ = (UniqueConstraint("company_id", "name"),)
+
+    name: Mapped[str] = mapped_column(String(40))
+
+
 class InventoryItem(Entity, Tenant, Versioned, Base):
     __tablename__ = "inventory_items"
     __table_args__ = (
@@ -47,6 +54,25 @@ class InventoryWarehouse(Entity, Tenant, Versioned, Base):
     code: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(150))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class InventoryWarehouseItem(Entity, Tenant, Base):
+    __tablename__ = "inventory_warehouse_items"
+    __table_args__ = (
+        UniqueConstraint("company_id", "warehouse_id", "item_id"),
+        ForeignKeyConstraint(
+            ["company_id", "warehouse_id"], ["inventory_warehouses.company_id", "inventory_warehouses.id"],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "item_id"], ["inventory_items.company_id", "inventory_items.id"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_inventory_warehouse_items_company_item", "company_id", "item_id"),
+    )
+
+    warehouse_id: Mapped[str] = mapped_column(String(36))
+    item_id: Mapped[str] = mapped_column(String(36))
 
 
 class InventoryMovement(Entity, Tenant, Base):

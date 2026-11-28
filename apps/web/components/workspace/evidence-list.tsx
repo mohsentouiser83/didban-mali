@@ -91,21 +91,6 @@ export function EvidenceList({ evidence }: { evidence: unknown[] }) {
     <div className="space-y-4">
       {evidence.slice(page * 5, (page + 1) * 5).map((item, index) =>
         workspace.company &&
-        typeof item === "string" &&
-        /^native-invoice-snapshot:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(
-          item,
-        ) ? (
-          <div key={index} className="space-y-2">
-            <p className="text-sm">نسخهٔ ثابت فاکتورهای دفتر دیدبان</p>
-            <ButtonLink
-              download
-              variant="secondary"
-              href={`/api/v1${workspace.companyPath(`accounting/native-invoices/snapshots/${item.slice("native-invoice-snapshot:".length)}/export?format=pdf`)}`}
-            >
-              دریافت گزارش فاکتورها
-            </ButtonLink>
-          </div>
-        ) : workspace.company &&
           typeof item === "string" &&
           /^native-statement:[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(
             item,

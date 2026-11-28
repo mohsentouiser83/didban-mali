@@ -6,8 +6,10 @@ export function useResource<T>(
   {
     allowMissing = false,
     poll = false,
+    fetcher = api<T>,
   }: {
     allowMissing?: boolean;
+    fetcher?: (path: string, options: { signal: AbortSignal }) => Promise<T>;
     poll?: boolean | ((data: T | undefined) => boolean);
   } = {},
 ) {
@@ -26,7 +28,7 @@ export function useResource<T>(
     const load = async () => {
       let latest: T | undefined;
       try {
-        const data = await api<T>(path, { signal: controller.signal });
+        const data = await fetcher(path, { signal: controller.signal });
         latest = data;
         if (!controller.signal.aborted)
           setSnapshot({ path, data, loaded: true });
@@ -57,7 +59,7 @@ export function useResource<T>(
       controller.abort();
       clearTimeout(timer);
     };
-  }, [path, revision, allowMissing, poll]);
+  }, [path, revision, allowMissing, poll, fetcher]);
   const replace = useCallback((data: T) => {
     if (path) setSnapshot({ path, data, loaded: true });
   }, [path]);

@@ -414,7 +414,7 @@ def query_receivables_concentration(
 
     for inv in invoices:
         src = inv.source or {}
-        inv_total = amount(src.get("total_amount", "0"))
+        inv_total = amount(src.get("amount") or src.get("total_amount") or "0")
         allocated = alloc_by_inv.get(inv.id, ZERO)
         remaining = inv_total - allocated
         if remaining <= ZERO:

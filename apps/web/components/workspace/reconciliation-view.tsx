@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ArrowsLeftRightIcon as HeaderIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import {
@@ -87,7 +88,7 @@ export function ImportedReconciliationWorkspace() {
                 </TableHead>
                 <TableHead>نتیجه</TableHead>
                 <TableHead>
-                  <span className="sr-only">شواهد</span>
+                  <span className="sr-only">عملیات</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -119,19 +120,20 @@ export function ImportedReconciliationWorkspace() {
                       <StatusBadge status={candidate.status} />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        className="size-11 p-0"
-                        aria-label="بررسی شواهد تطبیق"
-                        onClick={() => {
-                          setSelected(candidate);
-                          setDecision("accepted");
-                          setReason("");
-                          view.command.clearError();
-                        }}
-                      >
-                        <ArrowUpLeftIcon size={18} />
-                      </Button>
+                      <TableRowActions label={`عملیات ${candidate.reference}`}>
+                        <TableRowAction
+                          aria-label="بررسی شواهد تطبیق"
+                          onClick={() => {
+                              setSelected(candidate);
+                              setDecision("accepted");
+                              setReason("");
+                              view.command.clearError();
+                          }}
+                          icon={<ArrowUpLeftIcon size={18} />}
+                        >
+                          بررسی شواهد تطبیق
+                        </TableRowAction>
+                      </TableRowActions>
                     </TableCell>
                   </TableRow>
                 ))
@@ -166,7 +168,6 @@ export function ImportedReconciliationWorkspace() {
           <Panel>
             <EmptyState
               title="اطلاعات لازم برای تطبیق موجود نیست"
-              description="برای تطبیق، ابتدا تراکنش یا سند بانکی را ثبت کنید."
             />
           </Panel>
         ) : (

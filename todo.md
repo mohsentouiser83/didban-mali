@@ -16,6 +16,10 @@ Required-field indicators (2026-11-23): shared red asterisks and accessible requ
 
 Counterparty types (2026-11-23): implemented one required type (`supplier`, `customer`, `employee`, `other`) for new commercial cards; edit/read views and list show the type. Additive startup upgrade preserves old cards with `other`. Generated API/DDL updated. Verified: 15 commercial API tests, including SQLite data-preserving upgrade and restart; 4 targeted web tests; TypeScript and targeted ESLint. **OPEN / VALIDATE**: PostgreSQL upgrade and authenticated desktop/mobile/reduced-motion form checks; built-in browser reached login.
 
+Scope update (2026-11-26): the standalone processing list and general uploads are retired. Capacity checks seed synthetic processing evidence directly. Product acceptance covers specialized Moadian and bot intake, document evidence access, and report questions. See the maintained decisions and current implementation.
+
+Inventory catalogue (2026-11-26): item units can be added from financial definitions and selected in the catalogue drawer. The create drawer uses the API's automatic inventory account assignment. See [inventory](docs/features/inventory.fa.md) for verification and the schema upgrade.
+
 ### Status labels
 
 - **OPEN / IMPLEMENT**: concrete local implementation gap within the approved direction. Check existing code before extending it.
@@ -36,7 +40,7 @@ Personnel navigation (2026-11-23): moved employee and contract management out of
 
 Header fiscal-period selection (2026-11-23): removed “latest result”; preserve the company's valid saved period, otherwise select today's period or the newest defined period. Empty/foreign selections are rejected. Eight focused tests, TypeScript and scoped ESLint passed; authenticated browser/mobile verification remains open because the available browser session reached login.
 
-Native chart/drafts and the explicit posting flow; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices/allocations/snapshots; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions; document discussions; bot intake/extraction review/explicit journal approval; coordinated backup; single-item FIFO purchase/sale, opening stock, transfer and adjustment; bounded direct Moadian submission/inquiry. Existing boundaries are described in [current implementation](docs/current-implementation.fa.md). The [entity inventory](docs/entity-inventory.fa.md) maps all runtime classes and tables.
+Native chart/drafts and the explicit posting flow; immutable journals and reversal/replacement; closing/opening drafts and period lock/reopen; imported and native invoices and allocations, with retained historical invoice report evidence; explicit manual many-to-many matching; 30-day forecasts/D09/questions and independent scenarios; dimensions; document discussions; bot intake/extraction review/explicit journal approval; coordinated backup; single-item FIFO purchase/sale, opening stock, transfer and adjustment; bounded direct Moadian submission/inquiry. Existing boundaries are described in [current implementation](docs/current-implementation.fa.md). The [entity inventory](docs/entity-inventory.fa.md) maps all runtime classes and tables.
 
 ### Non-negotiable invariants
 
@@ -189,16 +193,10 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-01 — Multi-line commercial documents
 
-**P1 · OPEN / IMPLEMENT.** Extend single-item purchase/sale using the approved commercial pilot rules and the current ledger.
-
-- Specify line IDs, exact unit price, totals, rial/toman conversion, counterparty and settlement terms. D32 specifies integer quantities for the first release. If a pilot requires weighted or measured items, address decimal quantities and units in its data model design.
-- Implement user-approved D24. Apply the invoice discount after line discounts, allocate it in proportion to each net line amount and persist each share. The shares must sum exactly to the invoice discount. Use the resulting net line amount for item analysis and as the basis for line returns. See the [decision record](docs/advanced-capabilities-decisions.fa.md#تصمیم-d24--تخفیف-کل-فاکتور-چندقلمی-۲۰۲۶۱۱۲۲).
-- Implement D27 for invoice discount shares. Allocate the whole-rial portion of each exact share first, then assign remaining rials in descending fractional-remainder order with invoice line order as the tie-break. Verify that 100 IRR across three equal lines produces 34, 33 and 33 IRR and that the shares sum exactly.
-- Implement D25 for fully settled sales and D26 for sales with an open balance. Preserve original sales/purchase and FIFO evidence. VAT remains a separate scope decision.
-- Implement D33 and D34 with one warehouse per invoice and stock movements linked to their document lines. Add versioned commercial document/line models and a data-preserving migration. Post the approved journal and linked inventory movements atomically.
-- Add focused shared-UI preparation/review flows within existing document/invoice categories. Preserve immutable old single-line documents and exports.
-- **Acceptance:** line totals, invoice balance, journal debits/credits and stock/COGS reconcile exactly; one invalid line blocks posting atomically; concurrent/replayed approval has one effect; stale FIFO/version/closed-period checks remain effective.
-- **Start in:** inventory schemas/models/service, operation services, `native_invoice_service.py`, `native_invoice_evidence.py`, posting and inventory web hooks/views.
+**P1 · IMPLEMENTED & VALIDATED (SQLite + unit/E2E); PostgreSQL/browser pilot acceptance remains open.**
+- Implemented in `apps/api/didban/commercial_doc_models.py`, `apps/api/didban/commercial_doc_service.py`, `apps/api/didban/routes/commercial_docs.py`, and `apps/web/components/workspace/commercial/`.
+- Implements D24/D27 proportional largest-remainder invoice discount allocation, D25/D26/D29 returns & credits, D30/D31 FIFO restoration & quarantine, D32 integer quantities, and D33/D34 atomic journal + inventory posting.
+- Validated in `test_phase3_commercial_and_returns.py`, `test_commercial_treasury_regressions.py`, and `test_end_to_end_synthetic_workflow.py`. Continue pilot verification of account-role resolution with company charts of accounts and PostgreSQL/browser checks.
 
 ### ACC-02 — Cash and mixed settlement
 
@@ -212,9 +210,9 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-03 — Nonfinancial proforma and conversion
 
-**P0 guard implemented. P1 multi-line conversion remains open.** Sales proformas can be created or converted from the product. Existing purchase proformas remain readable.
-- The server rejects multi-line and discounted conversion until ACC-01 can preserve exact totals, discounts, stock and settlement. Extend conversion with ACC-01.
-- Add regression cases for two lines, nonzero discount, mixed payment, retry and conversion failure. A rejected conversion must preserve the issued proforma.
+**P1 · IMPLEMENTED & VALIDATED (SQLite/web unit); browser validation open.** Sales proformas (including multi-line, line/invoice discounts, and mixed settlement) convert cleanly via `create_commercial_document_draft`. Existing purchase proformas remain readable.
+- `ProformaConversion` and `useProformaConversion` support optional `discount_account_id` when the proforma has discounts.
+- Regression cases in `apps/api/tests/test_commercial.py` (`test_acc03_multiline_discounted_mixed_proforma_conversion_and_failure_preservation`) cover two lines (goods + service), nonzero line/invoice discounts, mixed payment, duplicate conversion rejection, and credit-limit failure preserving `issued` status.
 
 ### ACC-04 — Counterparty commercial records and credit control
 
@@ -232,16 +230,10 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 ### ACC-06 — Correction/replacement integration for new document shapes
 
-**P1 · OPEN / IMPLEMENT · depends on ACC-01/ACC-02.** Extend supported source recognition and recovery beyond current bounded templates.
-
-- Implement D25 for returns against fully collected sales. Issue customer credit for the net returned amount, preserve the original receipt history, and allow later application to another invoice for the same customer or a separately approved refund. Test available credit, replay, and unchanged cash at return time.
-- Implement D26 for returns against sales with an open balance. Apply the return to that invoice up to its current outstanding balance, then issue same-customer credit for any remainder. Cover returns below, equal to and above the balance, concurrent allocations, and idempotent approval. Preserve receipts and leave cash unchanged at return time.
-- Implement D29 for purchase returns. Apply the return against the same invoice's outstanding payable first, then retain excess as a receivable from the same supplier. Preserve original payments and allow later application to another invoice for that supplier or a separate receipt. Cover fully settled and partly settled purchases and verify unchanged cash at return time.
-- Implement D30 and D31 for returned sales stock. Use original posted FIFO consumption and its sequence for healthy partial returns, with remaining quantity capacity tracked across returns. Keep damaged returns out of salable stock pending a separately tracked restock, repair or disposal decision.
-- Define replacement compatibility for multi-line goods/services and cash/mixed operations. Update source/evidence recognition deliberately; do not accept any balanced manual journal as a compatible invoice source.
-- Preserve linked reversal/replacement, explicit release of active allocations, replacement receipt/payment capacity, actual acceptance date and historical snapshots.
-- **Acceptance:** original financial history remains readable, unsupported replacements fail safely, adopted replacements have correct inventory/COGS/settlement effects, and replay/concurrency cannot double release or allocate.
-- **Start in:** `native_invoice_revisions.py`, `native_invoice_evidence.py`, inventory reversal/posting integration.
+**P1 · IMPLEMENTED & VALIDATED (SQLite); PostgreSQL concurrency & browser acceptance open.**
+- D25/D26/D29/D30/D31 returns, FIFO layer restoration, quarantine resolution, and customer/supplier credits are implemented in `commercial_doc_service.py` and tested in `test_phase3_commercial_and_returns.py`.
+- `inventory_service.py:_reversal_stock` supports multi-line `movements` reversals (including `commercial_sale` and `commercial_purchase`) via `reverse_voucher`.
+- `native_invoice_evidence.py:_replacement_proof` supports service-only multi-line/mixed `commercial_sale` and `commercial_purchase` replacements with exact `on_account_amount_irr`, `party_id`, `counterparty_account_id`, and `NativeAccountRole` verification, while rejecting goods-bearing manual replacements (`inventory_replacement_required`) and mismatched journals (`test_acc06_commercial_replacement_compatibility`).
 
 ### ACC-07 — Employee financial reports from supported native payroll
 
@@ -287,33 +279,31 @@ Tasks with independent modules may run in parallel if repository instructions pe
 - Implemented item and warehouse update/delete with deletion guards against referenced movements (`inventory_item_referenced`, `inventory_warehouse_referenced`), locked inventory account updates when movements exist, and draft creation guards against inactive catalog entries.
 - Validated in `apps/api/tests/test_inventory_lifecycle_workflows.py`.
 
+- Item catalogue rows support audited assignment of active goods to active warehouses. The unique, company-scoped link is independent of stock movements. See [inventory](docs/features/inventory.fa.md).
+
+### INV-06 — Warehouse receipts and issues
+
+**Implemented.** The two warehouse lists support creating multi-item drafts. Native journal approval controls stock changes, and issues consume FIFO layers. See [warehouse workflows and verification](docs/features/inventory.fa.md).
+
 ## 6. Reconciliation, reporting and closing maturity
 
 ### FIN-01 — Better bounded aggregate-match discovery
 
-**P1 · OPEN / IMPLEMENT + OPEN / VALIDATE.** Manual many-to-many and bounded suggestions already exist.
-
-- Extend candidate discovery only for defined reference/date/party/account relationships; specify search-size/time limits and explain why candidates are suggested.
-- Retain equal-amount/shared-capacity/current-source constraints across imported/native/manual modes. Equal sums alone do not establish a match.
-- If a difference is a fee or correction, link to an explicit existing/new supported draft workflow; never absorb it into tolerance or auto-post.
-- **Acceptance:** competing candidates/concurrency cannot consume a bank or journal line twice, unsupported differences remain unresolved, and performance is measured on realistic candidate counts.
+**P1 · IMPLEMENTED & VALIDATED (SQLite); browser acceptance open.**
+- `group_match_service.py:propose_groups` supports bounded (`MAX_GROUP_ROWS = 100`, `MAX_PROPOSALS = 200`) discovery for `shared_reference`, `same_party_and_date` (1-to-many, many-to-1, and many-to-many without reference), and `whole_account_day_review`, with explicit `match_basis` and Persian `explanation`.
+- Retains equal-direction, exact-sum, and mandatory human review constraints (`test_fin01_bounded_same_party_and_date_group_discovery` in `apps/api/tests/test_reconciliation.py`).
 
 ### FIN-02 — Coverage and consistency across financial surfaces
 
-**P0 · OPEN / VALIDATE, implement fixes found.** Verify dashboard, invoices, collections, assistant, reports, forecasts, scenarios and dimension outputs agree for the same basis/version.
-
-- Identify entry points that read imported facts, posted native data or a selected snapshot. In custom reports, native-only journal/employee datasets must show accurate coverage. D28 fixed and explicit live modes are implemented and covered by API tests. Verify them in the browser alongside the shared reporting scope. Propagate null and specific missing coverage instead of displaying zero.
-- Exercise missing opening evidence, incomplete future obligations, changed account roles, reversed/replaced documents, retired module preferences and primary/external mode switches.
-- Propagate actual unavailable reasons and supported completion actions; never fill a missing metric from a different basis.
-- **Acceptance:** fixed snapshots remain unchanged, current results identify stale/missing dependencies, and known dated-flow projections cannot appear as complete forecast balances in any UI/export/channel.
+**P0 · IMPLEMENTED & VALIDATED (SQLite); browser/PostgreSQL validation open.**
+- Fixed `financial_evidence_service.py:query_receivables_concentration` to read `NativeInvoice.source["amount"]` (instead of missing `"total_amount"`), aligning receivables evidence totals with `native_invoice_service.current` and `native_reporting_service`.
+- Cross-surface consistency, `null` propagation on missing opening evidence, and limited-forecast `None` closing/minimum balances verified in `apps/api/tests/test_fin02_cross_surface_consistency.py`.
 
 ### FIN-03 — Full-period accounting/closing reference suite
 
-**P0 · OPEN / VALIDATE.** Closing/opening, locks/reopening and native statements already exist.
-
-- Exercise a complete period with opening, services/goods, receipts/payments, charges, supported cheques/payroll, corrections, checklist, close/open and reopening with linked evidence.
-- Check income/expense exclusion of opening/closing transfers, inventory/COGS roles, current permissions and stale readiness hashes.
-- **Acceptance:** expected journals and statements reconcile exactly; reopening does not rewrite historical approvals; the next opening reflects approved policy; accountant review findings become versioned changes, retaining D22 provisional provenance until genuinely reviewed.
+**P0 · IMPLEMENTED & VALIDATED (SQLite); independent accountant review & PostgreSQL acceptance remain open.**
+- Full-period reference suite in `apps/api/tests/test_fin03_full_period_reference.py` exercises opening stock + opening declaration, commercial mixed sale + FIFO, cheque deposit + clearance, reversal + replacement, checklist, temporary closing, historical statement immutability, period lock/reopen/re-lock, and next-period opening.
+- Preserves D22 provisional provenance until genuine independent accountant review.
 
 ### FIN-04 — Management-dimension report acceptance
 
@@ -419,7 +409,7 @@ Tasks with independent modules may run in parallel if repository instructions pe
 
 - Validate clean startup, real schema upgrade, non-root images, secret injection, session/CSRF/origin behavior, private file access, scanner fail-closed behavior and restart after pending work.
 - Run 10-file/20,000-row workloads with up to five concurrent users/readers and realistic processing contention. Measure P50/P95 latency, peak memory, DB/worker queues, scanner time, model calls/cost and retries.
-- Cover native journal/inventory approval races, reconciliation/allocation contention and report generation alongside upload.
+- Cover native journal/inventory approval races, reconciliation/allocation contention and report generation alongside supported specialized imports.
 - Inspect dependency/container findings and address material issues; record limitations and sizing from measurements. The old SQLite smoke and historical uptime/SLA claims are not acceptance.
 - **Acceptance:** reproducible deployment/performance/security report with environment, workload and observed limits; no lost/duplicate financial effects or cross-company access.
 
@@ -571,3 +561,8 @@ CSS parsing fix: Tailwind now scans only app/components/hooks/lib; it no longer 
   - Payroll workshops (`CompanyPayrollWorkshop`), legal contract fields/amendments, mid-month attendance proration, `rate_status` (`verified_1403` vs `unverified_period_rates`), `internal_draft_only` insurance/tax disk warnings, payment draft-to-post lifecycle, dedicated company-scoped `view_payroll` confidentiality permission (`D36` — `AccountingPermission.view_payroll` + `require_payroll_access` + member permission UI toggles); Moadian `invoice_subject` (`1..4`), `reference_tax_id`, commercial multi-line payload & buyer identity cross-check.
 - Verification run on latest code: `ruff check apps/api` (0 errors); isolated SQLite `pytest`: `639` passed, `1` PG-dependent skip (`test_postgres.py`, `0` failed); disposable PG 17.11 non-superuser `validate-postgres.py` PASSED (`125` RLS tables, `91` finite checks, `375` cross-company checks, `30` immutable checks) + PG double-`initialize()` idempotent upgrade PASSED; web `tsc --noEmit` (0 errors), `vitest run` (`84` files / `331` tests passed), scoped `eslint --max-warnings=0` (0 errors/warnings; pre-existing warnings/error remain in unrelated files), `next build` PASSED.
 - OPEN / VALIDATE (UX ACCEPTANCE): Built-in browser QA on isolated sandbox (`127.0.0.1:3199`/`8199`) verified login and HTTP 200 page/API loads for `/settings/accounts`, `/accounting/electronic-ledgers`, and `/commercial/counterparties`, then was canceled by user before checking `/commercial/proformas`, `/accounting/inventory/items`, `/payroll`, `/moadian/transmissions`, `/settings/members` (`view_payroll` toggle), mobile `390x844`, and reduced motion.
+
+## تنظیمات پایه و دسترسی اعضا — ۲۰۲۶/۱۱/۲۶
+
+- [x] اجرای D37 و بررسی پیش‌فرض نقش، تنظیم صریح، تفکیک شرکت و مجوزهای مستقل.
+- [x] تکمیل و بررسی کدینگ، حساب‌های خزانه، طرف حساب و دوره‌های مالی طبق دامنهٔ مصوب.

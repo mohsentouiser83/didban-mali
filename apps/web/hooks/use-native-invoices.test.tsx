@@ -19,7 +19,6 @@ beforeEach(()=>{
   if(path.endsWith("/allocations"))return {...invoice,version:5,remaining:"60"};
   if(path.endsWith("/terms")||path.endsWith("native-invoices")&&options?.method==="POST")return invoice;
   if(path.includes("/invoice?"))return invoice;
-  if(path.includes("/snapshots"))return {items:[],next_cursor:null};
   return {basis:"native_invoice",as_of:"2026-09-30",items:[invoice]};
  });
 });

@@ -117,7 +117,8 @@ def _visible(db, row, member, profile):
 
 def history(
     db, company, member, limit: int, cursor: str | None, *,
-    q: str | None = None, status: str | None = None, period_id: str | None = None,
+    q: str | None = None, invoice_reference: str | None = None, tax_id: str | None = None,
+    status: str | None = None, period_id: str | None = None,
 ) -> dict:
     profile = load_profile(company)
     may_send = _can_send(db, company, member)
@@ -128,6 +129,9 @@ def history(
             func.lower(field).contains(query, autoescape=True)
             for field in (Transmission.invoice_reference, Transmission.tax_id, Transmission.uid)
         )))
+    for field, value in ((Transmission.invoice_reference, invoice_reference), (Transmission.tax_id, tax_id)):
+        if value and (term := value.strip()):
+            filters.append(field.icontains(term, autoescape=True))
     if status:
         latest_status = (
             select(Event.status)

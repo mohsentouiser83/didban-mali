@@ -112,6 +112,13 @@ export function ProformaConversion({ row, onClose, onComplete }: {
                 </Field>
               );
             })}
+            {view.hasDiscount && (
+              <Field id="proforma-conversion-discount_account_id" label="حساب تخفیفات فروش (اختیاری)">
+                <Select id="proforma-conversion-discount_account_id" value={view.values.discount_account_id}
+                  options={view.accounts.options}
+                  onValueChange={(value) => view.setValues((previous) => ({ ...previous, discount_account_id: value }))} />
+              </Field>
+            )}
           </div>
           <FormMessage error>
             {view.mixed && !view.mixedSumMatch

@@ -1,13 +1,19 @@
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Query, Request
 
 from .. import inventory_service as service
+from .. import warehouse_voucher_service as vouchers
 from ..http import C, access, expected, mutate
 from ..inventory_schemas import (
     InventoryDraftInput,
     InventoryItemInput,
     InventoryTransferInput,
+    InventoryUnitInput,
+    InventoryUnitsResponse,
+    ItemWarehouseInput,
+    ItemWarehousesResponse,
     NrvAdjustmentDraftInput,
     NrvAssessmentInput,
     OpeningStockInput,
@@ -15,6 +21,10 @@ from ..inventory_schemas import (
     UpdateInventoryItemInput,
     UpdateWarehouseInput,
     WarehouseInput,
+    WarehouseIssueInput,
+    WarehouseReceiptInput,
+    WarehouseVoucherList,
+    WarehouseVoucherOptions,
 )
 
 router = APIRouter()
@@ -109,6 +119,20 @@ def create_nrv_draft(company_id: str, data: NrvAdjustmentDraftInput, request: Re
     )
 
 
+@router.get(P + "/units", response_model=InventoryUnitsResponse)
+def units(company_id: str, request: Request):
+    with access(request, company_id) as (db, _user, member):
+        return service.list_units(db, company_id, member)
+
+
+@router.post(P + "/units", status_code=201, response_model=InventoryUnitInput)
+def add_unit(company_id: str, data: InventoryUnitInput, request: Request):
+    return mutate(
+        request, company_id, data.model_dump(), "write",
+        lambda db, user: service.add_unit(db, company_id, user, data.name),
+    )
+
+
 @router.post(P + "/items", status_code=201)
 def add_item(company_id: str, data: InventoryItemInput, request: Request):
     payload = data.model_dump()
@@ -164,6 +188,20 @@ def update_warehouse(company_id: str, warehouse_id: str, data: UpdateWarehouseIn
         lambda db, user: service.update_warehouse(
             db, company_id, user, warehouse_id, payload, expected(request)
         ),
+    )
+
+
+@router.get(P + "/items/{item_id}/warehouses", response_model=ItemWarehousesResponse)
+def list_item_warehouses(company_id: str, item_id: str, request: Request):
+    with access(request, company_id) as (db, _user, member):
+        return service.list_item_warehouses(db, company_id, member, item_id)
+
+
+@router.post(P + "/items/{item_id}/warehouses", response_model=ItemWarehouseInput)
+def link_item_warehouse(company_id: str, item_id: str, data: ItemWarehouseInput, request: Request):
+    return mutate(
+        request, company_id, data.model_dump(), "write",
+        lambda db, user: service.link_item_warehouse(db, company_id, user, item_id, data.warehouse_id),
     )
 
 
@@ -224,4 +262,40 @@ def create_adjustment_draft(company_id: str, data: StockAdjustmentInput, request
         payload,
         "read",
         lambda db, user: service.create_adjustment_draft(db, company_id, user, payload),
+    )
+
+
+@router.get(P + "/voucher-options", response_model=WarehouseVoucherOptions)
+def voucher_options(company_id: str, request: Request):
+    with access(request, company_id) as (db, user, member):
+        return vouchers.voucher_options(db, company_id, user, member)
+
+
+@router.get(P + "/vouchers/{direction}", response_model=WarehouseVoucherList)
+def list_vouchers(
+    company_id: str,
+    direction: Literal["receipts", "issues"],
+    request: Request,
+    limit: int = Query(25, ge=1, le=100),
+    cursor: str | None = None,
+):
+    with access(request, company_id) as (db, _user, _member):
+        return vouchers.list_vouchers(db, company_id, direction, limit, cursor)
+
+
+@router.post(P + "/vouchers/receipts", status_code=201)
+def create_receipt(company_id: str, data: WarehouseReceiptInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request, company_id, payload, "write",
+        lambda db, user: vouchers.create_voucher(db, company_id, user, "warehouse_receipt", payload),
+    )
+
+
+@router.post(P + "/vouchers/issues", status_code=201)
+def create_issue(company_id: str, data: WarehouseIssueInput, request: Request):
+    payload = data.model_dump()
+    return mutate(
+        request, company_id, payload, "write",
+        lambda db, user: vouchers.create_voucher(db, company_id, user, "warehouse_issue", payload),
     )

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
-import { counterpartyForm, proformaForm, useCounterparties, useProformas } from "./use-commercial";
+import { counterpartyForm } from "@/lib/commercial";
+import { proformaForm, useCounterparties, useProformas } from "./use-commercial";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/api")>(),

@@ -15,14 +15,16 @@ import { Form } from "@/components/ui/form";
 import { AmountInput, Textarea } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Select } from "@/components/ui/select";
-import { ErrorState, StatusMessage } from "@/components/ui/content-states";
+import { ErrorState } from "@/components/ui/content-states";
 import type { useJournalDrafts } from "@/hooks/use-accounting";
 import { amount, persian } from "@/lib/utils";
 
 export function JournalDraftForm({
   view,
+  showNavigation = true,
 }: {
   view: ReturnType<typeof useJournalDrafts>;
+  showNavigation?: boolean;
 }) {
   const entry = useJournalEntryType(view.editing !== undefined);
   const editable =
@@ -45,7 +47,7 @@ export function JournalDraftForm({
           {view.requiresAccounts && (
             <div className="space-y-3">
               <p>برای ساخت سند، حساب فعال تعریف کنید.</p>
-              {view.capabilities.data?.can_manage_accounts && (
+              {showNavigation && view.capabilities.data?.can_manage_accounts && (
                 <ButtonLink variant="secondary" href="/settings/accounts">
                   مدیریت کدینگ
                 </ButtonLink>
@@ -145,7 +147,7 @@ export function JournalDraftForm({
                   />
                 </Field>
                 <div className="space-y-4">
-                  {view.value.lines.map((line, index) => (
+                {view.value.lines.map((line, index) => (
                     <fieldset
                       key={index}
                       disabled={view.command.busy}
@@ -156,7 +158,7 @@ export function JournalDraftForm({
                       </legend>
                       <div className="flex items-start gap-2">
                         <div className="min-w-0 flex-1 space-y-1">
-                          {index === 0 && view.capabilities.data?.can_manage_accounts && (
+                          {showNavigation && index === 0 && view.capabilities.data?.can_manage_accounts && (
                             <div className="flex justify-end">
                               <ButtonLink
                                 variant="ghost"
@@ -176,8 +178,11 @@ export function JournalDraftForm({
                             <Select
                               id={`line-${index}-account`}
                               value={line.account_id}
-                              disabled={!editable}
-                              options={view.accountOptions}
+                              disabled={!editable || view.command.busy}
+                              options={[
+                                ...view.accountOptions,
+                                ...view.legacyAccountOptions.filter((option) => option.value === line.account_id),
+                              ]}
                               searchable
                               searchPlaceholder="جستجوی کد یا نام حساب..."
                               onValueChange={(id) =>
@@ -228,6 +233,19 @@ export function JournalDraftForm({
                           />
                         </Field>
                       </div>
+                      <Field id={`line-${index}-detail`} label="حساب تفصیلی">
+                        <Select
+                          id={`line-${index}-detail`}
+                          value={line.detail_account_id || "none"}
+                          disabled={!editable || view.command.busy}
+                          options={view.detailAccountOptions}
+                          searchable
+                          searchPlaceholder="جستجوی کد یا نام حساب تفصیلی..."
+                          onValueChange={(id) => view.line(index, {
+                            detail_account_id: id === "none" ? null : id,
+                          })}
+                        />
+                      </Field>
                       <JournalLinePartyField
                         id={`line-${index}-party`}
                         value={line.party_id}
@@ -275,13 +293,16 @@ export function JournalDraftForm({
                 <FieldError>
                   {view.errors.balance || view.errors.lines}
                 </FieldError>
-                <StatusMessage>
-                  ذخیرهٔ پیش‌نویس اثر مالی ندارد؛ ثبت نهایی از فهرست اسناد انجام
-                  می‌شود.
-                </StatusMessage>
                 <FormMessage error>{!view.value.period_id ? "دوره را از هدر انتخاب کنید." : view.command.error?.message}</FormMessage>
+                {!view.editing && !view.replacement && !view.hasPostableSubsidiaries && (
+                  <FormMessage error>حساب معین قابل ثبت وجود ندارد.</FormMessage>
+                )}
                 {editable && (
-                  <Button type="submit" busy={view.command.busy}>
+                  <Button
+                    type="submit"
+                    busy={view.command.busy}
+                    disabled={!view.editing && !view.replacement && !view.hasPostableSubsidiaries}
+                  >
                     ذخیره پیش‌نویس
                   </Button>
                 )}

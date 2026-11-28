@@ -3,8 +3,10 @@
 import { useState, useRef, useContext, type DragEvent, type ChangeEvent } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 import { Drawer } from "./drawer";
 import { Button } from "./button";
+import { Textarea } from "./input";
 import {
   UploadSimpleIcon,
   FileXlsIcon,
@@ -230,10 +232,9 @@ export function TableImportDialog({
         if (!v) handleClose();
       }}
       title={title}
-      description="فایل اکسل یا CSV را بارگذاری نمایید یا ستون‌های کپی‌شده از اکسل را بچسبانید."
       className="max-w-2xl"
       footer={
-        <div className="flex items-center justify-between w-full">
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
           {parsedData ? (
             <div className="flex items-center gap-2 text-xs text-muted">
               <CheckCircleIcon size={18} className="text-emerald" weight="fill" />
@@ -244,21 +245,19 @@ export function TableImportDialog({
           ) : (
             <div />
           )}
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleClose}>
-              انصراف
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!parsedData || !parsedData.rows.length}
-              busy={isSubmitting}
-              onClick={() => void handleConfirm()}
-              className="gap-2"
-            >
-              <UploadSimpleIcon size={16} />
-              تأیید و ورود به جدول
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={handleClose}>
+            انصراف
+          </Button>
+          <Button
+            variant="primary"
+            disabled={!parsedData || !parsedData.rows.length}
+            busy={isSubmitting}
+            onClick={() => void handleConfirm()}
+            className="w-full gap-2"
+          >
+            <UploadSimpleIcon size={16} />
+            تأیید و ورود به جدول
+          </Button>
         </div>
       }
     >
@@ -279,7 +278,7 @@ export function TableImportDialog({
             }`}
           >
             <FileXlsIcon size={16} />
-            بارگذاری فایل اکسل (.xlsx / .csv)
+            بارگذاری فایل (.xlsx / .xls / .csv)
           </button>
           <button
             type="button"
@@ -295,7 +294,7 @@ export function TableImportDialog({
             }`}
           >
             <ClipboardTextIcon size={16} />
-            چسباندن مستقیم از اکسل (Paste)
+            چسباندن از اکسل
           </button>
         </div>
 
@@ -326,18 +325,15 @@ export function TableImportDialog({
               <UploadSimpleIcon size={24} />
             </div>
             <h4 className="mt-3 text-sm font-medium text-foreground">
-              {isProcessing ? "در حال پردازش فایل..." : "فایل اکسل یا CSV را اینجا بکشید یا کلیک کنید"}
+              {isProcessing ? "در حال پردازش فایل..." : "انتخاب فایل"}
             </h4>
-            <p className="mt-1 text-xs text-muted">پشتیبانی از فرمت‌های XLSX، XLS و CSV</p>
           </div>
         )}
 
         {activeTab === "paste" && !parsedData && (
           <div className="space-y-3">
-            <p className="text-xs text-muted leading-relaxed">
-              ردیف‌های مورد نظر را در اکسل انتخاب، کپی (Ctrl+C) کرده و در کادر زیر بچسبانید (Ctrl+V):
-            </p>
-            <textarea
+            <Textarea
+              aria-label="داده‌های کپی‌شده از اکسل"
               dir="ltr"
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
@@ -374,34 +370,27 @@ export function TableImportDialog({
               </Button>
             </div>
 
-            <div className="max-h-56 overflow-auto rounded-lg border border-border bg-surface">
-              <table className="w-full text-start text-xs border-collapse">
-                <thead className="sticky top-0 bg-canvas text-muted">
-                  <tr>
-                    <th className="px-3 py-2 text-start font-medium text-[11px] border-b border-border w-10">#</th>
-                    {parsedData.headers.map((h, i) => (
-                      <th
-                        key={i}
-                        className="px-3 py-2 text-start font-medium text-[11px] border-b border-border whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
+            <div className="max-h-56 overflow-auto">
+              <Table toolbar={false} aria-label="پیش‌نمایش فایل" className="text-xs has-[tbody_td:not([colspan])]:min-w-0">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead filterable={false} sortable={false} pinnable={false}>ردیف</TableHead>
+                    {parsedData.headers.map((header, index) => (
+                      <TableHead key={index}>{header}</TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {parsedData.rows.slice(0, 8).map((row, rIdx) => (
-                    <tr key={rIdx} className="hover:bg-canvas/40">
-                      <td className="px-3 py-2 text-muted text-[11px]">{persian(rIdx + 1)}</td>
-                      {parsedData.headers.map((_, cIdx) => (
-                        <td key={cIdx} className="px-3 py-2 text-foreground whitespace-nowrap">
-                          {String(row[cIdx] ?? "—")}
-                        </td>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {parsedData.rows.slice(0, 8).map((row, rowIndex) => (
+                    <TableRow key={rowIndex}>
+                      <TableCell numeric>{persian(rowIndex + 1)}</TableCell>
+                      {parsedData.headers.map((_, columnIndex) => (
+                        <TableCell key={columnIndex}>{String(row[columnIndex] ?? "—")}</TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {parsedData.totalRows > 8 && (

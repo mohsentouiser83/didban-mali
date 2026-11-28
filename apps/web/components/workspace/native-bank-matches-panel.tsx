@@ -1,4 +1,5 @@
 "use client";
+import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { useState } from "react";
 import { Drawer } from "@/components/ui/drawer";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -98,7 +99,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
         <div className="space-y-3">
           <EmptyState
             title="نسخهٔ ثابت دفتر دیدبان موجود نیست"
-            description="برای تطبیق حساب بانکی، ابتدا یک نسخهٔ ثابت از صورت‌های دفتر بومی تولید کنید."
           />
           <div className="flex justify-center">
             <ButtonLink variant="secondary" href="/reports/native">
@@ -129,7 +129,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
             <div className="space-y-3">
               <EmptyState
                 title="گردش بانکی برای تطبیق موجود نیست"
-                description="ابتدا فایل صورتحساب بانکی را بارگذاری کنید تا گردش‌های باز در دسترس تطبیق قرار گیرند."
               />
               <div className="flex justify-center">
                 <ButtonLink variant="secondary" href="/settings/documents">
@@ -238,7 +237,6 @@ export function NativeBankMatchesPanel() {
           <EmptyState
             compact
             title="تطبیقی ذخیره نشده"
-            description="برای تطبیق گردش‌های بانکی واردشده با حساب بانک در دفتر دیدبان، روی «تطبیق جدید» بزنید."
           />
         ) : (
           <Table>
@@ -270,16 +268,18 @@ export function NativeBankMatchesPanel() {
                   <TableCell className="tabular-nums">{amount(item.snapshot.bank_total)}</TableCell>
                   <TableCell><StatusBadge status={item.status} /></TableCell>
                   <TableCell>
-                    <Button
-                      variant="secondary"
-                      disabled={view.command.busy}
-                      onClick={() => {
-                        view.view(item);
-                        setMode("details");
-                      }}
-                    >
-                      مشاهده و تصمیم
-                    </Button>
+                    <TableRowActions label={`عملیات ${item.snapshot.bank_account}`}>
+                      <TableRowAction
+                        disabled={view.command.busy}
+                        onClick={() => {
+                            view.view(item);
+                            setMode("details");
+                        }}
+                        kind="view"
+                      >
+                        مشاهده و تصمیم
+                      </TableRowAction>
+                    </TableRowActions>
                   </TableCell>
                 </TableRow>
               )) : <TableEmptyCell colSpan={7} title="تطبیقی ذخیره نشده" />}

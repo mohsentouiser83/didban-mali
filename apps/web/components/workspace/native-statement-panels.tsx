@@ -25,10 +25,7 @@ type OpeningController = ReturnType<typeof useOpeningEvidence>;
 
 export function NativeStatementDetails({ c }: { c: Controller }) {
   return (
-    <Panel title={c.run ? "جزئیات نسخه ثابت" : "جزئیات دفتر جاری"}>
-      <p className="mb-4 text-sm text-muted">
-        فقط اسناد نهایی دیدبان؛ فایل‌های دفتر خارجی در این گزارش جمع نمی‌شوند.
-      </p>
+    <Panel title={c.run ? "اسناد نهایی دیدبان · نسخهٔ ثابت" : "اسناد نهایی دفتر دیدبان"}>
       <Table>
         <TableHeader>
           <TableRow>

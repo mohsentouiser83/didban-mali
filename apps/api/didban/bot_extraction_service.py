@@ -230,7 +230,7 @@ def review(db, company, user, proposal_id, data, version):
         )
     content = out.getvalue().encode("utf-8")
     from .ingestion import read_file
-    from .source_intake import store_source
+    from .source_intake import queue_source_processing, store_source
 
     session = m.ProcessingSession(
         company_id=company, period_id=data["period_id"], actor_id=user.id, state="receiving"
@@ -273,6 +273,7 @@ def review(db, company, user, proposal_id, data, version):
     )
     db.add(output)
     db.flush()
+    queue_source_processing(db, session, user, [source.id])
     item.source_file_id = source.id
     item.state = "imported"
     item.version += 1

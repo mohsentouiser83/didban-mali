@@ -9,7 +9,7 @@ from didban import models as m
 from didban import native_invoice_service as service
 from didban.accounting_models import Account
 from didban.errors import DomainError
-from didban.native_invoice_models import NativeInvoiceSnapshot, NativeInvoiceTerms
+from didban.native_invoice_models import NativeInvoiceTerms
 from didban.operation_service import create as operation
 from didban.posting_models import NativeJournal
 from didban.posting_service import create_reversal, post_batch, preview
@@ -95,13 +95,12 @@ def reverse_journal(db, source, day=date(2026, 11, 2)):
     post_batch(db, "c", actor, [{k: check[k] for k in ("draft_id", "expected_version", "digest")}])
 
 
-def test_invoice_metadata_exact_toman_immutable_snapshots_and_terms_asof(book):
+def test_invoice_metadata_exact_toman_and_terms_asof(book):
     db = book
     source = posted(db, amount="9007199254740993", unit="TOMAN")
     item = invoice(db, source)
     assert item["amount"] == item["remaining"] == "90071992547409930"
     assert item["basis"] == "native_invoice" and item["unit"] == "IRR" and item["original_unit"] == "TOMAN"
-    old = service.snapshot(db, "c", db.get(m.User, "advisor"), date(2026, 10, 15), "sale")
     item = service.update_terms(
         db,
         "c",
@@ -120,7 +119,6 @@ def test_invoice_metadata_exact_toman_immutable_snapshots_and_terms_asof(book):
     assert item["version"] == 2 and len(item["terms_history"]) == 2
     historical = service.detail(db, "c", db.get(m.User, "viewer"), item["id"], date(2026, 10, 15))
     assert historical["terms"]["due_date"] == "2026-10-10" and len(historical["terms_history"]) == 1
-    assert db.get(NativeInvoiceSnapshot, old["id"]).payload["items"][0]["terms"]["due_date"] == "2026-10-10"
     assert db.scalar(select(func.count()).select_from(NativeJournal)) == 1
     assert db.scalar(select(m.Invoice.id)) is None
     with pytest.raises(DomainError):
@@ -226,7 +224,7 @@ def test_http_invoice_lifecycle_idempotency_history_company_isolation_and_immuta
         r"""
 from didban.accounting_models import Account
 from didban.accounting_setup_models import CompanyAccountingSetup
-from didban.native_invoice_models import NativeInvoice,NativeInvoiceTerms,NativeInvoiceAllocation,NativeInvoiceSnapshot
+from didban.native_invoice_models import NativeInvoice,NativeInvoiceTerms,NativeInvoiceAllocation
 from didban.posting_models import NativeJournal
 owner=client_for('owner');manager=client_for('finance_manager');advisor=client_for('advisor');viewer=client_for('viewer');outsider=client_for('outsider')
 with transaction('company-a') as db:
@@ -257,17 +255,19 @@ assert allocated.status_code==201,allocated.text
 assert command(advisor,'POST',path+'/'+item['id']+'/allocations',allocation,version=1,key='native-allocation').json()==allocated.json()
 assert command(advisor,'POST',path+'/'+item['id']+'/allocations',allocation,version=1).status_code==409
 current=allocated.json();assert current['remaining']=='40'
-snap=command(advisor,'POST',path+'/snapshots',{'as_of':'2026-09-20','direction':'sale'});assert snap.status_code==201,snap.text
 reverse=command(advisor,'POST',path+'/'+item['id']+'/allocations/'+current['allocations'][0]['id']+'/reversal',{'reason':'اصلاح مبلغ تخصیص'},version=2)
 assert reverse.status_code==201 and reverse.json()['remaining']=='100',reverse.text
 reallocate=command(advisor,'POST',path+'/'+item['id']+'/allocations',dict(allocation,amount='50'),version=3)
 assert reallocate.status_code==201 and reallocate.json()['remaining']=='50',reallocate.text
-assert viewer.get(path+'/snapshots/'+snap.json()['id']).json()['payload']['items'][0]['remaining']=='40'
+assert command(advisor,'POST',path+'/snapshots',{'as_of':'2026-09-20','direction':'sale'}).status_code==405
+assert viewer.get(path+'/snapshots').status_code==404
+assert viewer.get(path+'/snapshots/retired-id').status_code==404
+assert viewer.get(path+'/snapshots/retired-id/export').status_code==404
 try:
     with transaction('company-a') as db:db.execute(update(NativeInvoice).values(source={'amount':'999'}))
 except IntegrityError:pass
 else:raise AssertionError('Native invoice pinned source must be immutable')
-for model in (NativeInvoiceTerms,NativeInvoiceAllocation,NativeInvoiceSnapshot):
+for model in (NativeInvoiceTerms,NativeInvoiceAllocation):
     try:
         with transaction('company-a') as db:db.execute(update(model).values(actor_id='changed'))
     except IntegrityError:pass
@@ -276,7 +276,7 @@ with transaction('company-a') as db:
     assert len(list(db.scalars(select(NativeJournal))))==2
     assert db.scalar(select(m.Invoice.id)) is None
     db.get(m.Membership,members['advisor']).active=False
-assert command(advisor,'POST',path+'/snapshots',{'as_of':'2026-09-20'}).status_code==404
+assert advisor.get(path+'/'+item['id']).status_code==404
 """,
     )
 
@@ -381,7 +381,6 @@ def test_known_account_role_contradictions_block_receipts_and_current_history(bo
         mapping={"bank_a": bank.id, "trade_receivable": receivable.id},
     )
     item = alloc(db, item, receipt, "60")
-    old = service.snapshot(db, "c", actor, date(2026, 10, 20), "sale")
     assert len(service.receipt_history(db, "c", actor, "customer", date(2026, 10, 20))) == 1
     # The invoice receivable remains valid; only its receipt bank acquires
     # a contradictory explicit expense role.
@@ -393,7 +392,6 @@ def test_known_account_role_contradictions_block_receipts_and_current_history(bo
     assert current["remaining"] is None and current["reason"] == "native_invoice_allocation_source_invalid"
     assert service.receipt_history(db, "c", actor, "customer", date(2026, 10, 20)) == []
     assert service.candidates(db, "c", actor, "receipt")["items"] == []
-    assert db.get(NativeInvoiceSnapshot, old["id"]).payload["items"][0]["remaining"] == "40"
 
 
 def test_account_only_corrected_source_uses_posted_accounts_for_semantic_role_guard(book):
@@ -446,7 +444,7 @@ def test_account_only_corrected_source_uses_posted_accounts_for_semantic_role_gu
     assert error.value.code == "native_invoice_role_conflict"
 
 
-def test_legacy_settings_allow_authoring_and_mode_change_preserves_snapshots(
+def test_legacy_settings_allow_authoring_and_mode_change_preserves_invoices(
     book,
 ):
     from didban.accounting_setup_models import CompanyAccountingSetup
@@ -457,7 +455,6 @@ def test_legacy_settings_allow_authoring_and_mode_change_preserves_snapshots(
     item = invoice(db, source)
     receipt = posted(db, "receipt", "100", "MODULE-RECEIPT", day=date(2026, 10, 12))
     item = alloc(db, item, receipt, "100")
-    snapshot = service.snapshot(db, "c", actor, date(2026, 10, 20), "sale")
     db.add(m.CompanyModule(company_id="c", key="settlements", enabled=False))
     db.flush()
     assert service.detail(db, "c", actor, item["id"])["remaining"] == "0"
@@ -488,6 +485,5 @@ def test_legacy_settings_allow_authoring_and_mode_change_preserves_snapshots(
     db.get(CompanyAccountingSetup, "c").mode = "analysis"
     db.flush()
     assert service.current(db, "c", actor, date(2026, 10, 20))["items"][0]["remaining"] == "0"
-    assert db.get(NativeInvoiceSnapshot, snapshot["id"]).payload["items"][0]["remaining"] == "0"
     with pytest.raises(DomainError):
         service.candidates(db, "c", actor, "sale_service")

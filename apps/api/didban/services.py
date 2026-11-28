@@ -40,13 +40,12 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
     from .period_lock_service import require_open_period
 
     require(values["end"] >= values["start"], "invalid_period_dates", "پایان دوره نباید پیش از آغاز دوره باشد.")
-    previous_id = values.get("previous_period_id")
-    if previous_id:
-        previous = get_entity(db, Period, company, previous_id)
+    if period and period.previous_period_id and values["start"] != period.start:
+        previous = get_entity(db, Period, company, period.previous_period_id)
         require(
-            (not period or previous.id != period.id) and previous.end < values["start"],
+            previous.end < values["start"],
             "invalid_comparison_period",
-            "دوره مقایسه باید پیش از آغاز این دوره باشد.",
+            "شروع دوره باید پس از پایان دورهٔ مقایسهٔ ثبت‌شده باشد.",
         )
     overlaps = db.scalars(
         select(Period).where(
@@ -62,21 +61,17 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
         require_open_period(db, company, period.id)
         used = period_has_dependencies(db, company, period.id)
         require(
-            not used
-            or (
-                period.start == values["start"]
-                and period.end == values["end"]
-                and period.previous_period_id == previous_id
-            ),
+            not used or (period.start == values["start"] and period.end == values["end"]),
             "period_in_use",
-            "تاریخ و دوره مقایسهٔ دوره استفاده‌شده قابل تغییر نیست.",
+            "تاریخ دورهٔ استفاده‌شده قابل تغییر نیست.",
             409,
         )
-        for key, value in values.items():
-            setattr(period, key, value)
+        period.name = values["name"]
+        period.start = values["start"]
+        period.end = values["end"]
         period.version += 1
     else:
-        period = Period(company_id=company, **values)
+        period = Period(company_id=company, name=values["name"], start=values["start"], end=values["end"])
         db.add(period)
     db.flush()
     audit(
@@ -85,7 +80,7 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
         user.id,
         "period.saved",
         period.id,
-        values | {"start": str(values["start"]), "end": str(values["end"])},
+        {"name": period.name, "start": str(period.start), "end": str(period.end)},
     )
     return serialize_fact(period)
 
@@ -113,6 +108,10 @@ def change_member(db: Session, company: str, user: User, member: Membership, val
             )
         )
         require(count > 1, "last_owner", "آخرین مالک شرکت قابل حذف نیست.", 409)
+    if "module_access" in values:
+        values = values | {
+            "module_access": {module: actions for module, actions in values["module_access"].items() if actions}
+        }
     before = {key: getattr(member, key) for key in values}
     for key, value in values.items():
         setattr(member, key, value)

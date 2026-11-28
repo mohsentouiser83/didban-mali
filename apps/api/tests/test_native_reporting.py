@@ -243,7 +243,7 @@ for code,role in (("001","bank"),("002","equity"),("003","revenue")):
     response=command(owner,"PATCH",path+"/account-roles/"+account["id"],{"role":role})
     assert response.status_code==200,response.text
     assert command(owner,"PATCH",path+"/account-roles/"+account["id"],{"role":role}).status_code==409
-assert len(manager.get(path+"/account-roles").json()["catalog"])==18
+assert len(manager.get(path+"/account-roles").json()["catalog"])==20
 
 def post_entry(amount,stamp,credit_account):
     data={"period_id":period_id,"date":stamp,"description":"آزمون","unit":"IRR","lines":[{"account_id":accounts[0],"party_id":"","debit":amount,"credit":"0"},{"account_id":credit_account,"party_id":"","debit":"0","credit":amount}]}

@@ -126,9 +126,6 @@ export function GearMenu({
                   >
                     {selectedCategory.title}
                   </h2>
-                  <p className="truncate text-[10px] text-muted sm:text-[11px]">
-                    {selectedCategory.description}
-                  </p>
                 </div>
               </div>
             </div>
@@ -149,9 +146,6 @@ export function GearMenu({
                 >
                   تنظیمات سامانه
                 </h2>
-                <p className="truncate text-[11px] font-medium leading-tight text-muted">
-                  دسته‌بندی‌های تعاریف پایه، دسترسی و مدیریت
-                </p>
               </div>
             </div>
             <span className="rounded-full bg-primary-soft/80 px-2.5 py-0.5 text-[11px] font-medium text-primary">
@@ -296,11 +290,6 @@ export function GearMenu({
                         aria-hidden
                       />
                     </div>
-                    {item.description && (
-                      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-relaxed text-muted sm:text-xs">
-                        {item.description}
-                      </span>
-                    )}
                   </div>
                 </Link>
               );
@@ -354,11 +343,6 @@ export function GearMenu({
                         />
                       </div>
                     </div>
-                    {category.description && (
-                      <span className="mt-0.5 line-clamp-1 block text-[11px] leading-relaxed text-muted sm:text-xs">
-                        {category.description}
-                      </span>
-                    )}
                   </div>
                 </>
               );

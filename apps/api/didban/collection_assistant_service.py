@@ -147,10 +147,13 @@ def history_sort_key(item: dict) -> tuple:
     )
 
 
-def queue(db: Session, company: str, user: m.User, page: int, q: str, priority: str) -> dict:
+def queue(
+    db: Session, company: str, user: m.User, page: int, q: str, priority: str,
+    *, reference: str = "", party: str = "",
+) -> dict:
     from .control_service import collection
 
-    return collection(db, company, user, page, q, priority=priority) | {
+    return collection(db, company, user, page, q, priority=priority, reference=reference, party=party) | {
         "history_policy": {
             "version": POLICY_VERSION,
             "minimum_events": MINIMUM_EVENTS,

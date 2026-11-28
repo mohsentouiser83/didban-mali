@@ -9,7 +9,7 @@ from didban import models as m
 from didban import native_invoice_revisions as revisions
 from didban import native_invoice_service as service
 from didban.errors import DomainError
-from didban.native_invoice_models import NativeInvoice, NativeInvoiceSnapshot
+from didban.native_invoice_models import NativeInvoice
 from didban.posting_models import NativeJournal
 from didban.posting_service import create_replacement, post_batch, preview
 
@@ -63,7 +63,6 @@ def test_changed_amount_adoption_requires_release_preserves_original_and_histori
     item = invoice(db, original)
     receipt = posted(db, "receipt", "60", "RCPT-REV", day=date(2026, 10, 12))
     item = alloc(db, item, receipt, "60")
-    snapshot = service.snapshot(db, "c", actor, date(2026, 10, 13), "sale")
     reverse_journal(db, original, date(2026, 10, 15))
     replacement = replace(db, original)
     assert revisions.candidates(db, "c", actor, item["id"])["items"][0]["amount"] == "80"
@@ -80,16 +79,11 @@ def test_changed_amount_adoption_requires_release_preserves_original_and_histori
     assert item["original_source"] == original == db.get(NativeInvoice, item["id"]).source
     assert service.detail(db, "c", actor, item["id"], date(2026, 10, 13))["remaining"] == "40"
     assert service.detail(db, "c", actor, item["id"], date(2026, 10, 20))["remaining"] is None
-    assert db.get(NativeInvoiceSnapshot, snapshot["id"]).payload["items"][0]["remaining"] == "40"
     item = alloc(db, item, receipt, "40")
     assert item["remaining"] == "40"
     # Today's corrected reallocation cannot overlap its old historical allocation.
     assert service.detail(db, "c", actor, item["id"], date(2026, 10, 13))["remaining"] == "40"
     assert item["allocations"][-1]["allocation_effective_date"] == service._today(db, "c").isoformat()
-    assert (
-        service.snapshot(db, "c", actor, service._today(db, "c"), "sale")["payload"]["items"][0]["remaining"]
-        == "40"
-    )
     assert service.reminder(db, "c", actor, item["id"])["delivery"] == "local_draft"
     assert db.scalar(select(func.count()).select_from(NativeJournal)) == 4
 
@@ -168,7 +162,6 @@ with transaction('company-a') as db:
     check=preview(db,'company-a',actor,op['draft']['id']);original=post_batch(db,'company-a',actor,[{k:check[k] for k in ('draft_id','expected_version','digest')}])['items'][0]
 path=base+'/accounting/native-invoices'
 item=command(advisor,'POST',path,{'operation_id':op['operation_id'],'journal_digest':original['digest'],'reference':op['source_reference'],'due_date':'2026-09-10','due_unknown':False,'expected_date':None,'expected_unknown':True}).json()
-old=command(advisor,'POST',path+'/snapshots',{'as_of':'2026-09-15','direction':'sale'}).json()
 with transaction('company-a') as db:
     actor=db.get(m.User,users['finance_manager'])
     draft=create_reversal(db,'company-a',actor,original['id'],{'period_id':period_id,'date':date(2026,9,20),'reason':'اصلاح'})
@@ -189,8 +182,7 @@ assert current['original_source']['journal_id']==original['id'] and current['sou
 assert command(advisor,'POST',adopt_path,payload,key='adopt-source').json()==current
 assert command(advisor,'POST',adopt_path,payload,version=1).status_code==409
 assert viewer.get(path+'/'+item['id'],params={'as_of':'2026-09-25'}).json()['remaining'] is None
-assert viewer.get(path+'/snapshots/'+old['id']).json()['payload']['items'][0]['remaining']=='100'
-assert command(advisor,'POST',path+'/snapshots',{'as_of':current['as_of'],'direction':'sale'}).status_code==201
+assert viewer.get(path+'/'+item['id'],params={'as_of':'2026-09-15'}).json()['remaining']=='100'
 try:
     with transaction('company-a') as db:db.execute(update(NativeInvoiceSourceRevision).values(reason='changed'))
 except IntegrityError:pass

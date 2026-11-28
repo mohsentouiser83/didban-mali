@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CommercialDocumentsPanel } from "./commercial/commercial-documents-panel";
 import { InventoryNrvDrawer } from "./inventory-nrv-drawer";
@@ -159,6 +159,7 @@ describe("New audit remediation web panels (LCNRV D35, Commercial Docs, Treasury
     render(<TreasuryDocumentsPanel />);
     expect(screen.getByText("REC-001")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ثبت پیش‌نویس سند خزانه/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /تخصیص به فاکتور/ })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: /^عملیات / }), { key: "ArrowDown" });
+    expect(screen.getByRole("menuitem", { name: /تخصیص به فاکتور/ })).toBeInTheDocument();
   });
 });

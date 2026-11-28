@@ -1,5 +1,5 @@
 "use client";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   listItems,
   type Member,
@@ -16,11 +16,10 @@ import {
   type JournalDraft,
   type JournalDraftLine,
 } from "@/lib/accounting";
-import { asciiDigits } from "@/lib/utils";
 import { isAccountPostable } from "@/lib/account-catalogue";
 import { useAccountOptions } from "./use-account-options";
 import { useCommand } from "./use-command";
-import { usePagedResource } from "./use-paged-resource";
+import { fetchCursorList } from "./use-paged-resource";
 import { useResource } from "./use-resource";
 import { useWorkspace } from "./workspace";
 
@@ -33,17 +32,11 @@ function focusError(errors: Record<string, string>) {
 }
 export { useAccountOptions };
 
-export function useJournalDrafts() {
+export function useJournalDrafts(loadList = true) {
   const workspace = useWorkspace();
-  const [filterState, setFilterState] = useState<"all" | "draft" | "posted" | "discarded">("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const q = useDeferredValue(asciiDigits(searchQuery.trim()));
-  const params = new URLSearchParams();
-  if (filterState !== "all") params.set("state", filterState);
-  if (q) params.set("q", q);
-  const query = params.toString();
-  const drafts = usePagedResource<JournalDraft>(
-    workspace.companyPath(query ? `accounting/drafts?${query}` : "accounting/drafts"),
+  const drafts = useResource<ResourceList<JournalDraft>>(
+    loadList ? workspace.companyPath("accounting/drafts") : null,
+    { fetcher: fetchCursorList<JournalDraft> },
   );
   const capabilities = useResource<AccountingCapabilities>(
     workspace.companyPath("accounting/capabilities"),
@@ -124,6 +117,9 @@ export function useJournalDrafts() {
   const error = drafts.error || capabilities.error || accounts.error;
   const hasActiveAccounts = accounts.items.some((account) => isAccountPostable(account));
   const requiresAccounts = !hasActiveAccounts;
+  const hasPostableSubsidiaries = accounts.items.some(
+    (account) => account.level === "subsidiary" && isAccountPostable(account),
+  );
   const requiresPeriod = workspace.periods.length === 0;
   const canPrepare = !!capabilities.data?.can_prepare;
   const canCreateDraft =
@@ -192,14 +188,11 @@ export function useJournalDrafts() {
     errors,
     totals,
     rows,
-    filterState,
-    setFilterState,
-    searchQuery,
-    setSearchQuery,
     loading,
     error,
     hasActiveAccounts,
     requiresAccounts,
+    hasPostableSubsidiaries,
     requiresPeriod,
     canPrepare,
     canCreateDraft,
@@ -208,21 +201,33 @@ export function useJournalDrafts() {
       capabilities.refresh();
       accounts.refresh();
     },
-    accountOptions: accounts.items.map((account) => {
-      const postable = isAccountPostable(account);
-      const suffix = !account.active
-        ? " (غیرفعال)"
-        : account.level === "group"
-          ? " (گروه — غیرقابل ثبت)"
+    accountOptions: accounts.items
+      .filter((account) => account.level === "subsidiary")
+      .map((account) => {
+        const suffix = !account.active
+          ? " (غیرفعال)"
           : account.has_children
             ? " (دارای زیرمجموعه — غیرقابل ثبت)"
             : "";
-      return {
-        value: account.id,
-        label: `${account.code} — ${account.name}${suffix}`,
-        disabled: !postable,
-      };
-    }),
+        return {
+          value: account.id,
+          label: `${account.code} — ${account.name}${suffix}`,
+          disabled: !isAccountPostable(account),
+        };
+      }),
+    legacyAccountOptions: accounts.items
+      .filter((account) => account.level !== "subsidiary")
+      .map((account) => ({ value: account.id, label: `${account.code} — ${account.name}`, disabled: true })),
+    detailAccountOptions: [
+      { value: "none", label: "بدون حساب تفصیلی" },
+      ...accounts.items
+        .filter((account) => account.level === "detail")
+        .map((account) => ({
+          value: account.id,
+          label: `${account.code} — ${account.name}${account.active ? "" : " (غیرفعال)"}`,
+          disabled: !account.active,
+        })),
+    ],
     open,
     close: () => setEditing(undefined),
     change,

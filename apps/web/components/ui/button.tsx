@@ -4,11 +4,11 @@ import { CircleNotchIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "soft";
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "soft" | "menu";
   busy?: boolean;
 };
 export const buttonClass = (variant: ButtonProps["variant"] = "primary") =>
-  cn(
+  variant === "menu" ? undefined : cn(
     "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,scale] duration-200 ease-interface outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&[aria-busy=true]>svg:not([data-spinner])]:hidden enabled:cursor-pointer motion-safe:active:scale-[0.96] motion-reduce:transition-none",
     {
       "bg-primary text-white hover:bg-primary-hover hover:shadow-md hover:shadow-primary/20 shadow-action":
@@ -75,6 +75,7 @@ export function ButtonLink({
   rel?: string;
   "aria-label"?: string;
   download?: boolean | string;
+  title?: string;
 }) {
   return (
     <Link
@@ -86,7 +87,7 @@ export function ButtonLink({
       prefetch={props.download || target === "_blank" ? false : undefined}
       className={cn(
         buttonClass(variant),
-        "cursor-pointer motion-safe:active:scale-[0.96]",
+        variant !== "menu" && "cursor-pointer motion-safe:active:scale-[0.96]",
         className,
       )}
     >

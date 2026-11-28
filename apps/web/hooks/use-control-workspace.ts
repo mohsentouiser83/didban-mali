@@ -261,11 +261,14 @@ export function useControlCasePanel(onSaved: () => void) {
 export function useCollectionFollowups() {
   const workspace = useWorkspace();
   const [scope, setScope] = useState("invoices");
-  const [filter, setFilter] = useState({ query: "", page: 0, priority: "amount" });
+  const [filter, setFilter] = useState({ reference: "", party: "", page: 0, priority: "amount" });
+  const params = new URLSearchParams({ page: String(filter.page), priority: filter.priority });
+  if (filter.reference) params.set("reference", filter.reference);
+  if (filter.party) params.set("party", filter.party);
   const resource = useResource<CollectionPage>(
     scope === "invoices"
       ? workspace.companyPath(
-          `collection-assistant/queue?page=${filter.page}&q=${encodeURIComponent(filter.query)}&priority=${filter.priority}`,
+          `collection-assistant/queue?${params}`,
         )
       : null,
   );
@@ -291,7 +294,14 @@ export function useCollectionFollowups() {
     priority: filter.priority,
     setPriority: (priority: string) =>
       setFilter((previous) => ({ ...previous, priority, page: 0 })),
-    query: filter.query,
+    filtersActive: !!(filter.reference || filter.party),
+    columnFilter: (key: "reference" | "party") => ({
+      activeFilter: filter[key] ? { textCondition: filter[key] } : undefined,
+      isActive: !!filter[key],
+      maxLength: 100,
+      onApply: (column: { textCondition?: string } | null) =>
+        setFilter((previous) => ({ ...previous, [key]: column?.textCondition ?? "", page: 0 })),
+    }),
     page: filter.page,
     rows: (resource.data?.items || []).map((item) => ({
       ...item,
@@ -308,8 +318,6 @@ export function useCollectionFollowups() {
             : "تاریخ مبنای گزارش نامشخص",
     })),
     historicalCases: listItems(cases.data),
-    setQuery: (query: string) =>
-      setFilter((previous) => ({ ...previous, query, page: 0 })),
     previousPage: () =>
       setFilter((previous) => ({
         ...previous,

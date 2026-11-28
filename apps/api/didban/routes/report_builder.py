@@ -16,6 +16,7 @@ from ..custom_reports import (
     serialize_entity_registry,
 )
 from ..custom_reports.exports import export_custom_report_pdf, export_custom_report_xlsx
+from ..custom_reports.field_registry import strip_retired_inventory_account
 from ..http import C, access, expected, mutate, paginate
 from ..report_builder_exports import pdf_run, xlsx_run
 from ..report_builder_models import (
@@ -115,7 +116,7 @@ def list_custom_definitions(company_id: str, request: Request):
                 "name": row.name,
                 "version": row.version,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
-                "spec": row.spec,
+                "spec": row.spec | {"blocks": strip_retired_inventory_account(row.spec.get("blocks") or [])},
             }
             for row in items
             if isinstance(row.spec, dict) and row.spec.get("layout_kind") == "custom_blocks"
@@ -137,7 +138,7 @@ def save_custom_definition(company_id: str, data: SaveCustomDefinitionInput, req
 def _save_custom_def(db, company_id: str, user, data: SaveCustomDefinitionInput):
     spec_payload = {
         "layout_kind": "custom_blocks",
-        "blocks": data.blocks,
+        "blocks": strip_retired_inventory_account(data.blocks),
         "period_id": data.period_id,
     }
     definition = SavedReportDefinition(

@@ -10,19 +10,11 @@ import { Field, FormMessage } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/input";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  TableRowHeader,
-} from "@/components/ui/table";
 import type { useJournalDetails } from "@/hooks/use-journal-details";
 import type { useJournalDrafts } from "@/hooks/use-accounting";
-import { amount, displayDate, persian } from "@/lib/utils";
+import { displayDate, persian } from "@/lib/utils";
 import { DocumentDiscussionButton } from "./document-discussion-button";
+import { JournalPostingLines } from "./journal-posting-lines";
 
 export function JournalDetailsDrawer({
   view,
@@ -57,28 +49,7 @@ export function JournalDetailsDrawer({
             سند {journal.snapshot.number ?? persian(journal.sequence)} · {displayDate(journal.date)} · ثبت
             نهایی
           </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>حساب</TableHead>
-                <TableHead>طرف حساب</TableHead>
-                <TableHead>بدهکار (ریال)</TableHead>
-                <TableHead>بستانکار (ریال)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {journal.snapshot.lines.map((line, index) => (
-                <TableRow key={index}>
-                  <TableRowHeader>
-                    {line.code} · {line.name}
-                  </TableRowHeader>
-                  <TableCell>{line.party_id || "—"}</TableCell>
-                  <TableCell>{amount(line.debit)}</TableCell>
-                  <TableCell>{amount(line.credit)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <JournalPostingLines lines={journal.snapshot.lines} />
           <DocumentDiscussionButton
             subjectKind="journal"
             subjectId={journal.id}
@@ -108,9 +79,6 @@ export function JournalDetailsDrawer({
                 view.saveReversal();
               }}
             >
-              <StatusMessage>
-                برگشت به‌صورت پیش‌نویس ساخته می‌شود و نیاز به تأیید نهایی دارد.
-              </StatusMessage>
               <Field id="document-reversal-date" label="تاریخ برگشت" required>
                 <PersianDatePicker
                   id="document-reversal-date"

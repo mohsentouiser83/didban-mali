@@ -3,6 +3,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
+from .module_access import Action, Module
+
 
 class InputModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -49,13 +51,13 @@ class MemberPatch(InputModel):
     role: Literal["owner", "finance_manager", "advisor", "viewer"] | None = None
     active: bool | None = None
     approve_financial_report: bool | None = None
+    module_access: dict[Module, dict[Action, bool]] | None = None
 
 
 class PeriodInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
     start: date
     end: date
-    previous_period_id: str | None = None
 
     @model_validator(mode="after")
     def dates(self):
@@ -64,18 +66,9 @@ class PeriodInput(InputModel):
         return self
 
 
-class SessionInput(InputModel):
-    period_id: str | None = None
-    parent_id: str | None = None
-
-
 class RecalculateInput(InputModel):
     parent_id: str
     period_id: str
-
-
-class SealInput(InputModel):
-    file_ids: list[str] = Field(max_length=10)
 
 
 class AnswerInput(InputModel):

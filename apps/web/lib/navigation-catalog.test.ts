@@ -9,7 +9,7 @@ it("keeps the dashboard and two groups with nine top-level entries", () => {
     "انبار", "حقوق و دستمزد", "مؤدیان", "گزارش‌ها", "نقدینگی",
   ]);
   expect(navigationGroups[1].items[1].children?.map((item) => item.href)).toEqual([
-    "/receivables", "/payables", "/commercial/proformas", "/reconciliation/counterparties",
+    "/commercial/proformas", "/receivables", "/payables", "/reconciliation/counterparties",
   ]);
   expect(navigationGroups[1].items[2].children?.map((item) => item.href)).toEqual([
     "/settlements", "/settlements/cheques", "/reconciliation",

@@ -72,7 +72,7 @@ def commercial_env(db_session):
     )
     inv_acc = Account(
         company_id=c.id,
-        code="1050",
+        code="1009",
         name="موجودی کالا",
     )
     sales_acc = Account(
@@ -117,7 +117,6 @@ def commercial_env(db_session):
         {
             "code": "COMM-ITEM-01",
             "name": "کالای آزمایشی بازرگانی",
-            "inventory_account_id": inv_acc.id,
         },
     )
 
@@ -447,7 +446,7 @@ def test_catalogue_codes_follow_company_patterns_and_stay_fixed(commercial_env, 
     cp = add_counterparty(db_session, company, user, {"name": "مشتری الگو"})
     assert cp["code"] == "counterparty-0007-X"
     item = add_item(db_session, company, user, {
-        "name": "کالای الگو", "inventory_account_id": commercial_env["accounts"]["inventory"].id,
+        "name": "کالای الگو",
     })
     assert item["code"] == "inventory_item-0007-X"
     wh = add_warehouse(db_session, company, user, {"name": "انبار الگو"})
@@ -525,3 +524,133 @@ def test_counterparty_type_upgrade_preserves_existing_rows(tmp_path, monkeypatch
         assert row["code"] == "001"
         assert row["type"] == "other"
     engine.dispose()
+
+
+def test_acc03_multiline_discounted_mixed_proforma_conversion_and_failure_preservation(commercial_env, db_session):
+    """ACC-03: two lines (goods+service), line+invoice discount, discount_account_id, mixed settlement, and failure preservation."""
+    c_id = commercial_env["company"].id
+    user = commercial_env["user"]
+    period = commercial_env["period"]
+    wh = commercial_env["warehouse"]
+    item = commercial_env["item"]
+    accs = commercial_env["accounts"]
+
+    cheque_acc = Account(company_id=c_id, code="1040", name="اسناد دریافتنی")
+    disc_acc = Account(company_id=c_id, code="6020", name="تخفیفات فروش")
+    db_session.add_all([cheque_acc, disc_acc])
+    db_session.commit()
+
+    # Opening stock for item
+    from didban.inventory_service import create_opening_stock_draft
+
+    op_draft = create_opening_stock_draft(
+        db_session,
+        c_id,
+        user,
+        {
+            "period_id": period.id,
+            "date": date.today(),
+            "warehouse_id": wh["id"],
+            "item_id": item["id"],
+            "quantity": 10,
+            "unit_price": "100000",
+            "equity_account_id": accs["equity"].id,
+        },
+    )
+    op_prev = preview(db_session, c_id, user, op_draft["draft"]["id"])
+    post_batch(
+        db_session,
+        c_id,
+        user,
+        [{"draft_id": op_draft["draft"]["id"], "expected_version": op_prev["expected_version"], "digest": op_prev["digest"]}],
+    )
+
+    cp = add_counterparty(
+        db_session,
+        c_id,
+        user,
+        {"name": "مشتری چندقلمی", "type": "customer", "credit_limit_irr": "200000"},
+    )
+
+    # Line 1: 2 * 200,000 - 50,000 = 350,000 (goods)
+    # Line 2: 1 * 150,000 - 0 = 150,000 (service)
+    # Invoice discount: 50,000 -> net total = 450,000
+    pf = create_proforma(
+        db_session,
+        c_id,
+        user,
+        {
+            "direction": "sale",
+            "date": date.today(),
+            "party_id": cp["id"],
+            "currency": "IRR",
+            "invoice_discount": "50000",
+            "lines": [
+                {
+                    "line_kind": "goods",
+                    "item_id": item["id"],
+                    "description": "کالای اول",
+                    "quantity": 2,
+                    "unit_price": "200000",
+                    "discount": "50000",
+                },
+                {
+                    "line_kind": "service",
+                    "description": "نصب و راه‌اندازی",
+                    "quantity": 1,
+                    "unit_price": "150000",
+                    "discount": "0",
+                },
+            ],
+        },
+    )
+    assert pf["total_amount"] == "450000"
+
+    # Failed conversion (on_account 300,000 > credit_limit 200,000) must preserve issued status
+    bad_payload = {
+        "period_id": period.id,
+        "warehouse_id": wh["id"],
+        "settlement_type": "mixed",
+        "cash_amount": "150000",
+        "cheque_amount": "0",
+        "on_account_amount": "300000",
+        "counterparty_account_id": accs["receivable"].id,
+        "revenue_account_id": accs["sales"].id,
+        "service_revenue_account_id": accs["sales"].id,
+        "discount_account_id": disc_acc.id,
+        "cost_account_id": accs["cogs"].id,
+        "cash_account_id": accs["cash"].id,
+    }
+    with pytest.raises(DomainError) as credit_exc:
+        convert_proforma(db_session, c_id, user, pf["id"], pf["version"], bad_payload)
+    assert credit_exc.value.code == "credit_limit_exceeded"
+    still_issued = get_proforma(db_session, c_id, pf["id"])
+    assert still_issued["status"] == "issued"
+    assert still_issued["converted_operation_id"] is None
+
+    # Valid mixed conversion: 150,000 cash + 100,000 cheque + 200,000 on_account = 450,000
+    good_payload = {
+        **bad_payload,
+        "cash_amount": "150000",
+        "cheque_amount": "100000",
+        "on_account_amount": "200000",
+        "cheque_account_id": cheque_acc.id,
+        "cheque_number": "CHQ-ACC03-1",
+        "cheque_due_date": (date.today() + timedelta(days=15)).isoformat(),
+    }
+    conv = convert_proforma(db_session, c_id, user, still_issued["id"], still_issued["version"], good_payload)
+    assert conv["proforma_status"] == "conversion_pending"
+    assert conv["document"]["net_amount_irr"] == "450000"
+    assert conv["document"]["invoice_discount_irr"] == "50000"
+    assert len(conv["document"]["lines"]) == 2
+    assert any(line["account_id"] == disc_acc.id for line in conv["draft"]["lines"])
+
+    # Post the converted draft and confirm status becomes converted
+    prev = preview(db_session, c_id, user, conv["draft"]["id"])
+    post_batch(
+        db_session,
+        c_id,
+        user,
+        [{"draft_id": conv["draft"]["id"], "expected_version": prev["expected_version"], "digest": prev["digest"]}],
+    )
+    assert get_proforma(db_session, c_id, pf["id"])["status"] == "converted"

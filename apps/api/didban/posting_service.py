@@ -56,7 +56,11 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
     lines = []
     for line in draft.lines:
         account = get_entity(db, Account, company, line["account_id"])
-        lines.append({**line, "code": account.code, "name": account.name, "account_version": account.version})
+        snapshot_line = {**line, "code": account.code, "name": account.name, "account_version": account.version}
+        if detail_id := line.get("detail_account_id"):
+            detail = get_entity(db, Account, company, detail_id)
+            snapshot_line.update(detail_code=detail.code, detail_name=detail.name, detail_account_version=detail.version)
+        lines.append(snapshot_line)
     correction = None
     if link:
         original = get_entity(db, NativeJournal, company, link.original_journal_id)
@@ -76,6 +80,7 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
                 {
                     "account_id": row["account_id"],
                     "party_id": row.get("party_id", ""),
+                    "detail_account_id": row.get("detail_account_id"),
                     "debit": row["credit"],
                     "credit": row["debit"],
                 }
@@ -83,6 +88,7 @@ def _prepared(db: Session, company: str, draft_id: str) -> dict[str, Any]:
             ]
             actual = [
                 {key: row.get(key, "") for key in ("account_id", "party_id", "debit", "credit")}
+                | {"detail_account_id": row.get("detail_account_id")}
                 for row in draft.lines
             ]
             require(
@@ -396,6 +402,7 @@ def create_reversal(db: Session, company: str, user: m.User, journal_id: str, da
         {
             "account_id": row["account_id"],
             "party_id": row.get("party_id", ""),
+            "detail_account_id": row.get("detail_account_id"),
             "debit": row["credit"],
             "credit": row["debit"],
         }

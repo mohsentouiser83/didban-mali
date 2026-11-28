@@ -34,7 +34,6 @@ export function ReportBuilderForm({
             id="builder-question"
             value={c.question}
             onChange={(event) => c.setQuestion(event.target.value)}
-            placeholder="مثلاً فاکتورهای فروش سررسیدگذشته"
             maxLength={1000}
             required
           />

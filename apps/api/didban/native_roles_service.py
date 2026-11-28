@@ -32,6 +32,8 @@ ROLE_CATALOG = (
     {"key": "inventory_nrv_allowance", "label": "ذخیره کاهش ارزش موجودی", "balance_side": "credit"},
     {"key": "inventory_nrv_expense", "label": "هزینه کاهش ارزش موجودی", "balance_side": "debit"},
     {"key": "inventory_nrv_recovery", "label": "برگشت ذخیره کاهش ارزش موجودی", "balance_side": "credit"},
+    {"key": "vat_sale_payable", "label": "مالیات بر ارزش افزوده فروش", "balance_side": "credit"},
+    {"key": "vat_purchase_receivable", "label": "مالیات بر ارزش افزوده خرید", "balance_side": "debit"},
 )
 ROLE_KEYS = frozenset(row["key"] for row in ROLE_CATALOG)
 NOMINAL_ROLES = frozenset(("revenue", "expense"))

@@ -42,7 +42,7 @@ it("filters on the server, clears parent filters on level changes and resets bot
   act(() => result.current.setLevelFilter("group"));
   expect(result.current.parentFilter).toBe("all");
   expect(result.current.canFilterParent).toBe(false);
-  act(() => result.current.resetFilters());
+  act(() => result.current.setLevelFilter("all"));
   expect(result.current.filtersActive).toBe(false);
 });
 it("submits all imported levels together so parents may follow their children", async () => {
@@ -58,6 +58,46 @@ it("submits all imported levels together so parents may follow their children", 
     method: "POST", body: { rows },
   });
 });
+it("filters all preview rows before pagination and preserves the file indexes and payload", async () => {
+  const rows = Array.from({ length: 30 }, (_, index) => ({
+    code: String(10000000 + index),
+    name: index === 29 ? "طرف حساب پایانی" : `ردیف ${index + 1}`,
+    nature: "debit",
+    active: true,
+    level: "detail",
+  }));
+  rows[26].code = "x";
+  vi.mocked(api).mockImplementation(async (path) => path.endsWith("chart-preview") ? { preview_id: "p" } : { rows });
+  const { result } = renderHook(() => useChartSetup(vi.fn()));
+  await act(async () => { await result.current.loadFile(new File(["نمونه"], "chart.xlsx")); });
+  expect(result.current.visibleRows).toHaveLength(25);
+  act(() => result.current.columnFilter("code").onApply({ textCondition: "۱۰۰۰۰۰۲۹" }));
+  expect(result.current.visibleRows.map((row) => row.index)).toEqual([29]);
+  act(() => result.current.columnFilter("code").onApply(null));
+  act(() => result.current.columnFilter("status").onApply({ selectedValues: new Set(["خطادار"]) }));
+  expect(result.current.visibleRows.map((row) => row.index)).toEqual([26]);
+  await act(async () => { await result.current.preview(); });
+  expect(api).toHaveBeenCalledWith("/companies/c/accounting/setup/chart-preview", {
+    method: "POST", body: { rows },
+  });
+});
+
+it("creates independent detail records with multiple target levels", async () => {
+  const { result } = renderHook(useLedgerAccounts);
+  await waitFor(() => expect(result.current.catalogue.loading).toBe(false));
+  act(() => result.current.openChild(accounts[2]));
+  expect(result.current.value.parent_id).toBe("");
+  expect(result.current.value.linked_account_ids).toEqual(["s"]);
+  expect(result.current.detailTargetOptions.map((option) => option.value)).toEqual(["grp", "g"]);
+  act(() => result.current.addDetailTarget("grp"));
+  act(() => result.current.change({ name: "شناور" }));
+  act(() => result.current.save());
+  await waitFor(() => expect(api).toHaveBeenCalledWith("/companies/c/accounting/accounts", expect.objectContaining({
+    method: "POST",
+    body: expect.objectContaining({ code: "10000000", level: "detail", parent_id: null, linked_account_ids: ["s", "grp"] }),
+  })));
+});
+
 it("builds hierarchical tree rows, supports expand/collapse, and opens child creation pre-filled", async () => {
   const { result } = renderHook(useLedgerAccounts);
   await waitFor(() => expect(result.current.catalogue.loading).toBe(false));
@@ -87,7 +127,7 @@ it("searches the full chart while a server level filter is selected", async () =
   const { result } = renderHook(useLedgerAccounts);
   await waitFor(() => expect(result.current.catalogue.loading).toBe(false));
   act(() => result.current.setLevelFilter("subsidiary"));
-  act(() => result.current.setSearch("110101"));
+  act(() => result.current.columnFilter("code").onApply({ textCondition: "110101" }));
   expect(result.current.rows.map((row) => row.id)).toEqual(["s"]);
   expect(result.current.serverFiltersActive).toBe(false);
 });

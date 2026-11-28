@@ -287,11 +287,6 @@ export function exportTableToPdf(
             color: #20243f;
             margin: 0 0 4px 0;
           }
-          .report-subtitle {
-            font-size: 11px;
-            color: #68718a;
-            margin: 0;
-          }
           .report-date {
             font-size: 11px;
             color: #68718a;
@@ -337,7 +332,6 @@ export function exportTableToPdf(
         <div class="report-header">
           <div>
             <h1 class="report-title">${title}</h1>
-            <p class="report-subtitle">سامانه هوشمند دیدبان مالی</p>
           </div>
           <div class="report-date">
             <div>تاریخ چاپ: ${todayStr}</div>
@@ -349,8 +343,7 @@ export function exportTableToPdf(
           <tbody>${rowsHtml}</tbody>
         </table>
         <div class="report-footer">
-          <span>دیدبان مالی · مدیریت و تحلیل مالی هوشمند</span>
-          <span>صفحه چاپی</span>
+          <span>دیدبان مالی</span>
         </div>
       </body>
       </html>
