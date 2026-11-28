@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "functions": {
+    "app.py": {
+      "includeFiles": "fonts/*.ttf"
+    }
+  },
+  "regions": [
+    "iad1"
+  ]
+}
