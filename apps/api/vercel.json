@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "fastapi",
   "functions": {
-    "app.py": {
-      "includeFiles": "fonts/*.ttf"
+    "vercel_demo.py": {
+      "includeFiles": "fonts/*.ttf",
+      "excludeFiles": "{tests/**,build/**,*.egg-info/**}"
     }
   },
   "regions": [

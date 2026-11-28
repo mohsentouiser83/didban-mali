@@ -22,12 +22,12 @@ dependencies = [line.strip() for line in requirements if line.strip() and not li
     '[project]\nname = "didban-mali-demo-api"\nversion = "1.0.0"\n'
     'requires-python = ">=3.12,<3.13"\ndependencies = '
     + json.dumps(dependencies, indent=2)
-    + '\n\n[tool.vercel]\nentrypoint = "app:app"\n'
+    + '\n\n[tool.vercel]\nentrypoint = "vercel_demo:app"\n'
 )
 PY
-cp "$root/infra/vercel/demo/app.py" "$root/infra/vercel/demo/vercel.json" "$stage/api/"
+cp "$root/apps/api/vercel_demo.py" "$root/apps/api/vercel.json" "$stage/api/"
 cp "$root"/apps/web/public/fonts/IRANYekanX-*.ttf "$stage/api/fonts/"
-printf '3.12\n' > "$stage/api/.python-version"
+cp "$root/apps/api/.python-version" "$stage/api/"
 printf '/.vercel\n/.env*\n/**/__pycache__\n' > "$stage/api/.vercelignore"
 
 cp "$root/package.json" "$root/pnpm-lock.yaml" "$root/pnpm-workspace.yaml" "$stage/web/"

@@ -1,3 +1,25 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "didban-mali-demo-api"
+version = "1.0.0"
+requires-python = ">=3.12,<3.13"
+dynamic = ["dependencies"]
+
+[tool.setuptools.packages.find]
+include = ["didban*"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.vercel]
+entrypoint = "vercel_demo:app"
+
+[tool.vercel.scripts]
+build = "mkdir -p fonts && cp ../web/public/fonts/IRANYekanX-*.ttf fonts/"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
