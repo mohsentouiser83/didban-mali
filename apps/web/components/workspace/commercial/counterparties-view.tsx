@@ -36,7 +36,7 @@ export function CounterpartiesView() {
       />
       <Panel>
         {view.resource.loading ? <LoadingState /> : view.resource.error ? (
-          <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
+          <ErrorState message={view.resource.error.message} />
         ) : (
           <>
             <Table>

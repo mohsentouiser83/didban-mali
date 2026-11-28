@@ -35,7 +35,7 @@ export function CommercialDocumentDetails({ view }: { view: ReturnType<typeof us
     <>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
-          {counterparties.error && <ErrorState message={counterparties.error.message} onRetry={counterparties.refresh} />}
+          {counterparties.error && <ErrorState message={counterparties.error.message} />}
           <Field id="cd-party" name="party_id" label="طرف حساب" required>
             <Select
               id="cd-party"
@@ -115,7 +115,7 @@ export function CommercialDocumentDetails({ view }: { view: ReturnType<typeof us
       <Field id="cd-desc" name="description" label="شرح سند">
         <Input id="cd-desc" value={docDesc} onChange={(e) => setDocDesc(e.target.value)} />
       </Field>
-      {totals.hasGoods && inventory.error && <ErrorState message={inventory.error.message} onRetry={inventory.refresh} />}
+      {totals.hasGoods && inventory.error && <ErrorState message={inventory.error.message} />}
       <CommercialDocumentLines view={view} />
     </>
   );

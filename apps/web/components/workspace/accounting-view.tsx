@@ -107,7 +107,7 @@ function JournalWorkspace({ reviewDraftId }: { reviewDraftId?: string }) {
         {view.loading ? (
           <LoadingState label="در حال دریافت اسناد" variant="table" />
         ) : view.error ? (
-          <ErrorState message={view.error.message} onRetry={view.refresh} />
+          <ErrorState message={view.error.message} />
         ) : (
           <ColumnFilteredTable
             label="فهرست اسناد"

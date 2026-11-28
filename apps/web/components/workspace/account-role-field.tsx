@@ -13,7 +13,6 @@ export function AccountRoleField({ accountId }: { accountId: string }) {
     return (
       <ErrorState
         message={view.resource.error.message}
-        onRetry={view.resource.refresh}
       />
     );
   return row ? (

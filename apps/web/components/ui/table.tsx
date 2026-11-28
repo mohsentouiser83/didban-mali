@@ -70,6 +70,7 @@ export interface TableProps extends ComponentProps<"table"> {
   title?: string;
   toolbarVariant?: "primary" | "secondary" | "soft" | "crimson";
   onImport?: (data: ParsedTableImport) => void | Promise<void>;
+  onOpenImport?: () => void;
   importPersistsSource?: boolean;
 }
 
@@ -82,6 +83,7 @@ export function Table({
   title,
   toolbarVariant = "primary",
   onImport,
+  onOpenImport,
   importPersistsSource = false,
   children,
   ...props
@@ -339,6 +341,8 @@ export function Table({
     setImportDialogOpen(true);
   }, []);
 
+  const openImport = onOpenImport ?? (onImport ? handleOpenImport : undefined);
+
   const contextValue: TableContextType = {
     stickyFirstColumn,
     toolbar,
@@ -358,7 +362,7 @@ export function Table({
     exportExcel: handleExportExcel,
     exportCsv: handleExportCsv,
     exportPdf: handleExportPdf,
-    openImport: onImport ? handleOpenImport : undefined,
+    openImport,
 
   };
 
@@ -403,7 +407,7 @@ export function Table({
             onExportExcel={handleExportExcel}
             onExportCsv={handleExportCsv}
             onExportPdf={handleExportPdf}
-            onOpenImport={onImport ? handleOpenImport : undefined}
+            onOpenImport={openImport}
 
 
             toolbarVariant={toolbarVariant}

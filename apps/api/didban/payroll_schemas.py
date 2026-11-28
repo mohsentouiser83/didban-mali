@@ -229,6 +229,11 @@ class PayrollRunCreateInput(StrictInput):
     calculation_date: CalendarDate
 
 
+class SlipProjectAllocationInput(StrictInput):
+    dimension_id: str = Field(min_length=1, max_length=36)
+    percentage: Annotated[str, Field(max_length=20)] | StrictInt
+
+
 class PayrollSlipTimesheetInput(StrictInput):
     employee_id: str | None = Field(default=None, min_length=1, max_length=36)
     work_days: Annotated[str, Field(max_length=40)] | StrictInt | None = None
@@ -241,6 +246,7 @@ class PayrollSlipTimesheetInput(StrictInput):
     loan_installment: Annotated[str, Field(max_length=80)] | StrictInt | None = None
     other_deductions: Annotated[str, Field(max_length=80)] | StrictInt | None = None
     bonus_amount: Annotated[str, Field(max_length=80)] | StrictInt | None = None
+    project_allocations: list[SlipProjectAllocationInput] | None = Field(default=None, max_length=50)
 
 
 class EmployeeTimesheetInput(PayrollSlipTimesheetInput):

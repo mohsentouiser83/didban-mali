@@ -96,7 +96,7 @@ export function MoadianBatchCollection({
       {candidatesResource.loading ? (
         <LoadingState label="در حال بارگذاری فاکتورهای فروش..." />
       ) : candidatesResource.error ? (
-        <ErrorState message={candidatesResource.error.message} onRetry={candidatesResource.refresh} />
+        <ErrorState message={candidatesResource.error.message} />
       ) : !items.length ? (
         <EmptyState title="فاکتور فروشی برای ارسال یافت نشد" />
       ) : (

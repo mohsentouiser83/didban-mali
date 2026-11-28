@@ -40,7 +40,7 @@ function JournalReport() {
         {journals.loading ? (
           <LoadingState label="در حال دریافت ثبت‌های قطعی" variant="table" />
         ) : journals.error ? (
-          <ErrorState message={journals.error.message} onRetry={journals.refresh} />
+          <ErrorState message={journals.error.message} />
         ) : (
           <>
             <Table>

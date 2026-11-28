@@ -156,7 +156,7 @@ export function CommercialDocumentPayment({ view }: { view: ReturnType<typeof us
         </div>
       )}
 
-      {accounts.error && <ErrorState message={accounts.error.message} onRetry={accounts.refresh} />}
+      {accounts.error && <ErrorState message={accounts.error.message} />}
 
       {!isSale && (
         <div className="space-y-3 rounded-xl border border-border bg-canvas/50 p-3">

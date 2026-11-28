@@ -3,7 +3,7 @@ import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import {
   accessActions,
-  accessModules,
+  visibleAccessModules,
   type AccessAction,
   type AccessModule,
   type ModuleAccess,
@@ -18,12 +18,15 @@ const choices = [
 export function MemberModuleFields({
   value,
   disabled,
+  businessMode,
   onChange,
 }: {
   value: ModuleAccess;
   disabled: boolean;
+  businessMode?: "trading" | "service";
   onChange: (module: AccessModule, action: AccessAction, value: boolean | undefined) => void;
 }) {
+  const modules = visibleAccessModules({ business_mode: businessMode });
   const [module, setModule] = useState<AccessModule>("accounting");
   return (
     <fieldset className="space-y-3 border-t border-border pt-4">
@@ -31,7 +34,7 @@ export function MemberModuleFields({
       <Field id="member-access-module" label="ماژول">
         <Select
           id="member-access-module"
-          options={[...accessModules]}
+          options={modules}
           value={module}
           onValueChange={(next) => setModule(next as AccessModule)}
           disabled={disabled}

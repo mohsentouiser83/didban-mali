@@ -32,7 +32,6 @@ export function PeriodLockPanel({
       ) : c.resource.error ? (
         <ErrorState
           message={c.resource.error.message}
-          onRetry={c.resource.refresh}
         />
       ) : (
         item && (
@@ -139,7 +138,6 @@ export function PeriodLockPanel({
         ) : c.history.error ? (
           <ErrorState
             message={c.history.error.message}
-            onRetry={c.history.refresh}
           />
         ) : !c.history.data?.items.length ? (
           <EmptyState compact title="بستن یا بازگشایی ثبت نشده" />

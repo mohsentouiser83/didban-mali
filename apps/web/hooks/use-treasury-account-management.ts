@@ -55,6 +55,7 @@ export function useTreasuryAccountEditor(
     iban: editing?.iban ?? "",
     branch_name: editing?.branch_name ?? "",
     branch_code: editing?.branch_code ?? "",
+    is_official: editing?.is_official ?? true,
     custodian_name: editing?.custodian_name ?? "",
     petty_cash_limit_irr: editing?.petty_cash_limit_irr ?? "",
     linked_bank_id: editing?.linked_bank_id ?? "",
@@ -74,6 +75,7 @@ export function useTreasuryAccountEditor(
       iban: fields.iban.trim() || null,
       branch_name: fields.branch_name.trim() || null,
       branch_code: fields.branch_code.trim() || null,
+      is_official: fields.is_official,
     };
     const pettyFields = {
       custodian_name: fields.custodian_name.trim() || null,

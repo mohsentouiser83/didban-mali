@@ -14,14 +14,81 @@ import {
   CalendarBlankIcon,
   ChartLineUpIcon,
   ListIcon,
+  PlusIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FloatingAssistant } from "./floating-assistant";
 import { SettingsMenu } from "./settings-menu";
 import { NotificationsMenu } from "./notifications-menu";
 import { HeaderAccountMenu } from "./header-account-menu";
+
+function QuickCreateMenu({ businessMode }: { businessMode?: "trading" | "service" }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const handleClick = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    window.addEventListener("mousedown", handleClick);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      window.removeEventListener("mousedown", handleClick);
+    };
+  }, [open]);
+
+  const items = [
+    { href: "/accounting", label: "سند حسابداری جدید" },
+    { href: "/receivables/new", label: "فاکتور فروش جدید" },
+    ...(businessMode === "service"
+      ? [
+          { href: "/client-contracts", label: "قرارداد پیمانکاری جدید" },
+          { href: "/settlements/petty-cash", label: "ثبت هزینه تنخواه" },
+        ]
+      : []),
+    { href: "/settlements", label: "دریافت / پرداخت جدید" },
+  ];
+
+  return (
+    <div ref={rootRef} className="relative">
+      <Button
+        variant="primary"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((prev) => !prev)}
+        className="gap-1.5 px-3"
+      >
+        <PlusIcon size={16} aria-hidden />
+        <span className="hidden sm:inline">ثبت جدید</span>
+      </Button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute end-0 top-full z-50 mt-2 w-56 rounded-card border border-border bg-surface p-1.5 shadow-card"
+        >
+          {items.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="block rounded-control px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-primary-soft hover:text-primary"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const workspace = useWorkspace();
@@ -44,7 +111,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <main className="mx-auto max-w-xl px-5 py-12">
         <ErrorState
           message={workspace.error}
-          onRetry={() => location.reload()}
         />
       </main>
     );
@@ -144,6 +210,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+              {workspace.company && <QuickCreateMenu businessMode={workspace.company.business_mode} />}
               <SettingsMenu key={`settings-${workspace.company?.id || "no-company"}`} />
               <NotificationsMenu key={`notifications-${workspace.company?.id || "no-company"}`} />
               <HeaderAccountMenu

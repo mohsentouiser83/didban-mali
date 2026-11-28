@@ -98,7 +98,7 @@ it("pagination is bounded and scoped to the current run", async () => {
   rerender({ runId: "run-b" }); expect(result.current.page).toBe(0);
 });
 
-it("requires explicit adoption of a newly read decision version while preserving the reason", async () => {
+it("requires reopening the group before deciding on a newer version", async () => {
   let version = 1;
   vi.mocked(api).mockImplementation(async () => ({ items: [{ ...group(), version }] }));
   const { result } = renderHook(() => useGroupMatches("run-a"));
@@ -110,9 +110,12 @@ it("requires explicit adoption of a newly read decision version while preserving
   await waitFor(() => expect(result.current.newerVersionAvailable).toBe(true));
   expect(result.current.selected?.version).toBe(1);
   expect(result.current.canSubmit).toBe(false);
-  act(() => result.current.adoptLatest());
-  expect(result.current.selected?.version).toBe(2);
   expect(result.current.reason).toBe("شرح بررسی باقی بماند");
+  act(() => result.current.close());
+  act(() => result.current.open(result.current.rows[0]));
+  expect(result.current.selected?.version).toBe(2);
+  expect(result.current.canSubmit).toBe(false);
+  act(() => result.current.setReason("بررسی نسخه جدید"));
   expect(result.current.canSubmit).toBe(true);
 });
 

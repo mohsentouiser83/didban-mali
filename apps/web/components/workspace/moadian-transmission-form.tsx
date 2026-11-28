@@ -218,7 +218,7 @@ export function MoadianTransmissionForm({ view }: { view: MoadianTransmissionCon
     >
       {view.review ? <FiscalReview view={view} /> :
         view.invoices.loading ? <LoadingState variant="message" label="در حال دریافت فاکتورهای فروش" /> :
-          view.invoices.error ? <ErrorState message={view.invoices.error.message} onRetry={view.invoices.refresh} /> :
+          view.invoices.error ? <ErrorState message={view.invoices.error.message} /> :
             !view.invoiceOptions.length ? (
               <EmptyState
                 title="فاکتور فروش قابل ارسال موجود نیست"

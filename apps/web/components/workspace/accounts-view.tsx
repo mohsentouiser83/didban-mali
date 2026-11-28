@@ -14,7 +14,6 @@ import {
   BooksIcon,
   CaretDownIcon,
   CaretLeftIcon,
-  FileArrowUpIcon,
   PlusIcon,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
@@ -80,19 +79,11 @@ function AccountsWorkspace() {
         )}
       />
       <Panel>
-        {(canCreate || view.hasExpandableNodes) && (
+        {view.hasExpandableNodes && (
           <div className="mb-3 flex flex-wrap justify-end gap-2">
-            {view.hasExpandableNodes && (
               <Button variant="ghost" onClick={view.allCollapsed ? view.expandAll : view.collapseAll}>
                 {view.allCollapsed ? "باز کردن همه" : "بستن همه"}
               </Button>
-            )}
-            {canCreate && (
-              <Button variant="secondary" onClick={() => setImportOpen(true)}>
-                <FileArrowUpIcon size={18} aria-hidden />
-                ورود از فایل
-              </Button>
-            )}
           </div>
         )}
         {loading ? (
@@ -100,14 +91,10 @@ function AccountsWorkspace() {
         ) : error ? (
           <ErrorState
             message={error.message}
-            onRetry={() => {
-              view.refresh();
-              view.capabilities.refresh();
-            }}
           />
         ) : (
           <>
-            <Table title="کدینگ حساب‌ها">
+            <Table title="کدینگ حساب‌ها" onOpenImport={canCreate ? () => setImportOpen(true) : undefined}>
               <TableHeader>
                 <TableRow>
                   <TableHead columnFilter={view.columnFilter("code")}>کد</TableHead>

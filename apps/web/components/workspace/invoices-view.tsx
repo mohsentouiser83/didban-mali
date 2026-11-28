@@ -100,7 +100,7 @@ function InvoiceList({ direction, operationId, partyId, initialReference }: Invo
       } />
       <Panel>
         {resources.map((resource, index) => resource.error && (
-          <ErrorState key={index} message={resource.error.message} onRetry={resource.refresh} />
+          <ErrorState key={index} message={resource.error.message} />
         ))}
         {loading ? <LoadingState variant="table" label="در حال دریافت فاکتورها" /> : (
           <ColumnFilteredTable

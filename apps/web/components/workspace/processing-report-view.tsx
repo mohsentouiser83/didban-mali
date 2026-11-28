@@ -26,7 +26,7 @@ export function ProcessingReportView({ id }: { id: string }) {
   if (resource.loading) return <LoadingState />;
   if (resource.error)
     return (
-      <ErrorState message={resource.error.message} onRetry={resource.refresh} />
+      <ErrorState message={resource.error.message} />
     );
   if (!session) {
     return (
@@ -89,7 +89,7 @@ export function ProcessingReportView({ id }: { id: string }) {
               busy={report.busy}
               onClick={() => report.run("retry")}
             >
-              تلاش دوباره
+              اجرای دوبارهٔ پردازش
             </Button>
           )}
           {report.canCancel && (

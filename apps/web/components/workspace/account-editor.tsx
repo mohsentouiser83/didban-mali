@@ -9,17 +9,20 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   ACCOUNT_LEVEL_OPTIONS,
-  ACCOUNT_ROLE_OPTIONS,
   accountLevelLabel,
   childAccountLevel,
+  visibleAccountRoleOptions,
   type AccountLevel,
 } from "@/lib/account-catalogue";
 import { ACCOUNT_NATURE_OPTIONS, type AccountNature } from "@/lib/accounting";
+import { useWorkspace } from "@/hooks/workspace";
 import type { useLedgerAccounts } from "@/hooks/use-ledger-accounts";
 import { AccountDetailTargets } from "./account-detail-targets";
 
 type Controller = ReturnType<typeof useLedgerAccounts>;
 export function AccountEditor({ view, editable }: { view: Controller; editable: boolean }) {
+  const { company } = useWorkspace();
+  const roleOptions = visibleAccountRoleOptions(company?.business_mode, view.value.role);
   const disabled = !editable || view.command.busy;
   const childLevel = view.editing ? childAccountLevel(view.editing.level) : null;
   const canAddChild = Boolean(
@@ -55,7 +58,7 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
         />
       )}
       {view.catalogue.error && (view.needsParent || view.value.level === "detail") && (
-        <ErrorState message={view.catalogue.error.message} onRetry={view.catalogue.refresh} />
+        <ErrorState message={view.catalogue.error.message} />
       )}
       <Field
         id="ledger-code"
@@ -110,7 +113,7 @@ export function AccountEditor({ view, editable }: { view: Controller; editable: 
         <Select
           id="ledger-role"
           value={view.value.role || "unassigned"}
-          options={ACCOUNT_ROLE_OPTIONS}
+          options={roleOptions}
           searchable
           searchPlaceholder="جستجوی نقش حساب..."
           disabled={disabled}

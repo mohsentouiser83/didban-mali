@@ -84,7 +84,7 @@ function SettlementList() {
       } />
       <Panel>
         {resources.map((resource, index) => resource.error && (
-          <ErrorState key={index} message={resource.error.message} onRetry={resource.refresh} />
+          <ErrorState key={index} message={resource.error.message} />
         ))}
         {resources.some((resource) => resource.loading) ? (
           <LoadingState label="در حال دریافت اسناد دریافت و پرداخت" variant="table" />

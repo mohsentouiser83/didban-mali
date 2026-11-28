@@ -38,12 +38,12 @@ function VoucherList({ direction, canReview, hasPeriod }: { direction: VoucherDi
             {labels.add}
           </Button>
         )} />
-      {options.error && <ErrorState message={options.error.message} onRetry={options.refresh} />}
+      {options.error && <ErrorState message={options.error.message} />}
       <Panel>
         {vouchers.loading ? (
           <LoadingState variant="table" />
         ) : vouchers.error ? (
-          <ErrorState message={vouchers.error.message} onRetry={vouchers.refresh} />
+          <ErrorState message={vouchers.error.message} />
         ) : (
           <>
             <Table aria-label={labels.title} title={labels.title} columnControls={false}>

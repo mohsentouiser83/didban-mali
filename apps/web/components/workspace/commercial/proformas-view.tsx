@@ -49,7 +49,7 @@ function ProformasWorkspace() {
       )}
       <Panel>
         {view.resource.loading ? <LoadingState /> : view.resource.error ? (
-          <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
+          <ErrorState message={view.resource.error.message} />
         ) : (
           <>
             <Table>
@@ -158,6 +158,7 @@ function ProformasWorkspace() {
       ) : (
         <ProformaEditor row={view.editor.row} busy={view.command.busy} error={view.command.error?.message}
           partyQuery={view.partyQuery} partyOptions={view.partyOptions} partyError={view.partyError} itemOptions={view.itemOptions}
+          isServiceMode={view.isServiceMode}
           canManageParties={view.canManageAccounts}
           onPartyCreated={() => view.refreshParties()}
           onPartySearch={view.setPartyQuery} onClose={view.close} onSave={view.save} />

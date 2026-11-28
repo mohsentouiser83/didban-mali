@@ -43,7 +43,7 @@ export function TreasuryDocumentTable({ view, hideJournalLink = false }: { hideJ
         {docs.loading ? (
           <LoadingState label="در حال بارگذاری اسناد خزانه" variant="panels" />
         ) : docs.error ? (
-          <ErrorState message={docs.error.message} onRetry={docs.refresh} />
+          <ErrorState message={docs.error.message} />
         ) : !docRows.length ? (
           <EmptyState title="سند خزانه‌ای ثبت نشده است" />
         ) : (

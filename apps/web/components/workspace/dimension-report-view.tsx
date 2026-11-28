@@ -71,7 +71,7 @@ function Workspace() {
         {view.loading ? (
           <LoadingState label="در حال محاسبه ابعاد" />
         ) : view.error ? (
-          <ErrorState message={view.error.message} onRetry={view.retry} />
+          <ErrorState message={view.error.message} />
         ) : !view.snapshot ? (
           <EmptyState title="گزارشی برای این دوره موجود نیست" />
         ) : (
@@ -239,7 +239,6 @@ function Workspace() {
         ) : view.history.error ? (
           <ErrorState
             message={view.history.error.message}
-            onRetry={view.history.refresh}
           />
         ) : (
           <div className="flex flex-wrap gap-3">

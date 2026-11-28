@@ -259,7 +259,7 @@ export function ElectronicLedgersView() {
         {resource.loading ? (
           <LoadingState label="در حال محاسبه و آماده‌سازی دفاتر الکترونیک..." />
         ) : resource.error ? (
-          <ErrorState message={resource.error.message} onRetry={resource.refresh} />
+          <ErrorState message={resource.error.message} />
         ) : !data?.items?.length ? (
           <EmptyState title="سندی در بازهٔ انتخابی برای نمایش در دفاتر وجود ندارد" />
         ) : (

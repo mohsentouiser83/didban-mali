@@ -26,7 +26,7 @@ function FollowupForm({ view }: { view: DocumentDiscussionController }) {
     <h3 className="font-medium">مسئول و پیگیری</h3>
     <Field id="document-thread-state" label="وضعیت" required><Select id="document-thread-state" value={view.form.state} onValueChange={state => view.formChange({ state: state as typeof view.form.state })} options={[{ value: "open", label: "باز" }, { value: "in_progress", label: "در حال رسیدگی" }, { value: "resolved", label: "رسیدگی‌شده" }]} disabled={view.command.busy}/></Field>
     <Field id="document-thread-assignee" label="مسئول"><Select id="document-thread-assignee" value={view.form.assignee_membership_id} onValueChange={assignee_membership_id => view.formChange({ assignee_membership_id })} options={view.assigneeOptions} disabled={view.command.busy || view.assignees.loading || !!view.assignees.error}/></Field>
-    {view.assignees.error && <ErrorState message={view.assignees.error.message} onRetry={view.assignees.refresh}/>}
+    {view.assignees.error && <ErrorState message={view.assignees.error.message}/>}
     <Field id="document-thread-due" label="مهلت پیگیری"><PersianDatePicker id="document-thread-due" value={view.form.due_date} onChange={due_date => view.formChange({ due_date })} disabled={view.command.busy}/></Field>
     <Field id="document-thread-next" label="اقدام بعدی"><Input id="document-thread-next" value={view.form.next_action} onChange={event => view.formChange({ next_action: event.target.value })} maxLength={500} disabled={view.command.busy}/></Field>
     <Field id="document-thread-reason" label="دلیل تغییر"><Textarea id="document-thread-reason" value={view.form.reason} onChange={event => view.formChange({ reason: event.target.value })} required maxLength={2000} disabled={view.command.busy}/></Field>
@@ -47,19 +47,19 @@ function Discussion({ subjectKind, subjectId, label = "گفت‌وگو و پیگ
     {renderTrigger ? renderTrigger(() => setOpen(true)) : (
       <Button variant="secondary" onClick={() => setOpen(true)}>{label}</Button>
     )}
-    <Drawer title="گفت‌وگو و پیگیری سند" open={open} onOpenChange={value => { if (!view.command.busy) setOpen(value); }}>
-      {view.resource.loading ? <LoadingState label="در حال دریافت گفت‌وگوی سند"/> : view.resource.error ? <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh}/> : view.resource.data && <div className="space-y-5">
+    <Drawer title="گفت‌وگو و پیگیری سند" open={open} onOpenChange={value => { if (!view.command.busy) { if (!value) view.command.clearError(); setOpen(value); } }}>
+      {view.resource.loading ? <LoadingState label="در حال دریافت گفت‌وگوی سند"/> : view.resource.error ? <ErrorState message={view.resource.error.message}/> : view.resource.data && <div className="space-y-5">
         <p className="font-medium">{view.resource.data.subject.description}</p>
         <p className="text-sm text-muted">نسخه سند {persian(view.resource.data.subject.version)}</p>
         {view.resource.data.thread && <div className="flex flex-wrap items-center gap-2"><Badge>{view.resource.data.thread.assignee_name || "بدون مسئول"}</Badge>{view.resource.data.thread.assignee_name && !view.resource.data.thread.assignee_active && <StatusMessage>دسترسی مسئول فعلی غیرفعال است.</StatusMessage>}</div>}
         {view.canWrite && <ActivityForm view={view}/>}
         <section className="space-y-3"><h3 className="font-medium">سابقه گفتگو</h3>
-          {view.history.loading ? <LoadingState label="در حال دریافت فعالیت‌ها"/> : view.history.error ? <ErrorState message={view.history.error.message} onRetry={view.history.refresh}/> : !view.activities.length ? <EmptyState compact title="فعالیتی ثبت نشده"/> : <ol className="space-y-3">{view.activities.map(item => <li key={item.id} className="space-y-2 rounded-control border border-border p-3"><p className="text-xs text-muted">{item.label} · {item.actor_name} · {item.timeLabel}</p><p className="whitespace-pre-wrap break-words">{item.message}</p><p className="text-xs text-muted">نسخه سند {persian(item.context.version)}</p></li>)}</ol>}
+          {view.history.loading ? <LoadingState label="در حال دریافت فعالیت‌ها"/> : view.history.error ? <ErrorState message={view.history.error.message}/> : !view.activities.length ? <EmptyState compact title="فعالیتی ثبت نشده"/> : <ol className="space-y-3">{view.activities.map(item => <li key={item.id} className="space-y-2 rounded-control border border-border p-3"><p className="text-xs text-muted">{item.label} · {item.actor_name} · {item.timeLabel}</p><p className="whitespace-pre-wrap break-words">{item.message}</p><p className="text-xs text-muted">نسخه سند {persian(item.context.version)}</p></li>)}</ol>}
           <CursorPagination {...view.history}/>
         </section>
         {view.canWrite && <FollowupForm view={view}/>}
         <FormMessage error>{view.command.error?.message}</FormMessage>
-        {view.blocked && <Button variant="secondary" onClick={view.refresh}>بازخوانی سند و گفتگو</Button>}
+        {view.blocked && <FormMessage error>سند تغییر کرده است. گفتگو را ببندید و دوباره باز کنید.</FormMessage>}
       </div>}
     </Drawer>
   </>;

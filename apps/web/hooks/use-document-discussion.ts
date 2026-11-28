@@ -74,7 +74,6 @@ export function useDocumentDiscussion(kind: DocumentSubjectKind, id: string, ope
     assigneeOptions: [{ value: "none", label: "بدون مسئول" }, ...(assignees.data?.items || []).map(item => ({ value: item.membership_id, label: item.name }))],
     commentChange: (patch: Partial<typeof comment>) => setNote(previous => ({ ...(previous.scope === scope ? previous : comment), ...patch })),
     formChange: (patch: Partial<typeof form>) => setEdits({ scope, version: value?.expected_version || 1, value: { ...form, ...patch } }),
-    refresh: () => { resource.refresh(); history.refresh(); command.clearError(); },
     activities: (history.data?.items || []).map(item => ({ ...item, label: labels[item.kind] || "فعالیت",
       timeLabel: new Intl.DateTimeFormat("fa-IR", { timeZone: "Asia/Tehran", dateStyle: "medium", timeStyle: "short" }).format(new Date(item.created_at)) })),
   };

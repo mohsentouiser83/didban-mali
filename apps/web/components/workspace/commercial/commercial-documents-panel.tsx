@@ -43,7 +43,7 @@ export function CommercialDocumentsPanel({ direction, partyId: filteredPartyId }
           {docs.loading ? (
             <LoadingState label="در حال بارگذاری اسناد تجاری" variant="panels" />
           ) : docs.error ? (
-            <ErrorState message={docs.error.message} onRetry={docs.refresh} />
+            <ErrorState message={docs.error.message} />
           ) : !docRows.length ? (
             <EmptyState
               title="فاکتور تجاری چندردیفی ثبت نشده است"

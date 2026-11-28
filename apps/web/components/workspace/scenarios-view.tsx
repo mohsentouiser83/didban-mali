@@ -81,10 +81,6 @@ export function ImportedScenariosWorkspace() {
               ) : c.view.error || c.baselineError ? (
                 <ErrorState
                   message={(c.view.error || c.baselineError)!.message}
-                  onRetry={() => {
-                    c.view.refresh();
-                    c.refreshBaseline();
-                  }}
                 />
               ) : (
                 <EmptyState

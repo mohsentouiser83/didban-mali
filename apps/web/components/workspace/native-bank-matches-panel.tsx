@@ -93,7 +93,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
       ) : view.statements.error ? (
         <ErrorState
           message={view.statements.error.message}
-          onRetry={view.statements.refresh}
         />
       ) : !view.statementChoices.length ? (
         <div className="space-y-3">
@@ -123,7 +122,6 @@ function NativeMatchSelection({ view }: { view: NativeBankController }) {
           ) : view.sources.error ? (
             <ErrorState
               message={view.sources.error.message}
-              onRetry={view.sources.refresh}
             />
           ) : !view.sources.data?.bank_accounts.length ? (
             <div className="space-y-3">
@@ -231,7 +229,6 @@ export function NativeBankMatchesPanel() {
         ) : view.history.error ? (
           <ErrorState
             message={view.history.error.message}
-            onRetry={view.history.refresh}
           />
         ) : !view.historyRows.length ? (
           <EmptyState

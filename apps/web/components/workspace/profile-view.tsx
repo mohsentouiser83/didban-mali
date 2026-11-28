@@ -2,7 +2,6 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import {
-  ArrowClockwiseIcon,
   CameraIcon,
   TrashIcon,
   UserCircleIcon,
@@ -266,23 +265,13 @@ function ProfileContent({
         {/* Bot Connections Section */}
         <Panel
           title="اتصال به بات‌های پیام‌رسان"
-          action={
-            <Button
-              variant="secondary"
-              disabled={botView.busy || botView.loading}
-              onClick={botView.refresh}
-            >
-              <ArrowClockwiseIcon size={16} aria-hidden />
-              به‌روزرسانی وضعیت
-            </Button>
-          }
         >
           {workspace.company ? (
             <div className="space-y-4">
               {botView.loading ? (
                 <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />
               ) : botView.error ? (
-                <ErrorState message={botView.error.message} onRetry={botView.refresh} />
+                <ErrorState message={botView.error.message} />
               ) : (
                 <div className="grid items-start gap-5 lg:grid-cols-2">
                   {botView.cards.map((card) => (

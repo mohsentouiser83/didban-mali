@@ -88,6 +88,9 @@ These instructions apply to work in this repository and its subdirectories.
 
 ## UI and UX design requirements
 
+- UI decision (2026-11-28): Start every Excel/CSV import from the shared import control in the toolbar of the related table, including specialized imports. Keep file selection, preview, and confirmation inside that workflow. Do not add separate Excel import buttons in page headers, panels, empty states, or row actions.
+- UI decision (2026-11-28): Do not add manual refresh, reload, or data-fetch retry controls anywhere in the application, including error states. Keep automatic reads and synchronization, concise errors, and explicit review of current versions for financial mutations. Business actions such as tax transmission inquiry and rerunning processing keep their own purpose-specific labels.
+
 - Use IRANYekanX for all visible text and digits, including Persian, Latin, headings, numeric data, and cash metrics, per the user’s 2026-11-22 decision. Use shared font tokens; do not introduce or substitute fonts without an explicit user request.
 - For the fresh rebuild, follow the approved `design.md` theme and tokens rather than legacy product tokens. In the new implementation, reuse its shared color, typography, spacing, border, radius and component tokens consistently across all pages.
 - All user-facing form controls must use the project's shared components in `apps/web/components/ui`, including text and numeric inputs, textareas, selects, checkboxes, radio groups, switches, and date pickers. This applies to forms, filters, tables, dialogs, and drawers throughout the application.

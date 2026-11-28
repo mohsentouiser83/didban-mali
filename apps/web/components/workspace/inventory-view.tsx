@@ -84,11 +84,11 @@ function InventoryWorkspace({ initialWarehouse }: { initialWarehouse?: string })
       {view.inventory.loading ? (
         <LoadingState label="در حال دریافت موجودی و گردش کالا" variant="panels" />
       ) : view.inventory.error ? (
-        <ErrorState message={view.inventory.error.message} onRetry={view.inventory.refresh} />
+        <ErrorState message={view.inventory.error.message} />
       ) : data && (
         <div className="space-y-5">
           {data.can_prepare && view.accounts.error && (
-            <ErrorState message={view.accounts.error.message} onRetry={view.accounts.refresh} />
+            <ErrorState message={view.accounts.error.message} />
           )}
           {data.can_prepare && !canCreate && !view.accounts.loading && !view.accounts.error && (
             <StatusMessage>برای شروع، کالا، انبار، حساب فعال و دورهٔ مالی تعریف کنید.</StatusMessage>
@@ -159,7 +159,7 @@ function InventoryWorkspace({ initialWarehouse }: { initialWarehouse?: string })
         className="sm:max-w-2xl"
       >
         {journal.loading ? <LoadingState variant="message" /> : journal.error ? (
-          <ErrorState message={journal.error.message} onRetry={journal.refresh} />
+          <ErrorState message={journal.error.message} />
         ) : journal.data && (
           <div className="space-y-4">
             <p className="font-medium">{journal.data.snapshot.description}</p>

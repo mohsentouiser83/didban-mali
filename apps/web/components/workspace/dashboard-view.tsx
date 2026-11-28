@@ -48,7 +48,7 @@ export function ImportedDashboardView() {
       {view.loading ? (
         <LoadingState />
       ) : view.error ? (
-        <ErrorState message={view.error.message} onRetry={view.refresh} />
+        <ErrorState message={view.error.message} />
       ) : !view.manifest ? (
         <NoResult />
       ) : (

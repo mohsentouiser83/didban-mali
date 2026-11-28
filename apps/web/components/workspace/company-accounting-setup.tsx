@@ -22,7 +22,6 @@ export function CompanyAccountingSetup() {
       ) : c.resource.error ? (
         <ErrorState
           message={c.resource.error.message}
-          onRetry={c.resource.refresh}
         />
       ) : (
         <Form

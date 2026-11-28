@@ -12,7 +12,6 @@ import {
   WalletIcon,
   ReceiptIcon,
   ShieldCheckIcon,
-  ArrowClockwiseIcon,
   DownloadSimpleIcon,
   CalculatorIcon,
   CalendarCheckIcon,
@@ -104,7 +103,7 @@ export function PayrollDashboardView() {
       {v.loading ? (
         <LoadingState label="در حال بارگذاری لیست‌های حقوق..." />
       ) : v.error ? (
-        <ErrorState message={v.error.message} onRetry={v.error.status === 403 ? undefined : v.refresh} />
+        <ErrorState message={v.error.message} />
       ) : v.runs.length === 0 ? (
         <Panel>
           <EmptyState
@@ -220,9 +219,6 @@ export function PayrollDashboardView() {
                     <ClockIcon size={16} /> محاسبه‌شده (پیش‌نویس)
                   </span>
                 )}
-                <Button variant="ghost" className="size-8 p-0" onClick={v.refresh} title="تازه‌سازی">
-                  <ArrowClockwiseIcon size={16} />
-                </Button>
               </div>
             </div>
           </Panel>

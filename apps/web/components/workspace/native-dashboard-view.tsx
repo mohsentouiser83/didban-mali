@@ -34,7 +34,7 @@ export function NativeDashboardView() {
       {c.loading ? (
         <LoadingState />
       ) : c.error ? (
-        <ErrorState message={c.error.message} onRetry={c.refresh} />
+        <ErrorState message={c.error.message} />
       ) : !c.data ? (
         <Panel>
           <EmptyState

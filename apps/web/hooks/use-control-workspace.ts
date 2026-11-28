@@ -101,7 +101,7 @@ export function useControlCasePanel(onSaved: () => void) {
       });
   }
   function save() {
-    if (!selection || newerVersionAvailable) return;
+    if (!selection || newerVersionAvailable || command.error?.code === "version_conflict") return;
     setOperationScope("case");
     setLocalError(undefined);
     if (currentCase && !value.reason.trim()) {
@@ -136,7 +136,7 @@ export function useControlCasePanel(onSaved: () => void) {
     );
   }
   function addActivity() {
-    if (!currentCase || !activity.message.trim() || newerVersionAvailable)
+    if (!currentCase || !activity.message.trim() || newerVersionAvailable || command.error?.code === "version_conflict")
       return;
     setOperationScope("activity");
     setLocalError(undefined);
@@ -224,18 +224,12 @@ export function useControlCasePanel(onSaved: () => void) {
         : undefined,
     newerVersionAvailable,
     assigneeOptions: options,
-    reloadLatest: () => {
-      if (detail.data) {
-        saved(detail.data);
-        command.clearError();
-        setLocalError(undefined);
-      }
-    },
     activityOptions: activityKinds.filter(
       (kind) => selection?.kind === "invoice" || kind.value !== "promise",
     ),
     open,
     close: () => {
+      if (newerVersionAvailable || command.error?.code === "version_conflict") onSaved();
       setSelection(null);
       setCaseId(null);
     },
@@ -244,12 +238,12 @@ export function useControlCasePanel(onSaved: () => void) {
     change: (patch: Partial<typeof value>) => {
       setValue((previous) => ({ ...previous, ...patch }));
       setLocalError(undefined);
-      command.clearError();
+      if (command.error?.code !== "version_conflict") command.clearError();
     },
     changeActivity: (patch: Partial<typeof activity>) => {
       setActivity((previous) => ({ ...previous, ...patch }));
       setLocalError(undefined);
-      command.clearError();
+      if (command.error?.code !== "version_conflict") command.clearError();
     },
     refresh: () => {
       detail.refresh();

@@ -34,7 +34,6 @@ export function AccountingPermissionsPanel({
       ) : view.resource.error ? (
         <ErrorState
           message={view.resource.error.message}
-          onRetry={view.resource.refresh}
         />
       ) : (
         <Table>

@@ -1,12 +1,10 @@
 "use client";
 import { cn } from "@/lib/utils";
 import {
-  ArrowClockwiseIcon,
   FolderOpenIcon,
   InfoIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { Button } from "./button";
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
@@ -144,10 +142,8 @@ export function EmptyState({
 }
 export function ErrorState({
   message = "اطلاعات دریافت نشد.",
-  onRetry,
 }: {
   message?: string;
-  onRetry?: () => void;
 }) {
   return (
     <div
@@ -158,12 +154,6 @@ export function ErrorState({
       <p>
         {message === "Not Found" ? "اطلاعات این بخش در دسترس نیست." : message}
       </p>
-      {onRetry && (
-        <Button variant="secondary" onClick={onRetry}>
-          <ArrowClockwiseIcon size={18} aria-hidden />
-          تلاش دوباره
-        </Button>
-      )}
     </div>
   );
 }

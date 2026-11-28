@@ -133,7 +133,6 @@ export function ChequeEvents({ c }: { c: ChequeController }) {
         ) : c.history.error ? (
           <ErrorState
             message={c.history.error.message}
-            onRetry={c.history.refresh}
           />
         ) : !c.history.data?.items.length ? (
           <EmptyState compact title="رویدادی ثبت نشده" />

@@ -37,7 +37,7 @@ export function MoadianReconciliationPanel() {
 
   if (moadian.loading) return <LoadingState />;
   if (moadian.error) {
-    return <ErrorState message={moadian.error.message} onRetry={moadian.refresh} />;
+    return <ErrorState message={moadian.error.message} />;
   }
 
   const summary = moadian.summary;

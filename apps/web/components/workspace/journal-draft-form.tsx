@@ -74,7 +74,6 @@ export function JournalDraftForm({
               {entry.catalogue.error && (
                 <ErrorState
                   message={entry.catalogue.error.message}
-                  onRetry={entry.catalogue.refresh}
                 />
               )}
             </Field>

@@ -59,10 +59,7 @@ export function ProformaConversion({ row, onClose, onComplete }: {
       }
     >
       {loading ? <LoadingState /> : error ? (
-        <ErrorState message={error.message} onRetry={() => {
-          view.inventory.refresh();
-          view.accounts.refresh();
-        }} />
+        <ErrorState message={error.message} />
       ) : (
         <form id="proforma-conversion" className="space-y-4" onSubmit={(event) => {
           event.preventDefault();

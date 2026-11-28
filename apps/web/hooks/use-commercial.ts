@@ -137,8 +137,11 @@ export function proformaForm(row?: Proforma): ProformaForm {
 
 export function useProformas() {
   const list = useCommercialList<Proforma>("proformas");
+  const isServiceMode = list.workspace.company?.business_mode === "service";
   const inventory = useResource<InventoryState>(
-    list.editor && !list.editor.readOnly ? list.workspace.companyPath("accounting/inventory") : null,
+    !isServiceMode && list.editor && !list.editor.readOnly
+      ? list.workspace.companyPath("accounting/inventory")
+      : null,
   );
   const [partyQuery, setPartyQuery] = useState("");
   const parties = useResource<{ items: Counterparty[] }>(
@@ -150,7 +153,7 @@ export function useProformas() {
   const canManageAccounts = list.capabilities.data?.can_manage_accounts === true;
 
   return {
-    ...list, canPrepare, canManageAccounts, partyQuery, setPartyQuery,
+    ...list, isServiceMode, canPrepare, canManageAccounts, partyQuery, setPartyQuery,
     refreshParties: () => parties.refresh(),
     partyError: parties.error?.message,
     partyOptions: parties.data?.items.map((party) => ({
@@ -170,8 +173,8 @@ export function useProformas() {
         expiry_date: form.expiry_date || null, terms: form.terms.trim() || null,
         invoice_discount: form.invoice_discount || "0",
         lines: form.lines.map((line) => ({
-          item_id: line.item_id || null,
-          line_kind: line.item_id ? "goods" : "service",
+          item_id: isServiceMode ? null : line.item_id || null,
+          line_kind: isServiceMode ? "service" : line.item_id ? "goods" : "service",
           description: line.description.trim(),
           quantity: Number(line.quantity), unit_price: line.unit_price,
           discount: line.discount || "0",
@@ -207,7 +210,10 @@ export function useProformaConversion(row: Proforma, onComplete: () => void) {
         label: `${code} · ${name}${role ? ` (${treasuryRoleLabel(role)})` : ""}`,
       })),
   };
-  const inventory = useResource<InventoryState>(operation.companyPath("accounting/inventory"));
+  const isServiceMode = operation.company?.business_mode === "service";
+  const inventory = useResource<InventoryState>(
+    isServiceMode ? null : operation.companyPath("accounting/inventory"),
+  );
   const rolesResource = useResource<{ items: { account_id: string; role: string | null }[] }>(
     operation.companyPath("accounting/account-roles?limit=200"),
   );

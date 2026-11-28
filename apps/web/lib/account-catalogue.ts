@@ -246,6 +246,22 @@ export const ACCOUNT_ROLE_OPTIONS = [
   { value: "inventory_nrv_recovery", label: "برگشت ذخیره کاهش ارزش موجودی (D35)" },
 ];
 
+const INVENTORY_ACCOUNT_ROLES = new Set([
+  "inventory_nrv_allowance",
+  "inventory_nrv_expense",
+  "inventory_nrv_recovery",
+]);
+
+export function visibleAccountRoleOptions(
+  businessMode?: "trading" | "service",
+  currentRole?: string | null,
+) {
+  if (businessMode !== "service") return ACCOUNT_ROLE_OPTIONS;
+  return ACCOUNT_ROLE_OPTIONS.filter(
+    (opt) => !INVENTORY_ACCOUNT_ROLES.has(opt.value) || opt.value === currentRole,
+  );
+}
+
 export function treasuryRoleLabel(role?: string | null): string {
   if (role === "bank") return "بانک";
   if (role === "cash") return "صندوق";

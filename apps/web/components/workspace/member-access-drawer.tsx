@@ -13,12 +13,14 @@ import { Form } from "@/components/ui/form";
 import { Select } from "@/components/ui/select";
 import { MemberModuleFields } from "./member-module-fields";
 import { memberRoles } from "@/lib/members";
+import { useWorkspace } from "@/hooks/workspace";
 import type { useMemberManagement } from "@/hooks/use-member-management";
 export function MemberAccessDrawer({
   c,
 }: {
   c: ReturnType<typeof useMemberManagement>;
 }) {
+  const { company } = useWorkspace();
   return (
     <Drawer
       title={c.selected?.name || "دسترسی عضو"}
@@ -75,6 +77,7 @@ export function MemberAccessDrawer({
           <MemberModuleFields
             value={c.moduleAccess}
             disabled={c.command.busy || c.accessCommand.busy}
+            businessMode={company?.business_mode}
             onChange={c.changeModuleAccess}
           />
           <FormMessage error>{c.command.error?.message}</FormMessage>
@@ -99,7 +102,6 @@ export function MemberAccessDrawer({
         ) : c.permissions.error ? (
           <ErrorState
             message={c.permissions.error.message}
-            onRetry={c.permissions.refresh}
           />
         ) : (
           c.permission && (

@@ -35,6 +35,44 @@ EMPLOYEE_INSURANCE_RATE_NORMAL = Decimal("0.07")
 EMPLOYER_INSURANCE_RATE_NORMAL = Decimal("0.23")  # 20% + 3% بیکاری
 EMPLOYER_INSURANCE_RATE_NO_UNEMPLOYMENT = Decimal("0.20")  # بدون ۳٪ بیکاری (اتباع و بازنشستگان)
 
+PAYROLL_RATES_BY_YEAR: dict[int, dict[str, Any]] = {
+    1403: {
+        "daily_min_wage": DAILY_MIN_WAGE_1403,
+        "monthly_grocery_allowance": MONTHLY_GROCERY_ALLOWANCE_1403,
+        "monthly_housing_allowance": MONTHLY_HOUSING_ALLOWANCE_1403,
+        "monthly_marital_allowance": MONTHLY_MARITAL_ALLOWANCE_1403,
+        "monthly_child_allowance_per_child": MONTHLY_CHILD_ALLOWANCE_PER_CHILD,
+        "daily_tenure_base": DAILY_TENURE_BASE_1403,
+        "standard_monthly_hours": STANDARD_MONTHLY_HOURS,
+        "overtime_multiplier": OVERTIME_MULTIPLIER,
+        "tax_exempt_threshold_monthly": TAX_EXEMPT_THRESHOLD_MONTHLY,
+        "tax_brackets_monthly": TAX_BRACKETS_MONTHLY,
+        "employee_insurance_rate": EMPLOYEE_INSURANCE_RATE_NORMAL,
+        "employer_insurance_rate": EMPLOYER_INSURANCE_RATE_NORMAL,
+        "employer_insurance_rate_no_unemployment": EMPLOYER_INSURANCE_RATE_NO_UNEMPLOYMENT,
+    }
+}
+
+
+def resolve_payroll_rates(
+    year: int, custom_rates: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], int, str]:
+    """Resolve statutory payroll rate table for a given Jalali year or custom company override."""
+    if custom_rates:
+        base = dict(PAYROLL_RATES_BY_YEAR.get(year, PAYROLL_RATES_BY_YEAR[1403]))
+        for key, value in custom_rates.items():
+            if value is not None and key in base:
+                if key == "tax_brackets_monthly":
+                    base[key] = tuple(
+                        (Decimal(str(lo)), Decimal(str(hi)), Decimal(str(rate))) for lo, hi, rate in value
+                    )
+                else:
+                    base[key] = Decimal(str(value))
+        return base, year, "company_configured"
+    if year in PAYROLL_RATES_BY_YEAR:
+        return dict(PAYROLL_RATES_BY_YEAR[year]), year, f"verified_{year}"
+    return dict(PAYROLL_RATES_BY_YEAR[1403]), 1403, "unverified_period_rates"
+
 
 def d(val: Any) -> Decimal:
     """Safe Decimal conversion."""
@@ -54,6 +92,7 @@ def calculate_slip(
     timesheet: dict[str, Any],
     days_in_month: int = 30,
     year: int = 1403,
+    custom_rates: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Calculates an employee's detailed monthly payslip using statutory rules and special conditions.
 
@@ -89,18 +128,19 @@ def calculate_slip(
             - bonus_amount: Discretionary bonus
         days_in_month: Calendar days in the payroll month (29, 30, or 31).
     """
+    rates, rate_table_year, rate_status = resolve_payroll_rates(year, custom_rates)
     applied_exemptions: dict[str, Any] = {}
 
     # Extract contract items
     contract_type = contract.get("contract_type", "full_time") if contract else "full_time"
     base_salary = d(contract.get("base_salary")) if contract else ZERO
     daily_rate = d(contract.get("daily_rate")) if contract else ZERO
-    housing_allowance = d(contract.get("housing_allowance")) if contract else MONTHLY_HOUSING_ALLOWANCE_1403
-    grocery_allowance = d(contract.get("grocery_allowance")) if contract else MONTHLY_GROCERY_ALLOWANCE_1403
+    housing_allowance = d(contract.get("housing_allowance")) if contract else rates["monthly_housing_allowance"]
+    grocery_allowance = d(contract.get("grocery_allowance")) if contract else rates["monthly_grocery_allowance"]
     marital_allowance = (
         d(contract.get("marital_allowance"))
         if contract
-        else (MONTHLY_MARITAL_ALLOWANCE_1403 if employee.get("marital_status") == "married" else ZERO)
+        else (rates["monthly_marital_allowance"] if employee.get("marital_status") == "married" else ZERO)
     )
     custom_fixed = d(contract.get("custom_fixed_allowances")) if contract else ZERO
     is_insured = contract.get("is_insured", True) if contract else True
@@ -112,7 +152,7 @@ def calculate_slip(
     if contract_child_allowance > ZERO:
         total_child_allowance = contract_child_allowance
     else:
-        total_child_allowance = MONTHLY_CHILD_ALLOWANCE_PER_CHILD * Decimal(children_count)
+        total_child_allowance = rates["monthly_child_allowance_per_child"] * Decimal(children_count)
 
     # Tenure allowance
     tenure_allowance = d(contract.get("tenure_allowance")) if contract else ZERO
@@ -127,9 +167,10 @@ def calculate_slip(
     bonus_amount = d(timesheet.get("bonus_amount", 0))
 
     # Calculate earnings based on contract type
+    standard_monthly_hours = rates["standard_monthly_hours"]
     if contract_type == "part_time":
         ratio = (
-            min(ONE, work_hours / STANDARD_MONTHLY_HOURS)
+            min(ONE, work_hours / standard_monthly_hours)
             if work_hours > ZERO
             else (work_days / Decimal(days_in_month))
         )
@@ -146,7 +187,7 @@ def calculate_slip(
     elif contract_type == "hourly":
         applied_exemptions["contract_type"] = "hourly"
         base_pay = round_irr(daily_rate * work_hours)
-        ratio = min(ONE, work_hours / STANDARD_MONTHLY_HOURS)
+        ratio = min(ONE, work_hours / standard_monthly_hours)
         housing_pay = round_irr(housing_allowance * ratio)
         grocery_pay = round_irr(grocery_allowance * ratio)
         marital_pay = round_irr(marital_allowance * ratio)
@@ -186,8 +227,8 @@ def calculate_slip(
 
     # Overtime calculation
     if overtime_hours > ZERO and base_salary > ZERO:
-        hourly_rate = base_salary / STANDARD_MONTHLY_HOURS
-        overtime_pay = round_irr(overtime_hours * hourly_rate * OVERTIME_MULTIPLIER)
+        hourly_rate = base_salary / standard_monthly_hours
+        overtime_pay = round_irr(overtime_hours * hourly_rate * rates["overtime_multiplier"])
     else:
         overtime_pay = ZERO
 
@@ -219,17 +260,17 @@ def calculate_slip(
             employee_insurance = ZERO
             applied_exemptions["veteran_employee_insurance_exempt"] = True
         else:
-            employee_insurance = round_irr(insured_earnings * EMPLOYEE_INSURANCE_RATE_NORMAL)
+            employee_insurance = round_irr(insured_earnings * rates["employee_insurance_rate"])
 
         # Employer share (23% normal, 20% for foreign nationals or retirees without 3% unemployment)
         if employee.get("is_foreign_national") or employee.get("is_retired"):
-            employer_rate = EMPLOYER_INSURANCE_RATE_NO_UNEMPLOYMENT
+            employer_rate = rates["employer_insurance_rate_no_unemployment"]
             if employee.get("is_foreign_national"):
                 applied_exemptions["foreign_national_no_unemployment_insurance"] = True
             if employee.get("is_retired"):
                 applied_exemptions["retired_no_unemployment_insurance"] = True
         else:
-            employer_rate = EMPLOYER_INSURANCE_RATE_NORMAL
+            employer_rate = rates["employer_insurance_rate"]
 
         employer_insurance = round_irr(insured_earnings * employer_rate)
     else:
@@ -266,8 +307,8 @@ def calculate_slip(
 
             # Calculate progressive tax using monthly brackets
             computed_tax = ZERO
-            if taxable_earnings > TAX_EXEMPT_THRESHOLD_MONTHLY:
-                for lower, upper, rate in TAX_BRACKETS_MONTHLY:
+            if taxable_earnings > rates["tax_exempt_threshold_monthly"]:
+                for lower, upper, rate in rates["tax_brackets_monthly"]:
                     if taxable_earnings > lower:
                         taxable_in_tier = min(taxable_earnings, upper) - lower
                         computed_tax += taxable_in_tier * rate
@@ -309,8 +350,8 @@ def calculate_slip(
         "total_deductions": canonical_money(total_deductions),
         "net_pay": canonical_money(net_pay),
         "applied_exemptions": applied_exemptions,
-        "rate_table_year": 1403,
-        "rate_status": "verified_1403" if year == 1403 else "unverified_period_rates",
+        "rate_table_year": rate_table_year,
+        "rate_status": rate_status,
     }
 
 

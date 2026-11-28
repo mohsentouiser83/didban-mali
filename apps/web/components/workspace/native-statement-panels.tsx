@@ -89,7 +89,6 @@ export function NativeOpeningPanel({
       ) : opening.history.error ? (
         <ErrorState
           message={opening.history.error.message}
-          onRetry={opening.history.refresh}
         />
       ) : (
         <ul className="mt-4 space-y-3">
@@ -127,7 +126,6 @@ export function NativeStatementHistory({ c }: { c: Controller }) {
       ) : c.history.error ? (
         <ErrorState
           message={c.history.error.message}
-          onRetry={c.history.refresh}
         />
       ) : (
         <>

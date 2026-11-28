@@ -99,7 +99,6 @@ function PeriodWorkspace() {
         ) : resource.error ? (
           <ErrorState
             message={resource.error.message}
-            onRetry={resource.refresh}
           />
         ) : (
           <>

@@ -1,5 +1,5 @@
-import { MoadianTransmissionsView } from "@/components/workspace/moadian-transmissions-view";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <MoadianTransmissionsView />;
+  redirect("/moadian");
 }

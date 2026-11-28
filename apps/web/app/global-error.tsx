@@ -1,11 +1,10 @@
 "use client";
 import { PageTitle } from "@/components/ui/page-title";
 import { WarningCircleIcon as TitleIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
 import { yekan } from "./fonts";
 import "./globals.css";
 
-export default function GlobalError({ retry }: { retry: () => void }) {
+export default function GlobalError() {
   return (
     <html
       lang="fa"
@@ -17,9 +16,6 @@ export default function GlobalError({ retry }: { retry: () => void }) {
           <PageTitle icon={TitleIcon} className="justify-center">
             نمایش برنامه ممکن نشد
           </PageTitle>
-          <Button onClick={retry} className="mt-6">
-            تلاش دوباره
-          </Button>
         </main>
       </body>
     </html>

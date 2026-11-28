@@ -134,7 +134,6 @@ export function PeriodTasksPanel({
           ) : c.members.error ? (
             <ErrorState
               message={c.members.error.message}
-              onRetry={c.members.refresh}
             />
           ) : (
             <>

@@ -27,6 +27,7 @@ class LoginInput(InputModel):
 
 class CompanyInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
+    business_mode: Literal["trading", "service"] = "trading"
 
 
 class UserInput(InputModel):
@@ -58,6 +59,7 @@ class PeriodInput(InputModel):
     name: str = Field(min_length=1, max_length=120)
     start: date
     end: date
+    payroll_rates: dict[str, object] | None = None
 
     @model_validator(mode="after")
     def dates(self):

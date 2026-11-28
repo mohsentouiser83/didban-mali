@@ -111,6 +111,7 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
         open={!!reversingAlloc}
         onOpenChange={(open) => {
           if (!open && !cmd.busy) {
+            if (isReverseVersionConflict) docs.refresh();
             cmd.clearError();
             setReversingAlloc(null);
             setReverseReason("");
@@ -137,20 +138,8 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
             {isReverseVersionConflict ? (
               <div className="space-y-3 rounded-control bg-danger-soft p-3 text-danger" role="alert">
                 <p className="text-sm">
-                  نسخهٔ سند خزانه تغییر کرده و اطلاعات بازشده قدیمی است. برگشت به‌صورت خودکار تکرار نشد؛ فهرست اسناد را بازخوانی کنید و سند را دوباره بازبینی نمایید.
+                  نسخهٔ سند خزانه تغییر کرده است. پنجره را ببندید و سند را دوباره باز کنید.
                 </p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    cmd.clearError();
-                    setReversingAlloc(null);
-                    setReverseReason("");
-                    docs.refresh();
-                  }}
-                >
-                  بازخوانی و بازبینی اسناد
-                </Button>
               </div>
             ) : (
               <FormMessage error>{cmd.error?.message}</FormMessage>
@@ -161,6 +150,7 @@ export function TreasuryAllocationEditors({ view }: { view: Pick<ReturnType<type
                 variant="secondary"
                 disabled={cmd.busy}
                 onClick={() => {
+                  if (isReverseVersionConflict) docs.refresh();
                   cmd.clearError();
                   setReversingAlloc(null);
                   setReverseReason("");

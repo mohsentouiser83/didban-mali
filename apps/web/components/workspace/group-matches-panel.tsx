@@ -77,10 +77,8 @@ function GroupDecisionForm({ view }: { view: GroupView }) {
           onChange={event => view.setReason(event.target.value)} disabled={view.command.busy} />
       </Field>
       <FormMessage error>{view.command.error?.message}</FormMessage>
-      {view.newerVersionAvailable ? (
-        <Button variant="secondary" onClick={view.adoptLatest}>استفاده از نسخهٔ تازه</Button>
-      ) : view.command.error?.code === "version_conflict" && (
-        <Button variant="secondary" onClick={view.resource.refresh}>بازخوانی گروه‌ها</Button>
+      {(view.newerVersionAvailable || view.command.error?.code === "version_conflict") && (
+        <StatusMessage>گروه تغییر کرده است. پنجره را ببندید و گروه را دوباره باز کنید.</StatusMessage>
       )}
       <Button type="submit" busy={view.command.busy} disabled={!view.canSubmit}>ثبت تصمیم</Button>
     </Form>
@@ -92,7 +90,7 @@ export function GroupMatchesPanel({ runId, onDecided }: { runId: string; onDecid
   return (
     <Panel title="تطبیق گروهی" className="mt-5">
       {view.resource.loading ? <LoadingState label="در حال دریافت گروه‌های تطبیق" /> : view.resource.error ? (
-        <ErrorState message={view.resource.error.message} onRetry={view.resource.refresh} />
+        <ErrorState message={view.resource.error.message} />
       ) : <GroupRows rows={view.rows} onOpen={view.open} />}
       <Pagination page={view.page} total={view.total} onPrevious={view.previous} onNext={view.next} />
       <ManualGroupMatches runId={runId} onDecided={() => {

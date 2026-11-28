@@ -53,7 +53,7 @@ def create_company(data: s.CompanyInput, request: Request):
             db.execute(
                 text("SELECT set_config('didban.company_id', :company, true)"), {"company": company_id}
             )
-        company = m.Company(id=company_id, name=data.name)
+        company = m.Company(id=company_id, name=data.name, business_mode=data.business_mode)
         db.add(company)
         db.flush()
         db.add(
@@ -80,8 +80,17 @@ def update_company(company_id: str, data: s.CompanyInput, request: Request):
     def apply(db, user):
         company = db.get(m.Company, company_id)
         service.check_version(company, expected(request))
-        company.name, company.version = data.name, company.version + 1
-        audit(db, company_id, user.id, "company.updated", company.id, {"name": data.name})
+        company.name = data.name
+        company.business_mode = data.business_mode
+        company.version = company.version + 1
+        audit(
+            db,
+            company_id,
+            user.id,
+            "company.updated",
+            company.id,
+            {"name": data.name, "business_mode": data.business_mode},
+        )
         return serialize_fact(company)
 
     return mutate(request, company_id, data.model_dump(), "owner", apply)

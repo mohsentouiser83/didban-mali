@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowClockwiseIcon, PlusIcon, ReceiptIcon } from "@phosphor-icons/react";
+import { PlusIcon, ReceiptIcon } from "@phosphor-icons/react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ErrorState, LoadingState, StatusMessage } from "@/components/ui/content-states";
 import { Dialog } from "@/components/ui/dialog";
@@ -35,17 +35,13 @@ function TransmissionWorkspace() {
       {view.resource.loading ? (
         <LoadingState variant="panels" label="در حال دریافت وضعیت ارسال صورتحساب‌ها" />
       ) : view.resource.error ? (
-        <ErrorState message={view.resource.error.message} onRetry={view.refreshHistory} />
+        <ErrorState message={view.resource.error.message} />
       ) : data && (
         <Panel
           title="سوابق ارسال و استعلام"
           className="space-y-4"
           action={
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={view.refreshHistory} disabled={view.rowCommand.busy}>
-                <ArrowClockwiseIcon size={18} aria-hidden />
-                تازه‌سازی
-              </Button>
               {data.configured && data.can_submit && (
                 <Button onClick={() => view.show()} disabled={view.rowCommand.busy}>
                   <PlusIcon size={18} aria-hidden />

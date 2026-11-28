@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from . import models as m
 from .accounting_models import Draft
 from .accounting_service import capabilities
+from .dimensions_models import Dimension
 from .errors import require
 from .money_type import canonical_money
 from .numbering_service import allocate_number
@@ -136,6 +137,62 @@ def serialize_run(run: PayrollRun, slips_count: int | None = None) -> dict[str, 
     return res
 
 
+def _normalize_slip_project_allocations(
+    db: Session, company: str, raw_allocations: list[dict[str, Any]]
+) -> list[dict[str, str]]:
+    """Validate project dimension references and percentages (0 < pct <= 100, total <= 100)."""
+    seen: set[str] = set()
+    total_pct = Decimal("0")
+    normalized: list[dict[str, str]] = []
+    for entry in raw_allocations:
+        dim_id = str(entry["dimension_id"]).strip()
+        require(dim_id not in seen, "duplicate_project_allocation", "تکرار پروژه در تسهیم حقوق مجاز نیست.", 422)
+        seen.add(dim_id)
+        dim = db.scalar(
+            select(Dimension).where(
+                Dimension.company_id == company,
+                Dimension.id == dim_id,
+                Dimension.active.is_(True),
+            )
+        )
+        require(dim is not None, "dimension_not_found", "پروژه یا مرکز هزینه انتخاب‌شده معتبر نیست.", 404)
+        pct = d(entry["percentage"])
+        require(pct > Decimal("0") and pct <= Decimal("100"), "invalid_allocation_percentage", "درصد تسهیم باید بین ۰ تا ۱۰۰ باشد.", 422)
+        total_pct += pct
+        normalized.append(
+            {
+                "dimension_id": dim.id,
+                "dimension_code": dim.code,
+                "dimension_name": dim.name,
+                "percentage": str(pct.normalize()),
+            }
+        )
+    require(total_pct <= Decimal("100"), "allocation_exceeds_100", "جمع درصد تسهیم پروژه‌ها نمی‌تواند از ۱۰۰ بیشتر باشد.", 422)
+    return normalized
+
+
+def _enrich_slip_project_allocations(slip: PayrollSlip) -> list[dict[str, str]]:
+    """Attach computed employer-cost share in IRR to each stored project allocation."""
+    raw = slip.project_allocations or []
+    if not raw:
+        return []
+    total_employer_cost = d(slip.gross_pay) + d(slip.employer_insurance)
+    enriched: list[dict[str, str]] = []
+    for entry in raw:
+        pct = d(entry.get("percentage"))
+        allocated_cost = (total_employer_cost * pct / Decimal("100")).quantize(Decimal("1"))
+        enriched.append(
+            {
+                "dimension_id": str(entry.get("dimension_id", "")),
+                "dimension_code": str(entry.get("dimension_code", "")),
+                "dimension_name": str(entry.get("dimension_name", "")),
+                "percentage": str(entry.get("percentage", "0")),
+                "allocated_cost_irr": canonical_money(allocated_cost),
+            }
+        )
+    return enriched
+
+
 def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, Any]:
     data = {
         "id": slip.id,
@@ -173,6 +230,7 @@ def serialize_slip(slip: PayrollSlip, emp: Employee | None = None) -> dict[str, 
         "applied_exemptions": slip.applied_exemptions or {},
         "contract_snapshot": slip.contract_snapshot or {},
         "calculation_meta": slip.calculation_meta or {},
+        "project_allocations": _enrich_slip_project_allocations(slip),
         "payment_journal_id": slip.payment_journal_id,
         "version": slip.version,
     }
@@ -783,7 +841,14 @@ def create_payroll_run(db: Session, company: str, user: m.User, data: dict[str, 
         active_days = max(0, (eff_end - eff_start).days + 1)
         timesheet = {"work_days": active_days}
 
-        calc = calculate_slip(emp_dict, contract_dict, timesheet, days_in_month=days_in_month, year=year)
+        calc = calculate_slip(
+            emp_dict,
+            contract_dict,
+            timesheet,
+            days_in_month=days_in_month,
+            year=year,
+            custom_rates=period.payroll_rates,
+        )
 
         slip = PayrollSlip(
             company_id=company,
@@ -936,6 +1001,10 @@ def update_slip_timesheet(
     ):
         if field in timesheet_data and timesheet_data[field] is not None:
             setattr(slip, field, canonical_money(timesheet_data[field]))
+    if "project_allocations" in timesheet_data and timesheet_data["project_allocations"] is not None:
+        slip.project_allocations = _normalize_slip_project_allocations(
+            db, company, timesheet_data["project_allocations"]
+        )
 
     # Re-calculate
     days_in_month = _month_days(run.year, run.month)
@@ -950,7 +1019,15 @@ def update_slip_timesheet(
         "other_deductions": slip.other_deductions,
         "bonus_amount": slip.bonus_amount,
     }
-    calc = calculate_slip(emp_dict, con_dict, ts_dict, days_in_month=days_in_month, year=run.year)
+    period = db.get(m.Period, run.period_id)
+    calc = calculate_slip(
+        emp_dict,
+        con_dict,
+        ts_dict,
+        days_in_month=days_in_month,
+        year=run.year,
+        custom_rates=period.payroll_rates if period else None,
+    )
 
     for k, v in calc.items():
         if k == "applied_exemptions":
@@ -1013,8 +1090,13 @@ def batch_update_timesheets(
         ):
             if field in item and item[field] is not None:
                 setattr(slip, field, canonical_money(item[field]))
+        if "project_allocations" in item and item["project_allocations"] is not None:
+            slip.project_allocations = _normalize_slip_project_allocations(
+                db, company, item["project_allocations"]
+            )
 
         days_in_month = _month_days(run.year, run.month)
+        period = db.get(m.Period, run.period_id)
         calc = calculate_slip(
             serialize_employee(emp),
             serialize_contract(con) if con else None,
@@ -1029,6 +1111,7 @@ def batch_update_timesheets(
             },
             days_in_month=days_in_month,
             year=run.year,
+            custom_rates=period.payroll_rates if period else None,
         )
         for k, v in calc.items():
             if k == "applied_exemptions":

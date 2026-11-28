@@ -150,3 +150,30 @@ def test_part_time_proportionate_calculation():
     assert res["housing_pay"] == "11000000"
     assert res["grocery_pay"] == "11000000"
     assert res["gross_pay"] == "132000000"
+
+
+def test_configurable_year_rates_and_unverified_fallback():
+    """Custom company rates override 1403 defaults; unknown years fall back to unverified_period_rates."""
+    emp = {"marital_status": "single", "children_count": 0}
+    contract = {
+        "contract_type": "full_time",
+        "base_salary": "250000000",
+        "housing_allowance": "0",
+        "grocery_allowance": "0",
+        "is_insured": False,
+        "is_taxable": True,
+    }
+    unverified = calculate_slip(emp, contract, {"work_days": 30}, year=1405)
+    assert unverified["rate_table_year"] == 1403
+    assert unverified["rate_status"] == "unverified_period_rates"
+
+    configured = calculate_slip(
+        emp,
+        contract,
+        {"work_days": 30},
+        year=1404,
+        custom_rates={"tax_exempt_threshold_monthly": "240000000", "tax_brackets_monthly": [(240000000, 300000000, "0.10")]},
+    )
+    assert configured["rate_table_year"] == 1404
+    assert configured["rate_status"] == "company_configured"
+    assert configured["payroll_tax"] == "1000000"

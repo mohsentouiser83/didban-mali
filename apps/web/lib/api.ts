@@ -87,6 +87,7 @@ export interface Company {
   module_access?: ModuleAccess;
   id: string;
   name: string;
+  business_mode?: "trading" | "service";
   version: number;
   role: "owner" | "finance_manager" | "advisor" | "viewer";
   approve_financial_report: boolean;

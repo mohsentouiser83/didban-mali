@@ -56,7 +56,7 @@ export function useNativeBankMatches(){
    selectAccount:(side:"bank"|"ledger",account:string)=>{if(!command.busy){revision.current++;change(side==="bank"?{bankAccount:account,banks:[],preview:null,reason:""}:{ledgerAccount:account,ledgers:[],preview:null,reason:""});command.clearError();}},
    queryChange:(side:"bank"|"ledger",value:string)=>setQuery({...queries,[side]:value}),
    pageChange:(side:"bank"|"ledger",page:number)=>setPagination(previous=>({...previous,[side]:Math.max(0,page),[side==="bank"?"bankScope":"ledgerScope"]:side==="bank"?bankScope:ledgerScope})),
-   setReason:(reason:string)=>{change({reason});command.clearError();},refreshSelected:()=>{if(current.preview)view(current.preview);},
+   setReason:(reason:string)=>{change({reason});if(command.error?.code!=="version_conflict")command.clearError();},
    selectedDateLabels:current.preview?.snapshot.dates.map(displayDate).join("، ")||"",
    bookProofHref:current.preview?`/api/v1${workspace.companyPath(`accounting/statements/${current.preview.native_statement_id}/export`)}`:undefined,
    bankEvidenceRefs:current.preview?.snapshot.banks.map(row=>row.source_row_id),

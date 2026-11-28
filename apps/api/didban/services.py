@@ -69,9 +69,17 @@ def save_period(db: Session, company: str, user: User, values: dict, period: Per
         period.name = values["name"]
         period.start = values["start"]
         period.end = values["end"]
+        if "payroll_rates" in values:
+            period.payroll_rates = values["payroll_rates"]
         period.version += 1
     else:
-        period = Period(company_id=company, name=values["name"], start=values["start"], end=values["end"])
+        period = Period(
+            company_id=company,
+            name=values["name"],
+            start=values["start"],
+            end=values["end"],
+            payroll_rates=values.get("payroll_rates"),
+        )
         db.add(period)
     db.flush()
     audit(

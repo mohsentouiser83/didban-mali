@@ -98,7 +98,6 @@ function Workspace() {
       ) : !c.run && c.preview.error ? (
         <ErrorState
           message={c.preview.error.message}
-          onRetry={c.preview.refresh}
         />
       ) : (
         c.statement && (

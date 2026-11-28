@@ -51,7 +51,7 @@ export function MoadianReportsView({ initialQuery = "" }: { initialQuery?: strin
         {resource.loading ? (
           <LoadingState label="در حال دریافت سوابق صورتحساب‌ها..." />
         ) : resource.error ? (
-          <ErrorState message={resource.error.message} onRetry={resource.refresh} />
+          <ErrorState message={resource.error.message} />
         ) : (
           <>
           <Table>

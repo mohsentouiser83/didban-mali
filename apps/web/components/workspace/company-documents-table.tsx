@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { TableRowAction, TableRowActions } from "@/components/ui/table-row-actions";
 import { ArchiveIcon, ArrowUpLeftIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -17,15 +16,11 @@ export function CompanyDocumentsTable({ view }: { view: CompanyDocumentsView }) 
   const { resource, rows, intake, extraction } = view;
   return (
     <section id="bot-documents">
-      <Panel action={
-        <div className="ms-auto flex items-center gap-2">
-          <Button variant="ghost" onClick={resource.refresh}>به‌روزرسانی</Button>
-        </div>
-      }>
+      <Panel>
         {resource.loading ? (
           <LoadingState label="در حال دریافت فایل‌ها و مدارک" variant="table" />
         ) : resource.error ? (
-          <ErrorState message={resource.error.message} onRetry={resource.refresh} />
+          <ErrorState message={resource.error.message} />
         ) : (
           <Table title="فایل‌ها و مدارک" aria-label="فایل‌ها و مدارک">
             <TableHeader>

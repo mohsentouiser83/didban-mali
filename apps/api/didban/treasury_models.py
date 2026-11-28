@@ -41,6 +41,7 @@ class TreasuryAccount(Entity, Tenant, Versioned, Base):
     iban: Mapped[str | None] = mapped_column(String(34), nullable=True, default=None)
     branch_name: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
     branch_code: Mapped[str | None] = mapped_column(String(30), nullable=True, default=None)
+    is_official: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # Cashbox / petty-cash specific fields
     custodian_name: Mapped[str | None] = mapped_column(String(120), nullable=True, default=None)
     custodian_counterparty_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)

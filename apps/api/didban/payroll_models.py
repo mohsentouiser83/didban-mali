@@ -206,4 +206,5 @@ class PayrollSlip(Entity, Tenant, Versioned, Base):
     applied_exemptions: Mapped[dict] = mapped_column(JSON, default=dict)
     contract_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
     calculation_meta: Mapped[dict] = mapped_column(JSON, default=dict)
+    project_allocations: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     payment_journal_id: Mapped[str | None] = mapped_column(String(36), nullable=True, default=None)

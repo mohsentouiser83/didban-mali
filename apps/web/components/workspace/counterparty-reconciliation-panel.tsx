@@ -542,7 +542,7 @@ export function CounterpartyReconciliationPanel({ initialPartyId }: { initialPar
             {recon.ledger.loading ? (
               <LoadingState />
             ) : recon.ledger.error ? (
-              <ErrorState message={recon.ledger.error.message} onRetry={recon.ledger.refresh} />
+              <ErrorState message={recon.ledger.error.message} />
             ) : (
               <Table>
                 <TableHeader>

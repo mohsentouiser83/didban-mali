@@ -77,6 +77,7 @@ class Company(Entity, Versioned, Base):
     __tablename__ = "companies"
     name: Mapped[str] = mapped_column(String(120))
     timezone: Mapped[str] = mapped_column(String(50), default="Asia/Tehran")
+    business_mode: Mapped[str] = mapped_column(String(20), default="trading", server_default="trading")
 
 
 class Membership(Entity, Versioned, Base):
@@ -105,6 +106,7 @@ class Period(Entity, Tenant, Versioned, Base):
     name: Mapped[str] = mapped_column(String(120))
     start: Mapped[CalendarDate] = mapped_column(Date)
     end: Mapped[CalendarDate] = mapped_column(Date)
+    payroll_rates: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
 
 class ProcessingSession(Entity, Tenant, Versioned, Base):

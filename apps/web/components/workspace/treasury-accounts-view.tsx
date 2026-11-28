@@ -97,11 +97,11 @@ function TreasuryWorkspace() {
       {capabilities.loading || resource.loading ? (
         <LoadingState label="در حال دریافت حساب‌های خزانه" variant="table" />
       ) : capabilities.error ? (
-        <ErrorState message={capabilities.error.message} onRetry={capabilities.refresh} />
+        <ErrorState message={capabilities.error.message} />
       ) : !canView ? (
         <StatusMessage>دسترسی مشاهدهٔ حساب‌های خزانه ندارید.</StatusMessage>
       ) : resource.error ? (
-        <ErrorState message={resource.error.message} onRetry={resource.refresh} />
+        <ErrorState message={resource.error.message} />
       ) : (
         <Panel>
           <Table title="حساب‌های خزانه">

@@ -22,6 +22,7 @@ export interface TreasuryAccountItem extends TreasuryAccountOption {
   iban: string | null;
   branch_name: string | null;
   branch_code: string | null;
+  is_official?: boolean;
   custodian_name: string | null;
   petty_cash_limit_irr: string | null;
   linked_bank_id: string | null;

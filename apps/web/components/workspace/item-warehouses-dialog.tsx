@@ -22,7 +22,7 @@ export function ItemWarehousesDialog({ view }: { view: ReturnType<typeof useItem
       )}
     >
       {links.loading ? <LoadingState /> : links.error ? (
-        <ErrorState message={links.error.message} onRetry={links.refresh} />
+        <ErrorState message={links.error.message} />
       ) : (
         <div className="space-y-4">
           {view.linkedWarehouses.length > 0 ? (

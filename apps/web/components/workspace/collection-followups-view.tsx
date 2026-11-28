@@ -70,7 +70,6 @@ function CollectionWorkspace() {
           ) : view.resource.error ? (
             <ErrorState
               message={view.resource.error.message}
-              onRetry={view.resource.refresh}
             />
           ) : (
             <>
@@ -173,7 +172,6 @@ function CollectionWorkspace() {
         ) : view.cases.error ? (
           <ErrorState
             message={view.cases.error.message}
-            onRetry={view.cases.refresh}
           />
         ) : (
           <>

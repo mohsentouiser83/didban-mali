@@ -156,7 +156,6 @@ export function NotificationsMenu() {
             <div className="p-6">
               <ErrorState
                 message={resource.error.message}
-                onRetry={resource.refresh}
               />
             </div>
           ) : notifications.length === 0 ? (

@@ -127,7 +127,6 @@ export function NativeInvoicesView({
       ) : view.report.error ? (
         <ErrorState
           message={view.report.error.message}
-          onRetry={view.report.refresh}
         />
       ) : (
         <>

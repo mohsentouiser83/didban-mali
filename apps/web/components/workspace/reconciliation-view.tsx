@@ -73,7 +73,6 @@ export function ImportedReconciliationWorkspace() {
         ) : view.latest.error ? (
           <ErrorState
             message={view.latest.error.message}
-            onRetry={view.latest.refresh}
           />
         ) : (
           <Table>
@@ -162,7 +161,6 @@ export function ImportedReconciliationWorkspace() {
         ) : view.options.error ? (
           <ErrorState
             message={view.options.error.message}
-            onRetry={view.options.refresh}
           />
         ) : !view.options.data ? (
           <Panel>

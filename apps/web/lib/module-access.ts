@@ -25,6 +25,14 @@ export type AccessModule = (typeof accessModules)[number]["value"];
 export type AccessAction = (typeof accessActions)[number]["value"];
 export type ModuleAccess = Partial<Record<AccessModule, Partial<Record<AccessAction, boolean>>>>;
 
+export function visibleAccessModules(
+  company?: { business_mode?: "trading" | "service" } | null,
+) {
+  return company?.business_mode === "service"
+    ? accessModules.filter((item) => item.value !== "inventory")
+    : [...accessModules];
+}
+
 export function moduleAllows(
   company: { module_access?: ModuleAccess } | null | undefined,
   module: AccessModule,
@@ -48,6 +56,7 @@ const routeModules: [string, AccessModule][] = [
   ["/accounting/cheques", "treasury"],
   ["/accounting", "accounting"],
   ["/commercial", "commercial"],
+  ["/client-contracts", "commercial"],
   ["/receivables", "commercial"],
   ["/payables", "commercial"],
   ["/reconciliation", "reconciliation"],
@@ -56,6 +65,7 @@ const routeModules: [string, AccessModule][] = [
   ["/employee-reports", "payroll"],
   ["/cashflow", "cashflow"],
   ["/settlements/cheques", "treasury"],
+  ["/settlements/petty-cash", "treasury"],
   ["/settlements", "cashflow"],
   ["/reports/processing", "documents"],
   ["/reports", "reports"],
@@ -66,10 +76,22 @@ export function moduleForPath(path: string) {
   return routeModules.find(([prefix]) => path === prefix || path.startsWith(prefix + "/"))?.[1];
 }
 
-export function canViewPath(company: Parameters<typeof moduleAllows>[0], path: string) {
+export function canViewPath(
+  company: (Parameters<typeof moduleAllows>[0] & { business_mode?: "trading" | "service" }) | null | undefined,
+  path: string,
+) {
   if (path === "/settlements") {
     return moduleAllows(company, "cashflow", "view") || moduleAllows(company, "treasury", "view");
   }
   const accessModule = moduleForPath(path);
+  if (company?.business_mode === "service" && accessModule === "inventory") {
+    return false;
+  }
+  if (
+    company?.business_mode !== "service" &&
+    (path === "/client-contracts" || path === "/settlements/petty-cash")
+  ) {
+    return false;
+  }
   return !accessModule || moduleAllows(company, accessModule, "view");
 }

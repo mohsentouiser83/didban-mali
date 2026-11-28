@@ -140,7 +140,6 @@ export function ReportsView() {
           ) : archive.error ? (
             <ErrorState
               message={archive.error.message}
-              onRetry={archive.refresh}
             />
           ) : (
             <>

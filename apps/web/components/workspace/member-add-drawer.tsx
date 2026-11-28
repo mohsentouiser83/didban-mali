@@ -101,7 +101,6 @@ export function MemberAddDrawer({
               ) : c.users.error ? (
                 <ErrorState
                   message={c.users.error.message}
-                  onRetry={c.users.refresh}
                 />
               ) : (
                 <SearchSelect

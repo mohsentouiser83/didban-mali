@@ -23,7 +23,7 @@ function parseBigIntDigits(raw: string): bigint {
 }
 
 export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, partyError, itemOptions,
-  canManageParties, onPartyCreated, onPartySearch, onClose, onSave }: {
+  isServiceMode, canManageParties, onPartyCreated, onPartySearch, onClose, onSave }: {
   row?: Proforma;
   busy: boolean;
   error?: string;
@@ -31,6 +31,7 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
   partyOptions: SelectOption[];
   partyError?: string;
   itemOptions: SelectOption[];
+  isServiceMode?: boolean;
   canManageParties?: boolean;
   onPartyCreated?: (created: Counterparty) => void;
   onPartySearch: (value: string) => void;
@@ -101,7 +102,7 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
         </div>
         <div className="space-y-3">
           {form.lines.map((line, index) => (
-            <ProformaLineFields key={line.key} line={line} index={index} itemOptions={itemOptions}
+            <ProformaLineFields key={line.key} line={line} index={index} itemOptions={itemOptions} isServiceMode={isServiceMode}
               onChange={changeLine} onRemove={form.lines.length > 1 ? () =>
                 update("lines", form.lines.filter((current) => current.key !== line.key)) : undefined} />
           ))}
@@ -151,10 +152,11 @@ export function ProformaEditor({ row, busy, error, partyQuery, partyOptions, par
   );
 }
 
-function ProformaLineFields({ line, index, itemOptions, onChange, onRemove }: {
+function ProformaLineFields({ line, index, itemOptions, isServiceMode, onChange, onRemove }: {
   line: ProformaLineForm;
   index: number;
   itemOptions: SelectOption[];
+  isServiceMode?: boolean;
   onChange: (line: ProformaLineForm) => void;
   onRemove?: () => void;
 }) {
@@ -169,10 +171,12 @@ function ProformaLineFields({ line, index, itemOptions, onChange, onRemove }: {
     <fieldset className="min-w-0 space-y-3 rounded-panel border border-border p-3">
       <legend className="px-2 text-sm font-medium">ردیف {persian(index + 1)}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id={`${id}-item`} label="کالا">
-          <Select id={`${id}-item`} value={line.item_id || "none"} options={options}
-            onValueChange={(value) => onChange({ ...line, item_id: value === "none" ? "" : value })} />
-        </Field>
+        {!isServiceMode && (
+          <Field id={`${id}-item`} label="کالا">
+            <Select id={`${id}-item`} value={line.item_id || "none"} options={options}
+              onValueChange={(value) => onChange({ ...line, item_id: value === "none" ? "" : value })} />
+          </Field>
+        )}
         <Field id={`${id}-description`} label="شرح">
           <Input id={`${id}-description`} value={line.description} required maxLength={300}
             onChange={(event) => onChange({ ...line, description: event.target.value })} />

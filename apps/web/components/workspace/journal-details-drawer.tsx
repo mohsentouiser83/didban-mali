@@ -38,7 +38,6 @@ export function JournalDetailsDrawer({
       ) : view.resource.error ? (
         <ErrorState
           message={view.resource.error.message}
-          onRetry={view.resource.refresh}
         />
       ) : !journal ? (
         <StatusMessage>سند نهایی دریافت نشد.</StatusMessage>

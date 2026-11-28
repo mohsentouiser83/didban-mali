@@ -92,7 +92,7 @@ export function CommercialDocumentLists({ view, documentId }: { documentId?: str
           {quarantine.loading ? (
             <LoadingState variant="panels" />
           ) : quarantine.error ? (
-            <ErrorState message={quarantine.error.message} onRetry={quarantine.refresh} />
+            <ErrorState message={quarantine.error.message} />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -167,7 +167,7 @@ export function CommercialDocumentLists({ view, documentId }: { documentId?: str
           {credits.loading ? (
             <LoadingState variant="panels" />
           ) : credits.error ? (
-            <ErrorState message={credits.error.message} onRetry={credits.refresh} />
+            <ErrorState message={credits.error.message} />
           ) : (
             <div className="overflow-x-auto">
               <Table>

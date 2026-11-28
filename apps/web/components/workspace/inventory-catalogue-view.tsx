@@ -68,10 +68,6 @@ function Catalogue({ entity }: { entity: InventoryCatalogue }) {
         ) : view.inventory.error || view.units.error ? (
           <ErrorState
             message={(view.inventory.error ?? view.units.error)?.message}
-            onRetry={() => {
-              view.inventory.refresh();
-              if (isItem) view.units.refresh();
-            }}
           />
         ) : (
           <>

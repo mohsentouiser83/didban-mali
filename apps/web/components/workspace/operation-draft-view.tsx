@@ -60,10 +60,6 @@ function Workspace({
         ) : c.catalogue.error || c.accounts.error ? (
           <ErrorState
             message={(c.catalogue.error || c.accounts.error)!.message}
-            onRetry={() => {
-              c.catalogue.refresh();
-              c.accounts.refresh();
-            }}
           />
         ) : (
           <div className="space-y-5">
@@ -139,7 +135,6 @@ function Workspace({
                   {c.chequeEvents.error && (
                     <ErrorState
                       message={c.chequeEvents.error.message}
-                      onRetry={c.chequeEvents.refresh}
                     />
                   )}
                   <CursorPagination {...c.chequeEvents} />

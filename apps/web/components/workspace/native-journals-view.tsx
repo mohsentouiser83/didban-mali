@@ -68,7 +68,6 @@ export function NativeJournalsWorkspace({ hideHeader = false }: { hideHeader?: b
           ) : c.journals.error ? (
             <ErrorState
               message={c.journals.error.message}
-              onRetry={c.journals.refresh}
             />
           ) : (
             <>
@@ -225,7 +224,6 @@ function BookBalance({ c }: { c: ReturnType<typeof useNativeJournals> }) {
       ) : c.balance.error ? (
         <ErrorState
           message={c.balance.error.message}
-          onRetry={c.balance.refresh}
         />
       ) : (
         <>

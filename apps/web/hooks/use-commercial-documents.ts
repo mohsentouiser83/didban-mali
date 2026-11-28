@@ -84,9 +84,9 @@ export const quarantineStatusLabel: Record<string, string> = {
   scrapped: "ضایعات / اسقاط",
 };
 
-export const emptyLine = (key = 1): DraftLineState => ({
+export const emptyLine = (key = 1, lineKind: "goods" | "service" = "goods"): DraftLineState => ({
   key,
-  line_kind: "goods",
+  line_kind: lineKind,
   item_id: "",
   description: "",
   quantity: "1",
@@ -132,6 +132,7 @@ export function useCommercialDocuments({
   creationOnly?: boolean;
 }) {
   const workspace = useWorkspace();
+  const isServiceMode = workspace.company?.business_mode === "service";
   const isSale = direction === "sale";
   const [subTab, setSubTab] = useState<"documents" | "quarantine" | "credits">("documents");
 
@@ -149,7 +150,7 @@ export function useCommercialDocuments({
     workspace.companyPath("commercial/counterparties?limit=100"),
   );
   const inventory = useResource<InventoryState>(
-    workspace.companyPath("accounting/inventory"),
+    isServiceMode ? null : workspace.companyPath("accounting/inventory"),
   );
   const accounts = useAccountOptions(workspace.company?.id ?? "");
 
@@ -175,7 +176,18 @@ export function useCommercialDocuments({
   const [chequeDueDate, setChequeDueDate] = useState("");
   const [accountOverrides, setAccountOverrides] = useState<Partial<Record<CommercialAccountSlot, string>>>({});
   const [docDesc, setDocDesc] = useState("");
-  const [lines, setLines] = useState<DraftLineState[]>([emptyLine(1)]);
+  const [rawLines, setLines] = useState<DraftLineState[]>(() => [
+    emptyLine(1, workspace.company?.business_mode === "service" ? "service" : "goods"),
+  ]);
+  const lines = useMemo(
+    () =>
+      isServiceMode
+        ? rawLines.map((line) =>
+            line.line_kind === "goods" ? { ...line, line_kind: "service" as const, item_id: "" } : line,
+          )
+        : rawLines,
+    [isServiceMode, rawLines],
+  );
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const [lineErrors, setLineErrors] = useState<Record<number, {
     item_id?: string;
@@ -305,7 +317,7 @@ export function useCommercialDocuments({
     setChequeDueDate("");
     setAccountOverrides({});
     setDocDesc("");
-    setLines([emptyLine(Date.now())]);
+    setLines([emptyLine(Date.now(), isServiceMode ? "service" : "goods")]);
     setClientErrors({});
     setLineErrors({});
   }
@@ -647,6 +659,7 @@ export function useCommercialDocuments({
 
   return {
     workspace,
+    isServiceMode,
     isSale,
     subTab,
     setSubTab,

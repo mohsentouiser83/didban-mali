@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   SparkleIcon,
   PaperPlaneTiltIcon,
-  ArrowClockwiseIcon,
+  PlusCircleIcon,
   ArrowLeftIcon,
   FileTextIcon,
   BellIcon,
@@ -182,7 +182,7 @@ export function AssistantView() {
                 className="gap-2 text-xs"
                 aria-label="گفت‌وگوی جدید"
               >
-                <ArrowClockwiseIcon size={16} aria-hidden />
+                <PlusCircleIcon size={16} aria-hidden />
                 <span>گفت‌وگوی جدید</span>
               </Button>
             ) : undefined
@@ -256,14 +256,6 @@ export function AssistantView() {
                   ) : message.error ? (
                     <div className="space-y-2 py-2">
                       <p className="text-xs text-danger">{message.error}</p>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => view.retry(message.id)}
-                        className="h-8 text-xs"
-                      >
-                        تلاش مجدد
-                      </Button>
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap text-xs leading-7 sm:text-sm sm:leading-8">
@@ -417,7 +409,7 @@ export function AssistantView() {
                           onClick={view.reset}
                           className="text-xs text-muted hover:text-danger"
                         >
-                          <ArrowClockwiseIcon size={15} aria-hidden />
+                          <PlusCircleIcon size={15} aria-hidden />
                           <span>گفت‌وگوی جدید (پاک‌سازی چت)</span>
                         </DropdownMenuItem>
                       </>

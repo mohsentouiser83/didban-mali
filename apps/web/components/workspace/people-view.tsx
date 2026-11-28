@@ -17,7 +17,7 @@ export function PeopleView({ kind }: { kind: PeopleKind }) {
     {view.loading ? (
       <LoadingState label={`در حال دریافت ${view.config.title}`} />
     ) : view.error && view.error.code !== "module_sources_missing" ? (
-      <ErrorState message={view.error.message} onRetry={view.refresh} />
+      <ErrorState message={view.error.message} />
     ) : view.data?.status !== "available" ? (
       <Panel>
         <EmptyState

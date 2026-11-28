@@ -33,7 +33,7 @@ function InventoryUnitsSettings() {
       />
       <Panel>
         {view.units.loading ? <LoadingState /> : view.units.error ? (
-          <ErrorState message={view.units.error.message} onRetry={view.units.refresh} />
+          <ErrorState message={view.units.error.message} />
         ) : (
           <Table aria-label="واحدهای کالا">
             <TableHeader>

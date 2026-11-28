@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   ChatCircleDotsIcon,
   PaperPlaneTiltIcon,
-  ArrowClockwiseIcon,
+  PlusCircleIcon,
   ArrowLeftIcon,
   FileTextIcon,
   BellIcon,
@@ -187,15 +187,6 @@ export function FloatingAssistant() {
                       <p role="alert" className="text-sm leading-7 text-danger">
                         {message.error}
                       </p>
-                      <Button
-                        variant="ghost"
-                        disabled={view.busy}
-                        onClick={() => view.retry(message.id)}
-                        className="px-1 text-xs"
-                      >
-                        <ArrowClockwiseIcon size={16} />
-                        تلاش دوباره
-                      </Button>
                     </div>
                   )}
                   {message.reply?.as_of_date && (
@@ -351,7 +342,7 @@ export function FloatingAssistant() {
                           onClick={view.reset}
                           className="text-xs text-muted hover:text-danger"
                         >
-                          <ArrowClockwiseIcon size={14} aria-hidden />
+                          <PlusCircleIcon size={14} aria-hidden />
                           <span>گفت‌وگوی جدید (پاک‌سازی چت)</span>
                         </DropdownMenuItem>
                       </>

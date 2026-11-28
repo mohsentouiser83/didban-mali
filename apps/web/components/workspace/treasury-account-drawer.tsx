@@ -11,6 +11,7 @@ import { Form } from "@/components/ui/form";
 import { AmountInput, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useTreasuryAccountEditor } from "@/hooks/use-treasury-account-management";
+import { useWorkspace } from "@/hooks/workspace";
 import { treasuryKindLabels, type TreasuryAccountItem, type TreasuryAccountKind } from "@/lib/treasury-documents";
 import { amount } from "@/lib/utils";
 
@@ -38,9 +39,18 @@ function TreasuryAccountDetails({ account }: { account: TreasuryAccountItem }) {
       <DetailField label="کد حساب" value={account.code || "—"} />
       <DetailField label="نوع حساب" value={treasuryKindLabels[account.kind]} />
       <DetailField label="وضعیت" value={account.active ? "فعال" : "غیرفعال"} />
-      {account.kind === "bank" && bankFields.map(({ key, label }) => (
-        <DetailField key={key} label={label} value={account[key] || "—"} icon={BankIcon} />
-      ))}
+      {account.kind === "bank" && (
+        <>
+          <DetailField
+            label="وضعیت رسمی بودن"
+            value={account.is_official === false ? "غیررسمی / عملیاتی" : "رسمی"}
+            icon={BankIcon}
+          />
+          {bankFields.map(({ key, label }) => (
+            <DetailField key={key} label={label} value={account[key] || "—"} icon={BankIcon} />
+          ))}
+        </>
+      )}
       {account.kind === "petty_cash" && (
         <>
           <DetailField label="نام تنخواه‌دار" value={account.custodian_name || "—"} />
@@ -59,7 +69,11 @@ function TreasuryAccountDetails({ account }: { account: TreasuryAccountItem }) {
 
 export function TreasuryAccountDrawer({ editing, readOnly, bankOptions, onClose, onSaved }: TreasuryAccountDrawerProps) {
   const formId = useId();
+  const { company } = useWorkspace();
   const { kind, setKind, fields, change, save, command } = useTreasuryAccountEditor(editing, onSaved);
+  const availableKinds = company?.business_mode === "service"
+    ? kindOptions.filter((option) => option.value !== "pos")
+    : kindOptions;
   const title = editing
     ? readOnly ? editing.name : `ویرایش ${editing.name}`
     : "تعریف حساب خزانه";
@@ -94,7 +108,7 @@ export function TreasuryAccountDrawer({ editing, readOnly, bankOptions, onClose,
               <Select
                 id="treasury-kind"
                 value={kind}
-                options={kindOptions}
+                options={availableKinds}
                 disabled={command.busy}
                 onValueChange={(value) => { setKind(value as TreasuryAccountKind); command.clearError(); }}
               />
@@ -124,6 +138,18 @@ export function TreasuryAccountDrawer({ editing, readOnly, bankOptions, onClose,
                   />
                 </Field>
               ))}
+              <Field id="treasury-is-official" name="is_official" label="تگ حساب بانکی">
+                <Select
+                  id="treasury-is-official"
+                  value={fields.is_official ? "official" : "unofficial"}
+                  disabled={command.busy}
+                  onValueChange={(value) => change("is_official", value === "official")}
+                  options={[
+                    { value: "official", label: "رسمی (گزارش‌های مالیاتی)" },
+                    { value: "unofficial", label: "غیررسمی / عملیاتی" },
+                  ]}
+                />
+              </Field>
             </div>
           )}
           {kind === "petty_cash" && (

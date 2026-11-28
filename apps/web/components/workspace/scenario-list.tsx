@@ -53,7 +53,7 @@ export function ScenarioList<
       {list.loading ? (
         <LoadingState label="در حال دریافت سناریوها" />
       ) : list.error ? (
-        <ErrorState message={list.error.message} onRetry={list.refresh} />
+        <ErrorState message={list.error.message} />
       ) : (
         <>
           <Table>

@@ -57,7 +57,8 @@ it("does not silently adopt a new server version over unsaved fields", async () 
   vi.mocked(api).mockImplementation(async (path) =>
     path.endsWith("case-a") ? caseValue(2) : { items: [] },
   );
-  const { result } = renderHook(() => useControlCasePanel(vi.fn()));
+  const refreshList = vi.fn();
+  const { result } = renderHook(() => useControlCasePanel(refreshList));
   act(() => result.current.open(selection()));
   act(() =>
     result.current.change({ next_action: "تغییر محلی", reason: "دلیل" }),
@@ -71,7 +72,9 @@ it("does not silently adopt a new server version over unsaved fields", async () 
       .mocked(api)
       .mock.calls.some(([, options]) => options?.method === "PATCH"),
   ).toBe(false);
-  act(() => result.current.reloadLatest());
+  act(() => result.current.close());
+  expect(refreshList).toHaveBeenCalledOnce();
+  act(() => result.current.open(selection(caseValue(2))));
   expect(result.current.currentCase?.version).toBe(2);
   expect(result.current.value.next_action).toBe("قبلی");
 });

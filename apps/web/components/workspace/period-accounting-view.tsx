@@ -144,10 +144,6 @@ function Workspace() {
         ) : c.accounts.error || c.roles.resource.error ? (
           <ErrorState
             message={(c.accounts.error || c.roles.resource.error)!.message}
-            onRetry={() => {
-              c.accounts.refresh();
-              c.roles.resource.refresh();
-            }}
           />
         ) : (
           <Form

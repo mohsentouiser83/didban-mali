@@ -27,7 +27,6 @@ export const navigationGroups: NavigationGroup[] = [
         href: "/accounting", label: "اسناد حسابداری", icon: BooksIcon,
         children: [
           { href: "/accounting", label: "فهرست اسناد", icon: FilesIcon },
-          { href: "/accounting/electronic-ledgers", label: "دفاتر الکترونیک", icon: BooksIcon },
           { href: "/accounting/period-end", label: "بستن و افتتاح دوره", icon: CalendarBlankIcon },
         ],
       },
@@ -37,6 +36,7 @@ export const navigationGroups: NavigationGroup[] = [
           { href: "/commercial/proformas", label: "پیش‌فاکتورها", icon: FilesIcon },
           { href: "/receivables", label: "فاکتورهای فروش", icon: ReceiptIcon },
           { href: "/payables", label: "فاکتورهای خرید", icon: ShoppingCartIcon },
+          { href: "/client-contracts", label: "قراردادهای پیمانکاری", icon: BooksIcon },
           { href: "/reconciliation/counterparties", label: "تطبیق طرف‌حساب‌ها", icon: ArrowsLeftRightIcon, matches: ["/reconciliation/counterparty"] },
         ],
       },
@@ -45,6 +45,7 @@ export const navigationGroups: NavigationGroup[] = [
         children: [
           { href: "/settlements", label: "دریافت‌ها و پرداخت‌ها", icon: ArrowsLeftRightIcon },
           { href: "/settlements/cheques", label: "چک‌های صیادی", icon: ReceiptIcon },
+          { href: "/settlements/petty-cash", label: "تنخواه‌گردانی", icon: WalletIcon },
           { href: "/reconciliation", label: "تطبیق بانک و دفتر", icon: BankIcon, matches: ["/reconciliation/bank"] },
         ],
       },
@@ -67,12 +68,7 @@ export const navigationGroups: NavigationGroup[] = [
       },
       {
         href: "/moadian", label: "مؤدیان", icon: ReceiptIcon,
-        children: [
-          { href: "/moadian", label: "صورتحساب‌های کارپوشه", icon: ReceiptIcon },
-          { href: "/moadian/transmissions", label: "جمع‌آوری و ارسال", icon: ArrowsLeftRightIcon },
-          { href: "/moadian/reports", label: "گزارش صورتحساب‌های مؤدیان", icon: FilesIcon },
-          { href: "/reconciliation/moadian", label: "تطبیق کارپوشه مؤدیان", icon: ArrowsLeftRightIcon },
-        ],
+        matches: ["/moadian/transmissions", "/reconciliation/moadian"],
       },
     ],
   },

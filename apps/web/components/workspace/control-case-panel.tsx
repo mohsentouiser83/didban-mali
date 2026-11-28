@@ -81,19 +81,11 @@ export function ControlCasePanel({
           {view.detail.error && (
             <ErrorState
               message={view.detail.error.message}
-              onRetry={view.refresh}
             />
           )}
-          {view.newerVersionAvailable && (
+          {(view.newerVersionAvailable || view.command.error?.code === "version_conflict") && (
             <StatusMessage>
-              پرونده تغییر کرده است.
-              <Button
-                variant="secondary"
-                className="mt-2"
-                onClick={view.reloadLatest}
-              >
-                دریافت آخرین نسخه
-              </Button>
+              پرونده تغییر کرده است. پنجره را ببندید و پرونده را دوباره باز کنید.
             </StatusMessage>
           )}
           {view.workspace.canWrite ? (
@@ -107,7 +99,6 @@ export function ControlCasePanel({
               {view.assignees.error ? (
                 <ErrorState
                   message={view.assignees.error.message}
-                  onRetry={view.assignees.refresh}
                 />
               ) : (
                 <Field
@@ -182,16 +173,12 @@ export function ControlCasePanel({
                 </>
               )}
               <FormMessage error>{view.caseError}</FormMessage>
-              {view.command.error?.code === "version_conflict" && (
-                <Button variant="secondary" onClick={view.refresh}>
-                  تازه‌سازی پرونده
-                </Button>
-              )}
               <Button
                 type="submit"
                 busy={view.command.busy}
                 disabled={
                   view.newerVersionAvailable ||
+                  view.command.error?.code === "version_conflict" ||
                   !!view.assignees.error ||
                   view.detail.loading
                 }
@@ -316,7 +303,6 @@ export function ControlCasePanel({
               ) : view.activities.error ? (
                 <ErrorState
                   message={view.activities.error.message}
-                  onRetry={view.activities.refresh}
                 />
               ) : (
                 <>

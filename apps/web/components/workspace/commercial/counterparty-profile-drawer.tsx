@@ -158,7 +158,7 @@ export function CounterpartyProfileDrawer({
                 {ledger.loading ? (
                   <LoadingState label="در حال محاسبهٔ مانده دفتر..." />
                 ) : ledger.error ? (
-                  <ErrorState message={ledger.error.message} onRetry={ledger.refresh} />
+                  <ErrorState message={ledger.error.message} />
                 ) : ledger.data && ledger.data.totals.entry_count > 0 ? (
                   <div className="space-y-1.5 text-sm">
                     <div className="flex items-center justify-between">
@@ -188,7 +188,7 @@ export function CounterpartyProfileDrawer({
                 {invoices.loading ? (
                   <LoadingState label="در حال محاسبهٔ مانده فاکتورها..." />
                 ) : invoices.error ? (
-                  <ErrorState message={invoices.error.message} onRetry={invoices.refresh} />
+                  <ErrorState message={invoices.error.message} />
                 ) : (
                   <div className="space-y-1.5 text-sm">
                     <div className="flex items-center justify-between">
@@ -331,7 +331,7 @@ export function CounterpartyQuickDrawer({
         {list.loading ? (
           <LoadingState label="در حال بارگذاری طرف‌حساب‌ها" />
         ) : list.error ? (
-          <ErrorState message={list.error.message} onRetry={list.refresh} />
+          <ErrorState message={list.error.message} />
         ) : !(list.data?.items?.length) ? (
           <StatusMessage tone="primary">طرف‌حسابی با این مشخصات پیدا نشد.</StatusMessage>
         ) : (

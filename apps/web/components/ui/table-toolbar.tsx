@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "./dropdown-menu";
+import { Button } from "./button";
 import { Tooltip } from "./tooltip";
 import {
   CornersOutIcon,
@@ -40,7 +41,7 @@ export function TableToolbar({
 }: TableToolbarProps) {
   // Button styling harmonized with the Didban Mali design system (primary token #5556DE)
   const actionButtonClass = cn(
-    "relative size-9 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-safe:active:scale-95 motion-reduce:transition-none shadow-action",
+    "relative size-11 sm:size-9 shrink-0 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-safe:active:scale-95 motion-reduce:transition-none shadow-action",
     {
       "bg-primary hover:bg-primary-hover text-white hover:shadow-md hover:shadow-primary/20":
         toolbarVariant === "primary",
@@ -58,8 +59,8 @@ export function TableToolbar({
       <div className="flex items-center gap-1.5">
         {/* 1. Fullscreen Button */}
         <Tooltip content={isFullscreen ? "خروج از تمام صفحه (Esc)" : "نمایش تمام صفحه جدول"}>
-          <button
-            type="button"
+          <Button
+            variant="menu"
             onClick={onToggleFullscreen}
             className={actionButtonClass}
             aria-label={isFullscreen ? "خروج از تمام صفحه" : "نمایش تمام صفحه"}
@@ -69,20 +70,20 @@ export function TableToolbar({
             ) : (
               <CornersOutIcon size={18} weight="bold" />
             )}
-          </button>
+          </Button>
         </Tooltip>
 
         {/* 2. Download / Export Button */}
         <DropdownMenu>
           <Tooltip content="دانلود خروجی (اکسل / PDF)">
             <DropdownMenuTrigger asChild>
-              <button
-                type="button"
+              <Button
+                variant="menu"
                 className={actionButtonClass}
                 aria-label="دانلود خروجی اکسل و PDF"
               >
                 <DownloadSimpleIcon size={18} weight="bold" />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-56 p-1.5 text-xs">
@@ -113,15 +114,15 @@ export function TableToolbar({
         </DropdownMenu>
 
         {onOpenImport && (
-          <Tooltip content="ورود اطلاعات از اکسل (Import Excel)">
-            <button
-              type="button"
+          <Tooltip content="ورود اطلاعات از اکسل">
+            <Button
+              variant="menu"
               onClick={onOpenImport}
               className={actionButtonClass}
               aria-label="ورود اطلاعات از اکسل"
             >
               <UploadSimpleIcon size={18} weight="bold" />
-            </button>
+            </Button>
           </Tooltip>
         )}
       </div>

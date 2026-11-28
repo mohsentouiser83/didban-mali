@@ -171,7 +171,7 @@ export function InventoryNrvDrawer({
       {baseAssessment.loading ? (
         <LoadingState label="در حال دریافت ارزش دفتری موجودی" variant="panels" />
       ) : baseAssessment.error ? (
-        <ErrorState message={baseAssessment.error.message} onRetry={baseAssessment.refresh} />
+        <ErrorState message={baseAssessment.error.message} />
       ) : !rows.length ? (
         <EmptyState
           title="موجودی فعالی برای ارزیابی نیست"

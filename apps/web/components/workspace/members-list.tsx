@@ -63,7 +63,6 @@ export function MembersList({
       ) : c.members.error ? (
         <ErrorState
           message={c.members.error.message}
-          onRetry={c.members.refresh}
         />
       ) : !c.totalMembers ? (
         <EmptyState title="هنوز عضوی در این شرکت ثبت نشده است" />

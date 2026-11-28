@@ -43,7 +43,6 @@ export function NativeForecastWorkspace() {
         ) : c.statements.error ? (
           <ErrorState
             message={c.statements.error.message}
-            onRetry={c.statements.refresh}
           />
         ) : c.statements.data?.items.length ? (
           <div className="space-y-4">
@@ -92,7 +91,6 @@ export function NativeForecastWorkspace() {
         ) : c.plans.error ? (
           <ErrorState
             message={c.plans.error.message}
-            onRetry={c.plans.refresh}
           />
         ) : c.plans.data?.items.length ? (
           <>
@@ -308,7 +306,6 @@ export function NativeForecastWorkspace() {
           ) : c.evaluation.error ? (
             <ErrorState
               message={c.evaluation.error.message}
-              onRetry={c.evaluation.refresh}
             />
           ) : c.evaluation.data?.status === "available" ? (
             <p className="mt-4">

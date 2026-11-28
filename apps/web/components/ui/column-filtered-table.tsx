@@ -16,13 +16,14 @@ export interface ListColumn<Row> {
 const pageSize = 25;
 
 export function ColumnFilteredTable<Row>({
-  label, columns, rows, renderRow, emptyTitle, initialFilters,
+  label, columns, rows, renderRow, emptyTitle, initialFilters, onOpenImport,
 }: {
   label: string;
   columns: ListColumn<Row>[];
   rows: Row[];
   renderRow: (row: Row) => ReactNode;
   emptyTitle: string;
+  onOpenImport?: () => void;
   initialFilters?: Partial<Record<number, ColumnFilterConfig>>;
 }) {
   const [requestedPage, setPage] = useState(0);
@@ -38,7 +39,7 @@ export function ColumnFilteredTable<Row>({
 
   return (
     <>
-      <Table toolbar={false} columnControls={false} aria-label={label}>
+      <Table toolbar={!!onOpenImport} onOpenImport={onOpenImport} columnControls={false} aria-label={label}>
         <TableHeader sticky>
           <TableRow>
             {columns.map(({ label, numeric, srOnly, value }) => (

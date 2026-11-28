@@ -19,7 +19,7 @@ function ActiveCompanyAccountingMode() {
   const setup = useCompanyAccountingSetup();
   if (setup.resource.loading) return <LoadingState label="در حال دریافت کاربرد حسابداری شرکت" />;
   if (setup.resource.error) {
-    return <ErrorState message={setup.resource.error.message} onRetry={setup.resource.refresh} />;
+    return <ErrorState message={setup.resource.error.message} />;
   }
   const canManage = setup.resource.data?.can_manage === true;
   const dirty = Boolean(setup.resource.data && setup.mode !== setup.resource.data.mode);
@@ -137,14 +137,31 @@ export function CompanyView() {
                   disabled={c.command.busy || (!c.creating && !isOwner)}
                 />
               </Field>
+              <Field id="company-business-mode" label="نوع فعالیت شرکت">
+                <Select
+                  id="company-business-mode"
+                  value={c.businessMode}
+                  onValueChange={(value) => c.setBusinessMode(value as "trading" | "service")}
+                  disabled={c.command.busy || (!c.creating && !isOwner)}
+                  options={[
+                    { value: "trading", label: "بازرگانی (کالا و انبار)" },
+                    { value: "service", label: "خدماتی و پیمانکاری (نرم‌افزار و پروژه)" },
+                  ]}
+                />
+              </Field>
               <FormMessage error>{c.command.error?.message}</FormMessage>
               {(c.creating || isOwner) && (
                 <Button
                   type="submit"
                   busy={c.command.busy}
-                  disabled={!c.name.trim() || (!c.creating && c.name.trim() === c.selected?.name)}
+                  disabled={
+                    !c.name.trim() ||
+                    (!c.creating &&
+                      c.name.trim() === c.selected?.name &&
+                      c.businessMode === (c.selected?.business_mode ?? "trading"))
+                  }
                 >
-                  {c.creating ? "ایجاد شرکت" : "ذخیره نام شرکت"}
+                  {c.creating ? "ایجاد شرکت" : "ذخیره مشخصات شرکت"}
                 </Button>
               )}
             </Form>

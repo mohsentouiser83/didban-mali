@@ -34,7 +34,7 @@ export function EmployeesManagementView() {
       {v.loading ? (
         <LoadingState label="در حال دریافت کارمندان..." />
       ) : v.error ? (
-        <ErrorState message={v.error.message} onRetry={v.error.status === 403 ? undefined : v.refresh} />
+        <ErrorState message={v.error.message} />
       ) : (
         <div className="space-y-5">
           <Panel title="فهرست پرسنل">

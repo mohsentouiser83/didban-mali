@@ -84,9 +84,7 @@ export default async function Page({
     "reconciliation/counterparty": () => (
       <ReconciliationView initialTab="counterparty" initialPartyId={initialPartyId} />
     ),
-    "reconciliation/moadian": () => (
-      <ReconciliationView initialTab="moadian" />
-    ),
+    "reconciliation/moadian": () => redirect("/moadian"),
     "receivables/new": () => <SalesInvoiceCreateView />,
     "receivables/followups": () => <CollectionFollowupsView />,
     cashflow: () => <CashflowView />,

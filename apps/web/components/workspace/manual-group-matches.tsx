@@ -26,7 +26,6 @@ interface GroupReviewController {
   canDecide: boolean;
   setReason: (value: string) => void;
   decide: (value: "accepted" | "rejected") => void;
-  refreshSelected: () => void;
 }
 export function GroupPreviewReview({ view, ledgerLabel = "جمع دفتر (ریال)", bookProofHref, evidenceRefs }: {
   view: GroupReviewController;
@@ -108,7 +107,7 @@ export function GroupPreviewReview({ view, ledgerLabel = "جمع دفتر (ری�
           </Field>
           <FormMessage error>{view.command.error?.message}</FormMessage>
           {view.command.error?.code === "version_conflict" && (
-            <Button variant="secondary" onClick={view.refreshSelected}>بازخوانی تصمیم</Button>
+            <StatusMessage>گروه تغییر کرده است. گروه را از سوابق دوباره باز کنید.</StatusMessage>
           )}
           <div className="flex flex-wrap gap-2">
             <Button type="submit" busy={view.command.busy} disabled={!view.canAccept}>
@@ -131,7 +130,7 @@ function ManualHistory({ view }: { view: ManualGroupController }) {
       {view.history.loading ? (
         <LoadingState label="در حال دریافت گروه‌های دستی" />
       ) : view.history.error ? (
-        <ErrorState message={view.history.error.message} onRetry={view.history.refresh} />
+        <ErrorState message={view.history.error.message} />
       ) : !view.historyRows.length ? (
         <EmptyState compact title="گروه دستی ذخیره نشده" />
       ) : (

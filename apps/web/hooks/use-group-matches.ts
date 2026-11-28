@@ -56,7 +56,7 @@ export function useGroupMatches(runId?: string, onDecided?: () => void) {
   ];
   const canSubmit = !!(
     runId && selected && workspace.canWrite && !command.busy &&
-    !resource.loading && !resource.error && !newerVersionAvailable && reason.trim() &&
+    command.error?.code !== "version_conflict" && !resource.loading && !resource.error && !newerVersionAvailable && reason.trim() &&
     (decision === "rejected" || selected.can_accept)
   );
 
@@ -83,23 +83,18 @@ export function useGroupMatches(runId?: string, onDecided?: () => void) {
   }
   function patch(patch: Partial<Pick<Selection, "decision" | "reason">>) {
     setSelection(previous => previous?.scope === scope ? { ...previous, ...patch } : previous);
-    command.clearError();
+    if (command.error?.code !== "version_conflict") command.clearError();
   }
   return {
     workspace, resource, command, selected, reason, decision, options, canSubmit, open, submit, newerVersionAvailable,
-    adoptLatest: () => {
-      if (!latestSelected) return;
-      setSelection(previous => previous?.scope === scope ? {
-        ...previous, item: latestSelected,
-        decision: previous.decision === "accepted" && !latestSelected.can_accept ? "rejected" : previous.decision,
-      } : previous);
-      command.clearError();
-    },
     setReason: (value: string) => patch({ reason: value }),
     setDecision: (value: string) => {
       if (value === "rejected" || (value === "accepted" && selected?.can_accept)) patch({ decision: value });
     },
-    close: () => setSelection(null),
+    close: () => {
+      if (command.error?.code === "version_conflict") resource.refresh();
+      setSelection(null);
+    },
     rows: items.slice(page * 25, (page + 1) * 25),
     page, total: items.length,
     previous: () => setPagination({ scope, page: Math.max(0, page - 1) }),

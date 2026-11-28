@@ -49,7 +49,6 @@ export function ReportBuilderSaved({
         ) : c.definitions.error ? (
           <ErrorState
             message={c.definitions.error.message}
-            onRetry={c.definitions.refresh}
           />
         ) : (
           <>
@@ -139,7 +138,6 @@ export function ReportBuilderSaved({
       ) : c.runs.error ? (
         <ErrorState
           message={c.runs.error.message}
-          onRetry={c.runs.refresh}
         />
       ) : (
         <>

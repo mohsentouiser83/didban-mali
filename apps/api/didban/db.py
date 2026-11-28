@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.schema import AddConstraint
 
 from . import commercial_doc_models as _commercial_doc_models  # noqa: F401
+from . import contract_models as _contract_models  # noqa: F401
+from . import petty_cash_models as _petty_cash_models  # noqa: F401
 from . import treasury_models as _treasury_models  # noqa: F401
 from .config import settings
 from .models import Base, register_money_constraints
@@ -22,7 +24,7 @@ engine = create_engine(
     else {},
     pool_pre_ping=True,
 )
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 SCHEMA_LOCK = 2026110101
 SCHEMA_TABLE_DDL = "CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL)"
 IMMUTABLE = (
@@ -235,7 +237,7 @@ def install_missing_money_constraints(connection: Connection) -> None:
 
 def initialize() -> None:
     """Create a fresh installation or check a versioned installation before startup."""
-    _prepare_schema(upgrade=False)
+    _prepare_schema(upgrade=not settings.production)
 
 
 def migrate_schema() -> None:
@@ -275,9 +277,15 @@ def _prepare_schema(*, upgrade: bool) -> None:
         installed = tracked or inspector.has_table("companies")
         version = conn.execute(text("SELECT version FROM didban_schema_version WHERE id=1")).scalar() if tracked else None
         if version == SCHEMA_VERSION:
-            require_current_schema(conn, Base.metadata)
-            return
-        if installed and (not upgrade or version not in (None, 1, 2, 3, 4)):
+            if not upgrade:
+                require_current_schema(conn, Base.metadata)
+                return
+            try:
+                require_current_schema(conn, Base.metadata)
+                return
+            except RuntimeError:
+                pass
+        if installed and (not upgrade or version not in (None, *range(1, SCHEMA_VERSION + 1))):
             raise RuntimeError(
                 f"Database schema version {version if version is not None else 'untracked'} is incompatible "
                 f"with version {SCHEMA_VERSION}. Run python -m didban.migrate before starting."
@@ -286,6 +294,19 @@ def _prepare_schema(*, upgrade: bool) -> None:
             column["name"] == "module_access" for column in inspector.get_columns("memberships")
         ):
             conn.execute(text("ALTER TABLE memberships ADD COLUMN module_access JSON NOT NULL DEFAULT '{}'"))
+        if inspector.has_table("companies") and not any(
+            column["name"] == "business_mode" for column in inspector.get_columns("companies")
+        ):
+            conn.execute(text("ALTER TABLE companies ADD COLUMN business_mode VARCHAR(20) NOT NULL DEFAULT 'trading'"))
+        if inspector.has_table("financial_periods") and not any(
+            column["name"] == "payroll_rates" for column in inspector.get_columns("financial_periods")
+        ):
+            conn.execute(text("ALTER TABLE financial_periods ADD COLUMN payroll_rates JSON"))
+        if inspector.has_table("treasury_accounts") and not any(
+            column["name"] == "is_official" for column in inspector.get_columns("treasury_accounts")
+        ):
+            bool_true = "1" if engine.dialect.name == "sqlite" else "true"
+            conn.execute(text(f"ALTER TABLE treasury_accounts ADD COLUMN is_official BOOLEAN NOT NULL DEFAULT {bool_true}"))
         # Additive company-qualified key required by accounting permission references.
         if inspect(conn).has_table("memberships"):
             conn.execute(
@@ -341,6 +362,7 @@ def _prepare_schema(*, upgrade: bool) -> None:
                 ("attendance_status", "VARCHAR(30) NOT NULL DEFAULT 'verified'"),
                 ("contract_snapshot", "JSON"),
                 ("calculation_meta", "JSON"),
+                ("project_allocations", "JSON NOT NULL DEFAULT '[]'"),
                 ("payment_journal_id", "VARCHAR(36)"),
             ):
                 if col_name not in cols:

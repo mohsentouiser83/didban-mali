@@ -520,3 +520,109 @@ def test_settlement_and_diskettes_export(db_session, payroll_env):
     assert len(tax_disk["rows"]) >= 1
     assert int(tax_disk["summary"]["total_gross_pay"]) > 0
 
+
+def test_payroll_slip_project_allocations(db_session, payroll_env):
+    from didban.dimensions_models import Dimension
+
+    company, user, period = payroll_env["company"], payroll_env["user"], payroll_env["period"]
+    p1 = Dimension(company_id=company, kind="project", code="PRJ-1", name="پروژه نرم‌افزار الف", active=True)
+    p2 = Dimension(company_id=company, kind="project", code="PRJ-2", name="پروژه پشتیبانی ب", active=True)
+    db_session.add_all([p1, p2])
+    db_session.flush()
+
+    emp = service.add_employee(db_session, company, user, {
+        "first_name": "سارا",
+        "last_name": "کریمی",
+        "marital_status": "single",
+        "children_count": 0,
+    })
+    service.add_contract(db_session, company, user, {
+        "employee_id": emp["id"],
+        "contract_type": "full_time",
+        "start_date": date(2024, 3, 20),
+        "base_salary": "100000000",
+        "is_insured": True,
+        "is_taxable": True,
+    })
+    run = service.create_payroll_run(db_session, company, user, {
+        "period_id": period.id,
+        "title": "حقوق فروردین ۱۴۰۳",
+        "year": 1403,
+        "month": 1,
+        "calculation_date": date(2024, 4, 19),
+    })
+    run_detail = service.get_payroll_run(db_session, company, run["id"])
+    slip = run_detail["slips"][0]
+
+    with pytest.raises(DomainError) as too_high:
+        service.update_slip_timesheet(
+            db_session,
+            company,
+            user,
+            run["id"],
+            slip["id"],
+            {
+                "project_allocations": [
+                    {"dimension_id": p1.id, "percentage": "70"},
+                    {"dimension_id": p2.id, "percentage": "40"},
+                ]
+            },
+        )
+    assert too_high.value.code == "allocation_exceeds_100"
+
+    updated = service.update_slip_timesheet(
+        db_session,
+        company,
+        user,
+        run["id"],
+        slip["id"],
+        {
+            "project_allocations": [
+                {"dimension_id": p1.id, "percentage": "60"},
+                {"dimension_id": p2.id, "percentage": "40"},
+            ]
+        },
+    )
+    allocs = updated["project_allocations"]
+    assert len(allocs) == 2
+    assert allocs[0]["dimension_code"] == "PRJ-1"
+    assert allocs[1]["dimension_code"] == "PRJ-2"
+    total_employer_cost = int(updated["gross_pay"]) + int(updated["employer_insurance"])
+    assert int(allocs[0]["allocated_cost_irr"]) + int(allocs[1]["allocated_cost_irr"]) == total_employer_cost
+
+
+def test_period_custom_payroll_rates_applied_to_run(db_session, payroll_env):
+    company, user, period = payroll_env["company"], payroll_env["user"], payroll_env["period"]
+    period.payroll_rates = {
+        "tax_exempt_threshold_monthly": "240000000",
+        "tax_brackets_monthly": [[240000000, 300000000, "0.10"]],
+    }
+    db_session.flush()
+
+    emp = service.add_employee(db_session, company, user, {
+        "first_name": "امیر",
+        "last_name": "نوری",
+        "marital_status": "single",
+        "children_count": 0,
+    })
+    service.add_contract(db_session, company, user, {
+        "employee_id": emp["id"],
+        "contract_type": "full_time",
+        "start_date": date(2024, 3, 20),
+        "base_salary": "250000000",
+        "is_insured": False,
+        "is_taxable": True,
+    })
+    run = service.create_payroll_run(db_session, company, user, {
+        "period_id": period.id,
+        "title": "حقوق با نرخ سفارشی دوره",
+        "year": 1403,
+        "month": 1,
+        "calculation_date": date(2024, 4, 19),
+    })
+    detail = service.get_payroll_run(db_session, company, run["id"])
+    slip = detail["slips"][0]
+    assert slip["calculation_meta"]["rate_status"] == "company_configured"
+    assert slip["calculation_meta"]["rate_table_year"] == 1403
+    assert slip["payroll_tax"] == "1000000"
+

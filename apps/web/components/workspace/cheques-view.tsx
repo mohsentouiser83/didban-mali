@@ -39,7 +39,6 @@ function ChequeWorkspace() {
         ) : c.resource.error ? (
           <ErrorState
             message={c.resource.error.message}
-            onRetry={c.resource.refresh}
           />
         ) : (
           <>

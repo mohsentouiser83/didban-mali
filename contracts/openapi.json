@@ -1139,6 +1139,173 @@
         "title": "ChequeInput",
         "type": "object"
       },
+      "ClientContractInput": {
+        "additionalProperties": false,
+        "properties": {
+          "advance_payment_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "0",
+            "title": "Advance Payment Irr"
+          },
+          "contract_kind": {
+            "default": "fixed_project",
+            "enum": [
+              "fixed_project",
+              "retainer",
+              "time_and_material"
+            ],
+            "title": "Contract Kind",
+            "type": "string"
+          },
+          "contract_number": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Contract Number",
+            "type": "string"
+          },
+          "counterparty_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Counterparty Id",
+            "type": "string"
+          },
+          "dimension_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimension Id"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "insurance_retention_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "5",
+            "title": "Insurance Retention Rate"
+          },
+          "milestones": {
+            "items": {
+              "$ref": "#/components/schemas/ContractMilestoneInput"
+            },
+            "maxItems": 100,
+            "title": "Milestones",
+            "type": "array"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "performance_retention_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "10",
+            "title": "Performance Retention Rate"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "draft",
+              "active",
+              "completed",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "total_amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Total Amount Irr"
+          },
+          "withholding_tax_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "0",
+            "title": "Withholding Tax Rate"
+          }
+        },
+        "required": [
+          "contract_number",
+          "title",
+          "counterparty_id",
+          "start_date",
+          "total_amount_irr"
+        ],
+        "title": "ClientContractInput",
+        "type": "object"
+      },
       "ClosingInput": {
         "additionalProperties": false,
         "properties": {
@@ -2323,6 +2490,15 @@
       "CompanyInput": {
         "additionalProperties": false,
         "properties": {
+          "business_mode": {
+            "default": "trading",
+            "enum": [
+              "trading",
+              "service"
+            ],
+            "title": "Business Mode",
+            "type": "string"
+          },
           "name": {
             "maxLength": 120,
             "minLength": 1,
@@ -2605,6 +2781,66 @@
           "start_date"
         ],
         "title": "ContractInput",
+        "type": "object"
+      },
+      "ContractMilestoneInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount Irr"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "sequence": {
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "title",
+          "amount_irr"
+        ],
+        "title": "ContractMilestoneInput",
         "type": "object"
       },
       "ConvertProformaInput": {
@@ -4189,6 +4425,21 @@
             ],
             "title": "Paid Leave Days"
           },
+          "project_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SlipProjectAllocationInput"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Allocations"
+          },
           "unpaid_leave_days": {
             "anyOf": [
               {
@@ -5171,6 +5422,107 @@
           }
         },
         "title": "MemberPatch",
+        "type": "object"
+      },
+      "MilestoneBillingInput": {
+        "additionalProperties": false,
+        "properties": {
+          "commercial_document_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Document Id"
+          },
+          "invoiced_amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoiced Amount Irr"
+          }
+        },
+        "title": "MilestoneBillingInput",
+        "type": "object"
+      },
+      "MilestoneCollectionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "auto_compute_retentions": {
+            "default": false,
+            "title": "Auto Compute Retentions",
+            "type": "boolean"
+          },
+          "cash_received_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Received Irr"
+          },
+          "insurance_retained_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "0",
+            "title": "Insurance Retained Irr"
+          },
+          "performance_retained_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "0",
+            "title": "Performance Retained Irr"
+          },
+          "withholding_tax_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "default": "0",
+            "title": "Withholding Tax Irr"
+          }
+        },
+        "title": "MilestoneCollectionInput",
         "type": "object"
       },
       "MoadianConfirmation": {
@@ -6710,6 +7062,21 @@
             ],
             "title": "Paid Leave Days"
           },
+          "project_allocations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SlipProjectAllocationInput"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Allocations"
+          },
           "unpaid_leave_days": {
             "anyOf": [
               {
@@ -6912,6 +7279,18 @@
             "title": "Name",
             "type": "string"
           },
+          "payroll_rates": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payroll Rates"
+          },
           "start": {
             "format": "date",
             "title": "Start",
@@ -6981,6 +7360,183 @@
           "reopen_period"
         ],
         "title": "PermissionInput",
+        "type": "object"
+      },
+      "PettyCashExpenseInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Amount Irr"
+          },
+          "category": {
+            "default": "other",
+            "enum": [
+              "cloud_server",
+              "software_license",
+              "subcontractor",
+              "transport",
+              "meals",
+              "office_supplies",
+              "utilities",
+              "other"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "dimension_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimension Id"
+          },
+          "expense_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Expense Account Id",
+            "type": "string"
+          },
+          "expense_date": {
+            "format": "date",
+            "title": "Expense Date",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "receipt_reference": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Reference"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "treasury_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Treasury Account Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "treasury_account_id",
+          "period_id",
+          "expense_account_id",
+          "expense_date",
+          "title",
+          "amount_irr"
+        ],
+        "title": "PettyCashExpenseInput",
+        "type": "object"
+      },
+      "PettyCashSettlementInput": {
+        "additionalProperties": false,
+        "properties": {
+          "expense_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Ids"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "period_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Period Id",
+            "type": "string"
+          },
+          "replenish_from_treasury_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replenish From Treasury Id"
+          },
+          "settlement_date": {
+            "format": "date",
+            "title": "Settlement Date",
+            "type": "string"
+          },
+          "treasury_account_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Treasury Account Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "treasury_account_id",
+          "period_id",
+          "settlement_date"
+        ],
+        "title": "PettyCashSettlementInput",
         "type": "object"
       },
       "PlanInput": {
@@ -8041,6 +8597,35 @@
         "title": "Share",
         "type": "object"
       },
+      "SlipProjectAllocationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Dimension Id",
+            "type": "string"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Percentage"
+          }
+        },
+        "required": [
+          "dimension_id",
+          "percentage"
+        ],
+        "title": "SlipProjectAllocationInput",
+        "type": "object"
+      },
       "SourceRevisionInput": {
         "additionalProperties": false,
         "properties": {
@@ -8975,6 +9560,11 @@
             "title": "Id",
             "type": "string"
           },
+          "is_official": {
+            "default": true,
+            "title": "Is Official",
+            "type": "boolean"
+          },
           "kind": {
             "enum": [
               "bank",
@@ -9181,6 +9771,11 @@
               }
             ],
             "title": "Iban"
+          },
+          "is_official": {
+            "default": true,
+            "title": "Is Official",
+            "type": "boolean"
           },
           "kind": {
             "enum": [
@@ -10020,6 +10615,140 @@
           "due_date"
         ],
         "title": "TreasuryToolLineResponse",
+        "type": "object"
+      },
+      "UpdateClientContractInput": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimension Id"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "insurance_retention_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insurance Retention Rate"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "performance_retention_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Retention Rate"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "active",
+                  "completed",
+                  "cancelled"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "total_amount_irr": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Amount Irr"
+          },
+          "withholding_tax_rate": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Withholding Tax Rate"
+          }
+        },
+        "title": "UpdateClientContractInput",
         "type": "object"
       },
       "UpdateContractInput": {
@@ -11086,6 +11815,17 @@
               }
             ],
             "title": "Iban"
+          },
+          "is_official": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Official"
           },
           "linked_bank_id": {
             "anyOf": [
@@ -19502,6 +20242,461 @@
         "summary": "Events"
       }
     },
+    "/api/v1/companies/{company_id}/client-contracts": {
+      "get": {
+        "operationId": "list_contracts_api_v1_companies__company_id__client_contracts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dimension_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dimension Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Contracts"
+      },
+      "post": {
+        "operationId": "create_contract_api_v1_companies__company_id__client_contracts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientContractInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Contract"
+      }
+    },
+    "/api/v1/companies/{company_id}/client-contracts/{contract_id}": {
+      "get": {
+        "operationId": "get_contract_api_v1_companies__company_id__client_contracts__contract_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Contract"
+      },
+      "patch": {
+        "operationId": "update_contract_api_v1_companies__company_id__client_contracts__contract_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClientContractInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Contract"
+      }
+    },
+    "/api/v1/companies/{company_id}/client-contracts/{contract_id}/milestones": {
+      "post": {
+        "operationId": "add_milestone_api_v1_companies__company_id__client_contracts__contract_id__milestones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractMilestoneInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Milestone"
+      }
+    },
+    "/api/v1/companies/{company_id}/client-contracts/{contract_id}/milestones/{milestone_id}/bill": {
+      "post": {
+        "operationId": "bill_milestone_api_v1_companies__company_id__client_contracts__contract_id__milestones__milestone_id__bill_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneBillingInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bill Milestone"
+      }
+    },
+    "/api/v1/companies/{company_id}/client-contracts/{contract_id}/milestones/{milestone_id}/collect": {
+      "post": {
+        "operationId": "collect_milestone_api_v1_companies__company_id__client_contracts__contract_id__milestones__milestone_id__collect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MilestoneCollectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Collect Milestone"
+      }
+    },
+    "/api/v1/companies/{company_id}/client-contracts/{contract_id}/milestones/{milestone_id}/release-retention": {
+      "post": {
+        "operationId": "release_retention_api_v1_companies__company_id__client_contracts__contract_id__milestones__milestone_id__release_retention_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "milestone_id",
+            "required": true,
+            "schema": {
+              "title": "Milestone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Retention"
+      }
+    },
     "/api/v1/companies/{company_id}/collection-assistant/invoices/{invoice_id}/reminder": {
       "get": {
         "operationId": "reminder_api_v1_companies__company_id__collection_assistant_invoices__invoice_id__reminder_get",
@@ -26466,6 +27661,280 @@
         "summary": "Personnel"
       }
     },
+    "/api/v1/companies/{company_id}/petty-cash/expenses": {
+      "get": {
+        "operationId": "list_expenses_api_v1_companies__company_id__petty_cash_expenses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "treasury_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Treasury Account Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dimension_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dimension Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Expenses"
+      },
+      "post": {
+        "operationId": "record_expense_api_v1_companies__company_id__petty_cash_expenses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PettyCashExpenseInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Expense"
+      }
+    },
+    "/api/v1/companies/{company_id}/petty-cash/expenses/{expense_id}/cancel": {
+      "post": {
+        "operationId": "cancel_expense_api_v1_companies__company_id__petty_cash_expenses__expense_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "expense_id",
+            "required": true,
+            "schema": {
+              "title": "Expense Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Expense"
+      }
+    },
+    "/api/v1/companies/{company_id}/petty-cash/settlements": {
+      "get": {
+        "operationId": "list_settlements_api_v1_companies__company_id__petty_cash_settlements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "treasury_account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Treasury Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Settlements"
+      },
+      "post": {
+        "operationId": "settle_petty_cash_api_v1_companies__company_id__petty_cash_settlements_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PettyCashSettlementInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Settle Petty Cash"
+      }
+    },
     "/api/v1/companies/{company_id}/planned-payments": {
       "get": {
         "operationId": "plans_api_v1_companies__company_id__planned_payments_get",
@@ -29338,6 +30807,75 @@
           }
         },
         "summary": "Reports"
+      }
+    },
+    "/api/v1/companies/{company_id}/reports/project-profitability": {
+      "get": {
+        "operationId": "project_profitability_api_v1_companies__company_id__reports_project_profitability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "title": "Company Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dimension_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dimension Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Profitability"
       }
     },
     "/api/v1/companies/{company_id}/reports/{report_id}": {

@@ -19,7 +19,7 @@ export function NativeInvoiceDetail({view, listMode = false}:{view:NativeInvoice
   const source = invoice?.source;
   const goods = source?.kind === "sale_goods" || source?.kind === "purchase_goods";
   return <Drawer open={!!invoice||view.detail.loading||!!view.detail.error} onOpenChange={open=>{if(!open)view.closeDetail();}} title="فاکتور دفتر دیدبان">
-    {view.detail.loading?<LoadingState label="در حال دریافت فاکتور"/>:view.detail.error?<ErrorState message={view.detail.error.message} onRetry={view.detail.refresh}/>:invoice&&<div className="space-y-6">
+    {view.detail.loading?<LoadingState label="در حال دریافت فاکتور"/>:view.detail.error?<ErrorState message={view.detail.error.message}/>:invoice&&<div className="space-y-6">
       <dl className="grid gap-4 sm:grid-cols-2">{[["مرجع",invoice.reference],["طرف حساب",invoice.party_name ? `${invoice.party_name} (${invoice.party_id})` : invoice.party_id],["تاریخ سند",displayDate(invoice.date)],["مبلغ سند (ریال)",amount(invoice.amount)],["مانده تا تاریخ برش (ریال)",amount(invoice.remaining)],["سررسید",invoice.terms?.due_date?displayDate(invoice.terms?.due_date):"نامشخص"],["وعدهٔ دریافت یا پرداخت",invoice.terms?.expected_date?displayDate(invoice.terms.expected_date):expectedDateLabel(invoice.terms,invoice.direction)],["نسخهٔ فاکتور",persian(invoice.version)]].map(([label,value])=><DetailField key={label} label={label} value={value}/>)}</dl>
       {goods && source && (
         <dl className="grid gap-4 sm:grid-cols-2">

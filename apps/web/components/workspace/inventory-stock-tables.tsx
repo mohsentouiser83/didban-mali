@@ -151,7 +151,7 @@ export function InventoryKardexDrawer({ view, target, onClose }: {
         {cardex.resource.loading ? (
           <LoadingState label="در حال دریافت کاردکس" variant="table" />
         ) : cardex.resource.error ? (
-          <ErrorState message={cardex.resource.error.message} onRetry={cardex.resource.refresh} />
+          <ErrorState message={cardex.resource.error.message} />
         ) : cardex.resource.data && (
           <>
             <Table aria-label="گردش کالا" title={itemName ? `کاردکس: ${itemName}` : "گردش کالا"}>

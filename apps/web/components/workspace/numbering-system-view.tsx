@@ -65,7 +65,6 @@ function WorkspaceView() {
         ) : view.resource.error ? (
           <ErrorState
             message={view.resource.error.message}
-            onRetry={view.resource.refresh}
           />
         ) : (
           <Table title="قواعد شماره‌گذاری">

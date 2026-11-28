@@ -28,7 +28,7 @@ function EvidenceRow({ id }: { id: string }) {
   );
   if (resource.loading) return <Skeleton className="h-28" />;
   if (resource.error)
-    return <ErrorState message="شاهد دریافت نشد." onRetry={resource.refresh} />;
+    return <ErrorState message="شاهد دریافت نشد." />;
   const evidence = resource.data;
   if (!evidence) return null;
   return (

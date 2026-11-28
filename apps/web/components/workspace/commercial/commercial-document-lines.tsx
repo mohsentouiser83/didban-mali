@@ -9,6 +9,7 @@ import { amount, persian } from "@/lib/utils";
 
 export function CommercialDocumentLines({ view }: { view: ReturnType<typeof useCommercialDocuments> }) {
   const {
+    isServiceMode,
     lines,
     setLines,
     lineErrors,
@@ -28,7 +29,7 @@ export function CommercialDocumentLines({ view }: { view: ReturnType<typeof useC
             type="button"
             variant="secondary"
             onClick={() => {
-              setLines((prev) => [...prev, emptyLine(Date.now())]);
+              setLines((prev) => [...prev, emptyLine(Date.now(), isServiceMode ? "service" : "goods")]);
               clearClientError("invoice_discount", "on_account_amount");
             }}
           >
@@ -40,69 +41,79 @@ export function CommercialDocumentLines({ view }: { view: ReturnType<typeof useC
           const rowNumber = persian(index + 1);
           return (
             <div key={line.key} className="space-y-2 rounded-lg border border-border/70 p-2.5">
-              <div className="grid gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-[1fr_1.3fr_1.3fr_.65fr_1fr_1fr]">
-                <Select
-                  id={`cd-line-${index}-kind`}
-                  label={`نوع ردیف ${rowNumber}`}
-                  value={line.line_kind}
-                  onValueChange={(v) => {
-                    const nextKind = v as "goods" | "service";
-                    setLines((prev) =>
-                      prev.map((r) =>
-                        r.key === line.key
-                          ? { ...r, line_kind: nextKind, item_id: nextKind === "service" ? "" : r.item_id }
-                          : r,
-                      ),
-                    );
-                    setLineErrors((prev) => {
-                      const copy = { ...prev };
-                      delete copy[line.key];
-                      return copy;
-                    });
-                    clearClientError(
-                      "warehouse_id",
-                      "revenue_account_id",
-                      "cost_account_id",
-                      "service_revenue_account_id",
-                      "expense_account_id",
-                    );
-                  }}
-                  options={[
-                    { value: "goods", label: "کالا" },
-                    { value: "service", label: "خدمت" },
-                  ]}
-                />
-                {line.line_kind === "goods" ? (
-                  <Select
-                    id={`cd-line-${index}-item`}
-                    label={`کالای ردیف ${rowNumber}`}
-                    aria-invalid={Boolean(lErr.item_id) || undefined}
-                    searchable
-                    disabled={inventory.loading}
-                    placeholder={inventory.loading ? "در حال دریافت کالاها…" : "انتخاب کالا"}
-                    value={line.item_id}
-                    onValueChange={(v) => {
-                      const picked = goodsItems.find((i) => i.id === v);
-                      setLines((prev) =>
-                        prev.map((r) =>
-                          r.key === line.key
-                            ? {
-                                ...r,
-                                item_id: v,
-                                description: r.description.trim() ? r.description : picked?.name || "",
-                              }
-                            : r,
-                        ),
-                      );
-                      setLineErrors((prev) => ({
-                        ...prev,
-                        [line.key]: { ...prev[line.key], item_id: undefined },
-                      }));
-                    }}
-                    options={itemOptions}
-                  />
-                ) : (
-                  <div className="hidden xl:block" aria-hidden />
+              <div
+                className={
+                  isServiceMode
+                    ? "grid gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-[1.6fr_.65fr_1fr_1fr]"
+                    : "grid gap-2 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-[1fr_1.3fr_1.3fr_.65fr_1fr_1fr]"
+                }
+              >
+                {!isServiceMode && (
+                  <>
+                    <Select
+                      id={`cd-line-${index}-kind`}
+                      label={`نوع ردیف ${rowNumber}`}
+                      value={line.line_kind}
+                      onValueChange={(v) => {
+                        const nextKind = v as "goods" | "service";
+                        setLines((prev) =>
+                          prev.map((r) =>
+                            r.key === line.key
+                              ? { ...r, line_kind: nextKind, item_id: nextKind === "service" ? "" : r.item_id }
+                              : r,
+                          ),
+                        );
+                        setLineErrors((prev) => {
+                          const copy = { ...prev };
+                          delete copy[line.key];
+                          return copy;
+                        });
+                        clearClientError(
+                          "warehouse_id",
+                          "revenue_account_id",
+                          "cost_account_id",
+                          "service_revenue_account_id",
+                          "expense_account_id",
+                        );
+                      }}
+                      options={[
+                        { value: "goods", label: "کالا" },
+                        { value: "service", label: "خدمت" },
+                      ]}
+                    />
+                    {line.line_kind === "goods" ? (
+                      <Select
+                        id={`cd-line-${index}-item`}
+                        label={`کالای ردیف ${rowNumber}`}
+                        aria-invalid={Boolean(lErr.item_id) || undefined}
+                        searchable
+                        disabled={inventory.loading}
+                        placeholder={inventory.loading ? "در حال دریافت کالاها…" : "انتخاب کالا"}
+                        value={line.item_id}
+                        onValueChange={(v) => {
+                          const picked = goodsItems.find((i) => i.id === v);
+                          setLines((prev) =>
+                            prev.map((r) =>
+                              r.key === line.key
+                                ? {
+                                    ...r,
+                                    item_id: v,
+                                    description: r.description.trim() ? r.description : picked?.name || "",
+                                  }
+                                : r,
+                            ),
+                          );
+                          setLineErrors((prev) => ({
+                            ...prev,
+                            [line.key]: { ...prev[line.key], item_id: undefined },
+                          }));
+                        }}
+                        options={itemOptions}
+                      />
+                    ) : (
+                      <div className="hidden xl:block" aria-hidden />
+                    )}
+                  </>
                 )}
                 <Input
                   id={`cd-line-${index}-desc`}

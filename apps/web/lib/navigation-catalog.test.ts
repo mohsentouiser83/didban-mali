@@ -9,10 +9,10 @@ it("keeps the dashboard and two groups with nine top-level entries", () => {
     "انبار", "حقوق و دستمزد", "مؤدیان", "گزارش‌ها", "نقدینگی",
   ]);
   expect(navigationGroups[1].items[1].children?.map((item) => item.href)).toEqual([
-    "/commercial/proformas", "/receivables", "/payables", "/reconciliation/counterparties",
+    "/commercial/proformas", "/receivables", "/payables", "/client-contracts", "/reconciliation/counterparties",
   ]);
   expect(navigationGroups[1].items[2].children?.map((item) => item.href)).toEqual([
-    "/settlements", "/settlements/cheques", "/reconciliation",
+    "/settlements", "/settlements/cheques", "/settlements/petty-cash", "/reconciliation",
   ]);
 });
 
@@ -27,15 +27,16 @@ it("keeps settings, documents and assistant out of the sidebar", () => {
 it("selects just one destination for nested routes and contextual pages", () => {
   for (const [pathname, destination] of [
     ["/accounting/journals", "/reports"],
-    ["/accounting/electronic-ledgers", "/accounting/electronic-ledgers"],
+    ["/accounting/electronic-ledgers", "/reports"],
+    ["/moadian/reports", "/reports"],
     ["/accounting/operations", "/accounting"],
     ["/accounting/inventory/items", "/accounting/inventory/items"],
     ["/settlements/cheques", "/settlements/cheques"],
     ["/receivables/", "/receivables"],
     ["/commercial/proformas", "/commercial/proformas"],
     ["/payroll/contracts", "/payroll/contracts"],
-    ["/moadian/transmissions", "/moadian/transmissions"],
-    ["/reconciliation/moadian", "/reconciliation/moadian"],
+    ["/moadian/transmissions", "/moadian"],
+    ["/reconciliation/moadian", "/moadian"],
     ["/reconciliation/bank", "/reconciliation"],
     ["/reconciliation/counterparty", "/reconciliation/counterparties"],
     ["/reports/studio", "/reports"],

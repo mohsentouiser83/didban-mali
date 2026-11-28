@@ -8,11 +8,12 @@ SELECT pg_advisory_xact_lock(2026110101);
 
 CREATE TABLE IF NOT EXISTS didban_schema_version (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL);
 
-INSERT INTO didban_schema_version (id, version) VALUES (1, 6) ON CONFLICT (id) DO NOTHING;
+INSERT INTO didban_schema_version (id, version) VALUES (1, 7) ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE companies (
 	name VARCHAR(120) NOT NULL,
 	timezone VARCHAR(50) NOT NULL,
+	business_mode VARCHAR(20) DEFAULT 'trading' NOT NULL,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	version INTEGER NOT NULL,
@@ -338,6 +339,7 @@ CREATE TABLE financial_periods (
 	name VARCHAR(120) NOT NULL,
 	start DATE NOT NULL,
 	"end" DATE NOT NULL,
+	payroll_rates JSON,
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	company_id VARCHAR(36) NOT NULL,
@@ -773,6 +775,39 @@ CREATE TABLE bot_updates (
 );
 
 CREATE INDEX ix_bot_updates_connection_id ON bot_updates (connection_id);
+
+CREATE TABLE client_contracts (
+	contract_number VARCHAR(80) NOT NULL,
+	title VARCHAR(200) NOT NULL,
+	counterparty_id VARCHAR(36) NOT NULL,
+	dimension_id VARCHAR(36),
+	contract_kind VARCHAR(30) DEFAULT 'fixed_project' NOT NULL,
+	status VARCHAR(20) DEFAULT 'active' NOT NULL,
+	start_date DATE NOT NULL,
+	end_date DATE,
+	total_amount_irr NUMERIC(38, 6) NOT NULL,
+	advance_payment_irr NUMERIC(38, 6) NOT NULL,
+	insurance_retention_rate NUMERIC(38, 6) NOT NULL,
+	performance_retention_rate NUMERIC(38, 6) NOT NULL,
+	withholding_tax_rate NUMERIC(38, 6) NOT NULL,
+	notes TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, contract_number),
+	FOREIGN KEY(company_id, counterparty_id) REFERENCES commercial_counterparties (company_id, id),
+	FOREIGN KEY(company_id, dimension_id) REFERENCES financial_dimensions (company_id, id),
+	CONSTRAINT client_contract_kind_valid CHECK (contract_kind IN ('fixed_project', 'retainer', 'time_and_material')),
+	CONSTRAINT client_contract_status_valid CHECK (status IN ('draft', 'active', 'completed', 'cancelled')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_client_contracts_company_id ON client_contracts (company_id);
+
+CREATE INDEX ix_client_contracts_company_status ON client_contracts (company_id, status);
 
 CREATE TABLE commercial_counterparty_roles (
 	counterparty_id VARCHAR(36) NOT NULL,
@@ -1254,6 +1289,7 @@ CREATE TABLE treasury_accounts (
 	iban VARCHAR(34),
 	branch_name VARCHAR(120),
 	branch_code VARCHAR(30),
+	is_official BOOLEAN DEFAULT 'true' NOT NULL,
 	custodian_name VARCHAR(120),
 	custodian_counterparty_id VARCHAR(36),
 	petty_cash_limit_irr NUMERIC(38, 6),
@@ -1359,6 +1395,36 @@ CREATE TABLE cheques (
 );
 
 CREATE INDEX ix_cheques_company_id ON cheques (company_id);
+
+CREATE TABLE client_contract_milestones (
+	contract_id VARCHAR(36) NOT NULL,
+	sequence INTEGER NOT NULL,
+	title VARCHAR(200) NOT NULL,
+	due_date DATE,
+	amount_irr NUMERIC(38, 6) NOT NULL,
+	status VARCHAR(20) DEFAULT 'planned' NOT NULL,
+	commercial_document_id VARCHAR(36),
+	invoiced_amount_irr NUMERIC(38, 6) NOT NULL,
+	collected_cash_irr NUMERIC(38, 6) NOT NULL,
+	insurance_retained_irr NUMERIC(38, 6) NOT NULL,
+	performance_retained_irr NUMERIC(38, 6) NOT NULL,
+	withholding_tax_irr NUMERIC(38, 6) NOT NULL,
+	retention_released BOOLEAN DEFAULT 'false' NOT NULL,
+	notes TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	UNIQUE (company_id, contract_id, sequence),
+	FOREIGN KEY(company_id, contract_id) REFERENCES client_contracts (company_id, id),
+	FOREIGN KEY(company_id, commercial_document_id) REFERENCES commercial_documents (company_id, id),
+	CONSTRAINT client_contract_milestone_status_valid CHECK (status IN ('planned', 'invoiced', 'settled')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_client_contract_milestones_company_id ON client_contract_milestones (company_id);
 
 CREATE TABLE commercial_document_lines (
 	document_id VARCHAR(36) NOT NULL,
@@ -1625,6 +1691,7 @@ CREATE TABLE payroll_slips (
 	applied_exemptions JSON NOT NULL,
 	contract_snapshot JSON NOT NULL,
 	calculation_meta JSON NOT NULL,
+	project_allocations JSON DEFAULT '[]' NOT NULL,
 	payment_journal_id VARCHAR(36),
 	id VARCHAR(36) NOT NULL,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -1664,6 +1731,31 @@ CREATE TABLE payroll_slips (
 );
 
 CREATE INDEX ix_payroll_slips_company_id ON payroll_slips (company_id);
+
+CREATE TABLE petty_cash_settlements (
+	treasury_account_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	settlement_date DATE NOT NULL,
+	total_amount_irr NUMERIC(38, 6) NOT NULL,
+	replenish_from_treasury_id VARCHAR(36),
+	draft_id VARCHAR(36),
+	status VARCHAR(20) DEFAULT 'draft' NOT NULL,
+	notes TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, treasury_account_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, replenish_from_treasury_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id, draft_id) REFERENCES accounting_drafts (company_id, id),
+	CONSTRAINT petty_cash_settlement_status_valid CHECK (status IN ('draft', 'approved')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_petty_cash_settlements_company_id ON petty_cash_settlements (company_id);
 
 CREATE TABLE result_manifests (
 	session_id VARCHAR(36) NOT NULL,
@@ -2194,6 +2286,39 @@ CREATE TABLE operation_learning_patterns (
 );
 
 CREATE INDEX ix_operation_learning_patterns_company_id ON operation_learning_patterns (company_id);
+
+CREATE TABLE petty_cash_expenses (
+	treasury_account_id VARCHAR(36) NOT NULL,
+	period_id VARCHAR(36) NOT NULL,
+	expense_account_id VARCHAR(36) NOT NULL,
+	dimension_id VARCHAR(36),
+	category VARCHAR(40) DEFAULT 'other' NOT NULL,
+	expense_date DATE NOT NULL,
+	title VARCHAR(200) NOT NULL,
+	amount_irr NUMERIC(38, 6) NOT NULL,
+	receipt_reference VARCHAR(120),
+	status VARCHAR(20) DEFAULT 'recorded' NOT NULL,
+	settlement_id VARCHAR(36),
+	notes TEXT,
+	id VARCHAR(36) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	company_id VARCHAR(36) NOT NULL,
+	version INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (company_id, id),
+	FOREIGN KEY(company_id, treasury_account_id) REFERENCES treasury_accounts (company_id, id),
+	FOREIGN KEY(company_id, period_id) REFERENCES financial_periods (company_id, id),
+	FOREIGN KEY(company_id, expense_account_id) REFERENCES accounting_accounts (company_id, id),
+	FOREIGN KEY(company_id, dimension_id) REFERENCES financial_dimensions (company_id, id),
+	FOREIGN KEY(company_id, settlement_id) REFERENCES petty_cash_settlements (company_id, id),
+	CONSTRAINT petty_cash_expense_status_valid CHECK (status IN ('recorded', 'settled', 'cancelled')),
+	CONSTRAINT petty_cash_expense_category_valid CHECK (category IN ('cloud_server', 'software_license', 'subcontractor', 'transport', 'meals', 'office_supplies', 'utilities', 'other')),
+	FOREIGN KEY(company_id) REFERENCES companies (id)
+);
+
+CREATE INDEX ix_petty_cash_expenses_company_account ON petty_cash_expenses (company_id, treasury_account_id, status);
+
+CREATE INDEX ix_petty_cash_expenses_company_id ON petty_cash_expenses (company_id);
 
 CREATE TABLE processing_issues (
 	session_id VARCHAR(36) NOT NULL,
@@ -3202,6 +3327,14 @@ DROP POLICY IF EXISTS tenant_isolation ON bot_posting_dispatches;
 
 CREATE POLICY tenant_isolation ON bot_posting_dispatches USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE client_contracts ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE client_contracts FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON client_contracts;
+
+CREATE POLICY tenant_isolation ON client_contracts USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE commercial_counterparty_roles ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE commercial_counterparty_roles FORCE ROW LEVEL SECURITY;
@@ -3402,6 +3535,14 @@ DROP POLICY IF EXISTS tenant_isolation ON cheques;
 
 CREATE POLICY tenant_isolation ON cheques USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
+ALTER TABLE client_contract_milestones ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE client_contract_milestones FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON client_contract_milestones;
+
+CREATE POLICY tenant_isolation ON client_contract_milestones USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
 ALTER TABLE commercial_document_lines ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE commercial_document_lines FORCE ROW LEVEL SECURITY;
@@ -3489,6 +3630,14 @@ ALTER TABLE payroll_slips FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON payroll_slips;
 
 CREATE POLICY tenant_isolation ON payroll_slips USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE petty_cash_settlements ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE petty_cash_settlements FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON petty_cash_settlements;
+
+CREATE POLICY tenant_isolation ON petty_cash_settlements USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE result_manifests ENABLE ROW LEVEL SECURITY;
 
@@ -3681,6 +3830,14 @@ ALTER TABLE operation_learning_patterns FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON operation_learning_patterns;
 
 CREATE POLICY tenant_isolation ON operation_learning_patterns USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
+
+ALTER TABLE petty_cash_expenses ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE petty_cash_expenses FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON petty_cash_expenses;
+
+CREATE POLICY tenant_isolation ON petty_cash_expenses USING (company_id = current_setting('didban.company_id',true)) WITH CHECK (company_id = current_setting('didban.company_id',true));
 
 ALTER TABLE processing_issues ENABLE ROW LEVEL SECURITY;
 

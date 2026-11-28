@@ -483,7 +483,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     fireEvent.click(screen.getByRole("button", { name: "ثبت برگشت" }));
 
     expect(
-      await screen.findByText(/نسخهٔ سند خزانه تغییر کرده و اطلاعات بازشده قدیمی است/),
+      await screen.findByText(/نسخهٔ سند خزانه تغییر کرده است/),
     ).toBeInTheDocument();
 
     const reverseCalls = fetchCalls.filter((c) => c.url.includes("/treasury/allocations/alloc-2/reverse"));
@@ -492,7 +492,7 @@ describe("Commercial multi-line invoice draft & Treasury allocation reversal reg
     expect(screen.getByRole("button", { name: "ثبت برگشت" })).toBeDisabled();
 
     const getCountBefore = fetchCalls.filter((c) => c.url.includes("/treasury/documents") && c.method === "GET").length;
-    fireEvent.click(screen.getByRole("button", { name: "بازخوانی و بازبینی اسناد" }));
+    fireEvent.click(screen.getByRole("button", { name: "انصراف" }));
 
     await waitFor(() => {
       const getCountAfter = fetchCalls.filter((c) => c.url.includes("/treasury/documents") && c.method === "GET").length;

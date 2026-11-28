@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowClockwiseIcon, PlugsConnectedIcon } from "@phosphor-icons/react";
+import { PlugsConnectedIcon } from "@phosphor-icons/react";
 import type { BotConnection } from "@/lib/bot-connections";
 import { useBotConnections } from "@/hooks/use-bot-connections";
 import { Button } from "@/components/ui/button";
@@ -28,21 +28,11 @@ function BotConnectionsContent({
       <PageHeader
         title="اتصال‌ها"
         icon={PlugsConnectedIcon}
-        action={
-          <Button
-            variant="secondary"
-            disabled={view.busy || view.loading}
-            onClick={view.refresh}
-          >
-            <ArrowClockwiseIcon size={18} aria-hidden />
-            به‌روزرسانی
-          </Button>
-        }
       />
       {view.loading ? (
         <LoadingState label="در حال دریافت اتصال‌ها" variant="panels" />
       ) : view.error ? (
-        <ErrorState message={view.error.message} onRetry={view.refresh} />
+        <ErrorState message={view.error.message} />
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-2">
           {view.cards.map((card) => (

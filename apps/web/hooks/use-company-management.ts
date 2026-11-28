@@ -10,6 +10,7 @@ export function useCompanyManagement() {
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [businessMode, setBusinessMode] = useState<"trading" | "service">("trading");
   const [snapshot, setSnapshot] = useState<Company | null>(null);
   const selected = selectedId
     ? (workspace.companies.find((item) => item.id === selectedId) ?? snapshot)
@@ -23,8 +24,11 @@ export function useCompanyManagement() {
     selected,
     name,
     setName,
+    businessMode,
+    setBusinessMode,
     openCreate: () => {
       setName("");
+      setBusinessMode("trading");
       setSelectedId(null);
       setCreating(true);
       command.clearError();
@@ -37,6 +41,7 @@ export function useCompanyManagement() {
       setCreating(false);
       setSnapshot(company || null);
       setName(company?.name || "");
+      setBusinessMode(company?.business_mode ?? "trading");
       setSelectedId(id);
       command.clearError();
     },
@@ -50,7 +55,7 @@ export function useCompanyManagement() {
         {
           method: creating ? "POST" : "PATCH",
           version: selected?.version,
-          body: { name: name.trim() },
+          body: { name: name.trim(), business_mode: businessMode },
         },
         () => {
           setCreating(false);

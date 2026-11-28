@@ -78,7 +78,6 @@ export function PlansView() {
         ) : resource.error ? (
           <ErrorState
             message={resource.error.message}
-            onRetry={resource.refresh}
           />
         ) : (
           <>

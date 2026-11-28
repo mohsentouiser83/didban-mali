@@ -45,6 +45,7 @@ class TreasuryAccountDetails(TreasuryAccountOption):
     iban: str | None = None
     branch_name: str | None = None
     branch_code: str | None = None
+    is_official: bool = True
     custodian_name: str | None = None
     custodian_counterparty_id: str | None = None
     petty_cash_limit_irr: str | None = None
@@ -142,6 +143,7 @@ class TreasuryAccountInput(StrictInput):
     iban: str | None = Field(default=None, max_length=34)
     branch_name: str | None = Field(default=None, max_length=120)
     branch_code: str | None = Field(default=None, max_length=30)
+    is_official: bool = True
     custodian_name: str | None = Field(default=None, max_length=120)
     custodian_counterparty_id: str | None = Field(default=None, max_length=36)
     petty_cash_limit_irr: Annotated[str, Field(max_length=80)] | StrictInt | None = None
@@ -175,6 +177,7 @@ class UpdateTreasuryAccountInput(StrictInput):
     iban: str | None = Field(default=None, max_length=34)
     branch_name: str | None = Field(default=None, max_length=120)
     branch_code: str | None = Field(default=None, max_length=30)
+    is_official: bool | None = None
     custodian_name: str | None = Field(default=None, max_length=120)
     custodian_counterparty_id: str | None = Field(default=None, max_length=36)
     petty_cash_limit_irr: Annotated[str, Field(max_length=80)] | StrictInt | None = None

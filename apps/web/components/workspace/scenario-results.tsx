@@ -209,7 +209,6 @@ export function ScenarioResults({
         ) : c.evaluation.error ? (
           <ErrorState
             message={c.evaluation.error.message}
-            onRetry={c.evaluation.refresh}
           />
         ) : c.evaluation.data?.status === "available" ? (
           <>

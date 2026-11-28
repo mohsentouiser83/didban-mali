@@ -48,7 +48,6 @@ function ScenarioBasis({ c }: { c: Controller }) {
           ) : c.forecasts.error ? (
             <ErrorState
               message={c.forecasts.error.message}
-              onRetry={c.forecasts.refresh}
             />
           ) : c.forecasts.data?.items.length ? (
             <>
@@ -79,7 +78,6 @@ function ScenarioBasis({ c }: { c: Controller }) {
         ) : c.statements.error ? (
           <ErrorState
             message={c.statements.error.message}
-            onRetry={c.statements.refresh}
           />
         ) : c.statements.data?.items.length ? (
           <>
@@ -127,7 +125,7 @@ function ScenarioBasis({ c }: { c: Controller }) {
         )}
         {c.frozen.loading && <LoadingState />}
         {c.frozen.error && (
-          <ErrorState message={c.frozen.error.message} onRetry={c.frozen.refresh} />
+          <ErrorState message={c.frozen.error.message} />
         )}
         {c.command.error && (!c.baseline || !c.canWrite) && (
           <ErrorState message={c.command.error.message} />
@@ -143,7 +141,6 @@ function ActualStatement({ c }: { c: Controller }) {
       {c.statements.error ? (
         <ErrorState
           message={c.statements.error.message}
-          onRetry={c.statements.refresh}
         />
       ) : (
         <>

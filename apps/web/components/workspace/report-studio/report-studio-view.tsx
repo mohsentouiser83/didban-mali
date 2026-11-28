@@ -8,7 +8,7 @@ import { useReportStudio } from "@/hooks/use-report-studio";
 import { useWorkspace } from "@/hooks/workspace";
 import type { StudioWidgetSpec } from "@/lib/report-studio";
 import {
-  ArrowClockwiseIcon,
+  EraserIcon,
   ChartBarIcon,
   CheckCircleIcon,
   FilePdfIcon,
@@ -140,7 +140,7 @@ function StudioWorkspace({ definitionId }: { definitionId?: string }) {
                 className="p-2 text-muted hover:text-foreground"
                 title="بازنشانی"
               >
-                <ArrowClockwiseIcon size={18} />
+                <EraserIcon size={18} />
               </Button>
             </div>
           }

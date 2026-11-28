@@ -7,6 +7,7 @@ import {
   parentAccountLevel,
   suggestAccountCode,
   validateAccountCodePattern,
+  visibleAccountRoleOptions,
 } from "./account-catalogue";
 import type { LedgerAccount } from "./accounting";
 
@@ -83,5 +84,19 @@ describe("4-level account coding catalogue", () => {
       ["1101", 1, true, false],
       ["21", 0, false, true],
     ]);
+  });
+
+  it("hides inventory NRV roles in service mode unless currently selected", () => {
+    const tradingRoles = visibleAccountRoleOptions("trading").map((o) => o.value);
+    expect(tradingRoles).toContain("inventory_nrv_allowance");
+
+    const serviceRoles = visibleAccountRoleOptions("service").map((o) => o.value);
+    expect(serviceRoles).not.toContain("inventory_nrv_allowance");
+    expect(serviceRoles).not.toContain("inventory_nrv_expense");
+    expect(serviceRoles).not.toContain("inventory_nrv_recovery");
+    expect(serviceRoles).toContain("revenue");
+
+    const editingLegacy = visibleAccountRoleOptions("service", "inventory_nrv_allowance").map((o) => o.value);
+    expect(editingLegacy).toContain("inventory_nrv_allowance");
   });
 });
